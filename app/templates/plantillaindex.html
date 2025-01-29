@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
     <!-- Configuracion del APP -->
-    
+    HOLA
 <head>
 
     <meta charset="UTF-8">
@@ -32,6 +32,7 @@
                     {% if datosApp.longMenuAppindex > 0 %}
                     <ul>
                         {%for i in datosApp.MenuAppindex %}
+                        
                         <li><a href="{{ url_for('templates', filename=  i.url) }}">{{ i.nombre }}</a></li>
                         {% endfor %}
                     </ul>
