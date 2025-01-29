@@ -1,0 +1,29 @@
+body {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    height: 100vh;
+    background-color: #F5F4F3; /* Fondo claro */
+    color: #1B0D79; /* Texto color azul oscuro */
+    font-family: 'Arial', sans-serif;
+    text-align: center;
+}
+
+h1 {
+    font-size: 4rem;
+    margin: 10px 0;
+}
+
+p {
+    font-size: 1.5rem;
+    margin: 10px 0;
+}
+
+img {
+    width: 350px; /* Ajusta el tamaño del logo */
+    height: auto;
+    margin-bottom: 20px;
+}

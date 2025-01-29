@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="es">
+    <!-- Configuracion del APP -->
+    
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block titulo%} {% endblock%}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/error404.css') }}">     <!-- Enlaza tu archivo de estilo CSS -->
+</head>
+<body>
+    
+
+
+    <!-- Sección principal -->
+    <main>
+        {% block body %}{% endblock%}
+    </main>
+
+</html>

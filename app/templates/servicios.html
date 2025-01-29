@@ -1,0 +1,53 @@
+{%extends './plantillaindex.html'%}
+{%block titulo%}{{datosApp.titulo}}{%endblock%}  
+{%block body%} 
+<section class="bg-cover bg-center h-[400px] flex items-center justify-center" style="background-image: url('/ruta-a-tu-imagen-de-cabecera.jpg');">
+    <div class="text-center text-white">
+      <h1 class="text-4xl font-bold">Nuestros Servicios</h1>
+      <p class="text-lg mt-4">Ofrecemos soluciones personalizadas para cuidar de ti y de tu bienestar.</p>
+    </div>
+  </section>
+  <section class="py-12 bg-gray-50">
+    <div class="container mx-auto px-4">
+      <h2 class="text-3xl font-bold text-center mb-8">¿Qué ofrecemos?</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        
+        <!-- Servicio 1 -->
+        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+          <img src="/ruta-a-imagen-servicio1.jpg" alt="Servicio 1" class="w-full h-48 object-cover">
+          <div class="p-6">
+            <h3 class="text-xl font-semibold mb-2">Ortodoncia</h3>
+            <p class="text-gray-600">Corrección de problemas dentales para lograr una sonrisa perfecta.</p>
+          </div>
+        </div>
+  
+        <!-- Servicio 2 -->
+        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+          <img src="/ruta-a-imagen-servicio2.jpg" alt="Servicio 2" class="w-full h-48 object-cover">
+          <div class="p-6">
+            <h3 class="text-xl font-semibold mb-2">Implantes Dentales</h3>
+            <p class="text-gray-600">Recupera la funcionalidad y estética de tus dientes con nuestros implantes de calidad.</p>
+          </div>
+        </div>
+  
+        <!-- Servicio 3 -->
+        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+          <img src="/ruta-a-imagen-servicio3.jpg" alt="Servicio 3" class="w-full h-48 object-cover">
+          <div class="p-6">
+            <h3 class="text-xl font-semibold mb-2">Blanqueamiento Dental</h3>
+            <p class="text-gray-600">Luce una sonrisa más blanca y brillante con nuestros tratamientos seguros y efectivos.</p>
+          </div>
+        </div>
+  
+      </div>
+    </div>
+  </section>
+  <section class="bg-gradient-to-r from-blue-500 to-green-400 text-white py-12">
+    <div class="container mx-auto text-center">
+      <h2 class="text-2xl font-bold mb-4">¿Listo para mejorar tu sonrisa?</h2>
+      <p class="mb-6">Agenda tu cita con nosotros y descubre cómo podemos ayudarte.</p>
+      <a href="/contacto" class="bg-white text-blue-600 font-bold py-3 px-6 rounded-full shadow-lg hover:bg-gray-100 transition">Agendar una cita</a>
+    </div>
+  </section>
+  
+{%endblock%}

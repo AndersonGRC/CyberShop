@@ -1,0 +1,91 @@
+{%extends './plantillaindex.html'%}
+{%block titulo%}{{datosApp.titulo}}{%endblock%}  
+{%block body%} 
+<div class="slider">
+    <div class="slide active">
+      <img src="{{url_for('static',filename='img/Slider-Decuento.png')}}">
+      <div class="info">
+        <br>
+        <h2> Descuentos en Tecnología y Reparación</h2>
+        <br>
+        <p>Descuento exclusivo en componentes de computadora y servicios de reparación. Renueva o mejora tu equipo con las mejores ofertas. ¡Solo por tiempo limitado!</p>
+    </div>
+    </div>
+    <div class="slide">
+      <img src="{{url_for('static',filename='img/Slider-Web.png')}}">
+
+    </div>
+    <div class="slide">
+      <img src="{{url_for('static',filename='img/Slider-Reparacion.png')}}" >
+      <div class="info">
+        <br>
+        <h2> ¡Tu Tecnología en Buenas Manos!</h2>
+        <br>
+        <p>En CyberShop, somos expertos en la reparación de dispositivos tecnológicos. Desde celulares y laptops hasta tablets y consolas de videojuegos, solucionamos cualquier problema con rapidez, calidad y a un precio justo.
+          Confía en nosotros para que tu tecnología funcione como nueva. ¡Te esperamos!</p>
+      </div>
+    </div>
+    <div class="slide">
+      <img src="{{url_for('static',filename='img/Slider-Seguridad.png')}} ">
+      <div class="info">
+        <br>
+        <h2> Conectamos y Protegemos tu Espacio </h2>
+        <br>
+        <p>Ofrecemos instalación profesional de cableado estructurado, sistemas de vigilancia y cámaras de seguridad para garantizar la conectividad y protección de tu hogar o empresa. Soluciones modernas, eficientes y adaptadas a tus necesidades. ¡Confía en los expertos!</p>
+      </div>
+      
+    </div>
+    <div class="slide">
+      <img src="{{url_for('static',filename='img/Slider-IA.png')}}" >
+      <div class="info">
+        <br>
+        <h2> Simplifica y Acelera tu Negocio</h2>
+        <br>  <br>
+        <p>Nos encargamos de buscar y automatizar las tareas de tu empresa para que ahorres tiempo y maximices resultados. Olvídate de procesos repetitivos y enfócate en lo que realmente importa: ¡hacer crecer tu negocio!</p>
+        
+        
+      </div>
+    </div>
+    <div class="navigation">
+      <i class="fas fa-chevron-left prev-btn"></i>
+
+      <i class="fas fa-chevron-right next-btn"></i>
+        
+    </div>
+    <div class="navigation-visibility">
+      <div class="slide-icon active"></div>
+      <div class="slide-icon"></div>
+      <div class="slide-icon"></div>
+      <div class="slide-icon"></div>
+      <div class="slide-icon"></div>
+      </div>
+      </div>
+      <div class="contact-container">
+        <div class="map-container">
+            <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3976.1438661161997!2d-74.12405722491505!3d4.7450433952301445!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8e3f8481ac8fae15%3A0xd086f2615f6ea83!2sCra.%20151%20%23136a11%2C%20Suba%2C%20Bogot%C3%A1!5e0!3m2!1ses!2sco!4v1737344695200!5m2!1ses!2sco" width="100%" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        </div>
+        
+        <div class="contact-form">
+            <h2>Contáctanos</h2>
+            <form action="#" method="POST">
+                <div class="form-group">
+                    <label for="name">Nombre</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Correo Electrónico</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="message">Mensaje</label>
+                    <textarea id="message" name="message" rows="4" required></textarea>
+                </div>
+                <button type="submit">Enviar</button>
+            </form>
+        </div>
+    </div>
+    
+    <script type="text/javascript" src="{{ url_for('static', filename='js/layout.js') }}"></script>
+
+
+{%endblock%}

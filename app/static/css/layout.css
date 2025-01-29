@@ -1,0 +1,481 @@
+* {
+    box-sizing: border-box;
+    font-family: 'Open Sans';
+    padding: 0;
+    margin: 0;
+}
+
+/* Logo */
+.logo {
+    font-family: 'Cooper Black';
+    font-size: 70px;
+}
+
+/* Logo principal */
+.logo_main {
+    padding-top: 100px;
+    height: 120px;
+    padding: 12px;
+    background: linear-gradient(45deg, #F5F4F3, #0e1b33);
+    color: #0e1b33;
+    cursor: default;
+    z-index: 10; /* Logo principal sobre otros elementos */
+}
+
+/* Logo pequeño */
+.logo_small {
+    display: inline-block;
+    font-size: 20px; /* Tamaño ligeramente mayor */
+    padding: 3px 5px; /* Espaciado más equilibrado */
+    margin-right: 30px;
+    margin-left: 0px; /* Menor margen para mejor alineación */
+    color: #F5F4F3; /* Mantiene el color principal */
+    background-color: #4A4A4A; /* Fondo contrastante */
+    border-radius: 6px; /* Bordes redondeados */
+    cursor: pointer;
+    z-index: 11; /* Mantiene el logo por encima de otros elementos */
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2); /* Sombra ligera */
+    transition: all 0.3s ease; /* Suaviza las interacciones */
+}
+
+.logo_small:hover {
+    color: #FFFFFF; /* Cambio a blanco puro */
+    background-color: #0e1b33; /* Color de fondo resaltado */
+    transform: scale(1.1); /* Efecto de crecimiento */
+    box-shadow: 0px 6px 6px rgba(0, 0, 0, 0.3); /* Sombra más pronunciada */
+}
+
+/* Barra de navegación */
+.nav {
+    z-index: 20; /* Barra de navegación sobre el contenido */
+    float: left;
+    width: 100%;
+    background: #222;
+    color: white;
+    padding: 0 20px;
+    transition: .3s ease all;
+    backface-visibility: hidden;
+    transform: translate3d(0, 0, 0);
+    -webkit-transform: translate3d(0, 0, 0);
+}
+
+/* Wrapper de la navegación */
+.nav .wrap {
+    position: relative;
+    left: -150px;
+    transition: 0.4s ease all;
+    z-index: 21; /* Wrapper de la navegación sobre el menú */
+}
+
+nav {
+    display: inline-block;
+}
+
+nav ul {
+    margin: 0;
+    padding: 0;
+}
+
+nav li {
+    margin: 0;
+    padding: 0;
+    display: inline-block;
+}
+
+nav a {
+    display: block;
+    padding: 20px;
+    margin: 0;
+    color: white;
+    text-decoration: none;
+    transition: 0.2s ease all;
+}
+
+nav a:hover {
+    color: #F5F4F3;
+    background: #0e1b33;
+}
+
+.main {
+    background: white;
+    padding: 80px;
+    z-index: 5; /* Contenido principal sobre el footer */
+}
+
+/* Menú fijo */
+body.nav_fixed .nav {
+    position: fixed;
+    top: 0;
+}
+
+body.nav_fixed .nav .wrap {
+    left: 0;
+}
+
+/* Botón de menú */
+.btn-menu {
+    width: 60px;
+    height: 60px;
+    padding: 22px;
+    text-align: center;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #0e1b33;
+    border-radius: 50%;
+    color: white;
+    cursor: pointer;
+    transition: all 500ms cubic-bezier(1, 0, 0, 1);
+    transform: translateX(100px);
+    z-index: 02; /* Botón de menú sobre el footer */
+}
+
+.btn-menu:hover {
+    transform: scale(1.2);
+    background: #0e1b33;
+}
+
+/* MENU RESPONSIVO */
+#logo {
+    margin-left: 20px;
+    margin-top: 0px;
+    height: 900px;
+    width: 130px;
+    max-height: 100px;
+    max-width: 190px;
+}
+
+@media screen and (max-width: 800px) {
+    .btn-menu {
+        transform: translateX(0px);
+        z-index: 100;
+    }
+
+    .logo_main {
+        display: none;
+    }
+
+    .nav {
+        width: 60%;
+        position: fixed;
+        top: 0;
+        height: 100vh;
+        padding: 0px;
+        transform: translateX(-100%);
+        z-index: 20; /* Barra de navegación fija sobre el contenido */
+    }
+
+    .nav .wrap {
+        left: 0;
+        z-index: 21;
+    }
+
+    nav {
+        width: 100%;
+        position: absolute;
+        top: 60px;
+    }
+
+    nav li {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        display: block;
+    }
+
+    .logo_small {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+    }
+
+    nav a {
+        width: 100%;
+        display: flex;
+        padding: 20px;
+        margin: 0;
+    }
+
+    .nav-toggle {
+        transition: all 400ms cubic-bezier(1, 0, 0, 1);
+        transform: translateX(0%);
+    }
+
+    .main {
+        background: white;
+        padding: 20px;
+        z-index: 5;
+    }
+}
+
+/* CARRUSEL DE IMÁGENES */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700;800;900&display=swap');
+
+.slider {
+    position: relative;
+    background: grey;
+    width: 100%;
+    min-height: 500px;
+    overflow: hidden;
+    z-index: 15; /* Carrusel sobre el contenido */
+}
+
+.slider .slide {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    clip-path: circle(0% at 0 50%);
+    z-index: 10; /* Cada slide en el carrusel */
+}
+
+.slider .slide.active {
+    clip-path: circle(150% at 0 50%);
+    transition: 2s;
+}
+
+.slider .slide img {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.slider .slide .info {
+    position: absolute;
+    color: #222;
+    width: 30%;
+    height: 80%;
+    margin-top: 40px;
+    margin-left: 35px;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 5px 15px rgb(1 1 1 / 5%);
+    z-index: 12; /* Información dentro de cada slide */
+}
+
+.slider .slide .info h2 {
+    color: aliceblue;
+    text-align: center;
+    font-size: 45px;
+    font-weight: 800;
+}
+
+.slider .slide .info p {
+    font-family: cursive;
+    color: aliceblue;
+    font-size: 1em;
+    font-weight: 400;
+}
+
+.navigation {
+    height: 500px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    z-index: 13; /* Navegación de las imágenes */
+}
+
+.slider:hover .navigation {
+    opacity: 1;
+}
+
+.prev-btn, .next-btn {
+    z-index: 14; /* Los botones de navegación deben estar sobre el contenido de las imágenes */
+    font-size: 2em;
+    color: #222;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 10px;
+    cursor: pointer;
+}
+
+.prev-btn {
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+}
+
+.next-btn {
+    border-top-left-radius: 3px;
+    border-bottom-left-radius: 3px;
+}
+
+.navigation-visibility {
+    z-index: 16;
+    display: flex;
+    justify-content: center;
+}
+
+.navigation-visibility .slide-icon {
+    z-index: 17;
+    background: rgba(255, 255, 255, 0.5);
+    width: 20px;
+    height: 10px;
+    transform: translateY(-50px);
+    margin: 0 6px;
+    border-radius: 2px;
+    box-shadow: 0 5px 25px rgb(1 1 1 / 20%);
+}
+
+.navigation-visibility .slide-icon.active {
+    background: #0e1b33;
+}
+
+/* Contenedor de contacto */
+.contact-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    margin-top: 30px;
+}
+
+/* Contenedor del mapa */
+.map-container {
+    width: 48%;
+    height: 100%;
+    margin-left: 1%;
+}
+
+/* Formulario de contacto */
+.contact-form {
+    width: 48%;
+    margin-right: 1%;
+    background-color: #f9f9f9;
+    padding: 30px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    text-align: center;
+    z-index: 2;
+}
+
+.contact-form h2 {
+    font-size: 24px;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.contact-form .form-group {
+    margin-bottom: 15px;
+    text-align: left;
+}
+
+.contact-form label {
+    font-size: 16px;
+    color: #555;
+    display: block;
+}
+
+.contact-form input, .contact-form textarea {
+    width: 100%;
+    padding: 12px;
+    margin-top: 8px;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+    font-size: 16px;
+}
+
+.contact-form input:focus, .contact-form textarea:focus {
+    outline-color: #0e1b33
+  
+}
+
+.contact-form button {
+    padding: 10px 20px;
+    background-color: #0e1b33;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.contact-form button:hover {
+    background-color: #ffffff;
+    color: #000;
+}
+
+@media (max-width: 768px) {
+    .map-container, .contact-form {
+        width: 100%;
+    }
+}
+
+
+/* FOOTER */
+.footer {
+    width: 100%;
+    background-color: #0e1b33;
+    color: white;
+    text-align: center;
+    padding: 20px;
+}
+
+
+
+
+.footer-content h3 {
+    font-size: 1.8rem;
+    font-weight: 400;
+    text-transform: capitalize;
+    line-height: 3rem;
+}
+
+.footer-content p {
+    max-width: 500px;
+    margin: 0 auto;
+    line-height: 28px;
+    font-size: 14px;
+}
+
+.socials {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 1rem 0 2rem 0;
+}
+
+.socials li {
+    margin: 0 30px;
+}
+
+.socials a {
+    text-decoration: none;
+    color: #fff;
+}
+
+.socials a i {
+    font-size: 1.1rem;
+    transition: color .4s ease;
+}
+
+.socials a:hover i {
+    color: #0e1b33;
+}
+
+.footer-bottom {
+    width: 100%;
+    padding: 20px 0;
+    text-align: center;
+}
+
+.footer-bottom p {
+    font-size: 14px;
+    word-spacing: 2px;
+    color: #f4f4f4;
+    margin-top: 10px;
+    letter-spacing: 1px;
+}
+.empresa {
+    font-size: 14px;
+    word-spacing: 2px;
+    color: #f4f4f4;
+    margin-top: 10px;
+    letter-spacing: 1px;
+}
+
+.empresa:hover{
+
+    color: #0e1b33;
+}
