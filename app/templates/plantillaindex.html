@@ -1,57 +1,47 @@
 <!DOCTYPE html>
 <html lang="es">
-    <!-- Configuracion del APP -->
-    
 <head>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block titulo%} {% endblock%}</title>
     <link rel="shortcut icon" href="{{ url_for('static', filename='img/Logo.PNG') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">     <!-- Enlaza tu archivo de estilo CSS -->
-    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css" integrity="sha384-hWVjflwFxL6sNzntih27bfxkr27PmbbK/iSvJ+a4+0owXq79v+lsFkW54bOGbiDQ" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css">
     <link href="https://fonts.googleapis.com/css?family=Dancing+Script|Raleway:500,600&display=swap" rel="stylesheet">
-    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
     <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
-
 </head>
 <body>
-    
 
-    <!-- Menu principal -->
+    <!-- Menú principal -->
     <header>
-   
-        <div class="logo logo_main"> <img id="logo" src="{{url_for('static',filename='img/Logo.PNG')}}"></div>
+        <div class="logo logo_main"> 
+            <img id="logo" src="{{ url_for('static', filename='img/Logo.PNG') }}">
+        </div>
          
-         <div class="nav">
-             <div class="wrap">
-                 <div class="logo logo_small">CYBERSHOP</div>
-                 <nav>
+        <div class="nav">
+            <div class="wrap">
+                <div class="logo logo_small">CYBERSHOP</div>
+                <nav>
                     {% if datosApp.longMenuAppindex > 0 %}
                     <ul>
-                        {%for i in datosApp.MenuAppindex %}
-                        
-                        <li><a href="{{ url_for('templates', filename=  i.url) }}">{{ i.nombre }}</a></li>
+                        {% for i in datosApp.MenuAppindex %}
+                        <li><a href="{{ url_for('pagina', filename=i.url) }}">{{ i.nombre }}</a></li>
                         {% endfor %}
                     </ul>
+                    {% else %}
+                    <h2>NO HAY DATOS DEL APP</h2>
+                    {% endif %}
                 </nav> 
-     {% else %}
-    <h2>NO HAY DATOS DEL APP</h2>
-    {% endif %} 
-                 </nav>
-             </div>
-         </div>
-     <i class="fas fa-ellipsis-v btn-menu"></i>
-         
-        <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
-         </header>
-
+            </div>
+        </div>
+        <i class="fas fa-ellipsis-v btn-menu"></i>
+    </header>
 
     <!-- Sección principal -->
     <main>
-        {% block body %}{% endblock%}
+        {% block body %}{% endblock %}
     </main>
 
     <!-- Pie de página -->
@@ -60,18 +50,18 @@
             <h3>CyberShop Colombia</h3>
             <p>Síguenos en nuestras redes sociales y compra nuestros planes especiales.</p>
             <ul class="socials">
-                <li><a href="#"><i class="fa fa-facebook" target="_blank"></i></a></li>
-                <li><a href="#"><i class="fa fa-twitter" target="_blank"></i></a></li>
-                <li><a href="#"><i class="fa fa-google-plus" target="_blank"></i></a></li>
-                <li><a href="#"><i class="fa fa-youtube" target="_blank"></i></a></li>
+                <li><a href="#"><i class="fa fa-facebook"></i></a></li>
+                <li><a href="#"><i class="fa fa-twitter"></i></a></li>
+                <li><a href="#"><i class="fa fa-google-plus"></i></a></li>
+                <li><a href="#"><i class="fa fa-youtube"></i></a></li>
                 <li><a href="https://www.linkedin.com/in/andersonroatech/" target="_blank"><i class="fa fa-linkedin-square"></i></a></li>
             </ul>
         </div>
         <div class="footer-bottom">
-            <p>&copy;2025 CyberShop Colombia. </p>
-                <span class= "Empresa">Desarrollador: andersongermancavi@gmail.com</span>
+            <p>&copy;2025 CyberShop Colombia.</p>
+            <span class="Empresa">Desarrollador: andersongermancavi@gmail.com</span>
         </div>
     </footer>
 
 </body>
-</html>
+</
