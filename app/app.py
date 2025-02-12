@@ -1,41 +1,54 @@
-from flask import Flask , render_template , url_for
-from flask import send_from_directory
-
+from flask import Flask, render_template, url_for
 
 app = Flask(__name__)
+
+# Ruta principal
 @app.route('/')
-
-@app.route('/templates/<filename>')
-def templates(filename):
-    # Lógica para servir archivos desde otra carpeta
-    return send_from_directory('templates', filename)
-
-
 def index():
-    MenuApp =[{"nombre": "Inicio", "url": "index.html"},
-    {"nombre": "Productos", "url": "#"},
-    {"nombre": "Servicios", "url":"servicios.html"},
-    {"nombre": "¿Quienes Somos?", "url": "#"},
-    {"nombre": "Contactanos", "url": "#"},
-    {"nombre": "Ingresar", "url": "#"}]
+    MenuApp = [
+        {"nombre": "Inicio", "url": "index"},
+        {"nombre": "Productos", "url": "#"},
+        {"nombre": "Servicios", "url": "servicios"},
+        {"nombre": "¿Quienes Somos?", "url": "#"},
+        {"nombre": "Contactanos", "url": "#"},
+        {"nombre": "Ingresar", "url": "#"}
+    ]
+    
     datosApp = {
-        'titulo' : 'CyberShop',
-        'MenuAppindex' : MenuApp,
-        'longMenuAppindex' : len(MenuApp)
+        'titulo': 'CyberShop',
+        'MenuAppindex': MenuApp,
+        'longMenuAppindex': len(MenuApp)
     }
 
-    #return"Hola"
-    
-    return render_template('index.html' , datosApp=datosApp)
+    return render_template('index.html', datosApp=datosApp)
 
-    
-    return render_template(data=data)
 
+# Ruta para cargar otras páginas, asegurando que `datosApp` siempre esté presente
+@app.route('/pagina/<filename>')
+def pagina(filename):
+    MenuApp = [
+        {"nombre": "Inicio", "url": "index"},
+        {"nombre": "Productos", "url": "#"},
+        {"nombre": "Servicios", "url": "servicios"},
+        {"nombre": "¿Quienes Somos?", "url": "#"},
+        {"nombre": "Contactanos", "url": "#"},
+        {"nombre": "Ingresar", "url": "#"}
+    ]
+    
+    datosApp = {
+        'titulo': 'CyberShop',
+        'MenuAppindex': MenuApp,
+        'longMenuAppindex': len(MenuApp)
+    }
+
+    return render_template(f"{filename}.html", datosApp=datosApp)
+
+
+# Manejo de errores 404
+@app.errorhandler(404)
 def pagina_no_encontrada(error):
     return render_template('404.html'), 404
 
+
 if __name__ == '__main__':
-    app.register_error_handler(404, pagina_no_encontrada)
-    app.run(debug=True , port= 8080)
-    
-    
+    app.run(debug=True, port=8080)
