@@ -1,0 +1,87 @@
+{%extends './plantillaindex.html'%}
+{%block titulo%}{{datosApp.titulo}}{%endblock%}  
+{{ url_for('static', filename='img/Logo.PNG') }}
+{%block LinkAdicional%} 
+<link rel="stylesheet" href="{{ url_for('static', filename='css/Productos.css') }}">
+{%endblock%} 
+
+
+{%block body%} 
+<div class="container">
+    <!-- Contenido principal -->
+    <div class="main-content">
+        <h2>Productos Disponibles</h2>
+        <div class="productos">
+            <!-- Productos generados dinámicamente -->
+            <div class="producto" data-id="1" data-name="Producto 1" data-price="10.00">
+                <h3>Producto 1</h3>
+                <p>$10.00</p>
+                <button class="añadir-carrito">Añadir al carrito</button>
+            </div>
+            <div class="producto" data-id="2" data-name="Producto 2" data-price="15.00">
+                <h3>Producto 2</h3>
+                <p>$15.00</p>
+                <button class="añadir-carrito">Añadir al carrito</button>
+            </div>
+            <div class="producto" data-id="3" data-name="Producto 3" data-price="20.00">
+                <h3>Producto 3</h3>
+                <p>$20.00</p>
+                <button class="añadir-carrito">Añadir al carrito</button>
+            </div>
+            <!-- Más productos -->
+            <div class="producto" data-id="4" data-name="Producto 4" data-price="25.00">
+                <h3>Producto 4</h3>
+                <p>$25.00</p>
+                <button class="añadir-carrito">Añadir al carrito</button>
+            </div>
+            <div class="producto" data-id="5" data-name="Producto 5" data-price="30.00">
+                <h3>Producto 5</h3>
+                <p>$30.00</p>
+                <button class="añadir-carrito">Añadir al carrito</button>
+            </div>
+            <div class="producto" data-id="6" data-name="Producto 6" data-price="35.00">
+                <h3>Producto 6</h3>
+                <p>$35.00</p>
+                <button class="añadir-carrito">Añadir al carrito</button>
+            </div>
+            <div class="producto" data-id="6" data-name="Producto 6" data-price="35.00">
+                <h3>Producto 6</h3>
+                <p>$35.00</p>
+                <button class="añadir-carrito">Añadir al carrito</button>
+            </div>
+            <div class="producto" data-id="6" data-name="Producto 6" data-price="35.00">
+                <h3>Producto 6</h3>
+                <p>$35.00</p>
+                <button class="añadir-carrito">Añadir al carrito</button>
+            </div>
+           <div class="producto" data-id="6" data-name="Producto 6" data-price="35.00">
+                <h3>Producto 6</h3>
+                <p>$35.00</p>
+                <button class="añadir-carrito">Añadir al carrito</button>
+            </div>
+             <div class="producto" data-id="6" data-name="Producto 6" data-price="35.00">
+                <h3>Producto 6</h3>
+                <p>$35.00</p>
+                <button class="añadir-carrito">Añadir al carrito</button>
+            </div>
+            <div class="producto" data-id="6" data-name="Producto 6" data-price="35.00">
+                <h3>Producto 6</h3>
+                <p>$35.00</p>
+                <button class="añadir-carrito">Añadir al carrito</button>
+            </div>
+           
+        </div>
+    </div>
+
+        <!-- Carrito de compras -->
+        <div class="carrito-lateral">
+            <h2>Carrito de Compras</h2>
+            <ul id="lista-carrito">
+                <!-- Los productos añadidos aparecerán aquí -->
+            </ul>
+            <p>Total: <span id="total">$0.00</span></p>
+            <button id="vaciar-carrito">Vaciar Carrito</button>
+        </div>
+    </div>
+<script src="{{ url_for('static', filename='js/Shoppingcar.js') }}"></script>
+{%endblock%}

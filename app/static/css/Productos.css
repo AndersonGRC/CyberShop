@@ -1,0 +1,91 @@
+/* Contenedor principal */
+.container {
+    display: flex;
+    flex: 1;
+    padding: 20px;
+    gap: 20px; /* Espacio entre el contenido principal y el carrito */
+}
+
+/* Contenido principal */
+.main-content {
+    flex: 1;
+}
+
+.productos {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.producto {
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 15px;
+    width: 200px;
+    text-align: center;
+}
+
+.producto h3 {
+    margin: 0 0 10px;
+}
+
+.producto p {
+    margin: 0 0 15px;
+    font-size: 18px;
+    color: #333;
+}
+
+.añadir-carrito {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.añadir-carrito:hover {
+    background-color: #218838;
+}
+
+/* Carrito lateral */
+.carrito-lateral {
+    width: 300px;
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-left: 1px solid #ccc;
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+    position: relative; /* Cambiado a relativo */
+    overflow-y: auto; /* Scroll si el contenido es muy largo */
+}
+
+.carrito-lateral h2 {
+    margin-top: 0;
+}
+
+#lista-carrito {
+    list-style: none;
+    padding: 0;
+}
+
+#lista-carrito li {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #ccc;
+}
+
+#vaciar-carrito {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 20px;
+}
+
+#vaciar-carrito:hover {
+    background-color: #c82333;
+}

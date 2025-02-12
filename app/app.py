@@ -7,7 +7,7 @@ app = Flask(__name__)
 def index():
     MenuApp = [
         {"nombre": "Inicio", "url": "index"},
-        {"nombre": "Productos", "url": "#"},
+        {"nombre": "Productos", "url": "productos"},
         {"nombre": "Servicios", "url": "servicios"},
         {"nombre": "¿Quienes Somos?", "url": "#"},
         {"nombre": "Contactanos", "url": "#"},
@@ -28,7 +28,7 @@ def index():
 def pagina(filename):
     MenuApp = [
         {"nombre": "Inicio", "url": "index"},
-        {"nombre": "Productos", "url": "#"},
+        {"nombre": "Productos", "url": "productos"},
         {"nombre": "Servicios", "url": "servicios"},
         {"nombre": "¿Quienes Somos?", "url": "#"},
         {"nombre": "Contactanos", "url": "#"},
