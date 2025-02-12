@@ -2,6 +2,27 @@ from flask import Flask, render_template, url_for
 
 app = Flask(__name__)
 
+# Ruta principal
+@app.route('/')
+def index():
+    MenuApp = [
+        {"nombre": "Inicio", "url": "index"},
+        {"nombre": "Productos", "url": "#"},
+        {"nombre": "Servicios", "url": "servicios"},
+        {"nombre": "¿Quienes Somos?", "url": "#"},
+        {"nombre": "Contactanos", "url": "#"},
+        {"nombre": "Ingresar", "url": "login"}
+    ]
+    
+    datosApp = {
+        'titulo': 'CyberShop',
+        'MenuAppindex': MenuApp,
+        'longMenuAppindex': len(MenuApp)
+    }
+
+    return render_template('index.html', datosApp=datosApp)
+
+
 # Ruta para cargar otras páginas, asegurando que `datosApp` siempre esté presente
 @app.route('/pagina/<filename>')
 def pagina(filename):
