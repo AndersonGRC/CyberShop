@@ -1,5 +1,11 @@
 {%extends './plantillaindex.html'%}
 {%block titulo%}{{datosApp.titulo}}{%endblock%}  
+{{ url_for('static', filename='img/Logo.PNG') }}
+{%block LinkAdicional%} 
+<link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+{%endblock%} 
+
+
 {%block body%} 
-sd
+
 {%endblock%}

@@ -2,8 +2,6 @@ from flask import Flask, render_template, url_for
 
 app = Flask(__name__)
 
-
-
 # Ruta para cargar otras páginas, asegurando que `datosApp` siempre esté presente
 @app.route('/pagina/<filename>')
 def pagina(filename):
