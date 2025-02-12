@@ -5,6 +5,7 @@
     margin: 0;
 }
 
+
 /* Logo */
 .logo {
     font-family: 'Cooper Black';
@@ -14,7 +15,7 @@
 /* Logo principal */
 .logo_main {
     padding-top: 100px;
-    height: 120px;
+    height: 110px;
     padding: 12px;
     background: linear-gradient(45deg, #F5F4F3, #0e1b33);
     color: #0e1b33;
@@ -25,10 +26,9 @@
 /* Logo pequeño */
 .logo_small {
     display: inline-block;
-    font-size: 20px; /* Tamaño ligeramente mayor */
+    font-size: 18px; /* Tamaño ligeramente mayor */
     padding: 3px 5px; /* Espaciado más equilibrado */
     margin-right: 30px;
-    margin-left: 0px; /* Menor margen para mejor alineación */
     color: #F5F4F3; /* Mantiene el color principal */
     background-color: #4A4A4A; /* Fondo contrastante */
     border-radius: 6px; /* Bordes redondeados */
@@ -41,9 +41,11 @@
 .logo_small:hover {
     color: #FFFFFF; /* Cambio a blanco puro */
     background-color: #0e1b33; /* Color de fondo resaltado */
-    transform: scale(1.1); /* Efecto de crecimiento */
+    transform: scale(1.2); /* Efecto de crecimiento */
     box-shadow: 0px 6px 6px rgba(0, 0, 0, 0.3); /* Sombra más pronunciada */
 }
+
+
 
 /* Barra de navegación */
 .nav {
@@ -186,7 +188,7 @@ body.nav_fixed .nav .wrap {
     .logo_small {
         position: absolute;
         top: 10px;
-        left: 10px;
+        left: 5px;
     }
 
     nav a {

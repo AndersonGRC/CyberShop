@@ -214,3 +214,6 @@ Vue.component('card', {
 const app = new Vue({
     el: '#app' // Conecta Vue al elemento con id 'app'
 });
+
+
+
