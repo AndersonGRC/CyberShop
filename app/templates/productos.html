@@ -1,87 +1,64 @@
-{%extends './plantillaindex.html'%}
-{%block titulo%}{{datosApp.titulo}}{%endblock%}  
-{{ url_for('static', filename='img/Logo.PNG') }}
-{%block LinkAdicional%} 
+{% extends './plantillaindex.html' %}
+
+{% block titulo %}{{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/Productos.css') }}">
-{%endblock%} 
+{% endblock %}
 
-
-{%block body%} 
+{% block body %}
 <div class="container">
     <!-- Contenido principal -->
     <div class="main-content">
         <h2>Productos Disponibles</h2>
         <div class="productos">
             <!-- Productos generados dinámicamente -->
-            <div class="producto" data-id="1" data-name="Producto 1" data-price="10.00">
-                <h3>Producto 1</h3>
-                <p>$10.00</p>
-                <button class="añadir-carrito">Añadir al carrito</button>
-            </div>
-            <div class="producto" data-id="2" data-name="Producto 2" data-price="15.00">
-                <h3>Producto 2</h3>
-                <p>$15.00</p>
-                <button class="añadir-carrito">Añadir al carrito</button>
-            </div>
-            <div class="producto" data-id="3" data-name="Producto 3" data-price="20.00">
-                <h3>Producto 3</h3>
-                <p>$20.00</p>
-                <button class="añadir-carrito">Añadir al carrito</button>
-            </div>
-            <!-- Más productos -->
-            <div class="producto" data-id="4" data-name="Producto 4" data-price="25.00">
-                <h3>Producto 4</h3>
-                <p>$25.00</p>
-                <button class="añadir-carrito">Añadir al carrito</button>
-            </div>
-            <div class="producto" data-id="5" data-name="Producto 5" data-price="30.00">
-                <h3>Producto 5</h3>
-                <p>$30.00</p>
-                <button class="añadir-carrito">Añadir al carrito</button>
-            </div>
-            <div class="producto" data-id="6" data-name="Producto 6" data-price="35.00">
-                <h3>Producto 6</h3>
-                <p>$35.00</p>
-                <button class="añadir-carrito">Añadir al carrito</button>
-            </div>
-            <div class="producto" data-id="6" data-name="Producto 6" data-price="35.00">
-                <h3>Producto 6</h3>
-                <p>$35.00</p>
-                <button class="añadir-carrito">Añadir al carrito</button>
-            </div>
-            <div class="producto" data-id="6" data-name="Producto 6" data-price="35.00">
-                <h3>Producto 6</h3>
-                <p>$35.00</p>
-                <button class="añadir-carrito">Añadir al carrito</button>
-            </div>
-           <div class="producto" data-id="6" data-name="Producto 6" data-price="35.00">
-                <h3>Producto 6</h3>
-                <p>$35.00</p>
-                <button class="añadir-carrito">Añadir al carrito</button>
-            </div>
-             <div class="producto" data-id="6" data-name="Producto 6" data-price="35.00">
-                <h3>Producto 6</h3>
-                <p>$35.00</p>
-                <button class="añadir-carrito">Añadir al carrito</button>
-            </div>
-            <div class="producto" data-id="6" data-name="Producto 6" data-price="35.00">
-                <h3>Producto 6</h3>
-                <p>$35.00</p>
-                <button class="añadir-carrito">Añadir al carrito</button>
-            </div>
-           
+            {% if datosApp.productos %}
+                {% for producto in datosApp.productos %}
+                    <div class="producto" 
+                         data-id="{{ producto[0] }}" 
+                         data-name="{{ producto[2] }}" 
+                         data-price="{{ producto[3] }}" 
+                         data-reference="{{ producto[4] }}" 
+                         data-gender="{{ producto[5] }}" 
+                         data-description="{{ producto[6] }}" 
+                         data-image="{{ producto[1] }}">
+                        <img src="{{ producto[1] }}" alt="{{ producto[2] }}" style="width: 100%; border-radius: 8px; margin-bottom: 10px;">
+                        <h3>{{ producto[2] }}</h3>
+                        <p>${{ producto[3] }}</p>
+                        <button class="añadir-carrito">Añadir al carrito</button>
+                        <button class="ver-descripcion">Ver Detalles</button> <!-- Botón para ver los detalles -->
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>No hay productos disponibles.</p>
+            {% endif %}
         </div>
     </div>
 
-        <!-- Carrito de compras -->
-        <div class="carrito-lateral">
-            <h2>Carrito de Compras</h2>
-            <ul id="lista-carrito">
-                <!-- Los productos añadidos aparecerán aquí -->
-            </ul>
-            <p>Total: <span id="total">$0.00</span></p>
-            <button id="vaciar-carrito">Vaciar Carrito</button>
+    <!-- Carrito de compras -->
+    <div class="carrito-lateral">
+        <h2>Carrito de Compras</h2>
+        <ul id="lista-carrito">
+            <!-- Los productos añadidos aparecerán aquí -->
+        </ul>
+        <p>Total: <span id="total">$0.00</span></p>
+        <button id="vaciar-carrito">Vaciar Carrito</button>
+    </div>
+
+    <!-- Pop-up para los detalles del producto -->
+    <div id="popup-descripcion" class="popup">
+        <div class="popup-contenido">
+            <span class="cerrar-popup">&times;</span>
+            <img id="popup-imagen" src="" alt="Imagen del producto" style="width: 100%; border-radius: 8px; margin-bottom: 10px;">
+            <h2 id="popup-titulo"></h2>
+            <p><strong>Referencia:</strong> <span id="popup-referencia"></span></p>
+            <p><strong>Género:</strong> <span id="popup-genero"></span></p>
+            <p><strong>Descripción:</strong> <span id="popup-descripcion-texto"></span></p>
+            <p><strong>Precio:</strong> $<span id="popup-precio"></span></p>
         </div>
     </div>
+</div>
+
 <script src="{{ url_for('static', filename='js/Shoppingcar.js') }}"></script>
-{%endblock%}
+{% endblock %}

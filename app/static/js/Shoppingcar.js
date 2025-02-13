@@ -48,4 +48,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
         totalElement.textContent = `$${total.toFixed(2)}`;
     }
+
+    // Lógica para el pop-up de detalles del producto
+    const botonesDescripcion = document.querySelectorAll('.ver-descripcion');
+    const popup = document.getElementById('popup-descripcion');
+    const popupImagen = document.getElementById('popup-imagen');
+    const popupTitulo = document.getElementById('popup-titulo');
+    const popupReferencia = document.getElementById('popup-referencia');
+    const popupGenero = document.getElementById('popup-genero');
+    const popupDescripcion = document.getElementById('popup-descripcion-texto');
+    const popupPrecio = document.getElementById('popup-precio');
+    const cerrarPopup = document.querySelector('.cerrar-popup');
+
+    botonesDescripcion.forEach(boton => {
+        boton.addEventListener('click', () => {
+            const producto = boton.parentElement;
+            const nombre = producto.getAttribute('data-name');
+            const referencia = producto.getAttribute('data-reference');
+            const genero = producto.getAttribute('data-gender');
+            const descripcion = producto.getAttribute('data-description');
+            const precio = producto.getAttribute('data-price');
+            const imagen = producto.getAttribute('data-image');
+
+            // Mostrar el pop-up con los detalles del producto
+            popupImagen.src = imagen;
+            popupTitulo.textContent = nombre;
+            popupReferencia.textContent = referencia;
+            popupGenero.textContent = genero;
+            popupDescripcion.textContent = descripcion;
+            popupPrecio.textContent = precio;
+            popup.style.display = 'flex';
+        });
+    });
+
+    // Cerrar el pop-up
+    cerrarPopup.addEventListener('click', () => {
+        popup.style.display = 'none';
+    });
+
+    // Cerrar el pop-up al hacer clic fuera del contenido
+    window.addEventListener('click', (event) => {
+        if (event.target === popup) {
+            popup.style.display = 'none';
+        }
+    });
 });

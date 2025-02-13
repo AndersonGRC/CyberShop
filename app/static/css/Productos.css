@@ -89,3 +89,182 @@
 #vaciar-carrito:hover {
     background-color: #c82333;
 }
+
+
+
+/* Estilos para el pop-up */
+.popup {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.popup-contenido {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 400px; /* Ajusta el ancho según sea necesario */
+    text-align: left;
+    position: relative;
+}
+
+.cerrar-popup {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.cerrar-popup:hover {
+    color: #dc3545;
+}
+
+#popup-imagen {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+}
+
+.cerrar-popup:hover {
+    color: #dc3545;
+}
+
+
+/* Estilos para el botón "Ver Detalles" */
+.ver-descripcion {
+    background-color: #007bff; /* Color azul moderno */
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 25px; /* Bordes redondeados */
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-top: 10px;
+    display: inline-block;
+}
+
+.ver-descripcion:hover {
+    background-color: #0056b3; /* Color azul más oscuro al pasar el mouse */
+    transform: translateY(-2px); /* Efecto de levitación */
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+}
+
+.ver-descripcion:active {
+    transform: translateY(0); /* Efecto de clic */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+
+/*POP UP STYLE*/
+
+
+/* Estilos para el pop-up */
+.popup {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7); /* Fondo oscuro semi-transparente */
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    animation: fadeIn 0.3s ease; /* Animación de entrada */
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.popup-contenido {
+    background-color: #ffffff;
+    padding: 25px;
+    border-radius: 15px;
+    width: 90%;
+    max-width: 500px; /* Ancho máximo */
+    text-align: left;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    transform: scale(0.9); /* Efecto de escala inicial */
+    animation: scaleUp 0.3s ease forwards; /* Animación de escala */
+}
+
+@keyframes scaleUp {
+    from {
+        transform: scale(0.9);
+    }
+    to {
+        transform: scale(1);
+    }
+}
+
+.cerrar-popup {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    font-size: 24px;
+    cursor: pointer;
+    color: #666;
+    transition: color 0.3s ease;
+}
+
+.cerrar-popup:hover {
+    color: #ff4d4d; /* Color rojo al pasar el mouse */
+}
+
+#popup-imagen {
+    width: 100%;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+#popup-titulo {
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+#popup-referencia,
+#popup-genero,
+#popup-descripcion-texto,
+#popup-precio {
+    font-size: 16px;
+    color: #555;
+    margin-bottom: 8px;
+}
+
+#popup-precio {
+    font-size: 20px;
+    font-weight: bold;
+    color: #007bff; /* Color azul para el precio */
+}
+
+/* Estilos para los textos dentro del pop-up */
+.popup-contenido p {
+    margin: 10px 0;
+}
+
+.popup-contenido p strong {
+    color: #333;
+    font-weight: bold;
+}
