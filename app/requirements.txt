@@ -1,0 +1,4 @@
+Flask==2.3.2
+flask-reuploaded==1.2.0  # Para manejar la subida de archivos
+psycopg2-binary==2.9.6   # Para conectarse a PostgreSQL
+Werkzeug==2.3.7          # Para manejar archivos y rutas

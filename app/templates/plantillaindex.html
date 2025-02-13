@@ -31,7 +31,7 @@
                     {% if datosApp.longMenuAppindex > 0 %}
                     <ul>
                         {% for i in datosApp.MenuAppindex %}
-                        <li><a href="{{ url_for('pagina', filename=i.url) }}">{{ i.nombre }}</a></li>
+                        <li><a href="{{ url_for(i.url) }}">{{ i.nombre }}</a></li>
                         {% endfor %}
                     </ul>
                     {% else %}
