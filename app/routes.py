@@ -1,7 +1,7 @@
 from flask import render_template, request, redirect, url_for
 from flask_uploads import UploadSet, IMAGES
-import psycopg2
-from app import app, get_db_connection, get_common_data, images
+from database import get_db_connection  # Importar la conexión desde database.py
+from app import app, get_common_data, images
 
 # Ruta principal
 @app.route('/')
@@ -84,13 +84,13 @@ def servicios():
     datosApp = get_common_data()
     return render_template('servicios.html', datosApp=datosApp)
 
-# Manejo de errores 404
-@app.errorhandler(404)
-def pagina_no_encontrada(error):
-    return render_template('404.html'), 404
-# - Login 
-
+# Ruta para login
 @app.route('/login')
 def login():
     datosApp = get_common_data()
     return render_template('login.html', datosApp=datosApp)
+
+# Manejo de errores 404
+@app.errorhandler(404)
+def pagina_no_encontrada(error):
+    return render_template('404.html'), 404
