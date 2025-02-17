@@ -1,0 +1,47 @@
+{% extends './plantillaindex.html' %}
+
+{% block titulo %}{{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/GestionProductos.css') }}">
+{% endblock %}
+
+{% block body %}
+<main>
+    <h2>Agregar Producto</h2>
+    <form action="{{ url_for('GestionProductos') }}" method="POST" enctype="multipart/form-data">
+        <!-- Campo de imagen -->
+        <label for="imagen">Imagen:</label>
+        <input type="file" id="imagen" name="imagen" accept="image/*" required>
+
+        <!-- Campo de nombre -->
+        <label for="nombre">Nombre:</label>
+        <input type="text" id="nombre" name="nombre" placeholder="Ingrese el nombre del producto" required>
+
+        <!-- Campo de precio -->
+        <label for="precio">Precio:</label>
+        <input type="number" id="precio" name="precio" step="0.01" placeholder="Ingrese el precio" required>
+
+        <!-- Campo de referencia -->
+        <label for="referencia">Referencia:</label>
+        <input type="text" id="referencia" name="referencia" placeholder="Ingrese la referencia" required>
+
+        <!-- Campo de género -->
+        <label for="genero">Género:</label>
+        <select id="genero" name="genero" required>
+            <option value="" disabled selected>Seleccione un género</option>
+            <option value="Periféricos">Periféricos</option>
+            <option value="Gráficas">Gráficas</option>
+            <option value="Monitores">Monitores</option>
+            <option value="Accesorios">Accesorios</option>
+        </select>
+
+        <!-- Campo de descripción -->
+        <label for="descripcion">Descripción:</label>
+        <textarea id="descripcion" name="descripcion" placeholder="Ingrese la descripción del producto" required></textarea>
+
+        <!-- Botón de enviar -->
+        <button type="submit">Agregar Producto</button>
+    </form>
+</main>
+{% endblock %}

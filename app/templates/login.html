@@ -1,13 +1,10 @@
-{%extends './plantillaindex.html'%}
-{%block titulo%}{{datosApp.titulo}}{%endblock%}  
-{{ url_for('static', filename='img/Logo.PNG') }}
-{%block LinkAdicional%} 
+{% extends './plantillaindex.html' %}
+{% block titulo %}{{ datosApp.titulo }}{% endblock %}
+{% block LinkAdicional %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
-{%endblock%} 
+{% endblock %}
 
-
-{%block body%} 
-
+{% block body %}
 <div class="main">
     <h2>Iniciar Sesión</h2>
     <form id="loginForm">
@@ -17,7 +14,10 @@
         <label for="password">Contraseña:</label>
         <input type="password" id="password" required>
 
+        <!-- Enlace corregido para GestionProductos -->
+        <H1><a href="{{ url_for('GestionProductos') }}">Gestion</a></H1>
+
         <button type="submit">Ingresar</button>
     </form>
 </div>
-{%endblock%}
+{% endblock %}

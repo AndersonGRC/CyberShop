@@ -1,0 +1,64 @@
+{% extends './plantillaindex.html' %}
+
+{% block titulo %}{{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/Productos.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="container">
+    <!-- Contenido principal -->
+    <div class="main-content">
+        <h2>Productos Disponibles</h2>
+        <div class="productos">
+            <!-- Productos generados dinámicamente -->
+            {% if datosApp.productos %}
+                {% for producto in datosApp.productos %}
+                    <div class="producto" 
+                         data-id="{{ producto[0] }}" 
+                         data-name="{{ producto[2] }}" 
+                         data-price="{{ producto[3] }}" 
+                         data-reference="{{ producto[4] }}" 
+                         data-gender="{{ producto[5] }}" 
+                         data-description="{{ producto[6] }}" 
+                         data-image="{{ producto[1] }}">
+                        <img src="{{ producto[1] }}" alt="{{ producto[2] }}" style="width: 100%; border-radius: 8px; margin-bottom: 10px;">
+                        <h3>{{ producto[2] }}</h3>
+                        <p>${{ producto[3] }}</p>
+                        <button class="añadir-carrito">Añadir al carrito</button>
+                        <button class="ver-descripcion">Ver Detalles</button> <!-- Botón para ver los detalles -->
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>No hay productos disponibles.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Carrito de compras -->
+    <div class="carrito-lateral">
+        <h2>Carrito de Compras</h2>
+        <ul id="lista-carrito">
+            <!-- Los productos añadidos aparecerán aquí -->
+        </ul>
+        <p>Total: <span id="total">$0.00</span></p>
+        <button id="vaciar-carrito">Vaciar Carrito</button>
+    </div>
+
+    <!-- Pop-up para los detalles del producto -->
+    <div id="popup-descripcion" class="popup">
+        <div class="popup-contenido">
+            <span class="cerrar-popup">&times;</span>
+            <img id="popup-imagen" src="" alt="Imagen del producto" style="width: 100%; border-radius: 8px; margin-bottom: 10px;">
+            <h2 id="popup-titulo"></h2>
+            <p><strong>Referencia:</strong> <span id="popup-referencia"></span></p>
+            <p><strong>Género:</strong> <span id="popup-genero"></span></p>
+            <p><strong>Descripción:</strong> <span id="popup-descripcion-texto"></span></p>
+            <p><strong>Precio:</strong> $<span id="popup-precio"></span></p>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/Shoppingcar.js') }}"></script>
+{% endblock %}
