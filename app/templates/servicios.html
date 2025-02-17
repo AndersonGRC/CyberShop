@@ -1,52 +1,53 @@
 {%extends './plantillaindex.html'%}
 {%block titulo%}{{datosApp.titulo}}{%endblock%}  
+{{ url_for('static', filename='img/Logo.PNG') }}
+{%block LinkAdicional%} 
+<link rel="stylesheet" href="{{ url_for('static', filename='css/servicios.css') }}">
+{%endblock%} 
 {%block body%} 
-<section class="bg-cover bg-center h-[400px] flex items-center justify-center" style="background-image: url('/ruta-a-tu-imagen-de-cabecera.jpg');">
-    <div class="text-center text-white">
-      <h1 class="text-4xl font-bold">Nuestros Servicios</h1>
-      <p class="text-lg mt-4">Ofrecemos soluciones personalizadas para cuidar de ti y de tu bienestar.</p>
-    </div>
-  </section>
-  <section class="py-12 bg-gray-50">
-    <div class="container mx-auto px-4">
-      <h2 class="text-3xl font-bold text-center mb-8">¿Qué ofrecemos?</h2>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-        
-        <!-- Servicio 1 -->
-        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
-          <img src="/ruta-a-imagen-servicio1.jpg" alt="Servicio 1" class="w-full h-48 object-cover">
-          <div class="p-6">
-            <h3 class="text-xl font-semibold mb-2">Ortodoncia</h3>
-            <p class="text-gray-600">Corrección de problemas dentales para lograr una sonrisa perfecta.</p>
-          </div>
+  <h1>Nuestros Servicios</h1>
+  <section class="servicios">
+    <div class="servicio">
+        <div class="texto">
+            <h2>Mantenimiento de software y hardware</h2>
+            <p>Mantén tus equipos funcionando como nuevos con nuestro servicio de mantenimiento profesional. Diagnosticamos y resolvemos problemas técnicos de manera rápida y eficiente para garantizar que tus sistemas estén siempre operativos y optimizados.</p>
         </div>
-  
-        <!-- Servicio 2 -->
-        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
-          <img src="/ruta-a-imagen-servicio2.jpg" alt="Servicio 2" class="w-full h-48 object-cover">
-          <div class="p-6">
-            <h3 class="text-xl font-semibold mb-2">Implantes Dentales</h3>
-            <p class="text-gray-600">Recupera la funcionalidad y estética de tus dientes con nuestros implantes de calidad.</p>
-          </div>
-        </div>
-  
-        <!-- Servicio 3 -->
-        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
-          <img src="/ruta-a-imagen-servicio3.jpg" alt="Servicio 3" class="w-full h-48 object-cover">
-          <div class="p-6">
-            <h3 class="text-xl font-semibold mb-2">Blanqueamiento Dental</h3>
-            <p class="text-gray-600">Luce una sonrisa más blanca y brillante con nuestros tratamientos seguros y efectivos.</p>
-          </div>
-        </div>
-  
-      </div>
+        <img src="https://www.segurmaniazurekin.eus/a/2023/02/segurmania_riesgos_actividades_mantenimiento_destacada.jpg" alt="Mantenimiento de computadoras">
     </div>
-  </section>
-  <section class="bg-gradient-to-r from-blue-500 to-green-400 text-white py-12">
-    <div class="container mx-auto text-center">
-      <h2 class="text-2xl font-bold mb-4">¿Listo para mejorar tu sonrisa?</h2>
-      <p class="mb-6">Agenda tu cita con nosotros y descubre cómo podemos ayudarte.</p>
-      <a href="/contacto" class="bg-white text-blue-600 font-bold py-3 px-6 rounded-full shadow-lg hover:bg-gray-100 transition">Agendar una cita</a>
+    <div class="servicio">
+      <img src="https://www.segurmaniazurekin.eus/a/2023/02/segurmania_riesgos_actividades_mantenimiento_destacada.jpg" alt="Actualización de sistemas operativos">
+        <div class="texto">
+            <h2>Actualización de sistemas operativos</h2>
+            <p>No te quedes atrás en el mundo digital. Te ayudamos a actualizar tus sistemas operativos a las últimas versiones, asegurando mayor velocidad, funcionalidad y seguridad. Maximiza el rendimiento de tus equipos con nuestras actualizaciones personalizadas.</p>
+        </div>
     </div>
-  </section>
+    <div class="servicio">
+        <div class="texto">
+            <h2>Automatización de procesos de negocios</h2>
+            <p>Haz que tu empresa sea más productiva con la automatización de tareas clave. Diseñamos soluciones a medida que reducen errores, optimizan recursos y te permiten enfocarte en lo que realmente importa: hacer crecer tu negocio.</p>
+        </div>
+        <img src="https://www.segurmaniazurekin.eus/a/2023/02/segurmania_riesgos_actividades_mantenimiento_destacada.jpg" alt="Automatización de procesos de negocios">
+    </div>
+    <div class="servicio">
+      <img src="https://www.segurmaniazurekin.eus/a/2023/02/segurmania_riesgos_actividades_mantenimiento_destacada.jpg" alt="Actualización de sistemas operativos">
+        <div class="texto">
+            <h2>Instalación de cableado estructurado</h2>
+            <p>Garantiza una conexión eficiente y estable con nuestra instalación de cableado estructurado. Diseñamos y ejecutamos proyectos que cumplen con los más altos estándares, asegurando que tu infraestructura tecnológica sea robusta y preparada para el futuro.</p>
+        </div>
+    </div>
+    <div class="servicio">
+        <div class="texto">
+            <h2>Sistemas de vigilancia</h2>
+            <p>Protege lo que más importa con nuestras soluciones de vigilancia de última generación. Instalamos sistemas confiables y adaptados a tus necesidades, brindándote tranquilidad y control total las 24 horas del día.</p>
+        </div>
+        <img src="https://www.segurmaniazurekin.eus/a/2023/02/segurmania_riesgos_actividades_mantenimiento_destacada.jpg" alt="Sistemas de vigilancia">
+    </div>
+    <div class="servicio">
+      <img src="https://www.segurmaniazurekin.eus/a/2023/02/segurmania_riesgos_actividades_mantenimiento_destacada.jpg" alt="Actualización de sistemas operativos">
+        <div class="texto">
+            <h2>Desarrollo web empresarial</h2>
+            <p>Destaca en el mundo digital con páginas web empresariales diseñadas para impresionar. Creamos sitios modernos, funcionales y adaptados a tu negocio, ayudándote a captar más clientes y fortalecer tu presencia en línea.</p>
+        </div>
+    </div>
+</section>
 {%endblock%}
