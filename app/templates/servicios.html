@@ -1,53 +1,137 @@
-{%extends './plantillaindex.html'%}
-{%block titulo%}{{datosApp.titulo}}{%endblock%}  
-{{ url_for('static', filename='img/Logo.PNG') }}
-{%block LinkAdicional%} 
+{% extends './plantillaindex.html' %}
+{% block titulo %}{{ datosApp.titulo }}{% endblock %}
+{% block LinkAdicional %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/servicios.css') }}">
-{%endblock%} 
-{%block body%} 
-  <h1>Nuestros Servicios</h1>
-  <section class="servicios">
-    <div class="servicio">
+{% endblock %}
+{% block body %}
+<h1>Nuestros Servicios</h1>
+<section class="servicios">
+    <!-- Mantenimiento de software y hardware -->
+    <div class="servicio" data-beneficios="
+        - Prolonga la vida útil de tus equipos.
+        - Reduce tiempos de inactividad por fallos técnicos.
+        - Mejora el rendimiento general de tus sistemas.
+        - Diagnóstico rápido y soluciones efectivas.
+        - Soporte técnico confiable y profesional.
+    ">
         <div class="texto">
             <h2>Mantenimiento de software y hardware</h2>
-            <p>Mantén tus equipos funcionando como nuevos con nuestro servicio de mantenimiento profesional. Diagnosticamos y resolvemos problemas técnicos de manera rápida y eficiente para garantizar que tus sistemas estén siempre operativos y optimizados.</p>
+            <p>Mantén tus equipos funcionando como nuevos con nuestro servicio de mantenimiento profesional.</p>
         </div>
         <img src="https://www.segurmaniazurekin.eus/a/2023/02/segurmania_riesgos_actividades_mantenimiento_destacada.jpg" alt="Mantenimiento de computadoras">
     </div>
-    <div class="servicio">
-      <img src="https://www.segurmaniazurekin.eus/a/2023/02/segurmania_riesgos_actividades_mantenimiento_destacada.jpg" alt="Actualización de sistemas operativos">
+
+    <!-- Actualización de sistemas operativos -->
+    <div class="servicio" data-beneficios="
+        - Aumenta la seguridad de tus dispositivos frente a amenazas.
+        - Acceso a las últimas funciones y tecnologías.
+        - Mejora el rendimiento y velocidad de tus equipos.
+        - Compatibilidad con nuevos programas y aplicaciones.
+        - Proceso ágil y sin interrupciones para tu negocio.
+    ">
+        <img src="https://www.segurmaniazurekin.eus/a/2023/02/segurmania_riesgos_actividades_mantenimiento_destacada.jpg" alt="Actualización de sistemas operativos">
         <div class="texto">
             <h2>Actualización de sistemas operativos</h2>
-            <p>No te quedes atrás en el mundo digital. Te ayudamos a actualizar tus sistemas operativos a las últimas versiones, asegurando mayor velocidad, funcionalidad y seguridad. Maximiza el rendimiento de tus equipos con nuestras actualizaciones personalizadas.</p>
+            <p>No te quedes atrás en el mundo digital. Te ayudamos a actualizar tus sistemas operativos.</p>
         </div>
     </div>
-    <div class="servicio">
+
+    <!-- Automatización de procesos de negocios -->
+    <div class="servicio" data-beneficios="
+        - Ahorro significativo de tiempo y recursos.
+        - Eliminación de errores humanos en tareas repetitivas.
+        - Incremento en la productividad de tu equipo.
+        - Mejora en la toma de decisiones con datos en tiempo real.
+        - Mayor competitividad en el mercado.
+    ">
         <div class="texto">
             <h2>Automatización de procesos de negocios</h2>
-            <p>Haz que tu empresa sea más productiva con la automatización de tareas clave. Diseñamos soluciones a medida que reducen errores, optimizan recursos y te permiten enfocarte en lo que realmente importa: hacer crecer tu negocio.</p>
+            <p>Haz que tu empresa sea más productiva con la automatización de tareas clave.</p>
         </div>
         <img src="https://www.segurmaniazurekin.eus/a/2023/02/segurmania_riesgos_actividades_mantenimiento_destacada.jpg" alt="Automatización de procesos de negocios">
     </div>
-    <div class="servicio">
-      <img src="https://www.segurmaniazurekin.eus/a/2023/02/segurmania_riesgos_actividades_mantenimiento_destacada.jpg" alt="Actualización de sistemas operativos">
+
+    <!-- Instalación de cableado estructurado -->
+    <div class="servicio" data-beneficios="
+        - Garantiza una conexión estable y de alta velocidad.
+        - Facilita la gestión y el mantenimiento de redes.
+        - Adaptable a las necesidades actuales y futuras de tu negocio.
+        - Cumple con estándares internacionales de calidad.
+        - Reduce el riesgo de fallas en la red.
+    ">
+        <img src="https://www.segurmaniazurekin.eus/a/2023/02/segurmania_riesgos_actividades_mantenimiento_destacada.jpg" alt="Instalación de cableado estructurado">
         <div class="texto">
             <h2>Instalación de cableado estructurado</h2>
-            <p>Garantiza una conexión eficiente y estable con nuestra instalación de cableado estructurado. Diseñamos y ejecutamos proyectos que cumplen con los más altos estándares, asegurando que tu infraestructura tecnológica sea robusta y preparada para el futuro.</p>
+            <p>Garantiza una conexión eficiente y estable con nuestra instalación de cableado estructurado.</p>
         </div>
     </div>
-    <div class="servicio">
+
+    <!-- Sistemas de vigilancia -->
+    <div class="servicio" data-beneficios="
+        - Monitoreo continuo para mayor seguridad.
+        - Detección oportuna de incidentes.
+        - Control remoto desde cualquier lugar.
+        - Grabaciones en alta resolución para mayor claridad.
+        - Tranquilidad y confianza para proteger tus activos.
+    ">
         <div class="texto">
             <h2>Sistemas de vigilancia</h2>
-            <p>Protege lo que más importa con nuestras soluciones de vigilancia de última generación. Instalamos sistemas confiables y adaptados a tus necesidades, brindándote tranquilidad y control total las 24 horas del día.</p>
+            <p>Protege lo que más importa con nuestras soluciones de vigilancia de última generación.</p>
         </div>
         <img src="https://www.segurmaniazurekin.eus/a/2023/02/segurmania_riesgos_actividades_mantenimiento_destacada.jpg" alt="Sistemas de vigilancia">
     </div>
-    <div class="servicio">
-      <img src="https://www.segurmaniazurekin.eus/a/2023/02/segurmania_riesgos_actividades_mantenimiento_destacada.jpg" alt="Actualización de sistemas operativos">
+
+    <!-- Desarrollo web empresarial -->
+    <div class="servicio" data-beneficios="
+        - Refleja la identidad profesional de tu marca.
+        - Mejora tu presencia en línea y posicionamiento en buscadores.
+        - Facilita la interacción con clientes potenciales.
+        - Compatible con dispositivos móviles y fácil de usar.
+        - Incrementa la captación de clientes y las ventas.
+    ">
+        <img src="https://www.segurmaniazurekin.eus/a/2023/02/segurmania_riesgos_actividades_mantenimiento_destacada.jpg" alt="Desarrollo web empresarial">
         <div class="texto">
             <h2>Desarrollo web empresarial</h2>
-            <p>Destaca en el mundo digital con páginas web empresariales diseñadas para impresionar. Creamos sitios modernos, funcionales y adaptados a tu negocio, ayudándote a captar más clientes y fortalecer tu presencia en línea.</p>
+            <p>Destaca en el mundo digital con páginas web empresariales diseñadas para impresionar.</p>
         </div>
     </div>
 </section>
-{%endblock%}
+
+<!-- Modal -->
+<div id="modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Beneficios</h2>
+        <div id="beneficios-content"></div> <!-- Contenedor para los beneficios -->
+    </div>
+</div>
+
+<!-- JavaScript Inline -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const servicios = document.querySelectorAll(".servicio");
+        const modal = document.getElementById("modal");
+        const closeModal = document.querySelector(".close");
+        const beneficiosContent = document.getElementById("beneficios-content");
+
+        servicios.forEach((servicio) => {
+            servicio.addEventListener("click", () => {
+                const beneficios = servicio.getAttribute("data-beneficios");
+                // Mostrar los beneficios como texto continuo o lista
+                beneficiosContent.innerHTML = `<p>${beneficios.replace(/\n/g, "<br>")}</p>`;
+                modal.style.display = "flex";
+            });
+        });
+
+        closeModal.addEventListener("click", () => {
+            modal.style.display = "none";
+        });
+
+        window.addEventListener("click", (event) => {
+            if (event.target === modal) {
+                modal.style.display = "none";
+            }
+        });
+    });
+</script>
+{% endblock %}
