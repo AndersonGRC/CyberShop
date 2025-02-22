@@ -1,7 +1,86 @@
-from flask import render_template, request, redirect, url_for
-from flask_uploads import UploadSet, IMAGES
-from database import get_db_connection  # Importar la conexión desde database.py
+from flask import render_template, request, redirect, url_for, session, flash
+from database import get_db_connection
+from werkzeug.security import check_password_hash
+from functools import wraps
 from app import app, get_common_data, images
+
+# Decorador para verificar roles
+def rol_requerido(rol_id):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if 'rol_id' not in session or session['rol_id'] != rol_id:
+                flash('No tienes permiso para acceder a esta página.', 'error')
+                return redirect(url_for('login'))
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+# Función de autenticación
+def autenticar_usuario(username, password):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT * FROM usuarios WHERE username = %s', (username,))
+    usuario = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    if usuario and check_password_hash(usuario['password'], password):
+        return usuario
+    return None
+
+# Ruta de inicio de sesión
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    datosApp = get_common_data()
+
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        usuario = autenticar_usuario(username, password)
+
+        if usuario:
+            session['usuario_id'] = usuario['id']
+            session['username'] = usuario['username']
+            session['rol_id'] = usuario['rol_id']
+
+            # Redirigir según el rol
+            if usuario['rol_id'] == 1:  # Superadministrador
+                return redirect(url_for('dashboard_admin'))
+            elif usuario['rol_id'] == 2:  # Administrador
+                return redirect(url_for('dashboard_admin'))
+            elif usuario['rol_id'] == 3:  # Cliente
+                return redirect(url_for('dashboard_cliente'))
+            else:
+                flash('Rol no válido.', 'error')
+                return redirect(url_for('login'))
+        else:
+            flash('Usuario o contraseña incorrectos.', 'error')
+            return redirect(url_for('login'))
+
+    return render_template('login.html', datosApp=datosApp)
+
+# Ruta para superadministradores
+@app.route('/admin')
+@rol_requerido(1)
+def dashboard_admin():
+    datosApp = get_common_data()
+    return render_template('dashboard_admin.html', datosApp=datosApp)
+
+# Ruta para clientes
+@app.route('/cliente')
+@rol_requerido(3)
+def dashboard_cliente():
+    datosApp = get_common_data()
+    return render_template('dashboard_cliente.html', datosApp=datosApp)
+
+# Ruta de cierre de sesión
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash('Has cerrado sesión correctamente.', 'success')
+    return redirect(url_for('login'))
 
 # Ruta principal
 @app.route('/')
@@ -11,8 +90,10 @@ def index():
 
 # Ruta para agregar productos
 @app.route('/agregar-producto', methods=['GET', 'POST'])
+@rol_requerido(1)  # Solo superadministradores pueden agregar productos
 def GestionProductos():
     datosApp = get_common_data()
+
     if request.method == 'POST':
         try:
             if 'imagen' not in request.files:
@@ -59,6 +140,7 @@ def GestionProductos():
         except Exception as e:
             print("Error al crear el producto:", e)
             return "Error al crear el producto", 500
+
     return render_template('GestionProductos.html', datosApp=datosApp)
 
 # Ruta para mostrar productos
@@ -83,12 +165,6 @@ def productos():
 def servicios():
     datosApp = get_common_data()
     return render_template('servicios.html', datosApp=datosApp)
-
-# Ruta para login
-@app.route('/login')
-def login():
-    datosApp = get_common_data()
-    return render_template('login.html', datosApp=datosApp)
 
 # Manejo de errores 404
 @app.errorhandler(404)
