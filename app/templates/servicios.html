@@ -1,52 +1,137 @@
-{%extends './plantillaindex.html'%}
-{%block titulo%}{{datosApp.titulo}}{%endblock%}  
-{%block body%} 
-<section class="bg-cover bg-center h-[400px] flex items-center justify-center" style="background-image: url('/ruta-a-tu-imagen-de-cabecera.jpg');">
-    <div class="text-center text-white">
-      <h1 class="text-4xl font-bold">Nuestros Servicios</h1>
-      <p class="text-lg mt-4">Ofrecemos soluciones personalizadas para cuidar de ti y de tu bienestar.</p>
-    </div>
-  </section>
-  <section class="py-12 bg-gray-50">
-    <div class="container mx-auto px-4">
-      <h2 class="text-3xl font-bold text-center mb-8">¿Qué ofrecemos?</h2>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-        
-        <!-- Servicio 1 -->
-        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
-          <img src="/ruta-a-imagen-servicio1.jpg" alt="Servicio 1" class="w-full h-48 object-cover">
-          <div class="p-6">
-            <h3 class="text-xl font-semibold mb-2">Ortodoncia</h3>
-            <p class="text-gray-600">Corrección de problemas dentales para lograr una sonrisa perfecta.</p>
-          </div>
+{% extends './plantillaindex.html' %}
+{% block titulo %}{{ datosApp.titulo }}{% endblock %}
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/servicios.css') }}">
+{% endblock %}
+{% block body %}
+<h1>Nuestros Servicios</h1>
+<section class="servicios">
+    <!-- Mantenimiento de software y hardware -->
+    <div class="servicio" data-beneficios="
+        - Prolonga la vida útil de tus equipos.
+        - Reduce tiempos de inactividad por fallos técnicos.
+        - Mejora el rendimiento general de tus sistemas.
+        - Diagnóstico rápido y soluciones efectivas.
+        - Soporte técnico confiable y profesional.
+    ">
+        <div class="texto">
+            <h2>Mantenimiento de software y hardware</h2>
+            <p>Mantén tus equipos funcionando como nuevos con nuestro servicio de mantenimiento profesional.</p>
         </div>
-  
-        <!-- Servicio 2 -->
-        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
-          <img src="/ruta-a-imagen-servicio2.jpg" alt="Servicio 2" class="w-full h-48 object-cover">
-          <div class="p-6">
-            <h3 class="text-xl font-semibold mb-2">Implantes Dentales</h3>
-            <p class="text-gray-600">Recupera la funcionalidad y estética de tus dientes con nuestros implantes de calidad.</p>
-          </div>
-        </div>
-  
-        <!-- Servicio 3 -->
-        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
-          <img src="/ruta-a-imagen-servicio3.jpg" alt="Servicio 3" class="w-full h-48 object-cover">
-          <div class="p-6">
-            <h3 class="text-xl font-semibold mb-2">Blanqueamiento Dental</h3>
-            <p class="text-gray-600">Luce una sonrisa más blanca y brillante con nuestros tratamientos seguros y efectivos.</p>
-          </div>
-        </div>
-  
-      </div>
+        <img src="https://www.segurmaniazurekin.eus/a/2023/02/segurmania_riesgos_actividades_mantenimiento_destacada.jpg" alt="Mantenimiento de computadoras">
     </div>
-  </section>
-  <section class="bg-gradient-to-r from-blue-500 to-green-400 text-white py-12">
-    <div class="container mx-auto text-center">
-      <h2 class="text-2xl font-bold mb-4">¿Listo para mejorar tu sonrisa?</h2>
-      <p class="mb-6">Agenda tu cita con nosotros y descubre cómo podemos ayudarte.</p>
-      <a href="/contacto" class="bg-white text-blue-600 font-bold py-3 px-6 rounded-full shadow-lg hover:bg-gray-100 transition">Agendar una cita</a>
+
+    <!-- Actualización de sistemas operativos -->
+    <div class="servicio" data-beneficios="
+        - Aumenta la seguridad de tus dispositivos frente a amenazas.
+        - Acceso a las últimas funciones y tecnologías.
+        - Mejora el rendimiento y velocidad de tus equipos.
+        - Compatibilidad con nuevos programas y aplicaciones.
+        - Proceso ágil y sin interrupciones para tu negocio.
+    ">
+        <img src="https://www.segurmaniazurekin.eus/a/2023/02/segurmania_riesgos_actividades_mantenimiento_destacada.jpg" alt="Actualización de sistemas operativos">
+        <div class="texto">
+            <h2>Actualización de sistemas operativos</h2>
+            <p>No te quedes atrás en el mundo digital. Te ayudamos a actualizar tus sistemas operativos.</p>
+        </div>
     </div>
-  </section>
-{%endblock%}
+
+    <!-- Automatización de procesos de negocios -->
+    <div class="servicio" data-beneficios="
+        - Ahorro significativo de tiempo y recursos.
+        - Eliminación de errores humanos en tareas repetitivas.
+        - Incremento en la productividad de tu equipo.
+        - Mejora en la toma de decisiones con datos en tiempo real.
+        - Mayor competitividad en el mercado.
+    ">
+        <div class="texto">
+            <h2>Automatización de procesos de negocios</h2>
+            <p>Haz que tu empresa sea más productiva con la automatización de tareas clave.</p>
+        </div>
+        <img src="https://www.segurmaniazurekin.eus/a/2023/02/segurmania_riesgos_actividades_mantenimiento_destacada.jpg" alt="Automatización de procesos de negocios">
+    </div>
+
+    <!-- Instalación de cableado estructurado -->
+    <div class="servicio" data-beneficios="
+        - Garantiza una conexión estable y de alta velocidad.
+        - Facilita la gestión y el mantenimiento de redes.
+        - Adaptable a las necesidades actuales y futuras de tu negocio.
+        - Cumple con estándares internacionales de calidad.
+        - Reduce el riesgo de fallas en la red.
+    ">
+        <img src="https://www.segurmaniazurekin.eus/a/2023/02/segurmania_riesgos_actividades_mantenimiento_destacada.jpg" alt="Instalación de cableado estructurado">
+        <div class="texto">
+            <h2>Instalación de cableado estructurado</h2>
+            <p>Garantiza una conexión eficiente y estable con nuestra instalación de cableado estructurado.</p>
+        </div>
+    </div>
+
+    <!-- Sistemas de vigilancia -->
+    <div class="servicio" data-beneficios="
+        - Monitoreo continuo para mayor seguridad.
+        - Detección oportuna de incidentes.
+        - Control remoto desde cualquier lugar.
+        - Grabaciones en alta resolución para mayor claridad.
+        - Tranquilidad y confianza para proteger tus activos.
+    ">
+        <div class="texto">
+            <h2>Sistemas de vigilancia</h2>
+            <p>Protege lo que más importa con nuestras soluciones de vigilancia de última generación.</p>
+        </div>
+        <img src="https://www.segurmaniazurekin.eus/a/2023/02/segurmania_riesgos_actividades_mantenimiento_destacada.jpg" alt="Sistemas de vigilancia">
+    </div>
+
+    <!-- Desarrollo web empresarial -->
+    <div class="servicio" data-beneficios="
+        - Refleja la identidad profesional de tu marca.
+        - Mejora tu presencia en línea y posicionamiento en buscadores.
+        - Facilita la interacción con clientes potenciales.
+        - Compatible con dispositivos móviles y fácil de usar.
+        - Incrementa la captación de clientes y las ventas.
+    ">
+        <img src="https://www.segurmaniazurekin.eus/a/2023/02/segurmania_riesgos_actividades_mantenimiento_destacada.jpg" alt="Desarrollo web empresarial">
+        <div class="texto">
+            <h2>Desarrollo web empresarial</h2>
+            <p>Destaca en el mundo digital con páginas web empresariales diseñadas para impresionar.</p>
+        </div>
+    </div>
+</section>
+
+<!-- Modal -->
+<div id="modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Beneficios</h2>
+        <div id="beneficios-content"></div> <!-- Contenedor para los beneficios -->
+    </div>
+</div>
+
+<!-- JavaScript Inline -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const servicios = document.querySelectorAll(".servicio");
+        const modal = document.getElementById("modal");
+        const closeModal = document.querySelector(".close");
+        const beneficiosContent = document.getElementById("beneficios-content");
+
+        servicios.forEach((servicio) => {
+            servicio.addEventListener("click", () => {
+                const beneficios = servicio.getAttribute("data-beneficios");
+                // Mostrar los beneficios como texto continuo o lista
+                beneficiosContent.innerHTML = `<p>${beneficios.replace(/\n/g, "<br>")}</p>`;
+                modal.style.display = "flex";
+            });
+        });
+
+        closeModal.addEventListener("click", () => {
+            modal.style.display = "none";
+        });
+
+        window.addEventListener("click", (event) => {
+            if (event.target === modal) {
+                modal.style.display = "none";
+            }
+        });
+    });
+</script>
+{% endblock %}
