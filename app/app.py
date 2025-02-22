@@ -1,5 +1,7 @@
 from flask import Flask
 from flask_uploads import UploadSet, configure_uploads, IMAGES
+from werkzeug.utils import secure_filename  # Corrección en la importación
+from werkzeug.datastructures import FileStorage  # Corrección en la importación
 
 app = Flask(__name__)
 app.secret_key = 'tu_clave_secreta_aqui'  # Clave secreta para manejar sesiones
@@ -28,6 +30,7 @@ def get_common_data():
 
 # Importar las rutas desde routes.py
 from routes import *
-#servidor 
+
+# Servidor 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
