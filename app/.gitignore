@@ -1,6 +1,6 @@
 # Entorno virtual
 venv/
-.env
+env/
 
 # Archivos de configuración sensible
 *.env
