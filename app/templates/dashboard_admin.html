@@ -1,0 +1,7 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>Panel de Administración</h1>
+<p>Bienvenido, {{ session.username }}. Tienes acceso completo al sistema.</p>
+<a href="{{ url_for('logout') }}">Cerrar sesión</a>
+{% endblock %}
