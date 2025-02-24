@@ -16,7 +16,8 @@
 .logo_main {
     padding-top: 100px;
     height: 110px;
-    padding: 12px;
+    position: static;
+    padding: 5px;
     background: linear-gradient(45deg, #F5F4F3, #0e1b33);
     color: #0e1b33;
     cursor: default;
