@@ -49,12 +49,6 @@ migrations/
 *.pgdump
 *.pgrestore
 
-# Archivos de imágenes y multimedia
-*.jpg
-*.png
-*.gif
-*.mp4
-
 # Archivos de compilación
 *.mo
 *.pot

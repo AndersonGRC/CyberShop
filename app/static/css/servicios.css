@@ -57,7 +57,6 @@
     display: flex;
     align-items: center;
     border: 2px solid black;
-    background: linear-gradient(135deg, #0e1b33, #2a4d69);
     border-radius: 15px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
     width: 300px;
