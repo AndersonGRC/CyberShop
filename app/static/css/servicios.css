@@ -1,47 +1,165 @@
-/* Estilos generales */
-body {
-    background: linear-gradient(135deg, #0e1b33, #2a4d69);
-    font-family: Arial, sans-serif;
-    color: #fff;
-    margin: 0;
-    padding: 0;
-    min-height: 100vh;
+.servicios-titulo-seccion {
+    position: relative; /* Necesario para que los elementos hijos con posición absoluta se posicionen correctamente */
+    width: 100%;
+    height: 150px; /* Ajusta la altura según tus necesidades */
+    overflow: hidden; /* Para asegurarte de que la imagen no se desborde */
 }
 
-/* Contenedor principal */
-.container {
-    display: flex;
-    height: 100vh;
-}
-
-/* Columna izquierda (imagen) */
-.left-column {
-    flex: 1;
-    background: #0e1b33;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow: hidden;
-}
-
-.left-column img {
+.servicios-titulo-fondo {
+    position: absolute; /* Cambia a absoluto para que la imagen se posicione correctamente */
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    z-index: -1;
 }
 
-/* Columna derecha (formulario) */
-.right-column {
-    flex: 1;
+/* Estilos para la imagen de fondo */
+.servicios-titulo-fondo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Ajusta la imagen al tamaño del contenedor */
+}
+
+/* Estilos para el contenido del título */
+.servicios-titulo-contenido {
+    position: absolute; /* Cambia a absoluto para que el texto se posicione encima de la imagen */
+    top: 50%; /* Centra verticalmente */
+    left: 50%; /* Centra horizontalmente */
+    transform: translate(-50%, -50%); /* Ajusta el centrado */
+    z-index: 1; /* Asegúrate de que el título esté por encima de la imagen */
+    text-align: center; /* Centra el texto */
+}
+
+.servicios-titulo-contenido h2 {
+    font-size: 3rem; /* Tamaño del título */
+    color: #fff; /* Color del texto */
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5); /* Sombra para mejorar la legibilidad */
+    text-transform: uppercase; /* Convertir texto a mayúsculas */
+    font-weight: bold; /* Grosor de la fuente */
+}
+/* Estilos generales */
+.servicios {
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
-    align-items: center;
-    background: #fff;
+    gap: 20px;
+    padding: 20px;
 }
 
-/* Contenedor del formulario */
-.main {
+.servicio {
+    background: white;
+    background: #ffffff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+    width: 45%;
+    display: flex;
+    align-items: center;
+    border: 2px solid black;
+    background: linear-gradient(135deg, #0e1b33, #2a4d69);
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    width: 300px;
+    text-align: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    cursor: pointer;
+}
+
+.servicio:hover {
+    transform: scale(1.05);
+    box-shadow: 0px 8px 12px rgba(0, 0, 0, 0.2);
+}
+.servicio .texto h2 {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.servicio .texto {
+    flex: 1;
+    text-align: left;
+    padding: 10px;
+}
+.servicio .texto p {
+    font-size: 1rem;
+    color: #666;
+}
+.servicio:hover  {
+    transform: translateY(-10px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+    background: linear-gradient(135deg, #0e1b33, #2a4d69);
+    color: white;
+}
+
+.servicio img {
+    width: 150px;
+    height: auto;
+    border-radius: 8px;
+}
+.servicio:hover .texto * {
+    color: #ffffff; /* Cambia este valor al color que desees */
+}
+.servicio .icono img {
+    width: 70%;
+    height: 70%;
+    margin-bottom: 15px;
+}
+
+
+/* Modal */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    align-items: center;
+}
+
+.modal-content {
+    background: white;
+    padding: 20px;
     background: #fff;
-    padding: 30px;
-    border-radius: 16px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8
+    padding: 25px;
+    border-radius: 10px;
+    width: 50%;
+    text-align: left;
+    list-style-type: none ;
+    width: 90%;
+    max-width: 500px;
+    position: relative;
+    animation: fadeIn 0.3s ease;
+}
+
+.modal-content h2 {
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.modal-content ul {
+    list-style-type: none;
+    padding-left: 20px;
+    color: #555;
+}
+
+.close {
+    color: red;
+    font-size: 20px;
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 24px;
+    color: #ff4d4d;
+    cursor: pointer;
+    float: right;
+}
+
