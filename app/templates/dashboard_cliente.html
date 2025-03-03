@@ -1,0 +1,12 @@
+{% extends './plantillaapp.html' %}
+
+{% block titulo %}{{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/plantillaapp.css') }}">
+{% endblock %}
+
+{% block body %}
+<h1> ¡Bienvenido Cliente! <h1>
+    <h1><a href="{{ url_for('GestionProductos') }}">Gestiona productos</a></h1>
+{% endblock %}

@@ -1,0 +1,120 @@
+/* Reset global */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    color: #333;
+    background: #ffffff;
+}
+
+/* Contenedor principal */
+.container {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    max-height: calc(100vh - 100px); /* Ajusta para no sobrepasar header/footer */
+    overflow: hidden; /* Evita desbordamiento */
+}
+
+/* Columna de la imagen */
+.left-column {
+    width: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.left-column img {
+    max-width: 90%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+/* Columna del formulario */
+.right-column {
+    width: 50%;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Estilos para el formulario */
+.right-column form {
+    width: 80%;
+    max-width: 400px;
+    background: #ffffff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+}
+
+/* Estilos para el título dentro del formulario */
+.right-column form h2 {
+    color: #0e1b33; /* Azul del logo */
+    text-align: center;
+    font-size: 24px;
+    margin-bottom: 20px;
+}
+
+/* Estilos para los labels */
+.right-column form label {
+    font-weight: bold;
+    margin-bottom: 5px;
+    color: #333;
+    align-self: flex-start;
+}
+
+/* Estilos para los inputs */
+.right-column form input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 16px;
+}
+
+/* Estilos para el botón */
+.right-column form button {
+    background: #0e1b33; /* Azul del logo */
+    color: white;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background 0.3s;
+    width: 100%;
+}
+
+.right-column form button:hover {
+    background: #003a86; /* Azul más oscuro en hover */
+}
+
+/* Ajustes responsivos */
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+    }
+
+    .left-column,
+    .right-column {
+        width: 100%;
+    }
+
+    .left-column img {
+        max-width: 70%;
+    }
+
+    .right-column form {
+        width: 90%;
+        max-width: none;
+    }
+}
