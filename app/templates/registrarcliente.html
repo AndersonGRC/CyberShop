@@ -1,0 +1,48 @@
+{% extends './plantillaindex.html' %}
+{% block titulo %}{{ datosApp.titulo }}{% endblock %}
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/registro.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="container">
+    <!-- Columna de la imagen -->
+    <div class="left-column">
+        <img src="{{ url_for('static', filename='img/Logo.png') }}" alt="Imagen de registro">
+    </div>
+
+    <!-- Columna del formulario -->
+    <div class="right-column">
+       
+        <form id="registroForm" method="POST" action="{{ url_for('registrar_cliente') }}">
+            <h2>Registro de Cliente</h2>
+            <label for="nombre">Nombre:</label>
+            <input type="text" id="nombre" name="nombre" required>
+
+            <label for="email">Correo electrónico:</label>
+            <input type="email" id="email" name="email" required>
+
+            <label for="password">Contraseña:</label>
+            <input type="password" id="password" name="password" required>
+
+            <label for="fecha_nacimiento">Fecha de Nacimiento:</label>
+            <input type="date" id="fecha_nacimiento" name="fecha_nacimiento" required>
+
+            <button type="submit">Registrarse</button>
+        </form>
+    </div>
+</div>
+
+        <!-- Mensajes de flash -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+    </div>
+</div>
+{% endblock %}

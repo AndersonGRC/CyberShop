@@ -4,10 +4,10 @@ from werkzeug.utils import secure_filename  # Corrección en la importación
 from werkzeug.datastructures import FileStorage  # Corrección en la importación
 
 app = Flask(__name__)
-app.secret_key = 'tu_clave_secreta_aqui'  # Clave secreta para manejar sesiones
+app.secret_key = 'Omegafito7217*'  # Clave secreta para manejar sesiones
 
 # Configuración para subir imágenes
-app.config['UPLOADED_IMAGES_DEST'] = 'static/img'
+app.config['UPLOADED_IMAGES_DEST'] = 'static/media'
 images = UploadSet('images', IMAGES)
 configure_uploads(app, images)
 
