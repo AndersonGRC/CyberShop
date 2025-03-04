@@ -49,14 +49,13 @@
 
 .servicio {
     background: white;
-    background: #ffffff;
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
     width: 45%;
-    display: flex;
+    display: block;
     align-items: center;
-    border: 2px solid black;
+    border: 2px solid #2a4d69;
     border-radius: 15px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
     width: 300px;
@@ -72,17 +71,18 @@
 .servicio .texto h2 {
     font-size: 1.5rem;
     margin-bottom: 10px;
-    color: #333;
+    color: black;
+    text-align: center;
 }
 
 .servicio .texto {
     flex: 1;
-    text-align: left;
     padding: 10px;
 }
 .servicio .texto p {
     font-size: 1rem;
-    color: #666;
+    color: #131313;
+    text-align: start;
 }
 .servicio:hover  {
     transform: translateY(-10px);
@@ -90,38 +90,32 @@
     background: linear-gradient(135deg, #0e1b33, #2a4d69);
     color: white;
 }
-
-.servicio img {
-    width: 150px;
-    height: auto;
-    border-radius: 8px;
-}
 .servicio:hover .texto * {
     color: #ffffff; /* Cambia este valor al color que desees */
 }
-.servicio .icono img {
-    width: 70%;
-    height: 70%;
-    margin-bottom: 15px;
+.servicio .icono {
+    display: relative;
+    justify-content: center; /* Centra horizontalmente */
+    align-items: center; /* Centra verticalmente */
 }
 
+.servicio .icono img {
+    width: 150px; /* Ancho de la imagen */
+    height: auto; /* Altura automática para mantener la proporción */
+    border-radius: 8px; /* Bordes redondeados */
+}
 
 /* Modal */
 .modal {
     display: none;
     position: fixed;
-    z-index: 1;
-    z-index: 1000;
     left: 0;
     top: 0;
     width: 100%;
     height: 100%;
     background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
     align-items: center;
     justify-content: center;
-    
-    align-items: center;
 }
 
 .modal-content {
