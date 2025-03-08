@@ -181,8 +181,6 @@ def logout():
 def index():
     datosApp = get_common_data()
     return render_template('index.html', datosApp=datosApp)
-
-
 # Ruta para agregar productos
 @app.route('/agregar-producto', methods=['GET', 'POST'])
 @rol_requerido(1) 
@@ -279,6 +277,11 @@ def productos():
 def servicios():
     datosApp = get_common_data()
     return render_template('servicios.html', datosApp=datosApp)
+
+#ruta para quienes somos
+@app.route('/quienes_somos')
+def quienes_somos():
+    return redirect(url_for('index', _anchor='quienes_somos'))
 
 
 # Manejo de errores 404
