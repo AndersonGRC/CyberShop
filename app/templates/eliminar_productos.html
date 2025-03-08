@@ -1,0 +1,40 @@
+{% extends './plantillaindex.html' %}
+
+{% block titulo %}Eliminar Productos{% endblock %}
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/eliminar_producto.css') }}">
+{% endblock %}
+{% block body %}
+<div class="Submenunavegacion">
+    <ul>
+        <li class="Submenunavegacion"><a href="{{ url_for('GestionProductos') }}">Crear Producto</a></li>
+        <li class="Submenunavegacion"><a href="{{ url_for('editar_productos') }}">Editar Productos</a></li>
+        <li class="Submenunavegacion"><a href="{{ url_for('eliminar_productos') }}">Eliminar Productos</a></li>
+    </ul>
+</div>
+<main>
+    <h2>Eliminar Productos</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Precio</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for producto in productos %}
+            <tr>
+                <td>{{ producto[0] }}</td>
+                <td>{{ producto[2] }}</td>
+                <td>{{ producto[3] }}</td>
+                <td>
+                    <a href="{{ url_for('eliminar_producto', id=producto[0]) }}" onclick="return confirm('¿Estás seguro de que deseas eliminar este producto?')">Eliminar</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</main>
+{% endblock %}

@@ -49,7 +49,7 @@ def registrar_cliente():
 
         except Exception as e:
             print(f"Error al registrar cliente: {e}")
-            flash('Error al registrar el cliente. Inténtelo de nuevo.', 'error')
+            flash(f'Error al registrar el cliente: {e}', 'error')
 
         finally:
             # Cerrar la conexión a la base de datos
@@ -111,7 +111,7 @@ def autenticar_usuario(email, password):
         # Manejar errores (por ejemplo, problemas de conexión a la base de datos)
         print(f"Error al autenticar usuario: {e}")
         return None
-
+ # Login
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -135,6 +135,7 @@ def login():
             session['usuario_id'] = usuario['id']
             session['email'] = usuario['email']
             session['rol_id'] = usuario['rol_id']
+            session['username'] = usuario['nombre']  # Agregar el nombre del usuario a la sesión
 
             # Redirigir según el rol
             if usuario['rol_id'] == 1:  # Superadministrador
@@ -151,8 +152,6 @@ def login():
             return redirect(url_for('login'))
 
     return render_template('login.html', datosApp=datosApp)
-
-
 # Ruta para superadministradores
 @app.route('/admin')
 @rol_requerido(1)
@@ -186,6 +185,7 @@ def index():
 
 # Ruta para agregar productos
 @app.route('/agregar-producto', methods=['GET', 'POST'])
+@rol_requerido(1) 
 def GestionProductos():
     datosApp = get_common_data()
 
@@ -285,3 +285,98 @@ def servicios():
 @app.errorhandler(404)
 def pagina_no_encontrada(error):
     return render_template('404.html'), 404
+
+#Editar productos
+@app.route('/editar-productos')
+@rol_requerido(1)  # Solo para superadministradores
+def editar_productos():
+    datosApp = get_common_data()
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('SELECT * FROM productos')
+        productos = cur.fetchall()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error al obtener productos: {e}")
+        productos = []
+    return render_template('editar_productos.html', datosApp=datosApp, productos=productos)
+#EditarProductos
+@app.route('/editar-producto/<int:id>', methods=['GET', 'POST'])
+@rol_requerido(1)  # Solo para superadministradores
+def editar_producto(id):
+    datosApp = get_common_data()
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('SELECT * FROM productos WHERE id = %s', (id,))
+        producto = cur.fetchone()
+        cur.execute('SELECT * FROM generos')  # Obtener la lista de géneros
+        generos = cur.fetchall()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error al obtener el producto: {e}")
+        producto = None
+        generos = []
+
+    if request.method == 'POST':
+        # Aquí puedes manejar la actualización del producto
+        nombre = request.form.get('nombre')
+        precio = request.form.get('precio')
+        referencia = request.form.get('referencia')
+        genero_id = request.form.get('genero_id')
+        descripcion = request.form.get('descripcion')
+
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute(
+                'UPDATE productos SET nombre = %s, precio = %s, referencia = %s, genero_id = %s, descripcion = %s WHERE id = %s',
+                (nombre, precio, referencia, genero_id, descripcion, id)
+            )
+            conn.commit()
+            cur.close()
+            conn.close()
+            flash('Producto actualizado correctamente.', 'success')
+            return redirect(url_for('editar_productos'))
+        except Exception as e:
+            print(f"Error al actualizar el producto: {e}")
+            flash('Error al actualizar el producto.', 'error')
+
+    return render_template('editar_producto.html', datosApp=datosApp, producto=producto, generos=generos)
+# Ruta para eliminar productos (lista de productos)
+@app.route('/eliminar-productos')
+@rol_requerido(1)  # Solo para superadministradores
+def eliminar_productos():
+    datosApp = get_common_data()
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('SELECT * FROM productos')
+        productos = cur.fetchall()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error al obtener productos: {e}")
+        productos = []
+    return render_template('eliminar_productos.html', datosApp=datosApp, productos=productos)
+
+# Ruta para eliminar un producto específico
+@app.route('/eliminar-producto/<int:id>', methods=['GET', 'POST'])
+@rol_requerido(1)  # Solo para superadministradores
+def eliminar_producto(id):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('DELETE FROM productos WHERE id = %s', (id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        flash('Producto eliminado correctamente.', 'success')
+    except Exception as e:
+        print(f"Error al eliminar el producto: {e}")
+        flash('Error al eliminar el producto.', 'error')
+    
+    return redirect(url_for('eliminar_productos'))

@@ -1,0 +1,109 @@
+/* Estilos generales */
+body {
+    font-family: 'Raleway', sans-serif;
+    background-color: #f4f4f9;
+    color: #333;
+    margin: 0;
+    padding: 0;
+}
+
+main {
+    padding: 20px;
+}
+
+h2 {
+    color: #444;
+    text-align: center;
+    margin-bottom: 20px;
+}
+/*Submenu*/
+/* Submenú */
+.contenedorSubmenunavegacion ul {
+    list-style-type: none; /* Elimina las viñetas de la lista */
+    padding: 0; /* Elimina el padding por defecto de la lista */
+    margin: 0; /* Elimina el margen por defecto de la lista */
+    display: flex; /* Coloca los elementos en línea */
+    justify-content: center; /* Centra los elementos horizontalmente */
+    gap: 10px; /* Espacio entre los elementos */
+}
+
+.Submenunavegacion {
+    margin: 5% auto 10%; /* Margen superior e inferior, y centrado horizontalmente */
+    width: 80%; /* Ancho del contenedor (ajusta según sea necesario) */
+    max-width: 1200px; /* Ancho máximo para evitar que se extienda demasiado */
+    text-align: center; /* Centra el contenido interno */
+    padding: 10px; /* Espaciado interno */
+    border-radius: 8px; /* Bordes redondeados */
+    position: static; /* Mantén el posicionamiento estático */
+    margin-bottom: 1%;
+}
+
+.Submenunavegacion ul li {
+    display: inline; /* Muestra los elementos en línea */
+}
+
+.Submenunavegacion a {
+    text-decoration: none;
+    margin-top: 10%;
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+}
+
+.Submenunavegacion a:hover {
+    background-color: #0056b3; /* Cambia el color al pasar el mouse */
+}
+
+.Submenunavegacion a.active {
+    background-color: #0056b3; /* Color para el enlace activo */
+}
+/* Tabla */
+.table-container {
+    overflow-x: auto;
+}
+/* Tabla */
+.table-container {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    background-color: white;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+table th, table td {
+    padding: 12px 15px;
+    text-align: left;
+}
+
+table th {
+    background-color: #007bff;
+    color: white;
+}
+
+table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+table tr:hover {
+    background-color: #f1f1f1;
+}
+
+/* Botones */
+.btn-edit {
+    text-decoration: none;
+    padding: 5px 10px;
+    background-color: #28a745;
+    color: white;
+    border-radius: 3px;
+    transition: background-color 0.3s ease;
+}
+
+.btn-edit:hover {
+    background-color: #218838;
+}

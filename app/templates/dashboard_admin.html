@@ -1,7 +1,38 @@
-{% extends 'base.html' %}
+{% extends './plantillaapp.html' %}
 
-{% block content %}
-<h1>Panel de Administración</h1>
-<p>Bienvenido, {{ session.username }}. Tienes acceso completo al sistema.</p>
-<a href="{{ url_for('logout') }}">Cerrar sesión</a>
+{% block titulo %}{{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/plantillaapp.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/indexcliente.css') }}">
+{% endblock %}
+
+{% block body %}
+<h1> ¡Bienvenido Cliente! <h1>
+    <p>Bienvenido, {{ session.username }}. Tienes acceso completo al sistema.</p>
+    <a href="{{ url_for('logout') }}">Cerrar sesión</a>
+
+    <div class="card">
+        <div class="card-content">
+            <h2>Gestión de Productos</h2>
+            <p>Administra y controla tu inventario de manera eficiente.</p>
+            <a href="{{ url_for('GestionProductos') }}" class="btn">Ir a Gestión de Productos</a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-content">
+            <h2>Gestión de Pedidos</h2>
+            <p>Realiza un seguimiento de los pedidos y gestiona las entregas.</p>
+            <a href="" class="btn">Ir a Gestión de Pedidos</a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-content">
+            <h2>Reportes y Análisis</h2>
+            <p>Genera reportes y analiza el rendimiento de tu negocio.</p>
+            <a href="" class="btn">Ir a Reportes</a>
+        </div>
+    </div>
 {% endblock %}

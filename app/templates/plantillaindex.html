@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block titulo%} {% endblock%}</title>
-    {% block LinkAdicional%} {% endblock%}
     <link rel="shortcut icon" href="{{ url_for('static', filename='img/Logo.PNG') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css">
@@ -13,11 +12,9 @@
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
     <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
 
-
+    {% block LinkAdicional%} {% endblock%}
 
 </head>
-<body>
-
     <!-- Menú principal -->
     <header>
         <div class="logo logo_main"> 
@@ -42,10 +39,12 @@
         </div>
         <i class="fas fa-ellipsis-v btn-menu"></i>
     </header>
-
+<body>
 
         {% block body %}
         {% endblock %}
+
+
         <div class="chat-button">
             <a href="https://wa.me/573027974969" target="_blank">
                 <img src="https://cdn-icons-png.flaticon.com/512/3670/3670051.png" alt="Chat Icon">
