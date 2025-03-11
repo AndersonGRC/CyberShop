@@ -1,16 +1,26 @@
-/* Estilos generales para el body */
+/* Estilos generales */
 body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
     margin: 0;
     padding: 0;
-    font-family: 'Arial', sans-serif;
-    background: linear-gradient(135deg, #0e1b33, #2a4d69);
-    color: #fff;
-    min-height: 100vh;
-    display: static;
-    justify-content: center;
-    align-items: center;
 }
-/* Submenú */
+
+main {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 20px;
+    background-color: #fff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+h2 {
+    color: #333;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+
 /* Submenú */
 .contenedorSubmenunavegacion ul {
     list-style-type: none; /* Elimina las viñetas de la lista */
@@ -53,128 +63,69 @@ body {
 .Submenunavegacion a.active {
     background-color: #0056b3; /* Color para el enlace activo */
 }
-/* Contenedor principal del formulario */
-main {
-    margin: auto;
-    margin-top: 4%;
-    width: 100%;
-    max-width: 800px;
-    padding: 30px;
-    background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 15px;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-
-
-/* Título del formulario */
-h2 {
-    text-align: center;
-    font-size: 32px;
-    margin-bottom: 20px;
-    color: #fff;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
 
 /* Estilos para el formulario */
 form {
-    display: static;
+    display: flex;
     flex-direction: column;
-    gap: 20px;
 }
 
-/* Estilos para las etiquetas */
-label {
-    font-size: 16px;
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
     font-weight: bold;
-    color: #fff;
+    color: #555;
 }
 
-/* Estilos para los campos de entrada */
-input[type="text"],
-input[type="number"],
-input[type="file"],
-select,
-textarea {
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group input[type="file"],
+.form-group select,
+.form-group textarea {
     width: 100%;
-    padding: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 8px;
-    font-size: 14px;
-    color: #fff;
-    background-color: rgba(255, 255, 255, 0.1);
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-input[type="text"]:focus,
-input[type="number"]:focus,
-input[type="file"]:focus,
-select:focus,
-textarea:focus {
-    border-color: #007bff;
-    box-shadow: 0 0 8px rgba(0, 123, 255, 0.5);
-    outline: none;
-}
-
-textarea {
-    resize: vertical;
-    min-height: 120px;
-}
-
-/* Estilos para el campo de archivo (imagen) */
-input[type="file"] {
     padding: 10px;
-    background-color: rgba(255, 255, 255, 0.1);
-    border: 1px dashed rgba(255, 255, 255, 0.3);
-    text-align: center;
-    cursor: pointer;
-}
-
-input[type="file"]::file-selector-button {
-    background-color: #007bff;
-    color: white;
-    border: none;
-    padding: 8px 12px;
+    border: 1px solid #ccc;
     border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-}
-
-input[type="file"]::file-selector-button:hover {
-    background-color: #0056b3;
-}
-
-/* Estilos para el select (género) */
-select {
-    appearance: none;
-    background-color: #0056b3;
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    background-size: 16px;
-    padding-right: 30px;
-}
-
-/* Estilos para el botón de enviar */
-button[type="submit"] {
-    background-color: #007bff;
-    color: white;
-    border: none;
-    padding: 14px 20px;
-    border-radius: 8px;
     font-size: 16px;
-    font-weight: bold;
+}
+
+.form-group textarea {
+    resize: vertical;
+    height: 100px;
+}
+
+.form-group button {
+    background-color: #28a745;
+    color: #fff;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
     cursor: pointer;
-    transition: background-color 0.3s ease, transform 0.2s ease;
 }
 
-button[type="submit"]:hover {
-    background-color: #0056b3;
-    transform: translateY(-2px);
+.form-group button:hover {
+    background-color: #218838;
 }
 
-button[type="submit"]:active {
-    transform: translateY(0);
+/* Estilos para los mensajes de error o éxito (opcional) */
+.message {
+    padding: 10px;
+    margin-bottom: 15px;
+    border-radius: 5px;
+    text-align: center;
+}
+
+.message.success {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.message.error {
+    background-color: #f8d7da;
+    color: #721c24;
 }
