@@ -28,7 +28,7 @@
                     {% if datosApp.longMenuAppindex > 0 %}
                     <ul>
                         {% for i in datosApp.MenuAppindex %}
-                        <li><a href="{{ url_for(i.url) }}">{{ i.nombre }}</a></li>
+                        <li><a href="{{ url_for(i.url.split('#')[0]) }}{% if '#' in i.url %}#{{ i.url.split('#')[1] }}{% endif %}">{{ i.nombre }}</a></li>
                         {% endfor %}
                     </ul>
                     {% else %}

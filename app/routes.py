@@ -283,6 +283,10 @@ def servicios():
 def quienes_somos():
     return redirect(url_for('index', _anchor='quienes_somos'))
 
+#ruta para contactenos
+@app.route('/contactenos')
+def contactenos():
+    return redirect(url_for('index', _anchor='contactenos'))
 
 # Manejo de errores 404
 @app.errorhandler(404)
