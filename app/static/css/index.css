@@ -133,10 +133,11 @@
     margin-right: 1%;
     background-color: #f9f9f9;
     padding: 30px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
     border-radius: 8px;
     text-align: center;
     z-index: 2;
+    margin-bottom: 1%;
 }
 
 .contact-form h2 {
@@ -146,7 +147,7 @@
 }
 
 .contact-form .form-group {
-    margin-bottom: 15px;
+    margin-bottom: 12px;
     text-align: left;
 }
 
@@ -178,12 +179,13 @@
     border-radius: 5px;
     font-size: 16px;
     cursor: pointer;
-    transition: background-color 0.3s;
+    transition: background-color 0.3s ease;
 }
 
 .contact-form button:hover {
     background-color: #ffffff;
     color: #000;
+    border-color: #0e1b33;
 }
 
 @media (max-width: 768px) {

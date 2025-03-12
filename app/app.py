@@ -17,8 +17,8 @@ def get_common_data():
         {"nombre": "Inicio", "url": "index"},
         {"nombre": "Productos", "url": "productos"},
         {"nombre": "Servicios", "url": "servicios"},
-        {"nombre": "¿Quienes Somos?", "url": "index"},
-        {"nombre": "Contactanos", "url": "quienes_somos"},
+        {"nombre": "¿Quienes Somos?", "url": "index#quienes_somos"},
+        {"nombre": "Contactanos", "url": "index#contactenos"},
         {"nombre": "Ingresar", "url": "login"}
     ]
     
