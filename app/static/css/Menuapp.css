@@ -1,0 +1,209 @@
+/* Estilos generales */
+body {
+    font-family: 'Raleway', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f9;
+    color: #333;
+    transition: margin-left 0.3s ease;
+}
+
+/* Estilos del header superior */
+
+
+.header {
+    position: fixed;
+    top: 0;
+    left: 250px; /* Ajustar según el ancho del menú lateral */
+    right: 0;
+    height: 60px;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    transition: left 0.3s ease;
+}
+
+/* Logo del header superior */
+.header .header-logo img {
+    height: 40px; /* Tamaño de la imagen */
+    width: auto;
+    transition: opacity 0.3s ease;
+}
+
+/* Ocultar el logo del header superior cuando el menú está abierto (solo en escritorio) */
+@media (min-width: 769px) {
+    header:not(.hidden) ~ .header .header-logo img {
+        opacity: 0;
+    }
+}
+
+/* Mostrar el logo del header superior cuando el menú está colapsado (solo en escritorio) */
+@media (min-width: 769px) {
+    header.hidden ~ .header .header-logo img {
+        opacity: 1;
+    }
+}
+
+/* Botón para ocultar/mostrar el menú */
+.btn-menu {
+    background: #1e3c72;
+    color: white;
+    border: none;
+    padding: 10px;
+    cursor: pointer;
+    border-radius: 50%;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    font-size: 18px;
+}
+
+/* Ajustar el header cuando el menú está oculto */
+header.hidden ~ .header {
+    left: 0;
+}
+
+/* Estilos del menú lateral */
+header {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    width: 250px;
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    color: white;
+    box-shadow: 4px 0 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+    z-index: 1001;
+}
+
+/* Logo del menú lateral */
+header .menu-logo {
+    padding: 0px;
+    border: 10px;
+    background-color: white;
+    text-align: center;
+    border-bottom: 3px solid #1e3c72;
+}
+
+header .menu-logo img {
+    max-width: 80%; /* Tamaño de la imagen */
+    height: auto;
+    transition: opacity 0.3s ease;
+}
+
+/* Ocultar el logo del menú lateral cuando está colapsado (solo en escritorio) */
+@media (min-width: 769px) {
+    header.hidden .menu-logo img {
+        opacity: 0;
+    }
+}
+
+/* Ocultar el menú lateral */
+header.hidden {
+    transform: translateX(-100%);
+}
+
+/* Estilos del contenido principal */
+main {
+    margin-left: 250px;
+    margin-top: 60px; /* Ajustar según la altura del header */
+    padding: 20px;
+    transition: margin-left 0.3s ease;
+}
+
+header.hidden ~ main {
+    margin-left: 0;
+}
+
+/* Estilos del footer */
+.footer {
+    position: fixed;
+    bottom: 0;
+    left: 250px; /* Ajustar según el ancho del menú lateral */
+    right: 0;
+    background: #1e3c72;
+    color: white;
+    padding: 10px 20px;
+    text-align: center;
+    font-size: 14px;
+    z-index: 999; /* Asegurar que esté por encima del contenido */
+    transition: left 0.3s ease; /* Transición suave al ocultar el menú */
+}
+
+/* Ajustar el footer cuando el menú está oculto */
+header.hidden ~ .footer {
+    left: 0;
+}
+
+/* Estilos para las opciones del menú lateral */
+header .nav {
+    padding: 20px 0;
+}
+
+header .nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+header .nav ul li {
+    margin: 10px 0;
+}
+
+header .nav ul li a {
+    color: white;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    transition: background 0.3s ease, color 0.3s ease;
+    border-radius: 5px; /* Bordes redondeados */
+}
+
+header .nav ul li a:hover {
+    background: rgba(255, 255, 255, 0.1); /* Fondo semi-transparente al hacer hover */
+    color: #ff6f61; /* Cambiar color del texto al hacer hover */
+}
+
+header .nav ul li a i {
+    margin-right: 10px;
+    font-size: 18px;
+    transition: color 0.3s ease;
+}
+
+header .nav ul li a:hover i {
+    color: #ff6f61; /* Cambiar color del ícono al hacer hover */
+}
+
+/* Estilos responsive */
+@media (max-width: 768px) {
+    .header {
+        left: 0;
+    }
+
+    header {
+        width: 250px;
+        transform: translateX(-100%);
+    }
+
+    header.hidden {
+        transform: translateX(0);
+    }
+
+    main {
+        margin-left: 0;
+    }
+
+    .footer {
+        left: 0;
+    }
+
+    /* Mostrar ambas imágenes en dispositivos móviles */
+    header .menu-logo img,
+    .header .header-logo img {
+        opacity: 1 !important; /* Forzar visibilidad */
+    }
+}

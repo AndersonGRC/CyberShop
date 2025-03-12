@@ -6,61 +6,58 @@
     <title>{% block titulo%} {% endblock%}</title>
     {% block LinkAdicional%} {% endblock%}
     <link rel="shortcut icon" href="{{ url_for('static', filename='img/Logo.PNG') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/Menuapp.css') }}">
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css">
     <link href="https://fonts.googleapis.com/css?family=Dancing+Script|Raleway:500,600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
     <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
-
-
-
 </head>
 <body>
+<!-- Menú lateral -->
+<header>
+    <div class="menu-logo">
+        <img src="{{ url_for('static', filename='img/Logo.png') }}" alt="Logo del menú">
+    </div>
+    <div class="nav">
+        <nav>
+            {% if datosApp.longMenuAppindex > 0 %}
+            <ul>
+                {% for i in datosApp.MenuAppindex %}
+                <li>
+                    <a href="{{ url_for(i.url) }}">
+                        <i class="fas fa-{{ i.icono }}"></i>
+                        <span>{{ i.nombre }}</span>
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <h2>NO HAY DATOS DEL APP</h2>
+            {% endif %}
+        </nav>
+    </div>
+</header>
 
-    <!-- Menú principal -->
-    <header>
-         
-        <div class="nav">
-                <nav>
-                    {% if datosApp.longMenuAppindex > 0 %}
-                    <ul>
-                        {% for i in datosApp.MenuAppindex %}
-                        <li><a href="{{ url_for(i.url) }}">{{ i.nombre }}</a></li>
-                        {% endfor %}
-                    </ul>
-                    {% else %}
-                    <h2>NO HAY DATOS DEL APP</h2>
-                    {% endif %}
-                </nav> 
-            </div>
-        </div>
-        <i class="fas fa-ellipsis-v btn-menu"></i>
-    </header>
-
+<!-- Header superior -->
+<div class="header">
+    <div class="header-logo">
+        <img src="{{ url_for('static', filename='img/Logo.png') }}" alt="Logo del header">
+    </div>
+    <button class="btn-menu">
+        <i class="fas fa-bars"></i>
+    </button>
+</div>
     <!-- Sección principal -->
     <main>
         {% block body %}{% endblock %}
     </main>
 
-    <!-- Pie de página -->
+    <!-- Pie de página compacto -->
     <footer class="footer">
-        <div class="footer-content">
-            <h3>CyberShop Colombia</h3>
-            <p>Síguenos en nuestras redes sociales y compra nuestros planes especiales.</p>
-            <ul class="socials">
-                <li><a href="#"><i class="fa fa-facebook"></i></a></li>
-                <li><a href="#"><i class="fa fa-twitter"></i></a></li>
-                <li><a href="mailto:cybershop.digitalsales@gmail.com"><i class="fa fa-google-plus"></i></a></li>
-                <li><a href="https://www.youtube.com/@codecraftershubs"><i class="fa fa-youtube"></i></a></li>
-                <li><a href="https://www.linkedin.com/in/andersonroatech/" target="_blank"><i class="fa fa-linkedin-square"></i></a></li>
-            </ul>
-        </div>
-        <div class="footer-bottom">
-            <p>&copy;2025 CyberShop Colombia.</p>
-            <span class="Empresa">Desarrollador: andersongermancavi@gmail.com</span>
-        </div>
+        <p>&copy;2025 CyberShop Colombia. Desarrollador: andersongermancavi@gmail.com</p>
     </footer>
-    <script type="text/javascript" src="{{ url_for('static', filename='js/layout.js') }}"></script>
-</body>
 
+    <script type="text/javascript" src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

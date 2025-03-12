@@ -4,6 +4,7 @@ from database import get_db_connection
 from werkzeug.security import check_password_hash, generate_password_hash
 from functools import wraps
 from app import app, get_common_data, images
+from app import app , get_data_app
 from psycopg2.extras import DictCursor
 
 
@@ -156,7 +157,7 @@ def login():
 @app.route('/admin')
 @rol_requerido(1)
 def dashboard_admin():
-    datosApp = get_common_data()
+    datosApp = get_data_app()
     return render_template('dashboard_admin.html', datosApp=datosApp)
 
 
@@ -164,7 +165,7 @@ def dashboard_admin():
 @app.route('/cliente')
 @rol_requerido(3)
 def dashboard_cliente():
-    datosApp = get_common_data()
+    datosApp = get_data_app()
     return render_template('dashboard_cliente.html', datosApp=datosApp)
 
 
@@ -181,11 +182,12 @@ def logout():
 def index():
     datosApp = get_common_data()
     return render_template('index.html', datosApp=datosApp)
+
 # Ruta para agregar productos
 @app.route('/agregar-producto', methods=['GET', 'POST'])
 @rol_requerido(1) 
 def GestionProductos():
-    datosApp = get_common_data()
+    datosApp = get_data_app()
 
     # Obtener la lista de géneros desde la base de datos
     try:
@@ -293,7 +295,7 @@ def pagina_no_encontrada(error):
 @app.route('/editar-productos')
 @rol_requerido(1)  # Solo para superadministradores
 def editar_productos():
-    datosApp = get_common_data()
+    datosApp = get_data_app()
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -309,7 +311,7 @@ def editar_productos():
 @app.route('/editar-producto/<int:id>', methods=['GET', 'POST'])
 @rol_requerido(1)  # Solo para superadministradores
 def editar_producto(id):
-    datosApp = get_common_data()
+    datosApp = get_data_app()
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -353,7 +355,7 @@ def editar_producto(id):
 @app.route('/eliminar-productos')
 @rol_requerido(1)  # Solo para superadministradores
 def eliminar_productos():
-    datosApp = get_common_data()
+    datosApp = get_data_app()
     try:
         conn = get_db_connection()
         cur = conn.cursor()

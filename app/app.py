@@ -28,6 +28,21 @@ def get_common_data():
         'longMenuAppindex': len(MenuApp)
     }
 
+# Función para obtener datos comunes
+
+def get_data_app():
+    App = [
+        {"nombre": "Menu Principal", "url": "dashboard_admin"},
+        {"nombre": "Dashboard", "url": "dashboard_admin"},
+        {"nombre": "Gestion Productos", "url": "GestionProductos"},
+        {"nombre": "Cerrar Sesion", "url": "logout"}
+    ]
+    return {
+        'titulo': 'CyberShop',
+        'MenuAppindex': App,  # Pasar la lista App, no la instancia de Flask
+        'longMenuAppindex': len(App)  # Calcular la longitud de la lista App
+    }
+
 # Importar las rutas desde routes.py
 from routes import *
 

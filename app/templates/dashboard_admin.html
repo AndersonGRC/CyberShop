@@ -1,38 +1,31 @@
-{% extends './plantillaapp.html' %}
-
-{% block titulo %}{{ datosApp.titulo }}{% endblock %}
-
-{% block LinkAdicional %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/plantillaapp.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/indexcliente.css') }}">
-{% endblock %}
-
+{% extends "plantillaapp.html" %}
+{% block LinkAdicional%}<link rel="stylesheet" href="{{ url_for('static', filename='css/DashboadAdmin.css') }}">
+{% endblock%}
 {% block body %}
-<h1> ¡Bienvenido Cliente! <h1>
-    <p>Bienvenido, {{ session.username }}. Tienes acceso completo al sistema.</p>
-    <a href="{{ url_for('logout') }}">Cerrar sesión</a>
-
+<div class="card-container">
+    <!-- Tarjeta 1: Dashboard -->
     <div class="card">
-        <div class="card-content">
-            <h2>Gestión de Productos</h2>
-            <p>Administra y controla tu inventario de manera eficiente.</p>
-            <a href="{{ url_for('GestionProductos') }}" class="btn">Ir a Gestión de Productos</a>
-        </div>
+        <div class="card-icon">📊</div>
+        <h3 class="card-title">Dashboard</h3>
+        <p class="card-description">Accede al panel de control principal.</p>
+        <a href="{{ url_for('dashboard_admin') }}" class="card-button">Ir al Dashboard</a>
     </div>
 
+    <!-- Tarjeta 2: Productos -->
     <div class="card">
-        <div class="card-content">
-            <h2>Gestión de Pedidos</h2>
-            <p>Realiza un seguimiento de los pedidos y gestiona las entregas.</p>
-            <a href="" class="btn">Ir a Gestión de Pedidos</a>
-        </div>
+        <div class="card-icon">🛒</div>
+        <h3 class="card-title">Productos</h3>
+        <p class="card-description">Gestiona y agrega nuevos productos.</p>
+        <a href="{{ url_for('GestionProductos') }}" class="card-button">Gestionar Productos</a>
     </div>
 
+    <!-- Tarjeta 3: Servicios -->
     <div class="card">
-        <div class="card-content">
-            <h2>Reportes y Análisis</h2>
-            <p>Genera reportes y analiza el rendimiento de tu negocio.</p>
-            <a href="" class="btn">Ir a Reportes</a>
-        </div>
+        <div class="card-icon">🛠️</div>
+        <h3 class="card-title">Servicios</h3>
+        <p class="card-description">Explora nuestros servicios disponibles.</p>
+        <a href="{{ url_for('servicios') }}" class="card-button">Ver Servicios</a>
     </div>
+
+
 {% endblock %}
