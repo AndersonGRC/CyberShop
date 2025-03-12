@@ -76,8 +76,8 @@ def rol_requerido(rol_id):
 # Función de autenticación modificada
 def autenticar_usuario(email, password):
     """
-    Autentica a un usuario verificando si el correo electrónico existe en la base de datos
-    y si la contraseña ingresada coincide con el hash almacenado.
+    Autentica a un usuario verificando si el correo electrónico existe en la base de datos,
+    si la contraseña ingresada coincide con el hash almacenado y si el usuario está habilitado.
 
     Parámetros:
         email (str): Correo electrónico ingresado por el usuario.
@@ -85,7 +85,7 @@ def autenticar_usuario(email, password):
 
     Retorna:
         dict or None: Un diccionario con los datos del usuario si la autenticación es exitosa.
-                      Retorna None si el usuario no existe o la contraseña es incorrecta.
+                      Retorna None si el usuario no existe, la contraseña es incorrecta o el usuario está inhabilitado.
     """
     try:
         # Conectar a la base de datos
@@ -100,26 +100,32 @@ def autenticar_usuario(email, password):
         cur.close()
         conn.close()
 
-        # Verificar si el usuario existe y si la contraseña es correcta
+        # Verificar si el usuario existe, si la contraseña es correcta y si está habilitado
         if usuario and check_password_hash(usuario['password'], password):
-            print(f"Usuario autenticado: {usuario['email']}")  # Depuración
-            return usuario  # Retornar los datos del usuario
+            if usuario['estado'] == 'inhabilitado':
+                print(f"Usuario inhabilitado: {usuario['email']}")  # Depuración
+                flash('Tu cuenta está inhabilitada. Por favor, contacta al administrador.', 'error')
+                return None  # Retornar None si el usuario está inhabilitado
+            else:
+                print(f"Usuario autenticado: {usuario['email']}")  # Depuración
+                return usuario  # Retornar los datos del usuario
         else:
             print("Correo no encontrado o contraseña incorrecta.")  # Depuración
+            flash('Correo o contraseña incorrectos.', 'error')
             return None  # Retornar None si la autenticación falla
 
     except Exception as e:
         # Manejar errores (por ejemplo, problemas de conexión a la base de datos)
         print(f"Error al autenticar usuario: {e}")
+        flash('Error al autenticar usuario. Por favor, inténtalo de nuevo.', 'error')
         return None
- # Login
 
+ # Login
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     datosApp = get_common_data()
 
     if request.method == 'POST':
-        # Verifica si el campo 'email' está en el formulario
         if 'email' not in request.form or 'password' not in request.form:
             flash('Por favor, complete todos los campos.', 'error')
             return redirect(url_for('login'))
@@ -133,12 +139,25 @@ def login():
 
         if usuario:
             print(f"Usuario autenticado: {usuario['email']}, Rol: {usuario['rol_id']}")  # Depuración
+
+            try:
+                conn = get_db_connection()
+                cur = conn.cursor()
+                cur.execute('UPDATE usuarios SET ultima_conexion = CURRENT_TIMESTAMP WHERE id = %s', (usuario['id'],))
+                conn.commit()
+                cur.close()
+                conn.close()
+                print(f"Última conexión actualizada para el usuario: {usuario['email']}")  # Depuración
+            except Exception as e:
+                print(f"Error al actualizar la última conexión: {e}")  # Depuración
+
+            # Guardar datos del usuario en la sesión
             session['usuario_id'] = usuario['id']
             session['email'] = usuario['email']
             session['rol_id'] = usuario['rol_id']
-            session['username'] = usuario['nombre']  # Agregar el nombre del usuario a la sesión
+            session['username'] = usuario['nombre']
 
-            # Redirigir según el rol
+   # Redirigir según el rol
             if usuario['rol_id'] == 1:  # Superadministrador
                 return redirect(url_for('dashboard_admin'))
             elif usuario['rol_id'] == 2:  # Administrador
@@ -149,16 +168,10 @@ def login():
                 flash('Rol no válido.', 'error')
                 return redirect(url_for('login'))
         else:
-            flash('Correo o contraseña incorrectos.', 'error')
+            # El mensaje de error ya se maneja en la función autenticar_usuario
             return redirect(url_for('login'))
-
+        
     return render_template('login.html', datosApp=datosApp)
-# Ruta para superadministradores
-@app.route('/admin')
-@rol_requerido(1)
-def dashboard_admin():
-    datosApp = get_data_app()
-    return render_template('dashboard_admin.html', datosApp=datosApp)
 
 
 # Ruta para clientes
@@ -389,3 +402,11 @@ def eliminar_producto(id):
         flash('Error al eliminar el producto.', 'error')
     
     return redirect(url_for('eliminar_productos'))
+
+
+# Ruta para superadministradores
+@app.route('/admin')
+@rol_requerido(1)  # Solo para superadministradores
+def dashboard_admin():
+    datosApp = get_data_app()
+    return render_template('dashboard_admin.html', datosApp=datosApp)

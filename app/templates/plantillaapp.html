@@ -14,40 +14,56 @@
     <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
 </head>
 <body>
-<!-- Menú lateral -->
-<header>
-    <div class="menu-logo">
-        <img src="{{ url_for('static', filename='img/Logo.png') }}" alt="Logo del menú">
-    </div>
-    <div class="nav">
-        <nav>
-            {% if datosApp.longMenuAppindex > 0 %}
-            <ul>
-                {% for i in datosApp.MenuAppindex %}
-                <li>
-                    <a href="{{ url_for(i.url) }}">
-                        <i class="fas fa-{{ i.icono }}"></i>
-                        <span>{{ i.nombre }}</span>
-                    </a>
-                </li>
-                {% endfor %}
-            </ul>
-            {% else %}
-            <h2>NO HAY DATOS DEL APP</h2>
-            {% endif %}
-        </nav>
-    </div>
-</header>
+    <!-- Menú lateral -->
+    <header>
+        <div class="menu-logo">
+            <img src="{{ url_for('static', filename='img/Logo.png') }}" alt="Logo del menú">
+        </div>
+        <div class="nav">
+            <nav>
+                {% if datosApp.longMenuAppindex > 0 %}
+                <ul>
+                    {% for i in datosApp.MenuAppindex %}
+                    <li>
+                        <a href="{{ url_for(i.url) }}">
+                            <i class="fas fa-{{ i.icono }}"></i>
+                            <span>{{ i.nombre }}</span>
+                            {% if i.submodulos %}
+                                <i class="fas fa-chevron-down dropdown-icon"></i>
+                            {% endif %}
+                        </a>
+                        {% if i.submodulos %}
+                            <ul class="submenu">
+                                {% for sub in i.submodulos %}
+                                <li>
+                                    <a href="{{ url_for(sub.url) }}">
+                                        <i class="fas fa-{{ sub.icono }}"></i>
+                                        <span>{{ sub.nombre }}</span>
+                                    </a>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <h2>NO HAY DATOS DEL APP</h2>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
 
-<!-- Header superior -->
-<div class="header">
-    <div class="header-logo">
-        <img src="{{ url_for('static', filename='img/Logo.png') }}" alt="Logo del header">
+    <!-- Header superior -->
+    <div class="header">
+        <div class="header-logo">
+            <img src="{{ url_for('static', filename='img/Logo.png') }}" alt="Logo del header">
+        </div>
+        <button class="btn-menu">
+            <i class="fas fa-bars"></i>
+        </button>
     </div>
-    <button class="btn-menu">
-        <i class="fas fa-bars"></i>
-    </button>
-</div>
+
     <!-- Sección principal -->
     <main>
         {% block body %}{% endblock %}

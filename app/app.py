@@ -32,10 +32,19 @@ def get_common_data():
 
 def get_data_app():
     App = [
-        {"nombre": "Menu Principal", "url": "dashboard_admin"},
-        {"nombre": "Dashboard", "url": "dashboard_admin"},
-        {"nombre": "Gestion Productos", "url": "GestionProductos"},
-        {"nombre": "Cerrar Sesion", "url": "logout"}
+        {"nombre": "Menu Principal", "url": "dashboard_admin", "icono": "home"},
+        {"nombre": "Dashboard", "url": "dashboard_admin", "icono": "chart-line"},
+        {
+            "nombre": "Gestion Productos",
+            "url": "GestionProductos",
+            "icono": "box",
+            "submodulos": [
+                {"nombre": "Agregar Producto", "url": "GestionProductos", "icono": "plus"},
+                {"nombre": "Editar Producto", "url": "editar_productos", "icono": "edit"},
+                {"nombre": "Eliminar Producto", "url": "eliminar_productos", "icono": "trash"}
+            ]
+        },
+        {"nombre": "Cerrar Sesion", "url": "logout", "icono": "sign-out-alt"}
     ]
     return {
         'titulo': 'CyberShop',
