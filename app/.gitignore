@@ -2,6 +2,9 @@
 venv/
 env/
 
+# Hidden de imagenes admin plataforma
+media/*
+
 # Archivos de configuración sensible
 *.env
 *.key
