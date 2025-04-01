@@ -6,7 +6,9 @@ from functools import wraps
 from app import app, get_common_data, images
 from app import app , get_data_app
 from psycopg2.extras import DictCursor
-
+from app import mail
+from flask_mail import Message  
+from datetime import datetime
 
 @app.route('/registrar-cliente', methods=['GET', 'POST'])
 def registrar_cliente():
@@ -410,3 +412,151 @@ def eliminar_producto(id):
 def dashboard_admin():
     datosApp = get_data_app()
     return render_template('dashboard_admin.html', datosApp=datosApp)
+
+@app.route('/enviar-mensaje', methods=['POST'])
+def enviar_mensaje():
+    try:
+        # Debug: Imprime datos recibidos
+        print("\n🔥 Datos recibidos:")
+        print(request.form)
+        
+        msg = Message(
+    subject=f"{request.form.get('name', 'Sin nombre')} quiere contactar contigo - {datetime.now().strftime('%d/%m/%Y')}",
+    sender=app.config['MAIL_USERNAME'],
+    recipients=[app.config['MAIL_USERNAME']],
+    html=f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style type="text/css">
+            /* Estilos base mejorados */
+            body {{
+                font-family: 'Arial', sans-serif;
+                background-color: #f5f7fa;
+                margin: 0;
+                padding: 0;
+                color: #333333;
+                line-height: 1.6;
+            }}
+            .email-container {{
+                max-width: 600px;
+                margin: 20px auto;
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+                overflow: hidden;
+            }}
+            .email-header {{
+                background-color: #3498db;
+                color: white;
+                padding: 25px;
+                font-size: 26px;
+                text-align: center;
+            }}
+            .content-wrapper {{
+                padding: 25px;
+            }}
+            .info-item {{
+                margin-bottom: 18px;
+                font-size: 18px;
+            }}
+            .info-label {{
+                font-weight: bold;
+                color: #2c3e50;
+                display: inline-block;
+                min-width: 80px;
+            }}
+            .message-box {{
+                background-color: #f8f9fa;
+                padding: 20px;
+                border-radius: 6px;
+                margin: 25px 0;
+                border-left: 4px solid #3498db;
+            }}
+            .message-title {{
+                font-size: 20px;
+                color: #2c3e50;
+                margin-top: 0;
+                margin-bottom: 15px;
+            }}
+            .email-footer {{
+                text-align: center;
+                padding: 15px;
+                background-color: #f5f7fa;
+                color: #7f8c8d;
+                font-size: 14px;
+            }}
+            .icon {{
+                margin-right: 10px;
+                vertical-align: middle;
+                width: 20px;
+                height: 20px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="email-container">
+            <div class="email-header">
+                ✉ Nuevo mensaje de contacto
+            </div>
+            
+            <div class="content-wrapper">
+                <div class="info-item">
+                    <span class="info-label">👤 Nombre:</span>
+                    {request.form.get('name', 'No especificado')}
+                </div>
+                
+                <div class="info-item">
+                    <span class="info-label">📧 Email:</span>
+                    {request.form.get('email', 'No especificado')}
+                </div>
+                <div class="info-item">
+                    <span class="info-label">📞 Teléfono:</span>
+                    {request.form.get('phone', 'No especificado')}
+                </div>
+                
+                <div class="info-item">
+                    <span class="info-label">📅 Fecha:</span>
+                    {datetime.now().strftime('%d/%m/%Y %H:%M')}
+                </div>
+                
+                <div class="message-box">
+                    <h3 class="message-title">📝 Mensaje:</h3>
+                    <p>{request.form.get('message', 'Sin mensaje')}</p>
+                </div>
+            </div>
+            
+            <div class="email-footer">
+                <p>Este mensaje fue enviado desde el formulario de contacto de tu sitio web</p>
+                <p>© {datetime.now().year} {app.config['MAIL_DEFAULT_SENDER']}</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """,
+    body=f"""
+    NUEVO MENSAJE DE CONTACTO
+    -------------------------
+    Nombre: {request.form.get('name', 'No especificado')}
+    Email: {request.form.get('email', 'No especificado')}
+    Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}
+    
+    Mensaje:
+    {request.form.get('message', 'Sin mensaje')}
+    
+    ---
+    Enviado desde el formulario de contacto
+    """
+)
+        # Debug: Verifica conexión SMTP
+        with mail.connect() as conn:
+            conn.send(msg)  # Forza conexión explícita
+        
+        flash('✅ Mensaje enviado', 'success')
+    except Exception as e:
+        print(f"💥 ERROR CRÍTICO: {str(e)}")  # Esto DEBE aparecer en la terminal
+        flash('❌ Error al enviar', 'error')
+    
+    return redirect(url_for('index'))

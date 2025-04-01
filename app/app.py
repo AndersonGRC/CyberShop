@@ -2,9 +2,25 @@ from flask import Flask
 from flask_uploads import UploadSet, configure_uploads, IMAGES
 from werkzeug.utils import secure_filename  # Corrección en la importación
 from werkzeug.datastructures import FileStorage  # Corrección en la importación
+from flask_mail import Mail
+from dotenv import load_dotenv
+from flask_mail import Message  
+
 
 app = Flask(__name__)
 app.secret_key = 'Omegafito7217*'  # Clave secreta para manejar sesiones
+
+# Configuración para el envío de correos
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'  # Servidor SMTP de Gmail
+app.config['MAIL_PORT'] = 587  # Puerto para TLS
+app.config['MAIL_DEBUG'] = True
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'cybershop.digitalsales@gmail.com'  # Tu correo Gmail
+app.config['MAIL_PASSWORD'] = 'e y x t f m t i b v b u g k m x'  # Contraseña o App Password de Gmail
+app.config['MAIL_DEFAULT_SENDER'] = 'cybershop.digitalsales@gmail.com'  # Correo remitente por defecto
+
+# Inicializa Flask-Mail
+mail = Mail(app)
 
 # Configuración para subir imágenes
 app.config['UPLOADED_IMAGES_DEST'] = 'static/media'
