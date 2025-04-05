@@ -13,9 +13,9 @@
 
     <!-- Columna del formulario -->
     <div class="right-column">
-       
         <form id="registroForm" method="POST" action="{{ url_for('registrar_cliente') }}">
             <h2>Registro de Cliente</h2>
+            
             <label for="nombre">Nombre:</label>
             <input type="text" id="nombre" name="nombre" required>
 
@@ -28,21 +28,26 @@
             <label for="fecha_nacimiento">Fecha de Nacimiento:</label>
             <input type="date" id="fecha_nacimiento" name="fecha_nacimiento" required>
 
+            <label for="telefono">Teléfono (opcional):</label>
+            <input type="tel" id="telefono" name="telefono">
+
+            <label for="direccion">Dirección (opcional):</label>
+            <input type="text" id="direccion" name="direccion">
+
             <button type="submit">Registrarse</button>
         </form>
     </div>
 </div>
 
-        <!-- Mensajes de flash -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="flash-messages">
-                    {% for category, message in messages %}
-                        <div class="flash {{ category }}">{{ message }}</div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
-    </div>
-</div>
+<!-- Mensajes de flash -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        <div class="flash-messages">
+            {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endwith %}
+
 {% endblock %}
