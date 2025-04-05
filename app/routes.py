@@ -20,15 +20,17 @@ def registrar_cliente():
         email = request.form.get('email')
         password = request.form.get('password')
         fecha_nacimiento = request.form.get('fecha_nacimiento')
+        telefono = request.form.get('telefono', '')  # Campo opcional
+        direccion = request.form.get('direccion', '')  # Campo opcional
 
-        # Validar que todos los campos estén presentes
+        # Validar campos obligatorios
         if not nombre or not email or not password or not fecha_nacimiento:
-            flash('Por favor, complete todos los campos.', 'error')
+            flash('Por favor, complete todos los campos obligatorios.', 'error')
             return redirect(url_for('registrar_cliente'))
 
         # Verificar si el correo ya está registrado
         conn = get_db_connection()
-        cur = conn.cursor(cursor_factory=DictCursor)  # Usar DictCursor
+        cur = conn.cursor(cursor_factory=DictCursor)
         try:
             cur.execute('SELECT * FROM usuarios WHERE email = %s', (email,))
             usuario_existente = cur.fetchone()
@@ -42,20 +44,21 @@ def registrar_cliente():
 
             # Insertar el usuario en la base de datos con rol_id = 3 (Cliente)
             cur.execute(
-                'INSERT INTO usuarios (nombre, email, password, rol_id, fecha_nacimiento) VALUES (%s, %s, %s, %s, %s)',
-                (nombre, email, hashed_password, 3, fecha_nacimiento)
+                '''INSERT INTO usuarios 
+                (nombre, email, contraseña, rol_id, fecha_nacimiento, telefono, direccion, estado) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'habilitado')''',
+                (nombre, email, hashed_password, 3, fecha_nacimiento, telefono, direccion)
             )
             conn.commit()
 
             flash('Cliente registrado correctamente. Por favor, inicie sesión.', 'success')
-            return redirect(url_for('login'))  # Redirigir al login después del registro
+            return redirect(url_for('login'))
 
         except Exception as e:
             print(f"Error al registrar cliente: {e}")
-            flash(f'Error al registrar el cliente: {e}', 'error')
+            flash(f'Error al registrar el cliente: {str(e)}', 'error')
 
         finally:
-            # Cerrar la conexión a la base de datos
             cur.close()
             conn.close()
 
