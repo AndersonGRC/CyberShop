@@ -78,7 +78,6 @@ def rol_requerido(rol_id):
     return decorator
 
 
-# Función de autenticación modificada
 def autenticar_usuario(email, password):
     """
     Autentica a un usuario verificando si el correo electrónico existe en la base de datos,
@@ -106,24 +105,42 @@ def autenticar_usuario(email, password):
         conn.close()
 
         # Verificar si el usuario existe, si la contraseña es correcta y si está habilitado
-        if usuario and check_password_hash(usuario['password'], password):
-            if usuario['estado'] == 'inhabilitado':
-                print(f"Usuario inhabilitado: {usuario['email']}")  # Depuración
+        if usuario and check_password_hash(usuario['contraseña'], password):  # Cambiado a 'contraseña'
+            if usuario['estado'] != 'habilitado':  # Verificar si no está habilitado
+                print(f"Usuario no habilitado: {usuario['email']}")  # Depuración
                 flash('Tu cuenta está inhabilitada. Por favor, contacta al administrador.', 'error')
-                return None  # Retornar None si el usuario está inhabilitado
+                return None
             else:
                 print(f"Usuario autenticado: {usuario['email']}")  # Depuración
+                # Actualizar última conexión (opcional)
+                actualizar_ultima_conexion(usuario['id'])
                 return usuario  # Retornar los datos del usuario
         else:
             print("Correo no encontrado o contraseña incorrecta.")  # Depuración
             flash('Correo o contraseña incorrectos.', 'error')
-            return None  # Retornar None si la autenticación falla
+            return None
 
     except Exception as e:
         # Manejar errores (por ejemplo, problemas de conexión a la base de datos)
         print(f"Error al autenticar usuario: {e}")
         flash('Error al autenticar usuario. Por favor, inténtalo de nuevo.', 'error')
         return None
+
+def actualizar_ultima_conexion(user_id):
+    """Actualiza la fecha de última conexión del usuario"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            'UPDATE usuarios SET ultima_conexion = CURRENT_TIMESTAMP WHERE id = %s',
+            (user_id,)
+        )
+        conn.commit()
+    except Exception as e:
+        print(f"Error al actualizar última conexión: {e}")
+    finally:
+        cur.close()
+        conn.close()
 
  # Login
 @app.route('/login', methods=['GET', 'POST'])
