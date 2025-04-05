@@ -63,7 +63,7 @@ def get_data_app():
         {"nombre": "Cerrar Sesion", "url": "logout", "icono": "sign-out-alt"}
     ]
     return {
-        'titulo': 'Achiras De mi Tierra Facatativa',
+        'titulo': 'CyberShop',
         'MenuAppindex': App,  # Pasar la lista App, no la instancia de Flask
         'longMenuAppindex': len(App)  # Calcular la longitud de la lista App
     }
@@ -73,5 +73,5 @@ from routes import *
 
 # Servidor 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=6001, debug=False)
+    app.run(host='0.0.0.0', port=5001, debug=False)
     # app.run(host='0.0.0.0:5678', debug=True)
