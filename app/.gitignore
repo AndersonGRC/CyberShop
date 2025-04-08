@@ -14,6 +14,7 @@ media/*
 # Archivos de la base de datos
 *.sqlite3
 *.db
+*.sql
 
 # Archivos de Python
 __pycache__/
