@@ -1,20 +1,20 @@
-/* Reset global */
-body {
-    margin: 0;
-    padding: 0;
-    font-family: Arial, sans-serif;
-    color: #333;
-    background: #ffffff;
-}
+:root {
+    --color-principal: #f9f9f9;  
+    --color-secundario: #0e1b33; 
+    --color-gris: #9b9b9b ;
+    --color-negro: #000000;
+    --color-transicion: #2a4d69;
+  }
+
+
 
 /* Contenedor principal */
 .container {
     display: flex;
     flex-direction: row;
     justify-content: center;
-    align-items: center;
     width: 100%;
-    max-height: calc(100vh - 100px); /* Ajusta para no sobrepasar header/footer */
+    max-height: calc(170vh - 100px); /* Ajusta para no sobrepasar header/footer */
     overflow: hidden; /* Evita desbordamiento */
 }
 
@@ -23,12 +23,10 @@ body {
     width: 50%;
     display: flex;
     justify-content: center;
-    align-items: center;
-    padding: 20px;
 }
-
+/* Proporsion imagen */
 .left-column img {
-    max-width: 90%;
+    max-width: 70%;
     max-height: 100%;
     object-fit: contain;
 }
@@ -36,7 +34,6 @@ body {
 /* Columna del formulario */
 .right-column {
     width: 50%;
-    padding: 20px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -45,19 +42,19 @@ body {
 
 /* Estilos para el formulario */
 .right-column form {
-    width: 80%;
-    max-width: 400px;
-    background: #ffffff;
+    width: 100%;
+    background: var(--color-principal);
     padding: 20px;
+    margin-top: 30px;
     border-radius: 10px;
-    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0px 4px 10px var(--color-secundario);
     display: flex;
     flex-direction: column;
 }
 
 /* Estilos para el título dentro del formulario */
 .right-column form h2 {
-    color: #0e1b33; /* Azul del logo */
+    color: var(--color-secundario); /* Azul del logo */
     text-align: center;
     font-size: 24px;
     margin-bottom: 20px;
@@ -67,7 +64,7 @@ body {
 .right-column form label {
     font-weight: bold;
     margin-bottom: 5px;
-    color: #333;
+    color: var(--color-secundario);
     align-self: flex-start;
 }
 
@@ -76,15 +73,15 @@ body {
     width: 100%;
     padding: 10px;
     margin-bottom: 15px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--color-principal);
     border-radius: 5px;
     font-size: 16px;
 }
 
 /* Estilos para el botón */
 .right-column form button {
-    background: #0e1b33; /* Azul del logo */
-    color: white;
+    background: var(--color-secundario); /* Azul del logo */
+    color: var(--color-principal);
     padding: 10px;
     border: none;
     border-radius: 5px;
@@ -95,7 +92,7 @@ body {
 }
 
 .right-column form button:hover {
-    background: #003a86; /* Azul más oscuro en hover */
+    background: var(--color-transicion); /* Azul más oscuro en hover */
 }
 
 /* Ajustes responsivos */
