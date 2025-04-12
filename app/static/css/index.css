@@ -2,6 +2,10 @@
 /* CARRUSEL DE IMÁGENES */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700;800;900&display=swap');
 
+:root {
+    --color-principal: white;  
+    --color-secundario: #0e1b33; 
+  }
 .slider {
     position: relative;
     background: grey;
@@ -196,14 +200,14 @@
 }
 /* Estilos para la sección "Acerca de Nosotros" */
 .about-us {
-    background-color: #f9f9f9;
+    background-color: var(--color-principal);
     padding: 15px 20px;
     margin-top: 20px;
 }
 
 .about-us-content {
     flex: 1;
-    background-color: #f9f9f9;
+    background-color: var(--color-principal);
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
@@ -230,7 +234,7 @@
 }
 
 .about-us-content:hover {
-    background-color: #0e1b33; /* Fondo oscuro */
+    background-color: var(--color-secundario); /* Fondo oscuro */
     transform: scale(1.10)
 }
 
@@ -262,7 +266,7 @@
 }
 .mission, .vision {
     flex: 1;
-    background-color: #ff0000;
+    background-color: white;
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
