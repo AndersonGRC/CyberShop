@@ -18,12 +18,12 @@
 </div>
 
 <main>
-
-
-    <h2>Editar Producto</h2>
     <form action="{{ url_for('editar_producto', id=producto[0]) }}" method="POST" class="form-container" enctype="multipart/form-data">
         <!-- Campo de imagen actual -->
         <div class="form-group">
+            <div class="form-header">
+                <h2>Editar Producto</h2>
+            </div>
             <label>Imagen Actual:</label>
             <div class="current-image">
                 <img src="{{ producto[1] }}" alt="Imagen actual del producto" class="product-image">

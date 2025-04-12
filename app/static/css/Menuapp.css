@@ -261,3 +261,43 @@ header .nav ul li a:hover i {
 .nav ul li:hover a i.fa-chevron-down {
     transform: rotate(180deg);
 }
+/* Modificaciones para submenú móvil */
+@media (max-width: 768px) {
+    .nav ul li .submenu {
+        position: relative;
+        top: 0;
+        left: 0;
+        width: 100%;
+        box-shadow: none;
+        background: rgba(255, 255, 255, 0.1);
+        display: none;
+        padding-left: 15px;
+    }
+    
+    .nav ul li.active .submenu {
+        display: block;
+    }
+    
+    .nav ul li a i.fa-chevron-down {
+        transition: transform 0.3s ease;
+    }
+    
+    .nav ul li.active a i.fa-chevron-down {
+        transform: rotate(180deg);
+    }
+    
+    .nav ul li .submenu li a {
+        padding: 8px 30px;
+        font-size: 14px;
+    }
+    
+    /* Desactivar hover en móvil */
+    .nav ul li a:hover {
+        background: transparent;
+        color: white;
+    }
+    
+    .nav ul li a:hover i {
+        color: white;
+    }
+}

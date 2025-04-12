@@ -1,21 +1,33 @@
-document.addEventListener("DOMContentLoaded", function () {
-    const btnMenu = document.querySelector(".btn-menu");
-    const header = document.querySelector("header");
+// Toggle del menú principal
+document.querySelector('.btn-menu').addEventListener('click', () => {
+    document.querySelector('header').classList.toggle('hidden');
+});
 
-    btnMenu.addEventListener("click", function () {
-        header.classList.toggle("hidden");
+// Funcionalidad para submenús móviles
+if (window.matchMedia("(max-width: 768px)").matches) {
+    document.querySelectorAll('.nav ul li').forEach(item => {
+        if (item.querySelector('.submenu')) {
+            const link = item.querySelector('a');
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                item.classList.toggle('active');
+                
+                // Cerrar otros submenús
+                document.querySelectorAll('.nav ul li').forEach(otherItem => {
+                    if (otherItem !== item) {
+                        otherItem.classList.remove('active');
+                    }
+                });
+            });
+        }
     });
 
-    // Ajustar el menú en dispositivos móviles
-    function adjustMenuForMobile() {
-        if (window.innerWidth <= 768) {
-            header.classList.add("hidden"); // Menú colapsado por defecto en móviles
-        } else {
-            header.classList.remove("hidden"); // Menú expandido por defecto en escritorio
+    // Cerrar submenús al hacer click fuera
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.nav ul li')) {
+            document.querySelectorAll('.nav ul li').forEach(item => {
+                item.classList.remove('active');
+            });
         }
-    }
-
-    // Ajustar el menú al cargar la página y al cambiar el tamaño de la ventana
-    adjustMenuForMobile();
-    window.addEventListener("resize", adjustMenuForMobile);
-});
+    });
+}
