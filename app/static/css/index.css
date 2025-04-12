@@ -2,9 +2,15 @@
 /* CARRUSEL DE IMÁGENES */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700;800;900&display=swap');
 
+:root {
+    --color-principal: #f9f9f9;  
+    --color-secundario: #0e1b33; 
+    --color-gris: #9b9b9b ;
+    --color-negro: #000000;
+  }
 .slider {
     position: relative;
-    background: grey;
+    background: var(--color-gris);
     width: 100%;
     min-height: 500px;
     overflow: hidden;
@@ -33,19 +39,19 @@
 
 .slider .slide .info {
     position: absolute;
-    color: #222;
+    color: var(--color-gris);
     width: 30%;
     height: 80%;
     margin-top: 40px;
     margin-left: 35px;
     padding: 20px;
     border-radius: 5px;
-    box-shadow: 0 5px 15px rgb(1 1 1 / 5%);
+    box-shadow: 0 5px 15px var(--color-secundario);
     z-index: 12; /* Información dentro de cada slide */
 }
 
 .slider .slide .info h2 {
-    color: aliceblue;
+    color: var(--color-principal);
     text-align: center;
     font-size: 45px;
     font-weight: 800;
@@ -53,7 +59,7 @@
 
 .slider .slide .info p {
     font-family: cursive;
-    color: aliceblue;
+    color: var(--color-principal);
     font-size: 1em;
     font-weight: 400;
 }
@@ -75,8 +81,8 @@
 .prev-btn, .next-btn {
     z-index: 14; /* Los botones de navegación deben estar sobre el contenido de las imágenes */
     font-size: 2em;
-    color: #222;
-    background: rgba(255, 255, 255, 0.8);
+    color: var(--color-secundario);
+    background: var(--color-principal);
     padding: 10px;
     cursor: pointer;
 }
@@ -99,17 +105,17 @@
 
 .navigation-visibility .slide-icon {
     z-index: 17;
-    background: rgba(255, 255, 255, 0.5);
+    background: var(--color-gris);
     width: 20px;
     height: 10px;
     transform: translateY(-50px);
     margin: 0 6px;
     border-radius: 2px;
-    box-shadow: 0 5px 25px rgb(1 1 1 / 20%);
+    box-shadow: 0 5px 25px var(--color-secundario);
 }
 
 .navigation-visibility .slide-icon.active {
-    background: #0e1b33;
+    background: var(--color-secundario);
 }
 
 /* Contenedor de contacto */
@@ -132,9 +138,9 @@
 .contact-form {
     width: 48%;
     margin-right: 1%;
-    background-color: #f9f9f9;
+    background-color: var(--color-principal);
     padding: 30px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 4px 8px var(--color-secundario);
     border-radius: 8px;
     text-align: center;
     z-index: 2;
@@ -144,7 +150,7 @@
 .contact-form h2 {
     font-size: 24px;
     margin-bottom: 20px;
-    color: #333;
+    color: var(--color-secundario);
 }
 
 .contact-form .form-group {
@@ -154,7 +160,7 @@
 
 .contact-form label {
     font-size: 16px;
-    color: #555;
+    color: var(--color-secundario);
     display: block;
 }
 
@@ -163,19 +169,19 @@
     padding: 12px;
     margin-top: 8px;
     border-radius: 5px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--color-principal);
     font-size: 16px;
 }
 
 .contact-form input:focus, .contact-form textarea:focus {
-    outline-color: #0e1b33
+    outline-color: var(--color-secundario)
   
 }
 
 .contact-form button {
     padding: 10px 20px;
-    background-color: #0e1b33;
-    color: #fff;
+    background-color: var(--color-secundario);
+    color: var(--color-principal);
     border: none;
     border-radius: 5px;
     font-size: 16px;
@@ -185,7 +191,7 @@
 
 .contact-form button:hover {
     transform: scale(1.05);
-    box-shadow: 0px 8px 12px rgba(0, 0, 0, 0.2);
+    box-shadow: 0px 8px 12px var(--color-secundario);
 }
 
 
@@ -196,17 +202,17 @@
 }
 /* Estilos para la sección "Acerca de Nosotros" */
 .about-us {
-    background-color: #f9f9f9;
+    background-color: var(--color-principal);
     padding: 15px 20px;
     margin-top: 20px;
 }
 
 .about-us-content {
     flex: 1;
-    background-color: #f9f9f9;
+    background-color: var(--color-principal);
     padding: 20px;
     border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 4px 8px var(--color-secundario);
     text-align: center;
     max-width: 890px;
     margin: 0 auto;
@@ -215,7 +221,7 @@
 
 .about-us h2 {
     font-size: 2.5rem;
-    color: #0e1b33;
+    color: var(--color-secundario);
     margin-bottom: 15px;
     text-transform: uppercase;
     font-weight: bold;
@@ -224,20 +230,20 @@
 
 .about-us p {
     font-size: 1.1rem;
-    color: #555;
+    color: var(--color-gris);
     line-height: 1.8;
     text-align: justify;
 }
 
 .about-us-content:hover {
-    background-color: #0e1b33; /* Fondo oscuro */
+    background-color: var(--color-secundario); /* Fondo oscuro */
     transform: scale(1.10)
 }
 
 /* Cambia el color del texto a blanco en hover */
 .about-us-content:hover h2,
 .about-us-content:hover p {
-    color: white; /* Texto blanco */
+    color: var(--color-principal); /* Texto blanco */
 }
 
 /* Estilos para la sección de Misión y Visión */
@@ -246,39 +252,39 @@
     justify-content: space-between;
     gap: 20px;
     padding: 15px 20px;
-    background-color: #ffffff;
+    background-color: var(--color-principal);
     margin-bottom: 30px;
     transition: background-color 0.3s ease, color 0.3s ease;
 }
 .mission:hover, .vision:hover{
-    background-color: #0e1b33; /* Fondo oscuro */
+    background-color: var(--color-secundario); /* Fondo oscuro */
     transform: scale(1.05)
 }
 .mission:hover p, .vision:hover p{
-    color: white; /* Fondo oscuro */
+    color: var(--color-principal); /* Fondo oscuro */
 }
 .mission:hover h2, .vision:hover h2{
-    color: white; /* Fondo oscuro */
+    color: var(--color-principal); /* Fondo oscuro */
 }
 .mission, .vision {
     flex: 1;
-    background-color: #ff0000;
+    background-color: var(--color-principal);
     padding: 20px;
     border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 4px 8px var(--color-secundario);
     text-align: center;
 }
 
 .mission h2, .vision h2 {
     font-size: 2rem;
-    color: #0e1b33;
+    color: var(--color-secundario);
     margin-bottom: 20px;
     text-transform: uppercase;
 }
 
 .mission p, .vision p {
     font-size: 1.1rem;
-    color: #555;
+    color: var(--color-gris);
     line-height: 1.8;
 }
 

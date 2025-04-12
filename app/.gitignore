@@ -1,0 +1,62 @@
+# Entorno virtual
+venv/
+env/
+
+# Hidden de imagenes admin plataforma
+media/
+
+# Archivos de configuración sensible
+*.env
+*.key
+*.pem
+*.crt
+
+# Archivos de la base de datos
+*.sqlite3
+*.db
+*.sql
+
+# Archivos de Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+
+# Archivos de IDE
+.vscode/
+.idea/
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Logs y archivos temporales
+*.log
+*.tmp
+
+# Archivos de caché de pip
+.pip_cache/
+
+# Archivos de dependencias
+node_modules/
+bower_components/
+
+# Archivos de Flask
+instance/
+
+# Archivos de SQLAlchemy
+migrations/
+
+# Archivos de PostgreSQL
+*.pgdump
+*.pgrestore
+
+# Archivos de compilación
+*.mo
+*.pot
+
+# Archivos de pruebas
+.coverage
+htmlcov/

@@ -1,3 +1,13 @@
+:root {
+    --color-principal: #f9f9f9;  
+    --color-secundario: #0e1b33; 
+    --color-gris: #9b9b9b ;
+    --color-negro: #000000;
+    --color-transicion: #2a4d69;
+    --color-red:  red;
+  }
+
+
 .servicios-titulo-seccion {
     position: relative; /* Necesario para que los elementos hijos con posición absoluta se posicionen correctamente */
     width: 100%;
@@ -33,7 +43,7 @@
 
 .servicios-titulo-contenido h2 {
     font-size: 3rem; /* Tamaño del título */
-    color: #fff; /* Color del texto */
+    color: var(--color-principal); /* Color del texto */
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5); /* Sombra para mejorar la legibilidad */
     text-transform: uppercase; /* Convertir texto a mayúsculas */
     font-weight: bold; /* Grosor de la fuente */
@@ -48,14 +58,12 @@
 }
 
 .servicio {
-    background: white;
+    background: var(--color-principal);
     padding: 20px;
     border-radius: 10px;
-    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-    
     display: block;
     align-items: center;
-    border: 2px solid #2a4d69;
+    border: 2px solid var(--color-transicion);
     border-radius: 15px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
     width: 390px;
@@ -71,7 +79,7 @@
 .servicio .texto h2 {
     font-size: 1.5rem;
     margin-bottom: 10px;
-    color: black;
+    color: var(--color-secundario);
     text-align: center;
 }
 
@@ -81,17 +89,17 @@
 }
 .servicio .texto p {
     font-size: 1rem;
-    color: #131313;
+    color: var(--color-negro);
     text-align: start;
 }
 .servicio:hover  {
     transform: translateY(-10px);
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-    background: linear-gradient(135deg, #0e1b33, #2a4d69);
-    color: white;
+    background: linear-gradient(135deg, var(--color-secundario), var(--color-transicion));
+    color: var(--color-principal);
 }
 .servicio:hover .texto * {
-    color: #ffffff; /* Cambia este valor al color que desees */
+    color: var(--color-principal); /* Cambia este valor al color que desees */
 }
 .servicio .icono {
     display: relative;
@@ -120,9 +128,9 @@
 }
 
 .modal-content {
-    background: white;
+    background: var(--color-principal);
     padding: 20px;
-    background: #fff;
+    background: var(--color-principal);
     padding: 25px;
     border-radius: 10px;
     width: 50%;
@@ -136,23 +144,23 @@
 
 .modal-content h2 {
     margin-bottom: 20px;
-    color: #333;
+    color: var(--color-secundario);
 }
 
 .modal-content ul {
     list-style-type: none;
     padding-left: 20px;
-    color: #555;
+    color: var(--color-secundario);
 }
 
 .close {
-    color: red;
-    font-size: 20px;
+    color: var(--color-red);
+    font-size: 50px;
     position: absolute;
     top: 10px;
     right: 15px;
     font-size: 24px;
-    color: #ff4d4d;
+    color: var(--color-red);
     cursor: pointer;
     float: right;
 }
