@@ -10,6 +10,7 @@ from app import mail
 from flask_mail import Message  
 from datetime import datetime
 
+
 @app.route('/registrar-cliente', methods=['GET', 'POST'])
 def registrar_cliente():
     datosApp = get_common_data()  # Obtener los datos comunes
