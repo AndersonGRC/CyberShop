@@ -1,3 +1,12 @@
+:root {
+    --color-principal: #f9f9f9;  
+    --color-secundario: #0e1b33; 
+    --color-gris: #9b9b9b ;
+    --color-negro: #000000;
+    --color-transicion: #2a4d69;
+    --color-red:  red;
+  }
+
 * {
     box-sizing: border-box;
     font-family: 'Open Sans';
@@ -18,8 +27,8 @@
     height: 110px;
     position: static;
     padding: 5px;
-    background: linear-gradient(45deg, #F5F4F3, #0e1b33);
-    color: #0e1b33;
+    background: linear-gradient(45deg, var(--color-principal), var(--color-secundario));
+    color: var(--color-secundario);
     cursor: default;
     z-index: 10; /* Logo principal sobre otros elementos */
 }
@@ -27,7 +36,7 @@
 /* Logo pequeño */
 .link{
     text-decoration: none; 
-    color: #F5F4F3;
+    color: var(--color-principal);
     font-family: 'Cooper Black';
 }
 .logo_small {
@@ -35,20 +44,20 @@
     font-size: 18px; /* Tamaño ligeramente mayor */
     padding: 3px 5px; /* Espaciado más equilibrado */
     margin-right: 30px;
-    color: #F5F4F3; /* Mantiene el color principal */
-    background-color: #4A4A4A; /* Fondo contrastante */
+    color: var(--color-principal); /* Mantiene el color principal */
+    background-color: var(--color-gris); /* Fondo contrastante */
     border-radius: 6px; /* Bordes redondeados */
     cursor: pointer;
     z-index: 11; /* Mantiene el logo por encima de otros elementos */
-    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2); /* Sombra ligera */
+    box-shadow: 0px 4px 6px var(--color-negro); /* Sombra ligera */
     transition: all 0.3s ease; /* Suaviza las interacciones */
 }
 
 .logo_small:hover {
-    color: #FFFFFF; /* Cambio a blanco puro */
+    color: var(--color-principal); /* Cambio a blanco puro */
     background-color: #0e1b33; /* Color de fondo resaltado */
     transform: scale(1.2); /* Efecto de crecimiento */
-    box-shadow: 0px 6px 6px rgba(0, 0, 0, 0.3); /* Sombra más pronunciada */
+    box-shadow: 0px 6px 6px var(--color-negro); /* Sombra más pronunciada */
 }
 
 
@@ -58,8 +67,8 @@
     z-index: 20; /* Barra de navegación sobre el contenido */
     float: left;
     width: 100%;
-    background: #222;
-    color: white;
+    background: var(--color-negro);
+    color: var(--color-principal);
     padding: 0 20px;
     transition: .3s ease all;
     backface-visibility: hidden;
@@ -94,18 +103,18 @@ nav a {
     display: block;
     padding: 20px;
     margin: 0;
-    color: white;
+    color: var(--color-principal);
     text-decoration: none;
     transition: 0.2s ease all;
 }
 
 nav a:hover {
-    color: #F5F4F3;
+    color: var(--color-principal);
     background: #0e1b33;
 }
 
 .main {
-    background: white;
+    background: var(--color-principal);
     padding: 80px;
     z-index: 5; /* Contenido principal sobre el footer */
 }
@@ -129,9 +138,9 @@ body.nav_fixed .nav .wrap {
     position: fixed;
     bottom: 20px;
     right: 20px;
-    background: #0e1b33;
+    background: var(--color-secundario);
     border-radius: 50%;
-    color: white;
+    color: var(--color-principal);
     cursor: pointer;
     transition: all 500ms cubic-bezier(1, 0, 0, 1);
     transform: translateX(100px);
@@ -140,7 +149,7 @@ body.nav_fixed .nav .wrap {
 
 .btn-menu:hover {
     transform: scale(1.2);
-    background: #0e1b33;
+    background: var(--color-secundario);
 }
 
 /* MENU RESPONSIVO */
@@ -209,7 +218,7 @@ body.nav_fixed .nav .wrap {
     }
 
     .main {
-        background: white;
+        background: var(--color-principal);
         padding: 20px;
         z-index: 5;
     }
@@ -219,8 +228,8 @@ body.nav_fixed .nav .wrap {
 /* FOOTER */
 .footer {
     width: 100%;
-    background-color: #0e1b33;
-    color: white;
+    background-color: var(--color-secundario);
+    color: var(--color-principal);
     text-align: center;
     padding: 20px;
 }
@@ -256,7 +265,7 @@ body.nav_fixed .nav .wrap {
 
 .socials a {
     text-decoration: none;
-    color: #fff;
+    color: var(--color-principal);
 }
 
 .socials a i {
@@ -265,7 +274,7 @@ body.nav_fixed .nav .wrap {
 }
 
 .socials a:hover i {
-    color: #0e1b33;
+    color: var(--color-secundario);
 }
 
 .footer-bottom {
@@ -277,21 +286,21 @@ body.nav_fixed .nav .wrap {
 .footer-bottom p {
     font-size: 14px;
     word-spacing: 2px;
-    color: #f4f4f4;
+    color: var(--color-principal);
     margin-top: 10px;
     letter-spacing: 1px;
 }
 .empresa {
     font-size: 14px;
     word-spacing: 2px;
-    color: #f4f4f4;
+    color: var(--color-principal);
     margin-top: 10px;
     letter-spacing: 1px;
 }
 
 .empresa:hover{
 
-    color: #0e1b33;
+    color: var(--color-secundario);
 }
 
 /* Estilos para el botón de chat */
@@ -307,10 +316,10 @@ body.nav_fixed .nav .wrap {
     align-items: center;
     padding: 10px 20px;
     background-color: #25D366; /* Color de WhatsApp */
-    color: white;
+    color: var(--color-principal);
     text-decoration: none;
     border-radius: 50px;
-    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0px 4px 6px var(--color-negro);
 }
 
 .chat-button img {

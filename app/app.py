@@ -39,7 +39,7 @@ def get_common_data():
     ]
     
     return {
-        'titulo': 'CyberShop',
+        'titulo': 'Achiras de Mi tierra Facatativá',
         'MenuAppindex': MenuApp,
         'longMenuAppindex': len(MenuApp)
     }
@@ -63,7 +63,7 @@ def get_data_app():
         {"nombre": "Cerrar Sesion", "url": "logout", "icono": "sign-out-alt"}
     ]
     return {
-        'titulo': 'Achiras De Mi Tierra',
+        'titulo': 'Achiras de Mi tierra Facatativá',
         'MenuAppindex': App,  # Pasar la lista App, no la instancia de Flask
         'longMenuAppindex': len(App)  # Calcular la longitud de la lista App
     }
