@@ -1,144 +1,149 @@
-/* Estilos generales */
+:root {
+    /*  Paleta principal */
+    --fondo:#f9f9f9;
+    --texto-blanco: #f9f9f9;
+    --Menu-footer: #091C5A;
+    --hover-menu:#fb8500;
+    --submenu: #122C94;
+}
 body {
-    font-family: 'Raleway', sans-serif;
+    height: auto;
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
     margin: 0;
     padding: 0;
-    background-color: #f4f4f9;
-    color: #333;
+    font-family: 'Raleway', sans-serif;
+    background-color: var(--fondo);
+    color: var(--text-primary);
     transition: margin-left 0.3s ease;
 }
 
-/* Estilos del header superior */
+/* Asegura que el main crezca según su contenido */
+main {
+    min-height: 100vh;
+    overflow: auto;
+    z-index: 3;
+}
 
-
+/* Header superior */
 .header {
     position: fixed;
     top: 0;
-    left: 250px; /* Ajustar según el ancho del menú lateral */
+    left: 250px;
     right: 0;
     height: 60px;
-    background: white;
+    background: var(--fondo);
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0 20px;
-    box-shadow: 0 2px 4px #0e1b33;
+    box-shadow: 0 2px 4px rgba(14, 27, 51, 0.1);
     z-index: 1000;
     transition: left 0.3s ease;
 }
 
-/* Logo del header superior */
 .header .header-logo img {
-    height: 40px; /* Tamaño de la imagen */
+    height: 40px;
     width: auto;
     transition: opacity 0.3s ease;
 }
 
-/* Ocultar el logo del header superior cuando el menú está abierto (solo en escritorio) */
 @media (min-width: 769px) {
     header:not(.hidden) ~ .header .header-logo img {
         opacity: 0;
     }
-}
-
-/* Mostrar el logo del header superior cuando el menú está colapsado (solo en escritorio) */
-@media (min-width: 769px) {
     header.hidden ~ .header .header-logo img {
         opacity: 1;
     }
 }
 
-/* Botón para ocultar/mostrar el menú */
 .btn-menu {
-    background: #0e1b33;
-    color: white;
+    background: var(--Menu-footer);
+    color: var(--fondo);
     border: none;
     padding: 10px;
     cursor: pointer;
     border-radius: 50%;
-    box-shadow: 0 4px 6px #0e1b33;
+    box-shadow: 0 4px 6px rgba(14, 27, 51, 0.1);
     font-size: 18px;
 }
 
-/* Ajustar el header cuando el menú está oculto */
 header.hidden ~ .header {
     left: 0;
 }
 
-/* Estilos del menú lateral */
+/* Menú lateral */
 header {
     position: fixed;
     left: 0;
     top: 0;
     height: 100vh;
     width: 250px;
-    background: linear-gradient(135deg,  #1e3c72, #1e3c72);
-    color: white;
+    background: linear-gradient(135deg, var(--Menu-footer), var(--Menu-footer));
+    color: var(--texto-blanco);
     box-shadow: 4px 0 6px rgba(0, 0, 0, 0.1);
     transition: transform 0.3s ease;
     z-index: 1001;
 }
 
-/* Logo del menú lateral */
 header .menu-logo {
     padding: 0px;
     border: 10px;
-    background-color: white;
+    background-color: var(--texto-blanco);
     text-align: center;
-    border-bottom: 3px solid #1e3c72;
+    border-bottom: 3px solid var(--Menu-footer);
 }
 
 header .menu-logo img {
-    max-width: 80%; /* Tamaño de la imagen */
+    max-width: 80%;
     height: auto;
     transition: opacity 0.3s ease;
 }
 
-/* Ocultar el logo del menú lateral cuando está colapsado (solo en escritorio) */
 @media (min-width: 769px) {
     header.hidden .menu-logo img {
         opacity: 0;
     }
 }
 
-/* Ocultar el menú lateral */
 header.hidden {
     transform: translateX(-100%);
 }
 
-/* Estilos del contenido principal */
+/* Contenido principal */
 main {
     margin-left: 250px;
-    margin-top: 60px; /* Ajustar según la altura del header */
+    margin-top: 60px;
     padding: 20px;
     transition: margin-left 0.3s ease;
+    height: 100%;
 }
 
 header.hidden ~ main {
     margin-left: 0;
 }
 
-/* Estilos del footer */
+/* Footer */
 .footer {
     position: fixed;
     bottom: 0;
-    left: 250px; /* Ajustar según el ancho del menú lateral */
+    left: 250px;
     right: 0;
-    background: #1e3c72;
-    color: white;
+    background: var(--Menu-footer);
+    color: var(--fondo);
     padding: 10px 20px;
     text-align: center;
     font-size: 14px;
-    z-index: 999; /* Asegurar que esté por encima del contenido */
-    transition: left 0.3s ease; /* Transición suave al ocultar el menú */
+    z-index: 999;
+    transition: left 0.3s ease;
 }
 
-/* Ajustar el footer cuando el menú está oculto */
 header.hidden ~ .footer {
     left: 0;
 }
 
-/* Estilos para las opciones del menú lateral */
+/* Navegación */
 header .nav {
     padding: 20px 0;
 }
@@ -154,18 +159,18 @@ header .nav ul li {
 }
 
 header .nav ul li a {
-    color: white;
+    color: var(--texto-blanco);
     text-decoration: none;
     display: flex;
     align-items: center;
     padding: 10px 20px;
     transition: background 0.3s ease, color 0.3s ease;
-    border-radius: 5px; /* Bordes redondeados */
+    border-radius: 5px;
 }
 
 header .nav ul li a:hover {
-    background: rgba(255, 255, 255, 0.1); /* Fondo semi-transparente al hacer hover */
-    color: #ff6f61; /* Cambiar color del texto al hacer hover */
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--hover-menu);
 }
 
 header .nav ul li a i {
@@ -175,7 +180,7 @@ header .nav ul li a i {
 }
 
 header .nav ul li a:hover i {
-    color: #ff6f61; /* Cambiar color del ícono al hacer hover */
+    color: var(--hover-menu);
 }
 
 /* Estilos responsive */
@@ -195,38 +200,38 @@ header .nav ul li a:hover i {
 
     main {
         margin-left: 0;
+        margin-bottom: 30%;
     }
 
     .footer {
         left: 0;
     }
 
-    /* Mostrar ambas imágenes en dispositivos móviles */
     header .menu-logo img,
     .header .header-logo img {
-        opacity: 1 !important; /* Forzar visibilidad */
+        opacity: 1 !important;
     }
 }
 
-
-
-/* Estilos para el menú desplegable */
+/* Menú desplegable */
 .nav ul li {
     position: relative;
 }
 
 .nav ul li .submenu {
-    display: none; /* Ocultar submódulos por defecto */
+    display: none;
     position: absolute;
     top: 100%;
     left: 0;
-    background: #2a5298;
+    background: var(--submenu);
     list-style: none;
     padding: 10px;
     margin: 0;
-    border-radius: 5px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     z-index: 1000;
+    max-height: 90vh;
+    overflow-y: auto;
+    width: 92%;
 }
 
 .nav ul li .submenu li {
@@ -235,7 +240,7 @@ header .nav ul li a:hover i {
 
 .nav ul li .submenu li a {
     padding: 8px 15px;
-    color: white;
+    color: var(--texto-blanco);
     text-decoration: none;
     display: block;
     transition: background 0.3s ease;
@@ -245,32 +250,41 @@ header .nav ul li a:hover i {
     background: rgba(255, 255, 255, 0.1);
 }
 
-/* Mostrar submódulos al hacer hover */
 .nav ul li:hover .submenu {
     display: block;
 }
 
-/* Estilos para el ícono de flecha */
 .nav ul li a i.fa-chevron-down {
     margin-left: 5px;
     font-size: 12px;
     transition: transform 0.3s ease;
 }
 
-/* Rotar ícono al hacer hover */
 .nav ul li:hover a i.fa-chevron-down {
     transform: rotate(180deg);
 }
-/* Modificaciones para submenú móvil */
+
+/* Modificaciones móvil */
 @media (max-width: 768px) {
+    html, body {
+        height: 100%;
+        overflow-y: auto;
+    }
+
+    main {
+        margin-left: 0;
+        margin-top: 60px;
+        padding: 20px;
+        min-height: calc(100vh - 60px);
+        overflow-y: auto;
+    }
     .nav ul li .submenu {
         position: relative;
         top: 0;
         left: 0;
-        width: 100%;
+        width: 90%;
         box-shadow: none;
-        background: rgba(255, 255, 255, 0.1);
-        display: none;
+        background: var(--submenu);
         padding-left: 15px;
     }
     
@@ -291,13 +305,12 @@ header .nav ul li a:hover i {
         font-size: 14px;
     }
     
-    /* Desactivar hover en móvil */
     .nav ul li a:hover {
         background: transparent;
-        color: white;
+        color: var(--texto-blanco);
     }
     
     .nav ul li a:hover i {
-        color: white;
+        color: var(--texto-blanco);
     }
 }

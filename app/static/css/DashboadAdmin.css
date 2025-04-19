@@ -1,3 +1,10 @@
+:root {
+    --color-principal: #091C5A;
+    --texto-gris: #A7A9AC;
+    --texto-blanco:#f9f9f9;
+    --fondo:#f9f9f9;
+}
+
 /* Estilos generales */
 .card-container {
     display: flex;
@@ -8,9 +15,9 @@
 }
 
 .card {
-    background: #fff;
+    background: var(--fondo);
     border-radius: 10px;
-    box-shadow: 0 4px 8px #0e1b33;
+    box-shadow: 0 4px 8px var(--color-principal);
     width: 300px;
     padding: 20px;
     text-align: center;
@@ -20,7 +27,7 @@
 
 .card:hover {
     transform: translateY(-10px);
-    box-shadow: 0 8px 16px #0e1b33;
+    box-shadow: 0 8px 16px var(--color-principal);
 }
 
 .card-icon {
@@ -31,27 +38,27 @@
 .card-title {
     font-size: 24px;
     margin-bottom: 10px;
-    color: #0e1b33  ;
+    color: var(--color-principal);
 }
 
 .card-description {
     font-size: 16px;
-    color: #666;
+    color: var(--texto-gris);
     margin-bottom: 20px;
 }
 
 .card-button {
     display: inline-block;
     padding: 10px 20px;
-    background: #0e1b33;
-    color: #fff;
+    background: var(--color-principal);
+    color: var(--texto-blanco);
     text-decoration: none;
     border-radius: 5px;
     transition: background 0.3s ease;
 }
 
 .card-button:hover {
-    background: #0e1b33;
+    background: var(--color-principal);
 }
 
 /* Animación cool */
@@ -72,9 +79,14 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
+    main {
+        margin: 0
+    }
     .card-container {
         flex-direction: column;
         align-items: center;
+        padding: 0;
+        margin: 0;
     }
 
     .card {

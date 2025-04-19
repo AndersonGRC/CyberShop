@@ -1,6 +1,17 @@
+:root {
+    --bg-body: #f9f9f9;
+    --card-bg: #fff;
+    --shadow-color: 0, 0, 0;
+    --text-primary: #333;
+    --text-secondary: #A7A9AC;
+    --btn-bg: #122C94;;
+    --btn-hover: #091C5A;
+    --btn-text: #fff;
+}
+
 body {
     font-family: Arial, sans-serif;
-    background-color: #f4f4f4;
+    background-color: var(--bg-body);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -9,9 +20,9 @@ body {
 }
 
 .card {
-    background-color: #fff;
+    background-color: var(--card-bg);
     border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 8px rgba(var(--shadow-color), 0.1);
     width: 300px;
     margin: 20px;
     overflow: hidden;
@@ -20,7 +31,7 @@ body {
 
 .card:hover {
     transform: translateY(-10px);
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 8px 16px rgba(var(--shadow-color), 0.2);
 }
 
 .card-content {
@@ -31,25 +42,25 @@ body {
 .card-content h2 {
     margin-bottom: 10px;
     font-size: 1.5em;
-    color: #333;
+    color: var(--text-primary);
 }
 
 .card-content p {
     font-size: 1em;
-    color: #666;
+    color: var(--text-secondary);
     margin-bottom: 20px;
 }
 
 .btn {
     display: inline-block;
     padding: 10px 20px;
-    background-color: #007BFF;
-    color: #fff;
+    background-color: var(--btn-bg);
+    color: var(--btn-text);
     text-decoration: none;
     border-radius: 5px;
     transition: background-color 0.3s ease;
 }
 
 .btn:hover {
-    background-color: #0056b3;
+    background-color: var(--btn-hover);
 }
