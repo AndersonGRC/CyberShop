@@ -444,7 +444,7 @@ def enviar_mensaje():
         msg = Message(
     subject=f"{request.form.get('name', 'Sin nombre')} quiere contactar contigo - {datetime.now().strftime('%d/%m/%Y')}",
     sender=app.config['MAIL_USERNAME'],
-    recipients=[app.config['MAIL_USERNAME']],
+    recipients=[app.config['MAIL_DEFAULT_SENDER']],
     html=f"""
     <!DOCTYPE html>
     <html>

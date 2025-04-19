@@ -6,11 +6,11 @@
 {% endblock %}
 {% block body %}
 <div class="Submenunavegacion">
-    <ul>
-        <li class="Submenunavegacion"><a href="{{ url_for('GestionProductos') }}">Crear Producto</a></li>
-        <li class="Submenunavegacion"><a href="{{ url_for('editar_productos') }}">Editar Productos</a></li>
-        <li class="Submenunavegacion"><a href="{{ url_for('eliminar_productos') }}">Eliminar Productos</a></li>
-    </ul>
+        <ul>
+            <li class="Submenunavegacion"><a href="{{ url_for('GestionProductos') }}">Crear Producto</a></li>
+            <li class="Submenunavegacion"><a href="{{ url_for('editar_productos') }}">Editar Productos</a></li>
+            <li class="Submenunavegacion"><a href="{{ url_for('eliminar_productos') }}">Eliminar Productos</a></li>
+        </ul>
 </div>
 <main>
     <h2>Eliminar Productos</h2>
@@ -30,7 +30,7 @@
                 <td>{{ producto[2] }}</td>
                 <td>{{ producto[3] }}</td>
                 <td>
-                    <a href="{{ url_for('eliminar_producto', id=producto[0]) }}" onclick="return confirm('¿Estás seguro de que deseas eliminar este producto?')">Eliminar</a>
+                    <a href="{{ url_for('eliminar_producto', id=producto[0]) }}" class="btn-eliminar" onclick="return confirm('¿Estás seguro de que deseas eliminar este producto?')">Eliminar</a>
                 </td>
             </tr>
             {% endfor %}

@@ -1,45 +1,41 @@
 /* Estilos generales */
-body {
-    font-family: 'Raleway', sans-serif;
-    background-color: #f4f4f9;
-    color: #333;
-    margin: 0;
-    padding: 0;
+main{
+    margin-bottom: 20px;
+    margin-right: 120px;
+    padding: auto;
+    justify-content: center;
 }
-
-main {
-    padding: 20px;
-}
-
-h2 {
+main h2 {
     color: #444;
     text-align: center;
     margin-bottom: 20px;
+    margin-top: 20px;
 }
 
 /* Submenú */
-.contenedorSubmenunavegacion ul {
-    list-style-type: none; /* Elimina las viñetas de la lista */
-    padding: 0; /* Elimina el padding por defecto de la lista */
-    margin: 0; /* Elimina el margen por defecto de la lista */
-    display: flex; /* Coloca los elementos en línea */
-    justify-content: center; /* Centra los elementos horizontalmente */
-    gap: 10px; /* Espacio entre los elementos */
+.Submenunavegacion ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    gap: 75px;
 }
 
 .Submenunavegacion {
-    margin: 5% auto 10%; /* Margen superior e inferior, y centrado horizontalmente */
-    width: 80%; /* Ancho del contenedor (ajusta según sea necesario) */
-    max-width: 1200px; /* Ancho máximo para evitar que se extienda demasiado */
-    text-align: center; /* Centra el contenido interno */
-    padding: 10px; /* Espaciado interno */
-    border-radius: 8px; /* Bordes redondeados */
-    position: static; /* Mantén el posicionamiento estático */
+    margin: 5% auto 10%;
+    width: 80%;
+    max-width: 1200px;
+    text-align: center;
+    padding: 10px;
+    border-radius: 8px;
+    position: static;
     margin-bottom: 1%;
+    margin-right: 5%;
 }
 
 .Submenunavegacion ul li {
-    display: inline; /* Muestra los elementos en línea */
+    display: inline;
 }
 
 .Submenunavegacion a {
@@ -50,42 +46,86 @@ h2 {
     color: white;
     border-radius: 5px;
     transition: background-color 0.3s ease;
+    display: inline-block; /* Cambiado a inline-block para mejor control */
 }
 
 .Submenunavegacion a:hover {
-    background-color: #0056b3; /* Cambia el color al pasar el mouse */
+    background-color: #0056b3;
 }
 
 .Submenunavegacion a.active {
-    background-color: #0056b3; /* Color para el enlace activo */
+    background-color: #0056b3;
 }
-/* Tabla */
-.table-container {
-    overflow-x: auto;
-}
-/* Tabla */
-.table-container {
-    overflow-x: auto;
+/* Media Queries para móviles */
+@media (max-width: 768px) {
+    .Submenunavegacion ul {
+        flex-wrap: wrap;
+        justify-content: center; /* Aseguramos que se mantenga centrado */
+        gap: 5px; /* 8px vertical, 10px horizontal */
+    }
+    
+    .Submenunavegacion {
+        width: 95%;
+        padding: 10px 5px; /* Reducimos padding lateral */
+    }
+    
+    .Submenunavegacion a {
+        padding: 12px 15px; /* Tamaño táctil adecuado */
+        margin: 0; /* Eliminamos margen superior para mejor alineación */
+        flex: 0 0 auto; /* Evita que los botones se estiren */
+        white-space: nowrap; /* Evita que el texto se divida en varias líneas */
+    }
 }
 
-table {
+@media (max-width: 480px) {
+    .Submenunavegacion ul {
+        gap: 4px; /* Espacio más ajustado en pantallas muy pequeñas */
+    }
+    
+    .Submenunavegacion a {
+        padding: 10px 12px; /* Botones un poco más compactos */
+        font-size: 0.95em; /* Ligera reducción de tamaño de fuente */
+    }
+}
+/* Contenedor centrado de la tabla */
+.table-container {
     width: 100%;
-    border-collapse: collapse;
-    margin: 20px 0;
-    background-color: white;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    overflow-x: auto;  /* Asegura que si la tabla es demasiado ancha, se pueda desplazar horizontalmente */
 }
 
+/* Estilo de la tabla */
+table {
+    border-collapse: collapse;
+    width: 100%; /* Hacer la tabla más fluida */
+    max-width: 1000px; /* Limitar ancho máximo */
+    text-align: center;
+    background-color: #fff;
+    box-shadow: 0px 0px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 5px;
+}
+
+/* Celdas */
 table th, table td {
     padding: 12px 15px;
     text-align: left;
+    word-wrap: break-word; /* Permite el ajuste de texto largo */
+    white-space: normal; /* Cambiado para que el contenido largo no se corte */
 }
 
+/* Encabezado */
 table th {
     background-color: #007bff;
     color: white;
+    position: sticky;
+    top: 0;
+    z-index: 1;
 }
 
+/* Filas alternadas y hover */
 table tr:nth-child(even) {
     background-color: #f9f9f9;
 }
@@ -94,7 +134,7 @@ table tr:hover {
     background-color: #f1f1f1;
 }
 
-/* Botones */
+/* Botón editar */
 .btn-edit {
     text-decoration: none;
     padding: 5px 10px;
@@ -102,8 +142,48 @@ table tr:hover {
     color: white;
     border-radius: 3px;
     transition: background-color 0.3s ease;
+    display: inline-block;
+    text-align: center;
 }
 
 .btn-edit:hover {
     background-color: #218838;
+}
+
+/* Responsivo: Tablets y pantallas medianas */
+@media (max-width: 768px) {
+    main{
+        margin: 0
+    }
+    .table-container {
+        padding: 0 10px; /* Ajustamos márgenes */
+        overflow-x: auto; /* Permite el desplazamiento horizontal si es necesario */
+    }
+
+    table {
+        width: 100%; /* Ajuste para pantallas medianas */
+    }
+
+    table th, table td {
+        padding: 8px 10px; /* Reducimos el padding en pantallas pequeñas */
+        font-size: 0.9em;
+    }
+
+    .btn-edit {
+        padding: 4px 8px;
+        font-size: 0.85em;
+    }
+}
+
+/* Responsivo: Móviles pequeños */
+@media (max-width: 480px) {
+    table th, table td {
+        padding: 6px 8px;
+        font-size: 0.85em; /* Ajustamos el tamaño de fuente */
+    }
+
+    .btn-edit {
+        font-size: 0.8em;
+        padding: 4px 6px;
+    }
 }
