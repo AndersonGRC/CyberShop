@@ -1,3 +1,14 @@
+:root {
+    --color-principal: #f9f9f9;  
+    --color-secundario: #0e1b33; 
+    --color-gris: #9b9b9b ;
+    --color-negro: #000000;
+    --color-transicion: #2a4d69;
+    --color-red:  red;
+    --color-verde: #28a745 ;
+  }
+
+
 /* Contenedor principal */
 .container {
     display: flex;
@@ -5,6 +16,7 @@
     padding: 20px;
     gap: 20px; /* Espacio entre el contenido principal y el carrito */
 }
+
 
 /* Contenido principal */
 .main-content {
@@ -18,7 +30,7 @@
 }
 
 .producto {
-    border: 1px solid #ccc;
+    border: 1px solid var(--color-negro);
     border-radius: 8px;
     padding: 15px;
     width: 200px;
@@ -32,12 +44,12 @@
 .producto p {
     margin: 0 0 15px;
     font-size: 18px;
-    color: #333;
+    color: var(--color-gris);
 }
 
 .añadir-carrito {
-    background-color: #28a745;
-    color: white;
+    background-color: var(--color-verde);
+    color: var(--color-principal);
     border: none;
     padding: 10px 15px;
     border-radius: 5px;
@@ -45,15 +57,15 @@
 }
 
 .añadir-carrito:hover {
-    background-color: #218838;
+    background-color: var(--color-verde);
 }
 
 /* Carrito lateral */
 .carrito-lateral {
     width: 300px;
-    background-color: #f8f9fa;
+    background-color: var(--color-principal);
     padding: 20px;
-    border-left: 1px solid #ccc;
+    border-left: 1px solid var(--color-principal);
     box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
     position: relative; /* Cambiado a relativo */
     overflow-y: auto; /* Scroll si el contenido es muy largo */
@@ -72,12 +84,12 @@
     display: flex;
     justify-content: space-between;
     padding: 10px 0;
-    border-bottom: 1px solid #ccc;
+    border-bottom: 1px solid var(--color-principal);
 }
 
 #vaciar-carrito {
-    background-color: #dc3545;
-    color: white;
+    background-color: var(--color-red);
+    color: var(--color-principal);
     border: none;
     padding: 10px 15px;
     border-radius: 5px;
@@ -87,7 +99,7 @@
 }
 
 #vaciar-carrito:hover {
-    background-color: #c82333;
+    background-color: var(--color-red);
 }
 
 
@@ -100,14 +112,14 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: var(--color-negro);
     justify-content: center;
     align-items: center;
     z-index: 1000;
 }
 
 .popup-contenido {
-    background-color: white;
+    background-color: var(--color-principal);
     padding: 20px;
     border-radius: 8px;
     width: 400px; /* Ajusta el ancho según sea necesario */
@@ -124,7 +136,7 @@
 }
 
 .cerrar-popup:hover {
-    color: #dc3545;
+    color: var(--color-red);
 }
 
 #popup-imagen {
@@ -134,14 +146,14 @@
 }
 
 .cerrar-popup:hover {
-    color: #dc3545;
+    color: var(--color-red);
 }
 
 
 /* Estilos para el botón "Ver Detalles" */
 .ver-descripcion {
-    background-color: #007bff; /* Color azul moderno */
-    color: white;
+    background-color: var(--color-transicion); /* Color azul moderno */
+    color: var(--color-principal);
     border: none;
     padding: 10px 15px;
     border-radius: 25px; /* Bordes redondeados */
@@ -150,20 +162,20 @@
     font-weight: bold;
     text-transform: uppercase;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 6px var(--color-negro);
     margin-top: 10px;
     display: inline-block;
 }
 
 .ver-descripcion:hover {
-    background-color: #0056b3; /* Color azul más oscuro al pasar el mouse */
+    background-color: var(--color-transicion); /* Color azul más oscuro al pasar el mouse */
     transform: translateY(-2px); /* Efecto de levitación */
-    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 6px 8px var(--color-negro);
 }
 
 .ver-descripcion:active {
     transform: translateY(0); /* Efecto de clic */
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 6px var(--color-negro);
 }
 
 
@@ -178,7 +190,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.7); /* Fondo oscuro semi-transparente */
+    background-color: var(--color-negro); /* Fondo oscuro semi-transparente */
     justify-content: center;
     align-items: center;
     z-index: 1000;
@@ -195,14 +207,14 @@
 }
 
 .popup-contenido {
-    background-color: #ffffff;
+    background-color: var(--color-negro);
     padding: 25px;
     border-radius: 15px;
     width: 90%;
     max-width: 500px; /* Ancho máximo */
     text-align: left;
     position: relative;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 10px 30px var(--color-negro);
     transform: scale(0.9); /* Efecto de escala inicial */
     animation: scaleUp 0.3s ease forwards; /* Animación de escala */
 }
@@ -222,25 +234,25 @@
     right: 15px;
     font-size: 24px;
     cursor: pointer;
-    color: #666;
+    color: var(--color-gris);
     transition: color 0.3s ease;
 }
 
 .cerrar-popup:hover {
-    color: #ff4d4d; /* Color rojo al pasar el mouse */
+    color: var(--color-red); /* Color rojo al pasar el mouse */
 }
 
 #popup-imagen {
     width: 100%;
     border-radius: 10px;
     margin-bottom: 15px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 8px var(--color-negro);
 }
 
 #popup-titulo {
     font-size: 24px;
     font-weight: bold;
-    color: #333;
+    color: var(--color-gris);
     margin-bottom: 10px;
 }
 
@@ -249,14 +261,14 @@
 #popup-descripcion-texto,
 #popup-precio {
     font-size: 16px;
-    color: #555;
+    color: var(--color-gris);
     margin-bottom: 8px;
 }
 
 #popup-precio {
     font-size: 20px;
     font-weight: bold;
-    color: #007bff; /* Color azul para el precio */
+    color: var(--color-transicion); /* Color azul para el precio */
 }
 
 /* Estilos para los textos dentro del pop-up */
@@ -265,6 +277,6 @@
 }
 
 .popup-contenido p strong {
-    color: #333;
+    color: var(--color-gris);
     font-weight: bold;
 }

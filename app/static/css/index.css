@@ -2,8 +2,11 @@
 /* CARRUSEL DE IMÁGENES */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700;800;900&display=swap');
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> 641f52c65b48ae7823f7b78b5671a356f009dea6
 .slider {
     position: relative;
     background: var(--color-gris);
