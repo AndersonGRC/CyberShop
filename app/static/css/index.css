@@ -2,12 +2,6 @@
 /* CARRUSEL DE IMÁGENES */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700;800;900&display=swap');
 
-:root {
-    --color-principal: #f9f9f9;  
-    --color-secundario: #0e1b33; 
-    --color-gris: #9b9b9b ;
-    --color-negro: #000000;
-  }
 .slider {
     position: relative;
     background: var(--color-gris);

@@ -1,10 +1,4 @@
-:root {
-    --color-principal: #f9f9f9;  
-    --color-secundario: #0e1b33; 
-    --color-gris: #9b9b9b ;
-    --color-negro: #000000;
-    --color-transicion: #2a4d69;
-  }
+
 body  { background: linear-gradient(135deg, var(--color-secundario),var(--color-transicion) );}
 /* Contenedor del formulario */
 .main {
