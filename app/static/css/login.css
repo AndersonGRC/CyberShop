@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 :root {
     --color-principal: #f9f9f9;  
     --color-secundario: #c6302c; 
@@ -6,9 +6,7 @@
     --color-negro: #000000;
     --color-transicion: #ee827f;
   }
-=======
-
->>>>>>> 641f52c65b48ae7823f7b78b5671a356f009dea6
+  
 body  { background: linear-gradient(135deg, var(--color-secundario),var(--color-transicion) );}
 /* Contenedor del formulario */
 .main {
