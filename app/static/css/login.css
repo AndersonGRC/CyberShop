@@ -1,12 +1,4 @@
-
-:root {
-    --color-principal: #f9f9f9;  
-    --color-secundario: #c6302c; 
-    --color-gris: #9b9b9b ;
-    --color-negro: #000000;
-    --color-transicion: #ee827f;
-  }
-  
+@import url('Variables\ de\ color.css');
 body  { background: linear-gradient(135deg, var(--color-secundario),var(--color-transicion) );}
 /* Contenedor del formulario */
 .main {

@@ -1,12 +1,4 @@
-:root {
-    --color-principal: #f9f9f9;  
-    --color-secundario: #c6302c; 
-    --color-gris: grey ;
-    --color-negro: #000000;
-    --color-transicion: #c6302c;
-    --color-red:  #c6302c;
-    --color-crema:#fffcef;
-  }
+@import url('Variables\ de\ color.css');
 
 * {
     box-sizing: border-box;
@@ -272,11 +264,11 @@ body.nav_fixed .nav .wrap {
 
 .socials a i {
     font-size: 1.1rem;
-    transition: color .4s ease;
+    transition: transform 0.4s ease; /* Cambiamos transition a transform */
 }
 
 .socials a:hover i {
-    color: var(--color-secundario);
+    transform: scale(1.5); /* Hacemos que el icono crezca un 20% */
 }
 
 .footer-bottom {

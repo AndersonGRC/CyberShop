@@ -1,17 +1,7 @@
 
 /* CARRUSEL DE IMÁGENES */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700;800;900&display=swap');
-
-:root {
-    --color-principal: #f9f9f9;  
-    --color-secundario: #c6302c; 
-    --color-gris: #9b9b9b ;
-    --color-negro: #000000;
-    --color-transicion: #ee827f;
-    --color-red:  #c6302c;
-    --color-verde: #28a745 ;
-  }
-
+@import url('Variables\ de\ color.css');
 .slider {
     position: relative;
     background: var(--color-gris);
@@ -200,8 +190,15 @@
 
 
 @media (max-width: 768px) {
-    .map-container, .contact-form {
+    .contact-container{
+        display: flex;
+        flex-direction: column;
+        margin: 10px;
+
+    }
+    .map-container ,.contact-form{
         width: 100%;
+        gap: 5px;
     }
 }
 /* Estilos para la sección "Acerca de Nosotros" */

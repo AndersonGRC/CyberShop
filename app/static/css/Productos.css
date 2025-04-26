@@ -1,26 +1,23 @@
-:root {
-    --color-principal: #f9f9f9;  
-    --color-secundario: #c6302c; 
-    --color-gris: #9b9b9b ;
-    --color-negro: #000000;
-    --color-transicion: #2a4d69;
-    --color-red:  #ee827f;
-    --color-verde: #28a745 ;
-  }
-
+@import url('Variables\ de\ color.css');
 
 /* Contenedor principal */
+
 .container {
     display: flex;
     flex: 1;
     padding: 20px;
     gap: 20px; /* Espacio entre el contenido principal y el carrito */
 }
-
+@media (max-width: 768px) {
+    .container{
+        padding: 40px 5px 20px 5px;
+    }
+}
 
 /* Contenido principal */
 .main-content {
     flex: 1;
+    padding: 10px;
 }
 
 .productos {
@@ -152,7 +149,7 @@
 
 /* Estilos para el botón "Ver Detalles" */
 .ver-descripcion {
-    background-color: var(--color-transicion); /* Color azul moderno */
+    background-color: var(--color-red); /* Color azul moderno */
     color: var(--color-principal);
     border: none;
     padding: 10px 15px;
