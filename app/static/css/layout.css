@@ -1,10 +1,11 @@
 :root {
     --color-principal: #f9f9f9;  
     --color-secundario: #c6302c; 
-    --color-gris: #9b9b9b ;
+    --color-gris: grey ;
     --color-negro: #000000;
-    --color-transicion: #2a4d69;
+    --color-transicion: #c6302c;
     --color-red:  #c6302c;
+    --color-crema:#fffcef;
   }
 
 * {
@@ -43,9 +44,9 @@
     display: inline-block;
     font-size: 18px; /* Tamaño ligeramente mayor */
     padding: 3px 5px; /* Espaciado más equilibrado */
-    margin-right: 30px;
+    margin-right: 25px;
     color: var(--color-principal); /* Mantiene el color principal */
-    background-color: var(--color-gris); /* Fondo contrastante */
+    background-color: var(--color-red); /* Fondo contrastante */
     border-radius: 6px; /* Bordes redondeados */
     cursor: pointer;
     z-index: 11; /* Mantiene el logo por encima de otros elementos */
@@ -54,12 +55,13 @@
 }
 
 .logo_small:hover {
-    color: var(--color-principal); /* Cambio a blanco puro */
-    background-color: #0e1b33; /* Color de fondo resaltado */
+    background-color: var(--color-crema); /* Color de fondo resaltado */
     transform: scale(1.2); /* Efecto de crecimiento */
     box-shadow: 0px 6px 6px var(--color-negro); /* Sombra más pronunciada */
 }
-
+.link:hover{
+    color:var(--color-secundario)/*cambio color letras logo_small*/
+}
 
 
 /* Barra de navegación */
@@ -67,7 +69,7 @@
     z-index: 20; /* Barra de navegación sobre el contenido */
     float: left;
     width: 100%;
-    background: var(--color-negro);
+    background: var(--color-crema);
     color: var(--color-principal);
     padding: 0 20px;
     transition: .3s ease all;
@@ -79,7 +81,7 @@
 /* Wrapper de la navegación */
 .nav .wrap {
     position: relative;
-    left: -150px;
+    left: -215px; /*Modificar esta margen cuando el logo_small es demaciado grande y sobre sale*/
     transition: 0.4s ease all;
     z-index: 21; /* Wrapper de la navegación sobre el menú */
 }
@@ -103,14 +105,14 @@ nav a {
     display: block;
     padding: 20px;
     margin: 0;
-    color: var(--color-principal);
+    color: var(--color-red);
     text-decoration: none;
     transition: 0.2s ease all;
 }
 
 nav a:hover {
     color: var(--color-principal);
-    background: #0e1b33;
+    background: var(--color-red);
 }
 
 .main {
