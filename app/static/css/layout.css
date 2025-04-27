@@ -37,32 +37,26 @@
     font-size: 18px; /* Tamaño ligeramente mayor */
     padding: 3px 5px; /* Espaciado más equilibrado */
     margin-right: 25px;
-    color: var(--color-principal); /* Mantiene el color principal */
-    background-color: var(--color-red); /* Fondo contrastante */
+    background-color: var(--color-crema); /* Fondo contrastante */
     border-radius: 6px; /* Bordes redondeados */
     cursor: pointer;
     z-index: 11; /* Mantiene el logo por encima de otros elementos */
     box-shadow: 0px 4px 6px var(--color-negro); /* Sombra ligera */
     transition: all 0.3s ease; /* Suaviza las interacciones */
 }
-
+.link{
+    color: var(--color-red);
+}
 .logo_small:hover {
-    background-color: var(--color-crema); /* Color de fondo resaltado */
-    transform: scale(1.2); /* Efecto de crecimiento */
+    transform: scale(1.1); /* Efecto de crecimiento */
     box-shadow: 0px 6px 6px var(--color-negro); /* Sombra más pronunciada */
 }
-.link:hover{
-    color:var(--color-secundario)/*cambio color letras logo_small*/
-}
-
-
 /* Barra de navegación */
 .nav {
     z-index: 20; /* Barra de navegación sobre el contenido */
     float: left;
     width: 100%;
-    background: var(--color-crema);
-    color: var(--color-principal);
+    background: var(--color-secundario);
     padding: 0 20px;
     transition: .3s ease all;
     backface-visibility: hidden;
@@ -76,6 +70,7 @@
     left: -215px; /*Modificar esta margen cuando el logo_small es demaciado grande y sobre sale*/
     transition: 0.4s ease all;
     z-index: 21; /* Wrapper de la navegación sobre el menú */
+    
 }
 
 nav {
@@ -97,14 +92,14 @@ nav a {
     display: block;
     padding: 20px;
     margin: 0;
-    color: var(--color-red);
+    color: var(--color-principal);
     text-decoration: none;
     transition: 0.2s ease all;
 }
 
 nav a:hover {
-    color: var(--color-principal);
-    background: var(--color-red);
+    color: var(--color-red);
+    background: var(--color-crema);
 }
 
 .main {

@@ -35,7 +35,7 @@
 
 .servicios-titulo-contenido h2 {
     font-size: 3rem; /* Tamaño del título */
-    color: var(--color-principal); /* Color del texto */
+    color: var(--color-negro); /* Color del texto */
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5); /* Sombra para mejorar la legibilidad */
     text-transform: uppercase; /* Convertir texto a mayúsculas */
     font-weight: bold; /* Grosor de la fuente */

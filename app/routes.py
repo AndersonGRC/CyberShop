@@ -367,20 +367,35 @@ def editar_producto(id):
         generos = []
 
     if request.method == 'POST':
-        # Aquí puedes manejar la actualización del producto
         nombre = request.form.get('nombre')
         precio = request.form.get('precio')
         referencia = request.form.get('referencia')
         genero_id = request.form.get('genero_id')
         descripcion = request.form.get('descripcion')
+        file = request.files.get('imagen')
 
         try:
             conn = get_db_connection()
             cur = conn.cursor()
-            cur.execute(
-                'UPDATE productos SET nombre = %s, precio = %s, referencia = %s, genero_id = %s, descripcion = %s WHERE id = %s',
-                (nombre, precio, referencia, genero_id, descripcion, id)
-            )
+            
+            # Si se subió una nueva imagen
+            if file and file.filename != '':
+                # Guardar la nueva imagen
+                imagen_nombre = images.save(file, folder='media')
+                imagen_url = f"/static/media/{imagen_nombre}"
+                
+                # Actualizar producto incluyendo la nueva imagen
+                cur.execute(
+                    'UPDATE productos SET nombre = %s, precio = %s, referencia = %s, genero_id = %s, descripcion = %s, imagen = %s WHERE id = %s',
+                    (nombre, precio, referencia, genero_id, descripcion, imagen_url, id)
+                )
+            else:
+                # Actualizar producto sin cambiar la imagen
+                cur.execute(
+                    'UPDATE productos SET nombre = %s, precio = %s, referencia = %s, genero_id = %s, descripcion = %s WHERE id = %s',
+                    (nombre, precio, referencia, genero_id, descripcion, id)
+                )
+            
             conn.commit()
             cur.close()
             conn.close()

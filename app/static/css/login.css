@@ -1,5 +1,5 @@
 @import url('Variables\ de\ color.css');
-body  { background: linear-gradient(135deg, var(--color-secundario),var(--color-transicion) );}
+body  { background: var(--color-crema);}
 /* Contenedor del formulario */
 .main {
     position: static;
@@ -12,6 +12,7 @@ body  { background: linear-gradient(135deg, var(--color-secundario),var(--color-
     text-align: center;
     max-width: 500px;
     transition: transform 0.3s ease;
+    border: var(--color-transicion) 3px solid;
 }
 
 .main:hover {
@@ -29,6 +30,7 @@ h2 {
 /* Formulario */
 form {
     margin: auto;
+
 }
 
 /* Etiquetas */

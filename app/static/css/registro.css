@@ -1,12 +1,4 @@
-:root {
-    --color-principal: #f9f9f9;  
-    --color-secundario: #0e1b33; 
-    --color-gris: #9b9b9b ;
-    --color-negro: #000000;
-    --color-transicion: #2a4d69;
-  }
-
-
+@import url('Variables\ de\ color.css');
 
 /* Contenedor principal */
 .container {
@@ -38,6 +30,7 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    padding: 15px;
 }
 
 /* Estilos para el formulario */
