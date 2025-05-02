@@ -4,6 +4,8 @@ env/
 
 # Hidden de imagenes admin plataforma
 media/
+user/
+
 
 # Archivos de configuración sensible
 *.env

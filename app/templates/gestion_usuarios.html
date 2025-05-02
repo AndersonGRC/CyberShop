@@ -1,0 +1,73 @@
+{% extends './plantillaapp.html' %}
+
+{% block titulo %}Gestión de Usuarios{% endblock %}
+
+{% block LinkAdicional %}
+<!-- Puedes agregar aquí enlaces CSS adicionales si los necesitas -->
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Gestión de Usuarios</h1>
+    
+    <!-- Botón modificado para redirigir a la página de creación -->
+    <a href="{{ url_for('crear_usuario') }}" class="btn btn-primary mb-4">
+        <i class="fas fa-plus"></i> Nuevo Usuario
+    </a>
+
+    <!-- Tabla de usuarios -->
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Email</th>
+                            <th>Rol</th>
+                            <th>Estado</th>
+                            <th>Última Conexión</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for usuario in usuarios %}
+                        <tr>
+                            <td>{{ usuario.id }}</td>
+                            <td>{{ usuario.nombre }}</td>
+                            <td>{{ usuario.email }}</td>
+                            <td>{{ usuario.rol_nombre }}</td>
+                            <td>
+                                <span class="badge badge-{{ 'success' if usuario.estado == 'habilitado' else 'danger' }}">
+                                    {{ usuario.estado }}
+                                </span>
+                            </td>
+                            <td>{{ usuario.ultima_conexion.strftime('%Y-%m-%d %H:%M') if usuario.ultima_conexion else 'Nunca' }}</td>
+                            <td>
+                                <a href="{{ url_for('editar_usuario', id=usuario.id) }}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+<!-- Scripts adicionales si los necesitas -->
+<script>
+$(document).ready(function() {
+    $('#dataTable').DataTable({
+        "language": {
+            "url": "//cdn.datatables.net/plug-ins/1.10.20/i18n/Spanish.json"
+        }
+    });
+});
+</script>
+{% endblock %}

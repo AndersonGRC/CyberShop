@@ -5,7 +5,8 @@ from werkzeug.datastructures import FileStorage  # Corrección en la importació
 from flask_mail import Mail
 from dotenv import load_dotenv
 from flask_mail import Message  
-
+import os
+import re
 
 app = Flask(__name__)
 app.secret_key = 'Omegafito7217*'  # Clave secreta para manejar sesiones
@@ -22,10 +23,23 @@ app.config['MAIL_DEFAULT_SENDER'] = 'cybershop.digitalsales@gmail.com'  # Correo
 # Inicializa Flask-Mail
 mail = Mail(app)
 
-# Configuración para subir imágenes
-app.config['UPLOADED_IMAGES_DEST'] = 'static/media'
+# Configuración para imágenes de productos
+app.config['UPLOADED_IMAGES_DEST'] = os.path.join('static', 'media')
+app.config['UPLOADED_IMAGES_URL'] = '/static/media/'
 images = UploadSet('images', IMAGES)
+
+# Configuración para imágenes de usuarios
+app.config['UPLOADED_USERIMAGES_DEST'] = os.path.join('static', 'user')
+app.config['UPLOADED_USERIMAGES_URL'] = '/static/user/'
+user_images = UploadSet('userimages', IMAGES)
+
+# Configurar ambos conjuntos de uploads
 configure_uploads(app, images)
+configure_uploads(app, user_images)
+
+# Crear directorios si no existen
+os.makedirs(app.config['UPLOADED_IMAGES_DEST'], exist_ok=True)
+os.makedirs(app.config['UPLOADED_USERIMAGES_DEST'], exist_ok=True)
 
 # Función para obtener datos comunes
 def get_common_data():
@@ -60,12 +74,20 @@ def get_data_app():
                 {"nombre": "Eliminar Producto", "url": "eliminar_productos", "icono": "trash"}
             ]
         },
+        {
+            "nombre": "Gestion Usuarios",
+            "url": "gestion_usuarios",  # Nombre exacto de la función de vista
+            "icono": "users",
+            "submodulos": [
+                {"nombre": "Lista de Usuarios", "url": "gestion_usuarios", "icono": "list"},
+            ]
+        },
         {"nombre": "Cerrar Sesion", "url": "logout", "icono": "sign-out-alt"}
     ]
     return {
         'titulo': 'CyberShop',
-        'MenuAppindex': App,  # Pasar la lista App, no la instancia de Flask
-        'longMenuAppindex': len(App)  # Calcular la longitud de la lista App
+        'MenuAppindex': App,
+        'longMenuAppindex': len(App)
     }
 
 # Importar las rutas desde routes.py
@@ -73,5 +95,5 @@ from routes import *
 
 # Servidor 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, debug=False)
+    app.run(host='0.0.0.0', port=5001, debug=True)
     # app.run(host='0.0.0.0:5678', debug=True)
