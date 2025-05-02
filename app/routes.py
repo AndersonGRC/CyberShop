@@ -9,7 +9,9 @@ from psycopg2.extras import DictCursor
 from app import mail
 from flask_mail import Message  
 from datetime import datetime
-
+from app import app, mail, get_common_data, get_data_app, images as product_images, user_images
+import os
+import re
 
 @app.route('/registrar-cliente', methods=['GET', 'POST'])
 def registrar_cliente():
@@ -581,3 +583,280 @@ def enviar_mensaje():
         flash('❌ Error al enviar', 'error')
     
     return redirect(url_for('index'))
+
+
+
+
+    # Añade estas rutas al final de tu routes.py
+
+# Ruta para listar usuarios (solo admin)
+@app.route('/gestion-usuarios')
+@rol_requerido(1)  # Solo superadmin
+def gestion_usuarios():
+    datosApp = get_data_app()
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=DictCursor)
+        # Obtenemos usuarios con el nombre del rol
+        cur.execute('''
+            SELECT u.*, r.nombre as rol_nombre 
+            FROM usuarios u
+            JOIN roles r ON u.rol_id = r.id
+            ORDER BY u.id
+        ''')
+        usuarios = cur.fetchall()
+        # Obtenemos lista de roles para el formulario
+        cur.execute('SELECT * FROM roles')
+        roles = cur.fetchall()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error al obtener usuarios: {e}")
+        flash('Error al cargar la lista de usuarios', 'error')
+        usuarios = []
+        roles = []
+    
+    return render_template('gestion_usuarios.html', 
+                         datosApp=datosApp, 
+                         usuarios=usuarios,
+                         roles=roles)
+
+# Ruta para crear usuario (solo admin)
+@app.route('/crear-usuario', methods=['GET', 'POST'])
+@rol_requerido(1)  # Solo superadmin
+def crear_usuario():
+    datosApp = get_data_app()
+    
+    # Obtener lista de roles para el formulario
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=DictCursor)
+        cur.execute('SELECT * FROM roles ORDER BY id')
+        roles = cur.fetchall()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error al obtener roles: {e}")
+        flash('Error al cargar los roles de usuario', 'error')
+        roles = []
+
+    if request.method == 'POST':
+        # Obtener datos del formulario
+        nombre = request.form.get('nombre')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        rol_id = request.form.get('rol_id')
+        fecha_nacimiento = request.form.get('fecha_nacimiento')
+        telefono = request.form.get('telefono')
+        direccion = request.form.get('direccion')
+        fotografia = None
+
+        # Validaciones básicas
+        errors = []
+        if not nombre:
+            errors.append('El nombre es obligatorio')
+        if not email:
+            errors.append('El email es obligatorio')
+        elif not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+            errors.append('El email no tiene un formato válido')
+        if not password:
+            errors.append('La contraseña es obligatoria')
+        elif len(password) < 8:
+            errors.append('La contraseña debe tener al menos 8 caracteres')
+        if password != confirm_password:
+            errors.append('Las contraseñas no coinciden')
+        if not rol_id:
+            errors.append('Debe seleccionar un rol')
+
+        if errors:
+            for error in errors:
+                flash(error, 'error')
+            return redirect(url_for('crear_usuario'))
+
+        # Manejo de la imagen
+        if 'fotografia' in request.files:
+            file = request.files['fotografia']
+            if file.filename != '':
+                try:
+                    # Validar tipo de archivo
+                    allowed_extensions = {'jpg', 'jpeg', 'png'}
+                    filename = file.filename.lower()
+                    if '.' in filename and filename.rsplit('.', 1)[1] in allowed_extensions:
+                        filename = user_images.save(file)
+                        fotografia = f"/static/user/{filename}"
+                    else:
+                        flash('Formato de imagen no válido. Use JPG, JPEG o PNG', 'error')
+                        return redirect(url_for('crear_usuario'))
+                except Exception as e:
+                    print(f"Error al guardar imagen: {e}")
+                    flash('Error al subir la imagen del usuario', 'error')
+                    return redirect(url_for('crear_usuario'))
+
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor()
+            
+            # Verificar si el email ya existe
+            cur.execute('SELECT id FROM usuarios WHERE email = %s', (email,))
+            if cur.fetchone():
+                flash('El correo electrónico ya está registrado', 'error')
+                return redirect(url_for('crear_usuario'))
+
+            # Crear el usuario
+            hashed_password = generate_password_hash(password)
+            cur.execute('''
+                INSERT INTO usuarios 
+                (nombre, email, contraseña, rol_id, fecha_nacimiento, 
+                 telefono, direccion, fotografia, estado)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'habilitado')
+                RETURNING id
+            ''', (nombre, email, hashed_password, rol_id, fecha_nacimiento, 
+                 telefono, direccion, fotografia))
+            
+            nuevo_usuario_id = cur.fetchone()[0]
+            conn.commit()
+            
+            flash('Usuario creado exitosamente', 'success')
+            return redirect(url_for('gestion_usuarios'))
+            
+        except psycopg2.IntegrityError as e:
+            conn.rollback()
+            print(f"Error de integridad al crear usuario: {e}")
+            flash('Error al crear el usuario. Verifique los datos.', 'error')
+        except Exception as e:
+            conn.rollback()
+            print(f"Error al crear usuario: {e}")
+            flash('Error al crear el usuario', 'error')
+        finally:
+            cur.close()
+            conn.close()
+
+        return redirect(url_for('crear_usuario'))
+
+    # Si es GET, mostrar formulario
+    return render_template('crear_usuario.html', 
+                         datosApp=datosApp,
+                         roles=roles)
+
+#editar usuarios
+@app.route('/editar-usuario/<int:id>', methods=['GET', 'POST'])
+@rol_requerido(1)  # Solo superadmin
+def editar_usuario(id):
+    datosApp = get_data_app()
+    
+    # Obtener datos del usuario y roles
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=DictCursor)
+        cur.execute('SELECT * FROM usuarios WHERE id = %s', (id,))
+        usuario = cur.fetchone()
+        cur.execute('SELECT * FROM roles ORDER BY id')
+        roles = cur.fetchall()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error al obtener datos: {e}")
+        flash('Error al cargar datos del usuario', 'error')
+        return redirect(url_for('gestion_usuarios'))
+
+    if request.method == 'POST':
+        nombre = request.form.get('nombre')
+        email = request.form.get('email')
+        rol_id = request.form.get('rol_id')
+        fecha_nacimiento = request.form.get('fecha_nacimiento')
+        telefono = request.form.get('telefono', '')
+        direccion = request.form.get('direccion', '')
+        estado = request.form.get('estado', 'habilitado')
+        fotografia = usuario['fotografia']  # Mantener la imagen actual por defecto
+
+        # Manejo de la nueva imagen
+        if 'fotografia' in request.files:
+            file = request.files['fotografia']
+            if file.filename != '':
+                try:
+                    # Eliminar la imagen anterior si existe
+                    if usuario['fotografia']:
+                        old_filename = usuario['fotografia'].split('/')[-1]
+                        old_path = os.path.join(app.config['UPLOADED_USERIMAGES_DEST'], old_filename)
+                        if os.path.exists(old_path):
+                            os.remove(old_path)
+                    
+                    # Guardar la nueva imagen
+                    filename = user_images.save(file)
+                    fotografia = f"/static/user/{filename}"
+                except Exception as e:
+                    print(f"Error al actualizar imagen: {e}")
+                    flash('Error al actualizar la imagen del usuario', 'error')
+
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor()
+            
+            # Actualizar usuario
+            cur.execute('''
+                UPDATE usuarios SET
+                nombre = %s,
+                email = %s,
+                rol_id = %s,
+                fecha_nacimiento = %s,
+                telefono = %s,
+                direccion = %s,
+                estado = %s,
+                fotografia = %s,
+                fecha_modificacion = CURRENT_TIMESTAMP
+                WHERE id = %s
+            ''', (nombre, email, rol_id, fecha_nacimiento, telefono, 
+                 direccion, estado, fotografia, id))
+            
+            conn.commit()
+            flash('Usuario actualizado exitosamente', 'success')
+        except Exception as e:
+            conn.rollback()
+            print(f"Error al actualizar usuario: {e}")
+            flash('Error al actualizar el usuario', 'error')
+        finally:
+            cur.close()
+            conn.close()
+        return redirect(url_for('gestion_usuarios'))
+
+    return render_template('editar_usuario.html',
+                         datosApp=datosApp,
+                         usuario=usuario,
+                         roles=roles)
+
+# Ruta para cambiar contraseña (solo admin)
+@app.route('/cambiar-password/<int:id>', methods=['POST'])
+@rol_requerido(1)  # Solo superadmin
+def cambiar_password(id):
+    if request.method == 'POST':
+        nueva_password = request.form.get('nueva_password')
+        confirmar_password = request.form.get('confirmar_password')
+
+        if not nueva_password or nueva_password != confirmar_password:
+            flash('Las contraseñas no coinciden o están vacías', 'error')
+            return redirect(url_for('editar_usuario', id=id))
+
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor()
+            
+            hashed_password = generate_password_hash(nueva_password)
+            cur.execute('''
+                UPDATE usuarios SET
+                contraseña = %s,
+                fecha_modificacion = CURRENT_TIMESTAMP
+                WHERE id = %s
+            ''', (hashed_password, id))
+            
+            conn.commit()
+            flash('Contraseña actualizada exitosamente', 'success')
+        except Exception as e:
+            conn.rollback()
+            print(f"Error al cambiar contraseña: {e}")
+            flash('Error al cambiar la contraseña', 'error')
+        finally:
+            cur.close()
+            conn.close()
+
+    return redirect(url_for('editar_usuario', id=id))
