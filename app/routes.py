@@ -9,16 +9,14 @@ from psycopg2.extras import DictCursor
 from app import mail
 from flask_mail import Message  
 from datetime import datetime
-<<<<<<< HEAD
+from app import app, mail, get_common_data, get_data_app, images as product_images, user_images
+import os
+import re
 import locale
 
 locale.setlocale(locale.LC_ALL, 'es_CO.UTF-8')
 
-=======
-from app import app, mail, get_common_data, get_data_app, images as product_images, user_images
-import os
-import re
->>>>>>> a5a74f757cd71576f7652e0cf32d6f2503db64f3
+
 
 @app.route('/registrar-cliente', methods=['GET', 'POST'])
 def registrar_cliente():
