@@ -1,0 +1,107 @@
+:root {
+    --color-principal:#122C94;
+    --color-principal-hover: #091C5A;
+    --color-exito: #32CD32;
+    --color-peligro: #ff0000;
+    --color-fondo-general: #f8f9fc;
+    --color-tarjeta: #ffffff;
+    --color-texto-principal: #343a40;
+    --color-texto-blanco: #f9f9f9;
+    --color-texto-secundario: #6c757d;
+    --color-tabla-header: #122C94;
+    --color-hover-fila: #f1f3f5;
+}
+body {
+    background-color: var(--color-fondo-general);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: var(--color-texto-principal);
+}
+
+h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+a.btn-primary {
+    background-color: var(--color-principal);
+    border: none;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    transition: background-color 0.3s ease;
+    color: #fff;
+    text-decoration: none;
+}
+
+a.btn-primary:hover {
+    background-color: var(--color-principal-hover);
+    color: #fff;
+}
+
+
+.table {
+    border-radius: 0.2rem;
+    overflow: hidden;
+}
+
+.table thead th {
+    background-color: var(--color-tabla-header);
+    font-weight: bold;
+    text-align: center;
+    color: var(--color-texto-blanco);
+}
+
+.table td, .table th {
+    text-align: center;
+    vertical-align: middle !important;
+    padding: 0.75rem;
+    color: var(--color-texto-principal);
+}
+.table tbody tr:hover {
+    background-color: var(--color-hover-fila);
+}
+
+.card {
+    border: none;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+    background-color: var(--color-tarjeta);
+    margin-top: 5%;
+}
+
+.badge-success {
+    background-color: var(--color-exito);
+    font-size: 0.95rem;
+    font-weight: bold;
+    padding: 0.4rem 0.8rem;
+    border-radius: 2rem;
+    color: var(--color-texto-blanco);
+}
+
+.badge-danger {
+    background-color: var(--color-peligro);
+    font-size: 0.95rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 2rem;
+    color: var(--color-texto-blanco);
+    font-size: 0.95rem;
+    font-weight: bold;
+}
+
+/* ======================
+   ✏️ BOTÓN EDITAR
+   ====================== */
+a.btn-sm.btn-primary {
+    background-color: var(--color-principal);
+    border-radius: 0.4rem;
+    padding: 0.4rem 0.6rem;
+    color: white;
+    transition: background-color 0.3s ease;
+}
+
+a.btn-sm.btn-primary:hover {
+    background-color: var(--color-principal-hover);
+    color: white;
+}
