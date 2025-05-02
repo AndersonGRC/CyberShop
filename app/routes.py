@@ -9,21 +9,9 @@ from psycopg2.extras import DictCursor
 from app import mail
 from flask_mail import Message  
 from datetime import datetime
-from app import app, mail, get_common_data, get_data_app, images as product_images, user_images
-import os
-import re
 import locale
-#importaciones PAY U
-from flask import render_template, request, redirect, url_for, flash, session, jsonify
-import requests
-import time
-from datetime import datetime
-
-
-
 
 locale.setlocale(locale.LC_ALL, 'es_CO.UTF-8')
-
 
 
 @app.route('/registrar-cliente', methods=['GET', 'POST'])
@@ -306,6 +294,7 @@ def GestionProductos():
 
 
 # Ruta para mostrar productos
+
 def formatear_moneda(valor):
     return locale.currency(valor, symbol=True, grouping=True)
 

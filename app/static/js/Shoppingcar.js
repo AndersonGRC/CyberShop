@@ -20,6 +20,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Función para convertir "$15.000,00" a 15000
+    function parsearPrecioColombiano(precioStr) {
+        return parseFloat(precioStr.replace(/[.$]/g, '').replace(',', '.'));
+    }
+
+    // Función para convertir 15000 a "$15.000,00"
+    function formatearPrecioColombiano(valor) {
+        return valor.toLocaleString('es-CO', {
+            style: 'currency',
+            currency: 'COP',
+            minimumFractionDigits: 2
+        });
+    }
+
     // Añadir productos al carrito
     botonesAñadir.forEach(boton => {
         boton.addEventListener('click', () => {
@@ -71,6 +85,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         totalElement.textContent = formatearPrecioColombiano(total);
     }
+});
+
 
     // Lógica para el pop-up de detalles del producto
     const botonesDescripcion = document.querySelectorAll('.ver-descripcion');
@@ -114,4 +130,3 @@ document.addEventListener('DOMContentLoaded', () => {
             popup.style.display = 'none';
         }
     });
-});
