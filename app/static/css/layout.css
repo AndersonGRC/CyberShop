@@ -7,17 +7,20 @@
     margin: 0;
 }
 
-
-/* Logo */
-.logo {
+#logo {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 8px; /* opcional */
     font-family: 'Cooper Black';
-    font-size: 70px;
-}
+   
+  }
+  
 
 /* Logo principal */
 .logo_main {
     padding-top: 100px;
-    height: 110px;
+    height: 99px;
     position: static;
     padding: 5px;
     background: linear-gradient(45deg, var(--color-principal), var(--color-secundario));
@@ -34,7 +37,7 @@
 }
 .logo_small {
     display: inline-block;
-    font-size: 18px; /* Tamaño ligeramente mayor */
+    font-size: 17px; /* Tamaño ligeramente mayor */
     padding: 3px 5px; /* Espaciado más equilibrado */
     margin-right: 25px;
     background-color: var(--color-crema); /* Fondo contrastante */
