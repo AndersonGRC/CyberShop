@@ -5,28 +5,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const botonesAñadir = document.querySelectorAll('.añadir-carrito');
     const botonVaciar = document.getElementById('vaciar-carrito');
 
-    // Función para convertir "$15.000,00" a 15000
-    function parsearPrecioColombiano(precioStr) {
-        return parseFloat(precioStr.replace(/[.$]/g, '').replace(',', '.'));
-    }
-
-    // Función para convertir 15000 a "$15.000,00"
-    function formatearPrecioColombiano(valor) {
-        return valor.toLocaleString('es-CO', {
-            style: 'currency',
-            currency: 'COP',
-            minimumFractionDigits: 2
-        });
-    }
-
     // Añadir productos al carrito
     botonesAñadir.forEach(boton => {
         boton.addEventListener('click', () => {
             const producto = boton.parentElement;
             const id = producto.getAttribute('data-id');
             const nombre = producto.getAttribute('data-name');
-            const precioStr = producto.getAttribute('data-price');
-            const precio = parsearPrecioColombiano(precioStr);
+            const precio = parseFloat(producto.getAttribute('data-price'));
+
+            // Verificar si el producto ya está en el carrito
             const productoEnCarrito = carrito.find(item => item.id === id);
             if (productoEnCarrito) {
                 productoEnCarrito.cantidad += 1;
@@ -53,16 +40,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const li = document.createElement('li');
             li.innerHTML = `
                 ${item.nombre} 
-                <span>${item.cantidad} x ${formatearPrecioColombiano(item.precio)}</span>
+                <span>${item.cantidad} x $${item.precio.toFixed(2)}</span>
             `;
             listaCarrito.appendChild(li);
             total += item.cantidad * item.precio;
         });
 
-        totalElement.textContent = formatearPrecioColombiano(total);
+        totalElement.textContent = `$${total.toFixed(2)}`;
     }
-});
-
 
     // Lógica para el pop-up de detalles del producto
     const botonesDescripcion = document.querySelectorAll('.ver-descripcion');
@@ -107,3 +92,4 @@ document.addEventListener('DOMContentLoaded', () => {
             popup.style.display = 'none';
         }
     });
+});
