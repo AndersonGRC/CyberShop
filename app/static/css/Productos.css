@@ -44,7 +44,8 @@
 .producto p {
     margin: 0 0 15px;
     font-size: 18px;
-    color: var(--color-gris);
+    color: var(--color-transicion);
+    font-weight: bold;
 }
 
 .añadir-carrito {
@@ -242,7 +243,7 @@
 #popup-titulo {
     font-size: 24px;
     font-weight: bold;
-    color: var(--color-gris);
+    color: var(--color-primario);
     margin-bottom: 10px;
 }
 
@@ -251,7 +252,7 @@
 #popup-descripcion-texto,
 #popup-precio {
     font-size: 16px;
-    color: var(--color-gris);
+    color: var(--color-negro);
     margin-bottom: 8px;
     word-wrap: break-word;
     overflow-wrap: break-word;
@@ -270,7 +271,7 @@
 }
 
 .popup-contenido p strong {
-    color: var(--color-gris);
+    color: var(--color-transicion);
     font-weight: bold;
 }
 
