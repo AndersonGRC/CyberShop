@@ -1,0 +1,227 @@
+:root {
+    --color-primario: #4e73df;
+    --color-texto: #5a5c69;
+    --color-blanco: #ffffff;
+    --color-warning: #1F3A93;
+    --color-borde: #e3e6f0;
+    --color-fondo-form: #f8f9fc;
+    --color-success: #28a745;
+    --color-success-hover: #218838;
+    --color-danger: #dc3545;
+    --color-danger-hover: #c82333;
+}
+
+/* Contenedor principal */
+.container-fluid {
+    padding: 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+/* Título */
+h1.h3.mb-4.text-gray-800 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin-bottom: 2rem;
+    text-align: center;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--color-borde);
+}
+
+/* Tarjeta principal */
+.card.shadow {
+    border: none;
+    border-radius: 0.8rem;
+    box-shadow: 0 0.3rem 1.5rem rgba(58, 59, 69, 0.1);
+    overflow: hidden;
+}
+
+.card-body {
+    padding: 4rem;
+}
+
+/* Sección de imagen */
+.form-group.text-center {
+    margin-bottom: 2rem;
+}
+
+.img-thumbnail {
+    width: 200px;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 3px solid var(--color-primario);
+    box-shadow: 0 0.3rem 0.8rem rgba(0, 0, 0, 0.1);
+    margin-bottom: 1rem;
+}
+
+.fa-user-circle.fa-5x {
+    font-size: 10rem;
+    color: var(--color-borde);
+    margin-bottom: 2rem;
+}
+
+.form-control-file {
+    margin: 0 auto;
+    display: block;
+    width: 100%;
+}
+
+/* Campos de formulario */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    font-weight: 600;
+    color: var(--color-texto);
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.form-control,
+.form-select,
+textarea.form-control {
+    border: 2px solid var(--color-borde);
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.form-control:focus,
+.form-select:focus,
+textarea.form-control:focus {
+    border-color: var(--color-primario);
+    box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+}
+
+/* Botones principales */
+.form-group.mt-4 {
+    margin-top: 2.5rem;
+    text-align: center;
+}
+
+.btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 0.5rem;
+}
+
+.btn i {
+    margin-right: 0.5rem;
+}
+
+/* Botón Guardar (Verde) */
+.btn-primary {
+    background-color: var(--color-success);
+    color: var(--color-blanco);
+}
+
+.btn-primary:hover {
+    background-color: var(--color-success-hover);
+    color: var(--color-blanco);
+}
+
+/* Botón Cancelar (Rojo) */
+.btn-secondary {
+    background-color: var(--color-danger);
+    color: var(--color-blanco);
+    text-decoration: none;
+}
+
+.btn-secondary:hover {
+    background-color: var(--color-danger-hover);
+    color: var(--color-blanco);
+}
+
+/* Sección de cambio de contraseña */
+.card.border-warning {
+    border: 2px solid var(--color-warning);
+    border-radius: 0.8rem;
+    margin-top: 3rem;
+}
+
+.card-header.bg-warning {
+    background-color: var(--color-warning);
+    color: var(--color-blanco);
+    font-weight: 700;
+    padding: 1rem;
+    font-size: 1.25rem;
+    border-top-right-radius: 0.6rem;
+    border-top-left-radius: 0.6rem;
+}
+
+.card-header.bg-warning h5 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.card-header.bg-warning h5 i {
+    margin-right: 0.5rem;
+}
+
+/* Botón Actualizar Contraseña (Azul) */
+.btn-warning {
+    background-color: var(--color-warning);
+    color: var(--color-blanco);
+}
+
+.btn-warning:hover {
+    background-color: #172f7a;
+    color: var(--color-blanco);
+}
+
+/* Separador */
+hr.my-4 {
+    margin: 2.5rem 0;
+    border: 0;
+    border-top: 2px solid var(--color-borde);
+}
+
+@media (max-width: 576px) {
+    .card-body {
+        padding: 1.25rem;
+    }
+    
+    .form-control,
+    .form-select,
+    textarea.form-control {
+        width: calc(100% - 1.6rem); 
+        box-sizing: border-box;
+        margin: 0 auto;
+        display: block;
+    }
+    .row {
+        margin-left: -0.5rem;
+        margin-right: -0.5rem;
+    }
+    
+    .col-md-6, 
+    .col-md-12 {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+    
+    .form-control-file {
+        max-width: calc(100% - 0.3rem);
+        margin: 0 auto;
+        display: block;
+    }
+}
+@media (max-width: 576px) {
+    .btn-primary {
+        margin-bottom: 1rem !important; 
+    }
+}
