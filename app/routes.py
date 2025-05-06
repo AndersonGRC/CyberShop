@@ -291,6 +291,9 @@ def GestionProductos():
 
 
 # Ruta para mostrar productos
+def formatear_moneda(valor):
+    return locale.currency(valor, symbol=True, grouping=True)
+
 @app.route('/productos')
 def productos():
     datosApp = get_common_data()
@@ -302,13 +305,19 @@ def productos():
         cur.close()
         conn.close()
 
-        # Asegurarse de que los datos de los productos estén en el formato correcto
+        for i, producto in enumerate(productos):
+            productos[i] = list(producto)
+            monto = producto[3]  # Asegúrate de que este índice sea el del precio
+            productos[i][3] = formatear_moneda(float(monto))# ← conversión aquí
+
         datosApp['productos'] = productos
     except Exception as e:
-        print("Error al obtener productos:", e)  # Depuración
+        print("Error al obtener productos:", e)
         datosApp['productos'] = []
 
     return render_template('productos.html', datosApp=datosApp)
+
+
 
 # Ruta para servicios
 @app.route('/servicios')
