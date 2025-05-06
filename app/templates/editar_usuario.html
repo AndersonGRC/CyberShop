@@ -1,0 +1,140 @@
+{% extends './plantillaapp.html' %}
+
+{% block titulo %}Editar Usuario{% endblock %}
+
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/editar_usuario.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Editar Usuario: {{ usuario.nombre }}</h1>
+    
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('editar_usuario', id=usuario.id) }}" enctype="multipart/form-data">
+                <div class="row">
+                    <div class="col-md-6">
+                        <!-- Sección de imagen -->
+                        <div class="form-group text-center">
+                            {% if usuario.fotografia %}
+                            <img src="{{ usuario.fotografia }}" alt="Foto de perfil" class="img-thumbnail mb-3" style="max-width: 200px;">
+                            {% else %}
+                            <div class="bg-light p-4 mb-3 text-center">
+                                <i class="fas fa-user-circle fa-5x text-muted"></i>
+                            </div>
+                            {% endif %}
+                            <input type="file" class="form-control-file" id="fotografia" name="fotografia">
+                            <small class="form-text text-muted">Formatos: JPG, PNG (Max. 2MB)</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="nombre">Nombre Completo*</label>
+                            <input type="text" class="form-control" id="nombre" name="nombre" value="{{ usuario.nombre }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Email*</label>
+                            <input type="email" class="form-control" id="email" name="email" value="{{ usuario.email }}" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="rol_id">Rol*</label>
+                            <select class="form-control" id="rol_id" name="rol_id" required>
+                                {% for rol in roles %}
+                                <option value="{{ rol.id }}" {{ 'selected' if rol.id == usuario.rol_id else '' }}>
+                                    {{ rol.nombre }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="estado">Estado*</label>
+                            <select class="form-control" id="estado" name="estado" required>
+                                <option value="habilitado" {{ 'selected' if usuario.estado == 'habilitado' else '' }}>Habilitado</option>
+                                <option value="inhabilitado" {{ 'selected' if usuario.estado == 'inhabilitado' else '' }}>Inhabilitado</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="fecha_nacimiento">Fecha de Nacimiento</label>
+                            <input type="date" class="form-control" id="fecha_nacimiento" name="fecha_nacimiento" 
+                                   value="{{ usuario.fecha_nacimiento.strftime('%Y-%m-%d') if usuario.fecha_nacimiento else '' }}">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="telefono">Teléfono</label>
+                            <input type="text" class="form-control" id="telefono" name="telefono" value="{{ usuario.telefono or '' }}">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="direccion">Dirección</label>
+                            <textarea class="form-control" id="direccion" name="direccion" rows="2">{{ usuario.direccion or '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Guardar Cambios
+                    </button>
+                    <a href="{{ url_for('gestion_usuarios') }}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Cancelar
+                    </a>
+                </div>
+            </form>
+
+            <hr class="my-4">
+            
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-key"></i> Cambiar Contraseña
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('cambiar_password', id=usuario.id) }}">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="nueva_password">Nueva Contraseña*</label>
+                                    <input type="password" class="form-control" id="nueva_password" name="nueva_password" required minlength="8">
+                                    <small class="form-text text-muted">Mínimo 8 caracteres</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="confirmar_password">Confirmar Contraseña*</label>
+                                    <input type="password" class="form-control" id="confirmar_password" name="confirmar_password" required>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-sync-alt"></i> Actualizar Contraseña
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+<script>
+// Validación de contraseñas coincidentes
+document.querySelector('form[action*="cambiar_password"]').addEventListener('submit', function(e) {
+    const password = document.getElementById('nueva_password').value;
+    const confirmPassword = document.getElementById('confirmar_password').value;
+    
+    if (password !== confirmPassword) {
+        e.preventDefault();
+        alert('Las contraseñas no coinciden');
+    }
+});
+</script>
+{% endblock %}

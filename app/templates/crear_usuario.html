@@ -1,0 +1,127 @@
+{% extends './plantillaapp.html' %}
+
+{% block titulo %}Crear Nuevo Usuario{% endblock %}
+
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/editar_usuario.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid">
+    <div class="form-container">
+        <h1 class="h3 mb-4 text-gray-800">Crear Nuevo Usuario</h1>
+        
+        <div class="card shadow mb-4">
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('crear_usuario') }}" enctype="multipart/form-data">
+                    <div class="row">
+                        <!-- Columna izquierda -->
+                        <div class="col-md-6">
+                            <!-- Sección de imagen -->
+                            <div class="profile-pic-container">
+                                <img id="profile-pic-preview" src="/static/img/default-user.png" alt="Previsualización" class="profile-pic-preview mb-3">
+                                <div class="custom-file">
+                                    <input type="file" class="custom-file-input" id="fotografia" name="fotografia" accept="image/jpeg, image/png">
+                                    <label class="custom-file-label" for="fotografia">Seleccionar imagen</label>
+                                    <small class="form-text text-muted">Formatos: JPG, PNG (Max. 2MB)</small>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="nombre" class="required-field">Nombre Completo</label>
+                                <input type="text" class="form-control" id="nombre" name="nombre" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="email" class="required-field">Email</label>
+                                <input type="email" class="form-control" id="email" name="email" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="fecha_nacimiento">Fecha de Nacimiento</label>
+                                <input type="date" class="form-control" id="fecha_nacimiento" name="fecha_nacimiento">
+                            </div>
+                        </div>
+
+                        <!-- Columna derecha -->
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="rol_id" class="required-field">Rol</label>
+                                <select class="form-control" id="rol_id" name="rol_id" required>
+                                    <option value="">Seleccione un rol</option>
+                                    {% for rol in roles %}
+                                    <option value="{{ rol.id }}">{{ rol.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="password" class="required-field">Contraseña</label>
+                                <input type="password" class="form-control" id="password" name="password" required minlength="8">
+                                <small class="form-text text-muted">Mínimo 8 caracteres</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="confirm_password" class="required-field">Confirmar Contraseña</label>
+                                <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="telefono">Teléfono</label>
+                                <input type="tel" class="form-control" id="telefono" name="telefono">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="form-group">
+                                <label for="direccion">Dirección</label>
+                                <textarea class="form-control" id="direccion" name="direccion" rows="2"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Guardar Usuario
+                        </button>
+                        <a href="{{ url_for('gestion_usuarios') }}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+<script>
+// Previsualización de imagen
+document.getElementById('fotografia').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            document.getElementById('profile-pic-preview').src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+        document.querySelector('.custom-file-label').textContent = file.name;
+    }
+});
+
+// Validación de contraseñas coincidentes
+document.querySelector('form').addEventListener('submit', function(e) {
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirm_password').value;
+    
+    if (password !== confirmPassword) {
+        e.preventDefault();
+        alert('Las contraseñas no coinciden');
+        document.getElementById('confirm_password').focus();
+    }
+});
+</script>
+{% endblock %}
