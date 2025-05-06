@@ -24,7 +24,7 @@
                          data-description="{{ producto[6] }}" 
                          data-image="{{ producto[1] }}">
                          <img src="{{ producto[1] }}" alt="{{ producto[2] }}" style="width: 100%; border-radius: 8px; margin-bottom: 10px;">                        <h3>{{ producto[2] }}</h3>
-                        <p>{{ producto[3] }}</p>
+                        <p>${{ producto[3] }}</p>
                         <button class="añadir-carrito">Añadir al carrito</button>
                         <button class="ver-descripcion">Ver Detalles</button> <!-- Botón para ver los detalles -->
                     </div>
@@ -60,8 +60,8 @@
             <h2 id="popup-titulo"></h2>
             <p><strong>Referencia:</strong> <span id="popup-referencia"></span></p>
             <p><strong>Género:</strong> <span id="popup-genero"></span></p>
-            <p><strong>Descripción:</strong><span id="popup-descripcion-texto"></span></p>
-            <p><strong>Precio:</strong><span id="popup-precio"></span></p>
+            <p><strong>Descripción:</strong> <span id="popup-descripcion-texto"></span></p>
+            <p><strong>Precio:</strong> $<span id="popup-precio"></span></p>
         </div>
     </div>
 </div>
