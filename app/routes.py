@@ -13,6 +13,14 @@ from app import app, mail, get_common_data, get_data_app, images as product_imag
 import os
 import re
 import locale
+#importaciones PAY U
+from flask import render_template, request, redirect, url_for, flash, session, jsonify
+import requests
+import time
+from datetime import datetime
+
+
+
 
 locale.setlocale(locale.LC_ALL, 'es_CO.UTF-8')
 
@@ -873,3 +881,152 @@ def cambiar_password(id):
             conn.close()
 
     return redirect(url_for('editar_usuario', id=id))
+
+
+    #Pasarela de pagos
+
+
+    # Función para generar firma de transacción (simplificada)
+def generate_signature(api_key, merchant_id, reference_code, amount, currency):
+    # Esta es una implementación básica - consulta la documentación de PayU para la firma real
+    signature_str = f"{api_key}~{merchant_id}~{reference_code}~{amount}~{currency}"
+    return generate_password_hash(signature_str)  # Esto es solo un ejemplo
+
+# Ruta para la página de pago
+@app.route('/pagar', methods=['GET'])
+def pagar():
+    datos_app = get_common_data()
+    return render_template('pagoPSE.html', datosApp=datos_app)
+
+# Ruta para obtener bancos PSE
+@app.route('/get_banks', methods=['GET'])
+def get_banks():
+    """Obtiene la lista de bancos disponibles para PSE"""
+    url = f"{app.config['PAYU_URL']}getBanksList"
+    payload = {
+        "language": "es",
+        "command": "GET_BANKS_LIST",
+        "test": True,
+        "merchant": {
+            "apiKey": app.config['PAYU_API_KEY'],
+            "apiLogin": app.config['PAYU_API_LOGIN']
+        },
+        "bankListInformation": {
+            "paymentMethod": "PSE",
+            "paymentCountry": "CO"
+        }
+    }
+    
+    try:
+        response = requests.post(url, json=payload)
+        if response.status_code == 200:
+            return jsonify(response.json())
+        return jsonify({"error": "No se pudo obtener la lista de bancos"}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Ruta para procesar el pago
+@app.route('/process_payment', methods=['POST'])
+def process_payment():
+    """Procesa el pago con PSE"""
+    data = request.json
+    
+    # Validar datos básicos
+    if not all(key in data for key in ['documentType', 'documentNumber', 'bankCode', 'accountType', 'fullName', 'email', 'phone', 'totalAmount']):
+        return jsonify({"error": "Datos incompletos"}), 400
+    
+    # Construir referencia única
+    reference_code = f"ORDER_{data['documentNumber']}_{int(time.time())}"
+    
+    # Construir payload para PayU
+    payload = {
+        "language": "es",
+        "command": "SUBMIT_TRANSACTION",
+        "merchant": {
+            "apiKey": app.config['PAYU_API_KEY'],
+            "apiLogin": app.config['PAYU_API_LOGIN']
+        },
+        "transaction": {
+            "order": {
+                "accountId": app.config['PAYU_MERCHANT_ID'],
+                "referenceCode": reference_code,
+                "description": "Compra en CyberShop",
+                "language": "es",
+                "signature": generate_signature(
+                    app.config['PAYU_API_KEY'],
+                    app.config['PAYU_MERCHANT_ID'],
+                    reference_code,
+                    data['totalAmount'],
+                    "COP"
+                ),
+                "additionalValues": {
+                    "TX_VALUE": {
+                        "value": data['totalAmount'],
+                        "currency": "COP"
+                    },
+                    "TX_TAX": {
+                        "value": 0,
+                        "currency": "COP"
+                    },
+                    "TX_TAX_RETURN_BASE": {
+                        "value": data['totalAmount'],
+                        "currency": "COP"
+                    }
+                },
+                "buyer": {
+                    "fullName": data['fullName'],
+                    "emailAddress": data['email'],
+                    "contactPhone": data['phone'],
+                    "dniNumber": data['documentNumber'],
+                }
+            },
+            "payer": {
+                "fullName": data['fullName'],
+                "emailAddress": data['email'],
+                "contactPhone": data['phone'],
+                "dniNumber": data['documentNumber'],
+            },
+            "extraParameters": {
+                "FINANCIAL_INSTITUTION_CODE": data['bankCode'],
+                "USER_TYPE": "N",
+                "PSE_REFERENCE2": data['documentType'],
+                "PSE_REFERENCE3": data['documentNumber']
+            },
+            "type": "AUTHORIZATION_AND_CAPTURE",
+            "paymentMethod": "PSE",
+            "paymentCountry": "CO",
+            "ipAddress": request.remote_addr,
+            "userAgent": request.headers.get('User-Agent')
+        },
+        "test": True
+    }
+    
+    try:
+        response = requests.post(f"{app.config['PAYU_URL']}payment", json=payload)
+        if response.status_code == 200:
+            result = response.json()
+            if result['code'] == 'SUCCESS':
+                return jsonify({
+                    "success": True,
+                    "bankUrl": result['transactionResponse']['extraParameters']['BANK_URL']
+                })
+        return jsonify({"error": "Error al procesar el pago"}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Ruta para la respuesta de PSE (callback)
+@app.route('/pse_response', methods=['GET', 'POST'])
+def pse_response():
+    """Maneja la respuesta de PSE después del pago"""
+    transaction_state = request.args.get('transactionState') or request.form.get('transactionState')
+    reference_code = request.args.get('referenceCode') or request.form.get('referenceCode')
+    
+    if transaction_state == 'APPROVED':
+        flash('Pago aprobado correctamente', 'success')
+        # Aquí puedes registrar el pago en tu base de datos
+    elif transaction_state == 'PENDING':
+        flash('Pago pendiente de confirmación', 'warning')
+    else:
+        flash('Pago rechazado', 'danger')
+    
+    return redirect(url_for('index'))

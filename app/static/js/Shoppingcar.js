@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const totalElement = document.getElementById('total');
     const botonesAñadir = document.querySelectorAll('.añadir-carrito');
     const botonVaciar = document.getElementById('vaciar-carrito');
+    const botonPagar = document.getElementById('pagar-carrito');  // Añadido
 
     // Función para convertir "$15.000,00" a 15000
     function parsearPrecioColombiano(precioStr) {
@@ -33,7 +34,6 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 carrito.push({ id, nombre, precio, cantidad: 1 });
             }
-
             actualizarCarrito();
         });
     });
@@ -42,6 +42,16 @@ document.addEventListener('DOMContentLoaded', () => {
     botonVaciar.addEventListener('click', () => {
         carrito.length = 0;
         actualizarCarrito();
+    });
+
+    // Botón de pagar
+    botonPagar.addEventListener('click', () => {
+        if (carrito.length === 0) {
+            alert('Tu carrito está vacío. Agrega productos antes de pagar.');
+        } else {
+            alert('Redirigiendo al proceso de pago...');
+            // window.location.href = '/pagar'; // Descomenta si tienes una ruta de pago
+        }
     });
 
     // Actualizar la vista del carrito
@@ -61,8 +71,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         totalElement.textContent = formatearPrecioColombiano(total);
     }
-});
-
 
     // Lógica para el pop-up de detalles del producto
     const botonesDescripcion = document.querySelectorAll('.ver-descripcion');
@@ -85,7 +93,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const precio = producto.getAttribute('data-price');
             const imagen = producto.getAttribute('data-image');
 
-            // Mostrar el pop-up con los detalles del producto
             popupImagen.src = imagen;
             popupTitulo.textContent = nombre;
             popupReferencia.textContent = referencia;
@@ -107,3 +114,4 @@ document.addEventListener('DOMContentLoaded', () => {
             popup.style.display = 'none';
         }
     });
+});

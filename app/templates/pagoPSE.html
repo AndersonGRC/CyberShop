@@ -1,0 +1,128 @@
+{% extends './plantillaindex.html' %}
+
+{% block titulo %}Finalizar Compra - PSE{% endblock %}
+
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pagoPSE.css') }}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}
+
+{% block body %}
+<div class="container-pago">
+    <!-- Resumen de productos -->
+    <div class="resumen-productos">
+        <h2><i class="fas fa-shopping-cart"></i> Tu Pedido</h2>
+        <div id="productos-seleccionados">
+            <!-- Los productos se cargarán dinámicamente desde el carrito -->
+            <div class="producto-pago">
+                <img src="{{ url_for('static', filename='media/producto1.jpg') }}" alt="Producto Ejemplo">
+                <div class="info-producto">
+                    <h3>Producto Ejemplo</h3>
+                    <p class="descripcion">Descripción detallada del producto seleccionado con todas sus características.</p>
+                    <div class="detalles-producto">
+                        <span class="cantidad">Cantidad: 2</span>
+                        <span class="precio">$50,000</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="producto-pago">
+                <img src="{{ url_for('static', filename='media/producto2.jpg') }}" alt="Otro Producto">
+                <div class="info-producto">
+                    <h3>Otro Producto</h3>
+                    <p class="descripcion">Otra descripción de producto con sus especificaciones técnicas.</p>
+                    <div class="detalles-producto">
+                        <span class="cantidad">Cantidad: 1</span>
+                        <span class="precio">$30,000</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="resumen-total">
+            <div class="total-item">
+                <span>Subtotal:</span>
+                <span id="subtotal">$80,000</span>
+            </div>
+            <div class="total-item">
+                <span>Envío:</span>
+                <span id="envio">$5,000</span>
+            </div>
+            <div class="total-item total-final">
+                <span>Total:</span>
+                <span id="total-pagar">$85,000</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulario PSE -->
+    <div class="formulario-pse">
+        <h2><i class="fas fa-university"></i> Pago con PSE</h2>
+        <form id="pago-pse-form">
+            <div class="form-group">
+                <label for="tipo-documento"><i class="fas fa-id-card"></i> Tipo de documento *</label>
+                <select id="tipo-documento" required>
+                    <option value="">Seleccione...</option>
+                    <option value="CC">Cédula de Ciudadanía</option>
+                    <option value="CE">Cédula de Extranjería</option>
+                    <option value="TI">Tarjeta de Identidad</option>
+                    <option value="PP">Pasaporte</option>
+                    <option value="NIT">NIT</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="numero-documento"><i class="fas fa-id-badge"></i> Número de documento *</label>
+                <input type="text" id="numero-documento" required>
+            </div>
+
+            <div class="form-group">
+                <label for="banco"><i class="fas fa-landmark"></i> Banco *</label>
+                <select id="banco" required>
+                    <option value="">Cargando bancos...</option>
+                    <!-- Bancos se cargarán dinámicamente -->
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="tipo-cuenta"><i class="fas fa-piggy-bank"></i> Tipo de cuenta *</label>
+                <select id="tipo-cuenta" required>
+                    <option value="">Seleccione...</option>
+                    <option value="AHORROS">Cuenta de Ahorros</option>
+                    <option value="CORRIENTE">Cuenta Corriente</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="nombre-titular"><i class="fas fa-user"></i> Nombre del titular *</label>
+                <input type="text" id="nombre-titular" required placeholder="Como aparece registrado en el banco">
+            </div>
+
+            <div class="form-group">
+                <label for="email"><i class="fas fa-envelope"></i> Correo electrónico *</label>
+                <input type="email" id="email" required>
+            </div>
+
+            <div class="form-group">
+                <label for="telefono"><i class="fas fa-phone"></i> Teléfono *</label>
+                <input type="tel" id="telefono" required>
+            </div>
+
+            <div class="terms">
+                <input type="checkbox" id="accept-terms" required>
+                <label for="accept-terms">Acepto los <a href="#">términos y condiciones</a> y la <a href="#">política de privacidad</a></label>
+            </div>
+
+            <button type="submit" class="btn-pagar-pse">
+                <i class="fas fa-lock"></i> Pagar con PSE
+            </button>
+            
+            <div class="info-pse">
+                <p><i class="fas fa-info-circle"></i> Todos los pagos son procesados de forma segura a través de PSE (Pagos Seguros en Línea).</p>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/pagoPSE.js') }}"></script>
+{% endblock %}
