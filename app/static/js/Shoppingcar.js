@@ -4,7 +4,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const totalElement = document.getElementById('total');
     const botonesAñadir = document.querySelectorAll('.añadir-carrito');
     const botonVaciar = document.getElementById('vaciar-carrito');
-    const botonPagar = document.getElementById('pagar-carrito');  // Añadido
+
+    // Función para convertir "$15.000,00" a 15000
+    function parsearPrecioColombiano(precioStr) {
+        return parseFloat(precioStr.replace(/[.$]/g, '').replace(',', '.'));
+    }
+
+    // Función para convertir 15000 a "$15.000,00"
+    function formatearPrecioColombiano(valor) {
+        return valor.toLocaleString('es-CO', {
+            style: 'currency',
+            currency: 'COP',
+            minimumFractionDigits: 2
+        });
+    }
 
     // Añadir productos al carrito
     botonesAñadir.forEach(boton => {
@@ -12,15 +25,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const producto = boton.parentElement;
             const id = producto.getAttribute('data-id');
             const nombre = producto.getAttribute('data-name');
-            const precio = parseFloat(producto.getAttribute('data-price'));
-
-            // Verificar si el producto ya está en el carrito
+            const precioStr = producto.getAttribute('data-price');
+            const precio = parsearPrecioColombiano(precioStr);
             const productoEnCarrito = carrito.find(item => item.id === id);
             if (productoEnCarrito) {
                 productoEnCarrito.cantidad += 1;
             } else {
                 carrito.push({ id, nombre, precio, cantidad: 1 });
             }
+
             actualizarCarrito();
         });
     });
@@ -29,16 +42,6 @@ document.addEventListener('DOMContentLoaded', () => {
     botonVaciar.addEventListener('click', () => {
         carrito.length = 0;
         actualizarCarrito();
-    });
-
-    // Botón de pagar
-    botonPagar.addEventListener('click', () => {
-        if (carrito.length === 0) {
-            alert('Tu carrito está vacío. Agrega productos antes de pagar.');
-        } else {
-            alert('Redirigiendo al proceso de pago...');
-            // window.location.href = '/pagar'; // Descomenta si tienes una ruta de pago
-        }
     });
 
     // Actualizar la vista del carrito
@@ -50,14 +53,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const li = document.createElement('li');
             li.innerHTML = `
                 ${item.nombre} 
-                <span>${item.cantidad} x $${item.precio.toFixed(2)}</span>
+                <span>${item.cantidad} x ${formatearPrecioColombiano(item.precio)}</span>
             `;
             listaCarrito.appendChild(li);
             total += item.cantidad * item.precio;
         });
 
-        totalElement.textContent = `$${total.toFixed(2)}`;
+        totalElement.textContent = formatearPrecioColombiano(total);
     }
+});
+
 
     // Lógica para el pop-up de detalles del producto
     const botonesDescripcion = document.querySelectorAll('.ver-descripcion');
@@ -80,6 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const precio = producto.getAttribute('data-price');
             const imagen = producto.getAttribute('data-image');
 
+            // Mostrar el pop-up con los detalles del producto
             popupImagen.src = imagen;
             popupTitulo.textContent = nombre;
             popupReferencia.textContent = referencia;
@@ -101,4 +107,3 @@ document.addEventListener('DOMContentLoaded', () => {
             popup.style.display = 'none';
         }
     });
-});
