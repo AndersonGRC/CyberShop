@@ -19,7 +19,7 @@ app.config['MAIL_PORT'] = 587  # Puerto para TLS
 app.config['MAIL_DEBUG'] = True
 app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USERNAME'] = 'cybershop.digitalsales@gmail.com'  # Tu correo Gmail
-app.config['MAIL_PASSWORD'] = 'e y x t f m t i b v b u g k m x'  # Contraseña o App Password de Gmail
+app.config['MAIL_PASSWORD'] = 'r k j q x v q a p o y t r v d q'  # Contraseña o App Password de Gmail
 app.config['MAIL_DEFAULT_SENDER'] = 'cybershop.digitalsales@gmail.com'  # Correo remitente por defecto
 
 
