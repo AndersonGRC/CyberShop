@@ -62,7 +62,7 @@ def get_common_data():
     ]
     
     return {
-        'titulo': 'CyberShop',
+        'titulo': 'Achiras de mi tierra',
         'MenuAppindex': MenuApp,
         'longMenuAppindex': len(MenuApp)
     }
@@ -94,7 +94,7 @@ def get_data_app():
         {"nombre": "Cerrar Sesion", "url": "logout", "icono": "sign-out-alt"}
     ]
     return {
-        'titulo': 'CyberShop',
+        'titulo': 'Achiras de mi tierra',
         'MenuAppindex': App,
         'longMenuAppindex': len(App)
     }
