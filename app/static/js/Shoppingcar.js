@@ -4,10 +4,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const totalElement = document.getElementById('total');
     const botonesAñadir = document.querySelectorAll('.añadir-carrito');
     const botonVaciar = document.getElementById('vaciar-carrito');
+
     // Función para convertir "$15.000,00" a 15000
     function parsearPrecioColombiano(precioStr) {
         return parseFloat(precioStr.replace(/[.$]/g, '').replace(',', '.'));
     }
+
     // Función para convertir 15000 a "$15.000,00"
     function formatearPrecioColombiano(valor) {
         return valor.toLocaleString('es-CO', {
@@ -16,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
             minimumFractionDigits: 2
         });
     }
+
     // Añadir productos al carrito
     botonesAñadir.forEach(boton => {
         boton.addEventListener('click', () => {
