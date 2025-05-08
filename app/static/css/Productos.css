@@ -187,7 +187,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: var(--color-negro); /* Fondo oscuro semi-transparente */
+    background-color: rgba(0, 0, 0, 0.8); /* Fondo oscuro semi-transparente */
     justify-content: center;
     align-items: center;
     z-index: 1000;
@@ -204,7 +204,7 @@
 }
 
 .popup-contenido {
-    background-color: var(--color-negro);
+    background-color: var(--color-principal);
     padding: 25px;
     border-radius: 15px;
     width: 90%;
@@ -249,7 +249,7 @@
 #popup-titulo {
     font-size: 24px;
     font-weight: bold;
-    color: var(--color-gris);
+    color: var(--color-red);
     margin-bottom: 10px;
 }
 
@@ -258,14 +258,14 @@
 #popup-descripcion-texto,
 #popup-precio {
     font-size: 16px;
-    color: var(--color-gris);
+    color: var(--color-negro);
     margin-bottom: 8px;
 }
 
 #popup-precio {
     font-size: 20px;
     font-weight: bold;
-    color: var(--color-transicion); /* Color azul para el precio */
+    color: var(--color-negro); /* Color azul para el precio */
 }
 
 /* Estilos para los textos dentro del pop-up */
@@ -274,6 +274,49 @@
 }
 
 .popup-contenido p strong {
-    color: var(--color-gris);
+    color: var(--color-red);
     font-weight: bold;
+}
+
+/* Estilos para ambos botones del carrito */
+#vaciar-carrito, #pagar-carrito {
+    background-color: var(--color-red);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    margin-top: 10px;
+    cursor: pointer;
+    width: 100%;
+    border-radius: 5px;
+    font-size: 16px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    display: block;
+}
+
+/* Color específico para el botón de pagar */
+#pagar-carrito {
+    background-color: var(--color-verde);
+    margin-top: 15px; /* Un poco más de separación */
+}
+
+/* Efectos hover para ambos */
+#vaciar-carrito:hover, #pagar-carrito:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Efectos active para ambos */
+#vaciar-carrito:active, #pagar-carrito:active {
+    transform: translateY(0);
+}
+
+/* Color hover específico para vaciar carrito */
+#vaciar-carrito:hover {
+    background-color: #c82333; /* Rojo más oscuro */
+}
+
+/* Color hover específico para pagar */
+#pagar-carrito:hover {
+    background-color: #218838; /* Verde más oscuro */
 }
