@@ -10,6 +10,17 @@ from app import mail
 from flask_mail import Message  
 from datetime import datetime
 import locale
+<<<<<<< HEAD
+=======
+#importaciones PAY U
+from flask import request, jsonify, redirect, url_for, flash
+import requests
+import time
+from datetime import datetime
+import hashlib
+from flask import jsonify
+
+>>>>>>> 09152b1 (Pasarela de Pagos Prueba)
 
 locale.setlocale(locale.LC_ALL, 'es_CO.UTF-8')
 
@@ -888,14 +899,7 @@ def cambiar_password(id):
     return redirect(url_for('editar_usuario', id=id))
 
 
-    #Pasarela de pagos
-
-
-    # Función para generar firma de transacción (simplificada)
-def generate_signature(api_key, merchant_id, reference_code, amount, currency):
-    # Esta es una implementación básica - consulta la documentación de PayU para la firma real
-    signature_str = f"{api_key}~{merchant_id}~{reference_code}~{amount}~{currency}"
-    return generate_password_hash(signature_str)  # Esto es solo un ejemplo
+ #PASARELA DE PAGO 
 
 # Ruta para la página de pago
 @app.route('/pagar', methods=['GET'])
@@ -903,19 +907,145 @@ def pagar():
     datos_app = get_common_data()
     return render_template('pagoPSE.html', datosApp=datos_app)
 
+# Función para generar firma de transacción para PayU
+def generate_payu_signature(api_key, merchant_id, reference_code, amount, currency):
+    signature_str = f"{api_key}~{merchant_id}~{reference_code}~{amount}~{currency}"
+    return hashlib.md5(signature_str.encode('utf-8')).hexdigest()
+
+# Ruta para iniciar el pago con PayU
+@app.route('/iniciar_pago', methods=['POST'])
+def iniciar_pago():
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Datos no proporcionados', 'success': False}), 400
+            
+        productos = data.get('productos', [])
+        total = data.get('total', 0)
+        buyer_email = data.get('email', '')
+        buyer_name = data.get('nombreCompleto', '')
+        
+        if not productos or total <= 0:
+            return jsonify({'error': 'Carrito vacío o monto inválido', 'success': False}), 400
+        
+        # Crear una referencia única para la orden
+        reference_code = f"ORDER_{int(time.time())}"
+        
+        # Generar firma para PayU
+        signature = generate_payu_signature(
+            app.config['PAYU_API_KEY'],
+            app.config['PAYU_MERCHANT_ID'],
+            reference_code,
+            total,
+            'COP'
+        )
+        
+        # Construir la URL de redirección a PayU
+        url_pago = (
+            "https://sandbox.checkout.payulatam.com/ppp-web-gateway-payu/?" +
+            f"merchantId={app.config['PAYU_MERCHANT_ID']}&" +
+            f"accountId={app.config['PAYU_MERCHANT_ID']}&" +
+            f"description=Compra en CyberShop&" +
+            f"referenceCode={reference_code}&" +
+            f"amount={total}&" +
+            f"currency=COP&" +
+            f"signature={signature}&" +
+            f"test=True&" +  # True para sandbox
+            f"buyerEmail={buyer_email}&" +
+            f"buyerFullName={buyer_name}&" +
+            f"responseUrl={url_for('respuesta_pago', _external=True)}&" +
+            f"confirmationUrl={url_for('confirmacion_pago', _external=True)}"
+        )
+        
+        return jsonify({
+            'success': True,
+            'url_pago': url_pago,
+            'reference_code': reference_code
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e), 'success': False}), 500
+
+# Ruta para la respuesta de PayU (redirección después del pago)
+@app.route('/respuesta_pago', methods=['GET'])
+def respuesta_pago():
+    transaction_state = request.args.get('transactionState')
+    reference_code = request.args.get('referenceCode')
+    amount = request.args.get('TX_VALUE')
+    currency = request.args.get('currency')
+    signature = request.args.get('signature')
+    
+    # Verificar la firma de respuesta
+    expected_signature = generate_payu_signature(
+        app.config['PAYU_API_KEY'],
+        app.config['PAYU_MERCHANT_ID'],
+        reference_code,
+        amount,
+        currency
+    )
+    
+    if signature != expected_signature:
+        flash('Error en la verificación del pago', 'danger')
+        return redirect(url_for('index'))
+    
+    if transaction_state == '4':  # Aprobado
+        flash('Pago aprobado correctamente', 'success')
+        # Registrar en base de datos
+    elif transaction_state == '6':  # Declinado
+        flash('Pago declinado por la entidad financiera', 'danger')
+    elif transaction_state == '7':  # Pendiente
+        flash('Pago pendiente de confirmación', 'warning')
+    else:
+        flash('Estado de pago desconocido', 'warning')
+    
+    return redirect(url_for('index'))
+
+# Ruta para la confirmación de PayU (notificación instantánea)
+@app.route('/confirmacion_pago', methods=['POST'])
+def confirmacion_pago():
+    try:
+        transaction_state = request.form.get('transactionState')
+        reference_code = request.form.get('referenceCode')
+        amount = request.form.get('TX_VALUE')
+        currency = request.form.get('currency')
+        signature = request.form.get('signature')
+        
+        expected_signature = generate_payu_signature(
+            app.config['PAYU_API_KEY'],
+            app.config['PAYU_MERCHANT_ID'],
+            reference_code,
+            amount,
+            currency
+        )
+        
+        if signature != expected_signature:
+            return jsonify({'status': 'ERROR', 'message': 'Firma inválida'}), 400
+        
+        # Procesar según estado
+        if transaction_state == '4':  # Aprobado
+            pass  # Registrar pago
+        elif transaction_state == '6':  # Declinado
+            pass
+        elif transaction_state == '7':  # Pendiente
+            pass
+        
+        return jsonify({'status': 'OK'}), 200
+        
+    except Exception as e:
+        return jsonify({'status': 'ERROR', 'message': str(e)}), 500
+
 # Ruta para obtener bancos PSE
 @app.route('/get_banks', methods=['GET'])
 def get_banks():
-    """Obtiene la lista de bancos disponibles para PSE"""
     url = f"{app.config['PAYU_URL']}getBanksList"
     payload = {
         "language": "es",
         "command": "GET_BANKS_LIST",
-        "test": True,
         "merchant": {
             "apiKey": app.config['PAYU_API_KEY'],
             "apiLogin": app.config['PAYU_API_LOGIN']
         },
+        "test": True,
         "bankListInformation": {
             "paymentMethod": "PSE",
             "paymentCountry": "CO"
@@ -924,114 +1054,6 @@ def get_banks():
     
     try:
         response = requests.post(url, json=payload)
-        if response.status_code == 200:
-            return jsonify(response.json())
-        return jsonify({"error": "No se pudo obtener la lista de bancos"}), 400
+        return jsonify(response.json()) if response.status_code == 200 else jsonify({"error": response.text}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-# Ruta para procesar el pago
-@app.route('/process_payment', methods=['POST'])
-def process_payment():
-    """Procesa el pago con PSE"""
-    data = request.json
-    
-    # Validar datos básicos
-    if not all(key in data for key in ['documentType', 'documentNumber', 'bankCode', 'accountType', 'fullName', 'email', 'phone', 'totalAmount']):
-        return jsonify({"error": "Datos incompletos"}), 400
-    
-    # Construir referencia única
-    reference_code = f"ORDER_{data['documentNumber']}_{int(time.time())}"
-    
-    # Construir payload para PayU
-    payload = {
-        "language": "es",
-        "command": "SUBMIT_TRANSACTION",
-        "merchant": {
-            "apiKey": app.config['PAYU_API_KEY'],
-            "apiLogin": app.config['PAYU_API_LOGIN']
-        },
-        "transaction": {
-            "order": {
-                "accountId": app.config['PAYU_MERCHANT_ID'],
-                "referenceCode": reference_code,
-                "description": "Compra en CyberShop",
-                "language": "es",
-                "signature": generate_signature(
-                    app.config['PAYU_API_KEY'],
-                    app.config['PAYU_MERCHANT_ID'],
-                    reference_code,
-                    data['totalAmount'],
-                    "COP"
-                ),
-                "additionalValues": {
-                    "TX_VALUE": {
-                        "value": data['totalAmount'],
-                        "currency": "COP"
-                    },
-                    "TX_TAX": {
-                        "value": 0,
-                        "currency": "COP"
-                    },
-                    "TX_TAX_RETURN_BASE": {
-                        "value": data['totalAmount'],
-                        "currency": "COP"
-                    }
-                },
-                "buyer": {
-                    "fullName": data['fullName'],
-                    "emailAddress": data['email'],
-                    "contactPhone": data['phone'],
-                    "dniNumber": data['documentNumber'],
-                }
-            },
-            "payer": {
-                "fullName": data['fullName'],
-                "emailAddress": data['email'],
-                "contactPhone": data['phone'],
-                "dniNumber": data['documentNumber'],
-            },
-            "extraParameters": {
-                "FINANCIAL_INSTITUTION_CODE": data['bankCode'],
-                "USER_TYPE": "N",
-                "PSE_REFERENCE2": data['documentType'],
-                "PSE_REFERENCE3": data['documentNumber']
-            },
-            "type": "AUTHORIZATION_AND_CAPTURE",
-            "paymentMethod": "PSE",
-            "paymentCountry": "CO",
-            "ipAddress": request.remote_addr,
-            "userAgent": request.headers.get('User-Agent')
-        },
-        "test": True
-    }
-    
-    try:
-        response = requests.post(f"{app.config['PAYU_URL']}payment", json=payload)
-        if response.status_code == 200:
-            result = response.json()
-            if result['code'] == 'SUCCESS':
-                return jsonify({
-                    "success": True,
-                    "bankUrl": result['transactionResponse']['extraParameters']['BANK_URL']
-                })
-        return jsonify({"error": "Error al procesar el pago"}), 400
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# Ruta para la respuesta de PSE (callback)
-@app.route('/pse_response', methods=['GET', 'POST'])
-def pse_response():
-    """Maneja la respuesta de PSE después del pago"""
-    transaction_state = request.args.get('transactionState') or request.form.get('transactionState')
-    reference_code = request.args.get('referenceCode') or request.form.get('referenceCode')
-    
-    if transaction_state == 'APPROVED':
-        flash('Pago aprobado correctamente', 'success')
-        # Aquí puedes registrar el pago en tu base de datos
-    elif transaction_state == 'PENDING':
-        flash('Pago pendiente de confirmación', 'warning')
-    else:
-        flash('Pago rechazado', 'danger')
-    
-    return redirect(url_for('index'))
