@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const carrito = [];
+    const carrito = JSON.parse(localStorage.getItem('carrito')) || [];
     const listaCarrito = document.getElementById('lista-carrito');
     const totalElement = document.getElementById('total');
     const botonesAñadir = document.querySelectorAll('.añadir-carrito');
@@ -11,6 +11,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return parseFloat(precioStr.replace(/[.$]/g, '').replace(',', '.'));
     }
 
+     function guardarCarrito() {
+        localStorage.setItem('carrito', JSON.stringify(carrito));
+    }
     // Función para convertir 15000 a "$15.000,00"
     function formatearPrecioColombiano(valor) {
         return valor.toLocaleString('es-CO', {
@@ -34,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 carrito.push({ id, nombre, precio, cantidad: 1 });
             }
+            guardarCarrito(); // <-- Añadir esta línea
             actualizarCarrito();
         });
     });
@@ -41,16 +45,46 @@ document.addEventListener('DOMContentLoaded', () => {
     // Vaciar carrito
     botonVaciar.addEventListener('click', () => {
         carrito.length = 0;
+        guardarCarrito(); // <-- Añadir esta línea
         actualizarCarrito();
     });
 
     // Botón de pagar
-    botonPagar.addEventListener('click', () => {
-        if (carrito.length === 0) {
-            alert('Tu carrito está vacío. Agrega productos antes de pagar.');
-        } else {
-            alert('Redirigiendo al proceso de pago...');
-            // window.location.href = '/pagar'; // Descomenta si tienes una ruta de pago
+  // Botón de pagar
+botonPagar.addEventListener('click', () => {
+    if (carrito.length === 0) {
+        alert('Tu carrito está vacío. Agrega productos antes de pagar.');
+    } else {
+        // Calcular el total
+        guardarCarrito(); // <-- Añadir esta línea
+        const total = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+        
+            // Enviar datos al servidor
+            fetch('/iniciar_pago', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    productos: carrito,
+                    total: total
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.url_pago) {
+                    // Limpiar carrito después de pagar
+                    carrito.length = 0;
+                    localStorage.removeItem('carrito');
+                    window.location.href = data.url_pago;
+                } else {
+                    alert('Error al iniciar el pago');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al conectar con el servidor');
+            });
         }
     });
 
@@ -115,3 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+// En tu Shoppingcar.js
+localStorage.setItem('carrito', JSON.stringify(carrito));
+window.location.href = '/pagar';
