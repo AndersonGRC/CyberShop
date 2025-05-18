@@ -10,6 +10,8 @@ from app import mail
 from flask_mail import Message  
 from datetime import datetime
 import locale
+import logging
+
 #importaciones PAY U
 from flask import request, jsonify, redirect, url_for, flash
 import requests
@@ -368,6 +370,7 @@ def editar_productos():
         print(f"Error al obtener productos: {e}")
         productos = []
     return render_template('editar_productos.html', datosApp=datosApp, productos=productos)
+
 #EditarProductos
 @app.route('/editar-producto/<int:id>', methods=['GET', 'POST'])
 @rol_requerido(1)  # Solo para superadministradores
@@ -474,7 +477,7 @@ def dashboard_admin():
 def enviar_mensaje():
     try:
         # Debug: Imprime datos recibidos
-        print("\n🔥 Datos recibidos:")
+        print("\n Datos recibidos:")
         print(request.form)
         
         msg = Message(
@@ -611,10 +614,10 @@ def enviar_mensaje():
         with mail.connect() as conn:
             conn.send(msg)  # Forza conexión explícita
         
-        flash('✅ Mensaje enviado', 'success')
+        flash('Mensaje enviado', 'success')
     except Exception as e:
-        print(f"💥 ERROR CRÍTICO: {str(e)}")  # Esto DEBE aparecer en la terminal
-        flash('❌ Error al enviar', 'error')
+        print(f"ERROR CRÍTICO: {str(e)}")  # Esto DEBE aparecer en la terminal
+        flash('Error al enviar', 'error')
     
     return redirect(url_for('index'))
 
@@ -964,13 +967,66 @@ def iniciar_pago():
         return jsonify({'error': str(e), 'success': False}), 500
 
 # Ruta para la respuesta de PayU (redirección después del pago)
+
 @app.route('/respuesta_pago', methods=['GET'])
 def respuesta_pago():
-    transaction_state = request.args.get('transactionState')
-    reference_code = request.args.get('referenceCode')
-    amount = request.args.get('TX_VALUE')
-    currency = request.args.get('currency')
-    signature = request.args.get('signature')
+    try:
+        # 1. Capturar parámetros esenciales
+        params = {
+            'transaction_state': request.args.get('transactionState'),
+            'reference_code': request.args.get('referenceCode'),
+            'amount': request.args.get('TX_VALUE'),
+            'currency': request.args.get('currency'),
+            'signature': request.args.get('signature'),
+            'payment_method': request.args.get('paymentMethodType'),
+            'transaction_id': request.args.get('transactionId')
+        }
+
+        # 2. Validación mínima
+        if None in params.values():
+            logging.error(f'Parámetros incompletos: {request.args}')
+            flash('Respuesta de pago incompleta', 'error')
+            return redirect(url_for('pago_fallido'))
+
+        # 3. Verificar firma (seguridad crítica)
+        signature_check = hashlib.md5(
+            f"{app.config['PAYU_API_KEY']}~{app.config['PAYU_MERCHANT_ID']}~{params['reference_code']}~{params['amount']}~{params['currency']}"
+            .encode('utf-8')
+        ).hexdigest()
+
+        if params['signature'] != signature_check:
+            logging.warning(f'Firma inválida en pago {params["reference_code"]}')
+            flash('Error de verificación de seguridad', 'error')
+            return redirect(url_for('pago_fallido'))
+
+        # 4. Redirigir según estado
+        estado = params['transaction_state']
+        referencia = params['reference_code']
+
+        if estado == '4':  # Aprobado
+            logging.info(f"Pago aprobado: {referencia}")
+            flash('¡Pago exitoso!', 'success')
+            return redirect(url_for('pago_exitoso', referencia=referencia))
+
+        elif estado == '6':  # Declinado
+            logging.info(f"Pago declinado: {referencia}")
+            flash('Pago declinado por el banco', 'warning')
+            return redirect(url_for('reintentar_pago', referencia=referencia))
+
+        elif estado == '7':  # Pendiente
+            logging.info(f"Pago pendiente: {referencia}")
+            flash('Pago en proceso de verificación', 'info')
+            return redirect(url_for('pago_pendiente', referencia=referencia))
+
+        else:  # Estado desconocido
+            logging.error(f"Estado desconocido: {estado} - Ref: {referencia}")
+            flash('Estado de pago no reconocido', 'error')
+            return redirect(url_for('pago_fallido'))
+
+    except Exception as e:
+        logging.critical(f"Error en respuesta_pago: {str(e)} - Args: {request.args}")
+        flash('Error procesando tu pago', 'error')
+        return redirect(url_for('pago_fallido'))
     
     # Verificar la firma de respuesta
     expected_signature = generate_payu_signature(
@@ -996,6 +1052,8 @@ def respuesta_pago():
         flash('Estado de pago desconocido', 'warning')
     
     return redirect(url_for('index'))
+
+
 
 # Ruta para la confirmación de PayU (notificación instantánea)
 @app.route('/confirmacion_pago', methods=['POST'])
