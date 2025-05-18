@@ -27,7 +27,8 @@ app.config['MAIL_DEFAULT_SENDER'] = 'cybershop.digitalsales@gmail.com'  # Correo
 app.config['PAYU_API_KEY'] = 'Egc0YoZIz87uaI7P67OmTD9r9w'
 app.config['PAYU_API_LOGIN'] = 'IN19b1OVTQKsjNx'
 app.config['PAYU_MERCHANT_ID'] = '1021517'
-app.config['PAYU_URL'] = 'https://sandbox.api.payulatam.com/payments-api/rest/v4.3/'
+app.config['PAYU_URL'] = 'https://sandbox.api.payulatam.com/payments-api/4.0/service.cgi'
+
 
 # Inicializa Flask-Mail
 mail = Mail(app)
