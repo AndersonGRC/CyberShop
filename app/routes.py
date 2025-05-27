@@ -14,14 +14,12 @@ import os
 import re
 import locale
 import logging
-
 #importaciones PAY U
-from flask import request, jsonify, redirect, url_for, flash
+from flask import request, jsonify, redirect, url_for, flash , session
 import requests
 import time
-from datetime import datetime
 import hashlib
-from flask import jsonify
+import json 
 
 
 locale.setlocale(locale.LC_ALL, 'es_CO.UTF-8')
@@ -904,214 +902,46 @@ def cambiar_password(id):
 
  #PASARELA DE PAGO 
 
-# Ruta para la página de pago
-@app.route('/pagar', methods=['GET'])
-def pagar():
-    datos_app = get_common_data()
-    return render_template('pagoPSE.html', datosApp=datos_app)
+@app.route('/metodos-pago')
+def metodos_pago():
+    # Obtener el carrito de sessionStorage
+    carrito_pendiente = session.get('carritoPendiente', {})
+    
+    # Asegurar la estructura correcta
+    if not isinstance(carrito_pendiente, dict):
+        carrito_pendiente = {}
+    
+    if 'items' not in carrito_pendiente:
+        carrito_pendiente['items'] = []
+    
+    if 'total' not in carrito_pendiente:
+        carrito_pendiente['total'] = sum(item.get('precio', 0) * item.get('cantidad', 0) 
+                                       for item in carrito_pendiente.get('items', []))
 
-# Función para generar firma de transacción para PayU
-def generate_payu_signature(api_key, merchant_id, reference_code, amount, currency):
-    signature_str = f"{api_key}~{merchant_id}~{reference_code}~{amount}~{currency}"
-    return hashlib.md5(signature_str.encode('utf-8')).hexdigest()
+    datosApp = get_data_app()
+    return render_template('metodos_pago.html', datosApp=datosApp, carrito=carrito_pendiente)
 
-# Ruta para iniciar el pago con PayU
-@app.route('/iniciar_pago', methods=['POST'])
-def iniciar_pago():
+
+
+@app.route('/procesar-carrito', methods=['POST'])
+def procesar_carrito():
     try:
         data = request.get_json()
-        if not data:
-            return jsonify({'error': 'Datos no proporcionados', 'success': False}), 400
-            
-        productos = data.get('productos', [])
-        total = data.get('total', 0)
-        buyer_email = data.get('email', '')
-        buyer_name = data.get('nombreCompleto', '')
         
-        if not productos or total <= 0:
-            return jsonify({'error': 'Carrito vacío o monto inválido', 'success': False}), 400
+        # Validación básica
+        if not data or 'items' not in data:
+            return jsonify({"success": False, "error": "Datos inválidos"}), 400
         
-        # Crear una referencia única para la orden
-        reference_code = f"ORDER_{int(time.time())}"
-        
-        # Generar firma para PayU
-        signature = generate_payu_signature(
-            app.config['PAYU_API_KEY'],
-            app.config['PAYU_MERCHANT_ID'],
-            reference_code,
-            total,
-            'COP'
-        )
-        
-        # Construir la URL de redirección a PayU
-        url_pago = (
-            "https://sandbox.checkout.payulatam.com/ppp-web-gateway-payu/?" +
-            f"merchantId={app.config['PAYU_MERCHANT_ID']}&" +
-            f"accountId={app.config['PAYU_MERCHANT_ID']}&" +
-            f"description=Compra en CyberShop&" +
-            f"referenceCode={reference_code}&" +
-            f"amount={total}&" +
-            f"currency=COP&" +
-            f"signature={signature}&" +
-            f"test=True&" +  # True para sandbox
-            f"buyerEmail={buyer_email}&" +
-            f"buyerFullName={buyer_name}&" +
-            f"responseUrl={url_for('respuesta_pago', _external=True)}&" +
-            f"confirmationUrl={url_for('confirmacion_pago', _external=True)}"
-        )
+        # Guardar en la sesión de Flask
+        session['carritoPendiente'] = data
         
         return jsonify({
-            'success': True,
-            'url_pago': url_pago,
-            'reference_code': reference_code
+            "success": True,
+            "message": "Carrito procesado correctamente"
         })
-        
+    
     except Exception as e:
-        return jsonify({'error': str(e), 'success': False}), 500
-
-# Ruta para la respuesta de PayU (redirección después del pago)
-
-@app.route('/respuesta_pago', methods=['GET'])
-def respuesta_pago():
-    try:
-        # 1. Capturar parámetros esenciales
-        params = {
-            'transaction_state': request.args.get('transactionState'),
-            'reference_code': request.args.get('referenceCode'),
-            'amount': request.args.get('TX_VALUE'),
-            'currency': request.args.get('currency'),
-            'signature': request.args.get('signature'),
-            'payment_method': request.args.get('paymentMethodType'),
-            'transaction_id': request.args.get('transactionId')
-        }
-
-        # 2. Validación mínima
-        if None in params.values():
-            logging.error(f'Parámetros incompletos: {request.args}')
-            flash('Respuesta de pago incompleta', 'error')
-            return redirect(url_for('pago_fallido'))
-
-        # 3. Verificar firma (seguridad crítica)
-        signature_check = hashlib.md5(
-            f"{app.config['PAYU_API_KEY']}~{app.config['PAYU_MERCHANT_ID']}~{params['reference_code']}~{params['amount']}~{params['currency']}"
-            .encode('utf-8')
-        ).hexdigest()
-
-        if params['signature'] != signature_check:
-            logging.warning(f'Firma inválida en pago {params["reference_code"]}')
-            flash('Error de verificación de seguridad', 'error')
-            return redirect(url_for('pago_fallido'))
-
-        # 4. Redirigir según estado
-        estado = params['transaction_state']
-        referencia = params['reference_code']
-
-        if estado == '4':  # Aprobado
-            logging.info(f"Pago aprobado: {referencia}")
-            flash('¡Pago exitoso!', 'success')
-            return redirect(url_for('pago_exitoso', referencia=referencia))
-
-        elif estado == '6':  # Declinado
-            logging.info(f"Pago declinado: {referencia}")
-            flash('Pago declinado por el banco', 'warning')
-            return redirect(url_for('reintentar_pago', referencia=referencia))
-
-        elif estado == '7':  # Pendiente
-            logging.info(f"Pago pendiente: {referencia}")
-            flash('Pago en proceso de verificación', 'info')
-            return redirect(url_for('pago_pendiente', referencia=referencia))
-
-        else:  # Estado desconocido
-            logging.error(f"Estado desconocido: {estado} - Ref: {referencia}")
-            flash('Estado de pago no reconocido', 'error')
-            return redirect(url_for('pago_fallido'))
-
-    except Exception as e:
-        logging.critical(f"Error en respuesta_pago: {str(e)} - Args: {request.args}")
-        flash('Error procesando tu pago', 'error')
-        return redirect(url_for('pago_fallido'))
-    
-    # Verificar la firma de respuesta
-    expected_signature = generate_payu_signature(
-        app.config['PAYU_API_KEY'],
-        app.config['PAYU_MERCHANT_ID'],
-        reference_code,
-        amount,
-        currency
-    )
-    
-    if signature != expected_signature:
-        flash('Error en la verificación del pago', 'danger')
-        return redirect(url_for('index'))
-    
-    if transaction_state == '4':  # Aprobado
-        flash('Pago aprobado correctamente', 'success')
-        # Registrar en base de datos
-    elif transaction_state == '6':  # Declinado
-        flash('Pago declinado por la entidad financiera', 'danger')
-    elif transaction_state == '7':  # Pendiente
-        flash('Pago pendiente de confirmación', 'warning')
-    else:
-        flash('Estado de pago desconocido', 'warning')
-    
-    return redirect(url_for('index'))
-
-
-
-# Ruta para la confirmación de PayU (notificación instantánea)
-@app.route('/confirmacion_pago', methods=['POST'])
-def confirmacion_pago():
-    try:
-        transaction_state = request.form.get('transactionState')
-        reference_code = request.form.get('referenceCode')
-        amount = request.form.get('TX_VALUE')
-        currency = request.form.get('currency')
-        signature = request.form.get('signature')
-        
-        expected_signature = generate_payu_signature(
-            app.config['PAYU_API_KEY'],
-            app.config['PAYU_MERCHANT_ID'],
-            reference_code,
-            amount,
-            currency
-        )
-        
-        if signature != expected_signature:
-            return jsonify({'status': 'ERROR', 'message': 'Firma inválida'}), 400
-        
-        # Procesar según estado
-        if transaction_state == '4':  # Aprobado
-            pass  # Registrar pago
-        elif transaction_state == '6':  # Declinado
-            pass
-        elif transaction_state == '7':  # Pendiente
-            pass
-        
-        return jsonify({'status': 'OK'}), 200
-        
-    except Exception as e:
-        return jsonify({'status': 'ERROR', 'message': str(e)}), 500
-
-# Ruta para obtener bancos PSE
-@app.route('/get_banks', methods=['GET'])
-def get_banks():
-    url = f"{app.config['PAYU_URL']}getBanksList"
-    payload = {
-        "language": "es",
-        "command": "GET_BANKS_LIST",
-        "merchant": {
-            "apiKey": app.config['PAYU_API_KEY'],
-            "apiLogin": app.config['PAYU_API_LOGIN']
-        },
-        "test": True,
-        "bankListInformation": {
-            "paymentMethod": "PSE",
-            "paymentCountry": "CO"
-        }
-    }
-    
-    try:
-        response = requests.post(url, json=payload)
-        return jsonify(response.json()) if response.status_code == 200 else jsonify({"error": response.text}), 400
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500

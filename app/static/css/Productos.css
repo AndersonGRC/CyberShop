@@ -318,3 +318,49 @@
 #pagar-carrito:hover {
     background-color: #218838; /* Verde más oscuro */
 }
+
+/* Estilos para los controles de cantidad */
+.item-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.item-controls button {
+    width: 25px;
+    height: 25px;
+    border: none;
+    border-radius: 4px;
+    background-color: #f0f0f0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+.item-controls button:hover {
+    background-color: #e0e0e0;
+}
+
+.item-controls .cantidad {
+    min-width: 20px;
+    text-align: center;
+}
+
+.item-controls .eliminar-item {
+    background-color: #ffebee;
+    color: #c62828;
+    margin-left: 10px;
+}
+
+.item-controls .eliminar-item:hover {
+    background-color: #ffcdd2;
+}
+
+.item-info {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+}

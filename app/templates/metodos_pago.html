@@ -1,0 +1,107 @@
+{% extends './plantillaindex.html' %}
+
+{% block titulo %}Métodos de Pago - {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional%} 
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pago.css') }}">
+{% endblock%}
+
+{% block body %}
+<div class="container">
+    <h2>Finalizar Compra</h2>
+
+    <!-- Sección de productos seleccionados -->
+    <div class="resumen-compra">
+        <h3>Tus Productos:</h3>
+        <ul id="lista-productos">
+            {% if carrito and carrito.get('items') %}
+                {% for item in carrito['items'] %}
+                <li>
+                    <img src="{{ item.imagen }}" alt="{{ item.nombre }}" width="80">
+                    <div class="producto-info">
+                        <strong>{{ item.nombre }}</strong>
+                        <div>${{ "%.2f"|format(item.precio|float) }} COP × {{ item.cantidad }}</div>
+                    </div>
+                    <span class="subtotal">${{ "%.2f"|format(item.precio|float * item.cantidad|int) }} COP</span>
+                </li>
+                {% endfor %}
+                <li class="total">
+                    <span class="producto-info">Total a pagar:</span>
+                    <span class="subtotal">${{ "%.2f"|format(carrito.total|float) }} COP</span>
+                </li>
+            {% else %}
+                <li class="empty-cart">No hay productos en el carrito</li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <!-- Método de pago único -->
+    <div class="metodo-pago-unico">
+        <h3>Método de Pago:</h3>
+        <div class="metodo-opciones">
+            <!-- Opción PSE -->
+            <div class="opcion">
+                <a href="#" id="pse-link" class="pse-logo-link">
+                    <img src="{{ url_for('static', filename='img/PSE.png') }}" alt="Pagos Seguros en Línea (PSE)" width="160">
+                    <p>Pagar con PSE</p>
+                </a>
+            </div>
+
+            <!-- Opción WhatsApp -->
+            <div class="opcion">
+                <a id="whatsapp-link" target="_blank">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3670/3670051.png" alt="Chat Icon" width="140">
+                    <p>Chatea con nosotros</p>
+                </a>
+            </div>
+        </div>
+        <p class="descripcion-pago">Pagos Seguros en Línea - La forma más fácil y segura de pagar</p>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Redirección para ambos elementos
+        const redirectToPSE = function(e) {
+            e.preventDefault();
+            // Aquí iría la lógica de redirección real a PSE
+            console.log('Redirigiendo a PSE...');
+            // window.location.href = "URL_DE_PSE_AQUI";
+        };
+
+        document.getElementById('confirmar-pago').addEventListener('click', redirectToPSE);
+        document.getElementById('pse-link').addEventListener('click', redirectToPSE);
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+    try {
+        const carrito = {{ carrito|tojson|safe }};
+        const whatsappBtn = document.getElementById('whatsapp-link');
+        
+        if (!whatsappBtn) return;
+
+        let mensaje = '¡Hola! Estoy interesado en los siguientes productos:\n\n';
+
+        if (carrito && carrito.items && carrito.items.length > 0) {
+            carrito.items.forEach(item => {
+                const precio = item.precio ? parseFloat(item.precio).toFixed(2) : '0.00';
+                mensaje += `🛒 ${item.nombre || 'Producto'} × ${item.cantidad || 1} - $${precio} COP\n`;
+            });
+            
+            const total = carrito.total ? parseFloat(carrito.total).toFixed(2) : '0.00';
+            mensaje += `\nTotal: $${total} COP`;
+        } else {
+            mensaje += '¡Estoy interesado en uno de sus produtos!';
+        }
+
+        const numero = '573027974969';
+        const link = `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
+        whatsappBtn.setAttribute('href', link);
+        
+    } catch (error) {
+        console.error('Error al generar enlace de WhatsApp:', error);
+    }
+});
+
+</script>
+{% endblock %}
