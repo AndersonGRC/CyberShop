@@ -23,7 +23,7 @@ app.config['MAIL_PASSWORD'] = 'r k j q x v q a p o y t r v d q'  # Contraseña o
 app.config['MAIL_DEFAULT_SENDER'] = 'yalgomasachiras@gmail.com'  # Correo remitente por defecto
 
 
-# Configuración PayU (reemplaza con tus credenciales reales)
+# Configuración PayU 
 app.config['PAYU_API_KEY'] = 'Egc0YoZIz87uaI7P67OmTD9r9w'
 app.config['PAYU_API_LOGIN'] = 'IN19b1OVTQKsjNx'
 app.config['PAYU_MERCHANT_ID'] = '1021517'
