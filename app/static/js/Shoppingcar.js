@@ -3,10 +3,61 @@
 // =============================================
 let carrito = JSON.parse(localStorage.getItem('carrito')) || [];
 let productos = []; // Para almacenar los productos disponibles
+let ultimaActualizacionPrecios = localStorage.getItem('ultimaActualizacionPrecios') || 0;
+
 
 // =============================================
 // FUNCIONES DE UTILIDAD
 // =============================================
+//verificar Precios
+const verificarActualizacionPrecios = async () => {
+    try {
+        const response = await fetch('/api/ultima-actualizacion-precios');
+        const data = await response.json();
+        
+        if (data.ultimaActualizacion > ultimaActualizacionPrecios) {
+        // Precios han cambiado, actualizar precios del carrito
+        ultimaActualizacionPrecios = data.ultimaActualizacion;
+        localStorage.setItem('ultimaActualizacionPrecios', ultimaActualizacionPrecios);
+    
+        await actualizarPreciosCarrito();
+        mostrarNotificacion('Los precios han sido actualizados en tu carrito.', 'warning');
+        return true;
+    }   
+
+
+        return false;
+    } catch (error) {
+        console.error('Error verificando actualización de precios:', error);
+        return false;
+    }
+};
+//Const actualizarPreciosCarrito
+const actualizarPreciosCarrito = async () => {
+    try {
+        const response = await fetch('/api/productos');
+        const productosActualizados = await response.json();
+
+        carrito = carrito.map(item => {
+            const productoActual = productosActualizados.find(p => p.id === item.id);
+            if (productoActual) {
+                return {
+                    ...item,
+                    precio: parsearPrecio(productoActual.precio)  // Precio actualizado
+                };
+            }
+            return item; // Mantener igual si no se encuentra
+        });
+
+        actualizarCarrito();
+    } catch (error) {
+        console.error('Error actualizando precios del carrito:', error);
+    }
+};
+
+
+
+
 // Asegura una conversión robusta a número sin errores por puntos y comas
 const parsearPrecio = (precioStr) => {
     if (typeof precioStr === 'number') return precioStr;
@@ -157,40 +208,44 @@ const configurarEventos = () => {
     });
 
     // Procesar pago
-    document.getElementById('pagar-carrito').addEventListener('click', async () => {
-        try {
-            if (carrito.length === 0) {
-                mostrarNotificacion('Tu carrito está vacío', 'error');
-                return;
-            }
+    document.getElementById('pagar-carrito')?.addEventListener('click', async () => {
+    try {
+        // Verificar precios antes de procesar el pago
+        const preciosActualizados = await verificarActualizacionPrecios();
+        if (preciosActualizados) return;
 
-            mostrarLoader();
-            
-            const carritoData = {
-                items: carrito,
-                total: parsearPrecio(document.getElementById('total').textContent)
-            };
-
-            const response = await fetch('/procesar-carrito', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(carritoData)
-            });
-
-            const result = await response.json();
-            
-            if (!response.ok || !result.success) {
-                throw new Error(result.error || 'Error al procesar el pago');
-            }
-
-            window.location.href = "/metodos-pago";
-        } catch (error) {
-            console.error('Error:', error);
-            mostrarNotificacion(error.message, 'error');
-        } finally {
-            ocultarLoader();
+        if (carrito.length === 0) {
+            mostrarNotificacion('Tu carrito está vacío', 'error');
+            return;
         }
-    });
+
+        mostrarLoader();
+        
+        const carritoData = {
+            items: carrito,
+            total: parsearPrecio(document.getElementById('total').textContent)
+        };
+
+        const response = await fetch('/procesar-carrito', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(carritoData)
+        });
+
+        const result = await response.json();
+        
+        if (!response.ok || !result.success) {
+            throw new Error(result.error || 'Error al procesar el pago');
+        }
+
+        window.location.href = "/metodos-pago";
+    } catch (error) {
+        console.error('Error:', error);
+        mostrarNotificacion(error.message, 'error');
+    } finally {
+        ocultarLoader();
+    }
+});
 
     // Popup de detalles
     document.querySelectorAll('.ver-descripcion').forEach(boton => {
@@ -215,15 +270,23 @@ const configurarEventos = () => {
 // =============================================
 // INICIALIZACIÓN
 // =============================================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // Verificar precios antes de cargar el carrito
+    const preciosActualizados = await verificarActualizacionPrecios();
+    // Cargar eventos y mostrar carrito (en ambos casos)
     configurarEventos();
-    actualizarCarrito();
+    actualizarCarrito()
     
     // Cargar productos desde el backend (opcional)
+
     fetch('/api/productos')
         .then(response => response.json())
         .then(data => {
             productos = data;
+            if (data.ultimaActualizacion) {
+                ultimaActualizacionPrecios = data.ultimaActualizacion;
+                localStorage.setItem('ultimaActualizacionPrecios', ultimaActualizacionPrecios);
+            }
         })
         .catch(error => console.error('Error cargando productos:', error));
 });

@@ -2,9 +2,10 @@
 
 {% block titulo %}Métodos de Pago - {{ datosApp.titulo }}{% endblock %}
 
-{% block LinkAdicional%} 
+{% block LinkAdicional %} 
 <link rel="stylesheet" href="{{ url_for('static', filename='css/pago.css') }}">
-{% endblock%}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}
 
 {% block body %}
 <div class="container">
@@ -35,73 +36,154 @@
         </ul>
     </div>
 
-    <!-- Método de pago único -->
-    <div class="metodo-pago-unico">
-        <h3>Método de Pago:</h3>
-        <div class="metodo-opciones">
-            <!-- Opción PSE -->
-            <div class="opcion">
-                <a href="#" id="pse-link" class="pse-logo-link">
-                    <img src="{{ url_for('static', filename='img/PSE.png') }}" alt="Pagos Seguros en Línea (PSE)" width="160">
-                    <p>Pagar con PSE</p>
-                </a>
-            </div>
-
-            <!-- Opción WhatsApp -->
-            <div class="opcion">
-                <a id="whatsapp-link" target="_blank">
-                    <img src="https://cdn-icons-png.flaticon.com/512/3670/3670051.png" alt="Chat Icon" width="140">
-                    <p>Chatea con nosotros</p>
-                </a>
+    <!-- Flujo de PSE -->
+    <div id="pse-flow">
+        <!-- Paso 1: Selección de método -->
+        <div id="paso-1" class="paso-activo">
+            <h3>Selecciona el medio de pago</h3>
+            <div class="metodo-opciones">
+                <div class="opcion-pse" id="seleccionar-pse">
+                    <img src="{{ url_for('static', filename='img/PSE.png') }}" alt="PSE">
+                    <p>Débito bancario PSE</p>
+                </div>
             </div>
         </div>
-        <p class="descripcion-pago">Pagos Seguros en Línea - La forma más fácil y segura de pagar</p>
+
+        <!-- Paso 2: Selección de banco -->
+        <div id="paso-2" class="paso-oculto">
+            <h3>Selecciona tu banco</h3>
+            <div class="form-group">
+                <select id="select-banco" class="form-control" required>
+                    <option value="">Cargando bancos...</option>
+                </select>
+            </div>
+            <div class="botones-navegacion">
+                <button class="btn-volver">Volver</button>
+                <button class="btn-continuar" disabled>Continuar</button>
+            </div>
+        </div>
+
+        <!-- Paso 3: Información del pagador -->
+        <div id="paso-3" class="paso-oculto">
+            <h3>Información del pagador</h3>
+            <div class="form-group">
+                <label>Tipo de Persona *</label>
+                <select id="tipo-persona" class="form-control" required>
+                    <option value="">- Seleccione -</option>
+                    <option value="N">Natural</option>
+                    <option value="J">Jurídica</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Tipo de Documento *</label>
+                <select id="tipo-documento" class="form-control" required>
+                    <option value="">- Seleccione -</option>
+                    <option value="CC">Cédula de ciudadanía</option>
+                    <option value="CE">Cédula de extranjería</option>
+                    <option value="NIT">NIT</option>
+                    <option value="TI">Tarjeta de identidad</option>
+                    <option value="PP">Pasaporte</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Número de Documento *</label>
+                <input type="text" id="numero-documento" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label>Nombre Completo *</label>
+                <input type="text" id="nombre-titular" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label>Teléfono *</label>
+                <input type="tel" id="telefono" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label>Correo Electrónico *</label>
+                <input type="email" id="email" class="form-control" required>
+            </div>
+
+            <!-- Dirección de envío -->
+            <h4>Dirección de Envío</h4>
+            <div class="form-group">
+                <label>Dirección (Calle y número) *</label>
+                <input type="text" id="shipping-street1" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label>Ciudad *</label>
+                <input type="text" id="shipping-city" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label>Departamento *</label>
+                <input type="text" id="shipping-state" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label>Código Postal *</label>
+                <input type="text" id="shipping-postalcode" class="form-control" required>
+            </div>
+
+            <!-- Dirección de facturación -->
+            <div class="form-group">
+                <input type="checkbox" id="same-as-shipping" checked>
+                <label for="same-as-shipping">Usar misma dirección para facturación</label>
+            </div>
+
+            <div id="facturacion-container" style="display:none;">
+                <h4>Dirección de Facturación</h4>
+                <div class="form-group">
+                    <label>Dirección (Calle y número) *</label>
+                    <input type="text" id="billing-street1" class="form-control">
+                </div>
+
+                <div class="form-group">
+                    <label>Ciudad *</label>
+                    <input type="text" id="billing-city" class="form-control">
+                </div>
+
+                <div class="form-group">
+                    <label>Departamento *</label>
+                    <input type="text" id="billing-state" class="form-control">
+                </div>
+
+                <div class="form-group">
+                    <label>Código Postal *</label>
+                    <input type="text" id="billing-postalcode" class="form-control">
+                </div>
+            </div>
+
+            <div class="botones-navegacion">
+                <button class="btn-volver">Volver</button>
+                <button id="btn-pagar" class="btn-pagar">Pagar ahora</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Opción de WhatsApp para pago en efectivo -->
+    <div class="whatsapp-option">
+        <h3>¿Prefieres pagar en efectivo?</h3>
+        <a href="#" id="whatsapp-link" class="whatsapp-pago">
+            <i class="fab fa-whatsapp"></i> Pagar por WhatsApp
+        </a>
+        <p class="descripcion-pago">Coordina tu pago en efectivo con nuestro equipo de ventas</p>
     </div>
 </div>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Redirección para ambos elementos
-        const redirectToPSE = function(e) {
-            e.preventDefault();
-            // Aquí iría la lógica de redirección real a PSE
-            console.log('Redirigiendo a PSE...');
-            // window.location.href = "URL_DE_PSE_AQUI";
-        };
+<!-- Loader para procesamiento de pago -->
+<div id="loader">
+    <div class="loader-content">
+        <div class="loader-spinner"></div>
+        <h3>Procesando tu pago...</h3>
+        <p>Por favor no cierres esta ventana</p>
+    </div>
+</div>
 
-        document.getElementById('confirmar-pago').addEventListener('click', redirectToPSE);
-        document.getElementById('pse-link').addEventListener('click', redirectToPSE);
-    });
-
-    document.addEventListener('DOMContentLoaded', function () {
-    try {
-        const carrito = {{ carrito|tojson|safe }};
-        const whatsappBtn = document.getElementById('whatsapp-link');
-        
-        if (!whatsappBtn) return;
-
-        let mensaje = '¡Hola! Estoy interesado en los siguientes productos:\n\n';
-
-        if (carrito && carrito.items && carrito.items.length > 0) {
-            carrito.items.forEach(item => {
-                const precio = item.precio ? parseFloat(item.precio).toFixed(2) : '0.00';
-                mensaje += `🛒 ${item.nombre || 'Producto'} × ${item.cantidad || 1} - $${precio} COP\n`;
-            });
-            
-            const total = carrito.total ? parseFloat(carrito.total).toFixed(2) : '0.00';
-            mensaje += `\nTotal: $${total} COP`;
-        } else {
-            mensaje += '¡Estoy interesado en uno de sus produtos!';
-        }
-
-        const numero = '573027974969';
-        const link = `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
-        whatsappBtn.setAttribute('href', link);
-        
-    } catch (error) {
-        console.error('Error al generar enlace de WhatsApp:', error);
-    }
-});
-
-</script>
+<!-- Incluir el archivo JavaScript externo -->
+<script src="{{ url_for('static', filename='js/payu-pse.js') }}"></script>
 {% endblock %}
