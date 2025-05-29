@@ -21,7 +21,7 @@
     padding-top: 100px;
     height: 99px;
     position: static;
-    padding: 1 px;
+    padding: 1px;
     background: linear-gradient(45deg, var(--color-secundario), var(--color-secundario));
     color: var(--color-secundario);
     cursor: default;
