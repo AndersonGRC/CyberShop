@@ -23,7 +23,7 @@
     height: 99px;
     position: static;
     padding: 5px;
-    background: linear-gradient(45deg, var(--color-principal), var(--color-secundario));
+    background: linear-gradient(45deg, var(--color-secundario), var(--color-secundario));
     color: var(--color-secundario);
     cursor: default;
     z-index: 10; /* Logo principal sobre otros elementos */
