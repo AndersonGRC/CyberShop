@@ -307,7 +307,7 @@ body.nav_fixed .nav .wrap {
     display: flex;
     align-items: center;
     padding: 10px 20px;
-    background-color: #25D366; /* Color de WhatsApp */
+    background-color: var(--color-verde); 
     color: var(--color-principal);
     text-decoration: none;
     border-radius: 50px;
