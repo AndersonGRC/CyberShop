@@ -13,7 +13,6 @@
     object-fit: cover;
     border-radius: 8px; /* opcional */
     font-family: 'Cooper Black';
-   
   }
   
 
@@ -22,11 +21,12 @@
     padding-top: 100px;
     height: 99px;
     position: static;
-    padding: 5px;
+    padding: 1 px;
     background: linear-gradient(45deg, var(--color-secundario), var(--color-secundario));
     color: var(--color-secundario);
     cursor: default;
     z-index: 10; /* Logo principal sobre otros elementos */
+    border-bottom: 2px solid var(--color-crema);
 }
 
 /* Logo pequeño */
@@ -73,7 +73,6 @@
     left: -215px; /*Modificar esta margen cuando el logo_small es demaciado grande y sobre sale*/
     transition: 0.4s ease all;
     z-index: 21; /* Wrapper de la navegación sobre el menú */
-    
 }
 
 nav {
