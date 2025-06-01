@@ -953,14 +953,16 @@ def obtener_bancos_pse():
         # Configuración del payload específico para obtener bancos
         payload = {
             "language": "es",
-            "command": "GET_BANKS_LIST",  # Comando específico para obtener bancos
-            "test": True if app.config.get('PAYU_ENV') == 'sandbox' else False,
+            "command": "GET_BANKS_LIST",
             "merchant": {
                 "apiKey": app.config['PAYU_API_KEY'],
                 "apiLogin": app.config['PAYU_API_LOGIN']
             },
-            "paymentMethod": "PSE",  # Método de pago requerido
-            "paymentCountry": "CO"   # País requerido para PSE
+            "test": True if app.config.get('PAYU_ENV') == 'sandbox' else False,
+            "bankListInformation": {  # Este es el objeto que debe contener paymentMethod y paymentCountry
+                "paymentMethod": "PSE",
+                "paymentCountry": "CO"
+            }
         }
 
         # Configuración de la solicitud
@@ -974,7 +976,7 @@ def obtener_bancos_pse():
             app.config['PAYU_URL'],
             json=payload,
             headers=headers,
-            timeout=10  # Timeout de 10 segundos
+            timeout=10
         )
 
         # Verificar errores en la respuesta
@@ -996,17 +998,14 @@ def obtener_bancos_pse():
             {
                 "pseCode": banco.get("pseCode"),
                 "description": banco.get("description"),
-                "active": banco.get("active", False)
+                "active": banco.get("active", True)  # Asumir activo si no se especifica
             }
             for banco in respuesta_payu.get('banks', [])
-            if banco.get("pseCode") and banco.get("active", False)
+            if banco.get("pseCode")  # Solo bancos con código PSE
         ]
 
         # Ordenar bancos alfabéticamente
         bancos.sort(key=lambda x: x['description'])
-
-        # Cachear la respuesta (ejemplo con Flask-Caching)
-        # cache.set('lista_bancos_pse', bancos, timeout=86400)  # Cache por 24 horas
 
         return jsonify({
             "success": True,
@@ -1029,55 +1028,69 @@ def obtener_bancos_pse():
             "details": str(e)
         }), 500
 
+
+
+
 @app.route('/api/payu/procesar-pse', methods=['POST'])
 def procesar_pago_pse():
     try:
-        # 1. Verificar contenido JSON
+        # 1. Verify JSON content
         if not request.is_json:
-            app.logger.warning("Intento de pago sin contenido JSON")
+            app.logger.warning("Payment attempt without JSON content")
             return jsonify({
                 "success": False,
-                "error": "Content-Type debe ser application/json"
+                "error": "Content-Type must be application/json"
             }), 400
 
         data = request.get_json()
         
-        # 2. Validar datos recibidos
+        # 2. Validate input data
         is_valid, validation_result = PSEValidator.validate_payment_data(data)
         if not is_valid:
-            app.logger.error(f"Validación fallida: {validation_result}")
+            app.logger.error(f"Validation failed: {validation_result}")
             return jsonify({
                 "success": False,
                 "errors": validation_result
             }), 400
 
-        # 3. Validar carrito y monto
+        # 3. Validate cart exists and amount matches
         carrito_pendiente = session.get('carritoPendiente', {})
         if not carrito_pendiente or not carrito_pendiente.get('items'):
-            app.logger.error("Intento de pago sin carrito en sesión")
+            app.logger.error("Payment attempt without cart in session")
             return jsonify({
                 "success": False,
-                "error": "No hay productos en el carrito"
+                "error": "No products in cart"
             }), 400
 
-        # Calcular total (en enteros para COP según PayU)
-        monto_solicitado = int(round(sum(
+        # Calculate cart total with decimal precision
+        total_carrito = round(sum(
             float(item.get('precio', 0)) * int(item.get('cantidad', 0)) 
             for item in carrito_pendiente.get('items', [])
-        )))
+        ), 2)
+        
+        monto_solicitado = round(float(data['amount']), 2)
+        
+        if monto_solicitado != total_carrito:
+            app.logger.error(
+                f"Amount discrepancy: Cart {total_carrito} vs Payment {monto_solicitado}"
+            )
+            return jsonify({
+                "success": False,
+                "error": f"Requested amount ({monto_solicitado}) doesn't match cart total ({total_carrito})"
+            }), 400
 
-        # 4. Generar referencia y firma
+        # 4. Generate unique reference and security signature
         referencia = f"PED{int(time.time())}"
         firma = hashlib.md5(
             f"{app.config['PAYU_API_KEY']}~{app.config['PAYU_MERCHANT_ID']}~{referencia}~{monto_solicitado}~COP"
             .encode('utf-8')
         ).hexdigest()
 
-        # 5. Construir payload completo para PayU
+        # 5. Prepare complete PayU payload with all mandatory fields
         payload = {
             "language": "es",
             "command": "SUBMIT_TRANSACTION",
-            "test": app.config.get('PAYU_ENV', 'sandbox') == 'sandbox',
+            "test": True if app.config.get('PAYU_ENV', 'sandbox') == 'sandbox' else False,
             "merchant": {
                 "apiKey": app.config['PAYU_API_KEY'],
                 "apiLogin": app.config['PAYU_API_LOGIN']
@@ -1091,124 +1104,142 @@ def procesar_pago_pse():
                     "signature": firma,
                     "additionalValues": {
                         "TX_VALUE": {
-                            "value": monto_solicitado,  # Valor entero sin decimales
+                            "value": monto_solicitado,
                             "currency": "COP"
                         }
                     },
                     "buyer": {
-                        "merchantBuyerId": referencia[:100],  # Máximo 100 caracteres
-                        "fullName": data['buyerFullName'][:150],  # Máximo 150 caracteres
-                        "emailAddress": data['buyerEmail'][:255],  # Máximo 255 caracteres
-                        "contactPhone": data['buyerPhone'][:20],  # Máximo 20 caracteres
-                        "dniNumber": str(data['pseReference3'])[:20],  # Máximo 20 caracteres
+                        "merchantBuyerId": data.get('buyerId', referencia),
+                        "fullName": data['buyerFullName'],
+                        "emailAddress": data['buyerEmail'],
+                        "contactPhone": data['buyerPhone'],
+                        "dniNumber": data['pseReference3'],
                         "shippingAddress": {
-                            "street1": data.get('shippingStreet1', 'Not provided')[:100],
-                            "street2": data.get('shippingStreet2', '')[:100],
-                            "city": data.get('shippingCity', 'Bogotá')[:50],
-                            "state": data.get('shippingState', 'Bogotá')[:40],
-                            "country": "CO",  # Fijo para Colombia
-                            "postalCode": str(data.get('shippingPostalCode', '110111'))[:20],
-                            "phone": data['buyerPhone'][:20]
+                            "street1": data.get('shippingStreet1', 'Not provided'),
+                            "street2": data.get('shippingStreet2', ''),
+                            "city": data.get('shippingCity', 'Bogotá'),
+                            "state": data.get('shippingState', 'Bogotá'),
+                            "country": "CO",
+                            "postalCode": data.get('shippingPostalCode', '110111'),
+                            "phone": data['buyerPhone']
                         }
                     }
                 },
                 "payer": {
-                    "fullName": data['buyerFullName'][:150],
-                    "emailAddress": data['buyerEmail'][:255],
-                    "contactPhone": data['buyerPhone'][:20],
-                    "dniNumber": str(data['pseReference3'])[:20],
-                    "dniType": data['pseReference2'][:2],  # CC, CE, NIT, etc.
+                    "fullName": data['buyerFullName'],
+                    "emailAddress": data['buyerEmail'],
+                    "contactPhone": data['buyerPhone'],
+                    "dniNumber": data['pseReference3'],
+                    "dniType": data['pseReference2'],
                     "billingAddress": {
-                        "street1": data.get('billingStreet1', data.get('shippingStreet1', 'Not provided'))[:100],
-                        "street2": data.get('billingStreet2', '')[:100],
-                        "city": data.get('billingCity', data.get('shippingCity', 'Bogotá'))[:50],
-                        "state": data.get('billingState', data.get('shippingState', 'Bogotá'))[:40],
+                        "street1": data.get('billingStreet1', data.get('shippingStreet1', 'Not provided')),
+                        "street2": data.get('billingStreet2', ''),
+                        "city": data.get('billingCity', data.get('shippingCity', 'Bogotá')),
+                        "state": data.get('billingState', data.get('shippingState', 'Bogotá')),
                         "country": "CO",
-                        "postalCode": str(data.get('billingPostalCode', data.get('shippingPostalCode', '110111')))[:20],
-                        "phone": data['buyerPhone'][:20]
+                        "postalCode": data.get('billingPostalCode', data.get('shippingPostalCode', '110111')),
+                        "phone": data['buyerPhone']
                     }
                 },
-                "type": "AUTHORIZATION_AND_CAPTURE",  # Obligatorio para PSE
-                "paymentMethod": "PSE",  # Exactamente "PSE"
-                "paymentCountry": "CO",  # Fijo para Colombia
-                "deviceSessionId": data.get('deviceSessionId', f"dsid_{int(time.time())}")[:255],
-                "ipAddress": request.remote_addr[:39],  # Máximo 39 caracteres
-                "cookie": data.get('cookie', f"ck_{int(time.time())}")[:255],
-                "userAgent": request.headers.get('User-Agent', 'Unknown')[:1024],
+                "type": "AUTHORIZATION_AND_CAPTURE",
+                "paymentMethod": "PSE",
+                "paymentCountry": "CO",
+                "deviceSessionId": data.get('deviceSessionId', f"dsid_{int(time.time())}"),
+                "ipAddress": request.remote_addr,
+                "cookie": data.get('cookie', f"ck_{int(time.time())}"),
+                "userAgent": request.headers.get('User-Agent', 'Unknown'),
                 "extraParameters": {
-                    "FINANCIAL_INSTITUTION_CODE": str(data['financialInstitutionCode'])[:4],  # Código de 4 dígitos
-                    "USER_TYPE": "N" if data['userType'] == "N" else "J",  # Solo N o J
-                    "PSE_REFERENCE2": data['pseReference2'][:2],  # CC, CE, etc.
-                    "PSE_REFERENCE3": str(data['pseReference3'])[:20],  # Número de documento
-                    "RESPONSE_URL": url_for('respuesta_pago', _external=True)[:2048],
-                    "CONFIRMATION_URL": url_for('confirmacion_pago', _external=True)[:2048]
+                    "FINANCIAL_INSTITUTION_CODE": data['financialInstitutionCode'],
+                    "USER_TYPE": data['userType'],
+                    "PSE_REFERENCE2": data['pseReference2'],
+                    "PSE_REFERENCE3": data['pseReference3'],
+                    "RESPONSE_URL": url_for('respuesta_pago', _external=True),
+                    "CONFIRMATION_URL": url_for('confirmacion_pago', _external=True)
                 }
             }
         }
 
-        # 6. Auditoría
-        app.logger.info(f"Iniciando transacción PSE - Referencia: {referencia}, Monto: {monto_solicitado} COP")
+        # 6. Audit log before sending to PayU
+        audit_log = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "reference": referencia,
+            "amount": monto_solicitado,
+            "buyer": {
+                "name": data['buyerFullName'],
+                "email": data['buyerEmail'],
+                "doc_type": data['pseReference2'],
+                "doc_number": "***" + data['pseReference3'][-4:]
+            },
+            "bank": data['financialInstitutionCode'],
+            "ip": request.remote_addr,
+            "user_agent": request.headers.get('User-Agent')
+        }
+        app.logger.info(f"Initiating PSE transaction: {audit_log}")
 
-        # 7. Enviar a PayU
-        headers = {'Content-Type': 'application/json'}
+        # 7. Send to PayU with timeout
         response = requests.post(
             app.config['PAYU_URL'],
             json=payload,
-            headers=headers,
-            timeout=15
+            timeout=15  # 15 seconds timeout
         )
         response.raise_for_status()
         respuesta_payu = response.json()
 
-        # 8. Validar respuesta
+        # 8. Validate PayU response
         if respuesta_payu.get('code') != 'SUCCESS':
-            error_msg = respuesta_payu.get('error', 'Error desconocido de PayU')
-            app.logger.error(f"Error PayU: {error_msg} - Respuesta: {respuesta_payu}")
+            app.logger.error(f"Unsuccessful PayU response: {respuesta_payu}")
             return jsonify({
                 "success": False,
-                "error": "Error en pasarela de pago",
-                "details": error_msg
+                "error": "Payment gateway error",
+                "details": respuesta_payu.get('error'),
+                "payu_response": respuesta_payu
             }), 400
 
-        # 9. Procesar respuesta exitosa
-        transaccion = respuesta_payu.get('transactionResponse', {})
-        bank_url = transaccion.get('extraParameters', {}).get('BANK_URL')
+        # 9. Store transaction in database (pseudo-code)
+        try:
+            # transaction = Transaction(
+            #     reference=referencia,
+            #     amount=monto_solicitado,
+            #     status=respuesta_payu.get('transactionResponse', {}).get('state'),
+            #     payu_id=respuesta_payu.get('transactionResponse', {}).get('transactionId'),
+            #     payment_method='PSE',
+            #     bank_url=respuesta_payu.get('transactionResponse', {}).get('bankURL')
+            # )
+            # db.session.add(transaction)
+            # db.session.commit()
+            pass
+        except Exception as db_error:
+            app.logger.error(f"Error saving transaction to DB: {str(db_error)}")
 
-        if not bank_url:
-            app.logger.error("No se recibió BANK_URL en la respuesta")
-            return jsonify({
-                "success": False,
-                "error": "No se pudo obtener URL de redirección al banco"
-            }), 400
-
-        # 10. Retornar éxito
+        # 10. Return success response
+        app.logger.info(f"Transaction {referencia} created in PayU")
         return jsonify({
             "success": True,
             "transaction": {
                 "reference": referencia,
                 "amount": monto_solicitado,
-                "paymentUrl": bank_url,
-                "status": transaccion.get('state'),
-                "transactionId": transaccion.get('transactionId')
+                "paymentUrl": respuesta_payu.get('transactionResponse', {}).get('extraParameters', {}).get('BANK_URL'),
+                "status": respuesta_payu.get('transactionResponse', {}).get('state'),
+                "transactionId": respuesta_payu.get('transactionResponse', {}).get('transactionId')
             }
         })
 
     except requests.exceptions.RequestException as e:
-        app.logger.error(f"Error de conexión con PayU: {str(e)}")
+        app.logger.error(f"PayU communication error: {str(e)}")
         return jsonify({
             "success": False,
-            "error": "Error al comunicarse con la pasarela de pago",
+            "error": "Error communicating with payment gateway",
             "details": str(e)
         }), 500
         
     except Exception as e:
-        app.logger.error(f"Error inesperado en procesar_pago_pse: {str(e)}")
+        app.logger.error(f"Unexpected error in procesar_pago_pse: {str(e)}")
         return jsonify({
             "success": False,
-            "error": "Error interno del servidor",
+            "error": "Internal server error",
             "details": str(e)
         }), 500
-    
+
 @app.route('/respuesta-pago')
 def respuesta_pago():
     # Handle PayU response

@@ -84,7 +84,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function cargarBancos() {
-        fetch('/api/payu/bancos')
+          fetch('/api/payu/bancos', {
+        method: 'GET',
+            headers: {
+            'Authorization': 'Bearer token_valido', // 👈 Esto es lo que faltaba
+            'Content-Type': 'application/json'
+            }
+        })
             .then(response => {
                 if (!response.ok) throw new Error('Error al cargar bancos');
                 return response.json();
@@ -261,7 +267,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: JSON.stringify({
                     ...pseData,
-                    amount: total
+                    body: JSON.stringify(pseData)
                 })
             });
 
