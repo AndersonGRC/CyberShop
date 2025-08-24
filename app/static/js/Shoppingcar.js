@@ -164,11 +164,8 @@ botonPagar.addEventListener('click', () => {
             popup.style.display = 'none';
         }
     });
-<<<<<<< HEAD
-=======
 });
 
 // En tu Shoppingcar.js
 localStorage.setItem('carrito', JSON.stringify(carrito));
 window.location.href = '/pagar';
->>>>>>> 09152b1 (Pasarela de Pagos Prueba)

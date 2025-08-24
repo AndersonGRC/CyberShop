@@ -10,8 +10,6 @@ from app import mail
 from flask_mail import Message  
 from datetime import datetime
 import locale
-<<<<<<< HEAD
-=======
 #importaciones PAY U
 from flask import request, jsonify, redirect, url_for, flash
 import requests
@@ -20,7 +18,6 @@ from datetime import datetime
 import hashlib
 from flask import jsonify
 
->>>>>>> 09152b1 (Pasarela de Pagos Prueba)
 
 locale.setlocale(locale.LC_ALL, 'es_CO.UTF-8')
 
