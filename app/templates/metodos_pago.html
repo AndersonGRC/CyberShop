@@ -1,0 +1,193 @@
+{% extends './plantillaindex.html' %}
+
+{% block titulo %}Métodos de Pago - {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %} 
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pago.css') }}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}
+
+{% block body %}
+<div class="container">
+    <h2>Finalizar Compra</h2>
+
+    <!-- Sección de productos seleccionados -->
+    <div class="resumen-compra">
+        <h3>Tus Productos:</h3>
+        <ul id="lista-productos">
+            {% if carrito and carrito['items'] %}
+                {% for item in carrito['items'] %}
+                <li>
+                    <img src="{{ item.imagen }}" alt="{{ item.nombre }}" width="80">
+                    <div class="producto-info">
+                        <strong>{{ item.nombre }}</strong>
+                        <div>
+                            ${{ "%.2f"|format(item.precio|float) }} COP × {{ item.cantidad }}
+                        </div>
+                    </div>
+                    <span class="subtotal">
+                        ${{ "%.2f"|format(item.precio|float * item.cantidad|int) }} COP
+                    </span>
+                </li>
+                {% endfor %}
+                <li class="total">
+                    <span class="producto-info">Total a pagar:</span>
+                    <span class="subtotal">
+                        ${{ "%.2f"|format(carrito.total|float) }} COP
+                    </span>
+                </li>
+            {% else %}
+                <li class="empty-cart">No hay productos en el carrito</li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <!-- Flujo de PSE -->
+    <div id="pse-flow">
+        <!-- Paso 1: Selección de método -->
+        <div id="paso-1" class="paso-activo">
+            <h3>Selecciona el medio de pago</h3>
+            <div class="metodo-opciones">
+                <div class="opcion-pse" id="seleccionar-pse">
+                    <img src="{{ url_for('static', filename='img/PSE.png') }}" alt="PSE">
+                    <p>Débito bancario PSE</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Paso 2: Selección de banco -->
+        <div id="paso-2" class="paso-oculto">
+            <h3>Selecciona tu banco</h3>
+            <div class="form-group">
+                <select id="select-banco" class="form-control" required>
+                    <option value="">Cargando bancos...</option>
+                </select>
+            </div>
+            <div class="botones-navegacion">
+                <button class="btn-volver">Volver</button>
+                <button class="btn-continuar" disabled>Continuar</button>
+            </div>
+        </div>
+
+        <!-- Paso 3: Información del pagador -->
+        <div id="paso-3" class="paso-oculto">
+            <!-- contenido del paso 3 -->
+        </div>
+    </div>
+
+    <!-- Opción de WhatsApp para pago en efectivo -->
+    <div class="whatsapp-option">
+        <h3>¿Prefieres pagar en efectivo?</h3>
+        <a href="#" id="whatsapp-link" class="whatsapp-pago">
+            <i class="fab fa-whatsapp"></i> Pagar por WhatsApp
+        </a>
+        <p class="descripcion-pago">Coordina tu pago en efectivo con nuestro equipo de ventas</p>
+    </div>
+</div>
+
+<!-- Loader para procesamiento de pago -->
+<div id="loader">
+    <div class="loader-content">
+        <div class="loader-spinner"></div>
+        <h3>Procesando tu pago...</h3>
+        <p>Por favor no cierres esta ventana</p>
+    </div>
+</div>
+
+<input type="hidden" id="carrito-data" 
+       value='{{ carrito|tojson|safe if carrito is defined else "null" }}'>
+
+<!-- Archivo JS externo -->
+<script src="{{ url_for('static', filename='js/payu-pse.js') }}">
+    document.addEventListener('DOMContentLoaded', function() {
+    // Verificar si no hay productos en el carrito desde el servidor
+    const productosContainer = document.getElementById('lista-productos');
+    const emptyCartMessage = productosContainer.querySelector('.empty-cart');
+    
+    if (emptyCartMessage) {
+        console.log('No hay productos desde el servidor, buscando en sessionStorage...');
+        
+        // Intentar recuperar de sessionStorage
+        const carritoSession = sessionStorage.getItem('carritoPendiente');
+        if (carritoSession) {
+            try {
+                const carritoData = JSON.parse(carritoSession);
+                
+                // Verificar si hay items en el carrito
+                if (carritoData.items && carritoData.items.length > 0) {
+                    console.log('Carrito encontrado en sessionStorage, recargando página...');
+                    
+                    // Pasar el carrito como parámetro en la URL
+                    const carritoParam = encodeURIComponent(carritoSession);
+                    window.location.href = window.location.pathname + '?carrito=' + carritoParam;
+                    return;
+                }
+            } catch (e) {
+                console.error('Error parsing cart data from sessionStorage:', e);
+            }
+        }
+        
+        // Si llegamos aquí, no hay carrito en ningún lado
+        console.log('No se encontró carrito en sessionStorage');
+    } else {
+        console.log('Productos cargados correctamente desde el servidor');
+    }
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const whatsappLink = document.getElementById('whatsapp-link');
+    const carritoInput = document.getElementById('carrito-data');
+
+    if (!whatsappLink || !carritoInput) return;
+
+    let mensaje = '¡Hola! Estoy interesado en sus productos. Me gustaría coordinar el pago en efectivo.';
+    let carritoData = null;
+
+    // Parsear carrito JSON de forma segura
+    try {
+        if (carritoInput.value && carritoInput.value !== 'null') {
+            carritoData = JSON.parse(carritoInput.value);
+        }
+    } catch (err) {
+        console.error('Error parseando carrito:', err);
+    }
+
+    // Si hay productos, armar el mensaje detallado
+    if (carritoData && Array.isArray(carritoData.items) && carritoData.items.length > 0) {
+        const fmt = (n) => new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(n);
+        let totalCalculado = 0;
+
+        mensaje = ' *Detalle de la compra:*\n\n';
+
+        carritoData.items.forEach((item, index) => {
+            const nombre = item.nombre || 'Producto';
+            const precio = Number(item.precio) || 0;
+            const cantidad = Number(item.cantidad) || 1;
+            const subtotal = precio * cantidad;
+            totalCalculado += subtotal;
+
+            mensaje += `${index + 1}. ${nombre}\n   ${cantidad} × $${fmt(precio)} = $${fmt(subtotal)} COP\n`;
+        });
+
+        const totalFinal = Number(carritoData.total) || totalCalculado;
+        mensaje += `\n *Total a pagar:* $${fmt(totalFinal)} COP\n\n`;
+        mensaje += 'Me gustaría coordinar el pago en efectivo.';
+    }
+
+    // Número de WhatsApp del vendedor
+    const numero = '573108815057';
+    const link = `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
+
+    // Actualizar el enlace dinámicamente
+    whatsappLink.setAttribute('href', link);
+
+    // Abrir WhatsApp en nueva pestaña
+    whatsappLink.addEventListener('click', function(e) {
+        e.preventDefault();
+        window.open(link, '_blank');
+    });
+});
+</script>
+{% endblock %}
