@@ -903,22 +903,39 @@ def cambiar_password(id):
 
 @app.route('/metodos-pago')
 def metodos_pago():
-    # Obtener el carrito de sessionStorage
-    carrito_pendiente = session.get('carritoPendiente', {})
+    carrito_pendiente = {'items': [], 'total': 0}
     
-    # Asegurar la estructura correcta
-    if not isinstance(carrito_pendiente, dict):
-        carrito_pendiente = {}
+    # 1. Intentar obtener de los parámetros de la URL
+    carrito_json = request.args.get('carrito')
+    if carrito_json:
+        try:
+            carrito_pendiente = json.loads(carrito_json)
+            # Guardar en sesión para futuras referencias
+            session['carritoPendiente'] = carrito_pendiente
+        except Exception as e:
+            print(f"Error parsing cart from URL: {e}")
     
+    # 2. Si no hay en URL, intentar de la sesión Flask
+    if not carrito_pendiente or not carrito_pendiente.get('items'):
+        carrito_pendiente = session.get('carritoPendiente', {'items': [], 'total': 0})
+    
+    # 3. Asegurar la estructura correcta
     if 'items' not in carrito_pendiente:
         carrito_pendiente['items'] = []
     
     if 'total' not in carrito_pendiente:
-        carrito_pendiente['total'] = sum(item.get('precio', 0) * item.get('cantidad', 0) 
-                                       for item in carrito_pendiente.get('items', []))
+        try:
+            carrito_pendiente['total'] = sum(
+                float(item.get('precio', 0)) * int(item.get('cantidad', 1)) 
+                for item in carrito_pendiente.get('items', [])
+            )
+        except:
+            carrito_pendiente['total'] = 0
 
     datosApp = get_common_data()
-    return render_template('metodos_pago.html', datosApp=datosApp, carrito=carrito_pendiente)
+    return render_template('metodos_pago.html', 
+                         datosApp=datosApp, 
+                         carrito=carrito_pendiente)
 
 
 
@@ -1249,3 +1266,11 @@ def respuesta_pago():
 def confirmacion_pago():
     # Handle PayU confirmation
     return '', 200
+
+@app.route('/debug-session')
+def debug_session():
+    # Endpoint para verificar el contenido de la sesión
+    return jsonify({
+        'carritoPendiente': session.get('carritoPendiente'),
+        'session_keys': list(session.keys())
+    })

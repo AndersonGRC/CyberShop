@@ -2,81 +2,23 @@
 // VARIABLES GLOBALES Y CONFIGURACIÓN INICIAL
 // =============================================
 let carrito = JSON.parse(localStorage.getItem('carrito')) || [];
-let productos = []; // Para almacenar los productos disponibles
-let ultimaActualizacionPrecios = localStorage.getItem('ultimaActualizacionPrecios') || 0;
-
 
 // =============================================
 // FUNCIONES DE UTILIDAD
 // =============================================
-//verificar Precios
-const verificarActualizacionPrecios = async () => {
-    try {
-        const response = await fetch('/api/ultima-actualizacion-precios');
-        const data = await response.json();
-        
-        if (data.ultimaActualizacion > ultimaActualizacionPrecios) {
-        // Precios han cambiado, actualizar precios del carrito
-        ultimaActualizacionPrecios = data.ultimaActualizacion;
-        localStorage.setItem('ultimaActualizacionPrecios', ultimaActualizacionPrecios);
-    
-        await actualizarPreciosCarrito();
-        mostrarNotificacion('Los precios han sido actualizados en tu carrito.', 'warning');
-        return true;
-    }   
-
-
-        return false;
-    } catch (error) {
-        console.error('Error verificando actualización de precios:', error);
-        return false;
-    }
-};
-//Const actualizarPreciosCarrito
-const actualizarPreciosCarrito = async () => {
-    try {
-        const response = await fetch('/api/productos');
-        const productosActualizados = await response.json();
-
-        carrito = carrito.map(item => {
-            const productoActual = productosActualizados.find(p => p.id === item.id);
-            if (productoActual) {
-                return {
-                    ...item,
-                    precio: parsearPrecio(productoActual.precio)  // Precio actualizado
-                };
-            }
-            return item; // Mantener igual si no se encuentra
-        });
-
-        actualizarCarrito();
-    } catch (error) {
-        console.error('Error actualizando precios del carrito:', error);
-    }
-};
-
-
-
-
-// Asegura una conversión robusta a número sin errores por puntos y comas
 const parsearPrecio = (precioStr) => {
     if (typeof precioStr === 'number') return precioStr;
     if (!precioStr) return 0;
-
-    // Verifica si ya es un número válido
     if (!isNaN(precioStr)) return parseFloat(precioStr);
 
-    // Si viene con puntos o comas en formato string
     const limpio = precioStr.toString()
-        .replace(/[^0-9,.-]/g, '')     // Elimina caracteres no numéricos
-        .replace(/\./g, '')           // Elimina puntos de miles
-        .replace(',', '.');           // Sustituye la coma decimal por punto
-
+        .replace(/[^0-9,.-]/g, '')
+        .replace(/\./g, '')
+        .replace(',', '.');
     const valor = parseFloat(limpio);
     return isNaN(valor) ? 0 : valor;
 };
 
-// Formateador para mostrar como moneda en COP
 const formatearPrecio = (valor) => {
     const numero = parsearPrecio(valor);
     return numero.toLocaleString('es-CO', {
@@ -87,22 +29,18 @@ const formatearPrecio = (valor) => {
     });
 };
 
-
 const mostrarNotificacion = (mensaje, tipo = 'info') => {
-    console.log(`[${tipo.toUpperCase()}] ${mensaje}`);
     alert(`[${tipo.toUpperCase()}] ${mensaje}`);
 };
 
 const mostrarLoader = () => {
     const loader = document.getElementById('loader');
     if (loader) loader.style.display = 'flex';
-    else console.warn("Elemento 'loader' no encontrado en el DOM");
 };
 
 const ocultarLoader = () => {
     const loader = document.getElementById('loader');
     if (loader) loader.style.display = 'none';
-    else console.warn("Elemento 'loader' no encontrado en el DOM");
 };
 
 // =============================================
@@ -119,8 +57,11 @@ const guardarCarrito = () => {
 const actualizarCarrito = () => {
     const listaCarrito = document.getElementById('lista-carrito');
     const totalElement = document.getElementById('total');
+    if (!listaCarrito || !totalElement) return;
+
     listaCarrito.innerHTML = '';
     let total = 0;
+
     carrito.forEach(item => {
         const precio = parsearPrecio(item.precio);
         const cantidad = parseInt(item.cantidad) || 1;
@@ -152,15 +93,11 @@ const actualizarCarrito = () => {
 const agregarAlCarrito = (producto) => {
     const precio = parsearPrecio(producto.precio);
     const itemExistente = carrito.find(item => item.id === producto.id);
-    
+
     if (itemExistente) {
         itemExistente.cantidad++;
     } else {
-        carrito.push({
-            ...producto,
-            precio: precio,
-            cantidad: 1
-        });
+        carrito.push({ ...producto, precio: precio, cantidad: 1 });
     }
     actualizarCarrito();
 };
@@ -182,6 +119,31 @@ const configurarEventos = () => {
             };
             agregarAlCarrito(producto);
         });
+    });
+
+    // Ver detalles del producto
+    document.querySelectorAll('.ver-descripcion').forEach(boton => {
+        boton.addEventListener('click', () => {
+            const producto = boton.closest('.producto');
+            document.getElementById('popup-imagen').src = producto.dataset.image;
+            document.getElementById('popup-titulo').textContent = producto.dataset.name;
+            document.getElementById('popup-referencia').textContent = producto.dataset.reference;
+            document.getElementById('popup-genero').textContent = producto.dataset.gender;
+            document.getElementById('popup-descripcion-texto').textContent = producto.dataset.description;
+            document.getElementById('popup-precio').textContent = formatearPrecio(parsearPrecio(producto.dataset.price));
+            document.getElementById('popup-descripcion').style.display = 'flex';
+        });
+    });
+
+    // Cerrar popup
+    document.querySelector('.cerrar-popup').addEventListener('click', () => {
+        document.getElementById('popup-descripcion').style.display = 'none';
+    });
+
+    // Cerrar popup haciendo clic fuera
+    window.addEventListener('click', (event) => {
+        const popup = document.getElementById('popup-descripcion');
+        if (event.target === popup) popup.style.display = 'none';
     });
 
     // Manejar eventos del carrito
@@ -207,13 +169,9 @@ const configurarEventos = () => {
         mostrarNotificacion('Carrito vaciado', 'info');
     });
 
-    // Procesar pago
-    document.getElementById('pagar-carrito')?.addEventListener('click', async () => {
+    // Procesar pago 
+    document.getElementById('pagar-carrito').addEventListener('click', async () => {
     try {
-        // Verificar precios antes de procesar el pago
-        const preciosActualizados = await verificarActualizacionPrecios();
-        if (preciosActualizados) return;
-
         if (carrito.length === 0) {
             mostrarNotificacion('Tu carrito está vacío', 'error');
             return;
@@ -221,72 +179,38 @@ const configurarEventos = () => {
 
         mostrarLoader();
         
+        // Calcular el total
+        const total = parsearPrecio(document.getElementById('total').textContent);
+        
+        // Preparar datos del carrito para enviar
         const carritoData = {
             items: carrito,
-            total: parsearPrecio(document.getElementById('total').textContent)
+            total: total
         };
 
-        const response = await fetch('/procesar-carrito', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(carritoData)
-        });
-
-        const result = await response.json();
+        // Guardar en sessionStorage para la redirección
+        sessionStorage.setItem('carritoPendiente', JSON.stringify(carritoData));
         
-        if (!response.ok || !result.success) {
-            throw new Error(result.error || 'Error al procesar el pago');
-        }
-
-        window.location.href = "/metodos-pago";
+        // También guardar en localStorage por si acaso
+        localStorage.setItem('carrito', JSON.stringify(carrito));
+        
+        // Redirigir a métodos de pago con los datos en la URL
+        const carritoParam = encodeURIComponent(JSON.stringify(carritoData));
+        window.location.href = `/metodos-pago?carrito=${carritoParam}`;
+        
     } catch (error) {
         console.error('Error:', error);
-        mostrarNotificacion(error.message, 'error');
+        mostrarNotificacion('Error al procesar el pago', 'error');
     } finally {
         ocultarLoader();
     }
 });
-
-    // Popup de detalles
-    document.querySelectorAll('.ver-descripcion').forEach(boton => {
-        boton.addEventListener('click', () => {
-            const producto = boton.closest('.producto');
-            document.getElementById('popup-imagen').src = producto.dataset.image;
-            document.getElementById('popup-titulo').textContent = producto.dataset.name;
-            document.getElementById('popup-referencia').textContent = producto.dataset.reference;
-            document.getElementById('popup-genero').textContent = producto.dataset.gender;
-            document.getElementById('popup-descripcion-texto').textContent = producto.dataset.description;
-            document.getElementById('popup-precio').textContent = formatearPrecio(parsearPrecio(producto.dataset.price));
-            document.getElementById('popup-descripcion').style.display = 'flex';
-        });
-    });
-
-    // Cerrar popup
-    document.querySelector('.cerrar-popup').addEventListener('click', () => {
-        document.getElementById('popup-descripcion').style.display = 'none';
-    });
 };
 
 // =============================================
 // INICIALIZACIÓN
 // =============================================
-document.addEventListener('DOMContentLoaded', async () => {
-    // Verificar precios antes de cargar el carrito
-    const preciosActualizados = await verificarActualizacionPrecios();
-    // Cargar eventos y mostrar carrito (en ambos casos)
+document.addEventListener('DOMContentLoaded', () => {
     configurarEventos();
-    actualizarCarrito()
-    
-    // Cargar productos desde el backend (opcional)
-
-    fetch('/api/productos')
-        .then(response => response.json())
-        .then(data => {
-            productos = data;
-            if (data.ultimaActualizacion) {
-                ultimaActualizacionPrecios = data.ultimaActualizacion;
-                localStorage.setItem('ultimaActualizacionPrecios', ultimaActualizacionPrecios);
-            }
-        })
-        .catch(error => console.error('Error cargando productos:', error));
+    actualizarCarrito();
 });
