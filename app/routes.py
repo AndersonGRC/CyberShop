@@ -488,7 +488,7 @@ def enviar_mensaje():
             flash('Por favor confirma que no eres un robot.', 'error')
             return redirect(url_for('index'))
 
-        recaptcha_secret = "TU_CLAVE_SECRETA"  # La obtienes en Google reCAPTCHA
+        recaptcha_secret = "6LcgDbsrAAAAAI5bL1aVR8g4AxU8nw1c5I82VVZV"  # La obtienes en Google reCAPTCHA
         r = requests.post(
             'https://www.google.com/recaptcha/api/siteverify',
             data={'secret': recaptcha_secret, 'response': recaptcha_response}
