@@ -1,10 +1,9 @@
-
-/* CARRUSEL DE IMÁGENES */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700;800;900&display=swap');
+@import url('Variables\ de\ color.css');
 
 .slider {
     position: relative;
-    background: var(--color-gris);
+    background: transparent;
     width: 100%;
     min-height: 500px;
     overflow: hidden;
@@ -21,7 +20,7 @@
 
 .slider .slide.active {
     clip-path: circle(150% at 0 50%);
-    transition: 2s;
+    transition: 2.5s;
 }
 
 .slider .slide img {
@@ -58,14 +57,20 @@
     font-weight: 400;
 }
 
+/* 🔹 Flechas de navegación */
 .navigation {
-    height: 500px;
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    opacity: 0;
+    transform: translateY(-50%);
+    opacity: 0; /* En PC ocultas hasta hover */
     transition: opacity 0.5s ease;
-    z-index: 13; /* Navegación de las imágenes */
+    z-index: 13;
+    height: auto; /* ✅ antes tenía 500px y dañaba el centrado */
 }
 
 .slider:hover .navigation {
@@ -73,7 +78,7 @@
 }
 
 .prev-btn, .next-btn {
-    z-index: 14; /* Los botones de navegación deben estar sobre el contenido de las imágenes */
+    z-index: 14;
     font-size: 2em;
     color: var(--color-secundario);
     background: var(--color-principal);
@@ -91,10 +96,16 @@
     border-bottom-left-radius: 3px;
 }
 
+/* 🔹 Puntos de navegación */
 .navigation-visibility {
     z-index: 16;
     display: flex;
     justify-content: center;
+    position: absolute; /* ✅ En PC dentro del slider */
+    bottom: 15px;       
+    left: 0;
+    right: 0;
+    transform: none;
 }
 
 .navigation-visibility .slide-icon {
@@ -102,7 +113,6 @@
     background: var(--color-gris);
     width: 20px;
     height: 10px;
-    transform: translateY(-50px);
     margin: 0 6px;
     border-radius: 2px;
     box-shadow: 0 5px 25px var(--color-secundario);
@@ -110,6 +120,15 @@
 
 .navigation-visibility .slide-icon.active {
     background: var(--color-secundario);
+}
+
+/* ✅ En móviles los puntos bajan FUERA del slider */
+@media (max-width: 768px) {
+    .navigation-visibility {
+        position: static;   /* Se salen del slider */
+        margin-top: 10px;   /* Quedan debajo de la imagen */
+        justify-content: center;
+    }
 }
 
 /* Contenedor de contacto */
@@ -188,12 +207,19 @@
     box-shadow: 0px 8px 12px var(--color-secundario);
 }
 
-
+/* Responsive contacto */
 @media (max-width: 768px) {
-    .map-container, .contact-form {
+    .contact-container{
+        display: flex;
+        flex-direction: column;
+        margin: 10px;
+    }
+    .map-container ,.contact-form{
         width: 100%;
+        gap: 5px;
     }
 }
+
 /* Estilos para la sección "Acerca de Nosotros" */
 .about-us {
     background-color: var(--color-principal);
@@ -230,14 +256,13 @@
 }
 
 .about-us-content:hover {
-    background-color: var(--color-secundario); /* Fondo oscuro */
+    background-color: var(--color-secundario);
     transform: scale(1.10)
 }
 
-/* Cambia el color del texto a blanco en hover */
 .about-us-content:hover h2,
 .about-us-content:hover p {
-    color: var(--color-principal); /* Texto blanco */
+    color: var(--color-principal);
 }
 
 /* Estilos para la sección de Misión y Visión */
@@ -250,15 +275,16 @@
     margin-bottom: 30px;
     transition: background-color 0.3s ease, color 0.3s ease;
 }
+
 .mission:hover, .vision:hover{
-    background-color: var(--color-secundario); /* Fondo oscuro */
+    background-color: var(--color-secundario);
     transform: scale(1.05)
 }
 .mission:hover p, .vision:hover p{
-    color: var(--color-principal); /* Fondo oscuro */
+    color: var(--color-principal);
 }
 .mission:hover h2, .vision:hover h2{
-    color: var(--color-principal); /* Fondo oscuro */
+    color: var(--color-principal);
 }
 .mission, .vision {
     flex: 1;
@@ -285,5 +311,69 @@
 @media (max-width: 768px) {
     .mission-vision {
         flex-direction: column;
+    }
+}
+
+/* 🔹 Ajustes responsive para el slider */
+@media (max-width: 768px) {
+    .slider {
+        min-height: 250px;
+    }
+
+    .slider .slide img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+
+    .navigation {
+        opacity: 1 !important;   /* ✅ siempre visibles en móviles */
+        top: 50%;
+        transform: translateY(-50%);
+        padding: 0 10px;
+        height: auto;
+    }
+
+    .prev-btn, .next-btn {
+        font-size: 1.5em;
+        padding: 6px;
+    }
+
+    .navigation-visibility .slide-icon {
+        width: 15px;
+        height: 8px;
+    }
+    .slider .slide .info {
+        display: none;
+        margin: 0;
+        padding: 0;
+    }
+}
+
+/* Ajuste para pantallas muy pequeñas */
+@media (max-width: 480px) {
+    .slider {
+        min-height: 200px;
+    }
+
+    .next-btn {
+        font-size: 1.2em;
+        padding: 2px;
+        margin-right: -7px;
+    }
+    .prev-btn {
+        font-size: 1.2em;
+        padding: 2px;
+        margin-left: -7px;
+    }
+    .navigation-visibility .slide-icon {
+        width: 12px;
+        height: 6px;
+    }
+}
+@media (max-width: 768px) {
+    .navigation-visibility {
+        position: absolute;
+        bottom: 10px;   /* los empuja hacia abajo */
     }
 }
