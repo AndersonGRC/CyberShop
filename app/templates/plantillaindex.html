@@ -36,6 +36,19 @@
                     <h2>NO HAY DATOS DEL APP</h2>
                     {% endif %}
                 </nav> 
+                <!-- 🔹 Selector de idioma de Google Translate -->
+               <div id="google_translate_container">
+  <select id="custom_translate_btn" onchange="translateLanguage(this.value)">
+    <option value="">🌐 Selecciona idioma</option>
+    <option value="es">es Español</option>
+    <option value="en">🇺🇸 English</option>
+    <option value="fr">🇫🇷 Français</option>
+    <option value="de">🇩🇪 Deutsch</option>
+    <option value="it">🇮🇹 Italiano</option>
+    <option value="pt">🇧🇷 Português</option>
+  </select>
+</div>
+<div id="google_translate_element" style="display:none;"></div>
             </div>
         </div>
         <i class="fas fa-ellipsis-v btn-menu"></i>
@@ -71,7 +84,30 @@
         </div>
     </footer>
 
-         
+<!-- Script de Google Translate -->
+
+<script type="text/javascript">
+  function googleTranslateElementInit() {
+    new google.translate.TranslateElement(
+      {
+        pageLanguage: 'es',
+        autoDisplay: false
+      },
+      'google_translate_element'
+    );
+  }
+
+  // Forzar traducción con el botón personalizado
+  function translateLanguage(lang) {
+    if (lang === '') return;
+    var selectField = document.querySelector("select.goog-te-combo");
+    if (selectField) {
+      selectField.value = lang;
+      selectField.dispatchEvent(new Event("change"));
+    }
+  }
+</script>
+<script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 </body>
 
 {% block script%}
