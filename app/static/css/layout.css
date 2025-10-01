@@ -449,3 +449,147 @@ header {
     left: -9999px;
     opacity: 0.01;
 }
+/* === BOTÓN IDIOMAS SOLO ÍCONO EN ESQUINA - MÓVILES === */
+
+@media screen and (max-width: 800px) {
+    /* Contenedor del botón de idiomas - solo ícono */
+    #google_translate_container {
+        position: fixed !important;
+        bottom: 100px !important; /* Encima del botón de menú */
+        left: 20px !important;
+        width: 50px !important;
+        height: 50px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: var(--color-secundario) !important;
+        border: 2px solid var(--color-principal) !important;
+        border-radius: 50% !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+        z-index: 10050 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        cursor: pointer !important;
+        transition: all 0.3s ease !important;
+    }
+
+    /* Efecto hover para el botón */
+    #google_translate_container:hover {
+        transform: scale(1.1) !important;
+        background: var(--color-transicion) !important;
+    }
+
+    /* Select invisible pero funcional */
+    #custom_translate_btn {
+        position: absolute !important;
+        width: 100% !important;
+        height: 100% !important;
+        opacity: 0.01 !important; /* Casi invisible pero clickeable */
+        cursor: pointer !important;
+        border: none !important;
+        background: transparent !important;
+        appearance: none !important;
+        -webkit-appearance: none !important;
+        border-radius: 50% !important;
+        z-index: 10051 !important;
+    }
+
+    /* Ícono del globo visible */
+    #google_translate_container::before {
+        content: "🌐" !important;
+        font-size: 24px !important;
+        position: absolute !important;
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%) !important;
+        pointer-events: none !important;
+        z-index: 10052 !important;
+    }
+
+    /* Ocultar el texto "Selecciona idioma" pero mantener opciones */
+    #custom_translate_btn option[value=""] {
+        display: none !important;
+    }
+
+    /* Estilo para las opciones del dropdown */
+    #custom_translate_btn option {
+        color: var(--color-negro) !important;
+        background: var(--color-principal) !important;
+        font-size: 14px !important;
+        padding: 10px !important;
+    }
+
+    /* Asegurar que no se superponga con otros botones */
+    .btn-menu {
+        bottom: 20px !important;
+        right: 20px !important;
+        z-index: 10060 !important;
+    }
+
+    .chat-button {
+        bottom: 90px !important;
+        right: 20px !important;
+        z-index: 10055 !important;
+    }
+
+    /* Ajustar el botón de WhatsApp para no superponerse */
+    .chat-button img {
+        width: 35px !important;
+        height: 35px !important;
+    }
+}
+
+/* === VERSIÓN ALTERNATIVA - MÁS VISIBLE === */
+
+@media screen and (max-width: 800px) {
+    /* Alternativa con fondo más llamativo */
+    #google_translate_container {
+        background: linear-gradient(135deg, var(--color-secundario), var(--color-transicion)) !important;
+        border: 2px solid var(--color-principal) !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.4) !important;
+    }
+
+    /* Efecto de pulso sutil */
+    @keyframes pulseGlobe {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+
+    #google_translate_container {
+        animation: pulseGlobe 2s infinite !important;
+    }
+
+    /* Quitar animación al hacer hover */
+    #google_translate_container:hover {
+        animation: none !important;
+    }
+}
+
+
+
+@media screen and (max-width: 800px) {
+    
+    #google_translate_container {
+        bottom: 70px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+    }
+    
+}
+
+
+@media screen and (max-width: 800px) {
+    /* Indicador visual para estado activo */
+    #custom_translate_btn:focus + #google_translate_container::before {
+        filter: brightness(1.3) !important;
+        text-shadow: 0 0 10px rgba(255,255,255,0.5) !important;
+    }
+    
+    /* Mejorar contraste en modo claro/oscuro */
+    @media (prefers-color-scheme: dark) {
+        #google_translate_container {
+            border: 2px solid var(--color-gris) !important;
+        }
+    }
+}
