@@ -56,7 +56,7 @@
 }
 /* Barra de navegación */
 .nav {
-    z-index: 20; /* Barra de navegación sobre el contenido */
+    z-index: 10000 !important; /* Barra de navegación sobre el contenido */
     float: left;
     width: 100%;
     background: var(--color-secundario);
@@ -70,7 +70,7 @@
 /* Wrapper de la navegación */
 .nav .wrap {
     position: relative;
-    left: -215px; /*Modificar esta margen cuando el logo_small es demaciado grande y sobre sale*/
+    left: -208px; /*Modificar esta margen cuando el logo_small es demaciado grande y sobre sale*/
     transition: 0.4s ease all;
     z-index: 21; /* Wrapper de la navegación sobre el menú */
 }
@@ -342,4 +342,110 @@ body.nav_fixed .nav .wrap {
         height: 40px;
         margin-right: 0; /* Elimina el margen derecho */
     }
+}
+
+/* ===== SOLUCIÓN DEFINITIVA PARA GOOGLE TRANSLATE ===== */
+
+/* 🚫 ELIMINAR COMPLETAMENTE EL BANNER Y ESPACIO BLANCO */
+.goog-te-banner-frame {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0px !important;
+    width: 0px !important;
+    overflow: hidden !important;
+    position: absolute !important;
+    top: -9999px !important;
+    left: -9999px !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* 🚫 Ocultar el iframe del banner */
+iframe.goog-te-banner-frame {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0px !important;
+    width: 0px !important;
+    border: none !important;
+}
+
+/* 🚫 Prevenir que Google mueva el contenido */
+body {
+    top: 0px !important;
+    position: static !important;
+    margin-top: 0px !important;
+    padding-top: 0px !important;
+}
+
+html {
+    top: 0px !important;
+    margin-top: 0px !important;
+}
+
+/* 🚫 Ocultar otros elementos de Google Translate */
+.skiptranslate,
+.goog-te-balloon-frame,
+#goog-gt-tt,
+.goog-te-spinner-pos {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0px !important;
+    width: 0px !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* 🚫 Ocultar tooltips de Google */
+.goog-tooltip {
+    display: none !important;
+}
+
+/* 🎨 Botón personalizado con banderas */
+#google_translate_container {
+    display: inline-block;
+    margin: 10px;
+    z-index: 10001;
+    position: relative;
+}
+
+#custom_translate_btn {
+    background: var(--color-secundario);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+    z-index: 10002;
+    position: relative;
+}
+
+#custom_translate_btn:hover {
+    background: var(--color-transicion);
+    transform: scale(1.05);
+}
+
+#custom_translate_btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(42, 77, 105, 0.5);
+}
+
+/* 🔥 Asegurar que el nav esté siempre por encima */
+header {
+    z-index: 10000 !important;
+    position: relative;
+}
+
+.nav {
+    z-index: 10001 !important;
+}
+
+/* 🔥 Reset para cuando Google Translate modifica los estilos */
+.goog-te-combo {
+    position: absolute;
+    left: -9999px;
+    opacity: 0.01;
 }
