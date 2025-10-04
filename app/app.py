@@ -131,9 +131,9 @@ def get_common_data():
     MenuApp = [
         {"nombre": "Inicio", "url": "index"},
         {"nombre": "Productos", "url": "productos"},
-        {"nombre": "Servicios", "url": "servicios"},
+        #{"nombre": "Servicios", "url": "servicios"},
         {"nombre": "¿Quienes Somos?", "url": "index#quienes_somos"},
-        {"nombre": "Contactanos", "url": "index#contactenos"},
+        #{"nombre": "Contactanos", "url": "index#contactenos"},
         {"nombre": "Ingresar", "url": "login"}
     ]
     

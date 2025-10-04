@@ -77,11 +77,11 @@
 
     <!-- Opción de WhatsApp para pago en efectivo -->
     <div class="whatsapp-option">
-        <h3>¿Prefieres pagar en efectivo?</h3>
+        <h3>¿Prefieres otro metodo de pago?</h3>
         <a href="#" id="whatsapp-link" class="whatsapp-pago">
             <i class="fab fa-whatsapp"></i> Pagar por WhatsApp
         </a>
-        <p class="descripcion-pago">Coordina tu pago en efectivo con nuestro equipo de ventas</p>
+        <p class="descripcion-pago">Coordina tu pago con nuestro equipo de ventas</p>
     </div>
 </div>
 
@@ -142,7 +142,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (!whatsappLink || !carritoInput) return;
 
-    let mensaje = '¡Hola! Estoy interesado en sus productos. Me gustaría coordinar el pago en efectivo.';
+    let mensaje = '¡Hola! Estoy interesado en sus productos. Me gustaría coordinar mi pago.';
     let carritoData = null;
 
     // Parsear carrito JSON de forma segura
@@ -173,7 +173,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const totalFinal = Number(carritoData.total) || totalCalculado;
         mensaje += `\n *Total a pagar:* $${fmt(totalFinal)} COP\n\n`;
-        mensaje += 'Me gustaría coordinar el pago en efectivo.';
+        mensaje += 'Me gustaría coordinar mi pago.';
     }
 
     // Número de WhatsApp del vendedor
