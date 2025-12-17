@@ -1,0 +1,74 @@
+/* Archivo: static/css/respuesta_pago.css */
+
+.contenedor-respuesta {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 85vh;
+    background-color: #f0f2f5;
+    padding: 40px 20px;
+    width: 100%;
+}
+
+.ticket-card {
+    background: white;
+    width: 100%;
+    max-width: 450px;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    overflow: hidden;
+    border: 1px solid #e0e0e0;
+    margin: 0 auto;
+    font-family: 'Arial', sans-serif;
+}
+
+.brand-stripe {
+    height: 8px;
+    background: #0d1b54; /* Azul CyberShop */
+    width: 100%;
+}
+
+.ticket-header {
+    padding: 30px;
+    text-align: center;
+    color: white;
+}
+
+/* Colores de estado (con !important para asegurar que se vean) */
+.bg-success-custom { background: linear-gradient(135deg, #28a745, #218838) !important; }
+.bg-danger-custom { background: linear-gradient(135deg, #dc3545, #c82333) !important; }
+.bg-warning-custom { background: linear-gradient(135deg, #ffc107, #e0a800) !important; color: #333 !important; }
+
+.ticket-icon { 
+    font-size: 50px; 
+    display: block; 
+    margin-bottom: 15px;
+}
+
+.ticket-body { padding: 30px; }
+
+.ticket-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 15px;
+    border-bottom: 1px dashed #e0e0e0;
+    padding-bottom: 10px;
+    font-size: 15px;
+    color: #333;
+}
+
+.ticket-label { color: #6c757d; font-weight: normal; }
+.ticket-value { font-weight: bold; color: #0d1b54; text-align: right; }
+
+.btn-cyber {
+    display: block;
+    width: 100%;
+    padding: 15px;
+    text-align: center;
+    background-color: #0d1b54 !important;
+    color: white !important;
+    text-decoration: none !important;
+    font-weight: bold;
+    transition: background 0.3s;
+}
+.btn-cyber:hover { background-color: #060d2b !important; text-decoration: none; }
