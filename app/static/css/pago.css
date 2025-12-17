@@ -379,3 +379,157 @@
         padding: 15px;
     }
 }
+.contenedor-pago {
+        max-width: 900px;
+        margin: 40px auto;
+        display: grid;
+        grid-template-columns: 1fr 1.5fr;
+        gap: 30px;
+    }
+    
+    @media (max-width: 768px) {
+        .contenedor-pago { grid-template-columns: 1fr; }
+    }
+
+    .resumen-lateral {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 10px;
+        border: 1px solid #e9ecef;
+        height: fit-content;
+    }
+
+    .item-resumen {
+        display: flex;
+        align-items: center;
+        margin-bottom: 15px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+    }
+
+    .item-resumen img {
+        width: 60px;
+        height: 60px;
+        object-fit: cover;
+        border-radius: 5px;
+        margin-right: 15px;
+    }
+
+    .total-resumen {
+        font-size: 1.4em;
+        font-weight: bold;
+        text-align: right;
+        margin-top: 15px;
+        color: #2c3e50;
+    }
+
+    .seccion-formulario {
+        background: #fff;
+        padding: 25px;
+        border-radius: 10px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    }
+
+    .form-group { margin-bottom: 15px; }
+    .form-label { display: block; font-weight: 600; margin-bottom: 5px; color: #555; }
+    .form-control {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+        box-sizing: border-box;
+    }
+    
+    .fila-doble {
+        display: flex;
+        gap: 15px;
+    }
+    
+    .fila-doble .form-group { flex: 1; }
+
+    .btn-pagar {
+        width: 100%;
+        padding: 15px;
+        background-color: #a6c438;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background 0.3s;
+        margin-top: 10px;
+    }
+
+    .btn-pagar:hover { background-color: #8ea82e; }
+
+    /* ESTILO TARJETA PAYU */
+    .opcion-payu-card {
+        border: 2px solid #eee;
+        border-radius: 12px;
+        padding: 25px 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-bottom: 25px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #fff;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+
+    /* Solución Imagen PayU: URL pública para garantizar que se vea */
+    .opcion-payu-card img {
+        max-width: 180px; 
+        height: auto;
+        margin-bottom: 15px;
+        display: block;
+    }
+
+    .opcion-payu-card p {
+        margin: 0;
+        font-weight: 600;
+        color: #555;
+        font-size: 1.1em;
+    }
+
+    .opcion-payu-card:hover {
+        border-color: #a6c438;
+        background-color: #fcfdf9;
+        box-shadow: 0 5px 15px rgba(166, 196, 56, 0.2);
+        transform: translateY(-2px);
+    }
+
+    /* Estilo WhatsApp */
+    .whatsapp-option {
+        margin-top: 30px;
+        text-align: center;
+        padding-top: 20px;
+        border-top: 1px solid #eee;
+    }
+    
+    .whatsapp-pago {
+        display: inline-block;
+        background-color: #25D366;
+        color: white;
+        padding: 12px 25px;
+        border-radius: 30px;
+        text-decoration: none;
+        font-weight: bold;
+        margin-top: 15px;
+        font-size: 1.1em;
+        box-shadow: 0 3px 10px rgba(37, 211, 102, 0.3);
+        transition: all 0.3s;
+    }
+    
+    .whatsapp-pago:hover {
+        background-color: #128C7E;
+        color: white;
+        box-shadow: 0 5px 15px rgba(37, 211, 102, 0.5);
+        transform: translateY(-2px);
+    }
+
+    .paso-oculto { display: none; }
