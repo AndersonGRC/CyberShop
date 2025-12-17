@@ -16,7 +16,6 @@
     {% block LinkAdicional%} {% endblock%}
 
 </head>
-    <!-- Menú principal -->
     <header>
         <div class="logo logo_main"> 
             <img id="logo" src="{{ url_for('static', filename='img/Logo.PNG') }}">
@@ -36,19 +35,18 @@
                     <h2>NO HAY DATOS DEL APP</h2>
                     {% endif %}
                 </nav> 
-                <!-- 🔹 Selector de idioma de Google Translate -->
-               <div id="google_translate_container">
-<select id="custom_translate_btn" onchange="translateLanguage(this.value)">
-    <option value="">🌐 Selecciona idioma</option>
-    <option value="es">🇪🇸 Español</option>
-    <option value="en">🇺🇸 English</option>
-    <option value="fr">🇫🇷 Français</option>
-    <option value="de">🇩🇪 Deutsch</option>
-    <option value="it">🇮🇹 Italiano</option>
-    <option value="pt">🇧🇷 Português</option>
-</select>
-</div>
-<div id="google_translate_element" style="display:none;"></div>
+                <div id="google_translate_container">
+                    <select id="custom_translate_btn" onchange="translateLanguage(this.value)">
+                        <option value="">🌐 Selecciona idioma</option>
+                        <option value="es">🇪🇸 Español</option>
+                        <option value="en">🇺🇸 English</option>
+                        <option value="fr">🇫🇷 Français</option>
+                        <option value="de">🇩🇪 Deutsch</option>
+                        <option value="it">🇮🇹 Italiano</option>
+                        <option value="pt">🇧🇷 Português</option>
+                    </select>
+                </div>
+                <div id="google_translate_element" style="display:none;"></div>
             </div>
         </div>
         <i class="fas fa-ellipsis-v btn-menu"></i>
@@ -65,7 +63,6 @@
                 <span>Chatea con nosotros</span>
             </a>
         </div>
-    <!-- Pie de página -->
     <footer class="footer">
         <div class="footer-content">
             <h3>CyberShop Colombia</h3>
@@ -83,8 +80,6 @@
             <span class="Empresa">Desarrollador: andersongermancavi@gmail.com</span>
         </div>
     </footer>
-
-<!-- Script de Google Translate -->
 
 <script type="text/javascript">
   function googleTranslateElementInit() {
@@ -108,7 +103,48 @@
   }
 </script>
 <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                {% for category, message in messages %}
+                    
+                    var tipoIcono = 'info';
+                    var titulo = 'Notificación';
+                    var cat = '{{ category }}';
+
+                    // Convertir categorías de Flask a tipos de SweetAlert
+                    if (cat === 'error' || cat === 'danger') {
+                        tipoIcono = 'error';
+                        titulo = '¡Ups!';
+                    } else if (cat === 'success') {
+                        tipoIcono = 'success';
+                        titulo = '¡Excelente!';
+                    } else if (cat === 'warning') {
+                        tipoIcono = 'warning';
+                        titulo = 'Atención';
+                    }
+
+                    Swal.fire({
+                        title: titulo,
+                        text: '{{ message }}',
+                        icon: tipoIcono,
+                        confirmButtonColor: '#0d1b54', // Azul CyberShop
+                        confirmButtonText: 'Entendido',
+                        backdrop: `rgba(0,0,123,0.1)`
+                    });
+
+                {% endfor %}
+            });
+        </script>
+    {% endif %}
+{% endwith %}
+
 </body>
 
 {% block script%}
-{% endblock %}   
+{% endblock %}
+</html>
