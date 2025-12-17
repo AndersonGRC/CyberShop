@@ -9,7 +9,7 @@
     <h2>Iniciar Sesión</h2>
     <form id="loginForm" method="POST" action="{{ url_for('login') }}">
         <label for="email">Correo electrónico:</label>
-        <input type="email" id="email" name="email" required>  <!-- Cambiado a "email" -->
+        <input type="email" id="email" name="email" required>
         
         <label for="password">Contraseña:</label>
         <input type="password" id="password" name="password" required>
@@ -17,18 +17,7 @@
         <button type="submit">Ingresar</button>
     </form>
     
-    <!-- Enlace para registrarse -->
     <p>¿No tienes una cuenta? <a href="{{ url_for('registrar_cliente') }}">Regístrate aquí</a>.</p>
 
-    <!-- Mensajes de flash -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <div class="flash-messages">
-                {% for category, message in messages %}
-                    <div class="flash {{ category }}">{{ message }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    {% endwith %}
-</div>
+    </div>
 {% endblock %}
