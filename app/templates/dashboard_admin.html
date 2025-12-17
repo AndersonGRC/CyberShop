@@ -1,6 +1,8 @@
 {% extends "plantillaapp.html" %}
-{% block LinkAdicional%}<link rel="stylesheet" href="{{ url_for('static', filename='css/DashboadAdmin.css') }}">
-{% endblock%}
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/DashboadAdmin.css') }}">
+{% endblock %}
+
 {% block body %}
 <div class="card-container">
     <!-- Tarjeta 1: Dashboard -->
@@ -19,13 +21,21 @@
         <a href="{{ url_for('GestionProductos') }}" class="card-button">Gestionar Productos</a>
     </div>
 
-    <!-- Tarjeta 3: Servicios -->
+    <!-- Tarjeta 3: Usuarios -->
     <div class="card">
         <div class="card-icon">👤</div>
         <h3 class="card-title">Usuarios</h3>
         <p class="card-description">Crea, edita o elimina usuarios.</p>
         <a href="{{ url_for('gestion_usuarios') }}" class="card-button">Ver Usuarios</a>
     </div>
-    
 
+    <!-- Tarjeta 4: PEDIDOS (NUEVA) -->
+    <div class="card">
+        <div class="card-icon">📦</div>
+        <h3 class="card-title">Pedidos</h3>
+        <p class="card-description">Revisa el estado de envíos y pagos.</p>
+        <a href="{{ url_for('gestion_pedidos') }}" class="card-button">Ver Pedidos</a>
+    </div>
+    
+</div>
 {% endblock %}
