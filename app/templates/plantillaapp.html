@@ -75,5 +75,50 @@
     </footer>
 
     <script type="text/javascript" src="{{ url_for('static', filename='js/app.js') }}"></script>
+
+    <!-- ============================================ -->
+    <!-- INTEGRACIÓN DE SWEETALERT2 (POP-UPS)         -->
+    <!-- ============================================ -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    {% for category, message in messages %}
+                        
+                        var tipoIcono = 'info';
+                        var titulo = 'Notificación';
+                        var cat = '{{ category }}';
+
+                        if (cat === 'error' || cat === 'danger') {
+                            tipoIcono = 'error';
+                            titulo = '¡Error!';
+                        } else if (cat === 'success') {
+                            tipoIcono = 'success';
+                            titulo = '¡Éxito!';
+                        } else if (cat === 'warning') {
+                            tipoIcono = 'warning';
+                            titulo = 'Advertencia';
+                        }
+
+                        Swal.fire({
+                            title: titulo,
+                            // CORRECCIÓN AQUÍ: Usamos tojson para evitar errores con comillas
+                            text: {{ message | tojson }},
+                            icon: tipoIcono,
+                            confirmButtonColor: '#0d1b54',
+                            confirmButtonText: 'Aceptar',
+                            backdrop: `rgba(0,0,123,0.1)`
+                        });
+
+                    {% endfor %}
+                });
+            </script>
+        {% endif %}
+    {% endwith %}
+
+</body>
+
 </body>
 </html>
