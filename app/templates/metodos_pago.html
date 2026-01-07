@@ -128,71 +128,74 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function() {
+        // 1. DEFINICIÓN DE VARIABLES (Esto faltaba o estaba incompleto)
+        const whatsappLink = document.getElementById("whatsapp-link");
         const paso1 = document.getElementById("paso-1");
         const paso2 = document.getElementById("paso-2");
         const btnPse = document.getElementById("seleccionar-pse");
         const btnVolver = document.querySelector(".btn-volver");
 
-<<<<<<< HEAD
-    if (!whatsappLink || !carritoInput) return;
+        // 2. OBTENER DATOS DEL CARRITO
+        // En lugar de buscar un input oculto, pasamos el objeto de Flask a JS directamente
+        // Usamos 'tojson' y 'safe' para que sea un JSON válido en JS.
+        const carritoData = {{ carrito | tojson | safe }};
 
-    let mensaje = '¡Hola! Estoy interesado en sus productos. Me gustaría coordinar mi pago.';
-    let carritoData = null;
-
-    // Parsear carrito JSON de forma segura
-    try {
-        if (carritoInput.value && carritoInput.value !== 'null') {
-            carritoData = JSON.parse(carritoInput.value);
+        // --- LÓGICA DE INTERFAZ (Cambio de pasos) ---
+        if (btnPse) {
+            btnPse.addEventListener('click', function() {
+                paso1.style.display = 'none';
+                paso2.style.display = 'block'; 
+                paso2.classList.remove('paso-oculto'); // Aseguramos que se vea
+            });
         }
-    } catch (err) {
-        console.error('Error parseando carrito:', err);
-    }
 
-    // Si hay productos, armar el mensaje detallado
-    if (carritoData && Array.isArray(carritoData.items) && carritoData.items.length > 0) {
-        const fmt = (n) => new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(n);
-        let totalCalculado = 0;
+        if (btnVolver) {
+            btnVolver.addEventListener('click', function() {
+                paso2.style.display = 'none';
+                paso1.style.display = 'block';
+            });
+        }
 
-        mensaje = ' *Detalle de la compra:*\n\n';
+        // --- LÓGICA DE WHATSAPP ---
+        
+        // Si no existe el botón o no hay datos, salimos
+        if (!whatsappLink || !carritoData) return;
 
-        carritoData.items.forEach((item, index) => {
-            const nombre = item.nombre || 'Producto';
-            const precio = Number(item.precio) || 0;
-            const cantidad = Number(item.cantidad) || 1;
-            const subtotal = precio * cantidad;
-            totalCalculado += subtotal;
+        let mensaje = '¡Hola! Estoy interesado en sus productos. Me gustaría coordinar mi pago.';
 
-            mensaje += `${index + 1}. ${nombre}\n   ${cantidad} × $${fmt(precio)} = $${fmt(subtotal)} COP\n`;
-        });
+        // Validamos si hay items en el objeto carritoData
+        if (carritoData.items && Array.isArray(carritoData.items) && carritoData.items.length > 0) {
+            
+            const fmt = (n) => new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(n);
+            let totalCalculado = 0;
 
-        const totalFinal = Number(carritoData.total) || totalCalculado;
-        mensaje += `\n *Total a pagar:* $${fmt(totalFinal)} COP\n\n`;
-        mensaje += 'Me gustaría coordinar mi pago.';
-    }
+            mensaje = '*Detalle de la compra:*\n\n';
 
-    // Número de WhatsApp del vendedor
-    const numero = '573108815057';
-    const link = `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
+            carritoData.items.forEach((item, index) => {
+                const nombre = item.nombre || 'Producto';
+                const precio = Number(item.precio) || 0;
+                const cantidad = Number(item.cantidad) || 1;
+                const subtotal = precio * cantidad;
+                totalCalculado += subtotal;
 
-    // Actualizar el enlace dinámicamente
-    whatsappLink.setAttribute('href', link);
+                // Formato de línea para WhatsApp
+                mensaje += `${index + 1}. ${nombre}\n   ${cantidad} unit. x $${fmt(precio)} = $${fmt(subtotal)} COP\n`;
+            });
 
-    // Abrir WhatsApp en nueva pestaña
-    whatsappLink.addEventListener('click', function(e) {
-        e.preventDefault();
-        window.open(link, '_blank');
-=======
-        btnPse.addEventListener("click", function() {
-            paso1.style.display = "none";
-            paso2.style.display = "block";
-            window.scrollTo({ top: 150, behavior: 'smooth' });
-        });
+            const totalFinal = Number(carritoData.total) || totalCalculado;
+            mensaje += `\n*Total a pagar:* $${fmt(totalFinal)} COP\n\n`;
+            mensaje += 'Quedo atento para coordinar el pago.';
+        }
 
-        btnVolver.addEventListener("click", function() {
-            paso2.style.display = "none";
-            paso1.style.display = "block";
-        });
->>>>>>> 511ee9b (Metodos de pago actualizado pay u)
+        // Número de WhatsApp del vendedor
+        const numero = '573108815057';
+        
+        // Generar el link final
+        const link = `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
+
+        // Actualizar el enlace en el HTML
+        whatsappLink.setAttribute('href', link);
     });
+</script>
 </script>
 {% endblock %}
