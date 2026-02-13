@@ -1,0 +1,48 @@
+{% extends './plantillaindex.html' %}
+
+{% block titulo %}Carrito de Compras | {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/Productos.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/carrito.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="container">
+    <div class="carrito-container">
+       
+        
+        <table class="tabla-carrito">
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Precio</th>
+                    <th>Cantidad</th>
+                    <th>Subtotal</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody id="lista-carrito-body">
+                </tbody>
+        </table>
+
+        <div id="mensaje-vacio" style="display: none; text-align: center; padding: 40px;">
+            <p style="font-size: 1.2rem; color: #9b9b9b;text-align: center;">Tu carrito está vacío.</p>
+            <br><br><br>
+            <a href="{{ url_for('productos') }}" class="btn-carrito btn-pagar" style="margin-top: 15px;">Ir a la Tienda</a>
+        </div>
+
+        <div class="total-container">
+            <p style="text-align: left;">Total a Pagar: <span id="total-pagina">$0.00</span></p>
+        </div>
+
+        <div class="acciones-carrito" id="controles-finales">
+            <a href="{{ url_for('productos') }}" class="btn-carrito btn-seguir">Seguir Comprando</a>
+            <button id="vaciar-carrito-btn" class="btn-carrito btn-vaciar">Vaciar Carrito</button>
+            <button id="procesar-pedido-btn" class="btn-carrito btn-pagar">Ir a Pagar</button>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/Shoppingcar.js') }}"></script>
+{% endblock %}

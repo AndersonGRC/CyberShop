@@ -1,5 +1,7 @@
+// static/js/Shoppingcar.js
+
 // =============================================
-// VARIABLES GLOBALES Y CONFIGURACIÓN INICIAL
+// VARIABLES GLOBALES
 // =============================================
 let carrito = JSON.parse(localStorage.getItem('carrito')) || [];
 
@@ -10,27 +12,27 @@ const parsearPrecio = (precioStr) => {
     if (typeof precioStr === 'number') return precioStr;
     if (!precioStr) return 0;
     if (!isNaN(precioStr)) return parseFloat(precioStr);
-
-    const limpio = precioStr.toString()
-        .replace(/[^0-9,.-]/g, '')
-        .replace(/\./g, '')
-        .replace(',', '.');
-    const valor = parseFloat(limpio);
-    return isNaN(valor) ? 0 : valor;
+    const limpio = precioStr.toString().replace(/[^0-9,.-]/g, '').replace(/\./g, '').replace(',', '.');
+    return parseFloat(limpio) || 0;
 };
 
 const formatearPrecio = (valor) => {
     const numero = parsearPrecio(valor);
-    return numero.toLocaleString('es-CO', {
-        style: 'currency',
-        currency: 'COP',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-    });
+    return numero.toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 });
 };
 
 const mostrarNotificacion = (mensaje, tipo = 'info') => {
-    alert(`[${tipo.toUpperCase()}] ${mensaje}`);
+    if(typeof Swal !== 'undefined'){
+        Swal.fire({
+            icon: tipo === 'error' ? 'error' : 'success',
+            title: tipo === 'error' ? 'Error' : 'Genial',
+            text: mensaje,
+            toast: true,
+            position: 'bottom-end', // Lo cambié abajo para no tapar el menú
+            showConfirmButton: false,
+            timer: 2000
+        });
+    }
 };
 
 const mostrarLoader = () => {
@@ -44,173 +46,307 @@ const ocultarLoader = () => {
 };
 
 // =============================================
-// FUNCIONES PRINCIPALES DEL CARRITO
+// ANIMACIÓN: VOLAR AL CARRITO
 // =============================================
+const animarVuelo = (imagenOrigen) => {
+    
+    // 1. Determinar el Destino según el dispositivo
+    let destinoFinal;
+
+    // Si la pantalla es menor a 800px (Móvil según tu CSS)
+    if (window.innerWidth <= 800) {
+        // MÓVIL: El destino es el botón flotante redondo
+        destinoFinal = document.querySelector('.cart-floating-button a');
+    } else {
+        // PC: El destino es el ícono en la barra de menú
+        destinoFinal = document.getElementById('menu-carrito-icon');
+    }
+
+    // Validación de seguridad: si no existe el destino elegido, no hacemos nada
+    if (!destinoFinal || !imagenOrigen) return;
+
+    // 2. Clonar la imagen
+    const imagenClon = imagenOrigen.cloneNode(true);
+    
+    // 3. Obtener coordenadas (Aquí está la magia: calcula dónde está el destino AHORA)
+    const rectOrigen = imagenOrigen.getBoundingClientRect();
+    const rectDestino = destinoFinal.getBoundingClientRect();
+
+    // 4. Configurar estilo inicial del clon (encima de la imagen original)
+    imagenClon.classList.add('fly-img');
+    imagenClon.style.top = `${rectOrigen.top}px`;
+    imagenClon.style.left = `${rectOrigen.left}px`;
+    imagenClon.style.width = `${rectOrigen.width}px`;
+    imagenClon.style.height = `${rectOrigen.height}px`;
+    imagenClon.style.opacity = '1';
+
+    document.body.appendChild(imagenClon);
+
+    // 5. Iniciar animación hacia el destino calculado
+    setTimeout(() => {
+        // Ajustamos +10px para que caiga en el centro del ícono
+        imagenClon.style.top = `${rectDestino.top + 10}px`; 
+        imagenClon.style.left = `${rectDestino.left + 10}px`;
+        imagenClon.style.width = '20px'; // Se hace pequeña
+        imagenClon.style.height = '20px';
+        imagenClon.style.opacity = '0.5';
+    }, 50);
+
+    // 6. Limpiar al terminar
+    setTimeout(() => {
+        imagenClon.remove();
+        
+        // Efecto de rebote en TODOS los badges (para que se vea en móvil y PC)
+        const badges = document.querySelectorAll('.cart-badge');
+        badges.forEach(badge => {
+            badge.classList.add('bounce');
+            setTimeout(() => badge.classList.remove('bounce'), 300);
+        });
+        
+    }, 800); 
+};
+
+// =============================================
+// LÓGICA DE CARRITO
+// =============================================
+const actualizarBadge = () => {
+    // 1. Calcular total
+    const totalItems = carrito.reduce((acc, item) => acc + (parseInt(item.cantidad) || 1), 0);
+    
+    // 2. BUSCAR TODOS LOS CONTADORES (Menu escritorio, menu movil, flotante)
+    // Usamos la clase .cart-badge en lugar del ID
+    const badges = document.querySelectorAll('.cart-badge');
+
+    // 3. Actualizar cada uno
+    badges.forEach(badge => {
+        badge.textContent = totalItems;
+        
+        if (totalItems > 0) {
+            // Usamos flex para centrar el numero
+            badge.style.display = 'flex';
+            badge.style.justifyContent = 'center';
+            badge.style.alignItems = 'center';
+            
+            // Reiniciar animación de rebote
+            badge.classList.remove('bounce');
+            void badge.offsetWidth; // Truco para reiniciar animación
+            badge.classList.add('bounce');
+        } else {
+            badge.style.display = 'none';
+        }
+    });
+};
+
 const guardarCarrito = () => {
     localStorage.setItem('carrito', JSON.stringify(carrito));
-    sessionStorage.setItem('carritoPendiente', JSON.stringify({
-        items: carrito,
-        total: parsearPrecio(document.getElementById('total').textContent)
-    }));
+    actualizarBadge();
 };
 
 const actualizarCarrito = () => {
-    const listaCarrito = document.getElementById('lista-carrito');
-    const totalElement = document.getElementById('total');
-    if (!listaCarrito || !totalElement) return;
+    // Buscar tabla (solo existe en carrito.html)
+    const tablaCuerpo = document.getElementById('lista-carrito-body'); 
+    const totalPagina = document.getElementById('total-pagina');
+    const mensajeVacio = document.getElementById('mensaje-vacio');
+    const controlesFinales = document.getElementById('controles-finales');
+    const tablaHeader = document.querySelector('.tabla-carrito'); // Para ocultar cabecera si está vacío
 
-    listaCarrito.innerHTML = '';
-    let total = 0;
-
+    let totalCalculado = 0;
     carrito.forEach(item => {
-        const precio = parsearPrecio(item.precio);
-        const cantidad = parseInt(item.cantidad) || 1;
-        const subtotal = precio * cantidad;
-        total += subtotal;
-
-        const li = document.createElement('li');
-        li.dataset.id = item.id;
-        li.innerHTML = `
-            <div class="item-info">
-                <img src="${item.imagen}" alt="${item.nombre}" width="50">
-                <span>${item.nombre}</span>
-                <span>${formatearPrecio(precio)}</span>
-            </div>
-            <div class="item-controls">
-                <button class="disminuir" data-id="${item.id}">-</button>
-                <span class="cantidad">${cantidad}</span>
-                <button class="aumentar" data-id="${item.id}">+</button>
-                <button class="eliminar-item" data-id="${item.id}">✕</button>
-            </div>
-        `;
-        listaCarrito.appendChild(li);
+        totalCalculado += parsearPrecio(item.precio) * (parseInt(item.cantidad) || 1);
     });
 
-    totalElement.textContent = formatearPrecio(total);
-    guardarCarrito();
+    if (tablaCuerpo) {
+        tablaCuerpo.innerHTML = '';
+        
+        if (carrito.length === 0) {
+            if(mensajeVacio) mensajeVacio.style.display = 'block';
+            if(controlesFinales) controlesFinales.style.display = 'none';
+            if(tablaHeader) tablaHeader.style.display = 'none';
+        } else {
+            if(mensajeVacio) mensajeVacio.style.display = 'none';
+            if(controlesFinales) controlesFinales.style.display = 'flex';
+            if(tablaHeader) tablaHeader.style.display = 'table';
+        }
+
+        carrito.forEach((item) => {
+            const precio = parsearPrecio(item.precio);
+            const cantidad = parseInt(item.cantidad) || 1;
+            const subtotal = precio * cantidad;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <img src="${item.imagen}" class="img-carrito-preview">
+                        <div>
+                            <strong>${item.nombre}</strong><br>
+                            <small>${item.referencia || ''}</small>
+                        </div>
+                    </div>
+                </td>
+                <td>${formatearPrecio(precio)}</td>
+                <td>
+                    <div class="item-controls">
+                        <button class="disminuir btn-control" data-id="${item.id}">-</button>
+                        <span class="cantidad">${cantidad}</span>
+                        <button class="aumentar btn-control" data-id="${item.id}">+</button>
+                    </div>
+                </td>
+                <td>${formatearPrecio(subtotal)}</td>
+                <td>
+                    <button class="eliminar-item" data-id="${item.id}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            tablaCuerpo.appendChild(tr);
+        });
+
+        if (totalPagina) {
+            totalPagina.textContent = formatearPrecio(totalCalculado);
+            totalPagina.dataset.valor = totalCalculado;
+        }
+    }
+    
+    guardarCarrito(); // Actualiza localStorage y el badge
 };
 
-const agregarAlCarrito = (producto) => {
+const agregarAlCarrito = (producto, imagenElemento) => {
     const precio = parsearPrecio(producto.precio);
     const itemExistente = carrito.find(item => item.id === producto.id);
 
+    // Animación visual
+    if(imagenElemento) {
+        animarVuelo(imagenElemento);
+    }
+
     if (itemExistente) {
-        itemExistente.cantidad++;
+        itemExistente.cantidad = (parseInt(itemExistente.cantidad) || 1) + 1;
     } else {
         carrito.push({ ...producto, precio: precio, cantidad: 1 });
     }
-    actualizarCarrito();
+    
+    // Esperamos un poco a que la animación llegue para actualizar el número
+    setTimeout(() => {
+        actualizarCarrito();
+    }, 800);
+    
+    // Feedback visual opcional
+    // mostrarNotificacion(`${producto.nombre} agregado`, 'success');
 };
 
 // =============================================
-// MANEJADORES DE EVENTOS
+// EVENTOS
 // =============================================
 const configurarEventos = () => {
-    // Añadir productos al carrito
+
+    // 1. Agregar desde PRODUCTOS
     document.querySelectorAll('.añadir-carrito').forEach(boton => {
-        boton.addEventListener('click', () => {
-            const productoElemento = boton.closest('.producto');
+        boton.addEventListener('click', (e) => {
+            const card = boton.closest('.producto');
+            if(!card) return;
+
+            // Buscamos la imagen dentro de la tarjeta para animarla
+            const imagen = card.querySelector('img');
+
             const producto = {
-                id: productoElemento.dataset.id,
-                nombre: productoElemento.dataset.name,
-                precio: productoElemento.dataset.price,
-                imagen: productoElemento.dataset.image,
-                referencia: productoElemento.dataset.reference
+                id: card.dataset.id,
+                nombre: card.dataset.name,
+                precio: card.dataset.price,
+                imagen: card.dataset.image,
+                referencia: card.dataset.reference
             };
-            agregarAlCarrito(producto);
+            agregarAlCarrito(producto, imagen);
         });
     });
 
-    // Ver detalles del producto
+    // 2. Eventos dentro del CARRITO (Delegación)
+    const contenedor = document.querySelector('.container');
+    if (contenedor) {
+        contenedor.addEventListener('click', (e) => {
+            const btn = e.target.closest('button');
+            if (!btn) return;
+            const id = btn.dataset.id;
+            
+            if (btn.classList.contains('aumentar')) {
+                const item = carrito.find(i => i.id === id);
+                if(item) { item.cantidad++; actualizarCarrito(); }
+            } 
+            else if (btn.classList.contains('disminuir')) {
+                const item = carrito.find(i => i.id === id);
+                if(item) {
+                    if (item.cantidad > 1) {
+                        item.cantidad--;
+                        actualizarCarrito();
+                    } else {
+                        if(confirm("¿Eliminar producto?")) {
+                            carrito = carrito.filter(i => i.id !== id);
+                            actualizarCarrito();
+                        }
+                    }
+                }
+            } 
+            else if (btn.classList.contains('eliminar-item')) {
+                if(confirm("¿Eliminar producto?")) {
+                    carrito = carrito.filter(i => i.id !== id);
+                    actualizarCarrito();
+                }
+            }
+            else if (btn.id === 'vaciar-carrito-btn') {
+                if(confirm('¿Vaciar todo el carrito?')) {
+                    carrito = [];
+                    actualizarCarrito();
+                }
+            }
+            else if (btn.id === 'procesar-pedido-btn') {
+                procesarPago();
+            }
+        });
+    }
+
+    // 3. Popups (sin cambios)
     document.querySelectorAll('.ver-descripcion').forEach(boton => {
         boton.addEventListener('click', () => {
-            const producto = boton.closest('.producto');
-            document.getElementById('popup-imagen').src = producto.dataset.image;
-            document.getElementById('popup-titulo').textContent = producto.dataset.name;
-            document.getElementById('popup-referencia').textContent = producto.dataset.reference;
-            document.getElementById('popup-genero').textContent = producto.dataset.gender;
-            document.getElementById('popup-descripcion-texto').textContent = producto.dataset.description;
-            document.getElementById('popup-precio').textContent = formatearPrecio(parsearPrecio(producto.dataset.price));
-            document.getElementById('popup-descripcion').style.display = 'flex';
+            const card = boton.closest('.producto');
+            const popup = document.getElementById('popup-descripcion');
+            if(popup) {
+                document.getElementById('popup-imagen').src = card.dataset.image;
+                document.getElementById('popup-titulo').textContent = card.dataset.name;
+                document.getElementById('popup-referencia').textContent = card.dataset.reference;
+                document.getElementById('popup-genero').textContent = card.dataset.gender;
+                document.getElementById('popup-descripcion-texto').textContent = card.dataset.description;
+                document.getElementById('popup-precio').textContent = formatearPrecio(parsearPrecio(card.dataset.price));
+                popup.style.display = 'flex';
+            }
         });
     });
 
-    // Cerrar popup
-    document.querySelector('.cerrar-popup').addEventListener('click', () => {
-        document.getElementById('popup-descripcion').style.display = 'none';
-    });
-
-    // Cerrar popup haciendo clic fuera
-    window.addEventListener('click', (event) => {
+    const cerrar = document.querySelector('.cerrar-popup');
+    if(cerrar) cerrar.addEventListener('click', () => document.getElementById('popup-descripcion').style.display = 'none');
+    
+    window.addEventListener('click', (e) => {
         const popup = document.getElementById('popup-descripcion');
-        if (event.target === popup) popup.style.display = 'none';
+        if (popup && e.target === popup) popup.style.display = 'none';
     });
-
-    // Manejar eventos del carrito
-    document.getElementById('lista-carrito').addEventListener('click', (e) => {
-        const id = e.target.dataset.id;
-        const item = carrito.find(item => item.id === id);
-        if (!item) return;
-
-        if (e.target.classList.contains('aumentar')) {
-            item.cantidad++;
-        } else if (e.target.classList.contains('disminuir')) {
-            item.cantidad > 1 ? item.cantidad-- : carrito = carrito.filter(i => i.id !== id);
-        } else if (e.target.classList.contains('eliminar-item')) {
-            carrito = carrito.filter(i => i.id !== id);
-        }
-        actualizarCarrito();
-    });
-
-    // Vaciar carrito
-    document.getElementById('vaciar-carrito').addEventListener('click', () => {
-        carrito = [];
-        actualizarCarrito();
-        mostrarNotificacion('Carrito vaciado', 'info');
-    });
-
-    // Procesar pago 
-    document.getElementById('pagar-carrito').addEventListener('click', async () => {
-    try {
-        if (carrito.length === 0) {
-            mostrarNotificacion('Tu carrito está vacío', 'error');
-            return;
-        }
-
-        mostrarLoader();
-        
-        // Calcular el total
-        const total = parsearPrecio(document.getElementById('total').textContent);
-        
-        // Preparar datos del carrito para enviar
-        const carritoData = {
-            items: carrito,
-            total: total
-        };
-
-        // Guardar en sessionStorage para la redirección
-        sessionStorage.setItem('carritoPendiente', JSON.stringify(carritoData));
-        
-        // También guardar en localStorage por si acaso
-        localStorage.setItem('carrito', JSON.stringify(carrito));
-        
-        // Redirigir a métodos de pago con los datos en la URL
-        const carritoParam = encodeURIComponent(JSON.stringify(carritoData));
-        window.location.href = `/metodos-pago?carrito=${carritoParam}`;
-        
-    } catch (error) {
-        console.error('Error:', error);
-        mostrarNotificacion('Error al procesar el pago', 'error');
-    } finally {
-        ocultarLoader();
-    }
-});
 };
 
-// =============================================
-// INICIALIZACIÓN
-// =============================================
+// Lógica de Pago
+const procesarPago = () => {
+    if (carrito.length === 0) return alert("Carrito vacío");
+    mostrarLoader();
+    
+    let total = 0;
+    carrito.forEach(i => total += parsearPrecio(i.precio) * (parseInt(i.cantidad) || 1));
+    
+    const data = { items: carrito, total: total };
+    sessionStorage.setItem('carritoPendiente', JSON.stringify(data));
+    localStorage.setItem('carrito', JSON.stringify(carrito));
+    
+    window.location.href = `/metodos-pago?carrito=${encodeURIComponent(JSON.stringify(data))}`;
+};
+
+// INICIO
 document.addEventListener('DOMContentLoaded', () => {
     configurarEventos();
-    actualizarCarrito();
+    actualizarCarrito(); // Carga inicial del badge o la tabla
 });

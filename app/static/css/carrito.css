@@ -1,0 +1,365 @@
+/* static/css/carrito.css */
+
+:root {
+    --color-principal: #f9f9f9;  
+    --color-secundario: #0e1b33; /* CAMBIAR */
+    --color-gris: #9b9b9b;
+    --color-negro: #000000;
+    --color-transicion: #2a4d69; /* CAMBIAR */
+    --color-red: red;
+    --color-verde: #28a745;
+}
+
+/* Contenedor Principal */
+.carrito-container {
+    max-width: 1000px;
+    margin: 50px auto;
+    padding: 30px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+.carrito-container h2 {
+    color: var(--color-secundario);
+    font-weight: 700;
+    text-transform: uppercase;
+    border-bottom: 2px solid var(--color-principal);
+    padding-bottom: 15px;
+}
+
+/* Tabla */
+.tabla-carrito {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+}
+
+.tabla-carrito th {
+    background-color: var(--color-secundario);
+    color: #fff;
+    padding: 15px;
+    text-align: left;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+}
+
+.tabla-carrito td {
+    padding: 15px;
+    border-bottom: 1px solid #eee;
+    vertical-align: middle;
+    color: var(--color-negro);
+}
+
+.tabla-carrito tr:hover {
+    background-color: var(--color-principal);
+}
+
+/* Imágenes en la tabla */
+.img-carrito-preview {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* Controles de Cantidad (+ / -) */
+.item-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-control {
+    background-color: var(--color-principal);
+    border: 1px solid var(--color-gris);
+    color: var(--color-secundario);
+    width: 30px;
+    height: 30px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s;
+}
+
+.btn-control:hover {
+    background-color: var(--color-transicion);
+    color: white;
+    border-color: var(--color-transicion);
+}
+
+.cantidad {
+    font-weight: bold;
+    min-width: 20px;
+    text-align: center;
+}
+
+/* Botones de Acción (Eliminar, Pagar, etc) */
+.btn-eliminar-fila, .eliminar-item {
+    background-color: var(--color-principal);
+    color: var(--color-red);
+    border: 1px solid var(--color-red);
+    padding: 8px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.btn-eliminar-fila:hover, .eliminar-item:hover {
+    background-color: var(--color-red);
+    color: white;
+}
+
+/* Footer del Carrito */
+.total-container {
+    text-align: right;
+    font-size: 1.5em;
+    margin: 30px 0;
+    color: var(--color-secundario);
+    font-weight: bold;
+}
+
+.acciones-carrito {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    margin-top: 20px;
+    border-top: 1px solid #eee;
+    padding-top: 20px;
+}
+
+/* Botones Generales */
+.btn-carrito {
+    padding: 12px 25px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: background 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+    color: white;
+}
+
+/* Colores específicos para botones */
+.btn-seguir {
+    background-color: var(--color-gris);
+}
+.btn-seguir:hover {
+    background-color: var(--color-negro);
+}
+
+.btn-vaciar {
+    background-color: var(--color-red);
+}
+.btn-vaciar:hover {
+    opacity: 0.8;
+}
+
+.btn-pagar {
+    background-color: var(--color-verde);
+}
+.btn-pagar:hover {
+    background-color: #218838; /* Un verde un poco más oscuro */
+    box-shadow: 0 4px 10px rgba(40, 167, 69, 0.3);
+}
+
+
+
+/* =========================================
+   RESPONSIVE DESIGN (MÓVILES)
+   ========================================= */
+/* =========================================
+   DISEÑO RESPONSIVO (MÓVILES) - VERSIÓN COMPACTA
+   ========================================= */
+
+@media screen and (max-width: 768px) {
+
+    /* 1. Ajuste del contenedor general */
+    .carrito-container {
+        margin: 15px 10px; /* Márgenes pequeños */
+        padding: 15px;
+        width: auto;
+        background: transparent; /* Quitamos el fondo blanco grande */
+        box-shadow: none; /* Quitamos la sombra general */
+    }
+
+    .carrito-container h2 {
+        font-size: 1.4rem;
+        text-align: center;
+        background: #fff;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+
+    /* 2. Convertir filas en Tarjetas Compactas */
+    .tabla-carrito, tbody {
+        display: block;
+        width: 100%;
+    }
+
+    .tabla-carrito thead {
+        display: none; /* Ocultar cabeceras */
+    }
+
+    .tabla-carrito tr {
+        display: flex;
+        flex-wrap: wrap; /* Permite que los elementos se acomoden */
+        background: #fff;
+        margin-bottom: 15px;
+        border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05); /* Sombra suave */
+        padding: 15px;
+        position: relative; /* Para posicionar el botón eliminar */
+        border: 1px solid #f0f0f0;
+    }
+
+    /* 3. Estilos de las celdas (td) */
+    .tabla-carrito td {
+        display: block;
+        border: none;
+        padding: 5px;
+    }
+
+    /* --- CELDA 1: Imagen y Nombre --- */
+    /* Ocupa el 100% del ancho, imagen a la izq, texto a la der */
+    .tabla-carrito td:first-child {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+        border-bottom: 1px dashed #eee;
+    }
+
+    /* Ajuste de la imagen */
+    .img-carrito-preview {
+        width: 70px;
+        height: 70px;
+        border-radius: 8px;
+    }
+
+    /* Ajuste del texto del producto */
+    .tabla-carrito td:first-child div {
+        text-align: left;
+    }
+
+    /* --- CELDA 2: Precio Unitario --- */
+    .tabla-carrito td:nth-child(2) {
+        width: 50%; /* Mitad izquierda */
+        font-size: 0.9rem;
+        color: var(--color-gris);
+    }
+    /* Añadimos etiqueta visual */
+    .tabla-carrito td:nth-child(2)::before {
+        content: "Unitario: ";
+        font-weight: bold;
+    }
+
+    /* --- CELDA 3: Cantidad --- */
+    .tabla-carrito td:nth-child(3) {
+        width: 100%; /* Ocupa nueva linea */
+        display: flex;
+        justify-content: center; /* Centrado */
+        margin: 10px 0;
+    }
+
+    /* --- CELDA 4: Subtotal --- */
+    .tabla-carrito td:nth-child(4) {
+        width: 50%; /* Mitad derecha */
+        text-align: right;
+        font-weight: bold;
+        color: var(--color-secundario);
+        font-size: 1.1rem;
+    }
+
+    /* --- CELDA 5: Botón Eliminar (Flotante) --- */
+    .tabla-carrito td:last-child {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        padding: 0;
+    }
+
+    .btn-eliminar-fila, .eliminar-item {
+        background: transparent;
+        color: #ccc;
+        border: none;
+        font-size: 1.2rem;
+        padding: 5px;
+    }
+    .btn-eliminar-fila:hover, .eliminar-item:hover {
+        color: var(--color-red);
+        background: transparent;
+    }
+
+    /* 4. Ajustes del Footer y Botones */
+    .total-container {
+        text-align: center;
+        background: #fff;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+
+    .acciones-carrito {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .btn-carrito {
+        width: 100%;
+        padding: 15px;
+        font-size: 1.1rem;
+    }
+    
+    /* Ordenar botones para mejor UX en móvil */
+    #procesar-pedido-btn { order: 1; } /* Pagar primero */
+    .btn-seguir { order: 2; background: #fff; color: var(--color-gris); border: 1px solid #ddd; }
+    #vaciar-carrito-btn { order: 3; font-size: 0.9rem; padding: 10px; background: transparent; color: var(--color-red); }
+}
+
+/* Botón Vaciar Carrito - Estilo "Ghost" */
+.btn-vaciar {
+    background-color: transparent;
+    color: var(--color-red);
+    border: 2px solid var(--color-red);
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px; /* Espacio entre icono y texto */
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Efecto Hover: Se llena de rojo */
+.btn-vaciar:hover {
+    background-color: var(--color-red);
+    color: #fff;
+    box-shadow: 0 5px 15px rgba(255, 0, 0, 0.3); /* Resplandor rojo */
+    transform: translateY(-2px); /* Se eleva un poco */
+}
+
+/* Efecto al hacer click */
+.btn-vaciar:active {
+    transform: scale(0.95);
+}
+
+/* Icono dentro del botón (opcional si usas FontAwesome) */
+.btn-vaciar i {
+    font-size: 1.1em;
+    transition: transform 0.3s ease;
+}
+
+.btn-vaciar:hover i {
+    transform: rotate(15deg) scale(1.1); /* El icono de basura se mueve */
+}

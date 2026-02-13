@@ -794,3 +794,12 @@ def debug_session():
         'carritoPendiente': session.get('carritoPendiente'),
         'session_keys': list(session.keys())
     })
+
+
+# En routes.py
+
+@app.route('/carrito')
+def ver_carrito():
+    datosApp = get_common_data()
+    # Renderiza la nueva plantilla del carrito
+    return render_template('carrito.html', datosApp=datosApp)

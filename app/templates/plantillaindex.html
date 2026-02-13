@@ -30,11 +30,18 @@
                         {% for i in datosApp.MenuAppindex %}
                         <li><a href="{{ url_for(i.url.split('#')[0]) }}{% if '#' in i.url %}#{{ i.url.split('#')[1] }}{% endif %}">{{ i.nombre }}</a></li>
                         {% endfor %}
-                    </ul>
-                    {% else %}
-                    <h2>NO HAY DATOS DEL APP</h2>
-                    {% endif %}
-                </nav> 
+
+                       <li>
+                            <a href="{{ url_for('ver_carrito') }}" id="menu-carrito-icon" style="position: relative; padding-right: 15px;">
+                                <i class="fas fa-shopping-cart" style="font-size: 1.2rem;"></i>
+                                <span id="badge-carrito" class="cart-badge">0</span>
+                            </a>
+                        </li>
+                     </ul>
+                 {% else %}
+                 <h2>NO HAY DATOS DEL APP</h2>
+                 {% endif %}
+                </nav>
                 <div id="google_translate_container">
                     <select id="custom_translate_btn" onchange="translateLanguage(this.value)">
                         <option value="">🌐 Selecciona idioma</option>
@@ -57,12 +64,7 @@
         {% endblock %}
 
 
-        <div class="chat-button">
-            <a href="https://wa.me/573027974969" target="_blank">
-                <img src="https://cdn-icons-png.flaticon.com/512/3670/3670051.png" alt="Chat Icon">
-                <span>Chatea con nosotros</span>
-            </a>
-        </div>
+       
     <footer class="footer">
         <div class="footer-content">
             <h3>CyberShop Colombia</h3>
@@ -143,8 +145,25 @@
     {% endif %}
 {% endwith %}
 
+
+<div class="cart-floating-button">
+    <a href="{{ url_for('ver_carrito') }}">
+        <i class="fas fa-shopping-cart"></i>
+        <span id="badge-carrito-flotante" class="cart-badge">0</span>
+    </a>
+</div>
+
+<div class="chat-button">
+    <a href="https://wa.me/573027974969" target="_blank">
+        <img src="https://cdn-icons-png.flaticon.com/512/3670/3670051.png" alt="Chat Icon">
+        <span>Chatea con nosotros</span>
+    </a>
+</div>
+
 </body>
 
 {% block script%}
 {% endblock %}
+
+<script src="{{ url_for('static', filename='js/Shoppingcar.js') }}"></script>
 </html>
