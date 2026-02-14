@@ -16,7 +16,7 @@ import requests
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from flask import current_app as app
 
-from database import get_db_connection
+from database import get_db_connection, get_db_cursor
 from helpers import get_common_data, generar_reference_code
 
 payments_bp = Blueprint('payments', __name__)
@@ -125,6 +125,17 @@ def crear_orden():
 
         pedido_id_generado = cur.fetchone()[0]
 
+        # Validar stock primero
+        for item in carrito['items']:
+            prod_nombre = item.get('nombre')
+            cantidad = int(item.get('cantidad', 1))
+            cur.execute("SELECT stock FROM productos WHERE nombre = %s", (prod_nombre,))
+            res = cur.fetchone()
+            if not res or res[0] < cantidad:
+                conn.rollback()
+                flash(f"No hay suficiente stock para el producto {prod_nombre}", "error")
+                return redirect(url_for('public.carrito'))
+
         for item in carrito['items']:
             prod_nombre = item.get('nombre')
             cantidad = int(item.get('cantidad', 1))
@@ -134,6 +145,24 @@ def crear_orden():
                 INSERT INTO detalle_pedidos (pedido_id, producto_nombre, cantidad, precio_unitario, subtotal)
                 VALUES (%s, %s, %s, %s, %s)
             """, (pedido_id_generado, prod_nombre, cantidad, precio, subtotal))
+
+            # Actualizar stock
+            cur.execute("UPDATE productos SET stock = stock - %s WHERE nombre = %s", (cantidad, prod_nombre))
+            
+            # Registrar en log de inventario (VENTA)
+            # Primero obtener ID y stock actual/nuevo para el log
+            cur.execute("SELECT id, stock FROM productos WHERE nombre = %s", (prod_nombre,))
+            res_prod = cur.fetchone()
+            if res_prod:
+                pid = res_prod[0]
+                stock_current = res_prod[1] # Ya esta actualizado
+                stock_before = stock_current + cantidad
+                
+                # Usuario NULL o sistema (podriamos usar un ID fijo para 'Web')
+                cur.execute("""
+                    INSERT INTO inventario_log (producto_id, tipo, cantidad, stock_anterior, stock_nuevo, motivo, fecha)
+                    VALUES (%s, 'VENTA', %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                """, (pid, cantidad, stock_before, stock_current, f"Pedido {referencia}"))
 
         conn.commit()
         cur.close()
@@ -215,12 +244,11 @@ def confirmacion_pago():
         if state_pol == '4':
             estado_bd = 'APROBADO'
             estado_envio_bd = 'POR_DESPACHAR'
-        elif state_pol == '6':
-            estado_bd = 'RECHAZADO'
+        elif state_pol in ['6', '5']:
+            estado_bd = 'RECHAZADO' if state_pol == '6' else 'EXPIRADO'
             estado_envio_bd = 'CANCELADO'
-        elif state_pol == '5':
-            estado_bd = 'EXPIRADO'
-            estado_envio_bd = 'CANCELADO'
+            liberar_stock(reference_sale)
+
 
         transaccion_id = data.get('transaction_id')
         metodo = data.get('payment_method_name')
@@ -288,6 +316,7 @@ def respuesta_pago():
         estado_bd = 'RECHAZADO'
         estado_envio_bd = 'CANCELADO'
         datos_comprobante.update({'estado': 'RECHAZADO', 'titulo': 'Transacción Rechazada'})
+        liberar_stock(referencia)
     elif estado_tx == '7':
         datos_comprobante.update({'estado': 'PENDIENTE', 'titulo': 'Pago en Proceso'})
         session.pop('carritoPendiente', None)
@@ -327,3 +356,35 @@ def debug_session():
         'carritoPendiente': session.get('carritoPendiente'),
         'session_keys': list(session.keys())
     })
+def liberar_stock(referencia_pedido):
+    """Devuelve el stock de los productos de un pedido cancelado/rechazado."""
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            # Obtener items del pedido
+            cur.execute("""
+                SELECT dp.producto_nombre, dp.cantidad 
+                FROM detalle_pedidos dp
+                JOIN pedidos p ON dp.pedido_id = p.id
+                WHERE p.referencia_pedido = %s
+            """, (referencia_pedido,))
+            items = cur.fetchall()
+            
+            for item in items:
+                nombre = item['producto_nombre']
+                cantidad = item['cantidad']
+                
+                # Devolver stock
+                cur.execute("UPDATE productos SET stock = stock + %s WHERE nombre = %s", (cantidad, nombre))
+                
+                # Registrar log
+                cur.execute("SELECT id, stock FROM productos WHERE nombre = %s", (nombre,))
+                prod = cur.fetchone()
+                if prod:
+                    cur.execute("""
+                        INSERT INTO inventario_log (producto_id, tipo, cantidad, stock_anterior, stock_nuevo, motivo, fecha)
+                        VALUES (%s, 'ENTRADA', %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                    """, (prod['id'], cantidad, prod['stock'] - cantidad, prod['stock'], f"Liberación pedido {referencia_pedido}"))
+                    
+            app.logger.info(f"Stock liberado para pedido {referencia_pedido}")
+    except Exception as e:
+        app.logger.error(f"Error liberando stock: {e}")

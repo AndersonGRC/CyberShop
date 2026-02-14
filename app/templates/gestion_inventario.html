@@ -1,0 +1,424 @@
+{% extends './plantillaapp.html' %}
+
+{% block titulo %}Gestión de Inventario Profesiona{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+    .inventory-container {
+        padding: 20px;
+        background-color: rgba(255, 255, 255, 0.95);
+        border-radius: 8px;
+        margin: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .inventory-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .search-box input {
+        padding: 10px;
+        width: 300px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+    }
+
+    .inventory-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+    }
+
+    .inventory-table th,
+    .inventory-table td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+    }
+
+    .inventory-table th {
+        background-color: #0d1b54;
+        color: white;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+    }
+
+    .inventory-table tr:hover {
+        background-color: #f1f1f1;
+    }
+
+    .stock-badge {
+        font-weight: bold;
+        padding: 5px 10px;
+        border-radius: 15px;
+        color: white;
+    }
+
+    .stock-ok {
+        background-color: #28a745;
+    }
+
+    .stock-low {
+        background-color: #ffc107;
+        color: #333;
+    }
+
+    .stock-critical {
+        background-color: #dc3545;
+    }
+
+    .btn-action {
+        padding: 6px 12px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        margin-right: 5px;
+        transition: 0.3s;
+    }
+
+    .btn-edit {
+        background-color: #007bff;
+        color: white;
+    }
+
+    .btn-edit:hover {
+        background-color: #0056b3;
+    }
+
+    .btn-history {
+        background-color: #17a2b8;
+        color: white;
+    }
+
+    .btn-history:hover {
+        background-color: #117a8b;
+    }
+
+    /* Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-content {
+        background-color: #fff;
+        margin: 5% auto;
+        padding: 25px;
+        border: none;
+        width: 600px;
+        /* Ancho default */
+        border-radius: 10px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        position: relative;
+    }
+
+    .modal-lg {
+        width: 800px;
+    }
+
+    .close {
+        position: absolute;
+        right: 20px;
+        top: 15px;
+        font-size: 24px;
+        font-weight: bold;
+        color: #aaa;
+        cursor: pointer;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
+
+    .submit-btn {
+        width: 100%;
+        padding: 12px;
+        background-color: #28a745;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 1rem;
+        cursor: pointer;
+    }
+
+    /* History Table inside Modal */
+    .history-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+    }
+
+    .history-table th {
+        background-color: #6c757d;
+        color: white;
+        padding: 8px;
+        text-align: left;
+    }
+
+    .history-table td {
+        border-bottom: 1px solid #ddd;
+        padding: 8px;
+    }
+
+    .movement-ENTRADA {
+        color: green;
+    }
+
+    .movement-SALIDA {
+        color: red;
+    }
+
+    .movement-VENTA {
+        color: blue;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<br>
+<main>
+    <div class="inventory-container">
+        <div class="inventory-header">
+            <h2><i class="fas fa-boxes"></i> Inventario Profesional</h2>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <div style="background: #e9ecef; padding: 5px 15px; border-radius: 5px; font-weight: bold;">
+                    Valor Total: ${{ "{:,.0f}".format(valor_total) }}
+                </div>
+                <a href="{{ url_for('admin.exportar_inventario') }}" class="btn-action"
+                    style="background-color: #28a745; color: white; text-decoration: none; padding: 8px 12px;">
+                    <i class="fas fa-file-csv"></i> Exportar CSV
+                </a>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 20px; display: flex; gap: 10px;">
+            <div class="search-box" style="flex: 1;">
+                <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="Buscar producto..."
+                    style="width: 100%;">
+            </div>
+            <div style="flex: 1;">
+                <select id="categoryFilter" onchange="filterTable()"
+                    style="padding: 10px; width: 100%; border: 1px solid #ddd; border-radius: 5px;">
+                    <option value="">Todas las Categorías</option>
+                    {% for c in categorias %}
+                    <option value="{{ c[1] }}">{{ c[1] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <table class="inventory-table" id="inventoryTable">
+            <thead>
+                <tr>
+                    <th>Ref</th>
+                    <th>Producto</th>
+                    <th>Categoría</th>
+                    <th>Estado de Stock</th>
+                    <th>Estado de Stock</th>
+                    <th>Stock</th>
+                    <th style="width: 250px;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in productos %}
+                {% set stock = p['stock'] %}
+                <tr>
+                    <td>{{ p['referencia'] }}</td>
+                    <td>
+                        <div style="display: flex; align-items: center;">
+                            <img src="{{ p['imagen'] }}"
+                                style="width: 40px; height: 40px; border-radius: 4px; margin-right: 10px;">
+                            <span>{{ p['nombre'] }}</span>
+                        </div>
+                    </td>
+                    <td>{{ p['categoria'] }}</td>
+                    <td>
+                        {% if stock == 0 %}
+                        <span class="stock-badge stock-critical">Agotado</span>
+                        {% elif stock < 5 %} <span class="stock-badge stock-low">Bajo</span>
+                            {% else %}
+                            <span class="stock-badge stock-ok">Normal</span>
+                            {% endif %}
+                    </td>
+                    <td style="font-size: 1.1rem; font-weight: bold;">{{ stock }}</td>
+                    <td>
+                        <button class="btn-action btn-edit"
+                            onclick="openUpdateModal('{{ p['id'] }}', '{{ p['nombre'] }}', '{{ stock }}')">
+                            <i class="fas fa-edit"></i> Ajustar
+                        </button>
+                        <button class="btn-action btn-history"
+                            onclick="openHistoryModal('{{ p['id'] }}', '{{ p['nombre'] }}')">
+                            <i class="fas fa-history"></i> Historial
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</main>
+
+<!-- Modal Actualizar Stock -->
+<div id="updateModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('updateModal')">&times;</span>
+        <h3 id="modalTitle">Ajuste de Inventario</h3>
+        <p id="productName" style="color: #666; margin-bottom: 20px;"></p>
+
+        <form action="{{ url_for('admin.actualizar_stock') }}" method="POST">
+            <input type="hidden" id="producto_id" name="producto_id">
+
+            <div class="form-group">
+                <label>Tipo de Movimiento:</label>
+                <select id="accion" name="accion" required onchange="toggleMotivo()">
+                    <option value="sumar">Sumar (Entrada)</option>
+                    <option value="restar">Restar (Salida)</option>
+                    <option value="fijar">Fijar Stock (Inventario Físico)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Cantidad:</label>
+                <input type="number" name="cantidad" required placeholder="Ej: 10" min="0">
+                <small style="color: #888;">Ingrese siempre un número positivo.</small>
+            </div>
+
+            <div class="form-group">
+                <label>Motivo / Observación:</label>
+                <textarea name="motivo" rows="2" placeholder="Ej: Compra factura #123, Merma, Devolución..."></textarea>
+            </div>
+
+            <button type="submit" class="submit-btn"><i class="fas fa-save"></i> Guardar Movimiento</button>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Historial -->
+<div id="historyModal" class="modal">
+    <div class="modal-content modal-lg">
+        <span class="close" onclick="closeModal('historyModal')">&times;</span>
+        <h3>Historial de Movimientos</h3>
+        <p id="historyProductName" style="font-weight: bold; color: #0d1b54;"></p>
+
+        <div style="max-height: 400px; overflow-y: auto; margin-top: 15px;">
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Tipo</th>
+                        <th>Cant.</th>
+                        <th>Stock Antes</th>
+                        <th>Stock Después</th>
+                        <th>Motivo</th>
+                        <th>Usuario</th>
+                    </tr>
+                </thead>
+                <tbody id="historyTableBody">
+                    <tr>
+                        <td colspan="7" style="text-align:center;">Cargando...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    function filterTable() {
+        var input, filter, table, tr, td, i, txtValue;
+        input = document.getElementById("searchInput");
+        filter = input.value.toUpperCase();
+        table = document.getElementById("inventoryTable");
+        tr = table.getElementsByTagName("tr");
+        for (i = 0; i < tr.length; i++) {
+            td = tr[i].getElementsByTagName("td")[1]; // Columna Producto
+            if (td) {
+                txtValue = td.textContent || td.innerText;
+                if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                    tr[i].style.display = "";
+                } else {
+                    tr[i].style.display = "none";
+                }
+            }
+        }
+    }
+
+    function openUpdateModal(id, name, stock) {
+        document.getElementById('updateModal').style.display = 'block';
+        document.getElementById('producto_id').value = id;
+        document.getElementById('productName').innerText = name + " (Stock Actual: " + stock + ")";
+    }
+
+    function openHistoryModal(id, name) {
+        document.getElementById('historyModal').style.display = 'block';
+        document.getElementById('historyProductName').innerText = name;
+
+        // Fetch history via AJAX
+        // Assumes typical flask route structure: /admin/inventario/historial/<id>
+        // But if admin_bp is not prefixed, it might be /inventario/historial/<id>
+        // Let's try to construct it dynamically or use a known path
+        fetch('{{ url_for("admin.historial_inventario", id=0) }}'.replace('/0', '/' + id))
+            .then(response => response.json())
+            .then(data => {
+                let tbody = document.getElementById('historyTableBody');
+                tbody.innerHTML = '';
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No hay movimientos registrados.</td></tr>';
+                    return;
+                }
+                data.forEach(m => {
+                    let row = `<tr>
+                    <td>${m.fecha}</td>
+                    <td class="movement-${m.tipo}"><strong>${m.tipo}</strong></td>
+                    <td>${m.cantidad}</td>
+                    <td>${m.stock_anterior}</td>
+                    <td>${m.stock_nuevo}</td>
+                    <td>${m.motivo}</td>
+                    <td>${m.usuario}</td>
+                </tr>`;
+                    tbody.innerHTML += row;
+                });
+            })
+            .catch(err => {
+                console.error(err);
+                document.getElementById('historyTableBody').innerHTML = '<tr><td colspan="7" style="color:red;">Error cargando historial</td></tr>';
+            });
+    }
+
+    function closeModal(modalId) {
+        document.getElementById(modalId).style.display = 'none';
+    }
+
+    window.onclick = function (event) {
+        if (event.target.classList.contains('modal')) {
+            event.target.style.display = "none";
+        }
+    }
+</script>
+{% endblock %}

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,6 +14,7 @@
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
     <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
 </head>
+
 <body>
     <!-- Menú lateral -->
     <header>
@@ -25,24 +27,24 @@
                 <ul>
                     {% for i in datosApp.MenuAppindex %}
                     <li>
-                        <a href="{{ url_for(i.url) }}">
+                        <a href="{% if i.url == '#' %}#{% else %}{{ url_for(i.url) }}{% endif %}">
                             <i class="fas fa-{{ i.icono }}"></i>
                             <span>{{ i.nombre }}</span>
                             {% if i.submodulos %}
-                                <i class="fas fa-chevron-down dropdown-icon"></i>
+                            <i class="fas fa-chevron-down dropdown-icon"></i>
                             {% endif %}
                         </a>
                         {% if i.submodulos %}
-                            <ul class="submenu">
-                                {% for sub in i.submodulos %}
-                                <li>
-                                    <a href="{{ url_for(sub.url) }}">
-                                        <i class="fas fa-{{ sub.icono }}"></i>
-                                        <span>{{ sub.nombre }}</span>
-                                    </a>
-                                </li>
-                                {% endfor %}
-                            </ul>
+                        <ul class="submenu">
+                            {% for sub in i.submodulos %}
+                            <li>
+                                <a href="{{ url_for(sub.url) }}">
+                                    <i class="fas fa-{{ sub.icono }}"></i>
+                                    <span>{{ sub.nombre }}</span>
+                                </a>
+                            </li>
+                            {% endfor %}
+                        </ul>
                         {% endif %}
                     </li>
                     {% endfor %}
@@ -79,46 +81,45 @@
     <!-- ============================================ -->
     <!-- INTEGRACIÓN DE SWEETALERT2 (POP-UPS)         -->
     <!-- ============================================ -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    {% for category, message in messages %}
-                        
-                        var tipoIcono = 'info';
-                        var titulo = 'Notificación';
-                        var cat = '{{ category }}';
+    {% if messages %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            {% for category, message in messages %}
 
-                        if (cat === 'error' || cat === 'danger') {
-                            tipoIcono = 'error';
-                            titulo = '¡Error!';
-                        } else if (cat === 'success') {
-                            tipoIcono = 'success';
-                            titulo = '¡Éxito!';
-                        } else if (cat === 'warning') {
-                            tipoIcono = 'warning';
-                            titulo = 'Advertencia';
-                        }
+            var tipoIcono = 'info';
+            var titulo = 'Notificación';
+            var cat = '{{ category }}';
 
-                        Swal.fire({
-                            title: titulo,
-                            // CORRECCIÓN AQUÍ: Usamos tojson para evitar errores con comillas
-                            text: {{ message | tojson }},
-                            icon: tipoIcono,
-                            confirmButtonColor: '#0d1b54',
-                            confirmButtonText: 'Aceptar',
-                            backdrop: `rgba(0,0,123,0.1)`
+            if (cat === 'error' || cat === 'danger') {
+                tipoIcono = 'error';
+                titulo = '¡Error!';
+            } else if (cat === 'success') {
+                tipoIcono = 'success';
+                titulo = '¡Éxito!';
+            } else if (cat === 'warning') {
+                tipoIcono = 'warning';
+                titulo = 'Advertencia';
+            }
+
+            Swal.fire({
+                title: titulo,
+                // CORRECCIÓN AQUÍ: Usamos tojson para evitar errores con comillas
+                text: {{ message | tojson }},
+            icon: tipoIcono,
+            confirmButtonColor: '#0d1b54',
+            confirmButtonText: 'Aceptar',
+            backdrop: `rgba(0,0,123,0.1)`
                         });
 
-                    {% endfor %}
+        {% endfor %}
                 });
-            </script>
-        {% endif %}
+    </script>
+    {% endif %}
     {% endwith %}
 
 </body>
 
-</body>
 </html>

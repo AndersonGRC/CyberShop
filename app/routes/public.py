@@ -9,7 +9,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask import current_app as app
 from flask_mail import Message
 
-from database import get_db_connection
+from database import get_db_connection, get_db_cursor
 from helpers import get_common_data, formatear_moneda
 
 public_bp = Blueprint('public', __name__)
@@ -27,19 +27,19 @@ def productos():
     """Catalogo de productos con precios formateados en COP."""
     datosApp = get_common_data()
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute('SELECT p.*, g.nombre AS genero FROM productos p JOIN generos g ON p.genero_id = g.id')
-        raw_productos = cur.fetchall()
-        cur.close()
-        conn.close()
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute('SELECT p.*, g.nombre AS genero FROM productos p JOIN generos g ON p.genero_id = g.id')
+            raw_productos = cur.fetchall()
+            
         productos_lista = []
         for p in raw_productos:
-            prod = list(p)
-            prod[3] = formatear_moneda(float(prod[3]))
+            # Convertir a dict para modificar precio
+            prod = dict(p)
+            prod['precio_fmt'] = formatear_moneda(float(prod['precio']))
             productos_lista.append(prod)
         datosApp['productos'] = productos_lista
-    except Exception:
+    except Exception as e:
+        app.logger.error(f"Error cargando productos: {e}")
         datosApp['productos'] = []
     return render_template('productos.html', datosApp=datosApp)
 

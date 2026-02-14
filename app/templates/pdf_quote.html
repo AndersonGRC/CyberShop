@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <style>
+        @page {
+            size: letter;
+            /* Carta */
+            margin: 2cm;
+
+            @frame footer {
+                -pdf-frame-content: footerContent;
+                bottom: 1cm;
+                margin-left: 2cm;
+                margin-right: 2cm;
+                height: 1cm;
+            }
+        }
+
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 11px;
+            color: #333;
+        }
+
+        /* HEADER */
+        .header-table {
+            width: 100%;
+            margin-bottom: 30px;
+        }
+
+        .header-left h2 {
+            font-size: 14px;
+            color: #333;
+            margin: 0;
+            font-weight: bold;
+        }
+
+        .header-right {
+            text-align: right;
+        }
+
+        .logo {
+            width: 120px;
+            height: auto;
+        }
+
+        .fecha {
+            margin-bottom: 20px;
+            font-size: 12px;
+        }
+
+        /* CLIENTE */
+        .client-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #000;
+            margin-bottom: 20px;
+        }
+
+        .client-table td,
+        .client-table th {
+            border: 1px solid #000;
+            padding: 4px 8px;
+            vertical-align: middle;
+        }
+
+        .client-header {
+            text-align: center;
+            font-weight: bold;
+            background-color: #f9f9f9;
+        }
+
+        .label {
+            font-weight: bold;
+            width: 15%;
+            background-color: #f9f9f9;
+        }
+
+        .value {
+            width: 35%;
+        }
+
+        /* ITEMS DE COTIZACION */
+        .items-header-title {
+            text-align: center;
+            font-weight: bold;
+            border: 1px solid #000;
+            border-bottom: none;
+            padding: 5px;
+            background-color: #f9f9f9;
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #000;
+        }
+
+        .items-table th {
+            background-color: #f9f9f9;
+            border: 1px solid #000;
+            padding: 5px;
+            text-align: center;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .items-table td {
+            border: 1px solid #000;
+            padding: 8px;
+            vertical-align: middle;
+        }
+
+        /* Columnas Split */
+        .col-img {
+            text-align: center;
+            width: 60px;
+        }
+
+        .col-producto {
+            text-align: left;
+        }
+
+        .col-cant {
+            text-align: center;
+            width: 8%;
+        }
+
+        .col-unit {
+            text-align: center;
+            width: 15%;
+        }
+
+        .col-total {
+            text-align: center;
+            width: 15%;
+        }
+
+        /* TOTALES */
+        .totals-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 0;
+            /* Pegado a items */
+            border: 1px solid #000;
+            border-top: none;
+        }
+
+        .totals-table td {
+            padding: 5px 8px;
+            border: 1px solid #000;
+            border-top: none;
+        }
+
+        .total-label {
+            text-align: right;
+            font-weight: bold;
+            width: 85%;
+            /* Ajustar para alinear con columna total */
+        }
+
+        .total-value {
+            text-align: center;
+            width: 15%;
+        }
+
+        .gran-total-row td {
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .gran-total-bg {
+            background-color: #28a745;
+            /* Verde Institucional */
+            color: black;
+        }
+
+        #footerContent {
+            text-align: center;
+            color: #888;
+            font-size: 10px;
+        }
+
+        .contact-link a {
+            color: #122C94;
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header: ID Cotizacion (Izq) y Logo (Der) -->
+    <table class="header-table">
+        <tr>
+            <td class="header-left" style="vertical-align: middle;">
+                <h2>{{ id }}</h2> <!-- COT 0000000001 -->
+            </td>
+            <td class="header-right">
+                <img src="{{ logo }}" class="logo">
+            </td>
+        </tr>
+    </table>
+
+    <!-- Fecha -->
+    <div class="fecha">
+        {{ fecha }}
+    </div>
+
+    <!-- Tabla Cliente -->
+    <table class="client-table">
+        <tr>
+            <td colspan="4" class="client-header">Datos del cliente</td>
+        </tr>
+        <tr>
+            <td class="label">Razón Social</td>
+            <td class="value">{{ cliente.nombre }}</td>
+            <td class="label">Nit</td>
+            <td class="value">{{ cliente.documento }}</td>
+        </tr>
+        <tr>
+            <td class="label">Dirección</td>
+            <td class="value">{{ cliente.direccion }}</td>
+            <td class="label">Ciudad</td>
+            <td class="value">{{ cliente.ciudad }}</td>
+        </tr>
+        <tr>
+            <td class="label">Representante</td>
+            <td class="value">{{ cliente.representante }}</td>
+            <td class="label">Localidad</td>
+            <td class="value">{{ cliente.localidad }}</td>
+        </tr>
+        <tr>
+            <td class="label">Cargo</td>
+            <td class="value">{{ cliente.cargo }}</td>
+            <td class="label">Teléfono</td>
+            <td class="value">{{ cliente.telefono }}</td>
+        </tr>
+    </table>
+
+    <!-- Titulo Items -->
+    <div class="items-header-title">COTIZACIÓN</div>
+
+    <!-- Tabla Items -->
+    <table class="items-table">
+        <thead>
+            <tr>
+                <!-- Split columns: IMG | PROD -->
+                <th style="width: 60px;"></th> <!-- Header imagen vacio o IMG -->
+                <th>PRODUCTO</th>
+                <th>CANT.</th>
+                <th>V.UNITARIO</th>
+                <th>V. TOTAL</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td class="col-img">
+                    {% if item.imagen_local_path %}
+                    <img src="{{ item.imagen_local_path }}" style="width: 40px; height: auto;">
+                    {% endif %}
+                </td>
+                <td class="col-producto">
+                    {{ item.descripcion }}
+                </td>
+                <td class="col-cant">{{ item.cantidad }}</td>
+                <td class="col-unit">{{ item.precio_unitario }}</td>
+                <td class="col-total">{{ item.subtotal }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Tabla Totales -->
+    <table class="totals-table">
+        <tr>
+            <td class="total-label">Subtotal</td>
+            <td class="total-value">{{ subtotal }}</td>
+        </tr>
+        <tr>
+            <td class="total-label">Descuentos</td>
+            <td class="total-value">{{ descuento }}</td>
+        </tr>
+        <tr>
+            <td class="total-label">IVA (19%)</td>
+            <td class="total-value">{{ iva }}</td>
+        </tr>
+        <tr class="gran-total-row">
+            <td class="total-label">TOTAL</td>
+            <td class="total-value gran-total-bg">{{ total }}</td>
+        </tr>
+    </table>
+
+    <div style="margin-top: 30px; font-size: 10px; text-align: center;">
+        <p>Visítanos en <span class="contact-link"><a href="https://cybershopcol.com/">www.cybershopcol.com</a></span>
+        </p>
+    </div>
+
+    <!-- Footer de Paginacion -->
+    <div id="footerContent">
+        Página <pdf:pagenumber> de <pdf:pagecount>
+    </div>
+
+</body>
+
+</html>

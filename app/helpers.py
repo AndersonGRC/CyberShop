@@ -47,30 +47,37 @@ def get_data_app():
     con modulos, submodulos e iconos de Font Awesome.
     """
     App = [
-        {"nombre": "Menu Principal", "url": "admin.dashboard_admin", "icono": "home"},
-        {"nombre": "Dashboard", "url": "admin.dashboard_admin", "icono": "chart-line"},
+        {"nombre": "Panel Principal", "url": "admin.dashboard_admin", "icono": "home"},
+        
         {
-            "nombre": "Gestion Productos",
-            "url": "admin.GestionProductos",
-            "icono": "box",
+            "nombre": "Ventas",
+            "url": "#", # Grupo
+            "icono": "cash-register",
             "submodulos": [
-                {"nombre": "Agregar Producto", "url": "admin.GestionProductos", "icono": "plus"},
-                {"nombre": "Editar Producto", "url": "admin.editar_productos", "icono": "edit"},
-                {"nombre": "Eliminar Producto", "url": "admin.eliminar_productos", "icono": "trash"}
+                {"nombre": "Gestionar Pedidos", "url": "admin.gestion_pedidos", "icono": "truck"},
+                {"nombre": "Nueva Cotización", "url": "quotes.cotizar", "icono": "file-invoice-dollar"},
+                {"nombre": "Mis Cotizaciones", "url": "quotes.ver_cotizaciones", "icono": "history"}
             ]
         },
         {
-            "nombre": "Gestion Usuarios",
-            "url": "admin.gestion_usuarios",
+            "nombre": "Inventario",
+            "url": "#", # Grupo
+            "icono": "boxes",
+            "submodulos": [
+                {"nombre": "Resumen / Stock", "url": "admin.gestion_inventario", "icono": "clipboard-list"},
+                {"nombre": "Agregar Producto", "url": "admin.GestionProductos", "icono": "plus-circle"},
+                {"nombre": "Editar Productos", "url": "admin.editar_productos", "icono": "edit"},
+                {"nombre": "Eliminar Productos", "url": "admin.eliminar_productos", "icono": "trash-alt"}
+            ]
+        },
+        {
+            "nombre": "Usuarios",
+            "url": "#",
             "icono": "users",
             "submodulos": [
-                {"nombre": "Lista de Usuarios", "url": "admin.gestion_usuarios", "icono": "list"},
+                {"nombre": "Gestión Usuarios", "url": "admin.gestion_usuarios", "icono": "user-cog"},
+                {"nombre": "Crear Usuario", "url": "admin.crear_usuario", "icono": "user-plus"}
             ]
-        },
-        {
-            "nombre": "Gestión de Pedidos",
-            "url": "admin.gestion_pedidos",
-            "icono": "truck",
         },
         {"nombre": "Cerrar Sesion", "url": "auth.logout", "icono": "sign-out-alt"}
     ]

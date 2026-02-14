@@ -1,0 +1,64 @@
+{% extends 'plantillaapp.html' %}
+
+{% block titulo %}Mis Cotizaciones | {{ datosApp.titulo }}{% endblock %}
+
+{% block body %}
+<div class="main-container">
+    <div class="content-wrapper" style="padding: 20px;">
+        <h1 class="page-title"><i class="fas fa-history"></i> Mis Cotizaciones Generadas</h1>
+
+        <div class="card"
+            style="margin-top: 20px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+
+            {% if cotizaciones %}
+            <div class="table-responsive">
+                <table class="table table-striped" style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                            <th style="padding: 12px; text-align: left;">ID</th>
+                            <th style="padding: 12px; text-align: left;">Fecha</th>
+                            <th style="padding: 12px; text-align: left;">Cliente</th>
+                            <th style="padding: 12px; text-align: left;">Documento</th>
+                            <th style="padding: 12px; text-align: right;">Total</th>
+                            <th style="padding: 12px; text-align: center;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cot in cotizaciones %}
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 12px;">COT {{ '%010d' % cot.id }}</td>
+                            <td style="padding: 12px;">{{ cot.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td style="padding: 12px;">{{ cot.cliente_nombre }}</td>
+                            <td style="padding: 12px;">{{ cot.cliente_documento }}</td>
+                            <td style="padding: 12px; text-align: right;">{{ cot.total }}</td>
+                            <!-- Formato moneda se podria ajustar en backend o filter -->
+                            <td style="padding: 12px; text-align: center;">
+                                {% if cot.pdf_path %}
+                                <a href="{{ url_for('static', filename=cot.pdf_path) }}" target="_blank"
+                                    class="btn-action"
+                                    style="background: #17a2b8; color: white; padding: 5px 10px; border-radius: 4px; text-decoration: none; margin-right: 5px;">
+                                    <i class="fas fa-eye"></i> Ver PDF
+                                </a>
+                                {% else %}
+                                <span style="color: grey; font-size: 0.9em;">No disponible</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div style="text-align: center; padding: 40px; color: #666;">
+                <i class="fas fa-folder-open" style="font-size: 3em; margin-bottom: 15px; color: #ccc;"></i>
+                <p>No se han generado cotizaciones aún.</p>
+                <a href="{{ url_for('quotes.cotizar') }}"
+                    style="background: #28a745; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; display: inline-block; margin-top: 10px;">
+                    <i class="fas fa-plus"></i> Crear Nueva Cotización
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
