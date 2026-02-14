@@ -1,14 +1,6 @@
-/* static/css/carrito.css */
+@import url('variables.css');
 
-:root {
-    --color-principal: #f9f9f9;  
-    --color-secundario: #0e1b33; /* CAMBIAR */
-    --color-gris: #9b9b9b;
-    --color-negro: #000000;
-    --color-transicion: #2a4d69; /* CAMBIAR */
-    --color-red: red;
-    --color-verde: #28a745;
-}
+/* static/css/carrito.css */
 
 /* Contenedor Principal */
 .carrito-container {
@@ -24,7 +16,7 @@
     color: var(--color-secundario);
     font-weight: 700;
     text-transform: uppercase;
-    border-bottom: 2px solid var(--color-principal);
+    border-bottom: 2px solid var(--color-fondo);
     padding-bottom: 15px;
 }
 
@@ -53,7 +45,7 @@
 }
 
 .tabla-carrito tr:hover {
-    background-color: var(--color-principal);
+    background-color: var(--color-fondo);
 }
 
 /* Imágenes en la tabla */
@@ -73,7 +65,7 @@
 }
 
 .btn-control {
-    background-color: var(--color-principal);
+    background-color: var(--color-fondo);
     border: 1px solid var(--color-gris);
     color: var(--color-secundario);
     width: 30px;
@@ -98,9 +90,9 @@
 
 /* Botones de Acción (Eliminar, Pagar, etc) */
 .btn-eliminar-fila, .eliminar-item {
-    background-color: var(--color-principal);
-    color: var(--color-red);
-    border: 1px solid var(--color-red);
+    background-color: var(--color-fondo);
+    color: var(--color-eliminar);
+    border: 1px solid var(--color-eliminar);
     padding: 8px 12px;
     border-radius: 5px;
     cursor: pointer;
@@ -108,7 +100,7 @@
 }
 
 .btn-eliminar-fila:hover, .eliminar-item:hover {
-    background-color: var(--color-red);
+    background-color: var(--color-eliminar);
     color: white;
 }
 
@@ -153,14 +145,14 @@
 }
 
 .btn-vaciar {
-    background-color: var(--color-red);
+    background-color: var(--color-eliminar);
 }
 .btn-vaciar:hover {
     opacity: 0.8;
 }
 
 .btn-pagar {
-    background-color: var(--color-verde);
+    background-color: var(--color-exito);
 }
 .btn-pagar:hover {
     background-color: #218838; /* Un verde un poco más oscuro */
@@ -295,7 +287,7 @@
         padding: 5px;
     }
     .btn-eliminar-fila:hover, .eliminar-item:hover {
-        color: var(--color-red);
+        color: var(--color-eliminar);
         background: transparent;
     }
 
@@ -323,14 +315,14 @@
     /* Ordenar botones para mejor UX en móvil */
     #procesar-pedido-btn { order: 1; } /* Pagar primero */
     .btn-seguir { order: 2; background: #fff; color: var(--color-gris); border: 1px solid #ddd; }
-    #vaciar-carrito-btn { order: 3; font-size: 0.9rem; padding: 10px; background: transparent; color: var(--color-red); }
+    #vaciar-carrito-btn { order: 3; font-size: 0.9rem; padding: 10px; background: transparent; color: var(--color-eliminar); }
 }
 
 /* Botón Vaciar Carrito - Estilo "Ghost" */
 .btn-vaciar {
     background-color: transparent;
-    color: var(--color-red);
-    border: 2px solid var(--color-red);
+    color: var(--color-eliminar);
+    border: 2px solid var(--color-eliminar);
     font-weight: 700;
     display: inline-flex;
     align-items: center;
@@ -343,7 +335,7 @@
 
 /* Efecto Hover: Se llena de rojo */
 .btn-vaciar:hover {
-    background-color: var(--color-red);
+    background-color: var(--color-eliminar);
     color: #fff;
     box-shadow: 0 5px 15px rgba(255, 0, 0, 0.3); /* Resplandor rojo */
     transform: translateY(-2px); /* Se eleva un poco */

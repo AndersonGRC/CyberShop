@@ -1,3 +1,5 @@
+@import url('variables.css');
+
 /* === ESTILOS GENERALES === */
 .container {
     max-width: 1200px;

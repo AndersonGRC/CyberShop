@@ -1,11 +1,4 @@
-:root {
-    --color-principal: #f9f9f9;  
-    --color-secundario: #0e1b33; 
-    --color-gris: #9b9b9b ;
-    --color-negro: #000000;
-    --color-transicion: #2a4d69;
-    --color-red:  red;
-  }
+@import url('variables.css');
 
 body {
     margin: 0;
@@ -15,7 +8,7 @@ body {
     justify-content: center;
     flex-direction: column;
     height: 100vh;
-    background-color: var(--color-principal); /* Fondo claro */
+    background-color: var(--color-fondo); /* Fondo claro */
     color: var(--color-secundario); /* Texto color azul oscuro */
     font-family: 'Arial', sans-serif;
     text-align: center;

@@ -1,15 +1,4 @@
-/* Variables de color */
-:root {
-    --color-primario:#122C94;
-    --color-secundario: #091C5A;
-    --color-btn-eliminar: #ff0000;
-    --color-hover-btn-eliminar: #b81414;
-    --titulo: #0a0a0a;
-    --gris-claro: #f9f9f9;
-    --gris-mas-claro: #f1f1f1;
-    --blanco: #f9f9f9;
-    --negro:#030303;
-}
+@import url('variables.css');
 
 /* Estilos generales */
 main {
@@ -20,7 +9,7 @@ main {
 }
 
 main h2 {
-    color: var(--titulo);
+    color: var(--color-negro);
     text-align: center;
     margin-bottom: 20px;
     margin-top: 20px;
@@ -57,18 +46,18 @@ main h2 {
     margin-top: 10%;
     padding: 10px 20px;
     background-color: var(--color-primario);
-    color: var(--blanco);
+    color: var(--color-fondo);
     border-radius: 5px;
     transition: background-color 0.3s ease;
     display: inline-block;
 }
 
 .Submenunavegacion a:hover {
-    background-color: var(--color-secundario);
+    background-color: var(--color-primario-oscuro);
 }
 
 .Submenunavegacion a.active {
-    background-color: var(--color-secundario);
+    background-color: var(--color-primario-oscuro);
 }
 
 /* Media Queries para móviles */
@@ -122,7 +111,7 @@ table {
     width: 100%;
     max-width: 1000px;
     text-align: center;
-    background-color: var(--blanco);
+    background-color: var(--color-fondo);
     box-shadow: 0px 0px 8px rgba(0, 0, 0, 0.1);
 }
 
@@ -134,13 +123,13 @@ table th, table td {
     white-space: normal;
 }
 table td{
-    color:var(--negro) ;
+    color:var(--color-negro) ;
 }
 
 /* Encabezado */
 table th {
     background-color: var(--color-primario);
-    color: var(--blanco);
+    color: var(--color-fondo);
     position: sticky;
     top: 0;
     z-index: 1;
@@ -148,19 +137,19 @@ table th {
 
 /* Filas alternadas y hover */
 table tr:nth-child(even) {
-    background-color: var(--gris-claro);
+    background-color: var(--color-fondo);
 }
 
 table tr:hover {
-    background-color: var(--gris-mas-claro);
+    background-color: var(--color-gris-claro);
 }
 
 /* Botón eliminar */
 .btn-eliminar {
     text-decoration: none;
     padding: 5px 10px;
-    background-color: var(--color-btn-eliminar);
-    color: var(--blanco);
+    background-color: var(--color-eliminar);
+    color: var(--color-fondo);
     border-radius: 3px;
     transition: background-color 0.3s ease;
     display: inline-block;
@@ -168,7 +157,7 @@ table tr:hover {
 }
 
 .btn-eliminar:hover {
-    background-color: var(--color-hover-btn-eliminar);
+    background-color: var(--color-peligro-hover);
 }
 
 /* Responsivo: Tablets y pantallas medianas */

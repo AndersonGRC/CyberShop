@@ -1,15 +1,4 @@
-/* Variables de color */
-:root {
-    --color-primario:#122C94;
-    --color-secundario: #091C5A;
-    --color-btn-guardar: #28a745;
-    --hover-btn-guardar: #218838;
-    --gris-texto: #3a3a3a;
-    --gris-claro: #f9f9f9;
-    --negro:#000000;
-    --gris-mas-claro: #f1f1f1;
-    --blanco: #f9f9f9;
-}
+@import url('variables.css');
 
 /* Estilos generales */
 main {
@@ -20,7 +9,7 @@ main {
 }
 
 main h2 {
-    color: var(--gris-texto);
+    color: var(--color-gris-texto);
     text-align: center;
     margin-bottom: 20px;
     margin-top: 20px;
@@ -57,18 +46,18 @@ main h2 {
     margin-top: 10%;
     padding: 10px 20px;
     background-color: var(--color-primario);
-    color: var(--blanco);
+    color: var(--color-fondo);
     border-radius: 5px;
     transition: background-color 0.3s ease;
     display: inline-block;
 }
 
 .Submenunavegacion a:hover {
-    background-color: var(--color-secundario);
+    background-color: var(--color-primario-oscuro);
 }
 
 .Submenunavegacion a.active {
-    background-color: var(--color-secundario);
+    background-color: var(--color-primario-oscuro);
 }
 
 /* Media Queries para móviles */
@@ -121,7 +110,7 @@ table {
     width: 100%;
     max-width: 1000px;
     text-align: center;
-    background-color: var(--blanco);
+    background-color: var(--color-fondo);
 }
 
 /* Celdas */
@@ -132,13 +121,13 @@ table th, table td {
     white-space: normal;
 }
 table td{
-    color:var(--negro) ;
+    color:var(--color-negro) ;
 }
 
 /* Encabezado */
 table th {
     background-color: var(--color-primario);
-    color: var(--blanco);
+    color: var(--color-fondo);
     position: sticky;
     top: 0;
     z-index: 1;
@@ -146,11 +135,11 @@ table th {
 
 /* Filas alternadas y hover */
 table tr:nth-child(even) {
-    background-color: var(--gris-claro);
+    background-color: var(--color-fondo);
 }
 
 table tr:hover {
-    background-color: var(--gris-mas-claro);
+    background-color: var(--color-gris-claro);
 }
 
 
@@ -158,8 +147,8 @@ table tr:hover {
 .btn-edit {
     text-decoration: none;
     padding: 5px 10px;
-    background-color: var(--color-btn-guardar);
-    color: var(--blanco);
+    background-color: var(--color-exito);
+    color: var(--color-fondo);
     border-radius: 3px;
     transition: background-color 0.3s ease;
     display: inline-block;
@@ -167,7 +156,7 @@ table tr:hover {
 }
 
 .btn-edit:hover {
-    background-color: var(--hover-btn-guardar);
+    background-color: var(--color-exito-hover);
 }
 
 /* Responsivo: Tablets y pantallas medianas */

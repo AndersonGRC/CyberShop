@@ -1,11 +1,5 @@
-:root {
-    /*  Paleta principal */
-    --fondo:#f9f9f9;
-    --texto-blanco: #f9f9f9;
-    --Menu-footer: #091C5A;
-    --hover-menu:#fb8500;
-    --submenu: #122C94;
-}
+@import url('variables.css');
+
 body {
     height: auto;
     min-height: 100%;
@@ -14,8 +8,8 @@ body {
     margin: 0;
     padding: 0;
     font-family: 'Raleway', sans-serif;
-    background-color: var(--fondo);
-    color: var(--text-primary);
+    background-color: var(--color-fondo);
+    color: var(--color-negro);
     transition: margin-left 0.3s ease;
 }
 
@@ -33,7 +27,7 @@ main {
     left: 250px;
     right: 0;
     height: 60px;
-    background: var(--fondo);
+    background: var(--color-fondo);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -59,8 +53,8 @@ main {
 }
 
 .btn-menu {
-    background: var(--Menu-footer);
-    color: var(--fondo);
+    background: var(--color-primario-oscuro);
+    color: var(--color-fondo);
     border: none;
     padding: 10px;
     cursor: pointer;
@@ -80,8 +74,8 @@ header {
     top: 0;
     height: 100vh;
     width: 250px;
-    background: linear-gradient(135deg, var(--Menu-footer), var(--Menu-footer));
-    color: var(--texto-blanco);
+    background: linear-gradient(135deg, var(--color-primario-oscuro), var(--color-primario-oscuro));
+    color: var(--color-fondo);
     box-shadow: 4px 0 6px rgba(0, 0, 0, 0.1);
     transition: transform 0.3s ease;
     z-index: 1001;
@@ -90,9 +84,9 @@ header {
 header .menu-logo {
     padding: 0px;
     border: 10px;
-    background-color: var(--texto-blanco);
+    background-color: var(--color-fondo);
     text-align: center;
-    border-bottom: 3px solid var(--Menu-footer);
+    border-bottom: 3px solid var(--color-primario-oscuro);
 }
 
 header .menu-logo img {
@@ -130,8 +124,8 @@ header.hidden ~ main {
     bottom: 0;
     left: 250px;
     right: 0;
-    background: var(--Menu-footer);
-    color: var(--fondo);
+    background: var(--color-primario-oscuro);
+    color: var(--color-fondo);
     padding: 10px 20px;
     text-align: center;
     font-size: 14px;
@@ -159,7 +153,7 @@ header .nav ul li {
 }
 
 header .nav ul li a {
-    color: var(--texto-blanco);
+    color: var(--color-fondo);
     text-decoration: none;
     display: flex;
     align-items: center;
@@ -170,7 +164,7 @@ header .nav ul li a {
 
 header .nav ul li a:hover {
     background: rgba(255, 255, 255, 0.1);
-    color: var(--hover-menu);
+    color: var(--color-hover-menu);
 }
 
 header .nav ul li a i {
@@ -180,7 +174,7 @@ header .nav ul li a i {
 }
 
 header .nav ul li a:hover i {
-    color: var(--hover-menu);
+    color: var(--color-hover-menu);
 }
 
 /* Estilos responsive */
@@ -223,7 +217,7 @@ header .nav ul li a:hover i {
     position: absolute;
     top: 100%;
     left: 0;
-    background: var(--submenu);
+    background: var(--color-primario);
     list-style: none;
     padding: 10px;
     margin: 0;
@@ -240,7 +234,7 @@ header .nav ul li a:hover i {
 
 .nav ul li .submenu li a {
     padding: 8px 15px;
-    color: var(--texto-blanco);
+    color: var(--color-fondo);
     text-decoration: none;
     display: block;
     transition: background 0.3s ease;
@@ -284,33 +278,33 @@ header .nav ul li a:hover i {
         left: 0;
         width: 90%;
         box-shadow: none;
-        background: var(--submenu);
+        background: var(--color-primario);
         padding-left: 15px;
     }
-    
+
     .nav ul li.active .submenu {
         display: block;
     }
-    
+
     .nav ul li a i.fa-chevron-down {
         transition: transform 0.3s ease;
     }
-    
+
     .nav ul li.active a i.fa-chevron-down {
         transform: rotate(180deg);
     }
-    
+
     .nav ul li .submenu li a {
         padding: 8px 30px;
         font-size: 14px;
     }
-    
+
     .nav ul li a:hover {
         background: transparent;
-        color: var(--texto-blanco);
+        color: var(--color-fondo);
     }
-    
+
     .nav ul li a:hover i {
-        color: var(--texto-blanco);
+        color: var(--color-fondo);
     }
 }

@@ -1,9 +1,4 @@
-:root {
-    --color-principal: #f9f9f9;  
-    --color-secundario: #0e1b33; 
-    --color-gris: #9b9b9b ;
-    --color-negro: #000000;
-  }
+@import url('variables.css');
 
 
 * {
@@ -26,7 +21,7 @@
     height: 110px;
     position: static;
     padding: 5px;
-    background: linear-gradient(45deg, var(--color-principal), var(--color-secundario));
+    background: linear-gradient(45deg, var(--color-fondo), var(--color-secundario));
     color: var(--color-secundario);
     cursor: default;
     z-index: 10; /* Logo principal sobre otros elementos */
@@ -38,7 +33,7 @@
     font-size: 18px; /* Tamaño ligeramente mayor */
     padding: 3px 5px; /* Espaciado más equilibrado */
     margin-right: 30px;
-    color: var(--color-principal); /* Mantiene el color principal */
+    color: var(--color-fondo); /* Mantiene el color principal */
     background-color: #4A4A4A; /* Fondo contrastante */
     border-radius: 6px; /* Bordes redondeados */
     cursor: pointer;
@@ -48,7 +43,7 @@
 }
 
 .logo_small:hover {
-    color: var(--color-principal); /* Cambio a blanco puro */
+    color: var(--color-fondo); /* Cambio a blanco puro */
     background-color: var(--color-secundario); /* Color de fondo resaltado */
     transform: scale(1.2); /* Efecto de crecimiento */
     box-shadow: 0px 6px 6px var(--color-secundario); /* Sombra más pronunciada */
@@ -62,7 +57,7 @@
     float: left;
     width: 100%;
     background: var(--color-secundario);
-    color: var(--color-principal);
+    color: var(--color-fondo);
     padding: 0 20px;
     transition: .3s ease all;
     backface-visibility: hidden;
@@ -97,18 +92,18 @@ nav a {
     display: block;
     padding: 20px;
     margin: 0;
-    color: var(--color-principal);
+    color: var(--color-fondo);
     text-decoration: none;
     transition: 0.2s ease all;
 }
 
 nav a:hover {
-    color: var(--color-principal);
+    color: var(--color-fondo);
     background: var(--color-secundario);
 }
 
 .main {
-    background: var(--color-principal);
+    background: var(--color-fondo);
     padding: 80px;
     z-index: 5; /* Contenido principal sobre el footer */
 }
@@ -134,7 +129,7 @@ body.nav_fixed .nav .wrap {
     right: 20px;
     background: var(--color-secundario);
     border-radius: 50%;
-    color: var(--color-principal);
+    color: var(--color-fondo);
     cursor: pointer;
     transition: all 500ms cubic-bezier(1, 0, 0, 1);
     transform: translateX(100px);
@@ -213,7 +208,7 @@ body.nav_fixed .nav .wrap {
     }
 
     .main {
-        background: var(--color-principal);
+        background: var(--color-fondo);
         padding: 20px;
         z-index: 5;
     }
@@ -223,7 +218,7 @@ body.nav_fixed .nav .wrap {
 .footer {
     width: 100%;
     background-color: var(--color-secundario)   ;
-    color: var(--color-principal);
+    color: var(--color-fondo);
     text-align: center;
     padding: 20px;
 }
@@ -259,7 +254,7 @@ body.nav_fixed .nav .wrap {
 
 .socials a {
     text-decoration: none;
-    color: var(--color-principal);
+    color: var(--color-fondo);
 }
 
 .socials a i {
@@ -280,14 +275,14 @@ body.nav_fixed .nav .wrap {
 .footer-bottom p {
     font-size: 14px;
     word-spacing: 2px;
-    color: var(--color-principal);
+    color: var(--color-fondo);
     margin-top: 10px;
     letter-spacing: 1px;
 }
 .empresa {
     font-size: 14px;
     word-spacing: 2px;
-    color: var(--color-principal);
+    color: var(--color-fondo);
     margin-top: 10px;
     letter-spacing: 1px;
 }

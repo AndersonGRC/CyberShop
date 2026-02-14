@@ -1,14 +1,4 @@
-/* Variables de color */
-:root {
-    --color-botones: #1F3A93;
-    --color-sbotones-hover:#091C5A;
-    --color-boton-guardar: #28a745;
-    --color-boton-guardar-hover: #218838;
-    --blanco: #f9f9f9;
-    --texto:#0a0a0a ;
-    --fondo-main: #f9f9f9;
-    --borde:#A7A9AC ;
-}
+@import url('variables.css');
 
 main {
     margin-bottom: 20px;
@@ -47,18 +37,18 @@ main {
     margin-top: 10%;
     padding: 10px 20px;
     background-color: var(--color-botones);
-    color: var(--blanco);
+    color: var(--color-fondo);
     border-radius: 5px;
     transition: background-color 0.3s ease;
     display: inline-block;
 }
 
 .Submenunavegacion a:hover {
-    background-color: var(--color-sbotones-hover);
+    background-color: var(--color-primario-oscuro);
 }
 
 .Submenunavegacion a.active {
-    background-color: var(--color-sbotones-hover);
+    background-color: var(--color-primario-oscuro);
 }
 
 /* Media Queries para móviles */
@@ -97,7 +87,7 @@ main {
 }
 
 h2 {
-    color: var(--texto);
+    color: var(--color-negro);
     text-align: center;
     margin-bottom: 20px;
 }
@@ -113,7 +103,7 @@ h2 {
     width: 80%;
     max-width: 800px;
     padding: 5%;
-    background-color: var(--blanco);
+    background-color: var(--color-fondo);
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     border-radius: 8px;
     display: flex; 
@@ -151,7 +141,7 @@ h2 {
 .form-group textarea {
     width: 100%;
     padding: 10px;
-    border: 1px solid var(--borde);
+    border: 1px solid var(--color-gris);
     border-radius: 5px;
     font-size: 16px;
     box-sizing: border-box;
@@ -163,8 +153,8 @@ h2 {
 }
 
 .form-group button {
-    background-color: var(--color-boton-guardar);
-    color: var(--blanco);
+    background-color: var(--color-exito);
+    color: var(--color-fondo);
     padding: 12px 20px;
     border: none;
     border-radius: 5px;
@@ -176,7 +166,7 @@ h2 {
 }
 
 .form-group button:hover {
-    background-color: var(--color-boton-guardar-hover);
+    background-color: var(--color-exito-hover);
 }
 
 .product-image {

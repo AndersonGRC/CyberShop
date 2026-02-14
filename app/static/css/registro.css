@@ -1,10 +1,4 @@
-:root {
-    --color-principal: #f9f9f9;  
-    --color-secundario: #0e1b33; 
-    --color-gris: #9b9b9b ;
-    --color-negro: #000000;
-    --color-transicion: #2a4d69;
-  }
+@import url('variables.css');
 
 
 
@@ -43,7 +37,7 @@
 /* Estilos para el formulario */
 .right-column form {
     width: 100%;
-    background: var(--color-principal);
+    background: var(--color-fondo);
     padding: 20px;
     margin-top: 30px;
     border-radius: 10px;
@@ -73,7 +67,7 @@
     width: 100%;
     padding: 10px;
     margin-bottom: 15px;
-    border: 1px solid var(--color-principal);
+    border: 1px solid var(--color-fondo);
     border-radius: 5px;
     font-size: 16px;
 }
@@ -81,7 +75,7 @@
 /* Estilos para el botón */
 .right-column form button {
     background: var(--color-secundario); /* Azul del logo */
-    color: var(--color-principal);
+    color: var(--color-fondo);
     padding: 10px;
     border: none;
     border-radius: 5px;

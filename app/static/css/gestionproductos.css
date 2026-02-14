@@ -1,23 +1,13 @@
-/* Variables de color */
-:root {
-    --color-primario:#122C94;
-    --color-secundario: #091C5A;
-    --color-exito: #28a745;
-    --hover-exito: #218838;
-    --negro:#010101;
-    --gris-texto: #555;
-    --gris-borde: #BDC3C7;
-    --blanco:#f9f9f9;
-}
+@import url('variables.css');
 
 /* Estilos generales */
 main {
     max-width: 100%;
-    background-color: var(--blanco);
+    background-color: var(--color-fondo);
     margin-bottom: 2%;
 }
 main h2{
-    color:var(--negro)
+    color:var(--color-negro)
 }
 
 /* Submenú */
@@ -50,18 +40,18 @@ main h2{
     margin-top: 10%;
     padding: 10px 20px;
     background-color: var(--color-primario);
-    color: var(--blanco);
+    color: var(--color-fondo);
     border-radius: 5px;
     transition: background-color 0.3s ease;
     display: inline-block;
 }
 
 .Submenunavegacion a:hover {
-    background-color: var(--color-secundario);
+    background-color: var(--color-primario-oscuro);
 }
 
 .Submenunavegacion a.active {
-    background-color: var(--color-secundario);
+    background-color: var(--color-primario-oscuro);
 }
 
 /* Media Queries para móviles */
@@ -101,7 +91,7 @@ main h2{
     width: 80%;
     max-width: 800px;
     padding: 5%;
-    background-color: var(--blanco);
+    background-color: var(--color-fondo);
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     border-radius: 8px;
     display: flex; 
@@ -129,7 +119,7 @@ main h2{
     display: block;
     margin-bottom: 5px;
     font-weight: bold;
-    color: var(--gris-texto);
+    color: var(--color-gris-texto);
 }
 
 .form-group input[type="text"],
@@ -139,7 +129,7 @@ main h2{
 .form-group textarea {
     width: 100%;
     padding: 10px;
-    border: 1px solid var(--gris-borde);
+    border: 1px solid var(--color-gris-borde);
     border-radius: 5px;
     font-size: 16px;
     box-sizing: border-box;
@@ -152,7 +142,7 @@ main h2{
 
 .form-group button {
     background-color: var(--color-exito);
-    color: var(--blanco);
+    color: var(--color-fondo);
     padding: 12px 20px;
     border: none;
     border-radius: 5px;
@@ -164,7 +154,7 @@ main h2{
 }
 
 .form-group button:hover {
-    background-color: var(--hover-exito);
+    background-color: var(--color-exito-hover);
 }
 
 /* Estilos para el formulario - Versión móvil corregida */

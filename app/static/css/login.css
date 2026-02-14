@@ -1,3 +1,4 @@
+@import url('variables.css');
 
 body  { background: linear-gradient(135deg, var(--color-secundario),var(--color-transicion) );}
 /* Contenedor del formulario */
@@ -60,7 +61,7 @@ input:focus {
 /* Botón */
 button {
     background: var(--color-secundario);
-    color: var(--color-principal);
+    color: var(--color-fondo);
     padding: 14px;
     border: none;
     border-radius: 8px;

@@ -1,15 +1,8 @@
+@import url('variables.css');
+
 /* =========================================================
    1. VARIABLES GLOBALES Y RESET
    ========================================================= */
-:root {
-    --color-principal: #f9f9f9;  
-    --color-secundario: #0e1b33; 
-    --color-gris: #9b9b9b;
-    --color-negro: #000000;
-    --color-transicion: #2a4d69;
-    --color-red: red;
-    --color-verde: #28a745;
-}
 
 * {
     box-sizing: border-box;
@@ -25,21 +18,21 @@
 
 .logo_main {
     padding-top: 100px; height: 110px; position: static; padding: 5px;
-    background: linear-gradient(45deg, var(--color-principal), var(--color-secundario));
+    background: linear-gradient(45deg, var(--color-fondo), var(--color-secundario));
     color: var(--color-secundario); cursor: default; z-index: 10; 
 }
 
-.link { text-decoration: none; color: var(--color-principal); font-family: 'Cooper Black', serif; }
+.link { text-decoration: none; color: var(--color-fondo); font-family: 'Cooper Black', serif; }
 
 .logo_small {
     display: inline-block; font-size: 18px; padding: 3px 5px; margin-right: 30px;
-    color: var(--color-principal); background-color: var(--color-gris); 
+    color: var(--color-fondo); background-color: var(--color-gris); 
     border-radius: 6px; cursor: pointer; z-index: 11; 
     box-shadow: 0px 4px 6px var(--color-negro); transition: all 0.3s ease; 
 }
 
 .logo_small:hover {
-    color: var(--color-principal); background-color: #0e1b33; 
+    color: var(--color-fondo); background-color: #0e1b33; 
     transform: scale(1.2); box-shadow: 0px 6px 6px var(--color-negro); 
 }
 
@@ -50,7 +43,7 @@
    ========================================================= */
 .nav {
     z-index: 10000 !important; float: left; width: 100%;
-    background: var(--color-negro); color: var(--color-principal);
+    background: var(--color-negro); color: var(--color-fondo);
     padding: 0 20px; transition: .3s ease all;
     backface-visibility: hidden;
     transform: translate3d(0, 0, 0); -webkit-transform: translate3d(0, 0, 0);
@@ -64,31 +57,31 @@ nav li { margin: 0; padding: 0; display: inline-block; }
 
 nav a {
     display: block; padding: 20px; margin: 0;
-    color: var(--color-principal); text-decoration: none; transition: 0.2s ease all;
+    color: var(--color-fondo); text-decoration: none; transition: 0.2s ease all;
 }
 
-nav a:hover { color: var(--color-principal); background: #0e1b33; }
+nav a:hover { color: var(--color-fondo); background: #0e1b33; }
 
 body.nav_fixed .nav { position: fixed; top: 0; }
 body.nav_fixed .nav .wrap { left: 0; }
 
-.main { background: var(--color-principal); padding: 80px; z-index: 5; }
+.main { background: var(--color-fondo); padding: 80px; z-index: 5; }
 header { z-index: 10000 !important; position: relative; }
 
 /* =========================================================
    4. FOOTER
    ========================================================= */
-.footer { width: 100%; background-color: var(--color-secundario); color: var(--color-principal); text-align: center; padding: 20px; }
+.footer { width: 100%; background-color: var(--color-secundario); color: var(--color-fondo); text-align: center; padding: 20px; }
 .footer-content h3 { font-size: 1.8rem; font-weight: 400; text-transform: capitalize; line-height: 3rem; }
 .footer-content p { max-width: 500px; margin: 0 auto; line-height: 28px; font-size: 14px; }
 .socials { list-style: none; display: flex; align-items: center; justify-content: center; margin: 1rem 0 2rem 0; }
 .socials li { margin: 0 30px; }
-.socials a { text-decoration: none; color: var(--color-principal); }
+.socials a { text-decoration: none; color: var(--color-fondo); }
 .socials a i { font-size: 1.1rem; transition: color .4s ease; }
 .socials a:hover i { color: var(--color-secundario); }
 .footer-bottom { width: 100%; padding: 20px 0; text-align: center; }
-.footer-bottom p { font-size: 14px; word-spacing: 2px; color: var(--color-principal); margin-top: 10px; letter-spacing: 1px; }
-.empresa { font-size: 14px; word-spacing: 2px; color: var(--color-principal); margin-top: 10px; letter-spacing: 1px; }
+.footer-bottom p { font-size: 14px; word-spacing: 2px; color: var(--color-fondo); margin-top: 10px; letter-spacing: 1px; }
+.empresa { font-size: 14px; word-spacing: 2px; color: var(--color-fondo); margin-top: 10px; letter-spacing: 1px; }
 .empresa:hover { color: var(--color-secundario); }
 
 /* =========================================================
@@ -121,7 +114,7 @@ html { top: 0px !important; margin-top: 0px !important; }
    ========================================================= */
 .cart-badge {
     position: absolute; top: 5px; right: 5px;    
-    background-color: var(--color-red); color: white;
+    background-color: var(--color-eliminar); color: white;
     font-size: 0.7rem; font-weight: bold; padding: 2px 5px;
     border-radius: 50%; min-width: 18px; height: 18px;       
     line-height: 14px; text-align: center; display: none;      
@@ -142,7 +135,7 @@ html { top: 0px !important; margin-top: 0px !important; }
     display: none; /* No se ve en PC */
     width: 60px; height: 60px; padding: 22px; text-align: center;
     position: fixed; background: var(--color-secundario);
-    border-radius: 50%; color: var(--color-principal); cursor: pointer;
+    border-radius: 50%; color: var(--color-fondo); cursor: pointer;
     transition: all 500ms cubic-bezier(1, 0, 0, 1); z-index: 10060; 
 }
 .btn-menu:hover { transform: scale(1.2); background: var(--color-secundario); }
@@ -168,7 +161,7 @@ html { top: 0px !important; margin-top: 0px !important; }
 }
 .chat-button a {
     display: flex; align-items: center; padding: 10px 20px;
-    background-color: #25D366; color: var(--color-principal); text-decoration: none;
+    background-color: #25D366; color: var(--color-fondo); text-decoration: none;
     border-radius: 50px; box-shadow: 0px 4px 6px var(--color-negro); transition: transform 0.3s ease;
 }
 .chat-button img { width: 24px; height: 24px; margin-right: 10px; }
@@ -255,7 +248,7 @@ html { top: 0px !important; margin-top: 0px !important; }
         width: 55px !important; height: 55px !important; /* TAMAÑO UNIFORME */
         margin: 0 !important; padding: 0 !important;
         background: var(--color-secundario) !important;
-        border: 2px solid var(--color-principal) !important;
+        border: 2px solid var(--color-fondo) !important;
         border-radius: 50% !important;
         box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
         z-index: 10050 !important;
@@ -263,7 +256,7 @@ html { top: 0px !important; margin-top: 0px !important; }
     }
     #custom_translate_btn { position: absolute !important; width: 100% !important; height: 100% !important; opacity: 0.01 !important; }
     #google_translate_container::before { content: "🌐" !important; font-size: 24px !important; position: absolute !important; pointer-events: none !important; }
-    #custom_translate_btn option { color: var(--color-negro) !important; background: var(--color-principal) !important; }
+    #custom_translate_btn option { color: var(--color-negro) !important; background: var(--color-fondo) !important; }
 }
 
 /* =========================================================

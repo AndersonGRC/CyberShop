@@ -1,5 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700;800;900&display=swap');
-@import url('Variables\ de\ color.css');
+@import url('variables.css');
 
 .slider {
     position: relative;
@@ -44,7 +44,7 @@
 }
 
 .slider .slide .info h2 {
-    color: var(--color-principal);
+    color: var(--color-fondo);
     text-align: center;
     font-size: 45px;
     font-weight: 800;
@@ -52,12 +52,12 @@
 
 .slider .slide .info p {
     font-family: cursive;
-    color: var(--color-principal);
+    color: var(--color-fondo);
     font-size: 1em;
     font-weight: 400;
 }
 
-/* 🔹 Flechas de navegación */
+/* Flechas de navegación */
 .navigation {
     position: absolute;
     top: 50%;
@@ -70,7 +70,7 @@
     opacity: 0; /* En PC ocultas hasta hover */
     transition: opacity 0.5s ease;
     z-index: 13;
-    height: auto; /* ✅ antes tenía 500px y dañaba el centrado */
+    height: auto;
 }
 
 .slider:hover .navigation {
@@ -81,7 +81,7 @@
     z-index: 14;
     font-size: 2em;
     color: var(--color-secundario);
-    background: var(--color-principal);
+    background: var(--color-fondo);
     padding: 10px;
     cursor: pointer;
 }
@@ -96,13 +96,13 @@
     border-bottom-left-radius: 3px;
 }
 
-/* 🔹 Puntos de navegación */
+/* Puntos de navegación */
 .navigation-visibility {
     z-index: 16;
     display: flex;
     justify-content: center;
-    position: absolute; /* ✅ En PC dentro del slider */
-    bottom: 15px;       
+    position: absolute;
+    bottom: 15px;
     left: 0;
     right: 0;
     transform: none;
@@ -122,7 +122,7 @@
     background: var(--color-secundario);
 }
 
-/* ✅ En móviles los puntos bajan FUERA del slider */
+/* En móviles los puntos bajan FUERA del slider */
 @media (max-width: 768px) {
     .navigation-visibility {
         position: static;   /* Se salen del slider */
@@ -151,7 +151,7 @@
 .contact-form {
     width: 48%;
     margin-right: 1%;
-    background-color: var(--color-principal);
+    background-color: var(--color-fondo);
     padding: 30px;
     box-shadow: 0 4px 8px var(--color-secundario);
     border-radius: 8px;
@@ -182,19 +182,19 @@
     padding: 12px;
     margin-top: 8px;
     border-radius: 5px;
-    border: 1px solid var(--color-principal);
+    border: 1px solid var(--color-fondo);
     font-size: 16px;
 }
 
 .contact-form input:focus, .contact-form textarea:focus {
     outline-color: var(--color-secundario)
-  
+
 }
 
 .contact-form button {
     padding: 10px 20px;
     background-color: var(--color-secundario);
-    color: var(--color-principal);
+    color: var(--color-fondo);
     border: none;
     border-radius: 5px;
     font-size: 16px;
@@ -222,14 +222,14 @@
 
 /* Estilos para la sección "Acerca de Nosotros" */
 .about-us {
-    background-color: var(--color-principal);
+    background-color: var(--color-fondo);
     padding: 15px 20px;
     margin-top: 20px;
 }
 
 .about-us-content {
     flex: 1;
-    background-color: var(--color-principal);
+    background-color: var(--color-fondo);
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0 4px 8px var(--color-secundario);
@@ -262,7 +262,7 @@
 
 .about-us-content:hover h2,
 .about-us-content:hover p {
-    color: var(--color-principal);
+    color: var(--color-fondo);
 }
 
 /* Estilos para la sección de Misión y Visión */
@@ -271,7 +271,7 @@
     justify-content: space-between;
     gap: 20px;
     padding: 15px 20px;
-    background-color: var(--color-principal);
+    background-color: var(--color-fondo);
     margin-bottom: 30px;
     transition: background-color 0.3s ease, color 0.3s ease;
 }
@@ -281,14 +281,14 @@
     transform: scale(1.05)
 }
 .mission:hover p, .vision:hover p{
-    color: var(--color-principal);
+    color: var(--color-fondo);
 }
 .mission:hover h2, .vision:hover h2{
-    color: var(--color-principal);
+    color: var(--color-fondo);
 }
 .mission, .vision {
     flex: 1;
-    background-color: var(--color-principal);
+    background-color: var(--color-fondo);
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0 4px 8px var(--color-secundario);
@@ -314,7 +314,7 @@
     }
 }
 
-/* 🔹 Ajustes responsive para el slider */
+/* Ajustes responsive para el slider */
 @media (max-width: 768px) {
     .slider {
         min-height: 250px;
@@ -327,7 +327,7 @@
     }
 
     .navigation {
-        opacity: 1 !important;   /* ✅ siempre visibles en móviles */
+        opacity: 1 !important;   /* siempre visibles en móviles */
         top: 50%;
         transform: translateY(-50%);
         padding: 0 10px;
@@ -377,4 +377,3 @@
         bottom: 10px;   /* los empuja hacia abajo */
     }
 }
-

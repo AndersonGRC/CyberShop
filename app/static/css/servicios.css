@@ -1,11 +1,4 @@
-:root {
-    --color-principal: #f9f9f9;  
-    --color-secundario: #0e1b33; 
-    --color-gris: #9b9b9b ;
-    --color-negro: #000000;
-    --color-transicion: #2a4d69;
-    --color-red:  red;
-  }
+@import url('variables.css');
 
 
 .servicios-titulo-seccion {
@@ -43,7 +36,7 @@
 
 .servicios-titulo-contenido h2 {
     font-size: 3rem; /* Tamaño del título */
-    color: var(--color-principal); /* Color del texto */
+    color: var(--color-fondo); /* Color del texto */
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5); /* Sombra para mejorar la legibilidad */
     text-transform: uppercase; /* Convertir texto a mayúsculas */
     font-weight: bold; /* Grosor de la fuente */
@@ -58,7 +51,7 @@
 }
 
 .servicio {
-    background: var(--color-principal);
+    background: var(--color-fondo);
     padding: 20px;
     border-radius: 10px;
     display: block;
@@ -96,10 +89,10 @@
     transform: translateY(-10px);
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
     background: linear-gradient(135deg, var(--color-secundario), var(--color-transicion));
-    color: var(--color-principal);
+    color: var(--color-fondo);
 }
 .servicio:hover .texto * {
-    color: var(--color-principal); /* Cambia este valor al color que desees */
+    color: var(--color-fondo); /* Cambia este valor al color que desees */
 }
 .servicio .icono {
     display: relative;
@@ -128,9 +121,9 @@
 }
 
 .modal-content {
-    background: var(--color-principal);
+    background: var(--color-fondo);
     padding: 20px;
-    background: var(--color-principal);
+    background: var(--color-fondo);
     padding: 25px;
     border-radius: 10px;
     width: 50%;
@@ -154,13 +147,13 @@
 }
 
 .close {
-    color: var(--color-red);
+    color: var(--color-eliminar);
     font-size: 50px;
     position: absolute;
     top: 10px;
     right: 15px;
     font-size: 24px;
-    color: var(--color-red);
+    color: var(--color-eliminar);
     cursor: pointer;
     float: right;
 }

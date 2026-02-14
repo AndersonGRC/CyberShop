@@ -1,12 +1,4 @@
-:root {
-    --color-primario:#122C94;
-    --color-secundario: #091C5A;
-    --color-gris: #f9f9f9;
-    --color-negro: #000000;
-    --color-transicion: #091C5A;
-    --color-red:  #ff0000;;
-    --color-verde: #28a745 ;
-  }
+@import url('variables.css');
 
 
 /* Contenedor principal */
@@ -44,13 +36,13 @@
 .producto p {
     margin: 0 0 15px;
     font-size: 18px;
-    color: var(--color-transicion);
+    color: var(--color-primario-oscuro);
     font-weight: bold;
 }
 
 .añadir-carrito {
-    background-color: var(--color-verde);
-    color: var(--color-principal);
+    background-color: var(--color-exito);
+    color: var(--color-fondo);
     border: none;
     padding: 10px 15px;
     border-radius: 5px;
@@ -58,16 +50,16 @@
 }
 
 .añadir-carrito:hover {
-    background-color: var(--color-verde);
+    background-color: var(--color-exito);
 }
 
 /* Carrito lateral */
 .carrito-lateral {
     z-index: 10;
     width: 300px;
-    background-color: var(--color-principal);
+    background-color: var(--color-fondo);
     padding: 20px;
-    border-left: 1px solid var(--color-principal);
+    border-left: 1px solid var(--color-fondo);
     box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
     position: relative; /* Cambiado a relativo */
     overflow-y: auto; /* Scroll si el contenido es muy largo */
@@ -86,7 +78,7 @@
     display: flex;
     justify-content: space-between;
     padding: 10px 0;
-    border-bottom: 1px solid var(--color-principal);
+    border-bottom: 1px solid var(--color-fondo);
 }
 
 
@@ -100,14 +92,14 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: var(--color-principal);
+    background-color: var(--color-fondo);
     justify-content: center;
     align-items: center;
     z-index: 1000;
 }
 
 .popup-contenido {
-    background-color: var(--color-principal);
+    background-color: var(--color-fondo);
     padding: 20px;
     border-radius: 8px;
     width: 400px; /* Ajusta el ancho según sea necesario */
@@ -124,7 +116,7 @@
 }
 
 .cerrar-popup:hover {
-    color: var(--color-red);
+    color: var(--color-eliminar);
 }
 
 #popup-imagen {
@@ -134,14 +126,14 @@
 }
 
 .cerrar-popup:hover {
-    color: var(--color-red);
+    color: var(--color-eliminar);
 }
 
 
 /* Estilos para el botón "Ver Detalles" */
 .ver-descripcion {
-    background-color: var(--color-transicion); /* Color azul moderno */
-    color: var(--color-principal);
+    background-color: var(--color-primario-oscuro); /* Color azul moderno */
+    color: var(--color-fondo);
     border: none;
     padding: 10px 15px;
     border-radius: 25px; /* Bordes redondeados */
@@ -156,7 +148,7 @@
 }
 
 .ver-descripcion:hover {
-    background-color: var(--color-transicion); /* Color azul más oscuro al pasar el mouse */
+    background-color: var(--color-primario-oscuro); /* Color azul más oscuro al pasar el mouse */
     transform: translateY(-2px); /* Efecto de levitación */
     box-shadow: 0 6px 8px var(--color-negro);
 }
@@ -195,7 +187,7 @@
 }
 
 .popup-contenido {
-    background-color: var(--color-principal);
+    background-color: var(--color-fondo);
     padding: 25px;
     border-radius: 15px;
     width: 90%;
@@ -225,12 +217,12 @@
     right: 15px;
     font-size: 24px;
     cursor: pointer;
-    color: var(--color-gris);
+    color: var(--color-fondo);
     transition: color 0.3s ease;
 }
 
 .cerrar-popup:hover {
-    color: var(--color-red); /* Color rojo al pasar el mouse */
+    color: var(--color-eliminar); /* Color rojo al pasar el mouse */
 }
 
 #popup-imagen {
@@ -262,7 +254,7 @@
 #popup-precio {
     font-size: 20px;
     font-weight: bold;
-    color: var(--color-transicion); /* Color azul para el precio */
+    color: var(--color-primario-oscuro); /* Color azul para el precio */
 }
 
 /* Estilos para los textos dentro del pop-up */
@@ -271,14 +263,14 @@
 }
 
 .popup-contenido p strong {
-    color: var(--color-transicion);
+    color: var(--color-primario-oscuro);
     font-weight: bold;
 }
 
 
 /* Estilos para ambos botones del carrito */
 #vaciar-carrito, #pagar-carrito {
-    background-color: var(--color-red);
+    background-color: var(--color-eliminar);
     color: white;
     border: none;
     padding: 12px 20px;
@@ -294,7 +286,7 @@
 
 /* Color específico para el botón de pagar */
 #pagar-carrito {
-    background-color: var(--color-verde);
+    background-color: var(--color-exito);
     margin-top: 15px; /* Un poco más de separación */
 }
 
@@ -364,4 +356,3 @@
     justify-content: space-between;
     width: 100%;
 }
-

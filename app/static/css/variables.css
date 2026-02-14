@@ -1,0 +1,31 @@
+:root {
+  /* Blues */
+  --color-primario: #122C94;
+  --color-primario-oscuro: #091C5A;
+  --color-secundario: #0e1b33;
+  --color-transicion: #2a4d69;
+  --color-botones: #1F3A93;
+
+  /* Neutrals */
+  --color-fondo: #f9f9f9;
+  --color-fondo-form: #f8f9fc;
+  --color-blanco: #ffffff;
+  --color-gris: #9b9b9b;
+  --color-gris-texto: #5a5c69;
+  --color-gris-borde: #e3e6f0;
+  --color-gris-claro: #f1f1f1;
+  --color-negro: #000000;
+
+  /* Success / Danger / Warning */
+  --color-exito: #28a745;
+  --color-exito-hover: #218838;
+  --color-peligro: #dc3545;
+  --color-peligro-hover: #c82333;
+  --color-eliminar: #ff0000;
+  --color-warning: #ffc107;
+
+  /* Brand */
+  --color-hover-menu: #fb8500;
+  --color-accent: #e60023;
+  --color-whatsapp: #25D366;
+}

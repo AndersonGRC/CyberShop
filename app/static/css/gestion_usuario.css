@@ -1,15 +1,4 @@
-:root {
-    --color-principal:#122C94;
-    --color-principal-hover: #091C5A;
-    --color-exito: #28a745;
-    --color-peligro: #ff0000;
-    --color-fondo-general: #f9f9f9;
-    --color-tarjeta: #ffffff;
-    --color-texto-principal: #343a40;
-    --color-texto-blanco: #f9f9f9;
-    --color-tabla-header: #122C94;
-    --color-hover-fila: #dedede;
-}
+@import url('variables.css');
 
 
 h1 {
@@ -20,7 +9,7 @@ h1 {
 }
 
 a.btn-primary {
-    background-color: var(--color-principal);
+    background-color: var(--color-primario);
     border: none;
     border-radius: 0.5rem;
     font-weight: 500;
@@ -31,7 +20,7 @@ a.btn-primary {
 }
 
 a.btn-primary:hover {
-    background-color: var(--color-principal-hover);
+    background-color: var(--color-primario-oscuro);
     color: #fff;
 }
 
@@ -42,27 +31,27 @@ a.btn-primary:hover {
 }
 
 .table thead th {
-    background-color: var(--color-tabla-header);
+    background-color: var(--color-primario);
     font-weight: bold;
     text-align: center;
-    color: var(--color-texto-blanco);
+    color: var(--color-fondo);
 }
 
 .table td, .table th {
     text-align: center;
     vertical-align: middle !important;
     padding: 0.75rem;
-    color: var(--color-texto-principal);
+    color: var(--color-negro);
 }
 .table tbody tr:hover {
-    background-color: var(--color-hover-fila);
+    background-color: var(--color-gris-claro);
 }
 
 .card {
     border: none;
     border-radius: 0.5rem;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
-    background-color: var(--color-tarjeta);
+    background-color: var(--color-blanco);
     margin-top: 5%;
 }
 
@@ -72,20 +61,20 @@ a.btn-primary:hover {
     font-weight: bold;
     padding: 0.4rem 0.8rem;
     border-radius: 2rem;
-    color: var(--color-texto-blanco);
+    color: var(--color-fondo);
 }
 
 .badge-danger {
-    background-color: var(--color-peligro);
+    background-color: var(--color-eliminar);
     font-size: 0.95rem;
     padding: 0.4rem 0.8rem;
     border-radius: 2rem;
-    color: var(--color-texto-blanco);
+    color: var(--color-fondo);
     font-size: 0.95rem;
     font-weight: bold;
 }
 a.btn-sm.btn-primary {
-    background-color: var(--color-principal);
+    background-color: var(--color-primario);
     border-radius: 0.4rem;
     padding: 0.4rem 0.6rem;
     color: white;
@@ -93,7 +82,7 @@ a.btn-sm.btn-primary {
 }
 
 a.btn-sm.btn-primary:hover {
-    background-color: var(--color-principal-hover);
+    background-color: var(--color-primario-oscuro);
     color: white;
 }
 
@@ -101,38 +90,38 @@ a.btn-sm.btn-primary:hover {
     .container-fluid {
         padding: 0 15px;
     }
-    
+
     .h3.mb-4.text-gray-800 {
         font-size: 1.5rem;
         text-align: center;
     }
-    
+
     .btn.btn-primary.mb-4 {
         width: 100%;
         margin-bottom: 1.5rem !important;
     }
-    
+
     /* Transformación de la tabla */
     .table-responsive {
         overflow: hidden;
     }
-    
+
     #dataTable {
         border: 0;
         padding: 15px;
     }
-    
+
     #dataTable thead {
         display: none;
     }
-    
+
     #dataTable tr {
         display: block;
         margin-bottom: 1.5rem;
-        border: 2px solid var(--color-principal);
+        border: 2px solid var(--color-primario);
         border-radius: 0.35rem;
     }
-    
+
     #dataTable td {
         display: block;
         text-align: right;
@@ -141,13 +130,13 @@ a.btn-sm.btn-primary:hover {
         border-bottom: 1px solid #e3e6f0;
         word-break: break-all;
     }
-    
+
     #dataTable td:last-child {
         border-bottom: 0;
         text-align: center;
         padding-left: 0;
     }
-    
+
     /* Generación de labels dinámicos */
     #dataTable td:nth-of-type(1):before { content: "ID"; }
     #dataTable td:nth-of-type(2):before { content: "Nombre"; }
@@ -166,7 +155,7 @@ a.btn-sm.btn-primary:hover {
         text-align: left;
         white-space: nowrap;
     }
-    
+
     /* Ajustes para DataTables */
     .dataTables_wrapper .dataTables_info,
     .dataTables_wrapper .dataTables_paginate {
@@ -174,7 +163,7 @@ a.btn-sm.btn-primary:hover {
         text-align: center;
         margin-top: 10px;
     }
-    
+
     /* Ajuste para badges */
     .badge {
         display: inline-block;
@@ -186,11 +175,11 @@ a.btn-sm.btn-primary:hover {
     #dataTable td {
         padding-left: 40%;
     }
-    
+
     #dataTable td::before {
         width: calc(40% - 15px);
     }
-    
+
     .btn-sm {
         padding: 0.25rem 0.5rem;
         font-size: 0.875rem;

@@ -1,15 +1,4 @@
-:root {
-    --color-primario: #4e73df;
-    --color-texto: #5a5c69;
-    --color-blanco: #ffffff;
-    --color-warning: #1F3A93;
-    --color-borde: #e3e6f0;
-    --color-fondo-form: #f8f9fc;
-    --color-success: #28a745;
-    --color-success-hover: #218838;
-    --color-danger: #dc3545;
-    --color-danger-hover: #c82333;
-}
+@import url('variables.css');
 
 /* Contenedor principal */
 .container-fluid {
@@ -25,7 +14,7 @@ h1.h3.mb-4.text-gray-800 {
     margin-bottom: 2rem;
     text-align: center;
     padding-bottom: 1rem;
-    border-bottom: 2px solid var(--color-borde);
+    border-bottom: 2px solid var(--color-gris-borde);
 }
 
 /* Tarjeta principal */
@@ -57,7 +46,7 @@ h1.h3.mb-4.text-gray-800 {
 
 .fa-user-circle.fa-5x {
     font-size: 10rem;
-    color: var(--color-borde);
+    color: var(--color-gris-borde);
     margin-bottom: 2rem;
 }
 
@@ -74,7 +63,7 @@ h1.h3.mb-4.text-gray-800 {
 
 .form-group label {
     font-weight: 600;
-    color: var(--color-texto);
+    color: var(--color-gris-texto);
     margin-bottom: 0.5rem;
     display: block;
 }
@@ -82,7 +71,7 @@ h1.h3.mb-4.text-gray-800 {
 .form-control,
 .form-select,
 textarea.form-control {
-    border: 2px solid var(--color-borde);
+    border: 2px solid var(--color-gris-borde);
     border-radius: 0.5rem;
     padding: 0.75rem 1rem;
     font-size: 1rem;
@@ -123,36 +112,36 @@ textarea.form-control:focus {
 
 /* Botón Guardar (Verde) */
 .btn-primary {
-    background-color: var(--color-success);
+    background-color: var(--color-exito);
     color: var(--color-blanco);
 }
 
 .btn-primary:hover {
-    background-color: var(--color-success-hover);
+    background-color: var(--color-exito-hover);
     color: var(--color-blanco);
 }
 
 /* Botón Cancelar (Rojo) */
 .btn-secondary {
-    background-color: var(--color-danger);
+    background-color: var(--color-peligro);
     color: var(--color-blanco);
     text-decoration: none;
 }
 
 .btn-secondary:hover {
-    background-color: var(--color-danger-hover);
+    background-color: var(--color-peligro-hover);
     color: var(--color-blanco);
 }
 
 /* Sección de cambio de contraseña */
 .card.border-warning {
-    border: 2px solid var(--color-warning);
+    border: 2px solid var(--color-botones);
     border-radius: 0.8rem;
     margin-top: 3rem;
 }
 
 .card-header.bg-warning {
-    background-color: var(--color-warning);
+    background-color: var(--color-botones);
     color: var(--color-blanco);
     font-weight: 700;
     padding: 1rem;
@@ -174,7 +163,7 @@ textarea.form-control:focus {
 
 /* Botón Actualizar Contraseña (Azul) */
 .btn-warning {
-    background-color: var(--color-warning);
+    background-color: var(--color-botones);
     color: var(--color-blanco);
 }
 
@@ -187,18 +176,18 @@ textarea.form-control:focus {
 hr.my-4 {
     margin: 2.5rem 0;
     border: 0;
-    border-top: 2px solid var(--color-borde);
+    border-top: 2px solid var(--color-gris-borde);
 }
 
 @media (max-width: 576px) {
     .card-body {
         padding: 1.25rem;
     }
-    
+
     .form-control,
     .form-select,
     textarea.form-control {
-        width: calc(100% - 1.6rem); 
+        width: calc(100% - 1.6rem);
         box-sizing: border-box;
         margin: 0 auto;
         display: block;
@@ -207,13 +196,13 @@ hr.my-4 {
         margin-left: -0.5rem;
         margin-right: -0.5rem;
     }
-    
-    .col-md-6, 
+
+    .col-md-6,
     .col-md-12 {
         padding-left: 0.5rem;
         padding-right: 0.5rem;
     }
-    
+
     .form-control-file {
         max-width: calc(100% - 0.3rem);
         margin: 0 auto;
@@ -222,6 +211,6 @@ hr.my-4 {
 }
 @media (max-width: 576px) {
     .btn-primary {
-        margin-bottom: 1rem !important; 
+        margin-bottom: 1rem !important;
     }
 }
