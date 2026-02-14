@@ -7,9 +7,9 @@
 {% block body %}
 <div class="Submenunavegacion">
         <ul>
-            <li class="Submenunavegacion"><a href="{{ url_for('GestionProductos') }}">Crear Producto</a></li>
-            <li class="Submenunavegacion"><a href="{{ url_for('editar_productos') }}">Editar Productos</a></li>
-            <li class="Submenunavegacion"><a href="{{ url_for('eliminar_productos') }}">Eliminar Productos</a></li>
+            <li class="Submenunavegacion"><a href="{{ url_for('admin.GestionProductos') }}">Crear Producto</a></li>
+            <li class="Submenunavegacion"><a href="{{ url_for('admin.editar_productos') }}">Editar Productos</a></li>
+            <li class="Submenunavegacion"><a href="{{ url_for('admin.eliminar_productos') }}">Eliminar Productos</a></li>
         </ul>
 </div>
 <main>
@@ -31,7 +31,7 @@
                 <td>{{ producto[2] }}</td>
                 <td>{{ producto[3] }}</td>
                 <td>
-                    <a href="{{ url_for('eliminar_producto', id=producto[0]) }}" class="btn-eliminar" onclick="return confirm('¿Estás seguro de que deseas eliminar este producto?')">Eliminar</a>
+                    <a href="{{ url_for('admin.eliminar_producto', id=producto[0]) }}" class="btn-eliminar" onclick="return confirm('¿Estás seguro de que deseas eliminar este producto?')">Eliminar</a>
                 </td>
             </tr>
             {% endfor %}

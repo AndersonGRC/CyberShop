@@ -1,19 +1,34 @@
-requests
-blinker==1.9.0
-click==8.1.8
-colorama==0.4.6
+# Framework principal
 Flask==3.1.0
-Flask-Bcrypt==1.0.1
-Flask-Mail==0.10.0
-Flask-Reuploaded==1.4.0
-Flask-Uploads==0.2.1
-itsdangerous==2.2.0
+Werkzeug==3.1.3
 Jinja2==3.1.5
 MarkupSafe==3.0.2
-psycopg2==2.9.10
-psycopg2-binary==2.9.10
-python-dotenv==1.1.0
-Werkzeug==3.1.3
+itsdangerous==2.2.0
+click==8.1.8
+blinker==1.9.0
+
+# Base de datos
+psycopg2-binary>=2.9.10
+
+# Autenticacion
+Flask-Bcrypt==1.0.1
 bcrypt==4.2.1
-urllib3
+
+# Email
+Flask-Mail==0.10.0
+
+# Uploads de imagenes
+Flask-Reuploaded==1.4.0
+
+# CORS
 flask_cors
+
+# HTTP requests (PayU API)
+requests
+urllib3
+
+# Variables de entorno
+python-dotenv==1.1.0
+
+# Utilidades
+colorama==0.4.6

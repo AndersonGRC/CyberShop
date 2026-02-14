@@ -1,3 +1,11 @@
+/**
+ * app.js — Comportamiento del sidebar en el panel de administracion.
+ *
+ * Maneja el toggle del menu lateral (hamburguesa) y la navegacion
+ * de submenus en dispositivos moviles con cierre automatico al
+ * hacer clic fuera del area de navegacion.
+ */
+
 // Toggle del menú principal
 document.querySelector('.btn-menu').addEventListener('click', () => {
     document.querySelector('header').classList.toggle('hidden');

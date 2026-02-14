@@ -12,7 +12,7 @@
     
     <div class="card shadow mb-4">
         <div class="card-body">
-            <form method="POST" action="{{ url_for('editar_usuario', id=usuario.id) }}" enctype="multipart/form-data">
+            <form method="POST" action="{{ url_for('admin.editar_usuario', id=usuario.id) }}" enctype="multipart/form-data">
                 <div class="row">
                     <div class="col-md-6">
                         <!-- Sección de imagen -->
@@ -82,7 +82,7 @@
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-save"></i> Guardar Cambios
                     </button>
-                    <a href="{{ url_for('gestion_usuarios') }}" class="btn btn-secondary">
+                    <a href="{{ url_for('admin.gestion_usuarios') }}" class="btn btn-secondary">
                         <i class="fas fa-times"></i> Cancelar
                     </a>
                 </div>
@@ -97,7 +97,7 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="{{ url_for('cambiar_password', id=usuario.id) }}">
+                    <form method="POST" action="{{ url_for('admin.cambiar_password', id=usuario.id) }}">
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">

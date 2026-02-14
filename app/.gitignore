@@ -1,64 +1,93 @@
+# =============================================
 # Entorno virtual
+# =============================================
 venv/
 env/
+.venv/
 
-# Hidden de imagenes admin plataforma
-media/
-user/
+# =============================================
+# Python cache y compilados
+# =============================================
+__pycache__/
+*.py[cod]
+*.pyo
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
 
-
-# Archivos de configuración sensible
+# =============================================
+# Archivos sensibles / credenciales
+# =============================================
+.env
 *.env
 *.key
 *.pem
 *.crt
 
-# Archivos de la base de datos
+# =============================================
+# Logs generados en ejecucion
+# =============================================
+*.log
+
+# =============================================
+# Base de datos local
+# =============================================
 *.sqlite3
 *.db
 *.sql
-
-# Archivos de Python
-__pycache__/
-*.py[cod]
-*.so
-*.egg-info/
-dist/
-build/
-
-# Archivos de IDE
-.vscode/
-.idea/
-
-# Archivos de sistema
-.DS_Store
-Thumbs.db
-
-# Logs y archivos temporales
-*.log
-*.tmp
-
-# Archivos de caché de pip
-.pip_cache/
-
-# Archivos de dependencias
-node_modules/
-bower_components/
-
-# Archivos de Flask
-instance/
-
-# Archivos de SQLAlchemy
-migrations/
-
-# Archivos de PostgreSQL
 *.pgdump
 *.pgrestore
 
-# Archivos de compilación
-*.mo
-*.pot
+# =============================================
+# Uploads de usuarios (contenido dinamico)
+# =============================================
+static/media/media/
+static/user/
 
-# Archivos de pruebas
+# =============================================
+# IDE / Editores
+# =============================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# =============================================
+# Claude Code (configuracion local)
+# =============================================
+.claude/
+
+# =============================================
+# Sistema operativo
+# =============================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =============================================
+# Node (por si se usa algun tooling JS)
+# =============================================
+node_modules/
+bower_components/
+
+# =============================================
+# Flask
+# =============================================
+instance/
+
+# =============================================
+# Testing / Coverage
+# =============================================
 .coverage
 htmlcov/
+.pytest_cache/
+
+# =============================================
+# Archivos temporales
+# =============================================
+*.tmp
+*.bak
+*.orig

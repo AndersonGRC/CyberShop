@@ -11,9 +11,9 @@
   <!-- Submenú para Crear, Editar y Eliminar productos -->
   <div class="Submenunavegacion">
     <ul>
-        <li class="Submenunavegacion"><a href="{{ url_for('GestionProductos') }}">Crear Producto</a></li>
-        <li class="Submenunavegacion"><a href="{{ url_for('editar_productos') }}">Editar Productos</a></li>
-        <li class="Submenunavegacion"><a href="{{ url_for('eliminar_productos') }}">Eliminar Productos</a></li>
+        <li class="Submenunavegacion"><a href="{{ url_for('admin.GestionProductos') }}">Crear Producto</a></li>
+        <li class="Submenunavegacion"><a href="{{ url_for('admin.editar_productos') }}">Editar Productos</a></li>
+        <li class="Submenunavegacion"><a href="{{ url_for('admin.eliminar_productos') }}">Eliminar Productos</a></li>
     </ul>
 </div>
 <main>
@@ -35,7 +35,7 @@
                     <td>{{ producto[2] }}</td>
                     <td>${{ producto[3] }}</td>
                     <td>
-                        <a href="{{ url_for('editar_producto', id=producto[0]) }}" class="btn-edit">Editar</a>
+                        <a href="{{ url_for('admin.editar_producto', id=producto[0]) }}" class="btn-edit">Editar</a>
                     </td>
                 </tr>
                 {% endfor %}

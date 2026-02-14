@@ -1,3 +1,15 @@
+/**
+ * layout.js — Comportamiento del header y slider de imagenes (paginas publicas).
+ *
+ * Secciones:
+ * 1. Menu hamburguesa desplegable (vanilla JS)
+ * 2. Header fijo al hacer scroll (jQuery)
+ * 3. Toggle de clase nav-toggle (jQuery)
+ * 4. Slider de imagenes con autoplay, controles prev/next y pause on hover
+ * 5. Componente de tarjeta interactiva 3D con Vue.js
+ *
+ * Dependencias: jQuery 3.3.1, Vue.js 2.x
+ */
 
 /*1. Botón de menú desplegable*/ 
 document.querySelector('.btn-menu').addEventListener('click', function () {

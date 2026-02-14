@@ -1,4 +1,15 @@
-// static/js/Shoppingcar.js
+/**
+ * Shoppingcar.js — Carrito de compras del lado del cliente.
+ *
+ * Gestiona todo el ciclo de vida del carrito usando localStorage:
+ * - Agregar/eliminar productos con animacion de vuelo
+ * - Control de cantidades (+/-)
+ * - Calculo de subtotales y total
+ * - Sincronizacion del badge en menu de escritorio, movil y boton flotante
+ * - Envio del carrito al backend para iniciar el flujo de pago
+ *
+ * Dependencias: SweetAlert2 (notificaciones), Font Awesome (iconos)
+ */
 
 // =============================================
 // VARIABLES GLOBALES

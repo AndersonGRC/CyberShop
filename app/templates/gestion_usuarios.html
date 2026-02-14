@@ -11,7 +11,7 @@
     <h1 class="h3 mb-4 text-gray-800">Gestión de Usuarios</h1>
     
     <!-- Botón modificado para redirigir a la página de creación -->
-    <a href="{{ url_for('crear_usuario') }}" class="btn btn-primary mb-4">
+    <a href="{{ url_for('admin.crear_usuario') }}" class="btn btn-primary mb-4">
         <i class="fas fa-plus"></i> Nuevo Usuario
     </a>
 
@@ -45,7 +45,7 @@
                             </td>
                             <td>{{ usuario.ultima_conexion.strftime('%Y-%m-%d %H:%M') if usuario.ultima_conexion else 'Nunca' }}</td>
                             <td>
-                                <a href="{{ url_for('editar_usuario', id=usuario.id) }}" class="btn btn-sm btn-primary">
+                                <a href="{{ url_for('admin.editar_usuario', id=usuario.id) }}" class="btn btn-sm btn-primary">
                                     <i class="fas fa-edit"></i>
                                 </a>
                             </td>

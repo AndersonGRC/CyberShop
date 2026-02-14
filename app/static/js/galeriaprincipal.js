@@ -1,3 +1,14 @@
+/**
+ * galeriaprincipal.js — Menu movil y slider de imagenes para paginas internas.
+ *
+ * Secciones:
+ * 1. Toggle del menu lateral en dispositivos moviles (jQuery)
+ * 2. Slider de imagenes con controles prev/next, autoplay cada 4s
+ *    y pause on hover
+ *
+ * Dependencias: jQuery 3.3.1
+ */
+
 /*1. Menu Lateral de celular*/
 
 // Agrega un evento 'click' al botón con la clase 'btn-menu'

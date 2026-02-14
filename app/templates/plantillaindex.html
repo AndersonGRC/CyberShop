@@ -23,7 +23,7 @@
          
         <div class="nav">
             <div class="wrap">
-                <div class="logo logo_small"><a class="link" href="{{ url_for('index') }}">CYBERSHOP</a></div>
+                <div class="logo logo_small"><a class="link" href="{{ url_for('public.index') }}">CYBERSHOP</a></div>
                 <nav>
                     {% if datosApp.longMenuAppindex > 0 %}
                     <ul>
@@ -32,7 +32,7 @@
                         {% endfor %}
 
                        <li>
-                            <a href="{{ url_for('ver_carrito') }}" id="menu-carrito-icon" style="position: relative; padding-right: 15px;">
+                            <a href="{{ url_for('public.ver_carrito') }}" id="menu-carrito-icon" style="position: relative; padding-right: 15px;">
                                 <i class="fas fa-shopping-cart" style="font-size: 1.2rem;"></i>
                                 <span id="badge-carrito" class="cart-badge">0</span>
                             </a>
@@ -147,7 +147,7 @@
 
 
 <div class="cart-floating-button">
-    <a href="{{ url_for('ver_carrito') }}">
+    <a href="{{ url_for('public.ver_carrito') }}">
         <i class="fas fa-shopping-cart"></i>
         <span id="badge-carrito-flotante" class="cart-badge">0</span>
     </a>

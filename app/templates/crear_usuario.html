@@ -13,7 +13,7 @@
         
         <div class="card shadow mb-4">
             <div class="card-body">
-                <form method="POST" action="{{ url_for('crear_usuario') }}" enctype="multipart/form-data">
+                <form method="POST" action="{{ url_for('admin.crear_usuario') }}" enctype="multipart/form-data">
                     <div class="row">
                         <!-- Columna izquierda -->
                         <div class="col-md-6">
@@ -89,7 +89,7 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-save"></i> Guardar Usuario
                         </button>
-                        <a href="{{ url_for('gestion_usuarios') }}" class="btn btn-secondary">
+                        <a href="{{ url_for('admin.gestion_usuarios') }}" class="btn btn-secondary">
                             <i class="fas fa-times"></i> Cancelar
                         </a>
                     </div>
