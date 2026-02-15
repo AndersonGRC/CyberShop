@@ -47,6 +47,20 @@ class Config:
     UPLOADED_USERIMAGES_DEST = os.path.join('static', 'user')
     UPLOADED_USERIMAGES_URL = '/static/user/'
 
+    # --- Colores de Marca (usados en PDFs y emails) ---
+    # xhtml2pdf no soporta CSS variables, asi que los colores del PDF
+    # se toman de aqui. Deben coincidir con variables.css.
+    BRAND_COLORS = {
+        'primario': '#122C94',
+        'primario_oscuro': '#091C5A',
+        'secundario': '#0e1b33',
+        'texto': '#333333',
+        'texto_claro': '#888888',
+        'fondo_claro': '#f9f9f9',
+        'exito': '#28a745',
+        'borde': '#000000',
+    }
+
 
 def verificar_configuracion_payu(app):
     """Valida que las claves PayU requeridas esten presentes en la config.

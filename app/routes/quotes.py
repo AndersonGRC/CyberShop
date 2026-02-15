@@ -190,7 +190,17 @@ def generar_cotizacion():
             'subtotal': formatear_moneda(total_subtotal),
             'descuento': formatear_moneda(total_descuentos),
             'iva': formatear_moneda(total_iva),
-            'logo': logo_url or url_for('static', filename='img/Logo.png', _external=True) 
+            'logo': logo_url or url_for('static', filename='img/Logo.png', _external=True),
+            'colores': app.config.get('BRAND_COLORS', {
+                'primario': '#122C94',
+                'primario_oscuro': '#091C5A',
+                'secundario': '#0e1b33',
+                'texto': '#333333',
+                'texto_claro': '#888888',
+                'fondo_claro': '#f9f9f9',
+                'exito': '#28a745',
+                'borde': '#000000',
+            })
         }
         
         rendered_html = render_template('pdf_quote.html', **datos_pdf)
