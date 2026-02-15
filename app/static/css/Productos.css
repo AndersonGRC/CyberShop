@@ -170,7 +170,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.8); /* Fondo oscuro semi-transparente */
+    background-color: var(--overlay-oscuro); /* Fondo oscuro semi-transparente */
     justify-content: center;
     align-items: center;
     z-index: 1000;
@@ -303,12 +303,12 @@
 
 /* Color hover específico para vaciar carrito */
 #vaciar-carrito:hover {
-    background-color: #c82333; /* Rojo más oscuro */
+    background-color: var(--color-peligro-hover);
 }
 
 /* Color hover específico para pagar */
 #pagar-carrito:hover {
-    background-color: #218838; /* Verde más oscuro */
+    background-color: var(--color-exito-hover);
 }
 
 /* Estilos para los controles de cantidad */
@@ -324,7 +324,7 @@
     height: 25px;
     border: none;
     border-radius: 4px;
-    background-color: #f0f0f0;
+    background-color: var(--color-gris-claro);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -333,7 +333,7 @@
 }
 
 .item-controls button:hover {
-    background-color: #e0e0e0;
+    background-color: var(--color-borde);
 }
 
 .item-controls .cantidad {
@@ -343,7 +343,7 @@
 
 .item-controls .eliminar-item {
     background-color: #ffebee;
-    color: #c62828;
+    color: var(--color-peligro-hover);
     margin-left: 10px;
 }
 

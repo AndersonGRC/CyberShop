@@ -34,7 +34,7 @@
     padding: 3px 5px; /* Espaciado más equilibrado */
     margin-right: 30px;
     color: var(--color-fondo); /* Mantiene el color principal */
-    background-color: #4A4A4A; /* Fondo contrastante */
+    background-color: var(--color-gris-oscuro);
     border-radius: 6px; /* Bordes redondeados */
     cursor: pointer;
     z-index: 11; /* Mantiene el logo por encima de otros elementos */

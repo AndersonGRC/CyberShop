@@ -32,7 +32,7 @@
 }
 
 .logo_small:hover {
-    color: var(--color-fondo); background-color: #0e1b33; 
+    color: var(--color-fondo); background-color: var(--color-secundario);
     transform: scale(1.2); box-shadow: 0px 6px 6px var(--color-negro); 
 }
 
@@ -60,7 +60,7 @@ nav a {
     color: var(--color-fondo); text-decoration: none; transition: 0.2s ease all;
 }
 
-nav a:hover { color: var(--color-fondo); background: #0e1b33; }
+nav a:hover { color: var(--color-fondo); background: var(--color-secundario); }
 
 body.nav_fixed .nav { position: fixed; top: 0; }
 body.nav_fixed .nav .wrap { left: 0; }
@@ -123,7 +123,7 @@ html { top: 0px !important; margin-top: 0px !important; }
 .cart-badge.bounce { animation: bounce 0.3s ease-in-out; }
 @keyframes bounce { 0% { transform: scale(1); } 50% { transform: scale(1.5); } 100% { transform: scale(1); } }
 @keyframes shake { 0% { transform: translateX(0); } 25% { transform: translateX(-5px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-5px); } 100% { transform: translateX(0); } }
-.btn-agregado { background-color: #28a745 !important; color: white !important; animation: shake 0.4s ease-in-out; pointer-events: none; }
+.btn-agregado { background-color: var(--color-exito) !important; color: white !important; animation: shake 0.4s ease-in-out; pointer-events: none; }
 .fly-img { position: fixed; z-index: 9999; border-radius: 50%; object-fit: cover; pointer-events: none; transition: all 0.8s cubic-bezier(0.19, 1, 0.22, 1); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
 
 /* =========================================================
@@ -161,7 +161,7 @@ html { top: 0px !important; margin-top: 0px !important; }
 }
 .chat-button a {
     display: flex; align-items: center; padding: 10px 20px;
-    background-color: #25D366; color: var(--color-fondo); text-decoration: none;
+    background-color: var(--color-whatsapp); color: var(--color-fondo); text-decoration: none;
     border-radius: 50px; box-shadow: 0px 4px 6px var(--color-negro); transition: transform 0.3s ease;
 }
 .chat-button img { width: 24px; height: 24px; margin-right: 10px; }

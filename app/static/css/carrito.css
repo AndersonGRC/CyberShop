@@ -155,7 +155,7 @@
     background-color: var(--color-exito);
 }
 .btn-pagar:hover {
-    background-color: #218838; /* Un verde un poco más oscuro */
+    background-color: var(--color-exito-hover);
     box-shadow: 0 4px 10px rgba(40, 167, 69, 0.3);
 }
 

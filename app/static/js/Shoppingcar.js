@@ -247,7 +247,7 @@ const actualizarCarrito = () => {
             if (cantidadEnCarrito >= stockMax) {
                 btnAgregar.disabled = true;
                 btnAgregar.textContent = 'Max. Alcanzado';
-                btnAgregar.style.backgroundColor = '#ccc';
+                btnAgregar.style.backgroundColor = 'var(--color-gris-deshabilitado)';
                 btnAgregar.style.cursor = 'not-allowed';
             } else {
                 btnAgregar.disabled = false;
