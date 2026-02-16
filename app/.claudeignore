@@ -1,0 +1,22 @@
+# Entornos
+venv
+__pycache__
+*.pyc
+
+# Static pesados
+static/media
+static/user
+static/cotizaciones/pdf
+
+# Node o cosas innecesarias
+node_modules
+
+# Logs
+*.log
+
+# Archivos grandes generados
+*.pdf
+
+# Git
+.git
+    

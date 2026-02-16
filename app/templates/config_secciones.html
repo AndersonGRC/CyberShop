@@ -98,11 +98,11 @@
         border-radius: 50%;
     }
 
-    input:checked + .slider-toggle {
+    input:checked+.slider-toggle {
         background-color: #28a745;
     }
 
-    input:checked + .slider-toggle:before {
+    input:checked+.slider-toggle:before {
         transform: translateX(24px);
     }
 
@@ -133,7 +133,8 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     {% for category, message in messages %}
-    <div style="padding:10px;margin-bottom:15px;border-radius:5px;background:{% if category == 'success' %}#d4edda{% elif category == 'error' %}#f8d7da{% else %}#fff3cd{% endif %};color:{% if category == 'success' %}#155724{% elif category == 'error' %}#721c24{% else %}#856404{% endif %}">
+    <div
+        style="padding:10px;margin-bottom:15px;border-radius:5px;background:{% if category == 'success' %}#d4edda{% elif category == 'error' %}#f8d7da{% else %}#fff3cd{% endif %};color:{% if category == 'success' %}#155724{% elif category == 'error' %}#721c24{% else %}#856404{% endif %}">
         {{ message }}
     </div>
     {% endfor %}
@@ -148,7 +149,7 @@
                 <span class="config-desc">{{ sec.descripcion or '' }}</span>
             </div>
             <label class="switch">
-                <input type="checkbox" name="{{ sec.clave }}" value="true" {% if sec.valor == 'true' %}checked{% endif %}>
+                <input type="checkbox" name="{{ sec.clave }}" value="true" {% if sec.valor=='true' %}checked{% endif %}>
                 <span class="slider-toggle"></span>
             </label>
         </div>

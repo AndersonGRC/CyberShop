@@ -98,9 +98,18 @@
         margin: 2px;
     }
 
-    .btn-editar { background-color: #ffc107; color: #333; }
-    .btn-eliminar { background-color: #dc3545; }
-    .btn-toggle { background-color: #17a2b8; }
+    .btn-editar {
+        background-color: #ffc107;
+        color: #333;
+    }
+
+    .btn-eliminar {
+        background-color: #dc3545;
+    }
+
+    .btn-toggle {
+        background-color: #17a2b8;
+    }
 
     /* Formulario */
     .form-pub {
@@ -175,16 +184,27 @@
     }
 
     @media (max-width: 768px) {
-        .pub-table, .pub-table thead, .pub-table tbody, .pub-table th, .pub-table td, .pub-table tr {
+
+        .pub-table,
+        .pub-table thead,
+        .pub-table tbody,
+        .pub-table th,
+        .pub-table td,
+        .pub-table tr {
             display: block;
         }
-        .pub-table thead { display: none; }
+
+        .pub-table thead {
+            display: none;
+        }
+
         .pub-table td {
             padding: 8px 15px;
             text-align: right;
             position: relative;
             padding-left: 50%;
         }
+
         .pub-table td::before {
             content: attr(data-label);
             position: absolute;
@@ -192,6 +212,7 @@
             font-weight: 600;
             text-align: left;
         }
+
         .pub-table tr {
             border-bottom: 2px solid #ddd;
             margin-bottom: 10px;
@@ -205,7 +226,8 @@
     <div class="pub-header">
         <h2><i class="fas fa-newspaper"></i> Publicaciones del Home</h2>
         {% if modo != 'crear' and modo != 'editar' %}
-        <a href="{{ url_for('admin.crear_publicacion') }}" class="btn-crear"><i class="fas fa-plus"></i> Nueva Publicacion</a>
+        <a href="{{ url_for('admin.crear_publicacion') }}" class="btn-crear"><i class="fas fa-plus"></i> Nueva
+            Publicacion</a>
         {% endif %}
     </div>
 
@@ -213,7 +235,8 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     {% for category, message in messages %}
-    <div style="padding:10px;margin-bottom:10px;border-radius:5px;background:{% if category == 'success' %}#d4edda{% elif category == 'error' %}#f8d7da{% else %}#fff3cd{% endif %};color:{% if category == 'success' %}#155724{% elif category == 'error' %}#721c24{% else %}#856404{% endif %}">
+    <div
+        style="padding:10px;margin-bottom:10px;border-radius:5px;background:{% if category == 'success' %}#d4edda{% elif category == 'error' %}#f8d7da{% else %}#fff3cd{% endif %};color:{% if category == 'success' %}#155724{% elif category == 'error' %}#721c24{% else %}#856404{% endif %}">
         {{ message }}
     </div>
     {% endfor %}
@@ -247,7 +270,8 @@
     {% if modo == 'editar' and publicacion %}
     <div class="form-pub">
         <h3><i class="fas fa-edit"></i> Editar Publicacion</h3>
-        <form method="POST" enctype="multipart/form-data" action="{{ url_for('admin.editar_publicacion', id=publicacion.id) }}">
+        <form method="POST" enctype="multipart/form-data"
+            action="{{ url_for('admin.editar_publicacion', id=publicacion.id) }}">
             <div class="form-group">
                 <label for="titulo">Titulo</label>
                 <input type="text" id="titulo" name="titulo" value="{{ publicacion.titulo }}" required maxlength="200">
@@ -260,7 +284,8 @@
                 <label for="imagen">Imagen (dejar vacio para mantener actual)</label>
                 <input type="file" id="imagen" name="imagen" accept="image/*">
                 {% if publicacion.imagen %}
-                <p style="margin-top:5px"><small>Actual:</small> <img src="{{ publicacion.imagen }}" style="width:100px;height:60px;object-fit:cover;border-radius:4px;vertical-align:middle"></p>
+                <p style="margin-top:5px"><small>Actual:</small> <img src="{{ publicacion.imagen }}"
+                        style="width:100px;height:60px;object-fit:cover;border-radius:4px;vertical-align:middle"></p>
                 {% endif %}
             </div>
             <button type="submit" class="btn-guardar"><i class="fas fa-save"></i> Actualizar</button>
@@ -304,13 +329,17 @@
                 </td>
                 <td data-label="Fecha">{{ pub.fecha_creacion.strftime('%Y-%m-%d') if pub.fecha_creacion else '-' }}</td>
                 <td data-label="Acciones">
-                    <a href="{{ url_for('admin.editar_publicacion', id=pub.id) }}" class="btn-accion btn-editar"><i class="fas fa-edit"></i></a>
-                    <form method="POST" action="{{ url_for('admin.toggle_publicacion', id=pub.id) }}" style="display:inline">
-                        <button type="submit" class="btn-accion btn-toggle" title="{% if pub.activo %}Desactivar{% else %}Activar{% endif %}">
+                    <a href="{{ url_for('admin.editar_publicacion', id=pub.id) }}" class="btn-accion btn-editar"><i
+                            class="fas fa-edit"></i></a>
+                    <form method="POST" action="{{ url_for('admin.toggle_publicacion', id=pub.id) }}"
+                        style="display:inline">
+                        <button type="submit" class="btn-accion btn-toggle"
+                            title="{% if pub.activo %}Desactivar{% else %}Activar{% endif %}">
                             <i class="fas fa-{% if pub.activo %}eye-slash{% else %}eye{% endif %}"></i>
                         </button>
                     </form>
-                    <form method="POST" action="{{ url_for('admin.eliminar_publicacion', id=pub.id) }}" style="display:inline" onsubmit="return confirm('Eliminar esta publicacion?')">
+                    <form method="POST" action="{{ url_for('admin.eliminar_publicacion', id=pub.id) }}"
+                        style="display:inline" onsubmit="return confirm('Eliminar esta publicacion?')">
                         <button type="submit" class="btn-accion btn-eliminar"><i class="fas fa-trash"></i></button>
                     </form>
                 </td>
