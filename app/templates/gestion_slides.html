@@ -98,9 +98,18 @@
         margin: 2px;
     }
 
-    .btn-editar { background-color: #ffc107; color: #333; }
-    .btn-eliminar { background-color: #dc3545; }
-    .btn-toggle { background-color: #17a2b8; }
+    .btn-editar {
+        background-color: #ffc107;
+        color: #333;
+    }
+
+    .btn-eliminar {
+        background-color: #dc3545;
+    }
+
+    .btn-toggle {
+        background-color: #17a2b8;
+    }
 
     /* Formulario */
     .form-slide {
@@ -184,16 +193,27 @@
     }
 
     @media (max-width: 768px) {
-        .slides-table, .slides-table thead, .slides-table tbody, .slides-table th, .slides-table td, .slides-table tr {
+
+        .slides-table,
+        .slides-table thead,
+        .slides-table tbody,
+        .slides-table th,
+        .slides-table td,
+        .slides-table tr {
             display: block;
         }
-        .slides-table thead { display: none; }
+
+        .slides-table thead {
+            display: none;
+        }
+
         .slides-table td {
             padding: 8px 15px;
             text-align: right;
             position: relative;
             padding-left: 50%;
         }
+
         .slides-table td::before {
             content: attr(data-label);
             position: absolute;
@@ -201,10 +221,12 @@
             font-weight: 600;
             text-align: left;
         }
+
         .slides-table tr {
             border-bottom: 2px solid #ddd;
             margin-bottom: 10px;
         }
+
         .form-row {
             flex-direction: column;
         }
@@ -225,7 +247,8 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     {% for category, message in messages %}
-    <div style="padding:10px;margin-bottom:10px;border-radius:5px;background:{% if category == 'success' %}#d4edda{% elif category == 'error' %}#f8d7da{% else %}#fff3cd{% endif %};color:{% if category == 'success' %}#155724{% elif category == 'error' %}#721c24{% else %}#856404{% endif %}">
+    <div
+        style="padding:10px;margin-bottom:10px;border-radius:5px;background:{% if category == 'success' %}#d4edda{% elif category == 'error' %}#f8d7da{% else %}#fff3cd{% endif %};color:{% if category == 'success' %}#155724{% elif category == 'error' %}#721c24{% else %}#856404{% endif %}">
         {{ message }}
     </div>
     {% endfor %}
@@ -270,7 +293,8 @@
                 <label for="imagen">Imagen (dejar vacio para mantener actual)</label>
                 <input type="file" id="imagen" name="imagen" accept="image/*">
                 {% if slide.imagen %}
-                <p style="margin-top:5px"><small>Actual:</small> <img src="{{ slide.imagen }}" style="width:150px;height:70px;object-fit:cover;border-radius:4px;vertical-align:middle"></p>
+                <p style="margin-top:5px"><small>Actual:</small> <img src="{{ slide.imagen }}"
+                        style="width:150px;height:70px;object-fit:cover;border-radius:4px;vertical-align:middle"></p>
                 {% endif %}
             </div>
             <div class="form-row">
@@ -322,13 +346,16 @@
                     {% endif %}
                 </td>
                 <td data-label="Acciones">
-                    <a href="{{ url_for('admin.editar_slide', id=s.id) }}" class="btn-accion btn-editar"><i class="fas fa-edit"></i></a>
+                    <a href="{{ url_for('admin.editar_slide', id=s.id) }}" class="btn-accion btn-editar"><i
+                            class="fas fa-edit"></i></a>
                     <form method="POST" action="{{ url_for('admin.toggle_slide', id=s.id) }}" style="display:inline">
-                        <button type="submit" class="btn-accion btn-toggle" title="{% if s.activo %}Desactivar{% else %}Activar{% endif %}">
+                        <button type="submit" class="btn-accion btn-toggle"
+                            title="{% if s.activo %}Desactivar{% else %}Activar{% endif %}">
                             <i class="fas fa-{% if s.activo %}eye-slash{% else %}eye{% endif %}"></i>
                         </button>
                     </form>
-                    <form method="POST" action="{{ url_for('admin.eliminar_slide', id=s.id) }}" style="display:inline" onsubmit="return confirm('Eliminar este slide?')">
+                    <form method="POST" action="{{ url_for('admin.eliminar_slide', id=s.id) }}" style="display:inline"
+                        onsubmit="return confirm('Eliminar este slide?')">
                         <button type="submit" class="btn-accion btn-eliminar"><i class="fas fa-trash"></i></button>
                     </form>
                 </td>

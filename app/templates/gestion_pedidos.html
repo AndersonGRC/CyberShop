@@ -41,56 +41,57 @@
             </thead>
             <tbody>
                 {% if pedidos %}
-                    {% for p in pedidos %}
-                    <tr class="pedido-row" data-estado="{{ p['estado_pago'] }}">
-                        
-                        <!-- REF (Incluye el ID de PayU) -->
-                        <td data-label="Referencia">
-                            <strong class="ref-texto">{{ p['referencia_pedido'] }}</strong>
-                            <div style="margin-top:5px; font-size:0.9em; color:#666;">
-                                <i class="far fa-clock"></i> {{ p['fecha_creacion'].strftime('%Y-%m-%d') }}
-                            </div>
-                            <!-- AQUI ESTÁ LA CORRECCIÓN: -->
-                            <div style="margin-top:2px; font-size:0.85em; color:#888;">
-                                ID: <strong>{{ p['id_transaccion_payu'] if p['id_transaccion_payu'] else '---' }}</strong>
-                            </div>
-                        </td>
-                        
-                        <!-- Cliente -->
-                        <td data-label="Cliente">
-                            <div class="contenido-celda">
-                                <strong style="color:#333;">{{ p['cliente_nombre'] }}</strong>
-                                <div class="dato-secundario">{{ p['cliente_documento'] }}</div>
-                            </div>
-                        </td>
-                        
-                        <!-- Total -->
-                        <td data-label="Total">
-                            <strong style="color:#0d1b54; font-size:1.2em;">${{ "{:,.0f}".format(p['monto_total']) }}</strong>
-                        </td>
-                        
-                        <!-- Estado -->
-                        <td data-label="Estado">
-                            <div style="text-align: right;">
-                                {% if p['estado_pago'] == 'APROBADO' %}
-                                    <span class="badge bg-aprobado">Aprobado</span>
-                                {% elif p['estado_pago'] == 'RECHAZADO' %}
-                                    <span class="badge bg-rechazado">Rechazado</span>
-                                {% else %}
-                                    <span class="badge bg-pendiente">{{ p['estado_pago'] }}</span>
-                                {% endif %}
-                                <div class="dato-secundario" style="margin-top:5px;">{{ p['metodo_pago'] or '---' }}</div>
-                            </div>
-                        </td>
+                {% for p in pedidos %}
+                <tr class="pedido-row" data-estado="{{ p['estado_pago'] }}">
 
-                        <!-- Envío -->
-                        <td data-label="Envío">
-                            {{ p['estado_envio'] }}
-                        </td>
+                    <!-- REF (Incluye el ID de PayU) -->
+                    <td data-label="Referencia">
+                        <strong class="ref-texto">{{ p['referencia_pedido'] }}</strong>
+                        <div style="margin-top:5px; font-size:0.9em; color:#666;">
+                            <i class="far fa-clock"></i> {{ p['fecha_creacion'].strftime('%Y-%m-%d') }}
+                        </div>
+                        <!-- AQUI ESTÁ LA CORRECCIÓN: -->
+                        <div style="margin-top:2px; font-size:0.85em; color:#888;">
+                            ID: <strong>{{ p['id_transaccion_payu'] if p['id_transaccion_payu'] else '---' }}</strong>
+                        </div>
+                    </td>
 
-                        <!-- Acciones -->
-                        <td data-label="Acciones">
-                            <button class="btn-icon btn-view" onclick="abrirModal(
+                    <!-- Cliente -->
+                    <td data-label="Cliente">
+                        <div class="contenido-celda">
+                            <strong style="color:#333;">{{ p['cliente_nombre'] }}</strong>
+                            <div class="dato-secundario">{{ p['cliente_documento'] }}</div>
+                        </div>
+                    </td>
+
+                    <!-- Total -->
+                    <td data-label="Total">
+                        <strong style="color:#0d1b54; font-size:1.2em;">${{ "{:,.0f}".format(p['monto_total'])
+                            }}</strong>
+                    </td>
+
+                    <!-- Estado -->
+                    <td data-label="Estado">
+                        <div style="text-align: right;">
+                            {% if p['estado_pago'] == 'APROBADO' %}
+                            <span class="badge bg-aprobado">Aprobado</span>
+                            {% elif p['estado_pago'] == 'RECHAZADO' %}
+                            <span class="badge bg-rechazado">Rechazado</span>
+                            {% else %}
+                            <span class="badge bg-pendiente">{{ p['estado_pago'] }}</span>
+                            {% endif %}
+                            <div class="dato-secundario" style="margin-top:5px;">{{ p['metodo_pago'] or '---' }}</div>
+                        </div>
+                    </td>
+
+                    <!-- Envío -->
+                    <td data-label="Envío">
+                        {{ p['estado_envio'] }}
+                    </td>
+
+                    <!-- Acciones -->
+                    <td data-label="Acciones">
+                        <button class="btn-icon btn-view" onclick="abrirModal(
                                 '{{ p['referencia_pedido'] }}', 
                                 '{{ p['detalles_compra']|safe }}', 
                                 '{{ p['direccion_envio'] }}',
@@ -98,14 +99,16 @@
                                 '{{ p['cliente_telefono'] }}'
                             )"><i class="fas fa-eye"></i></button>
 
-                            <a href="https://wa.me/57{{ p['cliente_telefono'] }}" target="_blank" class="btn-icon btn-wa">
-                                <i class="fab fa-whatsapp"></i>
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
+                        <a href="https://wa.me/57{{ p['cliente_telefono'] }}" target="_blank" class="btn-icon btn-wa">
+                            <i class="fab fa-whatsapp"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
                 {% else %}
-                    <tr><td colspan="6" style="text-align:center; padding:30px;">No hay pedidos.</td></tr>
+                <tr>
+                    <td colspan="6" style="text-align:center; padding:30px;">No hay pedidos.</td>
+                </tr>
                 {% endif %}
             </tbody>
         </table>
@@ -129,7 +132,8 @@
                 <p><strong>Ciudad:</strong> <span id="modalCiudad"></span></p>
                 <p><strong>Teléfono:</strong> <span id="modalTelefono"></span></p>
             </div>
-            <button onclick="cerrarModal()" style="width:100%; padding:12px; background:#0d1b54; color:white; border:none; border-radius:8px; margin-top:20px; font-weight:bold;">Cerrar</button>
+            <button onclick="cerrarModal()"
+                style="width:100%; padding:12px; background:#0d1b54; color:white; border:none; border-radius:8px; margin-top:20px; font-weight:bold;">Cerrar</button>
         </div>
     </div>
 </div>
@@ -145,19 +149,19 @@
         modal.style.display = 'flex';
     }
     function cerrarModal() { modal.style.display = 'none'; }
-    window.onclick = (e) => { if(e.target == modal) cerrarModal(); }
+    window.onclick = (e) => { if (e.target == modal) cerrarModal(); }
 
     function filtrar() {
         const txt = document.getElementById('busquedaInput').value.toLowerCase();
         const est = document.getElementById('estadoFilter').value;
-        
+
         document.querySelectorAll('.pedido-row').forEach(row => {
             const textoFila = row.innerText.toLowerCase();
             const estadoFila = row.getAttribute('data-estado');
-            
+
             const cumpleTexto = textoFila.includes(txt);
             const cumpleEstado = (est === 'TODOS') || (estadoFila === est);
-            
+
             if (cumpleTexto && cumpleEstado) {
                 row.style.display = ''; // Usamos vacío para que el CSS (block en móvil, table-row en escritorio) funcione
             } else {

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,57 +17,61 @@
     {% block LinkAdicional%} {% endblock%}
 
 </head>
-    <header>
-        <div class="logo logo_main"> 
-            <img id="logo" src="{{ url_for('static', filename='img/Logo.PNG') }}">
-        </div>
-         
-        <div class="nav">
-            <div class="wrap">
-                <div class="logo logo_small"><a class="link" href="{{ url_for('public.index') }}">CYBERSHOP</a></div>
-                <nav>
-                    {% if datosApp.longMenuAppindex > 0 %}
-                    <ul>
-                        {% for i in datosApp.MenuAppindex %}
-                        <li><a href="{{ url_for(i.url.split('#')[0]) }}{% if '#' in i.url %}#{{ i.url.split('#')[1] }}{% endif %}">{{ i.nombre }}</a></li>
-                        {% endfor %}
+<header>
+    <div class="logo logo_main">
+        <img id="logo" src="{{ url_for('static', filename='img/Logo.PNG') }}">
+    </div>
 
-                       {% if config_global.get('mostrar_modulo_ventas', true) %}
-                       <li>
-                            <a href="{{ url_for('public.ver_carrito') }}" id="menu-carrito-icon" style="position: relative; padding-right: 15px;">
-                                <i class="fas fa-shopping-cart" style="font-size: 1.2rem;"></i>
-                                <span id="badge-carrito" class="cart-badge">0</span>
-                            </a>
-                        </li>
-                        {% endif %}
-                     </ul>
-                 {% else %}
-                 <h2>NO HAY DATOS DEL APP</h2>
-                 {% endif %}
-                </nav>
-                <div id="google_translate_container">
-                    <select id="custom_translate_btn" onchange="translateLanguage(this.value)">
-                        <option value="">🌐 Selecciona idioma</option>
-                        <option value="es">🇪🇸 Español</option>
-                        <option value="en">🇺🇸 English</option>
-                        <option value="fr">🇫🇷 Français</option>
-                        <option value="de">🇩🇪 Deutsch</option>
-                        <option value="it">🇮🇹 Italiano</option>
-                        <option value="pt">🇧🇷 Português</option>
-                    </select>
-                </div>
-                <div id="google_translate_element" style="display:none;"></div>
+    <div class="nav">
+        <div class="wrap">
+            <div class="logo logo_small"><a class="link" href="{{ url_for('public.index') }}">CYBERSHOP</a></div>
+            <nav>
+                {% if datosApp.longMenuAppindex > 0 %}
+                <ul>
+                    {% for i in datosApp.MenuAppindex %}
+                    <li><a
+                            href="{{ url_for(i.url.split('#')[0]) }}{% if '#' in i.url %}#{{ i.url.split('#')[1] }}{% endif %}">{{
+                            i.nombre }}</a></li>
+                    {% endfor %}
+
+                    {% if config_global.get('mostrar_modulo_ventas', true) %}
+                    <li>
+                        <a href="{{ url_for('public.ver_carrito') }}" id="menu-carrito-icon"
+                            style="position: relative; padding-right: 15px;">
+                            <i class="fas fa-shopping-cart" style="font-size: 1.2rem;"></i>
+                            <span id="badge-carrito" class="cart-badge">0</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+                {% else %}
+                <h2>NO HAY DATOS DEL APP</h2>
+                {% endif %}
+            </nav>
+            <div id="google_translate_container">
+                <select id="custom_translate_btn" onchange="translateLanguage(this.value)">
+                    <option value="">🌐 Selecciona idioma</option>
+                    <option value="es">🇪🇸 Español</option>
+                    <option value="en">🇺🇸 English</option>
+                    <option value="fr">🇫🇷 Français</option>
+                    <option value="de">🇩🇪 Deutsch</option>
+                    <option value="it">🇮🇹 Italiano</option>
+                    <option value="pt">🇧🇷 Português</option>
+                </select>
             </div>
+            <div id="google_translate_element" style="display:none;"></div>
         </div>
-        <i class="fas fa-ellipsis-v btn-menu"></i>
-    </header>
+    </div>
+    <i class="fas fa-ellipsis-v btn-menu"></i>
+</header>
+
 <body>
 
-        {% block body %}
-        {% endblock %}
+    {% block body %}
+    {% endblock %}
 
 
-       
+
     <footer class="footer">
         <div class="footer-content">
             <h3>CyberShop Colombia</h3>
@@ -76,7 +81,8 @@
                 <li><a href="#"><i class="fa fa-twitter"></i></a></li>
                 <li><a href="mailto:cybershop.digitalsales@gmail.com"><i class="fa fa-google-plus"></i></a></li>
                 <li><a href="https://www.youtube.com/@codecraftershubs"><i class="fa fa-youtube"></i></a></li>
-                <li><a href="https://www.linkedin.com/in/andersonroatech/" target="_blank"><i class="fa fa-linkedin-square"></i></a></li>
+                <li><a href="https://www.linkedin.com/in/andersonroatech/" target="_blank"><i
+                            class="fa fa-linkedin-square"></i></a></li>
             </ul>
         </div>
         <div class="footer-bottom">
@@ -85,84 +91,85 @@
         </div>
     </footer>
 
-<script type="text/javascript">
-  function googleTranslateElementInit() {
-    new google.translate.TranslateElement(
-      {
-        pageLanguage: 'es',
-        autoDisplay: false
-      },
-      'google_translate_element'
-    );
-  }
+    <script type="text/javascript">
+        function googleTranslateElementInit() {
+            new google.translate.TranslateElement(
+                {
+                    pageLanguage: 'es',
+                    autoDisplay: false
+                },
+                'google_translate_element'
+            );
+        }
 
-  // Forzar traducción con el botón personalizado
-  function translateLanguage(lang) {
-    if (lang === '') return;
-    var selectField = document.querySelector("select.goog-te-combo");
-    if (selectField) {
-      selectField.value = lang;
-      selectField.dispatchEvent(new Event("change"));
-    }
-  }
-</script>
-<script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+        // Forzar traducción con el botón personalizado
+        function translateLanguage(lang) {
+            if (lang === '') return;
+            var selectField = document.querySelector("select.goog-te-combo");
+            if (selectField) {
+                selectField.value = lang;
+                selectField.dispatchEvent(new Event("change"));
+            }
+        }
+    </script>
+    <script type="text/javascript"
+        src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                {% for category, message in messages %}
-                    
-                    var tipoIcono = 'info';
-                    var titulo = 'Notificación';
-                    var cat = '{{ category }}';
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            {% for category, message in messages %}
 
-                    // Convertir categorías de Flask a tipos de SweetAlert
-                    if (cat === 'error' || cat === 'danger') {
-                        tipoIcono = 'error';
-                        titulo = '¡Ups!';
-                    } else if (cat === 'success') {
-                        tipoIcono = 'success';
-                        titulo = '¡Excelente!';
-                    } else if (cat === 'warning') {
-                        tipoIcono = 'warning';
-                        titulo = 'Atención';
-                    }
+            var tipoIcono = 'info';
+            var titulo = 'Notificación';
+            var cat = '{{ category }}';
 
-                    Swal.fire({
-                        title: titulo,
-                        text: '{{ message }}',
-                        icon: tipoIcono,
-                        confirmButtonColor: '#0d1b54', // Azul CyberShop
-                        confirmButtonText: 'Entendido',
-                        backdrop: `rgba(0,0,123,0.1)`
-                    });
+            // Convertir categorías de Flask a tipos de SweetAlert
+            if (cat === 'error' || cat === 'danger') {
+                tipoIcono = 'error';
+                titulo = '¡Ups!';
+            } else if (cat === 'success') {
+                tipoIcono = 'success';
+                titulo = '¡Excelente!';
+            } else if (cat === 'warning') {
+                tipoIcono = 'warning';
+                titulo = 'Atención';
+            }
 
-                {% endfor %}
+            Swal.fire({
+                title: titulo,
+                text: '{{ message }}',
+                icon: tipoIcono,
+                confirmButtonColor: '#0d1b54', // Azul CyberShop
+                confirmButtonText: 'Entendido',
+                backdrop: `rgba(0,0,123,0.1)`
             });
-        </script>
+
+            {% endfor %}
+        });
+    </script>
     {% endif %}
-{% endwith %}
+    {% endwith %}
 
 
-{% if config_global.get('mostrar_modulo_ventas', true) %}
-<div class="cart-floating-button">
-    <a href="{{ url_for('public.ver_carrito') }}">
-        <i class="fas fa-shopping-cart"></i>
-        <span id="badge-carrito-flotante" class="cart-badge">0</span>
-    </a>
-</div>
-{% endif %}
+    {% if config_global.get('mostrar_modulo_ventas', true) %}
+    <div class="cart-floating-button">
+        <a href="{{ url_for('public.ver_carrito') }}">
+            <i class="fas fa-shopping-cart"></i>
+            <span id="badge-carrito-flotante" class="cart-badge">0</span>
+        </a>
+    </div>
+    {% endif %}
 
-<div class="chat-button">
-    <a href="https://wa.me/573027974969" target="_blank">
-        <img src="https://cdn-icons-png.flaticon.com/512/3670/3670051.png" alt="Chat Icon">
-        <span>Chatea con nosotros</span>
-    </a>
-</div>
+    <div class="chat-button">
+        <a href="https://wa.me/573027974969" target="_blank">
+            <img src="https://cdn-icons-png.flaticon.com/512/3670/3670051.png" alt="Chat Icon">
+            <span>Chatea con nosotros</span>
+        </a>
+    </div>
 
 </body>
 
@@ -172,4 +179,5 @@
 {% if config_global.get('mostrar_modulo_ventas', true) %}
 <script src="{{ url_for('static', filename='js/Shoppingcar.js') }}"></script>
 {% endif %}
+
 </html>

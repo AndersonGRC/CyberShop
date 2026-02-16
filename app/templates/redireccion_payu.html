@@ -1,51 +1,65 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <title>Procesando pago...</title>
     <style>
-        body { 
-            font-family: sans-serif; 
-            text-align: center; 
-            padding-top: 100px; 
-            background-color: #f4f4f4; 
+        body {
+            font-family: sans-serif;
+            text-align: center;
+            padding-top: 100px;
+            background-color: #f4f4f4;
         }
-        .loader { 
-            border: 5px solid #f3f3f3; 
-            border-top: 5px solid #a6c438; /* Tu color verde */
-            border-radius: 50%; 
-            width: 50px; 
-            height: 50px; 
-            animation: spin 1s linear infinite; 
-            margin: 20px auto; 
+
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #a6c438;
+            /* Tu color verde */
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
     </style>
 </head>
+
 <body onload="document.getElementById('payuForm').submit()">
-    
+
     <h2>Conectando con PayU...</h2>
     <p>Por favor espera un momento, estamos transfiriendo tu pago de forma segura.</p>
     <div class="loader"></div>
 
     <form id="payuForm" method="post" action="{{ payu_url }}">
-        <input name="merchantId"    type="hidden"  value="{{ merchantId }}">
-        <input name="accountId"     type="hidden"  value="{{ accountId }}">
-        <input name="description"   type="hidden"  value="{{ description }}">
-        <input name="referenceCode" type="hidden"  value="{{ referenceCode }}">
-        <input name="amount"        type="hidden"  value="{{ amount }}">
-        <input name="tax"           type="hidden"  value="0">
-        <input name="taxReturnBase" type="hidden"  value="0">
-        <input name="currency"      type="hidden"  value="{{ currency }}">
-        <input name="signature"     type="hidden"  value="{{ signature }}">
-        <input name="test"          type="hidden"  value="{{ test }}">
-        
-        <input name="buyerEmail"    type="hidden"  value="{{ buyerEmail }}">
-        <input name="buyerFullName" type="hidden"  value="{{ buyerFullName }}">
-        
-        <input name="responseUrl"     type="hidden"  value="{{ responseUrl }}">
-        <input name="confirmationUrl" type="hidden"  value="{{ confirmationUrl }}">
+        <input name="merchantId" type="hidden" value="{{ merchantId }}">
+        <input name="accountId" type="hidden" value="{{ accountId }}">
+        <input name="description" type="hidden" value="{{ description }}">
+        <input name="referenceCode" type="hidden" value="{{ referenceCode }}">
+        <input name="amount" type="hidden" value="{{ amount }}">
+        <input name="tax" type="hidden" value="0">
+        <input name="taxReturnBase" type="hidden" value="0">
+        <input name="currency" type="hidden" value="{{ currency }}">
+        <input name="signature" type="hidden" value="{{ signature }}">
+        <input name="test" type="hidden" value="{{ test }}">
+
+        <input name="buyerEmail" type="hidden" value="{{ buyerEmail }}">
+        <input name="buyerFullName" type="hidden" value="{{ buyerFullName }}">
+
+        <input name="responseUrl" type="hidden" value="{{ responseUrl }}">
+        <input name="confirmationUrl" type="hidden" value="{{ confirmationUrl }}">
     </form>
 
 </body>
+
 </html>

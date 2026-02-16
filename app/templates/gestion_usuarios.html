@@ -9,7 +9,7 @@
 {% block body %}
 <div class="container-fluid">
     <h1 class="h3 mb-4 text-gray-800">Gestión de Usuarios</h1>
-    
+
     <!-- Botón modificado para redirigir a la página de creación -->
     <a href="{{ url_for('admin.crear_usuario') }}" class="btn btn-primary mb-4">
         <i class="fas fa-plus"></i> Nuevo Usuario
@@ -39,13 +39,16 @@
                             <td>{{ usuario.email }}</td>
                             <td>{{ usuario.rol_nombre }}</td>
                             <td>
-                                <span class="badge badge-{{ 'success' if usuario.estado == 'habilitado' else 'danger' }}">
+                                <span
+                                    class="badge badge-{{ 'success' if usuario.estado == 'habilitado' else 'danger' }}">
                                     {{ usuario.estado }}
                                 </span>
                             </td>
-                            <td>{{ usuario.ultima_conexion.strftime('%Y-%m-%d %H:%M') if usuario.ultima_conexion else 'Nunca' }}</td>
+                            <td>{{ usuario.ultima_conexion.strftime('%Y-%m-%d %H:%M') if usuario.ultima_conexion else
+                                'Nunca' }}</td>
                             <td>
-                                <a href="{{ url_for('admin.editar_usuario', id=usuario.id) }}" class="btn btn-sm btn-primary">
+                                <a href="{{ url_for('admin.editar_usuario', id=usuario.id) }}"
+                                    class="btn btn-sm btn-primary">
                                     <i class="fas fa-edit"></i>
                                 </a>
                             </td>
@@ -62,12 +65,12 @@
 {% block javascript %}
 <!-- Scripts adicionales si los necesitas -->
 <script>
-$(document).ready(function() {
-    $('#dataTable').DataTable({
-        "language": {
-            "url": "//cdn.datatables.net/plug-ins/1.10.20/i18n/Spanish.json"
-        }
+    $(document).ready(function () {
+        $('#dataTable').DataTable({
+            "language": {
+                "url": "//cdn.datatables.net/plug-ins/1.10.20/i18n/Spanish.json"
+            }
+        });
     });
-});
 </script>
 {% endblock %}

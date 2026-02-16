@@ -10,14 +10,14 @@
     <form id="loginForm" method="POST" action="{{ url_for('auth.login') }}">
         <label for="email">Correo electrónico:</label>
         <input type="email" id="email" name="email" required>
-        
+
         <label for="password">Contraseña:</label>
         <input type="password" id="password" name="password" required>
-    
+
         <button type="submit">Ingresar</button>
     </form>
-    
+
     <p>¿No tienes una cuenta? <a href="{{ url_for('auth.registrar_cliente') }}">Regístrate aquí</a>.</p>
 
-    </div>
+</div>
 {% endblock %}

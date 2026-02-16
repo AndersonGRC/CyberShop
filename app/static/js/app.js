@@ -19,7 +19,7 @@ if (window.matchMedia("(max-width: 768px)").matches) {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
                 item.classList.toggle('active');
-                
+
                 // Cerrar otros submenús
                 document.querySelectorAll('.nav ul li').forEach(otherItem => {
                     if (otherItem !== item) {

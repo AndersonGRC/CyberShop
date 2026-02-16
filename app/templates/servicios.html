@@ -21,7 +21,7 @@
 {# ---- Servicios dinamicos desde la BD ---- #}
 <section class="servicios">
     {% for s in servicios_db %}
-    <div class="servicio" {% if s.beneficios %}data-beneficios="{{ s.beneficios }}"{% endif %}>
+    <div class="servicio" {% if s.beneficios %}data-beneficios="{{ s.beneficios }}" {% endif %}>
         {% if s.imagen %}
         <div class="icono">
             <img src="{{ s.imagen }}" alt="{{ s.titulo }}">

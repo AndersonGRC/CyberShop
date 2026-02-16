@@ -12,7 +12,7 @@
 /*1. Menu Lateral de celular*/
 
 // Agrega un evento 'click' al botón con la clase 'btn-menu'
-$('.btn-menu').on('click', function() {
+$('.btn-menu').on('click', function () {
     // Alterna la clase 'nav-toggle' en el elemento con la clase 'nav'
     $('.nav').toggleClass('nav-toggle');
 });
@@ -71,7 +71,7 @@ var playSlider;
 
 // Función para activar el autoplay
 var repeater = () => {
-    playSlider = setInterval(function() {
+    playSlider = setInterval(function () {
         // Elimina la clase 'active' de todas las diapositivas
         slides.forEach((slide) => slide.classList.remove("active"));
         slideIcons.forEach((slideIcon) => slideIcon.classList.remove("active"));

@@ -3,7 +3,7 @@
 {% block titulo %}Estado de la Transacción{% endblock %}
 
 {% block LinkAdicional %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/respuesta _pago.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/respuesta _pago.css') }}">
 {% endblock %}
 
 {% block body %}
@@ -11,10 +11,11 @@
     <div class="ticket-card">
         <div class="brand-stripe"></div>
 
-        <div class="ticket-header {{ 'bg-success-custom' if datos.estado == 'APROBADO' else ('bg-danger-custom' if datos.estado == 'RECHAZADO' else 'bg-warning-custom') }}">
-            
+        <div
+            class="ticket-header {{ 'bg-success-custom' if datos.estado == 'APROBADO' else ('bg-danger-custom' if datos.estado == 'RECHAZADO' else 'bg-warning-custom') }}">
+
             <div class="ticket-icon">{{ datos.icono }}</div>
-            
+
             <h2 style="margin:0; font-size: 24px; font-weight: bold;">{{ datos.titulo }}</h2>
             <p style="margin:5px 0 0 0; font-size: 13px; opacity: 0.9;">COMPROBANTE DIGITAL</p>
         </div>
@@ -30,10 +31,11 @@
                 <span class="ticket-label">Referencia:</span>
                 <span class="ticket-value">{{ datos.referencia }}</span>
             </div>
-            
+
             <div class="ticket-row">
                 <span class="ticket-label">ID Transacción:</span>
-                <span class="ticket-value" style="font-size: 12px; font-family: monospace;">{{ datos.id if datos.id else '---' }}</span>
+                <span class="ticket-value" style="font-size: 12px; font-family: monospace;">{{ datos.id if datos.id else
+                    '---' }}</span>
             </div>
 
             <div class="ticket-row">
@@ -47,7 +49,8 @@
             </div>
 
             {% if datos.estado != 'APROBADO' %}
-            <div class="ticket-row" style="border-bottom: none; margin-top: 15px; background-color: #fff5f5; padding: 10px; border-radius: 5px;">
+            <div class="ticket-row"
+                style="border-bottom: none; margin-top: 15px; background-color: #fff5f5; padding: 10px; border-radius: 5px;">
                 <span class="ticket-label" style="color: #dc3545;">Motivo:</span>
                 <span class="ticket-value" style="color: #dc3545;">{{ datos.mensaje }}</span>
             </div>

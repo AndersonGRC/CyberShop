@@ -3,15 +3,15 @@
 {% block titulo %}Carrito de Compras | {{ datosApp.titulo }}{% endblock %}
 
 {% block LinkAdicional %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/Productos.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/carrito.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/Productos.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/carrito.css') }}">
 {% endblock %}
 
 {% block body %}
 <div class="container">
     <div class="carrito-container">
-       
-        
+
+
         <table class="tabla-carrito">
             <thead>
                 <tr>
@@ -23,13 +23,14 @@
                 </tr>
             </thead>
             <tbody id="lista-carrito-body">
-                </tbody>
+            </tbody>
         </table>
 
         <div id="mensaje-vacio" style="display: none; text-align: center; padding: 40px;">
             <p style="font-size: 1.2rem; color: #9b9b9b;text-align: center;">Tu carrito está vacío.</p>
             <br><br><br>
-            <a href="{{ url_for('public.productos') }}" class="btn-carrito btn-pagar" style="margin-top: 15px;">Ir a la Tienda</a>
+            <a href="{{ url_for('public.productos') }}" class="btn-carrito btn-pagar" style="margin-top: 15px;">Ir a la
+                Tienda</a>
         </div>
 
         <div class="total-container">

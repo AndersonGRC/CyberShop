@@ -10,7 +10,7 @@
 <div class="container-fluid">
     <div class="form-container">
         <h1 class="h3 mb-4 text-gray-800">Crear Nuevo Usuario</h1>
-        
+
         <div class="card shadow mb-4">
             <div class="card-body">
                 <form method="POST" action="{{ url_for('admin.crear_usuario') }}" enctype="multipart/form-data">
@@ -20,11 +20,12 @@
                             <!-- Sección de imagen -->
                             <div class="profile-pic-container">
                                 <div class="bg-light p-4 mb-3 text-center">
-                                <i class="fas fa-user-circle fa-5x text-muted"></i>
-                            </div>
-                              <!--  <img id="profile-pic-preview" src="" alt="Previsualización" class="img-thumbnail mb-3" style="max-width: 200px;"> -->
+                                    <i class="fas fa-user-circle fa-5x text-muted"></i>
+                                </div>
+                                <!--  <img id="profile-pic-preview" src="" alt="Previsualización" class="img-thumbnail mb-3" style="max-width: 200px;"> -->
                                 <div class="custom-file">
-                                    <input type="file" class="custom-file-input" id="fotografia" name="fotografia" accept="image/jpeg, image/png">
+                                    <input type="file" class="custom-file-input" id="fotografia" name="fotografia"
+                                        accept="image/jpeg, image/png">
                                     <label class="custom-file-label" for="fotografia">Seleccionar imagen</label>
                                     <small class="form-text text-muted">Formatos: JPG, PNG (Max. 2MB)</small>
                                 </div>
@@ -60,13 +61,15 @@
 
                             <div class="form-group">
                                 <label for="password" class="required-field">Contraseña</label>
-                                <input type="password" class="form-control" id="password" name="password" required minlength="8">
+                                <input type="password" class="form-control" id="password" name="password" required
+                                    minlength="8">
                                 <small class="form-text text-muted">Mínimo 8 caracteres</small>
                             </div>
 
                             <div class="form-group">
                                 <label for="confirm_password" class="required-field">Confirmar Contraseña</label>
-                                <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                                <input type="password" class="form-control" id="confirm_password"
+                                    name="confirm_password" required>
                             </div>
 
                             <div class="form-group">
@@ -102,29 +105,29 @@
 
 {% block javascript %}
 <script>
-// Previsualización de imagen
-document.getElementById('fotografia').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            document.getElementById('profile-pic-preview').src = event.target.result;
-        };
-        reader.readAsDataURL(file);
-        document.querySelector('.custom-file-label').textContent = file.name;
-    }
-});
+    // Previsualización de imagen
+    document.getElementById('fotografia').addEventListener('change', function (e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                document.getElementById('profile-pic-preview').src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+            document.querySelector('.custom-file-label').textContent = file.name;
+        }
+    });
 
-// Validación de contraseñas coincidentes
-document.querySelector('form').addEventListener('submit', function(e) {
-    const password = document.getElementById('password').value;
-    const confirmPassword = document.getElementById('confirm_password').value;
-    
-    if (password !== confirmPassword) {
-        e.preventDefault();
-        alert('Las contraseñas no coinciden');
-        document.getElementById('confirm_password').focus();
-    }
-});
+    // Validación de contraseñas coincidentes
+    document.querySelector('form').addEventListener('submit', function (e) {
+        const password = document.getElementById('password').value;
+        const confirmPassword = document.getElementById('confirm_password').value;
+
+        if (password !== confirmPassword) {
+            e.preventDefault();
+            alert('Las contraseñas no coinciden');
+            document.getElementById('confirm_password').focus();
+        }
+    });
 </script>
 {% endblock %}

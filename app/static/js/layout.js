@@ -11,7 +11,7 @@
  * Dependencias: jQuery 3.3.1, Vue.js 2.x
  */
 
-/*1. Botón de menú desplegable*/ 
+/*1. Botón de menú desplegable*/
 document.querySelector('.btn-menu').addEventListener('click', function () {
     const menu = document.querySelector('nav ul');
     menu.classList.toggle('open');
@@ -23,8 +23,8 @@ document.querySelector('.btn-menu').addEventListener('click', function () {
 
 var elementTop = $('.nav').offset().top;
 
-$(window).scroll(function(){
-    if( $(window).scrollTop() >= elementTop){
+$(window).scroll(function () {
+    if ($(window).scrollTop() >= elementTop) {
         $('body').addClass('nav_fixed');
     } else {
         $('body').removeClass('nav_fixed');
@@ -33,7 +33,7 @@ $(window).scroll(function(){
 /*3. Alternar clase del menú*/
 
 // Agrega un evento 'click' al botón con la clase 'btn-menu'
-$('.btn-menu').on('click', function() {
+$('.btn-menu').on('click', function () {
     // Alterna la clase 'nav-toggle' en el elemento con la clase 'nav'
     $('.nav').toggleClass('nav-toggle');
 });
@@ -93,7 +93,7 @@ var playSlider;
 
 // Función para activar el autoplay
 var repeater = () => {
-    playSlider = setInterval(function() {
+    playSlider = setInterval(function () {
         // Elimina la clase 'active' de todas las diapositivas
         slides.forEach((slide) => slide.classList.remove("active"));
         slideIcons.forEach((slideIcon) => slideIcon.classList.remove("active"));
@@ -154,10 +154,10 @@ Vue.component('card', {
             </div>
         </div>
     </div>`,
-    
+
     // Define las propiedades del componente
     props: ['dataImage'], // Recibe una imagen como propiedad externa
-    
+
     // Define el estado inicial del componente
     data: () => ({
         width: 0, // Ancho de la tarjeta
@@ -166,7 +166,7 @@ Vue.component('card', {
         mouseY: 0, // Posición Y del mouse
         mouseLeaveDelay: null // Temporizador para cuando el mouse sale de la tarjeta
     }),
-    
+
     // Computed properties: Calcula dinámicamente estilos y transformaciones
     computed: {
         mousePX() {
@@ -195,7 +195,7 @@ Vue.component('card', {
             };
         }
     },
-    
+
     // Métodos del componente
     methods: {
         handleMouseMove(e) {
@@ -214,7 +214,7 @@ Vue.component('card', {
             }, 1000); // 1 segundo de retraso
         }
     },
-    
+
     // Lifecycle hook: se ejecuta cuando el componente se monta
     mounted() {
         this.width = this.$refs.card.offsetWidth; // Calcula el ancho de la tarjeta

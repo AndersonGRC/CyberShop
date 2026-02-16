@@ -1,156 +1,171 @@
 {%extends './plantillaindex.html'%}
-{%block titulo%}{{datosApp.titulo}}{%endblock%}  
+{%block titulo%}{{datosApp.titulo}}{%endblock%}
 
-{% block LinkAdicional%} 
+{% block LinkAdicional%}
 <script type="text/javascript" src="{{ url_for('static', filename='js/galeriaprincipal.js') }}" defer></script>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}"> 
+<link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
 {% endblock%}
 
-{%block body%} 
+{%block body%}
 {% if slides|length > 0 %}
 <div class="slider">
+  {% for slide in slides %}
+  <div class="slide {% if loop.first %}active{% endif %}">
+    <img src="{{ slide.imagen }}">
+    {% if slide.titulo %}
+    <div class="info">
+      <br>
+      <h2>{{ slide.titulo }}</h2>
+      <br>
+      {% if slide.descripcion %}<p>{{ slide.descripcion }}</p>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+  <div class="navigation">
+    <i class="fas fa-chevron-left prev-btn"></i>
+    <i class="fas fa-chevron-right next-btn"></i>
+  </div>
+  <div class="navigation-visibility">
     {% for slide in slides %}
-    <div class="slide {% if loop.first %}active{% endif %}">
-      <img src="{{ slide.imagen }}">
-      {% if slide.titulo %}
-      <div class="info">
-        <br>
-        <h2>{{ slide.titulo }}</h2>
-        <br>
-        {% if slide.descripcion %}<p>{{ slide.descripcion }}</p>{% endif %}
-      </div>
-      {% endif %}
+    <div class="slide-icon {% if loop.first %}active{% endif %}" {% if loop.first %}id="quienes_somos" {% endif %}>
     </div>
     {% endfor %}
-    <div class="navigation">
-      <i class="fas fa-chevron-left prev-btn"></i>
-      <i class="fas fa-chevron-right next-btn"></i>
-    </div>
-    <div class="navigation-visibility">
-      {% for slide in slides %}
-      <div class="slide-icon {% if loop.first %}active{% endif %}" {% if loop.first %}id="quienes_somos"{% endif %}></div>
-      {% endfor %}
-    </div>
+  </div>
 </div>
 {% else %}
 <div class="slider">
-    <div class="slide active">
-      <img src="{{url_for('static',filename='img/Slider-Decuento.png')}}">
-      <div class="info">
-        <br>
-        <h2>Descuentos en Tecnologia y Reparacion</h2>
-        <br>
-        <p>Descuento exclusivo en componentes de computadora y servicios de reparacion.</p>
-      </div>
+  <div class="slide active">
+    <img src="{{url_for('static',filename='img/Slider-Decuento.png')}}">
+    <div class="info">
+      <br>
+      <h2>Descuentos en Tecnologia y Reparacion</h2>
+      <br>
+      <p>Descuento exclusivo en componentes de computadora y servicios de reparacion.</p>
     </div>
-    <div class="navigation">
-      <i class="fas fa-chevron-left prev-btn"></i>
-      <i class="fas fa-chevron-right next-btn"></i>
-    </div>
-    <div class="navigation-visibility">
-      <div class="slide-icon active" id="quienes_somos"></div>
-    </div>
+  </div>
+  <div class="navigation">
+    <i class="fas fa-chevron-left prev-btn"></i>
+    <i class="fas fa-chevron-right next-btn"></i>
+  </div>
+  <div class="navigation-visibility">
+    <div class="slide-icon active" id="quienes_somos"></div>
+  </div>
 </div>
 {% endif %}
-    {% if config.get('mostrar_about', true) %}
-      <div class="about-us">
-        <div class="about-us-content">
-            <h2>CyberShop</h2>
-            <p>
-                Somos una empresa comprometida con la innovación y la excelencia tecnológica. Nuestro objetivo es ofrecer soluciones integrales que impulsen el desarrollo de nuestros clientes y optimicen sus operaciones. Nos destacamos por nuestra experiencia, dedicación y enfoque personalizado, siempre buscando superar expectativas.
-            </p>
-            <p>
-                Con un equipo altamente capacitado y una visión orientada al futuro, trabajamos para convertirnos en tu aliado estratégico en tecnología.<b>En CyberShop</b>, transformamos desafíos en oportunidades, asegurándonos de que cada proyecto sea un éxito.
-            </p>
-        </div>
-    </div>
-    {% endif %}
-    {% if config.get('mostrar_mision_vision', true) %}
-    <!-- Sección de Misión y Visión -->
-<div class="mission-vision">
-  <div class="mission">
-      <h2>Misión</h2>
-      <p>
-          En <strong>CyberShop</strong>, nos dedicamos a ofrecer soluciones tecnológicas integrales y personalizadas que impulsen el crecimiento y la eficiencia de nuestros clientes. A través de nuestra experiencia, dedicación y enfoque innovador, buscamos optimizar sus operaciones, superar expectativas y convertirnos en su aliado estratégico en el mundo digital. Nos comprometemos a transformar desafíos en oportunidades, garantizando la más alta calidad en cada proyecto.
-      </p>
-  </div>
-  <div class="vision">
-      <h2>Visión</h2>
-      <p>
-          Ser reconocidos como líderes en innovación y excelencia tecnológica, siendo el referente principal para empresas y personas que buscan soluciones confiables y vanguardistas. En <strong>CyberShop</strong>, aspiramos a construir un futuro donde la tecnología sea accesible, eficiente y transformadora, contribuyendo al desarrollo sostenible y al éxito de nuestros clientes en un mundo cada vez más conectado.
-      </p>
+{% if config.get('mostrar_about', true) %}
+<div class="about-us">
+  <div class="about-us-content">
+    <h2>CyberShop</h2>
+    <p>
+      Somos una empresa comprometida con la innovación y la excelencia tecnológica. Nuestro objetivo es ofrecer
+      soluciones integrales que impulsen el desarrollo de nuestros clientes y optimicen sus operaciones. Nos destacamos
+      por nuestra experiencia, dedicación y enfoque personalizado, siempre buscando superar expectativas.
+    </p>
+    <p>
+      Con un equipo altamente capacitado y una visión orientada al futuro, trabajamos para convertirnos en tu aliado
+      estratégico en tecnología.<b>En CyberShop</b>, transformamos desafíos en oportunidades, asegurándonos de que cada
+      proyecto sea un éxito.
+    </p>
   </div>
 </div>
-    {% endif %}
+{% endif %}
+{% if config.get('mostrar_mision_vision', true) %}
+<!-- Sección de Misión y Visión -->
+<div class="mission-vision">
+  <div class="mission">
+    <h2>Misión</h2>
+    <p>
+      En <strong>CyberShop</strong>, nos dedicamos a ofrecer soluciones tecnológicas integrales y personalizadas que
+      impulsen el crecimiento y la eficiencia de nuestros clientes. A través de nuestra experiencia, dedicación y
+      enfoque innovador, buscamos optimizar sus operaciones, superar expectativas y convertirnos en su aliado
+      estratégico en el mundo digital. Nos comprometemos a transformar desafíos en oportunidades, garantizando la más
+      alta calidad en cada proyecto.
+    </p>
+  </div>
+  <div class="vision">
+    <h2>Visión</h2>
+    <p>
+      Ser reconocidos como líderes en innovación y excelencia tecnológica, siendo el referente principal para empresas y
+      personas que buscan soluciones confiables y vanguardistas. En <strong>CyberShop</strong>, aspiramos a construir un
+      futuro donde la tecnología sea accesible, eficiente y transformadora, contribuyendo al desarrollo sostenible y al
+      éxito de nuestros clientes en un mundo cada vez más conectado.
+    </p>
+  </div>
+</div>
+{% endif %}
 
-    <!-- Publicaciones del Home -->
-    {% if publicaciones and publicaciones|length > 0 %}
-    <div class="publicaciones-section">
-        <h2 class="publicaciones-titulo">Novedades</h2>
-        <div class="publicaciones-grid">
-            {% for pub in publicaciones %}
-            <div class="publicacion-card">
-                {% if pub.imagen %}
-                <div class="publicacion-img">
-                    <img src="{{ pub.imagen }}" alt="{{ pub.titulo }}">
-                </div>
-                {% endif %}
-                <div class="publicacion-content">
-                    <h3>{{ pub.titulo }}</h3>
-                    <p>{{ pub.descripcion }}</p>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
+<!-- Publicaciones del Home -->
+{% if publicaciones and publicaciones|length > 0 %}
+<div class="publicaciones-section">
+  <h2 class="publicaciones-titulo">Novedades</h2>
+  <div class="publicaciones-grid">
+    {% for pub in publicaciones %}
+    <div class="publicacion-card">
+      {% if pub.imagen %}
+      <div class="publicacion-img">
+        <img src="{{ pub.imagen }}" alt="{{ pub.titulo }}">
+      </div>
+      {% endif %}
+      <div class="publicacion-content">
+        <h3>{{ pub.titulo }}</h3>
+        <p>{{ pub.descripcion }}</p>
+      </div>
     </div>
-    {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
 
-    {% if config.get('mostrar_mapa', true) or config.get('mostrar_contacto', true) %}
-      <div class="contact-container">
-        {% if config.get('mostrar_mapa', true) %}
-        <div class="map-container">
-          <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3976.1438661161997!2d-74.12405722491505!3d4.7450433952301445!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8e3f8481ac8fae15%3A0xd086f2615f6ea83!2sCra.%20151%20%23136a11%2C%20Suba%2C%20Bogot%C3%A1!5e0!3m2!1ses!2sco!4v1737344695200!5m2!1ses!2sco" width="100%" height="700" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
-        </div>
-        {% endif %}
+{% if config.get('mostrar_mapa', true) or config.get('mostrar_contacto', true) %}
+<div class="contact-container">
+  {% if config.get('mostrar_mapa', true) %}
+  <div class="map-container">
+    <iframe
+      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3976.1438661161997!2d-74.12405722491505!3d4.7450433952301445!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8e3f8481ac8fae15%3A0xd086f2615f6ea83!2sCra.%20151%20%23136a11%2C%20Suba%2C%20Bogot%C3%A1!5e0!3m2!1ses!2sco!4v1737344695200!5m2!1ses!2sco"
+      width="100%" height="700" style="border:0;" allowfullscreen="" loading="lazy"
+      referrerpolicy="no-referrer-when-downgrade"></iframe>
+  </div>
+  {% endif %}
 
-        {% if config.get('mostrar_contacto', true) %}
-        <div id="contactenos" class="contact-form">
-            <h2>Contáctanos</h2>
-           <form action="{{ url_for('public.enviar_mensaje') }}" method="POST">
-    <div class="form-group">
+  {% if config.get('mostrar_contacto', true) %}
+  <div id="contactenos" class="contact-form">
+    <h2>Contáctanos</h2>
+    <form action="{{ url_for('public.enviar_mensaje') }}" method="POST">
+      <div class="form-group">
         <label for="name">Nombre</label>
         <input type="text" id="name" name="name" required>
-    </div>
+      </div>
 
-    <div class="form-group">
+      <div class="form-group">
         <label for="email">Correo Electrónico</label>
         <input type="email" id="email" name="email" required>
-    </div>
+      </div>
 
-    <div class="form-group">
+      <div class="form-group">
         <label for="phone">Numero de celular</label>
         <input type="number" id="phone" name="phone" required>
-    </div>
+      </div>
 
-    <div class="form-group">
+      <div class="form-group">
         <label for="message">Mensaje</label>
         <textarea id="message" name="message" rows="4" required></textarea>
-    </div>
+      </div>
 
-    <!-- Campo honeypot oculto para atrapar bots -->
-    <input type="text" name="website" style="display:none" tabindex="-1" autocomplete="off">
+      <!-- Campo honeypot oculto para atrapar bots -->
+      <input type="text" name="website" style="display:none" tabindex="-1" autocomplete="off">
 
-    <!-- Google reCAPTCHA -->
-    <div class="g-recaptcha" data-sitekey="6LcgDbsrAAAAAEii5NGsPJLCj1aKqc9vej9G7Y76"></div>
+      <!-- Google reCAPTCHA -->
+      <div class="g-recaptcha" data-sitekey="6LcgDbsrAAAAAEii5NGsPJLCj1aKqc9vej9G7Y76"></div>
 
-    <button type="submit">Enviar</button>
-</form>
-        </div>
-        {% endif %}
-    </div>
-    {% endif %}
+      <button type="submit">Enviar</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
 
-{% endblock %} 
+{% endblock %}
 {% block script%}
 <script src="https://www.google.com/recaptcha/api.js" async defer></script>
-{% endblock %}   
+{% endblock %}
