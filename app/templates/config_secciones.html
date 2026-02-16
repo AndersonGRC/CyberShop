@@ -1,0 +1,160 @@
+{% extends './plantillaapp.html' %}
+
+{% block titulo %}Configuracion de Secciones{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+    .config-container {
+        padding: 20px;
+        background-color: rgba(255, 255, 255, 0.95);
+        border-radius: 8px;
+        margin: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        max-width: 700px;
+    }
+
+    .config-container h2 {
+        color: var(--color-primario-oscuro, #091C5A);
+        margin-top: 0;
+        margin-bottom: 10px;
+    }
+
+    .config-container p.desc {
+        color: #666;
+        margin-bottom: 25px;
+        font-size: 0.95rem;
+    }
+
+    .config-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 15px 20px;
+        border: 1px solid #eee;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        background: #fafafa;
+        transition: background 0.2s;
+    }
+
+    .config-item:hover {
+        background: #f0f0f0;
+    }
+
+    .config-info {
+        flex: 1;
+    }
+
+    .config-info .config-label {
+        font-weight: 600;
+        color: #333;
+        font-size: 1rem;
+        display: block;
+        margin-bottom: 3px;
+    }
+
+    .config-info .config-desc {
+        color: #888;
+        font-size: 0.85rem;
+    }
+
+    /* Toggle switch */
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 52px;
+        height: 28px;
+        flex-shrink: 0;
+        margin-left: 15px;
+    }
+
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .slider-toggle {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: 0.3s;
+        border-radius: 28px;
+    }
+
+    .slider-toggle:before {
+        position: absolute;
+        content: "";
+        height: 22px;
+        width: 22px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.3s;
+        border-radius: 50%;
+    }
+
+    input:checked + .slider-toggle {
+        background-color: #28a745;
+    }
+
+    input:checked + .slider-toggle:before {
+        transform: translateX(24px);
+    }
+
+    .btn-guardar {
+        background-color: var(--color-primario, #122C94);
+        color: white;
+        padding: 12px 30px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rem;
+        margin-top: 20px;
+        display: block;
+        width: 100%;
+    }
+
+    .btn-guardar:hover {
+        background-color: var(--color-primario-oscuro, #091C5A);
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="config-container">
+    <h2><i class="fas fa-sliders-h"></i> Configuracion de Secciones</h2>
+    <p class="desc">Activa o desactiva secciones visibles en la pagina principal.</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div style="padding:10px;margin-bottom:15px;border-radius:5px;background:{% if category == 'success' %}#d4edda{% elif category == 'error' %}#f8d7da{% else %}#fff3cd{% endif %};color:{% if category == 'success' %}#155724{% elif category == 'error' %}#721c24{% else %}#856404{% endif %}">
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('admin.config_secciones') }}">
+        {% for sec in secciones %}
+        <div class="config-item">
+            <div class="config-info">
+                <span class="config-label">{{ sec.clave | replace('_', ' ') | title }}</span>
+                <span class="config-desc">{{ sec.descripcion or '' }}</span>
+            </div>
+            <label class="switch">
+                <input type="checkbox" name="{{ sec.clave }}" value="true" {% if sec.valor == 'true' %}checked{% endif %}>
+                <span class="slider-toggle"></span>
+            </label>
+        </div>
+        {% endfor %}
+
+        <button type="submit" class="btn-guardar"><i class="fas fa-save"></i> Guardar Configuracion</button>
+    </form>
+</div>
+{% endblock %}

@@ -553,3 +553,570 @@ def historial_inventario(id):
             'usuario': m[6] or 'Sistema'
         })
     return jsonify(lista)
+
+
+# --- Gestion de Publicaciones del Home ---
+
+@admin_bp.route('/admin/publicaciones')
+@rol_requerido(1)
+def gestion_publicaciones():
+    """Lista de publicaciones del home."""
+    datosApp = get_data_app()
+    publicaciones = []
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute('SELECT * FROM publicaciones_home ORDER BY fecha_creacion DESC')
+            publicaciones = cur.fetchall()
+    except Exception as e:
+        flash(f'Error cargando publicaciones: {e}', 'error')
+    return render_template('gestion_publicaciones.html', datosApp=datosApp, publicaciones=publicaciones)
+
+
+@admin_bp.route('/admin/publicaciones/crear', methods=['GET', 'POST'])
+@rol_requerido(1)
+def crear_publicacion():
+    """Crear nueva publicacion del home."""
+    from app import product_images
+
+    datosApp = get_data_app()
+    if request.method == 'POST':
+        titulo = request.form.get('titulo')
+        descripcion = request.form.get('descripcion')
+        imagen_url = None
+
+        file = request.files.get('imagen')
+        if file and file.filename != '':
+            imagen_nombre = product_images.save(file, folder='media')
+            imagen_url = f"/static/media/{imagen_nombre}"
+
+        try:
+            with get_db_cursor() as cur:
+                cur.execute(
+                    'INSERT INTO publicaciones_home (titulo, descripcion, imagen) VALUES (%s, %s, %s)',
+                    (titulo, descripcion, imagen_url)
+                )
+            flash('Publicacion creada correctamente.', 'success')
+            return redirect(url_for('admin.gestion_publicaciones'))
+        except Exception as e:
+            flash(f'Error creando publicacion: {e}', 'error')
+
+    return render_template('gestion_publicaciones.html', datosApp=datosApp, publicaciones=[], modo='crear')
+
+
+@admin_bp.route('/admin/publicaciones/editar/<int:id>', methods=['GET', 'POST'])
+@rol_requerido(1)
+def editar_publicacion(id):
+    """Editar publicacion existente."""
+    from app import product_images
+
+    datosApp = get_data_app()
+    publicacion = None
+
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute('SELECT * FROM publicaciones_home WHERE id = %s', (id,))
+            publicacion = cur.fetchone()
+    except Exception:
+        flash('Error cargando publicacion.', 'error')
+        return redirect(url_for('admin.gestion_publicaciones'))
+
+    if request.method == 'POST':
+        titulo = request.form.get('titulo')
+        descripcion = request.form.get('descripcion')
+        file = request.files.get('imagen')
+
+        try:
+            with get_db_cursor() as cur:
+                if file and file.filename != '':
+                    imagen_nombre = product_images.save(file, folder='media')
+                    imagen_url = f"/static/media/{imagen_nombre}"
+                    cur.execute(
+                        'UPDATE publicaciones_home SET titulo=%s, descripcion=%s, imagen=%s WHERE id=%s',
+                        (titulo, descripcion, imagen_url, id)
+                    )
+                else:
+                    cur.execute(
+                        'UPDATE publicaciones_home SET titulo=%s, descripcion=%s WHERE id=%s',
+                        (titulo, descripcion, id)
+                    )
+            flash('Publicacion actualizada.', 'success')
+            return redirect(url_for('admin.gestion_publicaciones'))
+        except Exception as e:
+            flash(f'Error actualizando: {e}', 'error')
+
+    return render_template('gestion_publicaciones.html', datosApp=datosApp, publicaciones=[], modo='editar', publicacion=publicacion)
+
+
+@admin_bp.route('/admin/publicaciones/eliminar/<int:id>', methods=['POST'])
+@rol_requerido(1)
+def eliminar_publicacion(id):
+    """Eliminar publicacion."""
+    try:
+        with get_db_cursor() as cur:
+            cur.execute('DELETE FROM publicaciones_home WHERE id = %s', (id,))
+        flash('Publicacion eliminada.', 'success')
+    except Exception:
+        flash('Error eliminando publicacion.', 'error')
+    return redirect(url_for('admin.gestion_publicaciones'))
+
+
+@admin_bp.route('/admin/publicaciones/toggle/<int:id>', methods=['POST'])
+@rol_requerido(1)
+def toggle_publicacion(id):
+    """Activar/desactivar publicacion."""
+    try:
+        with get_db_cursor() as cur:
+            cur.execute('UPDATE publicaciones_home SET activo = NOT activo WHERE id = %s', (id,))
+        flash('Estado de publicacion actualizado.', 'success')
+    except Exception:
+        flash('Error cambiando estado.', 'error')
+    return redirect(url_for('admin.gestion_publicaciones'))
+
+
+# --- Gestion de Slides del Carrusel ---
+
+@admin_bp.route('/admin/slides')
+@rol_requerido(1)
+def gestion_slides():
+    """Lista de slides del carrusel del home."""
+    datosApp = get_data_app()
+    slides = []
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute('SELECT * FROM slides_home ORDER BY orden ASC, id ASC')
+            slides = cur.fetchall()
+    except Exception as e:
+        flash(f'Error cargando slides: {e}', 'error')
+    return render_template('gestion_slides.html', datosApp=datosApp, slides=slides)
+
+
+@admin_bp.route('/admin/slides/crear', methods=['GET', 'POST'])
+@rol_requerido(1)
+def crear_slide():
+    """Crear nuevo slide del carrusel."""
+    from app import product_images
+
+    datosApp = get_data_app()
+    if request.method == 'POST':
+        titulo = request.form.get('titulo')
+        descripcion = request.form.get('descripcion')
+        orden = request.form.get('orden', 0)
+
+        file = request.files.get('imagen')
+        if not file or file.filename == '':
+            flash('La imagen es obligatoria para el slide.', 'error')
+            return redirect(url_for('admin.gestion_slides'))
+
+        imagen_nombre = product_images.save(file, folder='media')
+        imagen_url = f"/static/media/{imagen_nombre}"
+
+        try:
+            with get_db_cursor() as cur:
+                cur.execute(
+                    'INSERT INTO slides_home (imagen, titulo, descripcion, orden) VALUES (%s, %s, %s, %s)',
+                    (imagen_url, titulo, descripcion, orden)
+                )
+            flash('Slide creado correctamente.', 'success')
+            return redirect(url_for('admin.gestion_slides'))
+        except Exception as e:
+            flash(f'Error creando slide: {e}', 'error')
+
+    return render_template('gestion_slides.html', datosApp=datosApp, slides=[], modo='crear')
+
+
+@admin_bp.route('/admin/slides/editar/<int:id>', methods=['GET', 'POST'])
+@rol_requerido(1)
+def editar_slide(id):
+    """Editar slide existente."""
+    from app import product_images
+
+    datosApp = get_data_app()
+    slide = None
+
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute('SELECT * FROM slides_home WHERE id = %s', (id,))
+            slide = cur.fetchone()
+    except Exception:
+        flash('Error cargando slide.', 'error')
+        return redirect(url_for('admin.gestion_slides'))
+
+    if request.method == 'POST':
+        titulo = request.form.get('titulo')
+        descripcion = request.form.get('descripcion')
+        orden = request.form.get('orden', 0)
+        file = request.files.get('imagen')
+
+        try:
+            with get_db_cursor() as cur:
+                if file and file.filename != '':
+                    imagen_nombre = product_images.save(file, folder='media')
+                    imagen_url = f"/static/media/{imagen_nombre}"
+                    cur.execute(
+                        'UPDATE slides_home SET imagen=%s, titulo=%s, descripcion=%s, orden=%s WHERE id=%s',
+                        (imagen_url, titulo, descripcion, orden, id)
+                    )
+                else:
+                    cur.execute(
+                        'UPDATE slides_home SET titulo=%s, descripcion=%s, orden=%s WHERE id=%s',
+                        (titulo, descripcion, orden, id)
+                    )
+            flash('Slide actualizado.', 'success')
+            return redirect(url_for('admin.gestion_slides'))
+        except Exception as e:
+            flash(f'Error actualizando slide: {e}', 'error')
+
+    return render_template('gestion_slides.html', datosApp=datosApp, slides=[], modo='editar', slide=slide)
+
+
+@admin_bp.route('/admin/slides/eliminar/<int:id>', methods=['POST'])
+@rol_requerido(1)
+def eliminar_slide(id):
+    """Eliminar slide del carrusel."""
+    try:
+        with get_db_cursor() as cur:
+            cur.execute('DELETE FROM slides_home WHERE id = %s', (id,))
+        flash('Slide eliminado.', 'success')
+    except Exception:
+        flash('Error eliminando slide.', 'error')
+    return redirect(url_for('admin.gestion_slides'))
+
+
+@admin_bp.route('/admin/slides/toggle/<int:id>', methods=['POST'])
+@rol_requerido(1)
+def toggle_slide(id):
+    """Activar/desactivar slide."""
+    try:
+        with get_db_cursor() as cur:
+            cur.execute('UPDATE slides_home SET activo = NOT activo WHERE id = %s', (id,))
+        flash('Estado del slide actualizado.', 'success')
+    except Exception:
+        flash('Error cambiando estado.', 'error')
+    return redirect(url_for('admin.gestion_slides'))
+
+
+# --- Gestion de Servicios ---
+
+@admin_bp.route('/admin/servicios')
+@rol_requerido(1)
+def gestion_servicios():
+    """Lista de servicios."""
+    datosApp = get_data_app()
+    servicios = []
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute('SELECT * FROM servicios_home ORDER BY orden ASC, id ASC')
+            servicios = cur.fetchall()
+    except Exception as e:
+        flash(f'Error cargando servicios: {e}', 'error')
+    return render_template('gestion_servicios.html', datosApp=datosApp, servicios=servicios)
+
+
+@admin_bp.route('/admin/servicios/crear', methods=['GET', 'POST'])
+@rol_requerido(1)
+def crear_servicio():
+    """Crear nuevo servicio."""
+    from app import product_images
+
+    datosApp = get_data_app()
+    if request.method == 'POST':
+        titulo = request.form.get('titulo')
+        descripcion = request.form.get('descripcion')
+        beneficios = request.form.get('beneficios')
+        orden = request.form.get('orden', 0)
+        imagen_url = None
+
+        file = request.files.get('imagen')
+        if file and file.filename != '':
+            imagen_nombre = product_images.save(file, folder='media')
+            imagen_url = f"/static/media/{imagen_nombre}"
+
+        try:
+            with get_db_cursor() as cur:
+                cur.execute(
+                    'INSERT INTO servicios_home (titulo, descripcion, beneficios, imagen, orden) VALUES (%s, %s, %s, %s, %s)',
+                    (titulo, descripcion, beneficios, imagen_url, orden)
+                )
+            flash('Servicio creado correctamente.', 'success')
+            return redirect(url_for('admin.gestion_servicios'))
+        except Exception as e:
+            flash(f'Error creando servicio: {e}', 'error')
+
+    return render_template('gestion_servicios.html', datosApp=datosApp, servicios=[], modo='crear')
+
+
+@admin_bp.route('/admin/servicios/editar/<int:id>', methods=['GET', 'POST'])
+@rol_requerido(1)
+def editar_servicio(id):
+    """Editar servicio existente."""
+    from app import product_images
+
+    datosApp = get_data_app()
+    servicio = None
+
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute('SELECT * FROM servicios_home WHERE id = %s', (id,))
+            servicio = cur.fetchone()
+    except Exception:
+        flash('Error cargando servicio.', 'error')
+        return redirect(url_for('admin.gestion_servicios'))
+
+    if request.method == 'POST':
+        titulo = request.form.get('titulo')
+        descripcion = request.form.get('descripcion')
+        beneficios = request.form.get('beneficios')
+        orden = request.form.get('orden', 0)
+        file = request.files.get('imagen')
+
+        try:
+            with get_db_cursor() as cur:
+                if file and file.filename != '':
+                    imagen_nombre = product_images.save(file, folder='media')
+                    imagen_url = f"/static/media/{imagen_nombre}"
+                    cur.execute(
+                        'UPDATE servicios_home SET titulo=%s, descripcion=%s, beneficios=%s, imagen=%s, orden=%s WHERE id=%s',
+                        (titulo, descripcion, beneficios, imagen_url, orden, id)
+                    )
+                else:
+                    cur.execute(
+                        'UPDATE servicios_home SET titulo=%s, descripcion=%s, beneficios=%s, orden=%s WHERE id=%s',
+                        (titulo, descripcion, beneficios, orden, id)
+                    )
+            flash('Servicio actualizado.', 'success')
+            return redirect(url_for('admin.gestion_servicios'))
+        except Exception as e:
+            flash(f'Error actualizando: {e}', 'error')
+
+    return render_template('gestion_servicios.html', datosApp=datosApp, servicios=[], modo='editar', servicio=servicio)
+
+
+@admin_bp.route('/admin/servicios/eliminar/<int:id>', methods=['POST'])
+@rol_requerido(1)
+def eliminar_servicio(id):
+    """Eliminar servicio."""
+    try:
+        with get_db_cursor() as cur:
+            cur.execute('DELETE FROM servicios_home WHERE id = %s', (id,))
+        flash('Servicio eliminado.', 'success')
+    except Exception:
+        flash('Error eliminando servicio.', 'error')
+    return redirect(url_for('admin.gestion_servicios'))
+
+
+@admin_bp.route('/admin/servicios/toggle/<int:id>', methods=['POST'])
+@rol_requerido(1)
+def toggle_servicio(id):
+    """Activar/desactivar servicio."""
+    try:
+        with get_db_cursor() as cur:
+            cur.execute('UPDATE servicios_home SET activo = NOT activo WHERE id = %s', (id,))
+        flash('Estado del servicio actualizado.', 'success')
+    except Exception:
+        flash('Error cambiando estado.', 'error')
+    return redirect(url_for('admin.gestion_servicios'))
+
+
+# --- Configuracion de Secciones del Home ---
+
+@admin_bp.route('/admin/config-secciones', methods=['GET', 'POST'])
+@rol_requerido(1)
+def config_secciones():
+    """Panel para activar/desactivar secciones del home."""
+    datosApp = get_data_app()
+
+    if request.method == 'POST':
+        try:
+            with get_db_cursor() as cur:
+                cur.execute('SELECT clave FROM config_secciones')
+                todas_claves = [row[0] for row in cur.fetchall()]
+
+                for clave in todas_claves:
+                    valor = 'true' if request.form.get(clave) else 'false'
+                    cur.execute(
+                        'UPDATE config_secciones SET valor = %s WHERE clave = %s',
+                        (valor, clave)
+                    )
+            flash('Configuracion actualizada correctamente.', 'success')
+        except Exception as e:
+            flash(f'Error actualizando configuracion: {e}', 'error')
+
+    secciones = []
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute('SELECT * FROM config_secciones ORDER BY clave')
+            secciones = cur.fetchall()
+    except Exception as e:
+        flash(f'Error cargando configuracion: {e}', 'error')
+
+    return render_template('config_secciones.html', datosApp=datosApp, secciones=secciones)
+
+
+# --- Punto de Venta (POS) ---
+
+@admin_bp.route('/admin/pos')
+@rol_requerido(1)
+def facturacion_pos():
+    """Interfaz de punto de venta para facturacion en fisico."""
+    datosApp = get_data_app()
+    productos = []
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute('SELECT id, nombre, precio, stock, imagen FROM productos WHERE stock > 0 ORDER BY nombre')
+            productos = cur.fetchall()
+    except Exception:
+        pass
+    return render_template('facturacion_pos.html', datosApp=datosApp, productos=productos)
+
+
+@admin_bp.route('/admin/pos/procesar', methods=['POST'])
+@rol_requerido(1)
+def procesar_venta_pos():
+    """Procesa una venta POS: guarda, descuenta stock y registra en inventario_log."""
+    from datetime import datetime
+
+    data = request.get_json()
+    if not data or not data.get('items'):
+        return jsonify({'success': False, 'error': 'No hay items en la venta'}), 400
+
+    items = data['items']
+    cliente_nombre = data.get('cliente_nombre', '')
+    cliente_documento = data.get('cliente_documento', '')
+    cliente_telefono = data.get('cliente_telefono', '')
+    metodo_pago = data.get('metodo_pago', 'EFECTIVO')
+    notas = data.get('notas', '')
+    usuario_id = session.get('user_id', 1)
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Generar numero de venta: POS-YYYYMMDD-XXXX
+        hoy = datetime.now().strftime('%Y%m%d')
+        cur.execute(
+            "SELECT COUNT(*) FROM ventas_pos WHERE numero_venta LIKE %s",
+            (f'POS-{hoy}-%',)
+        )
+        secuencial = cur.fetchone()[0] + 1
+        numero_venta = f"POS-{hoy}-{secuencial:04d}"
+
+        # Calcular totales
+        total_venta = 0
+        detalles_para_insertar = []
+
+        for item in items:
+            producto_id = item.get('producto_id')  # None si es item libre
+            descripcion = item.get('descripcion', 'Item')
+            cantidad = int(item.get('cantidad', 1))
+            precio_unitario = float(item.get('precio_unitario', 0))
+            subtotal_item = cantidad * precio_unitario
+            total_venta += subtotal_item
+
+            # Si es producto de inventario, verificar y descontar stock
+            if producto_id:
+                producto_id = int(producto_id)
+                cur.execute('SELECT stock FROM productos WHERE id = %s', (producto_id,))
+                res = cur.fetchone()
+                if not res:
+                    conn.rollback()
+                    cur.close()
+                    conn.close()
+                    return jsonify({'success': False, 'error': f'Producto ID {producto_id} no encontrado'}), 400
+
+                stock_actual = res[0]
+                stock_nuevo = stock_actual - cantidad
+                if stock_nuevo < 0:
+                    conn.rollback()
+                    cur.close()
+                    conn.close()
+                    return jsonify({'success': False, 'error': f'Stock insuficiente para "{descripcion}". Disponible: {stock_actual}'}), 400
+
+                # Descontar stock
+                cur.execute('UPDATE productos SET stock = %s WHERE id = %s', (stock_nuevo, producto_id))
+
+                # Registrar en inventario_log
+                cur.execute("""
+                    INSERT INTO inventario_log (producto_id, tipo, cantidad, stock_anterior, stock_nuevo, motivo, usuario_id)
+                    VALUES (%s, 'SALIDA', %s, %s, %s, %s, %s)
+                """, (producto_id, cantidad, stock_actual, stock_nuevo, f'Venta POS #{numero_venta}', usuario_id))
+
+            detalles_para_insertar.append((producto_id, descripcion, cantidad, precio_unitario, subtotal_item))
+
+        # Insertar venta
+        cur.execute("""
+            INSERT INTO ventas_pos (numero_venta, cliente_nombre, cliente_documento, cliente_telefono, metodo_pago, subtotal, total, notas, usuario_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+        """, (numero_venta, cliente_nombre, cliente_documento, cliente_telefono, metodo_pago, total_venta, total_venta, notas, usuario_id))
+        venta_id = cur.fetchone()[0]
+
+        # Insertar detalles
+        for det in detalles_para_insertar:
+            cur.execute("""
+                INSERT INTO detalle_venta_pos (venta_id, producto_id, descripcion, cantidad, precio_unitario, subtotal)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (venta_id, det[0], det[1], det[2], det[3], det[4]))
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'numero_venta': numero_venta,
+            'total': float(total_venta),
+            'fecha': datetime.now().strftime('%Y-%m-%d %H:%M'),
+            'items': [{'descripcion': d[1], 'cantidad': d[2], 'precio_unitario': d[3], 'subtotal': d[4]} for d in detalles_para_insertar],
+            'cliente_nombre': cliente_nombre,
+            'metodo_pago': metodo_pago
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@admin_bp.route('/admin/pos/historial')
+@rol_requerido(1)
+def historial_pos():
+    """Historial de ventas POS."""
+    datosApp = get_data_app()
+    ventas = []
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute('SELECT * FROM ventas_pos ORDER BY fecha DESC')
+            ventas = cur.fetchall()
+    except Exception as e:
+        flash(f'Error cargando historial: {e}', 'error')
+    return render_template('historial_pos.html', datosApp=datosApp, ventas=ventas)
+
+
+@admin_bp.route('/admin/pos/detalle/<int:id>')
+@rol_requerido(1)
+def detalle_venta_pos(id):
+    """Retorna detalle de una venta POS en JSON."""
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute('SELECT * FROM ventas_pos WHERE id = %s', (id,))
+            venta = cur.fetchone()
+            if not venta:
+                return jsonify({'error': 'Venta no encontrada'}), 404
+
+            cur.execute('SELECT * FROM detalle_venta_pos WHERE venta_id = %s ORDER BY id', (id,))
+            detalles = cur.fetchall()
+
+        return jsonify({
+            'numero_venta': venta['numero_venta'],
+            'fecha': venta['fecha'].strftime('%Y-%m-%d %H:%M'),
+            'cliente_nombre': venta['cliente_nombre'] or '-',
+            'cliente_documento': venta['cliente_documento'] or '-',
+            'metodo_pago': venta['metodo_pago'],
+            'total': float(venta['total']),
+            'notas': venta['notas'] or '',
+            'items': [{
+                'descripcion': d['descripcion'],
+                'cantidad': d['cantidad'],
+                'precio_unitario': float(d['precio_unitario']),
+                'subtotal': float(d['subtotal'])
+            } for d in detalles]
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

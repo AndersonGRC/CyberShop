@@ -1,0 +1,363 @@
+{% extends './plantillaapp.html' %}
+
+{% block titulo %}Gestión de Servicios{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+    .serv-container {
+        padding: 20px;
+        background-color: rgba(255, 255, 255, 0.95);
+        border-radius: 8px;
+        margin: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .serv-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .serv-header h2 {
+        color: var(--color-primario-oscuro, #091C5A);
+        margin: 0;
+    }
+
+    .btn-crear {
+        background-color: var(--color-primario, #122C94);
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 0.9rem;
+    }
+
+    .btn-crear:hover {
+        background-color: var(--color-primario-oscuro, #091C5A);
+    }
+
+    .serv-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+    }
+
+    .serv-table th,
+    .serv-table td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+    }
+
+    .serv-table th {
+        background-color: var(--color-primario-oscuro, #091C5A);
+        color: white;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+    }
+
+    .serv-table tr:hover {
+        background-color: #f1f1f1;
+    }
+
+    .serv-table img {
+        width: 80px;
+        height: 50px;
+        object-fit: cover;
+        border-radius: 4px;
+    }
+
+    .badge-activo {
+        background-color: #28a745;
+        color: white;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+    }
+
+    .badge-inactivo {
+        background-color: #dc3545;
+        color: white;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+    }
+
+    .btn-accion {
+        padding: 6px 12px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        color: white;
+        margin: 2px;
+    }
+
+    .btn-editar { background-color: #ffc107; color: #333; }
+    .btn-eliminar { background-color: #dc3545; }
+    .btn-toggle { background-color: #17a2b8; }
+
+    .form-serv {
+        background: #f9f9f9;
+        padding: 25px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        border: 1px solid #eee;
+    }
+
+    .form-serv h3 {
+        margin-top: 0;
+        color: var(--color-primario-oscuro, #091C5A);
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 5px;
+        color: #333;
+    }
+
+    .form-group input,
+    .form-group textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        font-size: 0.95rem;
+        box-sizing: border-box;
+    }
+
+    .form-group textarea {
+        min-height: 80px;
+        resize: vertical;
+    }
+
+    .form-row {
+        display: flex;
+        gap: 15px;
+    }
+
+    .form-row .form-group {
+        flex: 1;
+    }
+
+    .form-hint {
+        font-size: 0.8rem;
+        color: #888;
+        margin-top: 4px;
+    }
+
+    .btn-guardar {
+        background-color: var(--color-primario, #122C94);
+        color: white;
+        padding: 10px 25px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rem;
+    }
+
+    .btn-guardar:hover {
+        background-color: var(--color-primario-oscuro, #091C5A);
+    }
+
+    .btn-cancelar {
+        background-color: #6c757d;
+        color: white;
+        padding: 10px 25px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rem;
+        text-decoration: none;
+        margin-left: 10px;
+    }
+
+    .empty-msg {
+        text-align: center;
+        padding: 40px;
+        color: #888;
+    }
+
+    @media (max-width: 768px) {
+        .serv-table, .serv-table thead, .serv-table tbody, .serv-table th, .serv-table td, .serv-table tr {
+            display: block;
+        }
+        .serv-table thead { display: none; }
+        .serv-table td {
+            padding: 8px 15px;
+            text-align: right;
+            position: relative;
+            padding-left: 50%;
+        }
+        .serv-table td::before {
+            content: attr(data-label);
+            position: absolute;
+            left: 15px;
+            font-weight: 600;
+            text-align: left;
+        }
+        .serv-table tr {
+            border-bottom: 2px solid #ddd;
+            margin-bottom: 10px;
+        }
+        .form-row { flex-direction: column; }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="serv-container">
+    <div class="serv-header">
+        <h2><i class="fas fa-concierge-bell"></i> Servicios</h2>
+        {% if modo != 'crear' and modo != 'editar' %}
+        <a href="{{ url_for('admin.crear_servicio') }}" class="btn-crear"><i class="fas fa-plus"></i> Nuevo Servicio</a>
+        {% endif %}
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div style="padding:10px;margin-bottom:10px;border-radius:5px;background:{% if category == 'success' %}#d4edda{% elif category == 'error' %}#f8d7da{% else %}#fff3cd{% endif %};color:{% if category == 'success' %}#155724{% elif category == 'error' %}#721c24{% else %}#856404{% endif %}">
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <!-- Formulario Crear -->
+    {% if modo == 'crear' %}
+    <div class="form-serv">
+        <h3><i class="fas fa-plus-circle"></i> Nuevo Servicio</h3>
+        <form method="POST" enctype="multipart/form-data" action="{{ url_for('admin.crear_servicio') }}">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="titulo">Titulo</label>
+                    <input type="text" id="titulo" name="titulo" required maxlength="200">
+                </div>
+                <div class="form-group">
+                    <label for="orden">Orden</label>
+                    <input type="number" id="orden" name="orden" value="0" min="0">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="descripcion">Descripcion</label>
+                <textarea id="descripcion" name="descripcion" required></textarea>
+            </div>
+            <div class="form-group">
+                <label for="beneficios">Beneficios</label>
+                <textarea id="beneficios" name="beneficios" rows="5"></textarea>
+                <p class="form-hint">Escribe un beneficio por linea. Se mostraran como lista al hacer clic en el servicio.</p>
+            </div>
+            <div class="form-group">
+                <label for="imagen">Imagen / Icono (opcional)</label>
+                <input type="file" id="imagen" name="imagen" accept="image/*">
+            </div>
+            <button type="submit" class="btn-guardar"><i class="fas fa-save"></i> Guardar</button>
+            <a href="{{ url_for('admin.gestion_servicios') }}" class="btn-cancelar">Cancelar</a>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Formulario Editar -->
+    {% if modo == 'editar' and servicio %}
+    <div class="form-serv">
+        <h3><i class="fas fa-edit"></i> Editar Servicio</h3>
+        <form method="POST" enctype="multipart/form-data" action="{{ url_for('admin.editar_servicio', id=servicio.id) }}">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="titulo">Titulo</label>
+                    <input type="text" id="titulo" name="titulo" value="{{ servicio.titulo }}" required maxlength="200">
+                </div>
+                <div class="form-group">
+                    <label for="orden">Orden</label>
+                    <input type="number" id="orden" name="orden" value="{{ servicio.orden }}" min="0">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="descripcion">Descripcion</label>
+                <textarea id="descripcion" name="descripcion" required>{{ servicio.descripcion }}</textarea>
+            </div>
+            <div class="form-group">
+                <label for="beneficios">Beneficios</label>
+                <textarea id="beneficios" name="beneficios" rows="5">{{ servicio.beneficios or '' }}</textarea>
+                <p class="form-hint">Un beneficio por linea.</p>
+            </div>
+            <div class="form-group">
+                <label for="imagen">Imagen (dejar vacio para mantener actual)</label>
+                <input type="file" id="imagen" name="imagen" accept="image/*">
+                {% if servicio.imagen %}
+                <p style="margin-top:5px"><small>Actual:</small> <img src="{{ servicio.imagen }}" style="width:80px;height:50px;object-fit:cover;border-radius:4px;vertical-align:middle"></p>
+                {% endif %}
+            </div>
+            <button type="submit" class="btn-guardar"><i class="fas fa-save"></i> Actualizar</button>
+            <a href="{{ url_for('admin.gestion_servicios') }}" class="btn-cancelar">Cancelar</a>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Tabla -->
+    {% if modo != 'crear' and modo != 'editar' %}
+    {% if servicios|length > 0 %}
+    <table class="serv-table">
+        <thead>
+            <tr>
+                <th>Orden</th>
+                <th>Imagen</th>
+                <th>Titulo</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in servicios %}
+            <tr>
+                <td data-label="Orden">{{ s.orden }}</td>
+                <td data-label="Imagen">
+                    {% if s.imagen %}
+                    <img src="{{ s.imagen }}" alt="{{ s.titulo }}">
+                    {% else %}
+                    <span style="color:#aaa">Sin imagen</span>
+                    {% endif %}
+                </td>
+                <td data-label="Titulo">{{ s.titulo }}</td>
+                <td data-label="Estado">
+                    {% if s.activo %}
+                    <span class="badge-activo">Activo</span>
+                    {% else %}
+                    <span class="badge-inactivo">Inactivo</span>
+                    {% endif %}
+                </td>
+                <td data-label="Acciones">
+                    <a href="{{ url_for('admin.editar_servicio', id=s.id) }}" class="btn-accion btn-editar"><i class="fas fa-edit"></i></a>
+                    <form method="POST" action="{{ url_for('admin.toggle_servicio', id=s.id) }}" style="display:inline">
+                        <button type="submit" class="btn-accion btn-toggle" title="{% if s.activo %}Desactivar{% else %}Activar{% endif %}">
+                            <i class="fas fa-{% if s.activo %}eye-slash{% else %}eye{% endif %}"></i>
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ url_for('admin.eliminar_servicio', id=s.id) }}" style="display:inline" onsubmit="return confirm('Eliminar este servicio?')">
+                        <button type="submit" class="btn-accion btn-eliminar"><i class="fas fa-trash"></i></button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-msg">
+        <i class="fas fa-concierge-bell" style="font-size:3rem;margin-bottom:10px"></i>
+        <p>No hay servicios aun. Crea el primero.</p>
+    </div>
+    {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

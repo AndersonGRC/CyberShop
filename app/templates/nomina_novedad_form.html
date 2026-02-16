@@ -1,0 +1,90 @@
+{% extends "public/layout_admin.html" %}
+
+{% block title %}Registrar Novedad{% endblock %}
+
+{% block LinkAdicional %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/nomina/nomina_novedad_form.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Registrar Novedad</h1>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Detalle de la Novedad</h6>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label for="periodo_id">Periodo de Nómina</label>
+                        <select class="form-control" id="periodo_id" name="periodo_id" required>
+                            {% for p in periodos %}
+                            <option value="{{ p.id }}">{{ p.anio }}-{{ p.mes }} ({{ p.fecha_inicio }} - {{ p.fecha_fin
+                                }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="empleado_id">Empleado</label>
+                        <select class="form-control" id="empleado_id" name="empleado_id" required>
+                            <option value="">Seleccione...</option>
+                            {% for e in empleados %}
+                            <option value="{{ e.id }}">{{ e.apellidos }} {{ e.nombres }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group col-md-4">
+                        <label for="tipo_novedad">Tipo de Novedad</label>
+                        <select class="form-control" id="tipo_novedad" name="tipo_novedad" required>
+                            <optgroup label="Horas Extras y Recargos">
+                                <option value="HED">Hora Extra Diurna (1.25)</option>
+                                <option value="HEN">Hora Extra Nocturna (1.75)</option>
+                                <option value="HEDF">Hora Extra Diurna Festiva (2.00)</option>
+                                <option value="HENF">Hora Extra Nocturna Festiva (2.50)</option>
+                                <option value="RN">Recargo Nocturno (0.35)</option>
+                                <option value="RD">Recargo Dominical/Festivo (0.75)</option>
+                            </optgroup>
+                            <optgroup label="Incapacidades y Licencias">
+                                <option value="INCAPACIDAD_GEN">Incapacidad General</option>
+                                <option value="INCAPACIDAD_LAB">Incapacidad Laboral / ARL</option>
+                                <option value="LICENCIA_MAT">Licencia Maternidad</option>
+                                <option value="LICENCIA_PAT">Licencia Paternidad</option>
+                                <option value="LICENCIA_LUTO">Licencia de Luto</option>
+                                <option value="LICENCIA_NR">Licencia No Remunerada</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="form-group col-md-4">
+                        <label for="cantidad">Cantidad (Horas o Días)</label>
+                        <input type="number" step="0.5" class="form-control" id="cantidad" name="cantidad" required>
+                        <small class="form-text text-muted">Horas para extras, Días para incapacidades.</small>
+                    </div>
+                    <div class="form-group col-md-4">
+                        <label for="fecha_novedad">Fecha de la Novedad</label>
+                        <input type="date" class="form-control" id="fecha_novedad" name="fecha_novedad" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="observacion">Observaciones</label>
+                    <textarea class="form-control" id="observacion" name="observacion" rows="3"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="valor_total">Valor Total Manual (Opcional - Sobrescribe cálculo)</label>
+                    <input type="number" step="0.01" class="form-control" id="valor_total" name="valor_total">
+                </div>
+
+                <button type="submit" class="btn btn-primary">Registrar</button>
+                <a href="{{ url_for('nomina.novedades_lista') }}" class="btn btn-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

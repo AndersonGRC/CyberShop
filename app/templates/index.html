@@ -7,65 +7,52 @@
 {% endblock%}
 
 {%block body%} 
+{% if slides|length > 0 %}
+<div class="slider">
+    {% for slide in slides %}
+    <div class="slide {% if loop.first %}active{% endif %}">
+      <img src="{{ slide.imagen }}">
+      {% if slide.titulo %}
+      <div class="info">
+        <br>
+        <h2>{{ slide.titulo }}</h2>
+        <br>
+        {% if slide.descripcion %}<p>{{ slide.descripcion }}</p>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+    <div class="navigation">
+      <i class="fas fa-chevron-left prev-btn"></i>
+      <i class="fas fa-chevron-right next-btn"></i>
+    </div>
+    <div class="navigation-visibility">
+      {% for slide in slides %}
+      <div class="slide-icon {% if loop.first %}active{% endif %}" {% if loop.first %}id="quienes_somos"{% endif %}></div>
+      {% endfor %}
+    </div>
+</div>
+{% else %}
 <div class="slider">
     <div class="slide active">
       <img src="{{url_for('static',filename='img/Slider-Decuento.png')}}">
       <div class="info">
         <br>
-        <h2> Descuentos en Tecnología y Reparación</h2>
+        <h2>Descuentos en Tecnologia y Reparacion</h2>
         <br>
-        <p>Descuento exclusivo en componentes de computadora y servicios de reparación. Renueva o mejora tu equipo con las mejores ofertas. ¡Solo por tiempo limitado!</p>
-    </div>
-    </div>
-    <div class="slide">
-      <img src="{{url_for('static',filename='img/Slider-Web.png')}}">
-
-    </div>
-    <div class="slide">
-      <img src="{{url_for('static',filename='img/Slider-Reparacion.png')}}" >
-      <div class="info">
-        <br>
-        <h2> ¡Tu Tecnología en Buenas Manos!</h2>
-        <br>
-        <p>En CyberShop, somos expertos en la reparación de dispositivos tecnológicos. Desde celulares y laptops hasta tablets y consolas de videojuegos, solucionamos cualquier problema con rapidez, calidad y a un precio justo.
-          Confía en nosotros para que tu tecnología funcione como nueva. ¡Te esperamos!</p>
-      </div>
-    </div>
-    <div class="slide">
-      <img src="{{url_for('static',filename='img/Slider-Seguridad.png')}} ">
-      <div class="info">
-        <br>
-        <h2> Conectamos y Protegemos tu Espacio </h2>
-        <br>
-        <p>Ofrecemos instalación profesional de cableado estructurado, sistemas de vigilancia y cámaras de seguridad para garantizar la conectividad y protección de tu hogar o empresa. Soluciones modernas, eficientes y adaptadas a tus necesidades. ¡Confía en los expertos!</p>
-      </div>
-      
-    </div>
-    <div class="slide">
-      <img src="{{url_for('static',filename='img/Slider-IA.png')}}" >
-      <div class="info">
-        <br>
-        <h2> Simplifica y Acelera tu Negocio</h2>
-        <br>  <br>
-        <p>Nos encargamos de buscar y automatizar las tareas de tu empresa para que ahorres tiempo y maximices resultados. Olvídate de procesos repetitivos y enfócate en lo que realmente importa: ¡hacer crecer tu negocio!</p>
-        
-        
+        <p>Descuento exclusivo en componentes de computadora y servicios de reparacion.</p>
       </div>
     </div>
     <div class="navigation">
       <i class="fas fa-chevron-left prev-btn"></i>
-
       <i class="fas fa-chevron-right next-btn"></i>
-        
     </div>
     <div class="navigation-visibility">
-      <div class="slide-icon active"></div>
-      <div class="slide-icon"></div>
-      <div class="slide-icon"></div>
-      <div class="slide-icon"></div>
-      <div class="slide-icon" id="quienes_somos" ></div>
-      </div>
-      </div>
+      <div class="slide-icon active" id="quienes_somos"></div>
+    </div>
+</div>
+{% endif %}
+    {% if config.get('mostrar_about', true) %}
       <div class="about-us">
         <div class="about-us-content">
             <h2>CyberShop</h2>
@@ -77,6 +64,8 @@
             </p>
         </div>
     </div>
+    {% endif %}
+    {% if config.get('mostrar_mision_vision', true) %}
     <!-- Sección de Misión y Visión -->
 <div class="mission-vision">
   <div class="mission">
@@ -92,11 +81,39 @@
       </p>
   </div>
 </div>
+    {% endif %}
+
+    <!-- Publicaciones del Home -->
+    {% if publicaciones and publicaciones|length > 0 %}
+    <div class="publicaciones-section">
+        <h2 class="publicaciones-titulo">Novedades</h2>
+        <div class="publicaciones-grid">
+            {% for pub in publicaciones %}
+            <div class="publicacion-card">
+                {% if pub.imagen %}
+                <div class="publicacion-img">
+                    <img src="{{ pub.imagen }}" alt="{{ pub.titulo }}">
+                </div>
+                {% endif %}
+                <div class="publicacion-content">
+                    <h3>{{ pub.titulo }}</h3>
+                    <p>{{ pub.descripcion }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if config.get('mostrar_mapa', true) or config.get('mostrar_contacto', true) %}
       <div class="contact-container">
+        {% if config.get('mostrar_mapa', true) %}
         <div class="map-container">
           <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3976.1438661161997!2d-74.12405722491505!3d4.7450433952301445!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8e3f8481ac8fae15%3A0xd086f2615f6ea83!2sCra.%20151%20%23136a11%2C%20Suba%2C%20Bogot%C3%A1!5e0!3m2!1ses!2sco!4v1737344695200!5m2!1ses!2sco" width="100%" height="700" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
         </div>
-        
+        {% endif %}
+
+        {% if config.get('mostrar_contacto', true) %}
         <div id="contactenos" class="contact-form">
             <h2>Contáctanos</h2>
            <form action="{{ url_for('public.enviar_mensaje') }}" method="POST">
@@ -129,7 +146,9 @@
     <button type="submit">Enviar</button>
 </form>
         </div>
+        {% endif %}
     </div>
+    {% endif %}
 
 {% endblock %} 
 {% block script%}

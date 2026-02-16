@@ -31,12 +31,14 @@
                         <li><a href="{{ url_for(i.url.split('#')[0]) }}{% if '#' in i.url %}#{{ i.url.split('#')[1] }}{% endif %}">{{ i.nombre }}</a></li>
                         {% endfor %}
 
+                       {% if config_global.get('mostrar_modulo_ventas', true) %}
                        <li>
                             <a href="{{ url_for('public.ver_carrito') }}" id="menu-carrito-icon" style="position: relative; padding-right: 15px;">
                                 <i class="fas fa-shopping-cart" style="font-size: 1.2rem;"></i>
                                 <span id="badge-carrito" class="cart-badge">0</span>
                             </a>
                         </li>
+                        {% endif %}
                      </ul>
                  {% else %}
                  <h2>NO HAY DATOS DEL APP</h2>
@@ -146,12 +148,14 @@
 {% endwith %}
 
 
+{% if config_global.get('mostrar_modulo_ventas', true) %}
 <div class="cart-floating-button">
     <a href="{{ url_for('public.ver_carrito') }}">
         <i class="fas fa-shopping-cart"></i>
         <span id="badge-carrito-flotante" class="cart-badge">0</span>
     </a>
 </div>
+{% endif %}
 
 <div class="chat-button">
     <a href="https://wa.me/573027974969" target="_blank">
@@ -165,5 +169,7 @@
 {% block script%}
 {% endblock %}
 
+{% if config_global.get('mostrar_modulo_ventas', true) %}
 <script src="{{ url_for('static', filename='js/Shoppingcar.js') }}"></script>
+{% endif %}
 </html>

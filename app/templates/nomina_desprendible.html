@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desprendible de Pago</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/variables.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/nomina/nomina_desprendible.css') }}">
+</head>
+
+<body>
+    <button onclick="window.print()" class="no-print print-btn">Imprimir
+        Desprendible</button>
+
+    <div class="container">
+        <div class="header">
+            <h2>CYBERSHOP S.A.S.</h2>
+            <p>NIT: 900.000.000-1</p>
+            <h3>Comprobante de Nómina</h3>
+            <p>Periodo: {{ p.anio }}-{{ p.mes }} / {% if p.numero_periodo == 0 %}Mensual{% else %}Quincena {{
+                p.numero_periodo }}{% endif %}</p>
+        </div>
+
+        <div class="box">
+            <div class="row">
+                <div class="col"><strong>Empleado:</strong> {{ e.nombres }} {{ e.apellidos }}</div>
+                <div class="col"><strong>Documento:</strong> {{ e.numero_documento }}</div>
+            </div>
+            <div class="row">
+                <div class="col"><strong>Cargo:</strong> {{ e.cargo }}</div>
+                <div class="col"><strong>Salario Base:</strong> {{ '${:,.0f}'.format(e.salario_base) }}</div>
+            </div>
+            <div class="row">
+                <div class="col"><strong>Días Trabajados:</strong> {{ d.dias_trabajados }}</div>
+            </div>
+        </div>
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Concepto</th>
+                    <th class="text-right">Devengado</th>
+                    <th class="text-right">Deducido</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Sueldo Básico</td>
+                    <td class="text-right">{{ '${:,.0f}'.format(d.sueldo_basico) }}</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td>Auxilio de Transporte</td>
+                    <td class="text-right">{{ '${:,.0f}'.format(d.auxilio_transporte) }}</td>
+                    <td></td>
+                </tr>
+                {% if d.horas_extras > 0 %}
+                <tr>
+                    <td>Horas Extras y Recargos</td>
+                    <td class="text-right">{{ '${:,.0f}'.format(d.horas_extras) }}</td>
+                    <td></td>
+                </tr>
+                {% endif %}
+
+                <tr>
+                    <td>Aporte Salud (4%)</td>
+                    <td></td>
+                    <td class="text-right">{{ '${:,.0f}'.format(d.salud_empleado) }}</td>
+                </tr>
+                <tr>
+                    <td>Aporte Pensión (4%)</td>
+                    <td></td>
+                    <td class="text-right">{{ '${:,.0f}'.format(d.pension_empleado) }}</td>
+                </tr>
+
+                {% if d.fondo_solidaridad > 0 %}
+                <tr>
+                    <td>Fondo Solidaridad Pensional</td>
+                    <td></td>
+                    <td class="text-right">{{ '${:,.0f}'.format(d.fondo_solidaridad) }}</td>
+                </tr>
+                {% endif %}
+
+                {% if d.retencion_fuente > 0 %}
+                <tr>
+                    <td>Retención en la Fuente</td>
+                    <td></td>
+                    <td class="text-right">{{ '${:,.0f}'.format(d.retencion_fuente) }}</td>
+                </tr>
+                {% endif %}
+
+                <tr class="bold">
+                    <td>TOTALES</td>
+                    <td class="text-right">{{ '${:,.0f}'.format(d.total_devengado) }}</td>
+                    <td class="text-right">{{ '${:,.0f}'.format(d.total_deducido) }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="box neto-pagar-box">
+            <div class="row">
+                <div class="col text-right">
+                    <strong>NETO A PAGAR: {{ '${:,.0f}'.format(d.neto_pagar) }}</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Generado automáticamente por CyberShop Payroll Module</p>
+        </div>
+    </div>
+</body>
+
+</html>

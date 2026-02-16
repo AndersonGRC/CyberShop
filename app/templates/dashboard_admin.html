@@ -29,13 +29,53 @@
         <a href="{{ url_for('admin.gestion_usuarios') }}" class="card-button">Ver Usuarios</a>
     </div>
 
-    <!-- Tarjeta 4: PEDIDOS (NUEVA) -->
+    <!-- Tarjeta 4: PEDIDOS -->
     <div class="card">
         <div class="card-icon">📦</div>
         <h3 class="card-title">Pedidos</h3>
         <p class="card-description">Revisa el estado de envíos y pagos.</p>
         <a href="{{ url_for('admin.gestion_pedidos') }}" class="card-button">Ver Pedidos</a>
     </div>
-    
+
+    <!-- Tarjeta: Punto de Venta -->
+    <div class="card">
+        <div class="card-icon">💰</div>
+        <h3 class="card-title">Punto de Venta</h3>
+        <p class="card-description">Facturacion en tienda fisica.</p>
+        <a href="{{ url_for('admin.facturacion_pos') }}" class="card-button">Ir al POS</a>
+    </div>
+
+    <!-- Tarjeta 5: Publicaciones Home -->
+    <div class="card">
+        <div class="card-icon">📰</div>
+        <h3 class="card-title">Publicaciones</h3>
+        <p class="card-description">Gestiona las publicaciones del home.</p>
+        <a href="{{ url_for('admin.gestion_publicaciones') }}" class="card-button">Ver Publicaciones</a>
+    </div>
+
+    <!-- Tarjeta 6: Slides Carrusel -->
+    <div class="card">
+        <div class="card-icon">🖼️</div>
+        <h3 class="card-title">Carrusel</h3>
+        <p class="card-description">Gestiona los slides del carrusel.</p>
+        <a href="{{ url_for('admin.gestion_slides') }}" class="card-button">Ver Slides</a>
+    </div>
+
+    <!-- Tarjeta 7: Servicios -->
+    <div class="card">
+        <div class="card-icon">🛠️</div>
+        <h3 class="card-title">Servicios</h3>
+        <p class="card-description">Gestiona los servicios del sitio.</p>
+        <a href="{{ url_for('admin.gestion_servicios') }}" class="card-button">Ver Servicios</a>
+    </div>
+
+    <!-- Tarjeta 8: Config Secciones -->
+    <div class="card">
+        <div class="card-icon">⚙️</div>
+        <h3 class="card-title">Secciones</h3>
+        <p class="card-description">Activa/desactiva secciones del home.</p>
+        <a href="{{ url_for('admin.config_secciones') }}" class="card-button">Configurar</a>
+    </div>
+
 </div>
 {% endblock %}

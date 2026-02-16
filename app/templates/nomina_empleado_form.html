@@ -1,0 +1,186 @@
+{% extends "public/layout_admin.html" %}
+
+{% block title %}Empleado{% endblock %}
+
+{% block LinkAdicional %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/nomina/nomina_empleado_form.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">{{ 'Editar' if modo == 'editar' else 'Nuevo' }} Empleado</h1>
+
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <form method="POST">
+                <ul class="nav nav-tabs mb-4" id="myTab" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" id="personal-tab" data-toggle="tab" href="#personal" role="tab">Datos
+                            Personales</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="laboral-tab" data-toggle="tab" href="#laboral" role="tab">Datos
+                            Laborales</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="seguridad-tab" data-toggle="tab" href="#seguridad" role="tab">Seguridad
+                            Social</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="bancario-tab" data-toggle="tab" href="#bancario" role="tab">Datos
+                            Bancarios</a>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="myTabContent">
+                    <!-- Datos Personales -->
+                    <div class="tab-pane fade show active" id="personal" role="tabpanel">
+                        <div class="form-row">
+                            <div class="form-group col-md-3">
+                                <label>Tipo Documento</label>
+                                <select class="form-control" name="tipo_documento" required>
+                                    <option value="CC" {{ 'selected' if e and e.tipo_documento=='CC' }}>Cédula
+                                        Ciudadanía</option>
+                                    <option value="CE" {{ 'selected' if e and e.tipo_documento=='CE' }}>Cédula
+                                        Extranjería</option>
+                                    <option value="NIT" {{ 'selected' if e and e.tipo_documento=='NIT' }}>NIT</option>
+                                    <option value="PEP" {{ 'selected' if e and e.tipo_documento=='PEP' }}>PEP</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label>Número Documento</label>
+                                <input type="text" class="form-control" name="numero_documento"
+                                    value="{{ e.numero_documento if e else '' }}" required>
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label>Nombres</label>
+                                <input type="text" class="form-control" name="nombres"
+                                    value="{{ e.nombres if e else '' }}" required>
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label>Apellidos</label>
+                                <input type="text" class="form-control" name="apellidos"
+                                    value="{{ e.apellidos if e else '' }}" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label>Email</label>
+                                <input type="email" class="form-control" name="email"
+                                    value="{{ e.email if e else '' }}">
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label>Teléfono</label>
+                                <input type="text" class="form-control" name="telefono"
+                                    value="{{ e.telefono if e else '' }}">
+                            </div>
+                            <div class="form-group col-md-5">
+                                <label>Dirección</label>
+                                <input type="text" class="form-control" name="direccion"
+                                    value="{{ e.direccion if e else '' }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Datos Laborales -->
+                    <div class="tab-pane fade" id="laboral" role="tabpanel">
+                        <div class="form-row">
+                            <div class="form-group col-md-3">
+                                <label>Fecha Ingreso</label>
+                                <input type="date" class="form-control" name="fecha_ingreso"
+                                    value="{{ e.fecha_ingreso if e else '' }}" required>
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label>Tipo Vinculación</label>
+                                <select class="form-control" name="tipo_vinculacion" required>
+                                    <option value="INDEFINIDO" {{ 'selected' if e and e.tipo_vinculacion=='INDEFINIDO'
+                                        }}>Indefinido</option>
+                                    <option value="FIJO" {{ 'selected' if e and e.tipo_vinculacion=='FIJO' }}>Termino
+                                        Fijo</option>
+                                    <option value="OBRA_LABOR" {{ 'selected' if e and e.tipo_vinculacion=='OBRA_LABOR'
+                                        }}>Obra o Labor</option>
+                                    <option value="APRENDIZ_SENA" {{ 'selected' if e and
+                                        e.tipo_vinculacion=='APRENDIZ_SENA' }}>Aprendiz SENA</option>
+                                    <option value="CONTRATISTA" {{ 'selected' if e and e.tipo_vinculacion=='CONTRATISTA'
+                                        }}>Contratista (OPS)</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label>Cargo</label>
+                                <input type="text" class="form-control" name="cargo" value="{{ e.cargo if e else '' }}"
+                                    required>
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label>Salario Base Mensual</label>
+                                <input type="number" step="0.01" class="form-control" name="salario_base"
+                                    value="{{ e.salario_base if e else '' }}" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Seguridad Social -->
+                    <div class="tab-pane fade" id="seguridad" role="tabpanel">
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label>EPS</label>
+                                <input type="text" class="form-control" name="eps" value="{{ e.eps if e else '' }}">
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>Fondo de Pensiones</label>
+                                <input type="text" class="form-control" name="fondo_pension"
+                                    value="{{ e.fondo_pension if e else '' }}">
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>Fondo de Cesantías</label>
+                                <input type="text" class="form-control" name="fondo_cesantias"
+                                    value="{{ e.fondo_cesantias if e else '' }}">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label>Nivel de Riesgo ARL</label>
+                                <select class="form-control" name="nivel_arl">
+                                    <option value="I" {{ 'selected' if e and e.nivel_arl=='I' }}>Nivel I</option>
+                                    <option value="II" {{ 'selected' if e and e.nivel_arl=='II' }}>Nivel II</option>
+                                    <option value="III" {{ 'selected' if e and e.nivel_arl=='III' }}>Nivel III</option>
+                                    <option value="IV" {{ 'selected' if e and e.nivel_arl=='IV' }}>Nivel IV</option>
+                                    <option value="V" {{ 'selected' if e and e.nivel_arl=='V' }}>Nivel V</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Datos Bancarios -->
+                    <div class="tab-pane fade" id="bancario" role="tabpanel">
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label>Banco</label>
+                                <input type="text" class="form-control" name="banco" value="{{ e.banco if e else '' }}">
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>Tipo Cuenta</label>
+                                <select class="form-control" name="tipo_cuenta">
+                                    <option value="AHORROS" {{ 'selected' if e and e.tipo_cuenta=='AHORROS' }}>Ahorros
+                                    </option>
+                                    <option value="CORRIENTE" {{ 'selected' if e and e.tipo_cuenta=='CORRIENTE' }}>
+                                        Corriente</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label>Número Cuenta</label>
+                                <input type="text" class="form-control" name="numero_cuenta"
+                                    value="{{ e.numero_cuenta if e else '' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="mt-4">
+                <button type="submit" class="btn btn-primary">Guardar Empleado</button>
+                <a href="{{ url_for('nomina.empleados_lista') }}" class="btn btn-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

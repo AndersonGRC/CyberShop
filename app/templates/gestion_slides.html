@@ -1,0 +1,347 @@
+{% extends './plantillaapp.html' %}
+
+{% block titulo %}Gestión de Slides del Carrusel{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+    .slides-container {
+        padding: 20px;
+        background-color: rgba(255, 255, 255, 0.95);
+        border-radius: 8px;
+        margin: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .slides-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .slides-header h2 {
+        color: var(--color-primario-oscuro, #091C5A);
+        margin: 0;
+    }
+
+    .btn-crear {
+        background-color: var(--color-primario, #122C94);
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 0.9rem;
+    }
+
+    .btn-crear:hover {
+        background-color: var(--color-primario-oscuro, #091C5A);
+    }
+
+    .slides-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+    }
+
+    .slides-table th,
+    .slides-table td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+    }
+
+    .slides-table th {
+        background-color: var(--color-primario-oscuro, #091C5A);
+        color: white;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+    }
+
+    .slides-table tr:hover {
+        background-color: #f1f1f1;
+    }
+
+    .slides-table img {
+        width: 120px;
+        height: 60px;
+        object-fit: cover;
+        border-radius: 4px;
+    }
+
+    .badge-activo {
+        background-color: #28a745;
+        color: white;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+    }
+
+    .badge-inactivo {
+        background-color: #dc3545;
+        color: white;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+    }
+
+    .btn-accion {
+        padding: 6px 12px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        color: white;
+        margin: 2px;
+    }
+
+    .btn-editar { background-color: #ffc107; color: #333; }
+    .btn-eliminar { background-color: #dc3545; }
+    .btn-toggle { background-color: #17a2b8; }
+
+    /* Formulario */
+    .form-slide {
+        background: #f9f9f9;
+        padding: 25px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        border: 1px solid #eee;
+    }
+
+    .form-slide h3 {
+        margin-top: 0;
+        color: var(--color-primario-oscuro, #091C5A);
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 5px;
+        color: #333;
+    }
+
+    .form-group input,
+    .form-group textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        font-size: 0.95rem;
+        box-sizing: border-box;
+    }
+
+    .form-group textarea {
+        min-height: 80px;
+        resize: vertical;
+    }
+
+    .form-row {
+        display: flex;
+        gap: 15px;
+    }
+
+    .form-row .form-group {
+        flex: 1;
+    }
+
+    .btn-guardar {
+        background-color: var(--color-primario, #122C94);
+        color: white;
+        padding: 10px 25px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rem;
+    }
+
+    .btn-guardar:hover {
+        background-color: var(--color-primario-oscuro, #091C5A);
+    }
+
+    .btn-cancelar {
+        background-color: #6c757d;
+        color: white;
+        padding: 10px 25px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rem;
+        text-decoration: none;
+        margin-left: 10px;
+    }
+
+    .empty-msg {
+        text-align: center;
+        padding: 40px;
+        color: #888;
+    }
+
+    @media (max-width: 768px) {
+        .slides-table, .slides-table thead, .slides-table tbody, .slides-table th, .slides-table td, .slides-table tr {
+            display: block;
+        }
+        .slides-table thead { display: none; }
+        .slides-table td {
+            padding: 8px 15px;
+            text-align: right;
+            position: relative;
+            padding-left: 50%;
+        }
+        .slides-table td::before {
+            content: attr(data-label);
+            position: absolute;
+            left: 15px;
+            font-weight: 600;
+            text-align: left;
+        }
+        .slides-table tr {
+            border-bottom: 2px solid #ddd;
+            margin-bottom: 10px;
+        }
+        .form-row {
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="slides-container">
+    <div class="slides-header">
+        <h2><i class="fas fa-images"></i> Slides del Carrusel</h2>
+        {% if modo != 'crear' and modo != 'editar' %}
+        <a href="{{ url_for('admin.crear_slide') }}" class="btn-crear"><i class="fas fa-plus"></i> Nuevo Slide</a>
+        {% endif %}
+    </div>
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div style="padding:10px;margin-bottom:10px;border-radius:5px;background:{% if category == 'success' %}#d4edda{% elif category == 'error' %}#f8d7da{% else %}#fff3cd{% endif %};color:{% if category == 'success' %}#155724{% elif category == 'error' %}#721c24{% else %}#856404{% endif %}">
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <!-- Formulario Crear -->
+    {% if modo == 'crear' %}
+    <div class="form-slide">
+        <h3><i class="fas fa-plus-circle"></i> Nuevo Slide</h3>
+        <form method="POST" enctype="multipart/form-data" action="{{ url_for('admin.crear_slide') }}">
+            <div class="form-group">
+                <label for="imagen">Imagen del Slide *</label>
+                <input type="file" id="imagen" name="imagen" accept="image/*" required>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="titulo">Titulo (opcional)</label>
+                    <input type="text" id="titulo" name="titulo" maxlength="200">
+                </div>
+                <div class="form-group">
+                    <label for="orden">Orden</label>
+                    <input type="number" id="orden" name="orden" value="0" min="0">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="descripcion">Descripcion (opcional)</label>
+                <textarea id="descripcion" name="descripcion"></textarea>
+            </div>
+            <button type="submit" class="btn-guardar"><i class="fas fa-save"></i> Guardar</button>
+            <a href="{{ url_for('admin.gestion_slides') }}" class="btn-cancelar">Cancelar</a>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Formulario Editar -->
+    {% if modo == 'editar' and slide %}
+    <div class="form-slide">
+        <h3><i class="fas fa-edit"></i> Editar Slide</h3>
+        <form method="POST" enctype="multipart/form-data" action="{{ url_for('admin.editar_slide', id=slide.id) }}">
+            <div class="form-group">
+                <label for="imagen">Imagen (dejar vacio para mantener actual)</label>
+                <input type="file" id="imagen" name="imagen" accept="image/*">
+                {% if slide.imagen %}
+                <p style="margin-top:5px"><small>Actual:</small> <img src="{{ slide.imagen }}" style="width:150px;height:70px;object-fit:cover;border-radius:4px;vertical-align:middle"></p>
+                {% endif %}
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="titulo">Titulo (opcional)</label>
+                    <input type="text" id="titulo" name="titulo" value="{{ slide.titulo or '' }}" maxlength="200">
+                </div>
+                <div class="form-group">
+                    <label for="orden">Orden</label>
+                    <input type="number" id="orden" name="orden" value="{{ slide.orden }}" min="0">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="descripcion">Descripcion (opcional)</label>
+                <textarea id="descripcion" name="descripcion">{{ slide.descripcion or '' }}</textarea>
+            </div>
+            <button type="submit" class="btn-guardar"><i class="fas fa-save"></i> Actualizar</button>
+            <a href="{{ url_for('admin.gestion_slides') }}" class="btn-cancelar">Cancelar</a>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Tabla de slides -->
+    {% if modo != 'crear' and modo != 'editar' %}
+    {% if slides|length > 0 %}
+    <table class="slides-table">
+        <thead>
+            <tr>
+                <th>Orden</th>
+                <th>Imagen</th>
+                <th>Titulo</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in slides %}
+            <tr>
+                <td data-label="Orden">{{ s.orden }}</td>
+                <td data-label="Imagen">
+                    <img src="{{ s.imagen }}" alt="{{ s.titulo or 'Slide' }}">
+                </td>
+                <td data-label="Titulo">{{ s.titulo or '-' }}</td>
+                <td data-label="Estado">
+                    {% if s.activo %}
+                    <span class="badge-activo">Activo</span>
+                    {% else %}
+                    <span class="badge-inactivo">Inactivo</span>
+                    {% endif %}
+                </td>
+                <td data-label="Acciones">
+                    <a href="{{ url_for('admin.editar_slide', id=s.id) }}" class="btn-accion btn-editar"><i class="fas fa-edit"></i></a>
+                    <form method="POST" action="{{ url_for('admin.toggle_slide', id=s.id) }}" style="display:inline">
+                        <button type="submit" class="btn-accion btn-toggle" title="{% if s.activo %}Desactivar{% else %}Activar{% endif %}">
+                            <i class="fas fa-{% if s.activo %}eye-slash{% else %}eye{% endif %}"></i>
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ url_for('admin.eliminar_slide', id=s.id) }}" style="display:inline" onsubmit="return confirm('Eliminar este slide?')">
+                        <button type="submit" class="btn-accion btn-eliminar"><i class="fas fa-trash"></i></button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-msg">
+        <i class="fas fa-images" style="font-size:3rem;margin-bottom:10px"></i>
+        <p>No hay slides aun. Crea el primero.</p>
+    </div>
+    {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

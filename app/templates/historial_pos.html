@@ -1,0 +1,359 @@
+{% extends './plantillaapp.html' %}
+
+{% block titulo %}Historial Ventas POS{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+    .hist-container {
+        padding: 20px;
+        background-color: rgba(255, 255, 255, 0.95);
+        border-radius: 8px;
+        margin: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .hist-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .hist-header h2 {
+        color: var(--color-primario-oscuro, #091C5A);
+        margin: 0;
+    }
+
+    .btn-pos-link {
+        background-color: #28a745;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        text-decoration: none;
+        font-size: 0.9rem;
+    }
+
+    .hist-filters {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+        align-items: end;
+    }
+
+    .hist-filters label {
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: #555;
+        display: block;
+        margin-bottom: 3px;
+    }
+
+    .hist-filters input, .hist-filters select {
+        padding: 8px 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+
+    .hist-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .hist-table th, .hist-table td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+    }
+
+    .hist-table th {
+        background-color: var(--color-primario-oscuro, #091C5A);
+        color: white;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+    }
+
+    .hist-table tr:hover { background-color: #f1f1f1; }
+
+    .badge-metodo {
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        color: white;
+        background: #6c757d;
+    }
+
+    .badge-metodo.EFECTIVO { background: #28a745; }
+    .badge-metodo.TARJETA { background: #007bff; }
+    .badge-metodo.TRANSFERENCIA { background: #17a2b8; }
+    .badge-metodo.NEQUI { background: #6f42c1; }
+    .badge-metodo.DAVIPLATA { background: #e60023; }
+
+    .btn-ver {
+        padding: 6px 12px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        color: white;
+        background: var(--color-primario, #122C94);
+    }
+
+    .btn-ver:hover { background: var(--color-primario-oscuro, #091C5A); }
+
+    .empty-msg {
+        text-align: center;
+        padding: 40px;
+        color: #888;
+    }
+
+    /* Modal detalle */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 9999;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-overlay.activo { display: flex; }
+
+    .modal-box {
+        background: white;
+        padding: 25px;
+        border-radius: 8px;
+        max-width: 550px;
+        width: 90%;
+        max-height: 85vh;
+        overflow-y: auto;
+    }
+
+    .modal-box h3 { color: var(--color-primario-oscuro, #091C5A); margin-top: 0; }
+
+    .modal-box table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 10px 0;
+    }
+
+    .modal-box table th { text-align: left; padding: 6px; border-bottom: 1px solid #ddd; font-size: 0.85rem; }
+    .modal-box table td { padding: 6px; font-size: 0.9rem; }
+
+    .modal-close {
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 8px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-top: 10px;
+    }
+
+    .modal-print {
+        background: var(--color-primario, #122C94);
+        color: white;
+        border: none;
+        padding: 8px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-top: 10px;
+        margin-left: 10px;
+    }
+
+    .hist-resumen {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+
+    .hist-resumen .stat-card {
+        flex: 1;
+        min-width: 150px;
+        background: var(--color-primario-oscuro, #091C5A);
+        color: white;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .stat-card .stat-num { font-size: 1.5rem; font-weight: bold; }
+    .stat-card .stat-label { font-size: 0.8rem; opacity: 0.8; margin-top: 3px; }
+
+    @media (max-width: 768px) {
+        .hist-table, .hist-table thead, .hist-table tbody, .hist-table th, .hist-table td, .hist-table tr { display: block; }
+        .hist-table thead { display: none; }
+        .hist-table td { padding: 8px 15px; text-align: right; position: relative; padding-left: 50%; }
+        .hist-table td::before { content: attr(data-label); position: absolute; left: 15px; font-weight: 600; text-align: left; }
+        .hist-table tr { border-bottom: 2px solid #ddd; margin-bottom: 10px; }
+    }
+
+    @media print {
+        body * { visibility: hidden; }
+        .modal-box, .modal-box * { visibility: visible; }
+        .modal-box { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; }
+        .modal-close, .modal-print { display: none; }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="hist-container">
+    <div class="hist-header">
+        <h2><i class="fas fa-receipt"></i> Historial de Ventas POS</h2>
+        <a href="{{ url_for('admin.facturacion_pos') }}" class="btn-pos-link"><i class="fas fa-cash-register"></i> Ir al POS</a>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div style="padding:10px;margin-bottom:10px;border-radius:5px;background:{% if category == 'success' %}#d4edda{% elif category == 'error' %}#f8d7da{% else %}#fff3cd{% endif %};color:{% if category == 'success' %}#155724{% elif category == 'error' %}#721c24{% else %}#856404{% endif %}">
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    {% if ventas|length > 0 %}
+    <div class="hist-resumen">
+        <div class="stat-card">
+            <div class="stat-num">{{ ventas|length }}</div>
+            <div class="stat-label">Ventas Totales</div>
+        </div>
+        <div class="stat-card" style="background:#28a745">
+            <div class="stat-num">${{ "{:,.0f}".format(ventas|sum(attribute='total')) }}</div>
+            <div class="stat-label">Ingresos Totales</div>
+        </div>
+    </div>
+
+    <div class="hist-filters">
+        <div>
+            <label>Buscar</label>
+            <input type="text" id="filtro-buscar" placeholder="No. venta, cliente..." oninput="filtrarHistorial()">
+        </div>
+        <div>
+            <label>Metodo de Pago</label>
+            <select id="filtro-metodo" onchange="filtrarHistorial()">
+                <option value="">Todos</option>
+                <option value="EFECTIVO">Efectivo</option>
+                <option value="TARJETA">Tarjeta</option>
+                <option value="TRANSFERENCIA">Transferencia</option>
+                <option value="NEQUI">Nequi</option>
+                <option value="DAVIPLATA">Daviplata</option>
+                <option value="OTRO">Otro</option>
+            </select>
+        </div>
+    </div>
+
+    <table class="hist-table" id="tabla-historial">
+        <thead>
+            <tr>
+                <th>No. Venta</th>
+                <th>Fecha</th>
+                <th>Cliente</th>
+                <th>Metodo</th>
+                <th>Total</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for v in ventas %}
+            <tr data-metodo="{{ v.metodo_pago }}" data-buscar="{{ v.numero_venta }} {{ v.cliente_nombre or '' }}">
+                <td data-label="No. Venta"><strong>{{ v.numero_venta }}</strong></td>
+                <td data-label="Fecha">{{ v.fecha.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td data-label="Cliente">{{ v.cliente_nombre or 'Consumidor Final' }}</td>
+                <td data-label="Metodo"><span class="badge-metodo {{ v.metodo_pago }}">{{ v.metodo_pago }}</span></td>
+                <td data-label="Total"><strong>${{ "{:,.0f}".format(v.total) }}</strong></td>
+                <td data-label="Acciones">
+                    <button class="btn-ver" onclick="verDetalle({{ v.id }})"><i class="fas fa-eye"></i> Ver</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-msg">
+        <i class="fas fa-receipt" style="font-size:3rem;margin-bottom:10px"></i>
+        <p>No hay ventas POS registradas aun.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal Detalle -->
+<div class="modal-overlay" id="modal-detalle">
+    <div class="modal-box" id="modal-detalle-content">
+        <h3><i class="fas fa-receipt"></i> Detalle de Venta</h3>
+        <p><strong>No:</strong> <span id="det-numero"></span></p>
+        <p><strong>Fecha:</strong> <span id="det-fecha"></span></p>
+        <p><strong>Cliente:</strong> <span id="det-cliente"></span></p>
+        <p><strong>Documento:</strong> <span id="det-doc"></span></p>
+        <p><strong>Metodo:</strong> <span id="det-metodo"></span></p>
+        <table>
+            <thead><tr><th>Item</th><th style="text-align:center">Cant.</th><th style="text-align:right">P.Unit.</th><th style="text-align:right">Subtotal</th></tr></thead>
+            <tbody id="det-items"></tbody>
+        </table>
+        <p style="font-size:1.2rem;font-weight:bold;text-align:right;margin-top:10px">TOTAL: <span id="det-total"></span></p>
+        <p id="det-notas-wrap" style="display:none"><strong>Notas:</strong> <span id="det-notas"></span></p>
+        <div>
+            <button class="modal-close" onclick="document.getElementById('modal-detalle').classList.remove('activo')">Cerrar</button>
+            <button class="modal-print" onclick="window.print()"><i class="fas fa-print"></i> Imprimir</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function verDetalle(id) {
+    fetch("{{ url_for('admin.detalle_venta_pos', id=0) }}".replace('/0', '/' + id))
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { Swal.fire('Error', data.error, 'error'); return; }
+        document.getElementById('det-numero').textContent = data.numero_venta;
+        document.getElementById('det-fecha').textContent = data.fecha;
+        document.getElementById('det-cliente').textContent = data.cliente_nombre;
+        document.getElementById('det-doc').textContent = data.cliente_documento;
+        document.getElementById('det-metodo').textContent = data.metodo_pago;
+        document.getElementById('det-total').textContent = '$' + data.total.toLocaleString('es-CO');
+
+        if (data.notas) {
+            document.getElementById('det-notas').textContent = data.notas;
+            document.getElementById('det-notas-wrap').style.display = 'block';
+        } else {
+            document.getElementById('det-notas-wrap').style.display = 'none';
+        }
+
+        const tbody = document.getElementById('det-items');
+        tbody.innerHTML = '';
+        data.items.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = '<td>' + item.descripcion + '</td>' +
+                '<td style="text-align:center">' + item.cantidad + '</td>' +
+                '<td style="text-align:right">$' + item.precio_unitario.toLocaleString('es-CO') + '</td>' +
+                '<td style="text-align:right">$' + item.subtotal.toLocaleString('es-CO') + '</td>';
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById('modal-detalle').classList.add('activo');
+    });
+}
+
+function filtrarHistorial() {
+    const buscar = document.getElementById('filtro-buscar').value.toLowerCase();
+    const metodo = document.getElementById('filtro-metodo').value;
+    const filas = document.querySelectorAll('#tabla-historial tbody tr');
+
+    filas.forEach(fila => {
+        const textoBuscar = (fila.dataset.buscar || '').toLowerCase();
+        const metodoFila = fila.dataset.metodo || '';
+        const coincideBuscar = !buscar || textoBuscar.includes(buscar);
+        const coincideMetodo = !metodo || metodoFila === metodo;
+        fila.style.display = (coincideBuscar && coincideMetodo) ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}

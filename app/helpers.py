@@ -24,7 +24,10 @@ def get_common_data():
 
     Incluye el titulo del sitio y la estructura del menu principal
     con las rutas visibles para visitantes no autenticados.
+    Filtra "Productos" si el modulo de ventas esta desactivado.
     """
+    from database import get_db_cursor
+
     MenuApp = [
         {"nombre": "Inicio", "url": "public.index"},
         {"nombre": "Productos", "url": "public.productos"},
@@ -33,6 +36,17 @@ def get_common_data():
         {"nombre": "Contactanos", "url": "public.contactenos"},
         {"nombre": "Ingresar", "url": "auth.login"}
     ]
+
+    # Filtrar menu segun config de secciones
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT valor FROM config_secciones WHERE clave = 'mostrar_modulo_ventas'")
+            row = cur.fetchone()
+            if row and row['valor'] == 'false':
+                MenuApp = [m for m in MenuApp if m['nombre'] != 'Productos']
+    except Exception:
+        pass
+
     return {
         'titulo': 'CyberShop',
         'MenuAppindex': MenuApp,
@@ -54,6 +68,8 @@ def get_data_app():
             "url": "#", # Grupo
             "icono": "cash-register",
             "submodulos": [
+                {"nombre": "Punto de Venta", "url": "admin.facturacion_pos", "icono": "cash-register"},
+                {"nombre": "Historial POS", "url": "admin.historial_pos", "icono": "receipt"},
                 {"nombre": "Gestionar Pedidos", "url": "admin.gestion_pedidos", "icono": "truck"},
                 {"nombre": "Nueva Cotización", "url": "quotes.cotizar", "icono": "file-invoice-dollar"},
                 {"nombre": "Mis Cotizaciones", "url": "quotes.ver_cotizaciones", "icono": "history"}
@@ -71,12 +87,37 @@ def get_data_app():
             ]
         },
         {
+            "nombre": "Contenido Web",
+            "url": "#",
+            "icono": "newspaper",
+            "submodulos": [
+                {"nombre": "Publicaciones", "url": "admin.gestion_publicaciones", "icono": "file-alt"},
+                {"nombre": "Slides Carrusel", "url": "admin.gestion_slides", "icono": "images"},
+                {"nombre": "Servicios", "url": "admin.gestion_servicios", "icono": "concierge-bell"},
+                {"nombre": "Config Secciones", "url": "admin.config_secciones", "icono": "sliders-h"}
+            ]
+        },
+        {
             "nombre": "Usuarios",
             "url": "#",
             "icono": "users",
             "submodulos": [
                 {"nombre": "Gestión Usuarios", "url": "admin.gestion_usuarios", "icono": "user-cog"},
                 {"nombre": "Crear Usuario", "url": "admin.crear_usuario", "icono": "user-plus"}
+            ]
+        },
+        {
+            "nombre": "Empleados",
+            "url": "#",
+            "icono": "id-card",
+            "submodulos": [
+                {"nombre": "Dashboard Nomina", "url": "nomina.nomina_dashboard", "icono": "chart-line"},
+                {"nombre": "Empleados", "url": "nomina.empleados_lista", "icono": "users"},
+                {"nombre": "Contratistas", "url": "nomina.contratistas_lista", "icono": "user-tie"},
+                {"nombre": "Periodos Nomina", "url": "nomina.periodos_lista", "icono": "calendar-alt"},
+                {"nombre": "Novedades", "url": "nomina.novedades_lista", "icono": "clipboard-list"},
+                {"nombre": "Liquidaciones", "url": "nomina.liquidaciones_lista", "icono": "file-invoice-dollar"},
+                {"nombre": "Parametros", "url": "nomina.parametros_lista", "icono": "cogs"}
             ]
         },
         {"nombre": "Cerrar Sesion", "url": "auth.logout", "icono": "sign-out-alt"}

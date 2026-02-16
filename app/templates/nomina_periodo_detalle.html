@@ -1,0 +1,85 @@
+{% extends "public/layout_admin.html" %}
+
+{% block title %}Detalle Periodo{% endblock %}
+
+{% block LinkAdicional %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/nomina/nomina_periodo_detalle.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            Periodo {{ p.anio }}-{{ p.mes }}
+            {% if p.numero_periodo == 1 %}(Quincena 1){% elif p.numero_periodo == 2 %}(Quincena 2){% else %}(Mensual){%
+            endif %}
+        </h1>
+        <div>
+            {% if p.estado == 'borrador' or p.estado == 'calculada' %}
+            <form action="{{ url_for('nomina.periodo_calcular', id=p.id) }}" method="POST" class="form-inline-action">
+                <button type="submit" class="btn btn-sm btn-primary shadow-sm"><i
+                        class="fas fa-calculator fa-sm text-white-50"></i> Calcular Nómina</button>
+            </form>
+            {% endif %}
+
+            {% if p.estado == 'calculada' %}
+            <button class="btn btn-sm btn-success shadow-sm"><i class="fas fa-check fa-sm text-white-50"></i>
+                Aprobar</button>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Estado: <span class="text-uppercase">{{ p.estado }}</span>
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Empleado</th>
+                            <th>Días</th>
+                            <th>Básico</th>
+                            <th>Aux. Trans</th>
+                            <th>Extras</th>
+                            <th>Total Dev.</th>
+                            <th>Salud</th>
+                            <th>Pensión</th>
+                            <th>Deducciones</th>
+                            <th>Neto Pagar</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in detalles %}
+                        <tr>
+                            <td>{{ d.nombres }} {{ d.apellidos }}</td>
+                            <td>{{ d.dias_trabajados }}</td>
+                            <td class="text-right">{{ '${:,.0f}'.format(d.sueldo_basico) }}</td>
+                            <td class="text-right">{{ '${:,.0f}'.format(d.auxilio_transporte) }}</td>
+                            <td class="text-right">{{ '${:,.0f}'.format(d.horas_extras) }}</td>
+                            <td class="text-right font-weight-bold">{{ '${:,.0f}'.format(d.total_devengado) }}</td>
+                            <td class="text-right">{{ '${:,.0f}'.format(d.salud_empleado) }}</td>
+                            <td class="text-right">{{ '${:,.0f}'.format(d.pension_empleado) }}</td>
+                            <td class="text-right">{{ '${:,.0f}'.format(d.total_deducido) }}</td>
+                            <td class="text-right font-weight-bold text-success">{{ '${:,.0f}'.format(d.neto_pagar) }}
+                            </td>
+                            <td class="text-center">
+                                <a href="{{ url_for('nomina.periodo_desprendible', periodo_id=p.id, empleado_id=d.empleado_id) }}"
+                                    target="_blank" class="btn btn-sm btn-circle btn-primary"
+                                    title="Imprimir Desprendible">
+                                    <i class="fas fa-print"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

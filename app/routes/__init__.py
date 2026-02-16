@@ -24,3 +24,7 @@ def register_blueprints(app):
     app.register_blueprint(admin_bp)
     app.register_blueprint(payments_bp)
     app.register_blueprint(quotes_bp)
+    
+    # Nomina
+    from routes.nomina import nomina_bp
+    app.register_blueprint(nomina_bp)

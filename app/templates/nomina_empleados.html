@@ -1,0 +1,60 @@
+{% extends "public/layout_admin.html" %}
+
+{% block title %}Empleados{% endblock %}
+
+{% block LinkAdicional %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/nomina/nomina_empleados.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Empleados</h1>
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">Listado de Empleados</h6>
+            <a href="{{ url_for('nomina.empleado_crear') }}" class="btn btn-sm btn-primary shadow-sm"><i
+                    class="fas fa-plus fa-sm text-white-50"></i> Nuevo Empleado</a>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th class="d-none d-md-table-cell">Documento</th>
+                            <th>Nombre</th>
+                            <th>Cargo</th>
+                            <th class="d-none d-md-table-cell">Salario</th>
+                            <th class="d-none d-md-table-cell">Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for e in empleados %}
+                        <tr>
+                            <td class="d-none d-md-table-cell">{{ e.numero_documento }}</td>
+                            <td>{{ e.nombres }} {{ e.apellidos }}</td>
+                            <td>{{ e.cargo }}</td>
+                            <td class="d-none d-md-table-cell">{{ '${:,.0f}'.format(e.salario_base) }}</td>
+                            <td class="d-none d-md-table-cell">
+                                {% if e.activo %}
+                                <span class="badge badge-success">Activo</span>
+                                {% else %}
+                                <span class="badge badge-danger">Inactivo</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('nomina.empleado_ver', id=e.id) }}" class="btn btn-sm btn-info"
+                                    title="Ver Detalle"><i class="fas fa-eye"></i></a>
+                                <a href="{{ url_for('nomina.empleado_editar', id=e.id) }}"
+                                    class="btn btn-sm btn-warning" title="Editar"><i class="fas fa-edit"></i></a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

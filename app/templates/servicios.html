@@ -16,8 +16,27 @@
         <h2>Servicios</h2>
     </div>
 </section>
+
+{% if servicios_db and servicios_db|length > 0 %}
+{# ---- Servicios dinamicos desde la BD ---- #}
 <section class="servicios">
-    <!-- Mantenimiento de software y hardware -->
+    {% for s in servicios_db %}
+    <div class="servicio" {% if s.beneficios %}data-beneficios="{{ s.beneficios }}"{% endif %}>
+        {% if s.imagen %}
+        <div class="icono">
+            <img src="{{ s.imagen }}" alt="{{ s.titulo }}">
+        </div>
+        {% endif %}
+        <div class="texto">
+            <h2>{{ s.titulo }}</h2>
+            <p>{{ s.descripcion }}</p>
+        </div>
+    </div>
+    {% endfor %}
+</section>
+{% else %}
+{# ---- Fallback: servicios estaticos originales ---- #}
+<section class="servicios">
     <div class="servicio" data-beneficios="
         - Prolonga la vida útil de tus equipos.
         - Reduce tiempos de inactividad por fallos técnicos.
@@ -25,7 +44,6 @@
         - Diagnóstico rápido y soluciones efectivas.
         - Soporte técnico confiable y profesional.
     ">
-
         <div class="icono">
             <img src="{{ url_for('static', filename='img/Servicio1.png') }}" alt="Mantenimiento">
         </div>
@@ -35,7 +53,6 @@
         </div>
     </div>
 
-    <!-- Actualización de sistemas operativos -->
     <div class="servicio" data-beneficios="
         - Aumenta la seguridad de tus dispositivos frente a amenazas.
         - Acceso a las últimas funciones y tecnologías.
@@ -52,7 +69,6 @@
         </div>
     </div>
 
-    <!-- Automatización de procesos de negocios -->
     <div class="servicio" data-beneficios="
         - Ahorro significativo de tiempo y recursos.
         - Eliminación de errores humanos en tareas repetitivas.
@@ -69,7 +85,6 @@
         </div>
     </div>
 
-    <!-- Instalación de cableado estructurado -->
     <div class="servicio" data-beneficios="
         - Garantiza una conexión estable y de alta velocidad.
         - Facilita la gestión y el mantenimiento de redes.
@@ -86,7 +101,6 @@
         </div>
     </div>
 
-    <!-- Sistemas de vigilancia -->
     <div class="servicio" data-beneficios="
         - Monitoreo continuo para mayor seguridad.
         - Detección oportuna de incidentes.
@@ -103,7 +117,6 @@
         </div>
     </div>
 
-    <!-- Desarrollo web empresarial -->
     <div class="servicio" data-beneficios="
         - Refleja la identidad profesional de tu marca.
         - Mejora tu presencia en línea y posicionamiento en buscadores.
@@ -120,6 +133,7 @@
         </div>
     </div>
 </section>
+{% endif %}
 
 <!-- Modal -->
 <div id="modal" class="modal">
@@ -142,7 +156,8 @@
         servicios.forEach((servicio) => {
             servicio.addEventListener("click", () => {
                 const beneficios = servicio.getAttribute("data-beneficios");
-                beneficiosContent.innerHTML = `<ul>${beneficios.split("\n").map(b => `<li>${b.trim()}</li>`).join("")}</ul>`;
+                if (!beneficios) return;
+                beneficiosContent.innerHTML = `<ul>${beneficios.split("\n").filter(b => b.trim()).map(b => `<li>${b.trim().replace(/^-\s*/, '')}</li>`).join("")}</ul>`;
                 modal.style.display = "flex";
             });
         });

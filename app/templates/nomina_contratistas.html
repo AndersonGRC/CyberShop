@@ -1,0 +1,100 @@
+{% extends "public/layout_admin.html" %}
+
+{% block title %}Contratistas{% endblock %}
+
+{% block LinkAdicional %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/nomina/nomina_contratistas.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Gestión de Contratistas</h1>
+    <p class="mb-4">Gestión de pagos y verificación de planillas PILA.</p>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Contratistas Activos</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Contratista</th>
+                            <th>Identificación</th>
+                            <th>Honorarios (Base)</th>
+                            <th>Estado PILA Mes Actual</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in contratistas %}
+                        <tr>
+                            <td>{{ c.nombres }} {{ c.apellidos }}</td>
+                            <td>{{ c.tipo_documento }} {{ c.numero_documento }}</td>
+                            <td>{{ '${:,.0f}'.format(c.salario_base) }}</td>
+                            <td>
+                                {% if c.pila_verificada %}
+                                <span class="badge badge-success">Verificado</span>
+                                {% else %}
+                                <span class="badge badge-warning">Pendiente</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-primary" data-toggle="modal"
+                                    data-target="#modalPila{{ c.id }}">
+                                    <i class="fas fa-upload"></i> Subir PILA
+                                </button>
+
+                                <!-- Modal Subir PILA -->
+                                <div class="modal fade" id="modalPila{{ c.id }}" tabindex="-1" role="dialog"
+                                    aria-labelledby="exampleModalLabel" aria-hidden="true">
+                                    <div class="modal-dialog" role="document">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="exampleModalLabel">Soporte PILA - {{
+                                                    c.nombres }}</h5>
+                                                <button type="button" class="close" data-dismiss="modal"
+                                                    aria-label="Close">
+                                                    <span aria-hidden="true">&times;</span>
+                                                </button>
+                                            </div>
+                                            <form action="{{ url_for('nomina.subir_pila', id=c.id) }}" method="POST"
+                                                enctype="multipart/form-data">
+                                                <div class="modal-body">
+                                                    <div class="form-group">
+                                                        <label>Número Planilla</label>
+                                                        <input type="text" class="form-control" name="numero_planilla"
+                                                            required>
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label>Fecha Pago</label>
+                                                        <input type="date" class="form-control" name="fecha_pago"
+                                                            required>
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label>Valor Pagado</label>
+                                                        <input type="number" step="0.01" class="form-control"
+                                                            name="valor_pagado" required>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary"
+                                                        data-dismiss="modal">Cerrar</button>
+                                                    <button type="submit" class="btn btn-primary">Guardar</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

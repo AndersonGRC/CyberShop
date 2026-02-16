@@ -50,6 +50,20 @@ configure_uploads(app, user_images)
 os.makedirs(app.config['UPLOADED_IMAGES_DEST'], exist_ok=True)
 os.makedirs(app.config['UPLOADED_USERIMAGES_DEST'], exist_ok=True)
 
+# --- Context processor: inyecta config_secciones a todos los templates ---
+@app.context_processor
+def inject_config_secciones():
+    from database import get_db_cursor
+    config = {}
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute('SELECT clave, valor FROM config_secciones')
+            for row in cur.fetchall():
+                config[row['clave']] = row['valor'] == 'true'
+    except Exception:
+        pass
+    return dict(config_global=config)
+
 # --- Registrar blueprints ---
 register_blueprints(app)
 

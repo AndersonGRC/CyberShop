@@ -1,0 +1,54 @@
+{% extends "public/layout_admin.html" %}
+
+{% block title %}Nueva Liquidación{% endblock %}
+
+{% block LinkAdicional %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/nomina/nomina_liquidacion_form.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Generar Liquidación Definitiva</h1>
+
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <form method="POST">
+                <div class="form-group">
+                    <label>Empleado a Liquidar</label>
+                    <select class="form-control select2" name="empleado_id" required>
+                        <option value="">Seleccione...</option>
+                        {% for e in empleados %}
+                        <option value="{{ e.id }}">{{ e.nombres }} {{ e.apellidos }} - {{ e.numero_documento }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label>Fecha de Retiro</label>
+                        <input type="date" class="form-control" name="fecha_retiro" required>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label>Motivo de Retiro</label>
+                        <select class="form-control" name="motivo_retiro" required>
+                            <option value="RENUNCIA">Renuncia Voluntaria</option>
+                            <option value="TERMINACION_CONTRATO">Terminación de Contrato</option>
+                            <option value="DESPIDO_JUSTO">Despido con Justa Causa</option>
+                            <option value="DESPIDO_INJUSTO">Despido sin Justa Causa</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> Al generar la liquidación, el empleado pasará a estado
+                    <strong>Inactivo</strong>.
+                </div>
+
+                <button type="submit" class="btn btn-danger">Calcular y Generar</button>
+                <a href="{{ url_for('nomina.liquidaciones_lista') }}" class="btn btn-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

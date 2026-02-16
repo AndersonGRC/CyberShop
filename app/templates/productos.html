@@ -40,11 +40,13 @@
                         producto['stock'] }}</span>
                 </p>
 
+                {% if config_global.get('mostrar_modulo_ventas', true) %}
                 {% if producto['stock'] > 0 %}
                 <button class="añadir-carrito">Añadir al carrito</button>
                 {% else %}
                 <button class="agotado-btn" disabled
                     style="background-color: #ccc; cursor: not-allowed;">Agotado</button>
+                {% endif %}
                 {% endif %}
 
                 <button class="ver-descripcion">Ver Detalles</button> <!-- Botón para ver los detalles -->

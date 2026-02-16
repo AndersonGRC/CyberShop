@@ -1,0 +1,329 @@
+{% extends './plantillaapp.html' %}
+
+{% block titulo %}Gestión de Publicaciones{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+    .pub-container {
+        padding: 20px;
+        background-color: rgba(255, 255, 255, 0.95);
+        border-radius: 8px;
+        margin: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .pub-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .pub-header h2 {
+        color: var(--color-primario-oscuro, #091C5A);
+        margin: 0;
+    }
+
+    .btn-crear {
+        background-color: var(--color-primario, #122C94);
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 0.9rem;
+    }
+
+    .btn-crear:hover {
+        background-color: var(--color-primario-oscuro, #091C5A);
+    }
+
+    .pub-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+    }
+
+    .pub-table th,
+    .pub-table td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+    }
+
+    .pub-table th {
+        background-color: var(--color-primario-oscuro, #091C5A);
+        color: white;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+    }
+
+    .pub-table tr:hover {
+        background-color: #f1f1f1;
+    }
+
+    .pub-table img {
+        width: 80px;
+        height: 50px;
+        object-fit: cover;
+        border-radius: 4px;
+    }
+
+    .badge-activo {
+        background-color: #28a745;
+        color: white;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+    }
+
+    .badge-inactivo {
+        background-color: #dc3545;
+        color: white;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+    }
+
+    .btn-accion {
+        padding: 6px 12px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        color: white;
+        margin: 2px;
+    }
+
+    .btn-editar { background-color: #ffc107; color: #333; }
+    .btn-eliminar { background-color: #dc3545; }
+    .btn-toggle { background-color: #17a2b8; }
+
+    /* Formulario */
+    .form-pub {
+        background: #f9f9f9;
+        padding: 25px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        border: 1px solid #eee;
+    }
+
+    .form-pub h3 {
+        margin-top: 0;
+        color: var(--color-primario-oscuro, #091C5A);
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 5px;
+        color: #333;
+    }
+
+    .form-group input,
+    .form-group textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        font-size: 0.95rem;
+        box-sizing: border-box;
+    }
+
+    .form-group textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .btn-guardar {
+        background-color: var(--color-primario, #122C94);
+        color: white;
+        padding: 10px 25px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rem;
+    }
+
+    .btn-guardar:hover {
+        background-color: var(--color-primario-oscuro, #091C5A);
+    }
+
+    .btn-cancelar {
+        background-color: #6c757d;
+        color: white;
+        padding: 10px 25px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rem;
+        text-decoration: none;
+        margin-left: 10px;
+    }
+
+    .empty-msg {
+        text-align: center;
+        padding: 40px;
+        color: #888;
+    }
+
+    @media (max-width: 768px) {
+        .pub-table, .pub-table thead, .pub-table tbody, .pub-table th, .pub-table td, .pub-table tr {
+            display: block;
+        }
+        .pub-table thead { display: none; }
+        .pub-table td {
+            padding: 8px 15px;
+            text-align: right;
+            position: relative;
+            padding-left: 50%;
+        }
+        .pub-table td::before {
+            content: attr(data-label);
+            position: absolute;
+            left: 15px;
+            font-weight: 600;
+            text-align: left;
+        }
+        .pub-table tr {
+            border-bottom: 2px solid #ddd;
+            margin-bottom: 10px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="pub-container">
+    <div class="pub-header">
+        <h2><i class="fas fa-newspaper"></i> Publicaciones del Home</h2>
+        {% if modo != 'crear' and modo != 'editar' %}
+        <a href="{{ url_for('admin.crear_publicacion') }}" class="btn-crear"><i class="fas fa-plus"></i> Nueva Publicacion</a>
+        {% endif %}
+    </div>
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div style="padding:10px;margin-bottom:10px;border-radius:5px;background:{% if category == 'success' %}#d4edda{% elif category == 'error' %}#f8d7da{% else %}#fff3cd{% endif %};color:{% if category == 'success' %}#155724{% elif category == 'error' %}#721c24{% else %}#856404{% endif %}">
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <!-- Formulario Crear -->
+    {% if modo == 'crear' %}
+    <div class="form-pub">
+        <h3><i class="fas fa-plus-circle"></i> Nueva Publicacion</h3>
+        <form method="POST" enctype="multipart/form-data" action="{{ url_for('admin.crear_publicacion') }}">
+            <div class="form-group">
+                <label for="titulo">Titulo</label>
+                <input type="text" id="titulo" name="titulo" required maxlength="200">
+            </div>
+            <div class="form-group">
+                <label for="descripcion">Descripcion</label>
+                <textarea id="descripcion" name="descripcion" required></textarea>
+            </div>
+            <div class="form-group">
+                <label for="imagen">Imagen (opcional)</label>
+                <input type="file" id="imagen" name="imagen" accept="image/*">
+            </div>
+            <button type="submit" class="btn-guardar"><i class="fas fa-save"></i> Guardar</button>
+            <a href="{{ url_for('admin.gestion_publicaciones') }}" class="btn-cancelar">Cancelar</a>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Formulario Editar -->
+    {% if modo == 'editar' and publicacion %}
+    <div class="form-pub">
+        <h3><i class="fas fa-edit"></i> Editar Publicacion</h3>
+        <form method="POST" enctype="multipart/form-data" action="{{ url_for('admin.editar_publicacion', id=publicacion.id) }}">
+            <div class="form-group">
+                <label for="titulo">Titulo</label>
+                <input type="text" id="titulo" name="titulo" value="{{ publicacion.titulo }}" required maxlength="200">
+            </div>
+            <div class="form-group">
+                <label for="descripcion">Descripcion</label>
+                <textarea id="descripcion" name="descripcion" required>{{ publicacion.descripcion }}</textarea>
+            </div>
+            <div class="form-group">
+                <label for="imagen">Imagen (dejar vacio para mantener actual)</label>
+                <input type="file" id="imagen" name="imagen" accept="image/*">
+                {% if publicacion.imagen %}
+                <p style="margin-top:5px"><small>Actual:</small> <img src="{{ publicacion.imagen }}" style="width:100px;height:60px;object-fit:cover;border-radius:4px;vertical-align:middle"></p>
+                {% endif %}
+            </div>
+            <button type="submit" class="btn-guardar"><i class="fas fa-save"></i> Actualizar</button>
+            <a href="{{ url_for('admin.gestion_publicaciones') }}" class="btn-cancelar">Cancelar</a>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Tabla de publicaciones -->
+    {% if modo != 'crear' and modo != 'editar' %}
+    {% if publicaciones|length > 0 %}
+    <table class="pub-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Imagen</th>
+                <th>Titulo</th>
+                <th>Estado</th>
+                <th>Fecha</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pub in publicaciones %}
+            <tr>
+                <td data-label="ID">{{ pub.id }}</td>
+                <td data-label="Imagen">
+                    {% if pub.imagen %}
+                    <img src="{{ pub.imagen }}" alt="{{ pub.titulo }}">
+                    {% else %}
+                    <span style="color:#aaa">Sin imagen</span>
+                    {% endif %}
+                </td>
+                <td data-label="Titulo">{{ pub.titulo }}</td>
+                <td data-label="Estado">
+                    {% if pub.activo %}
+                    <span class="badge-activo">Activo</span>
+                    {% else %}
+                    <span class="badge-inactivo">Inactivo</span>
+                    {% endif %}
+                </td>
+                <td data-label="Fecha">{{ pub.fecha_creacion.strftime('%Y-%m-%d') if pub.fecha_creacion else '-' }}</td>
+                <td data-label="Acciones">
+                    <a href="{{ url_for('admin.editar_publicacion', id=pub.id) }}" class="btn-accion btn-editar"><i class="fas fa-edit"></i></a>
+                    <form method="POST" action="{{ url_for('admin.toggle_publicacion', id=pub.id) }}" style="display:inline">
+                        <button type="submit" class="btn-accion btn-toggle" title="{% if pub.activo %}Desactivar{% else %}Activar{% endif %}">
+                            <i class="fas fa-{% if pub.activo %}eye-slash{% else %}eye{% endif %}"></i>
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ url_for('admin.eliminar_publicacion', id=pub.id) }}" style="display:inline" onsubmit="return confirm('Eliminar esta publicacion?')">
+                        <button type="submit" class="btn-accion btn-eliminar"><i class="fas fa-trash"></i></button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-msg">
+        <i class="fas fa-inbox" style="font-size:3rem;margin-bottom:10px"></i>
+        <p>No hay publicaciones aun. Crea la primera.</p>
+    </div>
+    {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

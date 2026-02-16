@@ -1,0 +1,565 @@
+{% extends './plantillaapp.html' %}
+
+{% block titulo %}Punto de Venta | {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+    .pos-container {
+        display: flex;
+        gap: 20px;
+        padding: 20px;
+        min-height: calc(100vh - 120px);
+    }
+
+    /* Panel izquierdo: items */
+    .pos-items {
+        flex: 2;
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .pos-items h2 {
+        color: var(--color-primario-oscuro, #091C5A);
+        margin-top: 0;
+        margin-bottom: 15px;
+    }
+
+    .pos-actions {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+    }
+
+    .btn-pos {
+        padding: 10px 18px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        color: white;
+    }
+
+    .btn-add-inv { background: var(--color-primario, #122C94); }
+    .btn-add-inv:hover { background: var(--color-primario-oscuro, #091C5A); }
+    .btn-add-libre { background: #28a745; }
+    .btn-add-libre:hover { background: #218838; }
+
+    .items-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .items-table th {
+        background: var(--color-primario-oscuro, #091C5A);
+        color: white;
+        padding: 10px 12px;
+        text-align: left;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+    }
+
+    .items-table td {
+        padding: 8px 10px;
+        border-bottom: 1px solid #eee;
+        vertical-align: middle;
+    }
+
+    .items-table input, .items-table select {
+        padding: 6px 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+
+    .items-table .input-desc { width: 100%; }
+    .items-table .input-cant { width: 65px; text-align: center; }
+    .items-table .input-precio { width: 110px; text-align: right; }
+    .items-table .subtotal-cell { font-weight: 600; text-align: right; min-width: 100px; }
+
+    .btn-del-row {
+        background: none;
+        border: none;
+        color: #dc3545;
+        cursor: pointer;
+        font-size: 1.1rem;
+    }
+
+    .total-row td {
+        padding: 15px 12px;
+        font-size: 1.3rem;
+        font-weight: bold;
+        border-top: 2px solid var(--color-primario-oscuro, #091C5A);
+    }
+
+    /* Panel derecho: resumen */
+    .pos-sidebar {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .pos-card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .pos-card h3 {
+        color: var(--color-primario-oscuro, #091C5A);
+        margin-top: 0;
+        margin-bottom: 15px;
+        font-size: 1rem;
+    }
+
+    .pos-field {
+        margin-bottom: 12px;
+    }
+
+    .pos-field label {
+        display: block;
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: #555;
+        margin-bottom: 4px;
+    }
+
+    .pos-field input, .pos-field select, .pos-field textarea {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        box-sizing: border-box;
+    }
+
+    .pos-field textarea { min-height: 60px; resize: vertical; }
+
+    .pos-total {
+        text-align: center;
+        padding: 20px;
+        background: var(--color-primario-oscuro, #091C5A);
+        color: white;
+        border-radius: 8px;
+    }
+
+    .pos-total .total-label { font-size: 0.9rem; opacity: 0.8; }
+    .pos-total .total-valor { font-size: 2.2rem; font-weight: bold; margin-top: 5px; }
+
+    .btn-registrar {
+        width: 100%;
+        padding: 15px;
+        background: #28a745;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 1.1rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .btn-registrar:hover { background: #218838; }
+    .btn-registrar:disabled { background: #ccc; cursor: not-allowed; }
+
+    /* Comprobante modal */
+    .comprobante-overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 9999;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .comprobante-overlay.activo { display: flex; }
+
+    .comprobante {
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        max-width: 500px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .comprobante h2 {
+        text-align: center;
+        margin-top: 0;
+        color: var(--color-primario-oscuro, #091C5A);
+    }
+
+    .comprobante .linea-sep {
+        border: none;
+        border-top: 1px dashed #999;
+        margin: 10px 0;
+    }
+
+    .comprobante table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+    }
+
+    .comprobante table th { text-align: left; padding: 5px; border-bottom: 1px solid #ddd; }
+    .comprobante table td { padding: 5px; }
+    .comprobante .comp-total { font-size: 1.3rem; font-weight: bold; text-align: right; margin-top: 10px; }
+
+    .comp-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+        justify-content: center;
+    }
+
+    .comp-actions button {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 0.95rem;
+    }
+
+    .btn-imprimir { background: var(--color-primario, #122C94); color: white; }
+    .btn-nueva-venta { background: #28a745; color: white; }
+
+    @media print {
+        body * { visibility: hidden; }
+        .comprobante, .comprobante * { visibility: visible; }
+        .comprobante { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; }
+        .comp-actions { display: none; }
+    }
+
+    @media (max-width: 900px) {
+        .pos-container { flex-direction: column; }
+        .pos-items, .pos-sidebar { flex: auto; }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="pos-container">
+    <!-- Panel Items -->
+    <div class="pos-items">
+        <h2><i class="fas fa-cash-register"></i> Punto de Venta</h2>
+
+        <div class="pos-actions">
+            <button type="button" class="btn-pos btn-add-inv" onclick="agregarItemInventario()">
+                <i class="fas fa-box"></i> Agregar Producto
+            </button>
+            <button type="button" class="btn-pos btn-add-libre" onclick="agregarItemLibre()">
+                <i class="fas fa-plus"></i> Item Libre
+            </button>
+        </div>
+
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th style="width:40%">Descripcion</th>
+                    <th style="width:12%">Cant.</th>
+                    <th style="width:18%">Precio Unit.</th>
+                    <th style="width:18%">Subtotal</th>
+                    <th style="width:5%"></th>
+                </tr>
+            </thead>
+            <tbody id="pos-items-body">
+            </tbody>
+            <tfoot>
+                <tr class="total-row">
+                    <td colspan="3" style="text-align:right">TOTAL:</td>
+                    <td id="pos-total-display" style="text-align:right">$0</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <!-- Panel Sidebar -->
+    <div class="pos-sidebar">
+        <div class="pos-total">
+            <div class="total-label">Total a cobrar</div>
+            <div class="total-valor" id="sidebar-total">$0</div>
+        </div>
+
+        <div class="pos-card">
+            <h3><i class="fas fa-user"></i> Cliente (opcional)</h3>
+            <div class="pos-field">
+                <label>Nombre</label>
+                <input type="text" id="pos-cliente-nombre" placeholder="Nombre del cliente">
+            </div>
+            <div class="pos-field">
+                <label>Documento</label>
+                <input type="text" id="pos-cliente-doc" placeholder="CC / NIT">
+            </div>
+            <div class="pos-field">
+                <label>Telefono</label>
+                <input type="text" id="pos-cliente-tel" placeholder="Telefono">
+            </div>
+        </div>
+
+        <div class="pos-card">
+            <h3><i class="fas fa-credit-card"></i> Pago</h3>
+            <div class="pos-field">
+                <label>Metodo de Pago</label>
+                <select id="pos-metodo-pago">
+                    <option value="EFECTIVO">Efectivo</option>
+                    <option value="TARJETA">Tarjeta</option>
+                    <option value="TRANSFERENCIA">Transferencia</option>
+                    <option value="NEQUI">Nequi</option>
+                    <option value="DAVIPLATA">Daviplata</option>
+                    <option value="OTRO">Otro</option>
+                </select>
+            </div>
+            <div class="pos-field">
+                <label>Notas</label>
+                <textarea id="pos-notas" placeholder="Observaciones..."></textarea>
+            </div>
+        </div>
+
+        <button type="button" class="btn-registrar" id="btn-registrar" onclick="registrarVenta()">
+            <i class="fas fa-check-circle"></i> Registrar Venta
+        </button>
+    </div>
+</div>
+
+<!-- Comprobante -->
+<div class="comprobante-overlay" id="comprobante-overlay">
+    <div class="comprobante" id="comprobante-content">
+        <h2>CyberShop</h2>
+        <p style="text-align:center;color:#666;margin:0">Comprobante de Venta</p>
+        <hr class="linea-sep">
+        <p><strong>No:</strong> <span id="comp-numero"></span></p>
+        <p><strong>Fecha:</strong> <span id="comp-fecha"></span></p>
+        <p><strong>Cliente:</strong> <span id="comp-cliente"></span></p>
+        <p><strong>Metodo:</strong> <span id="comp-metodo"></span></p>
+        <hr class="linea-sep">
+        <table>
+            <thead>
+                <tr><th>Item</th><th style="text-align:center">Cant.</th><th style="text-align:right">P.Unit.</th><th style="text-align:right">Subtotal</th></tr>
+            </thead>
+            <tbody id="comp-items"></tbody>
+        </table>
+        <hr class="linea-sep">
+        <div class="comp-total">TOTAL: <span id="comp-total"></span></div>
+        <div class="comp-actions">
+            <button class="btn-imprimir" onclick="window.print()"><i class="fas fa-print"></i> Imprimir</button>
+            <button class="btn-nueva-venta" onclick="nuevaVenta()"><i class="fas fa-plus"></i> Nueva Venta</button>
+        </div>
+    </div>
+</div>
+
+<!-- Template fila producto inventario -->
+<template id="tpl-item-inventario">
+    <tr class="pos-item-row">
+        <td>
+            <select class="input-desc" onchange="seleccionarProductoPOS(this)" style="width:100%">
+                <option value="">-- Seleccionar producto --</option>
+                {% for p in productos %}
+                <option value="{{ p.id }}" data-nombre="{{ p.nombre }}" data-precio="{{ p.precio }}" data-stock="{{ p.stock }}">
+                    {{ p.nombre }} (Stock: {{ p.stock }}) - ${{ "{:,.0f}".format(p.precio) }}
+                </option>
+                {% endfor %}
+            </select>
+            <input type="hidden" class="item-producto-id" value="">
+            <input type="hidden" class="item-desc" value="">
+        </td>
+        <td><input type="number" class="input-cant" value="1" min="1" oninput="calcularPOS(this)"></td>
+        <td><input type="number" class="input-precio" value="0" min="0" step="100" oninput="calcularPOS(this)"></td>
+        <td class="subtotal-cell">$0</td>
+        <td><button type="button" class="btn-del-row" onclick="eliminarFilaPOS(this)"><i class="fas fa-times"></i></button></td>
+    </tr>
+</template>
+
+<!-- Template fila item libre -->
+<template id="tpl-item-libre">
+    <tr class="pos-item-row">
+        <td>
+            <input type="text" class="input-desc" placeholder="Servicio o producto libre..." style="width:100%">
+            <input type="hidden" class="item-producto-id" value="">
+            <input type="hidden" class="item-desc" value="">
+        </td>
+        <td><input type="number" class="input-cant" value="1" min="1" oninput="calcularPOS(this)"></td>
+        <td><input type="number" class="input-precio" value="0" min="0" step="100" oninput="calcularPOS(this)"></td>
+        <td class="subtotal-cell">$0</td>
+        <td><button type="button" class="btn-del-row" onclick="eliminarFilaPOS(this)"><i class="fas fa-times"></i></button></td>
+    </tr>
+</template>
+
+<script>
+function agregarItemInventario() {
+    const tpl = document.getElementById('tpl-item-inventario');
+    const clone = tpl.content.cloneNode(true);
+    document.getElementById('pos-items-body').appendChild(clone);
+}
+
+function agregarItemLibre() {
+    const tpl = document.getElementById('tpl-item-libre');
+    const clone = tpl.content.cloneNode(true);
+    document.getElementById('pos-items-body').appendChild(clone);
+}
+
+function seleccionarProductoPOS(select) {
+    const option = select.options[select.selectedIndex];
+    if (!option.value) return;
+    const fila = select.closest('tr');
+    fila.querySelector('.item-producto-id').value = option.value;
+    fila.querySelector('.item-desc').value = option.dataset.nombre;
+    fila.querySelector('.input-precio').value = parseFloat(option.dataset.precio);
+    fila.querySelector('.input-cant').max = option.dataset.stock;
+    calcularPOS(select);
+}
+
+function calcularPOS(el) {
+    const fila = el.closest('tr');
+    const cant = parseInt(fila.querySelector('.input-cant').value) || 0;
+    const precio = parseFloat(fila.querySelector('.input-precio').value) || 0;
+    const sub = cant * precio;
+    fila.querySelector('.subtotal-cell').textContent = formatCOP(sub);
+    calcularTotalPOS();
+}
+
+function calcularTotalPOS() {
+    let total = 0;
+    document.querySelectorAll('.pos-item-row').forEach(fila => {
+        const cant = parseInt(fila.querySelector('.input-cant').value) || 0;
+        const precio = parseFloat(fila.querySelector('.input-precio').value) || 0;
+        total += cant * precio;
+    });
+    const formatted = formatCOP(total);
+    document.getElementById('pos-total-display').textContent = formatted;
+    document.getElementById('sidebar-total').textContent = formatted;
+}
+
+function eliminarFilaPOS(btn) {
+    btn.closest('tr').remove();
+    calcularTotalPOS();
+}
+
+function formatCOP(val) {
+    return '$' + val.toLocaleString('es-CO', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+}
+
+function registrarVenta() {
+    const filas = document.querySelectorAll('.pos-item-row');
+    if (filas.length === 0) {
+        Swal.fire('Atencion', 'Agrega al menos un item a la venta.', 'warning');
+        return;
+    }
+
+    const items = [];
+    let valido = true;
+
+    filas.forEach(fila => {
+        const productoId = fila.querySelector('.item-producto-id').value || null;
+        let descripcion = '';
+
+        // Si es item de inventario, tomar nombre del hidden
+        const descHidden = fila.querySelector('.item-desc').value;
+        const inputDesc = fila.querySelector('input.input-desc');
+        const selectDesc = fila.querySelector('select.input-desc');
+
+        if (descHidden) {
+            descripcion = descHidden;
+        } else if (inputDesc) {
+            descripcion = inputDesc.value.trim();
+        } else if (selectDesc) {
+            descripcion = selectDesc.options[selectDesc.selectedIndex].dataset.nombre || '';
+        }
+
+        const cantidad = parseInt(fila.querySelector('.input-cant').value) || 0;
+        const precio_unitario = parseFloat(fila.querySelector('.input-precio').value) || 0;
+
+        if (!descripcion || cantidad <= 0 || precio_unitario <= 0) {
+            valido = false;
+        }
+
+        items.push({
+            producto_id: productoId ? parseInt(productoId) : null,
+            descripcion: descripcion,
+            cantidad: cantidad,
+            precio_unitario: precio_unitario
+        });
+    });
+
+    if (!valido) {
+        Swal.fire('Atencion', 'Todos los items deben tener descripcion, cantidad y precio validos.', 'warning');
+        return;
+    }
+
+    const payload = {
+        items: items,
+        cliente_nombre: document.getElementById('pos-cliente-nombre').value,
+        cliente_documento: document.getElementById('pos-cliente-doc').value,
+        cliente_telefono: document.getElementById('pos-cliente-tel').value,
+        metodo_pago: document.getElementById('pos-metodo-pago').value,
+        notas: document.getElementById('pos-notas').value
+    };
+
+    const btn = document.getElementById('btn-registrar');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+
+    fetch("{{ url_for('admin.procesar_venta_pos') }}", {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check-circle"></i> Registrar Venta';
+
+        if (data.success) {
+            mostrarComprobante(data);
+        } else {
+            Swal.fire('Error', data.error || 'Error procesando venta', 'error');
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check-circle"></i> Registrar Venta';
+        Swal.fire('Error', 'Error de conexion: ' + err.message, 'error');
+    });
+}
+
+function mostrarComprobante(data) {
+    document.getElementById('comp-numero').textContent = data.numero_venta;
+    document.getElementById('comp-fecha').textContent = data.fecha;
+    document.getElementById('comp-cliente').textContent = data.cliente_nombre || 'Consumidor Final';
+    document.getElementById('comp-metodo').textContent = data.metodo_pago;
+    document.getElementById('comp-total').textContent = formatCOP(data.total);
+
+    const tbody = document.getElementById('comp-items');
+    tbody.innerHTML = '';
+    data.items.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${item.descripcion}</td>
+            <td style="text-align:center">${item.cantidad}</td>
+            <td style="text-align:right">${formatCOP(item.precio_unitario)}</td>
+            <td style="text-align:right">${formatCOP(item.subtotal)}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    document.getElementById('comprobante-overlay').classList.add('activo');
+}
+
+function nuevaVenta() {
+    document.getElementById('comprobante-overlay').classList.remove('activo');
+    document.getElementById('pos-items-body').innerHTML = '';
+    document.getElementById('pos-cliente-nombre').value = '';
+    document.getElementById('pos-cliente-doc').value = '';
+    document.getElementById('pos-cliente-tel').value = '';
+    document.getElementById('pos-metodo-pago').value = 'EFECTIVO';
+    document.getElementById('pos-notas').value = '';
+    calcularTotalPOS();
+}
+</script>
+{% endblock %}

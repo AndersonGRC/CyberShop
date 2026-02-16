@@ -1,0 +1,71 @@
+{% extends "public/layout_admin.html" %}
+
+{% block title %}Nuevo Periodo{% endblock %}
+
+{% block LinkAdicional %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/nomina/nomina_periodo_form.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Nuevo Periodo de Nómina</h1>
+
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <form method="POST">
+                <div class="form-row">
+                    <div class="form-group col-md-3">
+                        <label>Año</label>
+                        <input type="number" class="form-control" name="anio" value="2025" required>
+                    </div>
+                    <div class="form-group col-md-3">
+                        <label>Mes</label>
+                        <select class="form-control" name="mes" required>
+                            <option value="1">Enero</option>
+                            <option value="2">Febrero</option>
+                            <option value="3">Marzo</option>
+                            <option value="4">Abril</option>
+                            <option value="5">Mayo</option>
+                            <option value="6">Junio</option>
+                            <option value="7">Julio</option>
+                            <option value="8">Agosto</option>
+                            <option value="9">Septiembre</option>
+                            <option value="10">Octubre</option>
+                            <option value="11">Noviembre</option>
+                            <option value="12">Diciembre</option>
+                        </select>
+                    </div>
+                    <div class="form-group col-md-3">
+                        <label>Periodo</label>
+                        <select class="form-control" name="numero_periodo" required>
+                            <option value="1">Quincena 1 (1-15)</option>
+                            <option value="2">Quincena 2 (16-30)</option>
+                            <option value="0">Mensual (1-30)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label>Fecha Inicio</label>
+                        <input type="date" class="form-control" name="fecha_inicio" required>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label>Fecha Fin</label>
+                        <input type="date" class="form-control" name="fecha_fin" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Observaciones</label>
+                    <textarea class="form-control" name="observaciones"></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Crear Periodo</button>
+                <a href="{{ url_for('nomina.periodos_lista') }}" class="btn btn-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

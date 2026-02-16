@@ -1,0 +1,77 @@
+{% extends "public/layout_admin.html" %}
+
+{% block title %}Detalle Empleado{% endblock %}
+
+{% block LinkAdicional %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/nomina/nomina_empleado_ver.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Detalle Empleado</h1>
+        <a href="{{ url_for('nomina.empleado_editar', id=e.id) }}"
+            class="d-none d-sm-inline-block btn btn-sm btn-primary shadow-sm"><i
+                class="fas fa-edit fa-sm text-white-50"></i> Editar</a>
+    </div>
+
+    <div class="row">
+        <!-- Tarjeta Perfil -->
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="text-center">
+                        <img class="img-profile rounded-circle mb-2 profile-image-large"
+                            src="https://ui-avatars.com/api/?name={{ e.nombres }}+{{ e.apellidos }}">
+                        <h5 class="font-weight-bold text-gray-800">{{ e.nombres }} {{ e.apellidos }}</h5>
+                        <p class="text-muted">{{ e.cargo }}</p>
+                    </div>
+                    <hr>
+                    <div class="text-xs font-weight-bold text-uppercase mb-1">Documento</div>
+                    <div class="h6 mb-2 text-gray-800">{{ e.tipo_documento }} {{ e.numero_documento }}</div>
+
+                    <div class="text-xs font-weight-bold text-uppercase mb-1">Email</div>
+                    <div class="h6 mb-2 text-gray-800">{{ e.email }}</div>
+
+                    <div class="text-xs font-weight-bold text-uppercase mb-1">Teléfono</div>
+                    <div class="h6 mb-0 text-gray-800">{{ e.telefono }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tarjeta Laboral -->
+        <div class="col-xl-8 col-md-6 mb-4">
+            <div class="card shadow h-100 py-2">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Información Laboral & Seguridad Social</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item"><strong>Fecha Ingreso:</strong> {{ e.fecha_ingreso }}</li>
+                                <li class="list-group-item"><strong>Tipo Vinculación:</strong> {{ e.tipo_vinculacion }}
+                                </li>
+                                <li class="list-group-item"><strong>Salario Base:</strong> {{
+                                    '${:,.2f}'.format(e.salario_base) }}</li>
+                                <li class="list-group-item"><strong>Nivel ARL:</strong> {{ e.nivel_arl }}</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item"><strong>EPS:</strong> {{ e.eps }}</li>
+                                <li class="list-group-item"><strong>Fondo Pensión:</strong> {{ e.fondo_pension }}</li>
+                                <li class="list-group-item"><strong>Fondo Cesantías:</strong> {{ e.fondo_cesantias }}
+                                </li>
+                                <li class="list-group-item"><strong>Banco:</strong> {{ e.banco }} ({{ e.tipo_cuenta }})
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

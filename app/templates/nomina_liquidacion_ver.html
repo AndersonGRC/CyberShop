@@ -1,0 +1,75 @@
+{% extends "public/layout_admin.html" %}
+
+{% block title %}Detalle Liquidación{% endblock %}
+
+{% block LinkAdicional %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/nomina/nomina_liquidacion_ver.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Liquidación: {{ l.nombres }} {{ l.apellidos }}</h1>
+        <button onclick="window.print()" class="d-none d-sm-inline-block btn btn-sm btn-primary shadow-sm"><i
+                class="fas fa-print fa-sm text-white-50"></i> Imprimir</button>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Datos del Empleado</h6>
+                </div>
+                <div class="card-body">
+                    <p><strong>Documento:</strong> {{ l.numero_documento }}</p>
+                    <p><strong>Cargo:</strong> {{ l.cargo }}</p>
+                    <p><strong>Fecha Ingreso:</strong> {{ l.fecha_ingreso }}</p>
+                    <p><strong>Fecha Retiro:</strong> {{ l.fecha_retiro }}</p>
+                    <p><strong>Motivo:</strong> {{ l.motivo_retiro }}</p>
+                    <p><strong>Días Liquidados:</strong> {{ l.dias_liquidacion }}</p>
+                    <p><strong>Salario Base:</strong> {{ '${:,.0f}'.format(l.salario_base_liquidacion) }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-success">Liquidación</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <tr>
+                                <td>Cesantías</td>
+                                <td class="text-right">{{ '${:,.0f}'.format(l.cesantias) }}</td>
+                            </tr>
+                            <tr>
+                                <td>Intereses Cesantías</td>
+                                <td class="text-right">{{ '${:,.0f}'.format(l.intereses_cesantias) }}</td>
+                            </tr>
+                            <tr>
+                                <td>Prima de Servicios</td>
+                                <td class="text-right">{{ '${:,.0f}'.format(l.prima_servicios) }}</td>
+                            </tr>
+                            <tr>
+                                <td>Vacaciones</td>
+                                <td class="text-right">{{ '${:,.0f}'.format(l.vacaciones) }}</td>
+                            </tr>
+                            <tr>
+                                <td>Indemnización</td>
+                                <td class="text-right">{{ '${:,.0f}'.format(l.indemnizacion) }}</td>
+                            </tr>
+                            <tr class="font-weight-bold bg-light">
+                                <td>Total a Pagar</td>
+                                <td class="text-right text-success">{{ '${:,.0f}'.format(l.total_pagar) }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

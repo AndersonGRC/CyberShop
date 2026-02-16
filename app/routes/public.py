@@ -19,12 +19,35 @@ public_bp = Blueprint('public', __name__)
 def index():
     """Pagina principal de CyberShop."""
     datosApp = get_common_data()
-    return render_template('index.html', datosApp=datosApp)
+    slides = []
+    publicaciones = []
+    config = {}
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute('SELECT * FROM slides_home WHERE activo = TRUE ORDER BY orden ASC, id ASC')
+            slides = cur.fetchall()
+            cur.execute('SELECT * FROM publicaciones_home WHERE activo = TRUE ORDER BY fecha_creacion DESC')
+            publicaciones = cur.fetchall()
+            cur.execute('SELECT clave, valor FROM config_secciones')
+            for row in cur.fetchall():
+                config[row['clave']] = row['valor'] == 'true'
+    except Exception:
+        pass
+    return render_template('index.html', datosApp=datosApp, slides=slides, publicaciones=publicaciones, config=config)
 
 
 @public_bp.route('/productos')
 def productos():
     """Catalogo de productos con precios formateados en COP."""
+    # Si el modulo de ventas esta desactivado, redirigir al home
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT valor FROM config_secciones WHERE clave = 'mostrar_modulo_ventas'")
+            row = cur.fetchone()
+            if row and row['valor'] == 'false':
+                return redirect(url_for('public.index'))
+    except Exception:
+        pass
     datosApp = get_common_data()
     try:
         with get_db_cursor(dict_cursor=True) as cur:
@@ -48,7 +71,14 @@ def productos():
 def servicios():
     """Pagina de servicios."""
     datosApp = get_common_data()
-    return render_template('servicios.html', datosApp=datosApp)
+    servicios_lista = []
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute('SELECT * FROM servicios_home WHERE activo = TRUE ORDER BY orden ASC, id ASC')
+            servicios_lista = cur.fetchall()
+    except Exception:
+        pass
+    return render_template('servicios.html', datosApp=datosApp, servicios_db=servicios_lista)
 
 
 @public_bp.route('/quienes_somos')
@@ -66,6 +96,16 @@ def contactenos():
 @public_bp.route('/carrito')
 def ver_carrito():
     """Muestra la pagina del carrito de compras."""
+    # Si el carrito esta desactivado, redirigir al home
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT valor FROM config_secciones WHERE clave = 'mostrar_modulo_ventas'")
+            row = cur.fetchone()
+            if row and row['valor'] == 'false':
+                flash('El carrito de compras no esta disponible en este momento.', 'warning')
+                return redirect(url_for('public.index'))
+    except Exception:
+        pass
     datosApp = get_common_data()
     return render_template('carrito.html', datosApp=datosApp)
 

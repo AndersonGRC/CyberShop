@@ -1,0 +1,51 @@
+{% extends "public/layout_admin.html" %}
+
+{% block title %}{{ 'Editar' if modo == 'editar' else 'Crear' }} Parámetros Nómina{% endblock %}
+
+{% block LinkAdicional %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/nomina/nomina_parametros_form.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">{{ 'Editar' if modo == 'editar' else 'Crear' }} Parámetros Legales</h1>
+
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <form method="POST">
+                <div class="form-row">
+                    <div class="form-group col-md-3">
+                        <label for="anio">Año</label>
+                        <input type="number" class="form-control" id="anio" name="anio"
+                            value="{{ p.anio if p else '' }}" {{ 'readonly' if modo=='editar' else 'required' }}>
+                    </div>
+                </div>
+
+                <hr>
+                <h5 class="mb-3">Valores Base</h5>
+                <div class="form-row">
+                    <div class="form-group col-md-4">
+                        <label for="salario_minimo">Salario Mínimo (SMMLV)</label>
+                        <input type="number" step="0.01" class="form-control" id="salario_minimo" name="salario_minimo"
+                            value="{{ p.salario_minimo if p else '' }}" required>
+                    </div>
+                    <div class="form-group col-md-4">
+                        <label for="auxilio_transporte">Auxilio Transporte</label>
+                        <input type="number" step="0.01" class="form-control" id="auxilio_transporte"
+                            name="auxilio_transporte" value="{{ p.auxilio_transporte if p else '' }}" required>
+                    </div>
+                    <div class="form-group col-md-4">
+                        <label for="uvt">UVT</label>
+                        <input type="number" step="0.01" class="form-control" id="uvt" name="uvt"
+                            value="{{ p.uvt if p else '' }}" required>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Guardar</button>
+                <a href="{{ url_for('nomina.parametros_lista') }}" class="btn btn-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

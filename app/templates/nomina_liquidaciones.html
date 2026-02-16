@@ -1,0 +1,54 @@
+{% extends "public/layout_admin.html" %}
+
+{% block title %}Liquidaciones{% endblock %}
+
+{% block LinkAdicional %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/nomina/nomina_liquidaciones.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Liquidaciones</h1>
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">Histórico de Liquidaciones</h6>
+            <a href="{{ url_for('nomina.liquidacion_crear') }}" class="btn btn-sm btn-danger shadow-sm"><i
+                    class="fas fa-user-times fa-sm text-white-50"></i> Nueva Liquidación</a>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Empleado</th>
+                            <th class="d-none d-md-table-cell">Documento</th>
+                            <th class="d-none d-md-table-cell">Motivo</th>
+                            <th>Total</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for l in liquidaciones %}
+                        <tr>
+                            <td>{{ l.fecha_retiro }}</td>
+                            <td>{{ l.nombres }} {{ l.apellidos }}</td>
+                            <td class="d-none d-md-table-cell">{{ l.numero_documento }}</td>
+                            <td class="d-none d-md-table-cell">{{ l.motivo_retiro }}</td>
+                            <td>${{ "{:,.0f}".format(l.total_pagar) }}</td>
+                            <td>{{ l.estado }}</td>
+                            <td>
+                                <a href="{{ url_for('nomina.liquidacion_ver', id=l.id) }}" class="btn btn-sm btn-info"
+                                    title="Ver"><i class="fas fa-eye"></i></a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
