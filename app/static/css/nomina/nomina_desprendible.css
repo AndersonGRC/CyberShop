@@ -1,0 +1,100 @@
+/* CSS for nomina_desprendible.html */
+body {
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    color: var(--color-texto);
+}
+
+.container {
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    border: 1px solid var(--color-negro);
+    padding: 20px;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--color-gris-deshabilitado);
+    padding-bottom: 10px;
+}
+
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 5px;
+}
+
+.col {
+    flex: 1;
+    padding: 5px;
+}
+
+.box {
+    border: 1px solid var(--color-borde-claro);
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.table th,
+.table td {
+    border: 1px solid var(--color-borde);
+    padding: 8px;
+    text-align: left;
+}
+
+.table th {
+    background-color: var(--color-fondo-alt);
+    color: var(--color-texto);
+}
+
+.text-right {
+    text-align: right;
+}
+
+.bold {
+    font-weight: bold;
+}
+
+.footer {
+    margin-top: 30px;
+    text-align: center;
+    font-size: 10px;
+    color: var(--color-texto-secundario);
+}
+
+.print-btn {
+    margin-bottom: 20px;
+    padding: 10px;
+    background-color: var(--color-primario);
+    color: var(--color-blanco);
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.print-btn:hover {
+    background-color: var(--color-primario-oscuro);
+}
+
+.neto-pagar-box {
+    margin-top: 20px;
+    font-size: 14px;
+}
+
+@media print {
+    .no-print {
+        display: none;
+    }
+
+    body {
+        font-size: 10pt;
+    }
+}
