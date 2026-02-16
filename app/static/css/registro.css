@@ -8,8 +8,10 @@
     flex-direction: row;
     justify-content: center;
     width: 100%;
-    max-height: calc(170vh - 100px); /* Ajusta para no sobrepasar header/footer */
-    overflow: hidden; /* Evita desbordamiento */
+    max-height: calc(170vh - 100px);
+    /* Ajusta para no sobrepasar header/footer */
+    overflow: hidden;
+    /* Evita desbordamiento */
 }
 
 /* Columna de la imagen */
@@ -18,6 +20,7 @@
     display: flex;
     justify-content: center;
 }
+
 /* Proporsion imagen */
 .left-column img {
     max-width: 70%;
@@ -48,7 +51,8 @@
 
 /* Estilos para el título dentro del formulario */
 .right-column form h2 {
-    color: var(--color-secundario); /* Azul del logo */
+    color: var(--color-secundario);
+    /* Azul del logo */
     text-align: center;
     font-size: 24px;
     margin-bottom: 20px;
@@ -74,7 +78,8 @@
 
 /* Estilos para el botón */
 .right-column form button {
-    background: var(--color-secundario); /* Azul del logo */
+    background: var(--color-secundario);
+    /* Azul del logo */
     color: var(--color-fondo);
     padding: 10px;
     border: none;
@@ -86,7 +91,8 @@
 }
 
 .right-column form button:hover {
-    background: var(--color-transicion); /* Azul más oscuro en hover */
+    background: var(--color-transicion);
+    /* Azul más oscuro en hover */
 }
 
 /* Ajustes responsivos */

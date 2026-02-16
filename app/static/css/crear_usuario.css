@@ -210,6 +210,7 @@ textarea.form-control {
 }
 
 @media (min-width: 992px) {
+
     .img-thumbnail,
     .fa-user-circle {
         width: 280px;
@@ -217,6 +218,7 @@ textarea.form-control {
         font-size: 280px;
     }
 }
+
 @media (max-width: 576px) {
     .btn-primary {
         margin-bottom: 1rem !important;

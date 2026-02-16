@@ -42,12 +42,14 @@ a.btn-primary:hover {
     color: var(--color-fondo);
 }
 
-.table td, .table th {
+.table td,
+.table th {
     text-align: center;
     vertical-align: middle !important;
     padding: 0.75rem;
     color: var(--color-negro);
 }
+
 .table tbody tr:hover {
     background-color: var(--color-gris-claro);
 }

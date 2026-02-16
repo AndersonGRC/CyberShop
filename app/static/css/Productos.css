@@ -6,7 +6,8 @@
     display: flex;
     flex: 1;
     padding: 20px;
-    gap: 20px; /* Espacio entre el contenido principal y el carrito */
+    gap: 20px;
+    /* Espacio entre el contenido principal y el carrito */
 }
 
 
@@ -61,8 +62,10 @@
     padding: 20px;
     border-left: 1px solid var(--color-fondo);
     box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
-    position: relative; /* Cambiado a relativo */
-    overflow-y: auto; /* Scroll si el contenido es muy largo */
+    position: relative;
+    /* Cambiado a relativo */
+    overflow-y: auto;
+    /* Scroll si el contenido es muy largo */
 }
 
 .carrito-lateral h2 {
@@ -102,7 +105,8 @@
     background-color: var(--color-fondo);
     padding: 20px;
     border-radius: 8px;
-    width: 400px; /* Ajusta el ancho según sea necesario */
+    width: 400px;
+    /* Ajusta el ancho según sea necesario */
     text-align: left;
     position: relative;
 }
@@ -132,11 +136,13 @@
 
 /* Estilos para el botón "Ver Detalles" */
 .ver-descripcion {
-    background-color: var(--color-primario-oscuro); /* Color azul moderno */
+    background-color: var(--color-primario-oscuro);
+    /* Color azul moderno */
     color: var(--color-fondo);
     border: none;
     padding: 10px 15px;
-    border-radius: 25px; /* Bordes redondeados */
+    border-radius: 25px;
+    /* Bordes redondeados */
     cursor: pointer;
     font-size: 14px;
     font-weight: bold;
@@ -148,13 +154,16 @@
 }
 
 .ver-descripcion:hover {
-    background-color: var(--color-primario-oscuro); /* Color azul más oscuro al pasar el mouse */
-    transform: translateY(-2px); /* Efecto de levitación */
+    background-color: var(--color-primario-oscuro);
+    /* Color azul más oscuro al pasar el mouse */
+    transform: translateY(-2px);
+    /* Efecto de levitación */
     box-shadow: 0 6px 8px var(--color-negro);
 }
 
 .ver-descripcion:active {
-    transform: translateY(0); /* Efecto de clic */
+    transform: translateY(0);
+    /* Efecto de clic */
     box-shadow: 0 4px 6px var(--color-negro);
 }
 
@@ -170,17 +179,20 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: var(--overlay-oscuro); /* Fondo oscuro semi-transparente */
+    background-color: var(--overlay-oscuro);
+    /* Fondo oscuro semi-transparente */
     justify-content: center;
     align-items: center;
     z-index: 1000;
-    animation: fadeIn 0.3s ease; /* Animación de entrada */
+    animation: fadeIn 0.3s ease;
+    /* Animación de entrada */
 }
 
 @keyframes fadeIn {
     from {
         opacity: 0;
     }
+
     to {
         opacity: 1;
     }
@@ -191,14 +203,17 @@
     padding: 25px;
     border-radius: 15px;
     width: 90%;
-    max-width: 500px; /* Ancho máximo */
+    max-width: 500px;
+    /* Ancho máximo */
     text-align: left;
     position: relative;
     box-shadow: 0 10px 30px var(--color-negro);
     max-height: 90vh;
     overflow-y: auto;
-    transform: scale(0.9); /* Efecto de escala inicial */
-    animation: scaleUp 0.3s ease forwards; /* Animación de escala */
+    transform: scale(0.9);
+    /* Efecto de escala inicial */
+    animation: scaleUp 0.3s ease forwards;
+    /* Animación de escala */
 
 }
 
@@ -206,6 +221,7 @@
     from {
         transform: scale(0.9);
     }
+
     to {
         transform: scale(1);
     }
@@ -222,7 +238,8 @@
 }
 
 .cerrar-popup:hover {
-    color: var(--color-eliminar); /* Color rojo al pasar el mouse */
+    color: var(--color-eliminar);
+    /* Color rojo al pasar el mouse */
 }
 
 #popup-imagen {
@@ -254,7 +271,8 @@
 #popup-precio {
     font-size: 20px;
     font-weight: bold;
-    color: var(--color-primario-oscuro); /* Color azul para el precio */
+    color: var(--color-primario-oscuro);
+    /* Color azul para el precio */
 }
 
 /* Estilos para los textos dentro del pop-up */
@@ -269,7 +287,8 @@
 
 
 /* Estilos para ambos botones del carrito */
-#vaciar-carrito, #pagar-carrito {
+#vaciar-carrito,
+#pagar-carrito {
     background-color: var(--color-eliminar);
     color: white;
     border: none;
@@ -287,17 +306,20 @@
 /* Color específico para el botón de pagar */
 #pagar-carrito {
     background-color: var(--color-exito);
-    margin-top: 15px; /* Un poco más de separación */
+    margin-top: 15px;
+    /* Un poco más de separación */
 }
 
 /* Efectos hover para ambos */
-#vaciar-carrito:hover, #pagar-carrito:hover {
+#vaciar-carrito:hover,
+#pagar-carrito:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* Efectos active para ambos */
-#vaciar-carrito:active, #pagar-carrito:active {
+#vaciar-carrito:active,
+#pagar-carrito:active {
     transform: translateY(0);
 }
 

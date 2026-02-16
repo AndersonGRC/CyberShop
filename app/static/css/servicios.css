@@ -2,14 +2,18 @@
 
 
 .servicios-titulo-seccion {
-    position: relative; /* Necesario para que los elementos hijos con posición absoluta se posicionen correctamente */
+    position: relative;
+    /* Necesario para que los elementos hijos con posición absoluta se posicionen correctamente */
     width: 100%;
-    height: 150px; /* Ajusta la altura según tus necesidades */
-    overflow: hidden; /* Para asegurarte de que la imagen no se desborde */
+    height: 150px;
+    /* Ajusta la altura según tus necesidades */
+    overflow: hidden;
+    /* Para asegurarte de que la imagen no se desborde */
 }
 
 .servicios-titulo-fondo {
-    position: absolute; /* Cambia a absoluto para que la imagen se posicione correctamente */
+    position: absolute;
+    /* Cambia a absoluto para que la imagen se posicione correctamente */
     top: 0;
     left: 0;
     width: 100%;
@@ -21,26 +25,39 @@
 .servicios-titulo-fondo img {
     width: 100%;
     height: 100%;
-    object-fit: cover; /* Ajusta la imagen al tamaño del contenedor */
+    object-fit: cover;
+    /* Ajusta la imagen al tamaño del contenedor */
 }
 
 /* Estilos para el contenido del título */
 .servicios-titulo-contenido {
-    position: absolute; /* Cambia a absoluto para que el texto se posicione encima de la imagen */
-    top: 50%; /* Centra verticalmente */
-    left: 50%; /* Centra horizontalmente */
-    transform: translate(-50%, -50%); /* Ajusta el centrado */
-    z-index: 1; /* Asegúrate de que el título esté por encima de la imagen */
-    text-align: center; /* Centra el texto */
+    position: absolute;
+    /* Cambia a absoluto para que el texto se posicione encima de la imagen */
+    top: 50%;
+    /* Centra verticalmente */
+    left: 50%;
+    /* Centra horizontalmente */
+    transform: translate(-50%, -50%);
+    /* Ajusta el centrado */
+    z-index: 1;
+    /* Asegúrate de que el título esté por encima de la imagen */
+    text-align: center;
+    /* Centra el texto */
 }
 
 .servicios-titulo-contenido h2 {
-    font-size: 3rem; /* Tamaño del título */
-    color: var(--color-fondo); /* Color del texto */
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5); /* Sombra para mejorar la legibilidad */
-    text-transform: uppercase; /* Convertir texto a mayúsculas */
-    font-weight: bold; /* Grosor de la fuente */
+    font-size: 3rem;
+    /* Tamaño del título */
+    color: var(--color-fondo);
+    /* Color del texto */
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    /* Sombra para mejorar la legibilidad */
+    text-transform: uppercase;
+    /* Convertir texto a mayúsculas */
+    font-weight: bold;
+    /* Grosor de la fuente */
 }
+
 /* Estilos generales */
 .servicios {
     display: flex;
@@ -69,6 +86,7 @@
     transform: scale(1.05);
     box-shadow: 0px 8px 12px rgba(0, 0, 0, 0.2);
 }
+
 .servicio .texto h2 {
     font-size: 1.5rem;
     margin-bottom: 10px;
@@ -80,30 +98,40 @@
     flex: 1;
     padding: 10px;
 }
+
 .servicio .texto p {
     font-size: 1rem;
     color: var(--color-negro);
     text-align: start;
 }
-.servicio:hover  {
+
+.servicio:hover {
     transform: translateY(-10px);
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
     background: linear-gradient(135deg, var(--color-secundario), var(--color-transicion));
     color: var(--color-fondo);
 }
+
 .servicio:hover .texto * {
-    color: var(--color-fondo); /* Cambia este valor al color que desees */
+    color: var(--color-fondo);
+    /* Cambia este valor al color que desees */
 }
+
 .servicio .icono {
     display: relative;
-    justify-content: center; /* Centra horizontalmente */
-    align-items: center; /* Centra verticalmente */
+    justify-content: center;
+    /* Centra horizontalmente */
+    align-items: center;
+    /* Centra verticalmente */
 }
 
 .servicio .icono img {
-    width: 150px; /* Ancho de la imagen */
-    height: auto; /* Altura automática para mantener la proporción */
-    border-radius: 8px; /* Bordes redondeados */
+    width: 150px;
+    /* Ancho de la imagen */
+    height: auto;
+    /* Altura automática para mantener la proporción */
+    border-radius: 8px;
+    /* Bordes redondeados */
 }
 
 /* Modal */
@@ -128,7 +156,7 @@
     border-radius: 10px;
     width: 50%;
     text-align: left;
-    list-style-type: none ;
+    list-style-type: none;
     width: 90%;
     max-width: 500px;
     position: relative;
@@ -157,4 +185,3 @@
     cursor: pointer;
     float: right;
 }
-

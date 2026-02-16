@@ -14,117 +14,352 @@
 /* =========================================================
    2. LOGOS Y ENCABEZADO
    ========================================================= */
-.logo { font-family: 'Cooper Black', serif; font-size: 70px; }
-
-.logo_main {
-    padding-top: 100px; height: 110px; position: static; padding: 5px;
-    background: linear-gradient(45deg, var(--color-fondo), var(--color-secundario));
-    color: var(--color-secundario); cursor: default; z-index: 10; 
+.logo {
+    font-family: 'Cooper Black', serif;
+    font-size: 70px;
 }
 
-.link { text-decoration: none; color: var(--color-fondo); font-family: 'Cooper Black', serif; }
+.logo_main {
+    padding-top: 100px;
+    height: 110px;
+    position: static;
+    padding: 5px;
+    background: linear-gradient(45deg, var(--color-fondo), var(--color-secundario));
+    color: var(--color-secundario);
+    cursor: default;
+    z-index: 10;
+}
+
+.link {
+    text-decoration: none;
+    color: var(--color-fondo);
+    font-family: 'Cooper Black', serif;
+}
 
 .logo_small {
-    display: inline-block; font-size: 18px; padding: 3px 5px; margin-right: 30px;
-    color: var(--color-fondo); background-color: var(--color-gris); 
-    border-radius: 6px; cursor: pointer; z-index: 11; 
-    box-shadow: 0px 4px 6px var(--color-negro); transition: all 0.3s ease; 
+    display: inline-block;
+    font-size: 18px;
+    padding: 3px 5px;
+    margin-right: 30px;
+    color: var(--color-fondo);
+    background-color: var(--color-gris);
+    border-radius: 6px;
+    cursor: pointer;
+    z-index: 11;
+    box-shadow: 0px 4px 6px var(--color-negro);
+    transition: all 0.3s ease;
 }
 
 .logo_small:hover {
-    color: var(--color-fondo); background-color: var(--color-secundario);
-    transform: scale(1.2); box-shadow: 0px 6px 6px var(--color-negro); 
+    color: var(--color-fondo);
+    background-color: var(--color-secundario);
+    transform: scale(1.2);
+    box-shadow: 0px 6px 6px var(--color-negro);
 }
 
-#logo { margin-left: 20px; margin-top: 0px; height: 900px; width: 130px; max-height: 100px; max-width: 190px; }
+#logo {
+    margin-left: 20px;
+    margin-top: 0px;
+    height: 900px;
+    width: 130px;
+    max-height: 100px;
+    max-width: 190px;
+}
 
 /* =========================================================
    3. BARRA DE NAVEGACIÓN (NAV)
    ========================================================= */
 .nav {
-    z-index: 10000 !important; float: left; width: 100%;
-    background: var(--color-negro); color: var(--color-fondo);
-    padding: 0 20px; transition: .3s ease all;
+    z-index: 10000 !important;
+    float: left;
+    width: 100%;
+    background: var(--color-negro);
+    color: var(--color-fondo);
+    padding: 0 20px;
+    transition: .3s ease all;
     backface-visibility: hidden;
-    transform: translate3d(0, 0, 0); -webkit-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0);
+    -webkit-transform: translate3d(0, 0, 0);
 }
 
-.nav .wrap { position: relative; left: -150px; transition: 0.4s ease all; z-index: 21; }
+.nav .wrap {
+    position: relative;
+    left: -150px;
+    transition: 0.4s ease all;
+    z-index: 21;
+}
 
-nav { display: inline-block; }
-nav ul { margin: 0; padding: 0; }
-nav li { margin: 0; padding: 0; display: inline-block; }
+nav {
+    display: inline-block;
+}
+
+nav ul {
+    margin: 0;
+    padding: 0;
+}
+
+nav li {
+    margin: 0;
+    padding: 0;
+    display: inline-block;
+}
 
 nav a {
-    display: block; padding: 20px; margin: 0;
-    color: var(--color-fondo); text-decoration: none; transition: 0.2s ease all;
+    display: block;
+    padding: 20px;
+    margin: 0;
+    color: var(--color-fondo);
+    text-decoration: none;
+    transition: 0.2s ease all;
 }
 
-nav a:hover { color: var(--color-fondo); background: var(--color-secundario); }
+nav a:hover {
+    color: var(--color-fondo);
+    background: var(--color-secundario);
+}
 
-body.nav_fixed .nav { position: fixed; top: 0; }
-body.nav_fixed .nav .wrap { left: 0; }
+body.nav_fixed .nav {
+    position: fixed;
+    top: 0;
+}
 
-.main { background: var(--color-fondo); padding: 80px; z-index: 5; }
-header { z-index: 10000 !important; position: relative; }
+body.nav_fixed .nav .wrap {
+    left: 0;
+}
+
+.main {
+    background: var(--color-fondo);
+    padding: 80px;
+    z-index: 5;
+}
+
+header {
+    z-index: 10000 !important;
+    position: relative;
+}
 
 /* =========================================================
    4. FOOTER
    ========================================================= */
-.footer { width: 100%; background-color: var(--color-secundario); color: var(--color-fondo); text-align: center; padding: 20px; }
-.footer-content h3 { font-size: 1.8rem; font-weight: 400; text-transform: capitalize; line-height: 3rem; }
-.footer-content p { max-width: 500px; margin: 0 auto; line-height: 28px; font-size: 14px; }
-.socials { list-style: none; display: flex; align-items: center; justify-content: center; margin: 1rem 0 2rem 0; }
-.socials li { margin: 0 30px; }
-.socials a { text-decoration: none; color: var(--color-fondo); }
-.socials a i { font-size: 1.1rem; transition: color .4s ease; }
-.socials a:hover i { color: var(--color-secundario); }
-.footer-bottom { width: 100%; padding: 20px 0; text-align: center; }
-.footer-bottom p { font-size: 14px; word-spacing: 2px; color: var(--color-fondo); margin-top: 10px; letter-spacing: 1px; }
-.empresa { font-size: 14px; word-spacing: 2px; color: var(--color-fondo); margin-top: 10px; letter-spacing: 1px; }
-.empresa:hover { color: var(--color-secundario); }
+.footer {
+    width: 100%;
+    background-color: var(--color-secundario);
+    color: var(--color-fondo);
+    text-align: center;
+    padding: 20px;
+}
+
+.footer-content h3 {
+    font-size: 1.8rem;
+    font-weight: 400;
+    text-transform: capitalize;
+    line-height: 3rem;
+}
+
+.footer-content p {
+    max-width: 500px;
+    margin: 0 auto;
+    line-height: 28px;
+    font-size: 14px;
+}
+
+.socials {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 1rem 0 2rem 0;
+}
+
+.socials li {
+    margin: 0 30px;
+}
+
+.socials a {
+    text-decoration: none;
+    color: var(--color-fondo);
+}
+
+.socials a i {
+    font-size: 1.1rem;
+    transition: color .4s ease;
+}
+
+.socials a:hover i {
+    color: var(--color-secundario);
+}
+
+.footer-bottom {
+    width: 100%;
+    padding: 20px 0;
+    text-align: center;
+}
+
+.footer-bottom p {
+    font-size: 14px;
+    word-spacing: 2px;
+    color: var(--color-fondo);
+    margin-top: 10px;
+    letter-spacing: 1px;
+}
+
+.empresa {
+    font-size: 14px;
+    word-spacing: 2px;
+    color: var(--color-fondo);
+    margin-top: 10px;
+    letter-spacing: 1px;
+}
+
+.empresa:hover {
+    color: var(--color-secundario);
+}
 
 /* =========================================================
    5. TRADUCTOR DE GOOGLE
    ========================================================= */
-.goog-te-banner-frame, iframe.goog-te-banner-frame, 
-.skiptranslate, .goog-te-balloon-frame, 
-#goog-gt-tt, .goog-te-spinner-pos, .goog-tooltip {
-    display: none !important; visibility: hidden !important; height: 0px !important; width: 0px !important; opacity: 0 !important; pointer-events: none !important;
+.goog-te-banner-frame,
+iframe.goog-te-banner-frame,
+.skiptranslate,
+.goog-te-balloon-frame,
+#goog-gt-tt,
+.goog-te-spinner-pos,
+.goog-tooltip {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0px !important;
+    width: 0px !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
 }
 
-body { top: 0px !important; position: static !important; }
-html { top: 0px !important; margin-top: 0px !important; }
+body {
+    top: 0px !important;
+    position: static !important;
+}
 
-#google_translate_container { display: inline-block; margin: 10px; z-index: 10001; position: relative; }
+html {
+    top: 0px !important;
+    margin-top: 0px !important;
+}
+
+#google_translate_container {
+    display: inline-block;
+    margin: 10px;
+    z-index: 10001;
+    position: relative;
+}
 
 #custom_translate_btn {
-    background: var(--color-secundario); color: #fff; border: none; border-radius: 8px;
-    padding: 6px 14px; font-size: 14px; font-weight: 600; cursor: pointer;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2); transition: all 0.3s ease;
-    z-index: 10002; position: relative;
+    background: var(--color-secundario);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+    z-index: 10002;
+    position: relative;
 }
 
-#custom_translate_btn:hover { background: var(--color-transicion); transform: scale(1.05); }
-#custom_translate_btn:focus { outline: none; box-shadow: 0 0 0 2px rgba(42, 77, 105, 0.5); }
-.goog-te-combo { position: absolute; left: -9999px; opacity: 0.01; }
+#custom_translate_btn:hover {
+    background: var(--color-transicion);
+    transform: scale(1.05);
+}
+
+#custom_translate_btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(42, 77, 105, 0.5);
+}
+
+.goog-te-combo {
+    position: absolute;
+    left: -9999px;
+    opacity: 0.01;
+}
 
 /* =========================================================
    6. ELEMENTOS UI (BADGE, ANIMACIONES)
    ========================================================= */
 .cart-badge {
-    position: absolute; top: 5px; right: 5px;    
-    background-color: var(--color-eliminar); color: white;
-    font-size: 0.7rem; font-weight: bold; padding: 2px 5px;
-    border-radius: 50%; min-width: 18px; height: 18px;       
-    line-height: 14px; text-align: center; display: none;      
-    box-shadow: 0 1px 3px rgba(0,0,0,0.3); z-index: 1003; pointer-events: none; 
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background-color: var(--color-eliminar);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: bold;
+    padding: 2px 5px;
+    border-radius: 50%;
+    min-width: 18px;
+    height: 18px;
+    line-height: 14px;
+    text-align: center;
+    display: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    z-index: 1003;
+    pointer-events: none;
 }
-.cart-badge.bounce { animation: bounce 0.3s ease-in-out; }
-@keyframes bounce { 0% { transform: scale(1); } 50% { transform: scale(1.5); } 100% { transform: scale(1); } }
-@keyframes shake { 0% { transform: translateX(0); } 25% { transform: translateX(-5px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-5px); } 100% { transform: translateX(0); } }
-.btn-agregado { background-color: var(--color-exito) !important; color: white !important; animation: shake 0.4s ease-in-out; pointer-events: none; }
-.fly-img { position: fixed; z-index: 9999; border-radius: 50%; object-fit: cover; pointer-events: none; transition: all 0.8s cubic-bezier(0.19, 1, 0.22, 1); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+
+.cart-badge.bounce {
+    animation: bounce 0.3s ease-in-out;
+}
+
+@keyframes bounce {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.5);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes shake {
+    0% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-5px);
+    }
+
+    50% {
+        transform: translateX(5px);
+    }
+
+    75% {
+        transform: translateX(-5px);
+    }
+
+    100% {
+        transform: translateX(0);
+    }
+}
+
+.btn-agregado {
+    background-color: var(--color-exito) !important;
+    color: white !important;
+    animation: shake 0.4s ease-in-out;
+    pointer-events: none;
+}
+
+.fly-img {
+    position: fixed;
+    z-index: 9999;
+    border-radius: 50%;
+    object-fit: cover;
+    pointer-events: none;
+    transition: all 0.8s cubic-bezier(0.19, 1, 0.22, 1);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
 
 /* =========================================================
    7. CONFIGURACIÓN BOTONES FLOTANTES (ESCRITORIO)
@@ -132,41 +367,103 @@ html { top: 0px !important; margin-top: 0px !important; }
 
 /* A. BOTÓN MENÚ (3 Puntos) -> OCULTO EN ESCRITORIO */
 .btn-menu {
-    display: none; /* No se ve en PC */
-    width: 60px; height: 60px; padding: 22px; text-align: center;
-    position: fixed; background: var(--color-secundario);
-    border-radius: 50%; color: var(--color-fondo); cursor: pointer;
-    transition: all 500ms cubic-bezier(1, 0, 0, 1); z-index: 10060; 
+    display: none;
+    /* No se ve en PC */
+    width: 60px;
+    height: 60px;
+    padding: 22px;
+    text-align: center;
+    position: fixed;
+    background: var(--color-secundario);
+    border-radius: 50%;
+    color: var(--color-fondo);
+    cursor: pointer;
+    transition: all 500ms cubic-bezier(1, 0, 0, 1);
+    z-index: 10060;
 }
-.btn-menu:hover { transform: scale(1.2); background: var(--color-secundario); }
+
+.btn-menu:hover {
+    transform: scale(1.2);
+    background: var(--color-secundario);
+}
 
 /* B. BOTÓN CARRITO FLOTANTE -> OCULTO EN ESCRITORIO */
 .cart-floating-button {
-    display: none; /* No se ve en PC */
-    position: fixed !important; z-index: 9999 !important;
+    display: none;
+    /* No se ve en PC */
+    position: fixed !important;
+    z-index: 9999 !important;
 }
+
 .cart-floating-button a {
-    display: flex; align-items: center; justify-content: center;
-    width: 55px; height: 55px; background-color: var(--color-secundario); 
-    color: white; text-decoration: none; border-radius: 50%;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: all 0.3s ease; position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 55px;
+    height: 55px;
+    background-color: var(--color-secundario);
+    color: white;
+    text-decoration: none;
+    border-radius: 50%;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+    position: relative;
 }
-.cart-floating-button i { font-size: 1.4rem; }
-.cart-floating-button a:hover { transform: scale(1.1); background-color: var(--color-transicion); }
-.cart-floating-button .cart-badge { top: -5px; right: -5px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border: 2px solid #fff; font-size: 0.75rem; }
+
+.cart-floating-button i {
+    font-size: 1.4rem;
+}
+
+.cart-floating-button a:hover {
+    transform: scale(1.1);
+    background-color: var(--color-transicion);
+}
+
+.cart-floating-button .cart-badge {
+    top: -5px;
+    right: -5px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #fff;
+    font-size: 0.75rem;
+}
 
 /* C. BOTÓN WHATSAPP -> VISIBLE ALARGADO EN ESCRITORIO */
 .chat-button {
-    position: fixed !important; bottom: 20px !important; right: 20px !important; z-index: 10000 !important; 
+    position: fixed !important;
+    bottom: 20px !important;
+    right: 20px !important;
+    z-index: 10000 !important;
 }
+
 .chat-button a {
-    display: flex; align-items: center; padding: 10px 20px;
-    background-color: var(--color-whatsapp); color: var(--color-fondo); text-decoration: none;
-    border-radius: 50px; box-shadow: 0px 4px 6px var(--color-negro); transition: transform 0.3s ease;
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: var(--color-whatsapp);
+    color: var(--color-fondo);
+    text-decoration: none;
+    border-radius: 50px;
+    box-shadow: 0px 4px 6px var(--color-negro);
+    transition: transform 0.3s ease;
 }
-.chat-button img { width: 24px; height: 24px; margin-right: 10px; }
-.chat-button span { font-size: 16px; }
-.chat-button:hover a { transform: scale(1.05); }
+
+.chat-button img {
+    width: 24px;
+    height: 24px;
+    margin-right: 10px;
+}
+
+.chat-button span {
+    font-size: 16px;
+}
+
+.chat-button:hover a {
+    transform: scale(1.05);
+}
 
 
 /* =========================================================
@@ -175,101 +472,186 @@ html { top: 0px !important; margin-top: 0px !important; }
 @media screen and (max-width: 800px) {
 
     /* --- ESTILOS DE LA PÁGINA --- */
-    .logo_main { display: none; }
-    .nav { width: 70%; position: fixed; top: 0; height: 100vh; padding: 0px; transform: translateX(-100%); z-index: 20; }
-    .nav .wrap { left: 0; z-index: 21; }
-    nav { width: 100%; position: absolute; top: 60px; }
-    nav li { width: 100%; display: block; }
-    .logo_small { position: absolute; top: 10px; left: 5px; }
-    nav a { width: 100%; display: flex; padding: 20px; }
-    .nav-toggle { transform: translateX(0%); box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
-    .main { padding: 20px; }
+    .logo_main {
+        display: none;
+    }
+
+    .nav {
+        width: 70%;
+        position: fixed;
+        top: 0;
+        height: 100vh;
+        padding: 0px;
+        transform: translateX(-100%);
+        z-index: 20;
+    }
+
+    .nav .wrap {
+        left: 0;
+        z-index: 21;
+    }
+
+    nav {
+        width: 100%;
+        position: absolute;
+        top: 60px;
+    }
+
+    nav li {
+        width: 100%;
+        display: block;
+    }
+
+    .logo_small {
+        position: absolute;
+        top: 10px;
+        left: 5px;
+    }
+
+    nav a {
+        width: 100%;
+        display: flex;
+        padding: 20px;
+    }
+
+    .nav-toggle {
+        transform: translateX(0%);
+        box-shadow: 5px 0 15px rgba(0, 0, 0, 0.5);
+    }
+
+    .main {
+        padding: 20px;
+    }
 
     /* --- UNIFICACIÓN DE BOTONES (TAMAÑO 55px) --- */
-    
+
     /* 1. MENÚ (3 PUNTOS) - BASE DE LA TORRE */
     .btn-menu {
-        display: flex !important;           /* Visible y Centrado */
+        display: flex !important;
+        /* Visible y Centrado */
         justify-content: center !important;
         align-items: center !important;
-        
+
         position: fixed !important;
-        bottom: 20px !important;           /* Pegado abajo */
-        right: 20px !important;            /* Derecha */
-        left: auto !important;             /* Anular izquierda */
-        
-        width: 55px !important;            /* TAMAÑO UNIFORME */
-        height: 55px !important;           /* TAMAÑO UNIFORME */
-        padding: 0 !important;             
-        
-        border-radius: 50% !important;     
+        bottom: 20px !important;
+        /* Pegado abajo */
+        right: 20px !important;
+        /* Derecha */
+        left: auto !important;
+        /* Anular izquierda */
+
+        width: 55px !important;
+        /* TAMAÑO UNIFORME */
+        height: 55px !important;
+        /* TAMAÑO UNIFORME */
+        padding: 0 !important;
+
+        border-radius: 50% !important;
         transform: none !important;
         z-index: 10060 !important;
         background: var(--color-secundario);
-        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
     }
 
     /* 2. CARRITO - MEDIO DE LA TORRE */
     .cart-floating-button {
         display: block !important;
-        bottom: 90px !important;           /* 20px + 55px + 15px espacio */
+        bottom: 90px !important;
+        /* 20px + 55px + 15px espacio */
         right: 20px !important;
         z-index: 10050 !important;
     }
-    
+
     .cart-floating-button a {
-        width: 55px !important;            /* TAMAÑO UNIFORME */
-        height: 55px !important;           /* TAMAÑO UNIFORME */
+        width: 55px !important;
+        /* TAMAÑO UNIFORME */
+        height: 55px !important;
+        /* TAMAÑO UNIFORME */
     }
 
     /* 3. WHATSAPP - CIMA DE LA TORRE */
     .chat-button {
-        bottom: 160px !important;          /* 90px + 55px + 15px espacio */
+        bottom: 160px !important;
+        /* 90px + 55px + 15px espacio */
         right: 20px !important;
         z-index: 10055 !important;
     }
 
     .chat-button a {
-        width: 55px !important;            /* TAMAÑO UNIFORME */
-        height: 55px !important;           /* TAMAÑO UNIFORME */
-        padding: 0 !important;             
-        border-radius: 50% !important;     
+        width: 55px !important;
+        /* TAMAÑO UNIFORME */
+        height: 55px !important;
+        /* TAMAÑO UNIFORME */
+        padding: 0 !important;
+        border-radius: 50% !important;
         justify-content: center !important;
     }
-    
-    .chat-button span { display: none !important; }
-    .chat-button img { width: 30px !important; height: 30px !important; margin: 0 !important; }
+
+    .chat-button span {
+        display: none !important;
+    }
+
+    .chat-button img {
+        width: 30px !important;
+        height: 30px !important;
+        margin: 0 !important;
+    }
 
     /* 4. TRADUCTOR (Opcional - Más arriba) */
     #google_translate_container {
         position: fixed !important;
-        bottom: 230px !important; 
+        bottom: 230px !important;
         right: 20px !important;
-        width: 55px !important; height: 55px !important; /* TAMAÑO UNIFORME */
-        margin: 0 !important; padding: 0 !important;
+        width: 55px !important;
+        height: 55px !important;
+        /* TAMAÑO UNIFORME */
+        margin: 0 !important;
+        padding: 0 !important;
         background: var(--color-secundario) !important;
         border: 2px solid var(--color-fondo) !important;
         border-radius: 50% !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
         z-index: 10050 !important;
-        display: flex !important; align-items: center !important; justify-content: center !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
-    #custom_translate_btn { position: absolute !important; width: 100% !important; height: 100% !important; opacity: 0.01 !important; }
-    #google_translate_container::before { content: "🌐" !important; font-size: 24px !important; position: absolute !important; pointer-events: none !important; }
-    #custom_translate_btn option { color: var(--color-negro) !important; background: var(--color-fondo) !important; }
+
+    #custom_translate_btn {
+        position: absolute !important;
+        width: 100% !important;
+        height: 100% !important;
+        opacity: 0.01 !important;
+    }
+
+    #google_translate_container::before {
+        content: "🌐" !important;
+        font-size: 24px !important;
+        position: absolute !important;
+        pointer-events: none !important;
+    }
+
+    #custom_translate_btn option {
+        color: var(--color-negro) !important;
+        background: var(--color-fondo) !important;
+    }
 }
 
 /* =========================================================
    CORRECCIÓN BADGE CARRITO EN MENÚ MÓVIL
    ========================================================= */
 @media screen and (max-width: 800px) {
+
     /* En el menú lateral, el enlace ocupa todo el ancho (100%).
        Por eso 'right: 5px' manda el badge muy lejos.
        Aquí lo forzamos a ubicarse cerca del ícono usando 'left'.
     */
     .nav #menu-carrito-icon .cart-badge {
-        right: auto !important;  /* Anulamos la alineación a la derecha */
-        left: 45px !important;   /* 20px de padding del menú + aprox 25px del ícono */
-        top: 12px !important;    /* Ajuste vertical para que se vea centrado */
+        right: auto !important;
+        /* Anulamos la alineación a la derecha */
+        left: 45px !important;
+        /* 20px de padding del menú + aprox 25px del ícono */
+        top: 12px !important;
+        /* Ajuste vertical para que se vea centrado */
     }
 }

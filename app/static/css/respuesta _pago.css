@@ -17,7 +17,7 @@
     width: 100%;
     max-width: 450px;
     border-radius: 15px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
     overflow: hidden;
     border: 1px solid var(--color-borde);
     margin: 0 auto;
@@ -37,17 +37,28 @@
 }
 
 /* Colores de estado (con !important para asegurar que se vean) */
-.bg-success-custom { background: linear-gradient(135deg, var(--color-exito), var(--color-exito-hover)) !important; }
-.bg-danger-custom { background: linear-gradient(135deg, var(--color-peligro), var(--color-peligro-hover)) !important; }
-.bg-warning-custom { background: linear-gradient(135deg, var(--color-warning), var(--color-warning-hover)) !important; color: var(--color-texto) !important; }
+.bg-success-custom {
+    background: linear-gradient(135deg, var(--color-exito), var(--color-exito-hover)) !important;
+}
 
-.ticket-icon { 
-    font-size: 50px; 
-    display: block; 
+.bg-danger-custom {
+    background: linear-gradient(135deg, var(--color-peligro), var(--color-peligro-hover)) !important;
+}
+
+.bg-warning-custom {
+    background: linear-gradient(135deg, var(--color-warning), var(--color-warning-hover)) !important;
+    color: var(--color-texto) !important;
+}
+
+.ticket-icon {
+    font-size: 50px;
+    display: block;
     margin-bottom: 15px;
 }
 
-.ticket-body { padding: 30px; }
+.ticket-body {
+    padding: 30px;
+}
 
 .ticket-row {
     display: flex;
@@ -59,8 +70,16 @@
     color: var(--color-texto);
 }
 
-.ticket-label { color: var(--color-texto-muted); font-weight: normal; }
-.ticket-value { font-weight: bold; color: var(--color-primario-oscuro); text-align: right; }
+.ticket-label {
+    color: var(--color-texto-muted);
+    font-weight: normal;
+}
+
+.ticket-value {
+    font-weight: bold;
+    color: var(--color-primario-oscuro);
+    text-align: right;
+}
 
 .btn-cyber {
     display: block;
@@ -73,4 +92,8 @@
     font-weight: bold;
     transition: background 0.3s;
 }
-.btn-cyber:hover { background-color: var(--color-secundario) !important; text-decoration: none; }
+
+.btn-cyber:hover {
+    background-color: var(--color-secundario) !important;
+    text-decoration: none;
+}

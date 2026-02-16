@@ -192,6 +192,7 @@ hr.my-4 {
         margin: 0 auto;
         display: block;
     }
+
     .row {
         margin-left: -0.5rem;
         margin-right: -0.5rem;
@@ -209,6 +210,7 @@ hr.my-4 {
         display: block;
     }
 }
+
 @media (max-width: 576px) {
     .btn-primary {
         margin-bottom: 1rem !important;

@@ -1,10 +1,13 @@
 @import url('variables.css');
 
-body  { background: linear-gradient(135deg, var(--color-secundario),var(--color-transicion) );}
+body {
+    background: linear-gradient(135deg, var(--color-secundario), var(--color-transicion));
+}
+
 /* Contenedor del formulario */
 .main {
     position: static;
-    margin:auto;
+    margin: auto;
     margin-top: 7%;
     margin-bottom: 2%;
     padding: 20px;

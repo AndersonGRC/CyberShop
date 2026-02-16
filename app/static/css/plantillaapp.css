@@ -24,36 +24,49 @@
     background: linear-gradient(45deg, var(--color-fondo), var(--color-secundario));
     color: var(--color-secundario);
     cursor: default;
-    z-index: 10; /* Logo principal sobre otros elementos */
+    z-index: 10;
+    /* Logo principal sobre otros elementos */
 }
 
 /* Logo pequeño */
 .logo_small {
     display: inline-block;
-    font-size: 18px; /* Tamaño ligeramente mayor */
-    padding: 3px 5px; /* Espaciado más equilibrado */
+    font-size: 18px;
+    /* Tamaño ligeramente mayor */
+    padding: 3px 5px;
+    /* Espaciado más equilibrado */
     margin-right: 30px;
-    color: var(--color-fondo); /* Mantiene el color principal */
+    color: var(--color-fondo);
+    /* Mantiene el color principal */
     background-color: var(--color-gris-oscuro);
-    border-radius: 6px; /* Bordes redondeados */
+    border-radius: 6px;
+    /* Bordes redondeados */
     cursor: pointer;
-    z-index: 11; /* Mantiene el logo por encima de otros elementos */
-    box-shadow: 0px 4px 6px var(--color-secundario); /* Sombra ligera */
-    transition: all 0.3s ease; /* Suaviza las interacciones */
+    z-index: 11;
+    /* Mantiene el logo por encima de otros elementos */
+    box-shadow: 0px 4px 6px var(--color-secundario);
+    /* Sombra ligera */
+    transition: all 0.3s ease;
+    /* Suaviza las interacciones */
 }
 
 .logo_small:hover {
-    color: var(--color-fondo); /* Cambio a blanco puro */
-    background-color: var(--color-secundario); /* Color de fondo resaltado */
-    transform: scale(1.2); /* Efecto de crecimiento */
-    box-shadow: 0px 6px 6px var(--color-secundario); /* Sombra más pronunciada */
+    color: var(--color-fondo);
+    /* Cambio a blanco puro */
+    background-color: var(--color-secundario);
+    /* Color de fondo resaltado */
+    transform: scale(1.2);
+    /* Efecto de crecimiento */
+    box-shadow: 0px 6px 6px var(--color-secundario);
+    /* Sombra más pronunciada */
 }
 
 
 
 /* Barra de navegación */
 .nav {
-    z-index: 20; /* Barra de navegación sobre el contenido */
+    z-index: 20;
+    /* Barra de navegación sobre el contenido */
     float: left;
     width: 100%;
     background: var(--color-secundario);
@@ -70,7 +83,8 @@
     position: relative;
     left: -150px;
     transition: 0.4s ease all;
-    z-index: 21; /* Wrapper de la navegación sobre el menú */
+    z-index: 21;
+    /* Wrapper de la navegación sobre el menú */
 }
 
 nav {
@@ -105,7 +119,8 @@ nav a:hover {
 .main {
     background: var(--color-fondo);
     padding: 80px;
-    z-index: 5; /* Contenido principal sobre el footer */
+    z-index: 5;
+    /* Contenido principal sobre el footer */
 }
 
 /* Menú fijo */
@@ -133,7 +148,8 @@ body.nav_fixed .nav .wrap {
     cursor: pointer;
     transition: all 500ms cubic-bezier(1, 0, 0, 1);
     transform: translateX(100px);
-    z-index: 02; /* Botón de menú sobre el footer */
+    z-index: 02;
+    /* Botón de menú sobre el footer */
 }
 
 .btn-menu:hover {
@@ -168,7 +184,8 @@ body.nav_fixed .nav .wrap {
         height: 100vh;
         padding: 0px;
         transform: translateX(-100%);
-        z-index: 20; /* Barra de navegación fija sobre el contenido */
+        z-index: 20;
+        /* Barra de navegación fija sobre el contenido */
     }
 
     .nav .wrap {
@@ -217,7 +234,7 @@ body.nav_fixed .nav .wrap {
 /* FOOTER */
 .footer {
     width: 100%;
-    background-color: var(--color-secundario)   ;
+    background-color: var(--color-secundario);
     color: var(--color-fondo);
     text-align: center;
     padding: 20px;
@@ -279,6 +296,7 @@ body.nav_fixed .nav .wrap {
     margin-top: 10px;
     letter-spacing: 1px;
 }
+
 .empresa {
     font-size: 14px;
     word-spacing: 2px;
@@ -286,5 +304,3 @@ body.nav_fixed .nav .wrap {
     margin-top: 10px;
     letter-spacing: 1px;
 }
-
-

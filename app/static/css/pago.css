@@ -32,7 +32,7 @@
     border-radius: 8px;
     padding: 25px;
     margin-bottom: 30px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
     border: 1px solid var(--color-borde);
 }
 
@@ -109,7 +109,7 @@
     border-radius: 8px;
     padding: 25px;
     margin-bottom: 30px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
     border: 1px solid var(--color-borde);
 }
 
@@ -127,7 +127,7 @@
     background-color: #ffffff;
     padding: 20px;
     border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     text-align: center;
     transition: all 0.3s ease;
     width: 240px;
@@ -138,7 +138,7 @@
 
 .opcion-pse:hover {
     transform: scale(1.05);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     border-color: var(--color-primario);
 }
 
@@ -203,7 +203,9 @@
     border-top: 1px solid var(--color-gris-borde);
 }
 
-.btn-volver, .btn-continuar, .btn-pagar {
+.btn-volver,
+.btn-continuar,
+.btn-pagar {
     padding: 12px 25px;
     border-radius: 6px;
     font-weight: 600;
@@ -252,7 +254,7 @@
     border-radius: 8px;
     padding: 25px;
     margin-bottom: 30px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
     border: 1px solid var(--color-borde);
     text-align: center;
 }
@@ -275,7 +277,7 @@
     font-weight: 600;
     margin: 10px 0;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     border: none;
     cursor: pointer;
     font-size: 16px;
@@ -284,7 +286,7 @@
 .whatsapp-pago:hover {
     background-color: var(--color-whatsapp-hover);
     transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
 
 .whatsapp-pago i {
@@ -307,7 +309,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0,0,0,0.5);
+    background-color: rgba(0, 0, 0, 0.5);
     z-index: 9999;
     justify-content: center;
     align-items: center;
@@ -318,7 +320,7 @@
     padding: 30px;
     border-radius: 8px;
     text-align: center;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
 
 .loader-spinner {
@@ -332,14 +334,26 @@
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 /* === ANIMACIONES === */
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* === RESPONSIVE === */
@@ -347,14 +361,14 @@
     .container {
         padding: 15px;
     }
-    
+
     #lista-productos li {
         flex-direction: column;
         align-items: flex-start;
         gap: 10px;
         padding: 15px 0;
     }
-    
+
     .subtotal {
         text-align: left;
         width: 100%;
@@ -362,176 +376,196 @@
         padding-top: 10px;
         border-top: 1px dashed #eee;
     }
-    
+
     .opcion-pse {
         width: 100%;
     }
-    
+
     .botones-navegacion {
         flex-direction: column;
         gap: 10px;
     }
-    
-    .btn-volver, .btn-continuar, .btn-pagar {
+
+    .btn-volver,
+    .btn-continuar,
+    .btn-pagar {
         width: 100%;
     }
-    
+
     .whatsapp-pago {
         width: 100%;
         padding: 15px;
     }
 }
+
 .contenedor-pago {
-        max-width: 900px;
-        margin: 40px auto;
-        display: grid;
-        grid-template-columns: 1fr 1.5fr;
-        gap: 30px;
-    }
-    
-    @media (max-width: 768px) {
-        .contenedor-pago { grid-template-columns: 1fr; }
-    }
+    max-width: 900px;
+    margin: 40px auto;
+    display: grid;
+    grid-template-columns: 1fr 1.5fr;
+    gap: 30px;
+}
 
-    .resumen-lateral {
-        background: var(--color-fondo-form);
-        padding: 20px;
-        border-radius: 10px;
-        border: 1px solid var(--color-gris-borde);
-        height: fit-content;
+@media (max-width: 768px) {
+    .contenedor-pago {
+        grid-template-columns: 1fr;
     }
+}
 
-    .item-resumen {
-        display: flex;
-        align-items: center;
-        margin-bottom: 15px;
-        border-bottom: 1px solid #eee;
-        padding-bottom: 10px;
-    }
+.resumen-lateral {
+    background: var(--color-fondo-form);
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid var(--color-gris-borde);
+    height: fit-content;
+}
 
-    .item-resumen img {
-        width: 60px;
-        height: 60px;
-        object-fit: cover;
-        border-radius: 5px;
-        margin-right: 15px;
-    }
+.item-resumen {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
 
-    .total-resumen {
-        font-size: 1.4em;
-        font-weight: bold;
-        text-align: right;
-        margin-top: 15px;
-        color: var(--color-secundario);
-    }
+.item-resumen img {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 5px;
+    margin-right: 15px;
+}
 
-    .seccion-formulario {
-        background: #fff;
-        padding: 25px;
-        border-radius: 10px;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-    }
+.total-resumen {
+    font-size: 1.4em;
+    font-weight: bold;
+    text-align: right;
+    margin-top: 15px;
+    color: var(--color-secundario);
+}
 
-    .form-group { margin-bottom: 15px; }
-    .form-label { display: block; font-weight: 600; margin-bottom: 5px; color: var(--color-texto-secundario); }
-    .form-control {
-        width: 100%;
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        font-size: 14px;
-        box-sizing: border-box;
-    }
-    
-    .fila-doble {
-        display: flex;
-        gap: 15px;
-    }
-    
-    .fila-doble .form-group { flex: 1; }
+.seccion-formulario {
+    background: #fff;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+}
 
-    .btn-pagar {
-        width: 100%;
-        padding: 15px;
-        background-color: var(--color-acento-secundario);
-        color: white;
-        border: none;
-        border-radius: 6px;
-        font-size: 16px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: background 0.3s;
-        margin-top: 10px;
-    }
+.form-group {
+    margin-bottom: 15px;
+}
 
-    .btn-pagar:hover { background-color: var(--color-exito-hover); }
+.form-label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: var(--color-texto-secundario);
+}
 
-    /* ESTILO TARJETA PAYU */
-    .opcion-payu-card {
-        border: 2px solid #eee;
-        border-radius: 12px;
-        padding: 25px 20px;
-        text-align: center;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        margin-bottom: 25px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        background: #fff;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    }
+.form-control {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
 
-    /* Solución Imagen PayU: URL pública para garantizar que se vea */
-    .opcion-payu-card img {
-        max-width: 180px; 
-        height: auto;
-        margin-bottom: 15px;
-        display: block;
-    }
+.fila-doble {
+    display: flex;
+    gap: 15px;
+}
 
-    .opcion-payu-card p {
-        margin: 0;
-        font-weight: 600;
-        color: var(--color-texto-secundario);
-        font-size: 1.1em;
-    }
+.fila-doble .form-group {
+    flex: 1;
+}
 
-    .opcion-payu-card:hover {
-        border-color: var(--color-acento-secundario);
-        background-color: #fcfdf9;
-        box-shadow: 0 5px 15px rgba(166, 196, 56, 0.2);
-        transform: translateY(-2px);
-    }
+.btn-pagar {
+    width: 100%;
+    padding: 15px;
+    background-color: var(--color-acento-secundario);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.3s;
+    margin-top: 10px;
+}
 
-    /* Estilo WhatsApp */
-    .whatsapp-option {
-        margin-top: 30px;
-        text-align: center;
-        padding-top: 20px;
-        border-top: 1px solid #eee;
-    }
-    
-    .whatsapp-pago {
-        display: inline-block;
-        background-color: var(--color-whatsapp);
-        color: white;
-        padding: 12px 25px;
-        border-radius: 30px;
-        text-decoration: none;
-        font-weight: bold;
-        margin-top: 15px;
-        font-size: 1.1em;
-        box-shadow: 0 3px 10px rgba(37, 211, 102, 0.3);
-        transition: all 0.3s;
-    }
-    
-    .whatsapp-pago:hover {
-        background-color: var(--color-whatsapp-hover);
-        color: white;
-        box-shadow: 0 5px 15px rgba(37, 211, 102, 0.5);
-        transform: translateY(-2px);
-    }
+.btn-pagar:hover {
+    background-color: var(--color-exito-hover);
+}
 
-    .paso-oculto { display: none; }
+/* ESTILO TARJETA PAYU */
+.opcion-payu-card {
+    border: 2px solid #eee;
+    border-radius: 12px;
+    padding: 25px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-bottom: 25px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+/* Solución Imagen PayU: URL pública para garantizar que se vea */
+.opcion-payu-card img {
+    max-width: 180px;
+    height: auto;
+    margin-bottom: 15px;
+    display: block;
+}
+
+.opcion-payu-card p {
+    margin: 0;
+    font-weight: 600;
+    color: var(--color-texto-secundario);
+    font-size: 1.1em;
+}
+
+.opcion-payu-card:hover {
+    border-color: var(--color-acento-secundario);
+    background-color: #fcfdf9;
+    box-shadow: 0 5px 15px rgba(166, 196, 56, 0.2);
+    transform: translateY(-2px);
+}
+
+/* Estilo WhatsApp */
+.whatsapp-option {
+    margin-top: 30px;
+    text-align: center;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+
+.whatsapp-pago {
+    display: inline-block;
+    background-color: var(--color-whatsapp);
+    color: white;
+    padding: 12px 25px;
+    border-radius: 30px;
+    text-decoration: none;
+    font-weight: bold;
+    margin-top: 15px;
+    font-size: 1.1em;
+    box-shadow: 0 3px 10px rgba(37, 211, 102, 0.3);
+    transition: all 0.3s;
+}
+
+.whatsapp-pago:hover {
+    background-color: var(--color-whatsapp-hover);
+    color: white;
+    box-shadow: 0 5px 15px rgba(37, 211, 102, 0.5);
+    transform: translateY(-2px);
+}
+
+.paso-oculto {
+    display: none;
+}

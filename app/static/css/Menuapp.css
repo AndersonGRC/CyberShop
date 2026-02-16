@@ -44,10 +44,11 @@ main {
 }
 
 @media (min-width: 769px) {
-    header:not(.hidden) ~ .header .header-logo img {
+    header:not(.hidden)~.header .header-logo img {
         opacity: 0;
     }
-    header.hidden ~ .header .header-logo img {
+
+    header.hidden~.header .header-logo img {
         opacity: 1;
     }
 }
@@ -63,7 +64,7 @@ main {
     font-size: 18px;
 }
 
-header.hidden ~ .header {
+header.hidden~.header {
     left: 0;
 }
 
@@ -114,7 +115,7 @@ main {
     height: 100%;
 }
 
-header.hidden ~ main {
+header.hidden~main {
     margin-left: 0;
 }
 
@@ -133,7 +134,7 @@ header.hidden ~ main {
     transition: left 0.3s ease;
 }
 
-header.hidden ~ .footer {
+header.hidden~.footer {
     left: 0;
 }
 
@@ -260,7 +261,9 @@ header .nav ul li a:hover i {
 
 /* Modificaciones móvil */
 @media (max-width: 768px) {
-    html, body {
+
+    html,
+    body {
         height: 100%;
         overflow-y: auto;
     }
@@ -272,6 +275,7 @@ header .nav ul li a:hover i {
         min-height: calc(100vh - 60px);
         overflow-y: auto;
     }
+
     .nav ul li .submenu {
         position: relative;
         top: 0;

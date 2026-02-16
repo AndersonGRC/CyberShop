@@ -53,20 +53,21 @@ main {
 
 /* Media Queries para móviles */
 @media (max-width: 768px) {
-    main{
+    main {
         margin: 0;
     }
+
     .Submenunavegacion ul {
         flex-wrap: wrap;
         justify-content: center;
         gap: 5px;
     }
-    
+
     .Submenunavegacion {
         width: 95%;
         padding: 10px 5px;
     }
-    
+
     .Submenunavegacion a {
         padding: 12px 15px;
         margin: 0;
@@ -79,7 +80,7 @@ main {
     .Submenunavegacion ul {
         gap: 4px;
     }
-    
+
     .Submenunavegacion a {
         padding: 10px 12px;
         font-size: 0.95em;
@@ -106,7 +107,7 @@ h2 {
     background-color: var(--color-fondo);
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     border-radius: 8px;
-    display: flex; 
+    display: flex;
     justify-content: center;
     flex-direction: column;
 }
@@ -194,8 +195,8 @@ h2 {
         font-size: 14px;
         margin-bottom: 8px;
     }
-    
+
     .form-group button {
-        width: 80%;  
+        width: 80%;
     }
 }

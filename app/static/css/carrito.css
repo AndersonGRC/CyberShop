@@ -9,7 +9,7 @@
     padding: 30px;
     background: #fff;
     border-radius: 10px;
-    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
 }
 
 .carrito-container h2 {
@@ -54,7 +54,7 @@
     height: 80px;
     object-fit: cover;
     border-radius: 8px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 /* Controles de Cantidad (+ / -) */
@@ -89,7 +89,8 @@
 }
 
 /* Botones de Acción (Eliminar, Pagar, etc) */
-.btn-eliminar-fila, .eliminar-item {
+.btn-eliminar-fila,
+.eliminar-item {
     background-color: var(--color-fondo);
     color: var(--color-eliminar);
     border: 1px solid var(--color-eliminar);
@@ -99,7 +100,8 @@
     transition: 0.3s;
 }
 
-.btn-eliminar-fila:hover, .eliminar-item:hover {
+.btn-eliminar-fila:hover,
+.eliminar-item:hover {
     background-color: var(--color-eliminar);
     color: white;
 }
@@ -140,6 +142,7 @@
 .btn-seguir {
     background-color: var(--color-gris);
 }
+
 .btn-seguir:hover {
     background-color: var(--color-negro);
 }
@@ -147,6 +150,7 @@
 .btn-vaciar {
     background-color: var(--color-eliminar);
 }
+
 .btn-vaciar:hover {
     opacity: 0.8;
 }
@@ -154,6 +158,7 @@
 .btn-pagar {
     background-color: var(--color-exito);
 }
+
 .btn-pagar:hover {
     background-color: var(--color-exito-hover);
     box-shadow: 0 4px 10px rgba(40, 167, 69, 0.3);
@@ -172,11 +177,14 @@
 
     /* 1. Ajuste del contenedor general */
     .carrito-container {
-        margin: 15px 10px; /* Márgenes pequeños */
+        margin: 15px 10px;
+        /* Márgenes pequeños */
         padding: 15px;
         width: auto;
-        background: transparent; /* Quitamos el fondo blanco grande */
-        box-shadow: none; /* Quitamos la sombra general */
+        background: transparent;
+        /* Quitamos el fondo blanco grande */
+        box-shadow: none;
+        /* Quitamos la sombra general */
     }
 
     .carrito-container h2 {
@@ -186,28 +194,33 @@
         padding: 15px;
         border-radius: 10px;
         margin-bottom: 20px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
     }
 
     /* 2. Convertir filas en Tarjetas Compactas */
-    .tabla-carrito, tbody {
+    .tabla-carrito,
+    tbody {
         display: block;
         width: 100%;
     }
 
     .tabla-carrito thead {
-        display: none; /* Ocultar cabeceras */
+        display: none;
+        /* Ocultar cabeceras */
     }
 
     .tabla-carrito tr {
         display: flex;
-        flex-wrap: wrap; /* Permite que los elementos se acomoden */
+        flex-wrap: wrap;
+        /* Permite que los elementos se acomoden */
         background: #fff;
         margin-bottom: 15px;
         border-radius: 12px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.05); /* Sombra suave */
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        /* Sombra suave */
         padding: 15px;
-        position: relative; /* Para posicionar el botón eliminar */
+        position: relative;
+        /* Para posicionar el botón eliminar */
         border: 1px solid #f0f0f0;
     }
 
@@ -244,10 +257,12 @@
 
     /* --- CELDA 2: Precio Unitario --- */
     .tabla-carrito td:nth-child(2) {
-        width: 50%; /* Mitad izquierda */
+        width: 50%;
+        /* Mitad izquierda */
         font-size: 0.9rem;
         color: var(--color-gris);
     }
+
     /* Añadimos etiqueta visual */
     .tabla-carrito td:nth-child(2)::before {
         content: "Unitario: ";
@@ -256,15 +271,18 @@
 
     /* --- CELDA 3: Cantidad --- */
     .tabla-carrito td:nth-child(3) {
-        width: 100%; /* Ocupa nueva linea */
+        width: 100%;
+        /* Ocupa nueva linea */
         display: flex;
-        justify-content: center; /* Centrado */
+        justify-content: center;
+        /* Centrado */
         margin: 10px 0;
     }
 
     /* --- CELDA 4: Subtotal --- */
     .tabla-carrito td:nth-child(4) {
-        width: 50%; /* Mitad derecha */
+        width: 50%;
+        /* Mitad derecha */
         text-align: right;
         font-weight: bold;
         color: var(--color-secundario);
@@ -279,14 +297,17 @@
         padding: 0;
     }
 
-    .btn-eliminar-fila, .eliminar-item {
+    .btn-eliminar-fila,
+    .eliminar-item {
         background: transparent;
         color: #ccc;
         border: none;
         font-size: 1.2rem;
         padding: 5px;
     }
-    .btn-eliminar-fila:hover, .eliminar-item:hover {
+
+    .btn-eliminar-fila:hover,
+    .eliminar-item:hover {
         color: var(--color-eliminar);
         background: transparent;
     }
@@ -298,7 +319,7 @@
         padding: 15px;
         border-radius: 10px;
         margin-bottom: 15px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
     }
 
     .acciones-carrito {
@@ -311,11 +332,27 @@
         padding: 15px;
         font-size: 1.1rem;
     }
-    
+
     /* Ordenar botones para mejor UX en móvil */
-    #procesar-pedido-btn { order: 1; } /* Pagar primero */
-    .btn-seguir { order: 2; background: #fff; color: var(--color-gris); border: 1px solid #ddd; }
-    #vaciar-carrito-btn { order: 3; font-size: 0.9rem; padding: 10px; background: transparent; color: var(--color-eliminar); }
+    #procesar-pedido-btn {
+        order: 1;
+    }
+
+    /* Pagar primero */
+    .btn-seguir {
+        order: 2;
+        background: #fff;
+        color: var(--color-gris);
+        border: 1px solid #ddd;
+    }
+
+    #vaciar-carrito-btn {
+        order: 3;
+        font-size: 0.9rem;
+        padding: 10px;
+        background: transparent;
+        color: var(--color-eliminar);
+    }
 }
 
 /* Botón Vaciar Carrito - Estilo "Ghost" */
@@ -327,7 +364,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px; /* Espacio entre icono y texto */
+    gap: 8px;
+    /* Espacio entre icono y texto */
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     position: relative;
     overflow: hidden;
@@ -337,8 +375,10 @@
 .btn-vaciar:hover {
     background-color: var(--color-eliminar);
     color: #fff;
-    box-shadow: 0 5px 15px rgba(255, 0, 0, 0.3); /* Resplandor rojo */
-    transform: translateY(-2px); /* Se eleva un poco */
+    box-shadow: 0 5px 15px rgba(255, 0, 0, 0.3);
+    /* Resplandor rojo */
+    transform: translateY(-2px);
+    /* Se eleva un poco */
 }
 
 /* Efecto al hacer click */
@@ -353,5 +393,6 @@
 }
 
 .btn-vaciar:hover i {
-    transform: rotate(15deg) scale(1.1); /* El icono de basura se mueve */
+    transform: rotate(15deg) scale(1.1);
+    /* El icono de basura se mueve */
 }

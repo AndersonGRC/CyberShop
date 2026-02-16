@@ -8,8 +8,10 @@ body {
     justify-content: center;
     flex-direction: column;
     height: 100vh;
-    background-color: var(--color-fondo); /* Fondo claro */
-    color: var(--color-secundario); /* Texto color azul oscuro */
+    background-color: var(--color-fondo);
+    /* Fondo claro */
+    color: var(--color-secundario);
+    /* Texto color azul oscuro */
     font-family: 'Arial', sans-serif;
     text-align: center;
 }
@@ -25,7 +27,8 @@ p {
 }
 
 img {
-    width: 350px; /* Ajusta el tamaño del logo */
+    width: 350px;
+    /* Ajusta el tamaño del logo */
     height: auto;
     margin-bottom: 20px;
 }

@@ -67,12 +67,12 @@ main h2 {
         justify-content: center;
         gap: 5px;
     }
-    
+
     .Submenunavegacion {
         width: 95%;
         padding: 10px 5px;
     }
-    
+
     .Submenunavegacion a {
         padding: 12px 15px;
         margin: 0;
@@ -85,7 +85,7 @@ main h2 {
     .Submenunavegacion ul {
         gap: 4px;
     }
-    
+
     .Submenunavegacion a {
         padding: 10px 12px;
         font-size: 0.95em;
@@ -114,14 +114,16 @@ table {
 }
 
 /* Celdas */
-table th, table td {
+table th,
+table td {
     padding: 12px 15px;
     text-align: left;
     word-wrap: break-word;
     white-space: normal;
 }
-table td{
-    color:var(--color-negro) ;
+
+table td {
+    color: var(--color-negro);
 }
 
 /* Encabezado */
@@ -164,7 +166,7 @@ table tr:hover {
     main {
         margin: 0
     }
-    
+
     .table-container {
         padding: 0 10px;
         overflow-x: auto;
@@ -174,7 +176,8 @@ table tr:hover {
         width: 100%;
     }
 
-    table th, table td {
+    table th,
+    table td {
         padding: 8px 10px;
         font-size: 0.9em;
     }
@@ -187,7 +190,9 @@ table tr:hover {
 
 /* Responsivo: Móviles pequeños */
 @media (max-width: 480px) {
-    table th, table td {
+
+    table th,
+    table td {
         padding: 6px 8px;
         font-size: 0.85em;
     }
