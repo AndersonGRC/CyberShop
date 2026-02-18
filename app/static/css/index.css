@@ -1,6 +1,40 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300;400;500;600;700;800;900&display=swap');
 @import url('variables.css');
 
+/* ============================================
+   ANIMACIONES SCROLL-REVEAL (Storytelling)
+   ============================================ */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(40px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInLeft {
+    from { opacity: 0; transform: translateX(-50px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeInRight {
+    from { opacity: 0; transform: translateX(50px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Estado inicial: JS agrega .scroll-ready para ocultar.
+   Sin JS, el contenido se muestra normal (no queda invisible). */
+.scroll-ready {
+    opacity: 0;
+}
+
+.scroll-ready.revealed {
+    animation-duration: 0.8s;
+    animation-fill-mode: both;
+    animation-timing-function: ease-out;
+}
+
+.reveal-up.revealed    { animation-name: fadeInUp; }
+.reveal-left.revealed  { animation-name: fadeInLeft; }
+.reveal-right.revealed { animation-name: fadeInRight; }
+
 .slider {
     position: relative;
     background: transparent;
@@ -300,174 +334,256 @@
 
 /* Estilos para la sección "Acerca de Nosotros" */
 .about-us {
-    background-color: var(--color-fondo);
-    padding: 15px 20px;
+    background: linear-gradient(135deg, var(--color-secundario) 0%, var(--color-primario-oscuro) 100%);
+    padding: 60px 20px;
     margin-top: 20px;
 }
 
 .about-us-content {
-    flex: 1;
-    background-color: var(--color-fondo);
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px var(--color-secundario);
-    text-align: center;
     max-width: 890px;
     margin: 0 auto;
-    transition: background-color 0.3s ease, color 0.3s ease;
+    text-align: center;
+    padding: 20px;
 }
 
 .about-us h2 {
     font-size: 2.5rem;
-    color: var(--color-secundario);
-    margin-bottom: 15px;
+    color: var(--color-blanco);
+    margin-bottom: 10px;
     text-transform: uppercase;
     font-weight: bold;
-    text-align: center;
+}
+
+.about-us h2::after {
+    content: '';
+    display: block;
+    width: 60px;
+    height: 3px;
+    background: var(--color-accent);
+    margin: 12px auto 20px;
+    transition: width 0.6s ease;
+}
+
+.about-us-content.revealed h2::after {
+    width: 120px;
 }
 
 .about-us p {
     font-size: 1.1rem;
-    color: var(--color-gris);
+    color: rgba(255,255,255,0.9);
     line-height: 1.8;
     text-align: justify;
-}
-
-.about-us-content:hover {
-    background-color: var(--color-secundario);
-    transform: scale(1.10)
-}
-
-.about-us-content:hover h2,
-.about-us-content:hover p {
-    color: var(--color-fondo);
 }
 
 /* Estilos para la sección de Misión y Visión */
 .mission-vision {
     display: flex;
-    justify-content: space-between;
-    gap: 20px;
-    padding: 15px 20px;
+    justify-content: center;
+    gap: 30px;
+    padding: 50px 20px;
     background-color: var(--color-fondo);
     margin-bottom: 30px;
-    transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-.mission:hover,
-.vision:hover {
-    background-color: var(--color-secundario);
-    transform: scale(1.05)
-}
-
-.mission:hover p,
-.vision:hover p {
-    color: var(--color-fondo);
-}
-
-.mission:hover h2,
-.vision:hover h2 {
-    color: var(--color-fondo);
 }
 
 .mission,
 .vision {
     flex: 1;
-    background-color: var(--color-fondo);
-    padding: 20px;
+    max-width: 500px;
+    background-color: var(--color-blanco);
+    padding: 30px 25px;
     border-radius: 10px;
-    box-shadow: 0 4px 8px var(--color-secundario);
-    text-align: center;
+    box-shadow: var(--sombra-card);
+    text-align: left;
+    border-left: 4px solid var(--color-primario);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.mission:hover,
+.vision:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--sombra-fuerte);
 }
 
 .mission h2,
 .vision h2 {
-    font-size: 2rem;
+    font-size: 1.8rem;
     color: var(--color-secundario);
-    margin-bottom: 20px;
+    margin-bottom: 15px;
     text-transform: uppercase;
+}
+
+.mission h2::after,
+.vision h2::after {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 3px;
+    background: var(--color-primario);
+    margin-top: 10px;
 }
 
 .mission p,
 .vision p {
-    font-size: 1.1rem;
-    color: var(--color-gris);
+    font-size: 1.05rem;
+    color: var(--color-gris-texto);
     line-height: 1.8;
 }
 
 @media (max-width: 768px) {
+    .about-us {
+        padding: 40px 15px;
+    }
+
+    .about-us h2 {
+        font-size: 1.8rem;
+    }
+
+    .about-us p {
+        font-size: 0.95rem;
+    }
+
     .mission-vision {
         flex-direction: column;
+        padding: 30px 15px;
+    }
+
+    .mission,
+    .vision {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .about-us {
+        padding: 30px 12px;
+    }
+
+    .about-us h2 {
+        font-size: 1.5rem;
+    }
+
+    .about-us p {
+        font-size: 0.9rem;
+        line-height: 1.6;
+    }
+
+    .mission h2,
+    .vision h2 {
+        font-size: 1.4rem;
+    }
+
+    .mission p,
+    .vision p {
+        font-size: 0.9rem;
+        line-height: 1.6;
+    }
+
+    .mission,
+    .vision {
+        padding: 20px 18px;
     }
 }
 
 /* Ajustes responsive para el slider */
 @media (max-width: 768px) {
     .slider {
-        min-height: 250px;
+        min-height: 60vw;
     }
 
     .slider .slide img {
         width: 100%;
         height: 100%;
-        object-fit: contain;
+        object-fit: cover;
     }
 
+    /* Mostrar info como overlay inferior */
+    .slider .slide .info {
+        display: block;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: auto;
+        margin: 0;
+        padding: 15px 20px;
+        background: linear-gradient(transparent, rgba(0,0,0,0.7));
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .slider .slide .info h2 {
+        font-size: 1.3rem;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    }
+
+    .slider .slide .info p {
+        font-size: 0.85rem;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    }
+
+    .slider .slide .info br {
+        display: none;
+    }
+
+    /* Flechas más visibles */
     .navigation {
         opacity: 1 !important;
-        /* siempre visibles en móviles */
         top: 50%;
         transform: translateY(-50%);
-        padding: 0 10px;
+        padding: 0 5px;
         height: auto;
     }
 
     .prev-btn,
     .next-btn {
-        font-size: 1.5em;
-        padding: 6px;
+        font-size: 1.4em;
+        padding: 10px;
+        background: rgba(255,255,255,0.8);
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Puntos de navegación dentro del slider */
+    .navigation-visibility {
+        position: absolute;
+        bottom: 10px;
+        margin-top: 0;
     }
 
     .navigation-visibility .slide-icon {
         width: 15px;
         height: 8px;
     }
-
-    .slider .slide .info {
-        display: none;
-        margin: 0;
-        padding: 0;
-    }
 }
 
 /* Ajuste para pantallas muy pequeñas */
 @media (max-width: 480px) {
     .slider {
-        min-height: 200px;
+        min-height: 55vw;
     }
 
+    .slider .slide .info h2 {
+        font-size: 1.1rem;
+    }
+
+    .slider .slide .info p {
+        font-size: 0.75rem;
+    }
+
+    .prev-btn,
     .next-btn {
-        font-size: 1.2em;
-        padding: 2px;
-        margin-right: -7px;
-    }
-
-    .prev-btn {
-        font-size: 1.2em;
-        padding: 2px;
-        margin-left: -7px;
+        font-size: 1.1em;
+        padding: 8px;
+        width: 34px;
+        height: 34px;
     }
 
     .navigation-visibility .slide-icon {
         width: 12px;
         height: 6px;
-    }
-}
-
-@media (max-width: 768px) {
-    .navigation-visibility {
-        position: absolute;
-        bottom: 10px;
-        /* los empuja hacia abajo */
     }
 }
