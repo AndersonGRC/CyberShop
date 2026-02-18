@@ -72,7 +72,9 @@ def get_data_app():
                 {"nombre": "Historial POS", "url": "admin.historial_pos", "icono": "receipt"},
                 {"nombre": "Gestionar Pedidos", "url": "admin.gestion_pedidos", "icono": "truck"},
                 {"nombre": "Nueva Cotización", "url": "quotes.cotizar", "icono": "file-invoice-dollar"},
-                {"nombre": "Mis Cotizaciones", "url": "quotes.ver_cotizaciones", "icono": "history"}
+                {"nombre": "Mis Cotizaciones", "url": "quotes.ver_cotizaciones", "icono": "history"},
+                {"nombre": "Nueva Cuenta de Cobro", "url": "billing.crear_cuenta", "icono": "file-invoice"},
+                {"nombre": "Mis Cuentas de Cobro", "url": "billing.listar_cuentas", "icono": "folder-open"}
             ]
         },
         {

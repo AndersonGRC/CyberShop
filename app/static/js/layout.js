@@ -132,6 +132,7 @@ slider.addEventListener("mouseout", () => {
 
 //Componente de tarjeta interactiva usando Vue.js
 
+if (typeof Vue !== 'undefined') {
 
 //TARGETAS
 // Habilita las herramientas de desarrollo de Vue.js
@@ -223,6 +224,43 @@ Vue.component('card', {
 });
 
 // Instancia de Vue
-const app = new Vue({
-    el: '#app' // Conecta Vue al elemento con id 'app'
-});
+if (document.getElementById('app')) {
+    const app = new Vue({
+        el: '#app'
+    });
+}
+
+} // fin de if (typeof Vue !== 'undefined')
+
+/* 6. Scroll reveal - animaciones storytelling */
+(function initScrollReveal() {
+    function setup() {
+        var reveals = document.querySelectorAll('.scroll-reveal');
+        if (!reveals.length) return;
+
+        if (!('IntersectionObserver' in window)) {
+            // Sin soporte: mostrar todo sin animacion
+            return;
+        }
+
+        // Primero ocultamos con JS (si JS falla, contenido queda visible)
+        reveals.forEach(function(el) { el.classList.add('scroll-ready'); });
+
+        var observer = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry) {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('revealed');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.1 });
+
+        reveals.forEach(function(el) { observer.observe(el); });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setup);
+    } else {
+        setup();
+    }
+})();

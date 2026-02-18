@@ -16,6 +16,7 @@ instance/
 app/static/cotizaciones/pdf/
 app/static/media/
 !app/static/media/.gitkeep
+app/static/cuentas_cobro/pdf/
 
 # Logs
 *.log

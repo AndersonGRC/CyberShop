@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <style>
+        @page {
+            size: letter;
+            margin: 2cm;
+
+            @frame footer {
+                -pdf-frame-content: footerContent;
+                bottom: 1cm;
+                margin-left: 2cm;
+                margin-right: 2cm;
+                height: 4cm;
+            }
+        }
+
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 12px;
+            color: #333;
+        }
+
+        .header-table {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .logo {
+            width: 120px;
+            height: auto;
+        }
+
+        .title-section {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 30px;
+        }
+
+        .client-section {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .amount-section {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .concept-title {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 2px solid #000;
+        }
+
+        .items-table th {
+            border: 1px solid #000;
+            background-color: #d3d3d3;
+            /* Gris claro */
+            padding: 5px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .items-table td {
+            border: 1px solid #000;
+            padding: 8px;
+            vertical-align: top;
+        }
+
+        /* Footer styling matches image */
+        #footerContent {
+            font-size: 11px;
+        }
+
+        .signature-section {
+            margin-top: 30px;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .contact-section {
+            margin-top: 20px;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+
+        .link {
+            color: blue;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header: Logo (Izq) y Consecutivo + Fecha (Der) -->
+    <table class="header-table">
+        <tr>
+            <td class="header-left" style="vertical-align: top;">
+                <img src="{{ logo }}" class="logo">
+            </td>
+            <td style="text-align: right; vertical-align: top;">
+                <strong>CDC {{ consecutivo }}</strong><br>
+                <strong>Fecha: {{ fecha }}</strong>
+            </td>
+        </tr>
+    </table>
+
+    <div class="title-section">
+        {{ cliente.nombre|upper }}<br>
+        NIT: {{ cliente.nit }}
+    </div>
+
+    <div class="client-section">
+        <strong>DEBE A:</strong><br><br>
+        <strong>{{ contractor.nombre }}</strong><br><br>
+        <strong>C. C# {{ contractor.id }}</strong>
+    </div>
+
+    <div class="amount-section">
+        {{ total_texto }}<br>
+        ({{ total_valor }})
+    </div>
+
+    <div class="concept-title">
+        Por Concepto de:
+    </div>
+
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th style="width: 20%;">Fecha de la labor</th>
+                <th style="width: 55%;">Labor realizada</th>
+                <th style="width: 25%;">Precio unitario</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td style="text-align: center;">{{ item.fecha }}</td>
+                <td>{{ item.descripcion }}</td>
+                <td style="text-align: right;">{{ item.valor_formatted }}</td>
+            </tr>
+            {% endfor %}
+            <!-- Rellenar con filas vacias si son pocas para mantener estetica -->
+            {% if items|length < 3 %} {% for i in range(3 - items|length) %} <tr>
+                <td>&nbsp;</td>
+                <td>&nbsp;</td>
+                <td>&nbsp;</td>
+                </tr>
+                {% endfor %}
+                {% endif %}
+            <tr>
+                <td colspan="2" style="text-align: right; font-weight: bold;">TOTAL</td>
+                <td style="text-align: right; font-weight: bold;">{{ total_valor }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- Textos legales y Firma -->
+    <div style="margin-top: 20px; text-align: justify; font-size: 10px;">
+        {{ contractor.texto_pago }}
+    </div>
+
+    <!-- Espacio para firma (sin texto) -->
+    <div style="margin-top: 60px; border-top: 2px solid #000; width: 300px;"></div>
+
+    <div class="contact-section">
+        ATENTAMENTE:<br>
+        {{ contractor.nombre }}<br>
+        Dirección: {{ cliente.direccion }}<br>
+        C.C #: {{ contractor.id }}<br>
+        Email: <span class="link">{{ contractor.email }}</span><br>
+        CEL: {{ contractor.telefono }}
+    </div>
+
+    <!-- Branding footer -->
+    <div style="margin-top: 30px; text-align: center; font-size: 8px;">
+        <a href="https://www.cybershopcol.com" style="color: #007bff; text-decoration: none;">Generado con Cybershop
+            App</a>
+    </div>
+
+</body>
+
+</html>

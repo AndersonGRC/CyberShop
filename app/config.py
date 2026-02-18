@@ -61,6 +61,15 @@ class Config:
         'borde': '#000000',
     }
 
+    # --- Datos por Defecto para Cuentas de Cobro ---
+    BILLING_INFO = {
+        'contractor_nombre': 'Anderson German Roa Cabiativa',
+        'contractor_id': '1027150819',
+        'contractor_telefono': '3015963776',
+        'contractor_email': 'cybershop.digitalsales@gmail.com',
+        'texto_pago': 'Yo Anderson German Roa Cabiativa autorizo realizar el pago de la presente cuenta de cobro en la cuenta del Bancolombia No 040 – 801329-86 a nombre de Anderson German Roa Cabiativa con numero de cedula 1027150819 o Pago en efectivo'
+    }
+
 
 def verificar_configuracion_payu(app):
     """Valida que las claves PayU requeridas esten presentes en la config.

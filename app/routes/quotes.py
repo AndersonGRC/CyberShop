@@ -264,3 +264,72 @@ def ver_cotizaciones():
         app.logger.error(f"Error listando cotizaciones: {e}")
         
     return render_template('mis_cotizaciones.html', datosApp=datosApp, cotizaciones=cotizaciones)
+
+@quotes_bp.route('/admin/cotizar/editar/<int:id>')
+@rol_requerido(1)
+def editar_cotizacion(id):
+    """Renderiza el formulario con datos de una cotización existente."""
+    from flask import flash, redirect
+    datosApp = get_data_app()
+    cotizacion = None
+    detalles = []
+    productos = []
+    
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            # Cargar productos
+            cur.execute('SELECT id, nombre, precio, stock, imagen FROM productos ORDER BY nombre')
+            productos = cur.fetchall()
+            
+            # Cargar Cotización
+            cur.execute('SELECT * FROM cotizaciones WHERE id = %s', (id,))
+            cotizacion = cur.fetchone()
+            
+            if cotizacion:
+                # Cargar Detalles
+                cur.execute('SELECT * FROM detalle_cotizacion WHERE cotizacion_id = %s ORDER BY id', (id,))
+                detalles = cur.fetchall()
+                
+    except Exception as e:
+        app.logger.error(f"Error cargando cotización {id}: {e}")
+        flash("Error al cargar la cotización.", "danger")
+        return redirect(url_for('quotes.ver_cotizaciones'))
+        
+    if not cotizacion:
+        flash("Cotización no encontrada.", "warning")
+        return redirect(url_for('quotes.ver_cotizaciones'))
+
+    return render_template('cotizar.html', 
+                          datosApp=datosApp, 
+                          productos=productos,
+                          cotizacion=cotizacion,
+                          detalles=detalles)
+
+@quotes_bp.route('/admin/cotizar/eliminar/<int:id>', methods=['POST'])
+@rol_requerido(1)
+def eliminar_cotizacion(id):
+    """Elimina una cotización y su archivo PDF."""
+    from flask import flash, redirect
+    try:
+        pdf_path = None
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT pdf_path FROM cotizaciones WHERE id=%s", (id,))
+            res = cur.fetchone()
+            if res and res['pdf_path']:
+                pdf_path = res['pdf_path']
+            
+            cur.execute("DELETE FROM cotizaciones WHERE id=%s", (id,))
+            
+        # Borrar archivo físico
+        if pdf_path:
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            full_path = os.path.join(base_dir, 'static', pdf_path.replace('/', os.sep))
+            if os.path.exists(full_path):
+                os.remove(full_path)
+                
+        flash("Cotización eliminada correctamente.", "success")
+    except Exception as e:
+        app.logger.error(f"Error eliminando cotización {id}: {e}")
+        flash(f"Error al eliminar: {e}", "danger")
+        
+    return redirect(url_for('quotes.ver_cotizaciones'))

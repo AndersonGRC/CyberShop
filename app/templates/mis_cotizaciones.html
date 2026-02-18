@@ -36,12 +36,22 @@
                                 {% if cot.pdf_path %}
                                 <a href="{{ url_for('static', filename=cot.pdf_path) }}" target="_blank"
                                     class="btn-action"
-                                    style="background: #17a2b8; color: white; padding: 5px 10px; border-radius: 4px; text-decoration: none; margin-right: 5px;">
-                                    <i class="fas fa-eye"></i> Ver PDF
+                                    style="background: #28a745; color: white; padding: 5px 10px; border-radius: 4px; text-decoration: none; margin-right: 5px;">
+                                    <i class="fas fa-file-pdf"></i> PDF
                                 </a>
-                                {% else %}
-                                <span style="color: grey; font-size: 0.9em;">No disponible</span>
                                 {% endif %}
+                                <a href="{{ url_for('quotes.editar_cotizacion', id=cot.id) }}" class="btn-action"
+                                    style="background: #007bff; color: white; padding: 5px 10px; border-radius: 4px; text-decoration: none; margin-right: 5px;">
+                                    <i class="fas fa-edit"></i> Editar
+                                </a>
+                                <form action="{{ url_for('quotes.eliminar_cotizacion', id=cot.id) }}" method="POST"
+                                    style="display: inline;"
+                                    onsubmit="return confirm('¿Está seguro de eliminar esta cotización?');">
+                                    <button type="submit"
+                                        style="background: #dc3545; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer;">
+                                        <i class="fas fa-trash"></i> Eliminar
+                                    </button>
+                                </form>
                             </td>
                         </tr>
                         {% endfor %}

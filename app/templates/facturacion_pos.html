@@ -11,6 +11,92 @@
         min-height: calc(100vh - 120px);
     }
 
+    /* Banner offline */
+    .pos-offline-banner {
+        display: none;
+        background: #dc3545;
+        color: white;
+        text-align: center;
+        padding: 8px;
+        font-weight: bold;
+        position: sticky;
+        top: 0;
+        z-index: 9999;
+    }
+
+    /* Tabs multi-cliente */
+    .pos-tabs {
+        display: flex;
+        gap: 5px;
+        margin-bottom: 15px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .pos-tab {
+        padding: 8px 16px;
+        border: 2px solid var(--color-primario, #122C94);
+        border-radius: 6px 6px 0 0;
+        cursor: pointer;
+        font-size: 0.85rem;
+        background: white;
+        color: var(--color-primario, #122C94);
+        position: relative;
+        user-select: none;
+        transition: all 0.2s;
+    }
+
+    .pos-tab:hover {
+        background: #e8ecf8;
+    }
+
+    .pos-tab.active {
+        background: var(--color-primario, #122C94);
+        color: white;
+        font-weight: 600;
+    }
+
+    .pos-tab .tab-badge {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: #dc3545;
+        color: white;
+        border-radius: 50%;
+        font-size: 0.7rem;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+    }
+
+    .pos-tab .tab-close {
+        margin-left: 8px;
+        font-size: 0.75rem;
+        opacity: 0.7;
+    }
+
+    .pos-tab .tab-close:hover {
+        opacity: 1;
+    }
+
+    .pos-tab-add {
+        padding: 8px 12px;
+        border: 2px dashed var(--color-primario, #122C94);
+        border-radius: 6px;
+        cursor: pointer;
+        background: none;
+        color: var(--color-primario, #122C94);
+        font-size: 0.85rem;
+        transition: all 0.2s;
+    }
+
+    .pos-tab-add:hover {
+        background: #e8ecf8;
+    }
+
     /* Panel izquierdo: items */
     .pos-items {
         flex: 2;
@@ -20,10 +106,30 @@
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
     }
 
-    .pos-items h2 {
+    .pos-items-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .pos-items-header h2 {
         color: var(--color-primario-oscuro, #091C5A);
-        margin-top: 0;
-        margin-bottom: 15px;
+        margin: 0;
+    }
+
+    .pos-shortcuts-hint {
+        font-size: 0.75rem;
+        color: #999;
+    }
+
+    .pos-shortcuts-hint kbd {
+        background: #eee;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        padding: 1px 5px;
+        font-size: 0.7rem;
+        font-family: monospace;
     }
 
     .pos-actions {
@@ -31,6 +137,7 @@
         gap: 10px;
         margin-bottom: 15px;
         flex-wrap: wrap;
+        align-items: center;
     }
 
     .btn-pos {
@@ -56,6 +163,36 @@
 
     .btn-add-libre:hover {
         background: #218838;
+    }
+
+    .barcode-wrapper {
+        flex: 1;
+        max-width: 450px;
+        position: relative;
+    }
+
+    .barcode-wrapper input {
+        width: 100%;
+        padding: 10px 10px 10px 36px;
+        border: 2px solid var(--color-primario, #122C94);
+        border-radius: 5px;
+        font-size: 0.95rem;
+        box-sizing: border-box;
+    }
+
+    .barcode-wrapper input:focus {
+        outline: none;
+        border-color: var(--color-primario-oscuro, #091C5A);
+        box-shadow: 0 0 0 3px rgba(18, 44, 148, 0.15);
+    }
+
+    .barcode-wrapper .barcode-icon {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--color-primario, #122C94);
+        font-size: 0.9rem;
     }
 
     .items-table {
@@ -119,6 +256,16 @@
         font-size: 1.3rem;
         font-weight: bold;
         border-top: 2px solid var(--color-primario-oscuro, #091C5A);
+    }
+
+    /* Highlight animacion para filas nuevas/actualizadas */
+    @keyframes pos-highlight {
+        0% { background-color: #d4edda; }
+        100% { background-color: transparent; }
+    }
+
+    .pos-item-highlight {
+        animation: pos-highlight 1.5s ease-out;
     }
 
     /* Panel derecho: resumen */
@@ -300,6 +447,53 @@
         color: white;
     }
 
+    /* Modal atajos */
+    .shortcuts-modal {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.4);
+        z-index: 10000;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .shortcuts-modal.activo {
+        display: flex;
+    }
+
+    .shortcuts-box {
+        background: white;
+        padding: 25px;
+        border-radius: 8px;
+        max-width: 400px;
+        width: 90%;
+    }
+
+    .shortcuts-box h3 {
+        margin-top: 0;
+        color: var(--color-primario-oscuro, #091C5A);
+    }
+
+    .shortcuts-box table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .shortcuts-box table td {
+        padding: 6px 8px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .shortcuts-box kbd {
+        background: #f4f4f4;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        padding: 2px 8px;
+        font-family: monospace;
+        font-size: 0.85rem;
+    }
+
     @media print {
         body * {
             visibility: hidden;
@@ -332,17 +526,43 @@
         .pos-sidebar {
             flex: auto;
         }
+
+        .pos-shortcuts-hint {
+            display: none;
+        }
     }
 </style>
 {% endblock %}
 
 {% block body %}
+<!-- Banner offline -->
+<div class="pos-offline-banner" id="pos-offline-banner">
+    <i class="fas fa-wifi"></i> Sin conexion a internet - Las ventas no se pueden procesar
+</div>
+
 <div class="pos-container">
     <!-- Panel Items -->
     <div class="pos-items">
-        <h2><i class="fas fa-cash-register"></i> Punto de Venta</h2>
+        <div class="pos-items-header">
+            <h2><i class="fas fa-cash-register"></i> Punto de Venta</h2>
+            <span class="pos-shortcuts-hint">
+                <kbd>F1</kbd> Ayuda &nbsp;
+                <kbd>F2</kbd> Nueva &nbsp;
+                <kbd>F8</kbd> Cobrar
+            </span>
+        </div>
+
+        <!-- Tabs multi-cliente -->
+        <div class="pos-tabs" id="pos-tabs"></div>
 
         <div class="pos-actions">
+            <!-- Barcode Scanner Input -->
+            <div class="barcode-wrapper">
+                <i class="fas fa-barcode barcode-icon"></i>
+                <input type="text" id="barcode-input"
+                    placeholder="Escanear codigo de barras o buscar referencia..."
+                    autocomplete="off" autofocus>
+            </div>
             <button type="button" class="btn-pos btn-add-inv" onclick="agregarItemInventario()">
                 <i class="fas fa-box"></i> Agregar Producto
             </button>
@@ -416,7 +636,7 @@
         </div>
 
         <button type="button" class="btn-registrar" id="btn-registrar" onclick="registrarVenta()">
-            <i class="fas fa-check-circle"></i> Registrar Venta
+            <i class="fas fa-check-circle"></i> Registrar Venta (F8)
         </button>
     </div>
 </div>
@@ -449,6 +669,26 @@
             <button class="btn-imprimir" onclick="window.print()"><i class="fas fa-print"></i> Imprimir</button>
             <button class="btn-nueva-venta" onclick="nuevaVenta()"><i class="fas fa-plus"></i> Nueva Venta</button>
         </div>
+    </div>
+</div>
+
+<!-- Modal atajos de teclado -->
+<div class="shortcuts-modal" id="shortcuts-modal">
+    <div class="shortcuts-box">
+        <h3><i class="fas fa-keyboard"></i> Atajos de Teclado</h3>
+        <table>
+            <tr><td><kbd>F1</kbd></td><td>Mostrar/ocultar esta ayuda</td></tr>
+            <tr><td><kbd>F2</kbd></td><td>Nueva venta (nuevo tab)</td></tr>
+            <tr><td><kbd>F4</kbd></td><td>Guardar venta actual y abrir nueva</td></tr>
+            <tr><td><kbd>F8</kbd></td><td>Registrar / cobrar venta</td></tr>
+            <tr><td><kbd>Esc</kbd></td><td>Volver al campo de escaneo</td></tr>
+        </table>
+        <p style="text-align:center;margin-top:15px;margin-bottom:0">
+            <button onclick="document.getElementById('shortcuts-modal').classList.remove('activo')"
+                style="padding:8px 20px;border:none;border-radius:4px;background:#6c757d;color:white;cursor:pointer">
+                Cerrar
+            </button>
+        </p>
     </div>
 </div>
 
@@ -493,167 +733,299 @@
 </template>
 
 <script>
-    function agregarItemInventario() {
-        const tpl = document.getElementById('tpl-item-inventario');
-        const clone = tpl.content.cloneNode(true);
-        document.getElementById('pos-items-body').appendChild(clone);
-    }
+/* ================================================================
+   MOTOR DE ESCANER UNIVERSAL
+   Funciona con cualquier pistola USB (emula teclado).
+   Detecta entrada rapida vs escritura humana.
+   ================================================================ */
+const ScannerEngine = {
+    buffer: '',
+    lastKeyTime: 0,
+    THRESHOLD_MS: 50,
+    MIN_LENGTH: 3,
+    debounceTimer: null,
+    lastBarcode: '',
+    lastScanTime: 0,
+    DUPLICATE_MS: 500,
 
-    function agregarItemLibre() {
-        const tpl = document.getElementById('tpl-item-libre');
-        const clone = tpl.content.cloneNode(true);
-        document.getElementById('pos-items-body').appendChild(clone);
-    }
+    init() {
+        document.addEventListener('keydown', (e) => this.handleKey(e));
+    },
 
-    function seleccionarProductoPOS(select) {
-        const option = select.options[select.selectedIndex];
-        if (!option.value) return;
-        const fila = select.closest('tr');
-        fila.querySelector('.item-producto-id').value = option.value;
-        fila.querySelector('.item-desc').value = option.dataset.nombre;
-        fila.querySelector('.input-precio').value = parseFloat(option.dataset.precio);
-        fila.querySelector('.input-cant').max = option.dataset.stock;
-        calcularPOS(select);
-    }
+    handleKey(e) {
+        const now = Date.now();
+        const active = document.activeElement;
+        const isBarcode = active && active.id === 'barcode-input';
 
-    function calcularPOS(el) {
-        const fila = el.closest('tr');
-        const cant = parseInt(fila.querySelector('.input-cant').value) || 0;
-        const precio = parseFloat(fila.querySelector('.input-precio').value) || 0;
-        const sub = cant * precio;
-        fila.querySelector('.subtotal-cell').textContent = formatCOP(sub);
-        calcularTotalPOS();
-    }
+        // Si estamos en el modal de comprobante o atajos, no capturar
+        if (document.getElementById('comprobante-overlay').classList.contains('activo')) return;
+        if (document.getElementById('shortcuts-modal').classList.contains('activo')) return;
 
-    function calcularTotalPOS() {
-        let total = 0;
-        document.querySelectorAll('.pos-item-row').forEach(fila => {
-            const cant = parseInt(fila.querySelector('.input-cant').value) || 0;
-            const precio = parseFloat(fila.querySelector('.input-precio').value) || 0;
-            total += cant * precio;
-        });
-        const formatted = formatCOP(total);
-        document.getElementById('pos-total-display').textContent = formatted;
-        document.getElementById('sidebar-total').textContent = formatted;
-    }
-
-    function eliminarFilaPOS(btn) {
-        btn.closest('tr').remove();
-        calcularTotalPOS();
-    }
-
-    function formatCOP(val) {
-        return '$' + val.toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-    }
-
-    function registrarVenta() {
-        const filas = document.querySelectorAll('.pos-item-row');
-        if (filas.length === 0) {
-            Swal.fire('Atencion', 'Agrega al menos un item a la venta.', 'warning');
+        // Enter en el campo de barcode = busqueda manual
+        if (e.key === 'Enter' && isBarcode) {
+            e.preventDefault();
+            const val = active.value.trim();
+            if (val.length >= this.MIN_LENGTH) {
+                this.processAndSearch(val);
+            }
+            active.value = '';
             return;
         }
 
-        const items = [];
-        let valido = true;
+        // Enter/Tab con buffer acumulado = fin de escaneo
+        if ((e.key === 'Enter' || e.key === 'Tab') && this.buffer.length >= this.MIN_LENGTH) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.processAndSearch(this.buffer);
+            this.buffer = '';
+            return;
+        }
 
+        // Solo caracteres imprimibles (sin Ctrl/Alt/Meta)
+        if (e.key.length !== 1 || e.ctrlKey || e.altKey || e.metaKey) return;
+
+        const timeDiff = now - this.lastKeyTime;
+        this.lastKeyTime = now;
+
+        // Si mucho tiempo paso y no estamos en barcode-input, resetear buffer
+        if (timeDiff > this.THRESHOLD_MS && this.buffer.length > 0 && !isBarcode) {
+            this.buffer = '';
+        }
+
+        // Capturar si: es entrada rapida (escaner) O estamos en el campo barcode
+        if (timeDiff <= this.THRESHOLD_MS || isBarcode || this.buffer.length === 0) {
+            // Si escaner empezo a tipear en otro campo, interceptar
+            if (this.buffer.length >= 1 && timeDiff <= this.THRESHOLD_MS && !isBarcode) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            this.buffer += e.key;
+        }
+
+        // Auto-submit despues de silencio (escaneres sin Enter)
+        clearTimeout(this.debounceTimer);
+        this.debounceTimer = setTimeout(() => {
+            if (this.buffer.length >= this.MIN_LENGTH) {
+                // Solo auto-submit si fue entrada rapida (no escritura manual en barcode)
+                if (!isBarcode) {
+                    this.processAndSearch(this.buffer);
+                }
+            }
+            this.buffer = '';
+        }, 200);
+    },
+
+    processAndSearch(raw) {
+        let barcode = raw.trim();
+        // Strip caracteres de control comunes de escaneres
+        barcode = barcode.replace(/[\x00-\x1F\x7F]/g, '').trim();
+
+        if (barcode.length < this.MIN_LENGTH) return;
+
+        // Debounce: evitar duplicados rapidos del mismo codigo
+        const now = Date.now();
+        if (barcode === this.lastBarcode && (now - this.lastScanTime) < this.DUPLICATE_MS) return;
+        this.lastBarcode = barcode;
+        this.lastScanTime = now;
+
+        // Mostrar en el campo visualmente
+        const input = document.getElementById('barcode-input');
+        input.value = barcode;
+
+        buscarYAgregarPorBarcode(barcode);
+
+        // Limpiar y re-enfocar
+        setTimeout(() => {
+            input.value = '';
+            input.focus();
+        }, 100);
+    }
+};
+
+
+/* ================================================================
+   SISTEMA MULTI-CLIENTE (TABS) CON localStorage
+   ================================================================ */
+const VentasTabs = {
+    ventas: [],
+    activeIndex: 0,
+    nextId: 1,
+    STORAGE_KEY: 'pos_ventas_tabs',
+
+    init() {
+        if (!this.loadFromStorage()) {
+            this.ventas = [this.crearVentaVacia()];
+            this.activeIndex = 0;
+        }
+        this.renderTabs();
+    },
+
+    crearVentaVacia() {
+        const id = this.nextId++;
+        return {
+            id: id,
+            label: 'Venta ' + id,
+            items: [],
+            cliente: { nombre: '', doc: '', tel: '' },
+            metodoPago: 'EFECTIVO',
+            notas: ''
+        };
+    },
+
+    saveCurrentState() {
+        const venta = this.ventas[this.activeIndex];
+        if (!venta) return;
+
+        // Serializar filas de la tabla
+        const filas = document.querySelectorAll('.pos-item-row');
+        venta.items = [];
         filas.forEach(fila => {
-            const productoId = fila.querySelector('.item-producto-id').value || null;
-            let descripcion = '';
-
-            // Si es item de inventario, tomar nombre del hidden
-            const descHidden = fila.querySelector('.item-desc').value;
+            const productoId = fila.querySelector('.item-producto-id').value || '';
+            const descHidden = fila.querySelector('.item-desc').value || '';
             const inputDesc = fila.querySelector('input.input-desc');
             const selectDesc = fila.querySelector('select.input-desc');
+            let descripcion = descHidden;
+            let tipo = 'inventario';
 
-            if (descHidden) {
-                descripcion = descHidden;
-            } else if (inputDesc) {
-                descripcion = inputDesc.value.trim();
-            } else if (selectDesc) {
-                descripcion = selectDesc.options[selectDesc.selectedIndex].dataset.nombre || '';
+            if (inputDesc) {
+                descripcion = inputDesc.value;
+                tipo = 'libre';
+            } else if (!descHidden && selectDesc) {
+                const opt = selectDesc.options[selectDesc.selectedIndex];
+                descripcion = opt ? (opt.dataset.nombre || '') : '';
             }
 
-            const cantidad = parseInt(fila.querySelector('.input-cant').value) || 0;
-            const precio_unitario = parseFloat(fila.querySelector('.input-precio').value) || 0;
-
-            if (!descripcion || cantidad <= 0 || precio_unitario <= 0) {
-                valido = false;
-            }
-
-            items.push({
-                producto_id: productoId ? parseInt(productoId) : null,
+            venta.items.push({
+                tipo: tipo,
+                productoId: productoId,
                 descripcion: descripcion,
-                cantidad: cantidad,
-                precio_unitario: precio_unitario
+                descHidden: descHidden,
+                cantidad: fila.querySelector('.input-cant').value,
+                maxStock: fila.querySelector('.input-cant').max || '',
+                precio: fila.querySelector('.input-precio').value,
+                selectValue: selectDesc ? selectDesc.value : ''
             });
         });
 
-        if (!valido) {
-            Swal.fire('Atencion', 'Todos los items deben tener descripcion, cantidad y precio validos.', 'warning');
+        // Serializar campos de cliente y pago
+        venta.cliente.nombre = document.getElementById('pos-cliente-nombre').value;
+        venta.cliente.doc = document.getElementById('pos-cliente-doc').value;
+        venta.cliente.tel = document.getElementById('pos-cliente-tel').value;
+        venta.metodoPago = document.getElementById('pos-metodo-pago').value;
+        venta.notas = document.getElementById('pos-notas').value;
+
+        this.persistToStorage();
+    },
+
+    loadState(index) {
+        const venta = this.ventas[index];
+        if (!venta) return;
+
+        this.activeIndex = index;
+
+        // Limpiar tabla
+        document.getElementById('pos-items-body').innerHTML = '';
+
+        // Reconstruir filas
+        venta.items.forEach(item => {
+            const tplId = item.tipo === 'libre' ? 'tpl-item-libre' : 'tpl-item-inventario';
+            const tpl = document.getElementById(tplId);
+            const clone = tpl.content.cloneNode(true);
+            document.getElementById('pos-items-body').appendChild(clone);
+
+            const fila = document.getElementById('pos-items-body').lastElementChild;
+
+            fila.querySelector('.item-producto-id').value = item.productoId;
+            fila.querySelector('.item-desc').value = item.descHidden;
+            fila.querySelector('.input-cant').value = item.cantidad;
+            if (item.maxStock) fila.querySelector('.input-cant').max = item.maxStock;
+            fila.querySelector('.input-precio').value = item.precio;
+
+            if (item.tipo === 'libre') {
+                fila.querySelector('input.input-desc').value = item.descripcion;
+            } else {
+                const select = fila.querySelector('select.input-desc');
+                if (select && item.selectValue) {
+                    select.value = item.selectValue;
+                }
+            }
+
+            // Calcular subtotal
+            const cant = parseInt(item.cantidad) || 0;
+            const precio = parseFloat(item.precio) || 0;
+            fila.querySelector('.subtotal-cell').textContent = formatCOP(cant * precio);
+        });
+
+        // Restaurar campos de cliente y pago
+        document.getElementById('pos-cliente-nombre').value = venta.cliente.nombre;
+        document.getElementById('pos-cliente-doc').value = venta.cliente.doc;
+        document.getElementById('pos-cliente-tel').value = venta.cliente.tel;
+        document.getElementById('pos-metodo-pago').value = venta.metodoPago;
+        document.getElementById('pos-notas').value = venta.notas;
+
+        calcularTotalPOS();
+        StockTracker.rebuildFromDOM();
+        this.renderTabs();
+        this.persistToStorage();
+    },
+
+    addNewTab() {
+        this.saveCurrentState();
+        const nueva = this.crearVentaVacia();
+        this.ventas.push(nueva);
+        this.loadState(this.ventas.length - 1);
+        document.getElementById('barcode-input').focus();
+        mostrarToast('Nueva venta abierta', 'info');
+    },
+
+    switchTab(index) {
+        if (index === this.activeIndex) return;
+        this.saveCurrentState();
+        this.loadState(index);
+        document.getElementById('barcode-input').focus();
+    },
+
+    closeTab(index) {
+        const venta = this.ventas[index];
+        if (!venta) return;
+
+        // Si tiene items, confirmar
+        if (venta.items && venta.items.length > 0) {
+            Swal.fire({
+                title: 'Cerrar venta?',
+                text: `"${venta.label}" tiene ${venta.items.length} item(s). Se perderan.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                confirmButtonText: 'Si, cerrar',
+                cancelButtonText: 'Cancelar'
+            }).then(result => {
+                if (result.isConfirmed) this._doCloseTab(index);
+            });
+        } else {
+            this._doCloseTab(index);
+        }
+    },
+
+    _doCloseTab(index) {
+        // No permitir cerrar la ultima tab
+        if (this.ventas.length <= 1) {
+            this.limpiarVentaActual();
             return;
         }
 
-        const payload = {
-            items: items,
-            cliente_nombre: document.getElementById('pos-cliente-nombre').value,
-            cliente_documento: document.getElementById('pos-cliente-doc').value,
-            cliente_telefono: document.getElementById('pos-cliente-tel').value,
-            metodo_pago: document.getElementById('pos-metodo-pago').value,
-            notas: document.getElementById('pos-notas').value
-        };
+        this.ventas.splice(index, 1);
+        if (this.activeIndex >= this.ventas.length) {
+            this.activeIndex = this.ventas.length - 1;
+        } else if (this.activeIndex > index) {
+            this.activeIndex--;
+        } else if (this.activeIndex === index) {
+            this.activeIndex = Math.min(index, this.ventas.length - 1);
+        }
+        this.loadState(this.activeIndex);
+    },
 
-        const btn = document.getElementById('btn-registrar');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
-
-        fetch("{{ url_for('admin.procesar_venta_pos') }}", {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        })
-            .then(resp => resp.json())
-            .then(data => {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-check-circle"></i> Registrar Venta';
-
-                if (data.success) {
-                    mostrarComprobante(data);
-                } else {
-                    Swal.fire('Error', data.error || 'Error procesando venta', 'error');
-                }
-            })
-            .catch(err => {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-check-circle"></i> Registrar Venta';
-                Swal.fire('Error', 'Error de conexion: ' + err.message, 'error');
-            });
-    }
-
-    function mostrarComprobante(data) {
-        document.getElementById('comp-numero').textContent = data.numero_venta;
-        document.getElementById('comp-fecha').textContent = data.fecha;
-        document.getElementById('comp-cliente').textContent = data.cliente_nombre || 'Consumidor Final';
-        document.getElementById('comp-metodo').textContent = data.metodo_pago;
-        document.getElementById('comp-total').textContent = formatCOP(data.total);
-
-        const tbody = document.getElementById('comp-items');
-        tbody.innerHTML = '';
-        data.items.forEach(item => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-            <td>${item.descripcion}</td>
-            <td style="text-align:center">${item.cantidad}</td>
-            <td style="text-align:right">${formatCOP(item.precio_unitario)}</td>
-            <td style="text-align:right">${formatCOP(item.subtotal)}</td>
-        `;
-            tbody.appendChild(tr);
-        });
-
-        document.getElementById('comprobante-overlay').classList.add('activo');
-    }
-
-    function nuevaVenta() {
-        document.getElementById('comprobante-overlay').classList.remove('activo');
+    limpiarVentaActual() {
         document.getElementById('pos-items-body').innerHTML = '';
         document.getElementById('pos-cliente-nombre').value = '';
         document.getElementById('pos-cliente-doc').value = '';
@@ -661,6 +1033,610 @@
         document.getElementById('pos-metodo-pago').value = 'EFECTIVO';
         document.getElementById('pos-notas').value = '';
         calcularTotalPOS();
+        StockTracker.reset();
+
+        const venta = this.ventas[this.activeIndex];
+        if (venta) {
+            venta.items = [];
+            venta.cliente = { nombre: '', doc: '', tel: '' };
+            venta.metodoPago = 'EFECTIVO';
+            venta.notas = '';
+        }
+        this.persistToStorage();
+        this.renderTabs();
+    },
+
+    renderTabs() {
+        const container = document.getElementById('pos-tabs');
+        container.innerHTML = '';
+
+        this.ventas.forEach((venta, i) => {
+            const tab = document.createElement('div');
+            tab.className = 'pos-tab' + (i === this.activeIndex ? ' active' : '');
+            tab.onclick = (e) => {
+                if (!e.target.classList.contains('tab-close')) this.switchTab(i);
+            };
+
+            let html = '<i class="fas fa-shopping-cart"></i> ' + venta.label;
+
+            // Badge con cantidad de items (solo en tabs inactivos con items)
+            const itemCount = venta.items ? venta.items.length : 0;
+            if (itemCount > 0 && i !== this.activeIndex) {
+                html += '<span class="tab-badge">' + itemCount + '</span>';
+            }
+
+            // Boton cerrar (solo si hay mas de 1 tab)
+            if (this.ventas.length > 1) {
+                html += '<span class="tab-close" onclick="VentasTabs.closeTab(' + i + ')">&times;</span>';
+            }
+
+            tab.innerHTML = html;
+            container.appendChild(tab);
+        });
+
+        // Boton agregar nueva tab
+        const addBtn = document.createElement('button');
+        addBtn.className = 'pos-tab-add';
+        addBtn.innerHTML = '<i class="fas fa-plus"></i>';
+        addBtn.title = 'Nueva venta (F2)';
+        addBtn.onclick = () => this.addNewTab();
+        container.appendChild(addBtn);
+    },
+
+    persistToStorage() {
+        try {
+            const data = {
+                ventas: this.ventas,
+                activeIndex: this.activeIndex,
+                nextId: this.nextId
+            };
+            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+        } catch (e) {
+            // localStorage lleno o no disponible
+        }
+    },
+
+    loadFromStorage() {
+        try {
+            const raw = localStorage.getItem(this.STORAGE_KEY);
+            if (!raw) return false;
+            const data = JSON.parse(raw);
+            if (!data.ventas || !data.ventas.length) return false;
+            this.ventas = data.ventas;
+            this.activeIndex = data.activeIndex || 0;
+            this.nextId = data.nextId || (this.ventas.length + 1);
+            if (this.activeIndex >= this.ventas.length) this.activeIndex = 0;
+            // Cargar el estado activo
+            this.loadState(this.activeIndex);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    },
+
+    removeCurrentAndNew() {
+        // Despues de venta exitosa: eliminar tab actual y crear nueva o limpiar
+        if (this.ventas.length <= 1) {
+            this.limpiarVentaActual();
+        } else {
+            this.ventas.splice(this.activeIndex, 1);
+            if (this.activeIndex >= this.ventas.length) {
+                this.activeIndex = this.ventas.length - 1;
+            }
+            this.loadState(this.activeIndex);
+        }
     }
+};
+
+
+/* ================================================================
+   CONTROL DE STOCK EN FRONTEND
+   ================================================================ */
+const StockTracker = {
+    adjustments: {},
+
+    getAvailable(productoId, serverStock) {
+        return serverStock - (this.adjustments[productoId] || 0);
+    },
+
+    reserve(productoId, qty) {
+        if (!productoId) return;
+        this.adjustments[productoId] = (this.adjustments[productoId] || 0) + qty;
+    },
+
+    release(productoId, qty) {
+        if (!productoId) return;
+        this.adjustments[productoId] = Math.max(0, (this.adjustments[productoId] || 0) - qty);
+    },
+
+    reset() {
+        this.adjustments = {};
+    },
+
+    rebuildFromDOM() {
+        this.adjustments = {};
+        document.querySelectorAll('.pos-item-row').forEach(fila => {
+            const pid = fila.querySelector('.item-producto-id').value;
+            const cant = parseInt(fila.querySelector('.input-cant').value) || 0;
+            if (pid) {
+                this.adjustments[pid] = (this.adjustments[pid] || 0) + cant;
+            }
+        });
+    }
+};
+
+
+/* ================================================================
+   FEEDBACK AUDIO/VISUAL
+   ================================================================ */
+function playBeep(freq, duration) {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = freq || 1200;
+        osc.type = 'sine';
+        gain.gain.value = 0.3;
+        osc.start();
+        osc.stop(ctx.currentTime + (duration || 0.15));
+    } catch (e) {
+        // Web Audio no disponible
+    }
+}
+
+function playErrorBeep() {
+    playBeep(400, 0.3);
+}
+
+const Toast = Swal.mixin({
+    toast: true,
+    position: 'top-end',
+    showConfirmButton: false,
+    timer: 2000,
+    timerProgressBar: true,
+    didOpen: (toast) => {
+        toast.addEventListener('mouseenter', Swal.stopTimer);
+        toast.addEventListener('mouseleave', Swal.resumeTimer);
+    }
+});
+
+function mostrarToast(mensaje, tipo) {
+    Toast.fire({ icon: tipo || 'success', title: mensaje });
+}
+
+function highlightRow(row) {
+    if (!row) return;
+    row.classList.remove('pos-item-highlight');
+    void row.offsetWidth; // forzar reflow para reiniciar animacion
+    row.classList.add('pos-item-highlight');
+    row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+
+/* ================================================================
+   FUNCIONES PRINCIPALES DEL POS
+   ================================================================ */
+function buscarYAgregarPorBarcode(barcode) {
+    if (!barcode) return;
+
+    if (!navigator.onLine) {
+        playErrorBeep();
+        mostrarToast('Sin conexion a internet', 'error');
+        return;
+    }
+
+    fetch("{{ url_for('admin.buscar_producto_barcode') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ barcode: barcode })
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        if (data.success) {
+            agregarProductoAutomatico(data.producto);
+            playBeep(1200, 0.15);
+            mostrarToast(data.producto.nombre + ' agregado', 'success');
+        } else {
+            playErrorBeep();
+            mostrarToast(data.error || 'Producto no encontrado', 'warning');
+        }
+    })
+    .catch(err => {
+        playErrorBeep();
+        mostrarToast('Error de conexion', 'error');
+    });
+}
+
+function agregarProductoAutomatico(producto) {
+    const filas = document.querySelectorAll('.pos-item-row');
+    let encontrado = false;
+
+    filas.forEach(fila => {
+        const prodId = fila.querySelector('.item-producto-id').value;
+        if (prodId == producto.id) {
+            const cantInput = fila.querySelector('.input-cant');
+            const nuevaCant = parseInt(cantInput.value) + 1;
+            const stockDisponible = StockTracker.getAvailable(producto.id, producto.stock) + parseInt(cantInput.value);
+
+            if (nuevaCant <= stockDisponible) {
+                cantInput.value = nuevaCant;
+                StockTracker.reserve(producto.id, 1);
+                calcularPOS(cantInput);
+                highlightRow(fila);
+                encontrado = true;
+            } else {
+                playErrorBeep();
+                mostrarToast('Stock insuficiente: ' + stockDisponible + ' disponibles', 'warning');
+                encontrado = true;
+            }
+        }
+    });
+
+    if (!encontrado) {
+        // Verificar stock disponible
+        const disponible = StockTracker.getAvailable(producto.id, producto.stock);
+        if (disponible <= 0) {
+            playErrorBeep();
+            mostrarToast('Sin stock disponible para este producto', 'warning');
+            return;
+        }
+
+        const tpl = document.getElementById('tpl-item-inventario');
+        const clone = tpl.content.cloneNode(true);
+        const tbody = document.getElementById('pos-items-body');
+        tbody.appendChild(clone);
+
+        const nuevaFila = tbody.lastElementChild;
+        const select = nuevaFila.querySelector('select.input-desc');
+
+        select.value = producto.id;
+        nuevaFila.querySelector('.item-producto-id').value = producto.id;
+        nuevaFila.querySelector('.item-desc').value = producto.nombre;
+        nuevaFila.querySelector('.input-precio').value = producto.precio;
+        nuevaFila.querySelector('.input-cant').value = 1;
+        nuevaFila.querySelector('.input-cant').max = producto.stock;
+
+        StockTracker.reserve(producto.id, 1);
+        calcularPOS(select);
+        highlightRow(nuevaFila);
+    }
+
+    // Persistir estado
+    VentasTabs.saveCurrentState();
+
+    // Re-enfocar campo de barcode
+    document.getElementById('barcode-input').focus();
+}
+
+function agregarItemInventario() {
+    const tpl = document.getElementById('tpl-item-inventario');
+    const clone = tpl.content.cloneNode(true);
+    document.getElementById('pos-items-body').appendChild(clone);
+    const fila = document.getElementById('pos-items-body').lastElementChild;
+    highlightRow(fila);
+}
+
+function agregarItemLibre() {
+    const tpl = document.getElementById('tpl-item-libre');
+    const clone = tpl.content.cloneNode(true);
+    document.getElementById('pos-items-body').appendChild(clone);
+    const fila = document.getElementById('pos-items-body').lastElementChild;
+    highlightRow(fila);
+    // Enfocar el campo de descripcion
+    const input = fila.querySelector('input.input-desc');
+    if (input) input.focus();
+}
+
+function seleccionarProductoPOS(select) {
+    const option = select.options[select.selectedIndex];
+    if (!option.value) return;
+    const fila = select.closest('tr');
+
+    // Liberar stock anterior si habia un producto seleccionado
+    const prevId = fila.querySelector('.item-producto-id').value;
+    const prevCant = parseInt(fila.querySelector('.input-cant').value) || 0;
+    if (prevId) StockTracker.release(prevId, prevCant);
+
+    fila.querySelector('.item-producto-id').value = option.value;
+    fila.querySelector('.item-desc').value = option.dataset.nombre;
+    fila.querySelector('.input-precio').value = parseFloat(option.dataset.precio);
+    fila.querySelector('.input-cant').max = option.dataset.stock;
+
+    // Reservar stock nuevo
+    const cant = parseInt(fila.querySelector('.input-cant').value) || 1;
+    StockTracker.reserve(option.value, cant);
+
+    calcularPOS(select);
+    VentasTabs.saveCurrentState();
+}
+
+function calcularPOS(el) {
+    const fila = el.closest('tr');
+    const cant = parseInt(fila.querySelector('.input-cant').value) || 0;
+    const precio = parseFloat(fila.querySelector('.input-precio').value) || 0;
+    const sub = cant * precio;
+    fila.querySelector('.subtotal-cell').textContent = formatCOP(sub);
+    calcularTotalPOS();
+}
+
+function calcularTotalPOS() {
+    let total = 0;
+    document.querySelectorAll('.pos-item-row').forEach(fila => {
+        const cant = parseInt(fila.querySelector('.input-cant').value) || 0;
+        const precio = parseFloat(fila.querySelector('.input-precio').value) || 0;
+        total += cant * precio;
+    });
+    const formatted = formatCOP(total);
+    document.getElementById('pos-total-display').textContent = formatted;
+    document.getElementById('sidebar-total').textContent = formatted;
+}
+
+function eliminarFilaPOS(btn) {
+    const fila = btn.closest('tr');
+    const pid = fila.querySelector('.item-producto-id').value;
+    const cant = parseInt(fila.querySelector('.input-cant').value) || 0;
+    if (pid) StockTracker.release(pid, cant);
+
+    fila.remove();
+    calcularTotalPOS();
+    VentasTabs.saveCurrentState();
+}
+
+function formatCOP(val) {
+    return '$' + val.toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function registrarVenta() {
+    // Verificar conexion
+    if (!navigator.onLine) {
+        playErrorBeep();
+        Swal.fire('Sin conexion', 'No hay conexion a internet. Verifica tu red.', 'error');
+        return;
+    }
+
+    const filas = document.querySelectorAll('.pos-item-row');
+    if (filas.length === 0) {
+        Swal.fire('Atencion', 'Agrega al menos un item a la venta.', 'warning');
+        return;
+    }
+
+    const items = [];
+    let valido = true;
+
+    filas.forEach(fila => {
+        const productoId = fila.querySelector('.item-producto-id').value || null;
+        let descripcion = '';
+
+        const descHidden = fila.querySelector('.item-desc').value;
+        const inputDesc = fila.querySelector('input.input-desc');
+        const selectDesc = fila.querySelector('select.input-desc');
+
+        if (descHidden) {
+            descripcion = descHidden;
+        } else if (inputDesc) {
+            descripcion = inputDesc.value.trim();
+        } else if (selectDesc) {
+            descripcion = selectDesc.options[selectDesc.selectedIndex].dataset.nombre || '';
+        }
+
+        const cantidad = parseInt(fila.querySelector('.input-cant').value) || 0;
+        const precio_unitario = parseFloat(fila.querySelector('.input-precio').value) || 0;
+
+        if (!descripcion || cantidad <= 0 || precio_unitario <= 0) {
+            valido = false;
+        }
+
+        items.push({
+            producto_id: productoId ? parseInt(productoId) : null,
+            descripcion: descripcion,
+            cantidad: cantidad,
+            precio_unitario: precio_unitario
+        });
+    });
+
+    if (!valido) {
+        Swal.fire('Atencion', 'Todos los items deben tener descripcion, cantidad y precio validos.', 'warning');
+        return;
+    }
+
+    const payload = {
+        items: items,
+        cliente_nombre: document.getElementById('pos-cliente-nombre').value,
+        cliente_documento: document.getElementById('pos-cliente-doc').value,
+        cliente_telefono: document.getElementById('pos-cliente-tel').value,
+        metodo_pago: document.getElementById('pos-metodo-pago').value,
+        notas: document.getElementById('pos-notas').value
+    };
+
+    const btn = document.getElementById('btn-registrar');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+
+    // Timeout de seguridad: 15 segundos
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    fetch("{{ url_for('admin.procesar_venta_pos') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        clearTimeout(timeoutId);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check-circle"></i> Registrar Venta (F8)';
+
+        if (data.success) {
+            // Actualizar dropdowns con stock nuevo
+            if (data.stock_updates) {
+                actualizarStockDropdowns(data.stock_updates);
+            }
+            StockTracker.reset();
+            mostrarComprobante(data);
+        } else {
+            playErrorBeep();
+            Swal.fire('Error', data.error || 'Error procesando venta', 'error');
+        }
+    })
+    .catch(err => {
+        clearTimeout(timeoutId);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check-circle"></i> Registrar Venta (F8)';
+        playErrorBeep();
+
+        if (err.name === 'AbortError') {
+            Swal.fire('Timeout', 'La solicitud tardo demasiado. Verifica tu conexion e intenta de nuevo.', 'error');
+        } else {
+            Swal.fire('Error', 'Error de conexion: ' + err.message, 'error');
+        }
+    });
+}
+
+function actualizarStockDropdowns(stockUpdates) {
+    if (!stockUpdates || !stockUpdates.length) return;
+
+    // Actualizar las opciones del template y de las filas existentes
+    stockUpdates.forEach(update => {
+        document.querySelectorAll('select.input-desc option[value="' + update.id + '"]').forEach(opt => {
+            opt.dataset.stock = update.stock;
+            const nombre = opt.dataset.nombre;
+            const precio = parseFloat(opt.dataset.precio);
+            if (update.stock <= 0) {
+                opt.remove();
+            } else {
+                opt.textContent = nombre + ' (Stock: ' + update.stock + ') - $' + precio.toLocaleString('es-CO');
+            }
+        });
+    });
+
+    // Tambien actualizar el template
+    const tpl = document.getElementById('tpl-item-inventario');
+    if (tpl) {
+        stockUpdates.forEach(update => {
+            const opts = tpl.content.querySelectorAll('option[value="' + update.id + '"]');
+            opts.forEach(opt => {
+                opt.dataset.stock = update.stock;
+                const nombre = opt.dataset.nombre;
+                const precio = parseFloat(opt.dataset.precio);
+                if (update.stock <= 0) {
+                    opt.remove();
+                } else {
+                    opt.textContent = nombre + ' (Stock: ' + update.stock + ') - $' + precio.toLocaleString('es-CO');
+                }
+            });
+        });
+    }
+}
+
+function mostrarComprobante(data) {
+    document.getElementById('comp-numero').textContent = data.numero_venta;
+    document.getElementById('comp-fecha').textContent = data.fecha;
+    document.getElementById('comp-cliente').textContent = data.cliente_nombre || 'Consumidor Final';
+    document.getElementById('comp-metodo').textContent = data.metodo_pago;
+    document.getElementById('comp-total').textContent = formatCOP(data.total);
+
+    const tbody = document.getElementById('comp-items');
+    tbody.innerHTML = '';
+    data.items.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+            '<td>' + item.descripcion + '</td>' +
+            '<td style="text-align:center">' + item.cantidad + '</td>' +
+            '<td style="text-align:right">' + formatCOP(item.precio_unitario) + '</td>' +
+            '<td style="text-align:right">' + formatCOP(item.subtotal) + '</td>';
+        tbody.appendChild(tr);
+    });
+
+    document.getElementById('comprobante-overlay').classList.add('activo');
+    playBeep(800, 0.1);
+    setTimeout(() => playBeep(1200, 0.15), 150);
+}
+
+function nuevaVenta() {
+    document.getElementById('comprobante-overlay').classList.remove('activo');
+    VentasTabs.removeCurrentAndNew();
+    document.getElementById('barcode-input').focus();
+}
+
+
+/* ================================================================
+   ATAJOS DE TECLADO
+   ================================================================ */
+document.addEventListener('keydown', function(e) {
+    // No procesar si esta el comprobante visible (excepto Escape)
+    const comprobante = document.getElementById('comprobante-overlay').classList.contains('activo');
+
+    switch(e.key) {
+        case 'F1':
+            e.preventDefault();
+            document.getElementById('shortcuts-modal').classList.toggle('activo');
+            break;
+        case 'F2':
+            e.preventDefault();
+            if (!comprobante) VentasTabs.addNewTab();
+            break;
+        case 'F4':
+            e.preventDefault();
+            if (!comprobante) {
+                VentasTabs.saveCurrentState();
+                VentasTabs.addNewTab();
+                mostrarToast('Venta guardada y nueva abierta', 'info');
+            }
+            break;
+        case 'F8':
+            e.preventDefault();
+            if (comprobante) {
+                nuevaVenta();
+            } else {
+                registrarVenta();
+            }
+            break;
+        case 'Escape':
+            if (comprobante) {
+                // No cerrar comprobante con Esc
+                return;
+            }
+            if (document.getElementById('shortcuts-modal').classList.contains('activo')) {
+                document.getElementById('shortcuts-modal').classList.remove('activo');
+                return;
+            }
+            e.preventDefault();
+            document.getElementById('barcode-input').focus();
+            document.getElementById('barcode-input').select();
+            break;
+    }
+});
+
+
+/* ================================================================
+   CONEXION OFFLINE/ONLINE
+   ================================================================ */
+window.addEventListener('offline', () => {
+    document.getElementById('pos-offline-banner').style.display = 'block';
+});
+window.addEventListener('online', () => {
+    document.getElementById('pos-offline-banner').style.display = 'none';
+});
+
+
+/* ================================================================
+   INICIALIZACION
+   ================================================================ */
+document.addEventListener('DOMContentLoaded', function() {
+    ScannerEngine.init();
+    VentasTabs.init();
+
+    // Verificar estado de conexion inicial
+    if (!navigator.onLine) {
+        document.getElementById('pos-offline-banner').style.display = 'block';
+    }
+
+    // Enfocar campo de barcode
+    document.getElementById('barcode-input').focus();
+});
 </script>
 {% endblock %}

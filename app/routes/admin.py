@@ -1003,6 +1003,7 @@ def procesar_venta_pos():
         # Calcular totales
         total_venta = 0
         detalles_para_insertar = []
+        stock_cambios = {}  # {producto_id: nuevo_stock} para actualizar frontend
 
         for item in items:
             producto_id = item.get('producto_id')  # None si es item libre
@@ -1015,7 +1016,7 @@ def procesar_venta_pos():
             # Si es producto de inventario, verificar y descontar stock
             if producto_id:
                 producto_id = int(producto_id)
-                cur.execute('SELECT stock FROM productos WHERE id = %s', (producto_id,))
+                cur.execute('SELECT stock FROM productos WHERE id = %s FOR UPDATE', (producto_id,))
                 res = cur.fetchone()
                 if not res:
                     conn.rollback()
@@ -1033,6 +1034,7 @@ def procesar_venta_pos():
 
                 # Descontar stock
                 cur.execute('UPDATE productos SET stock = %s WHERE id = %s', (stock_nuevo, producto_id))
+                stock_cambios[producto_id] = stock_nuevo
 
                 # Registrar en inventario_log
                 cur.execute("""
@@ -1067,7 +1069,8 @@ def procesar_venta_pos():
             'fecha': datetime.now().strftime('%Y-%m-%d %H:%M'),
             'items': [{'descripcion': d[1], 'cantidad': d[2], 'precio_unitario': d[3], 'subtotal': d[4]} for d in detalles_para_insertar],
             'cliente_nombre': cliente_nombre,
-            'metodo_pago': metodo_pago
+            'metodo_pago': metodo_pago,
+            'stock_updates': [{'id': pid, 'stock': s} for pid, s in stock_cambios.items()]
         })
 
     except Exception as e:
@@ -1120,3 +1123,39 @@ def detalle_venta_pos(id):
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@admin_bp.route('/admin/pos/buscar-barcode', methods=['POST'])
+@rol_requerido(1)
+def buscar_producto_barcode():
+    """Busca un producto por su código de barras (referencia)."""
+    data = request.get_json()
+    barcode = data.get('barcode', '').strip()
+    
+    if not barcode:
+        return jsonify({'success': False, 'error': 'Código de barras vacío'}), 400
+    
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute('''
+                SELECT id, nombre, precio, stock, referencia
+                FROM productos
+                WHERE UPPER(TRIM(referencia)) = UPPER(TRIM(%s)) AND stock > 0
+            ''', (barcode,))
+            producto = cur.fetchone()
+            
+            if not producto:
+                return jsonify({'success': False, 'error': 'Producto no encontrado o sin stock'}), 404
+            
+            return jsonify({
+                'success': True,
+                'producto': {
+                    'id': producto['id'],
+                    'nombre': producto['nombre'],
+                    'precio': float(producto['precio']),
+                    'stock': producto['stock'],
+                    'referencia': producto['referencia']
+                }
+            })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500

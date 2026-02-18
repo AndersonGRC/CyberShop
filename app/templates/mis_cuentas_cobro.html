@@ -1,0 +1,83 @@
+{% extends 'plantillaapp.html' %}
+
+{% block titulo %}Mis Cuentas de Cobro | {{ datosApp.titulo }}{% endblock %}
+
+{% block body %}
+<div class="main-container">
+    <div class="content-wrapper" style="padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h1 class="page-title"><i class="fas fa-file-invoice-dollar"></i> Historial de Cuentas de Cobro</h1>
+            <a href="{{ url_for('billing.crear_cuenta') }}" class="btn-action"
+                style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+                <i class="fas fa-plus"></i> Nueva Cuenta
+            </a>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div
+            style="padding: 10px; margin-bottom: 20px; border-radius: 5px; 
+                                {% if category=='success' %}background: #d4edda; color: #155724;{% elif category=='danger' %}background: #f8d7da; color: #721c24;{% else %}background: #fff3cd; color: #856404;{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <div class="card"
+            style="padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+            <table class="table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #f8f9fa; text-align: left;">
+                        <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Consecutivo</th>
+                        <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Fecha</th>
+                        <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Cliente</th>
+                        <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Total</th>
+                        <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in cuentas %}
+                    <tr style="border-bottom: 1px solid #eee;">
+                        <td style="padding: 12px;">{{ c.consecutivo }}</td>
+                        <td style="padding: 12px;">{{ c.fecha }}</td>
+                        <td style="padding: 12px;">{{ c.cliente_nombre }}</td>
+                        <td style="padding: 12px;">{{ c.total | default(0) }}</td>
+                        <!-- Formatear moneda si es posible via filtro o JS -->
+                        <td style="padding: 12px;">
+                            {% if c.pdf_path %}
+                            <a href="{{ url_for('static', filename=c.pdf_path) }}" target="_blank" class="btn-sm"
+                                style="color: #28a745; margin-right: 10px;" title="Ver PDF">
+                                <i class="fas fa-file-pdf fa-lg"></i>
+                            </a>
+                            {% endif %}
+
+                            <a href="{{ url_for('billing.editar_cuenta', id=c.id) }}" class="btn-sm"
+                                style="color: #007bff; margin-right: 10px;" title="Editar">
+                                <i class="fas fa-edit fa-lg"></i>
+                            </a>
+
+                            <form action="{{ url_for('billing.eliminar_cuenta', id=c.id) }}" method="POST"
+                                style="display: inline;"
+                                onsubmit="return confirm('¿Está seguro de eliminar esta cuenta?');">
+                                <button type="submit"
+                                    style="background: none; border: none; color: #dc3545; cursor: pointer;"
+                                    title="Eliminar">
+                                    <i class="fas fa-trash-alt fa-lg"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; padding: 20px;">No hay cuentas de cobro generadas.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

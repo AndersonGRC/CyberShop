@@ -1,0 +1,275 @@
+{% extends 'plantillaapp.html' %}
+
+{% block titulo %}Generador de Cuentas de Cobro | {{ datosApp.titulo }}{% endblock %}
+
+{% block body %}
+<div class="main-container">
+    <div class="content-wrapper" style="padding: 20px;">
+        <h1 class="page-title"><i class="fas fa-file-invoice-dollar"></i>
+            {% if cuenta %}Editar Cuenta de Cobro #{{ cuenta.consecutivo }}{% else %}Nueva Cuenta de Cobro{% endif %}
+        </h1>
+
+        <form action="{{ url_for('billing.guardar_generar_cuenta') }}" method="POST" target="_blank">
+            {% if cuenta %}
+            <input type="hidden" name="cuenta_id" value="{{ cuenta.id }}">
+            {% endif %}
+
+            <!-- SECCION 1: FECHA Y CLIENTE -->
+            <div class="card"
+                style="margin-bottom: 20px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                <h3><i class="fas fa-calendar-alt"></i> Fecha y Cliente</h3>
+
+                <div class="form-group" style="margin-top: 15px;">
+                    <label>Fecha de la Cuenta</label>
+                    <input type="date" name="fecha" class="form-control" required style="width: 200px;"
+                        value="{{ cuenta.fecha if cuenta else '' }}">
+                </div>
+
+                <div class="form-row" style="display: flex; gap: 20px; margin-top: 15px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Cliente (Razón Social)</label>
+                        <input type="text" name="cliente_nombre" class="form-control" required
+                            style="width: 100%; padding: 8px;" value="{{ cuenta.cliente_nombre if cuenta else '' }}">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>NIT / Documento</label>
+                        <input type="text" name="cliente_nit" class="form-control" required
+                            style="width: 100%; padding: 8px;" value="{{ cuenta.cliente_nit if cuenta else '' }}">
+                    </div>
+                </div>
+
+                <div class="form-row" style="display: flex; gap: 20px; margin-top: 15px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Dirección</label>
+                        <input type="text" name="cliente_direccion" class="form-control"
+                            style="width: 100%; padding: 8px;" value="{{ cuenta.cliente_direccion if cuenta else '' }}">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Ciudad</label>
+                        <input type="text" name="cliente_ciudad" class="form-control" style="width: 100%; padding: 8px;"
+                            value="{{ cuenta.cliente_ciudad if cuenta else 'Bogotá' }}">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Teléfono</label>
+                        <input type="text" name="cliente_telefono" class="form-control"
+                            style="width: 100%; padding: 8px;" value="{{ cuenta.cliente_telefono if cuenta else '' }}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCION 2: CONTRATISTA (DEBE A) -->
+            <div class="card"
+                style="margin-bottom: 20px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                <h3><i class="fas fa-user-tie"></i> Datos del Contratista (DEBE A)</h3>
+
+                <div class="form-row" style="display: flex; gap: 20px; margin-top: 15px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Nombre Completo</label>
+                        <input type="text" name="contractor_nombre" class="form-control" required
+                            style="width: 100%; padding: 8px;"
+                            value="{{ cuenta.contractor_nombre if cuenta else defaults.contractor_nombre }}">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Cédula / NIT</label>
+                        <input type="text" name="contractor_id" class="form-control" required
+                            style="width: 100%; padding: 8px;"
+                            value="{{ cuenta.contractor_id if cuenta else defaults.contractor_id }}">
+                    </div>
+                </div>
+
+                <div class="form-row" style="display: flex; gap: 20px; margin-top: 15px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Teléfono</label>
+                        <input type="text" name="contractor_telefono" class="form-control"
+                            style="width: 100%; padding: 8px;"
+                            value="{{ cuenta.contractor_telefono if cuenta else defaults.contractor_telefono }}">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Email</label>
+                        <input type="text" name="contractor_email" class="form-control"
+                            style="width: 100%; padding: 8px;"
+                            value="{{ cuenta.contractor_email if cuenta else defaults.contractor_email }}">
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 15px;">
+                    <label>Texto de Pago (Bancario/Legal)</label>
+                    <textarea name="texto_pago" class="form-control" rows="3"
+                        style="width: 100%; padding: 8px;">{{ cuenta.texto_pago if cuenta else defaults.texto_pago }}</textarea>
+                </div>
+            </div>
+
+            <!-- SECCION 3: ITEMS -->
+            <div class="card"
+                style="margin-bottom: 20px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3><i class="fas fa-list"></i> Conceptos / Labor Realizada</h3>
+                    <button type="button" class="btn-action btn-add" onclick="addItem()"
+                        style="background: #28a745; color: white; padding: 8px 15px; border: none; border-radius: 5px; cursor: pointer;">
+                        <i class="fas fa-plus"></i> Agregar Fila
+                    </button>
+                </div>
+
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                            <th style="width: 150px; padding: 10px;">Fecha de la labor</th>
+                            <th style="text-align: left; padding: 10px;">Labor realizada</th>
+                            <th style="width: 150px; padding: 10px;">Precio unitario</th>
+                            <th style="width: 50px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="items-container">
+                        {% if detalles %}
+                        {% for d in detalles %}
+                        <tr class="item-row" style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 10px;">
+                                <input type="date" name="item_fecha[]" class="form-control" style="width: 100%;"
+                                    value="{{ d.fecha_labor }}">
+                            </td>
+                            <td style="padding: 10px;">
+                                <input type="text" name="item_descripcion[]" class="form-control"
+                                    placeholder="Descripción" required style="width: 100%; padding: 5px;"
+                                    value="{{ d.descripcion }}">
+                                <!-- Datalist products -->
+                                <select onchange="seleccionarProducto(this)"
+                                    style="margin-top: 5px; width: 100%; padding: 5px; color: #666; font-size: 0.8em;">
+                                    <option value="">-- Cargar de Inventario --</option>
+                                    {% for p in productos %}
+                                    <option value="{{ p.nombre }}" data-precio="{{ p.precio }}">{{ p.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td style="padding: 10px;">
+                                <input type="number" name="item_valor[]" class="form-control item-valor" required
+                                    style="width: 100%; padding: 5px;" step="0.01" oninput="calcularTotal()"
+                                    value="{{ d.valor }}">
+                            </td>
+                            <td style="padding: 10px; text-align: center;">
+                                <button type="button" onclick="eliminarFila(this)"
+                                    style="background: none; border: none; color: #dc3545; cursor: pointer;">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% else %}
+                        <!-- Fila vacia inicial si no hay detalles -->
+                        {% endif %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="2"
+                                style="text-align: right; padding: 15px; font-weight: bold; font-size: 1.2em;">TOTAL:
+                            </td>
+                            <td style="padding: 15px; font-weight: bold; font-size: 1.2em;" id="total-display">$0</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div style="text-align: right;">
+                <a href="{{ url_for('billing.listar_cuentas') }}"
+                    style="margin-right: 15px; text-decoration: none; color: #666;">Cancelar</a>
+                <button type="submit"
+                    style="background: #007bff; color: white; padding: 12px 25px; border: none; border-radius: 5px; font-size: 1.1em; cursor: pointer;">
+                    <i class="fas fa-save"></i> Guardar y Generar PDF
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Template para fila de items -->
+<template id="item-template">
+    <tr class="item-row" style="border-bottom: 1px solid #eee;">
+        <td style="padding: 10px;">
+            <input type="date" name="item_fecha[]" class="form-control" style="width: 100%;">
+        </td>
+        <td style="padding: 10px;">
+            <input type="text" name="item_descripcion[]" class="form-control" placeholder="Descripción" required
+                style="width: 100%; padding: 5px;">
+            <select onchange="seleccionarProducto(this)"
+                style="margin-top: 5px; width: 100%; padding: 5px; color: #666; font-size: 0.8em;">
+                <option value="">-- Cargar de Inventario --</option>
+                {% for p in productos %}
+                <option value="{{ p.nombre }}" data-precio="{{ p.precio }}">{{ p.nombre }}</option>
+                {% endfor %}
+            </select>
+        </td>
+        <td style="padding: 10px;">
+            <input type="number" name="item_valor[]" class="form-control item-valor" required
+                style="width: 100%; padding: 5px;" step="0.01" oninput="calcularTotal()" value="0">
+        </td>
+        <td style="padding: 10px; text-align: center;">
+            <button type="button" onclick="eliminarFila(this)"
+                style="background: none; border: none; color: #dc3545; cursor: pointer;">
+                <i class="fas fa-trash"></i>
+            </button>
+        </td>
+    </tr>
+</template>
+
+<script>
+    function addItem() {
+        const template = document.getElementById('item-template');
+        const clone = template.content.cloneNode(true);
+
+        // Pre-fill date with today's date if main date is set, or today
+        const fechaInput = clone.querySelector('input[type="date"]');
+        const mainDate = document.querySelector('input[name="fecha"]').value;
+        if (mainDate) fechaInput.value = mainDate;
+        else fechaInput.valueAsDate = new Date();
+
+        document.getElementById('items-container').appendChild(clone);
+        calcularTotal();
+    }
+
+    function eliminarFila(btn) {
+        const fila = btn.closest('tr');
+        if (document.querySelectorAll('.item-row').length > 0) { // Permitir vaciar si se requiere
+            fila.remove();
+            calcularTotal();
+        }
+    }
+
+    function seleccionarProducto(select) {
+        const option = select.options[select.selectedIndex];
+        if (!option.value) return;
+
+        const fila = select.closest('tr');
+        const inputDesc = fila.querySelector('input[name="item_descripcion[]"]');
+        const inputValor = fila.querySelector('input[name="item_valor[]"]');
+
+        inputDesc.value = option.value;
+        inputValor.value = option.getAttribute('data-precio');
+
+        calcularTotal();
+    }
+
+    function calcularTotal() {
+        let total = 0;
+        document.querySelectorAll('.item-valor').forEach(input => {
+            total += parseFloat(input.value) || 0;
+        });
+        document.getElementById('total-display').innerText = total.toLocaleString('es-CO', { style: 'currency', currency: 'COP' });
+    }
+
+    // Init Logic
+    window.onload = function () {
+        // Set default date if empty
+        const dateInput = document.querySelector('input[name="fecha"]');
+        if (!dateInput.value) {
+            dateInput.valueAsDate = new Date();
+        }
+
+        // Add first row if empty container
+        if (document.getElementById('items-container').children.length === 0) {
+            addItem();
+        } else {
+            calcularTotal();
+        }
+    }
+</script>
+{% endblock %}
