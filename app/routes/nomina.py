@@ -234,8 +234,8 @@ def periodo_crear():
         try:
             with get_db_cursor() as cur:
                 cur.execute("""
-                    INSERT INTO nomina_periodos (anio, mes, numero_periodo, fecha_inicio, fecha_fin, observaciones)
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                    INSERT INTO nomina_periodos (anio, mes, numero_periodo, fecha_inicio, fecha_fin, observaciones, estado)
+                    VALUES (%s, %s, %s, %s, %s, %s, 'borrador')
                 """, (f.get('anio'), f.get('mes'), f.get('numero_periodo'), f.get('fecha_inicio'), f.get('fecha_fin'), f.get('observaciones')))
             flash('Periodo creado exitosamente.', 'success')
             return redirect(url_for('nomina.periodos_lista'))
