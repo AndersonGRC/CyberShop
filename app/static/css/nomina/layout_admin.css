@@ -1,38 +1,37 @@
-/* CSS for layout_admin.html */
+/* ================================================================
+   LAYOUT ADMIN - Override Bootstrap colors con variables CSS
+   ================================================================
+   Este archivo sobreescribe las clases de color de Bootstrap 4
+   para que el modulo de nomina use los colores centralizados
+   de variables.css.
+   ================================================================ */
+@import url('../variables.css');
 
-/* Adjustments to coexist with plantillaapp.css */
+/* ============================================
+   AJUSTES DE LAYOUT
+   ============================================ */
 main {
     padding-top: 20px;
 }
 
-/* 
-   FIX DEFINITIVO: Bootstrap usa box-sizing: border-box.
-   Menuapp.css usa width: 92% asumiendo content-box.
-   Forzamos width 100% y border-box para que el submenú ocupe TODO el ancho del sidebar.
-*/
 header .nav ul li .submenu {
     width: 100% !important;
     box-sizing: border-box !important;
     padding: 10px;
-    /* Mantener padding original */
     left: 0;
 }
 
-/* Resetear estilos generales del header para evitar efectos secundarios */
 header,
 header * {
     box-sizing: border-box;
-    /* Bootstrap standard */
 }
 
-/* Resetear estilos de lista que Bootstrap agrega */
 header .nav ul {
     padding-left: 0;
     list-style: none;
     margin: 0;
 }
 
-/* Resetear estilos de enlaces */
 header a {
     text-decoration: none !important;
     color: inherit;
@@ -43,8 +42,297 @@ header a:hover {
     color: inherit;
 }
 
-/* Asegurar fuente correcta */
 header {
     font-size: 16px;
     line-height: normal;
+}
+
+/* ============================================
+   OVERRIDE: COLORES DE TEXTO
+   ============================================ */
+.text-primary {
+    color: var(--color-primario) !important;
+}
+
+.text-success {
+    color: var(--color-exito) !important;
+}
+
+.text-danger {
+    color: var(--color-peligro) !important;
+}
+
+.text-warning {
+    color: var(--color-warning) !important;
+}
+
+.text-info {
+    color: var(--color-info) !important;
+}
+
+.text-muted {
+    color: var(--color-texto-muted) !important;
+}
+
+.text-gray-800 {
+    color: var(--color-gris-texto) !important;
+}
+
+.text-gray-300 {
+    color: var(--color-gris-deshabilitado) !important;
+}
+
+.text-white-50 {
+    color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* ============================================
+   OVERRIDE: BOTONES
+   ============================================ */
+.btn-primary {
+    background-color: var(--color-primario) !important;
+    border-color: var(--color-primario) !important;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    background-color: var(--color-primario-oscuro) !important;
+    border-color: var(--color-primario-oscuro) !important;
+}
+
+.btn-success {
+    background-color: var(--color-exito) !important;
+    border-color: var(--color-exito) !important;
+}
+
+.btn-success:hover,
+.btn-success:focus {
+    background-color: var(--color-exito-hover) !important;
+    border-color: var(--color-exito-hover) !important;
+}
+
+.btn-danger {
+    background-color: var(--color-peligro) !important;
+    border-color: var(--color-peligro) !important;
+}
+
+.btn-danger:hover,
+.btn-danger:focus {
+    background-color: var(--color-peligro-hover) !important;
+    border-color: var(--color-peligro-hover) !important;
+}
+
+.btn-warning {
+    background-color: var(--color-warning) !important;
+    border-color: var(--color-warning) !important;
+    color: var(--color-negro) !important;
+}
+
+.btn-warning:hover,
+.btn-warning:focus {
+    background-color: var(--color-warning-hover) !important;
+    border-color: var(--color-warning-hover) !important;
+}
+
+.btn-info {
+    background-color: var(--color-info) !important;
+    border-color: var(--color-info) !important;
+}
+
+.btn-info:hover,
+.btn-info:focus {
+    filter: brightness(0.9);
+}
+
+.btn-secondary {
+    background-color: var(--color-gris) !important;
+    border-color: var(--color-gris) !important;
+}
+
+.btn-secondary:hover,
+.btn-secondary:focus {
+    background-color: var(--color-gris-medio) !important;
+    border-color: var(--color-gris-medio) !important;
+}
+
+/* ============================================
+   OVERRIDE: BADGES
+   ============================================ */
+.badge-success {
+    background-color: var(--color-exito) !important;
+}
+
+.badge-danger {
+    background-color: var(--color-peligro) !important;
+}
+
+.badge-warning {
+    background-color: var(--color-warning) !important;
+    color: var(--color-negro) !important;
+}
+
+.badge-info {
+    background-color: var(--color-info) !important;
+}
+
+.badge-secondary {
+    background-color: var(--color-gris) !important;
+}
+
+.badge-light {
+    background-color: var(--color-gris-claro) !important;
+    color: var(--color-texto) !important;
+}
+
+/* ============================================
+   OVERRIDE: CARDS Y BORDES
+   ============================================ */
+.card {
+    border-color: var(--color-gris-borde) !important;
+}
+
+.card-header {
+    background-color: var(--color-fondo) !important;
+    border-bottom-color: var(--color-gris-borde) !important;
+}
+
+.border-left-primary {
+    border-left: 0.25rem solid var(--color-primario) !important;
+}
+
+.border-left-success {
+    border-left: 0.25rem solid var(--color-exito) !important;
+}
+
+.border-left-info {
+    border-left: 0.25rem solid var(--color-info) !important;
+}
+
+.border-left-warning {
+    border-left: 0.25rem solid var(--color-warning) !important;
+}
+
+.border-left-danger {
+    border-left: 0.25rem solid var(--color-peligro) !important;
+}
+
+/* ============================================
+   OVERRIDE: TABLAS
+   ============================================ */
+.table-bordered {
+    border-color: var(--color-borde) !important;
+}
+
+.table-bordered th,
+.table-bordered td {
+    border-color: var(--color-borde) !important;
+}
+
+.table thead th {
+    background-color: var(--color-fondo) !important;
+    color: var(--color-texto) !important;
+    border-bottom-color: var(--color-gris-borde) !important;
+}
+
+.bg-light {
+    background-color: var(--color-gris-claro) !important;
+}
+
+/* ============================================
+   OVERRIDE: FORMULARIOS
+   ============================================ */
+.form-control {
+    border-color: var(--color-gris-borde) !important;
+    color: var(--color-texto) !important;
+}
+
+.form-control:focus {
+    border-color: var(--color-primario) !important;
+    box-shadow: 0 0 0 0.2rem rgba(18, 44, 148, 0.25) !important;
+}
+
+/* ============================================
+   OVERRIDE: TABS DE NAVEGACION
+   ============================================ */
+.nav-tabs .nav-link.active {
+    color: var(--color-primario) !important;
+    border-bottom-color: var(--color-primario) !important;
+}
+
+.nav-tabs .nav-link:hover {
+    color: var(--color-primario-oscuro) !important;
+}
+
+/* ============================================
+   OVERRIDE: ALERTAS
+   ============================================ */
+.alert-warning {
+    background-color: #fff3cd !important;
+    border-color: var(--color-warning) !important;
+    color: #856404 !important;
+}
+
+.alert-info {
+    background-color: #d1ecf1 !important;
+    border-color: var(--color-info) !important;
+    color: #0c5460 !important;
+}
+
+.alert-danger {
+    background-color: #f8d7da !important;
+    border-color: var(--color-peligro) !important;
+    color: #721c24 !important;
+}
+
+.alert-success {
+    background-color: #d4edda !important;
+    border-color: var(--color-exito) !important;
+    color: #155724 !important;
+}
+
+/* ============================================
+   OVERRIDE: LIST GROUP
+   ============================================ */
+.list-group-item {
+    border-color: var(--color-borde-claro) !important;
+}
+
+/* ============================================
+   OVERRIDE: LINKS
+   ============================================ */
+#content a:not(.btn) {
+    color: var(--color-primario);
+}
+
+#content a:not(.btn):hover {
+    color: var(--color-primario-oscuro);
+}
+
+/* ============================================
+   OVERRIDE: SOMBRAS
+   ============================================ */
+.shadow {
+    box-shadow: var(--sombra-card) !important;
+}
+
+/* ============================================
+   UTILIDADES EXTRA NOMINA
+   ============================================ */
+.btn-circle {
+    border-radius: 100%;
+    height: 2rem;
+    width: 2rem;
+    font-size: 0.8rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.form-inline-action {
+    display: inline;
+}
+
+.profile-image-large {
+    width: 100px;
 }

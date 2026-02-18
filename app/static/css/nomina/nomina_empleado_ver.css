@@ -1,4 +1,2 @@
-/* CSS for nomina_empleado_ver.html */
-.profile-image-large {
-    width: 100px;
-}
+/* nomina_empleado_ver.css — Estilos del detalle de empleado */
+@import url('../variables.css');

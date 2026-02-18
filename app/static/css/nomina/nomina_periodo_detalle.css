@@ -1,4 +1,2 @@
-/* CSS for nomina_periodo_detalle.html */
-.form-inline-action {
-    display: inline;
-}
+/* nomina_periodo_detalle.css — Estilos del detalle de periodo */
+@import url('../variables.css');
