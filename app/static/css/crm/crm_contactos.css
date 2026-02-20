@@ -1,0 +1,77 @@
+@import url('../variables.css');
+
+/* =============================================
+   CRM LISTA DE CONTACTOS
+   ============================================= */
+
+/* --- Avatar en tabla --- */
+.crm-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--color-gris-borde);
+}
+
+/* --- Badges tipo contacto --- */
+.badge-crm-cliente   { background: var(--color-primario);  color: var(--color-blanco); }
+.badge-crm-proveedor { background: var(--color-info);      color: var(--color-blanco); }
+.badge-crm-lead      { background: var(--color-warning);   color: var(--color-negro);  }
+.badge-crm-socio     { background: var(--color-exito);     color: var(--color-blanco); }
+
+/* --- Filtros pill --- */
+.crm-filtros { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.crm-filtros .btn-filtro {
+    border: 1px solid var(--color-gris-borde);
+    background: var(--color-blanco);
+    color: var(--color-gris-texto);
+    border-radius: 20px;
+    padding: 0.25rem 1rem;
+    text-decoration: none;
+    font-size: 0.85rem;
+    transition: background 0.2s, color 0.2s;
+}
+.crm-filtros .btn-filtro.active,
+.crm-filtros .btn-filtro:hover {
+    background: var(--color-primario);
+    color: var(--color-blanco);
+    border-color: var(--color-primario);
+}
+
+/* --- Tabla --- */
+.crm-tabla th {
+    background-color: var(--color-fondo-form);
+    color: var(--color-gris-texto);
+    font-size: 0.82rem;
+}
+.crm-tabla td { vertical-align: middle; font-size: 0.88rem; }
+
+/* ====== TABLET (≤768px) ====== */
+@media (max-width: 768px) {
+    .col-ciudad, .col-email { display: none; }
+    .crm-filtros { flex-wrap: wrap; gap: 0.4rem; }
+    .crm-filtros .btn-filtro { margin-bottom: 0.3rem; }
+    .crm-avatar { width: 26px; height: 26px; }
+    .table td, .table th { font-size: 0.82rem; padding: 0.4rem 0.5rem; }
+}
+
+/* ====== SMARTPHONE (≤576px) ====== */
+@media (max-width: 576px) {
+    .col-empresa, .col-telefono { display: none; }
+    .d-sm-flex.align-items-center.justify-content-between {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 0.75rem;
+    }
+    .d-sm-flex .btn { width: 100%; text-align: center; }
+    .crm-filtros {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-bottom: 0.4rem;
+        -webkit-overflow-scrolling: touch;
+    }
+    .crm-filtros .btn-filtro { flex-shrink: 0; }
+    .table td, .table th { font-size: 0.75rem; padding: 0.3rem 0.35rem; }
+    .col-acciones { white-space: nowrap; }
+}

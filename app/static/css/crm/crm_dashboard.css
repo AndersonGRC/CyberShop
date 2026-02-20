@@ -1,0 +1,53 @@
+@import url('../variables.css');
+
+/* =============================================
+   CRM DASHBOARD
+   ============================================= */
+
+/* --- Stat Cards --- */
+.crm-stat-card {
+    border-left: 4px solid var(--color-primario);
+    border-radius: 6px;
+}
+.crm-stat-card.vencidas { border-left-color: var(--color-peligro); }
+.crm-stat-card.hoy      { border-left-color: var(--color-warning); }
+.crm-stat-card.accion   { border-left-color: var(--color-exito); }
+
+.crm-stat-valor {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--color-gris-texto);
+}
+.crm-stat-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-texto-muted);
+}
+
+/* --- Tablas recientes --- */
+.crm-table-reciente th {
+    background-color: var(--color-fondo-form);
+    color: var(--color-gris-texto);
+    font-size: 0.82rem;
+}
+.crm-table-reciente td { font-size: 0.85rem; vertical-align: middle; }
+
+/* --- Icono tipo actividad --- */
+.crm-icono-tipo { width: 28px; text-align: center; color: var(--color-primario); }
+
+/* ====== TABLET (≤768px) ====== */
+@media (max-width: 768px) {
+    .crm-stat-valor { font-size: 1.2rem; }
+    .table td, .table th { font-size: 0.82rem; }
+}
+
+/* ====== SMARTPHONE (≤576px) ====== */
+@media (max-width: 576px) {
+    .crm-stat-card .card-body { padding: 0.75rem; }
+    .crm-stat-valor { font-size: 1.1rem; }
+    .crm-stat-label { font-size: 0.68rem; }
+    .col-descripcion-act, .col-tipo-act { display: none; }
+    .table td, .table th { font-size: 0.75rem; padding: 0.3rem 0.4rem; }
+}

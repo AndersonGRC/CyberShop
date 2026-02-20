@@ -1,0 +1,14 @@
+@import url('../variables.css');
+
+/* =============================================
+   CRM FORMULARIO DE TAREA
+   ============================================= */
+
+.crm-form-botones { display: flex; gap: 0.5rem; }
+
+/* ====== SMARTPHONE (≤576px) ====== */
+@media (max-width: 576px) {
+    .form-row .col-md-6 { flex: 0 0 100%; max-width: 100%; }
+    .crm-form-botones { display: flex; flex-direction: column; gap: 0.5rem; }
+    .crm-form-botones .btn { width: 100%; }
+}

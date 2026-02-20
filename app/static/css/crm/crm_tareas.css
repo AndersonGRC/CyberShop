@@ -1,0 +1,48 @@
+@import url('../variables.css');
+
+/* =============================================
+   CRM LISTA DE TAREAS
+   ============================================= */
+
+/* --- Badges prioridad --- */
+.badge-prioridad-alta  { background: var(--color-peligro); color: var(--color-blanco); }
+.badge-prioridad-media { background: var(--color-warning);  color: var(--color-negro);  }
+.badge-prioridad-baja  { background: var(--color-info);    color: var(--color-blanco); }
+
+/* --- Fila vencida --- */
+.crm-row-vencida { background-color: rgba(220, 53, 69, 0.08); }
+
+/* --- Fecha --- */
+.crm-fecha-vencida { color: var(--color-peligro); font-weight: 700; }
+.crm-fecha-hoy     { color: var(--color-warning);  font-weight: 700; }
+
+/* --- Filtros --- */
+.crm-filtros-estado { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+/* --- Tabla --- */
+.crm-tabla th {
+    background-color: var(--color-fondo-form);
+    color: var(--color-gris-texto);
+    font-size: 0.82rem;
+}
+.crm-tabla td { font-size: 0.87rem; vertical-align: middle; }
+
+/* ====== TABLET (≤768px) ====== */
+@media (max-width: 768px) {
+    .col-descripcion-tarea { display: none; }
+    .table td, .table th { font-size: 0.82rem; padding: 0.4rem 0.5rem; }
+}
+
+/* ====== SMARTPHONE (≤576px) ====== */
+@media (max-width: 576px) {
+    .crm-filtros-estado {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 0.4rem;
+    }
+    .crm-filtros-estado .btn { flex-shrink: 0; font-size: 0.78rem; }
+    .col-asignado { display: none; }
+    .table td, .table th { font-size: 0.73rem; padding: 0.3rem 0.35rem; }
+    .crm-fecha-label { display: none; }
+}
