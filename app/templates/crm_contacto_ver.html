@@ -1,0 +1,328 @@
+{% extends "public/layout_admin.html" %}
+
+{% block title %}CRM — {{ contacto.nombre }}{% endblock %}
+
+{% block LinkAdicional %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/crm/crm_contacto_ver.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Encabezado -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">{{ contacto.nombre }}</h1>
+        <div class="crm-header-acciones">
+            <a href="{{ url_for('crm.crm_contacto_editar', id=contacto.id) }}" class="btn btn-sm btn-warning">
+                <i class="fas fa-edit"></i> <span class="btn-accion-texto">Editar</span>
+            </a>
+            <a href="{{ url_for('crm.crm_contactos_lista') }}" class="btn btn-sm btn-secondary">
+                <i class="fas fa-arrow-left"></i> <span class="btn-accion-texto">Volver</span>
+            </a>
+            <button class="btn btn-sm btn-danger"
+                    onclick="confirmarEliminar({{ contacto.id }}, '{{ contacto.nombre|e }}')">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+            <form id="form-eliminar-contacto"
+                  action="{{ url_for('crm.crm_contacto_eliminar', id=contacto.id) }}"
+                  method="POST" class="d-none"></form>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Columna izquierda: datos del contacto -->
+        <div class="col-xl-4 col-lg-5 mb-4">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    {% if contacto.foto_path %}
+                    <img src="{{ url_for('static', filename=contacto.foto_path) }}"
+                         class="crm-perfil-foto mb-3" alt="Foto de {{ contacto.nombre }}">
+                    {% else %}
+                    <div class="crm-perfil-foto d-inline-flex align-items-center justify-content-center
+                                bg-secondary text-white mb-3"
+                         style="font-size:2rem;">
+                        {{ contacto.nombre[0]|upper }}
+                    </div>
+                    {% endif %}
+                    <h5 class="font-weight-bold mb-0">{{ contacto.nombre }}</h5>
+                    {% if contacto.cargo %}
+                    <p class="text-muted small mb-1">{{ contacto.cargo }}</p>
+                    {% endif %}
+                    {% if contacto.empresa %}
+                    <p class="text-muted small mb-2">{{ contacto.empresa }}</p>
+                    {% endif %}
+                    <span class="badge badge-crm-{{ contacto.tipo }} px-3 py-1 mb-3">
+                        {{ contacto.tipo|capitalize }}
+                    </span>
+                </div>
+                <div class="card-body border-top">
+                    {% macro dato(label, valor, icono) %}
+                    {% if valor %}
+                    <div class="mb-2">
+                        <span class="crm-detalle-label"><i class="fas fa-{{ icono }} mr-1"></i>{{ label }}</span>
+                        <div class="crm-detalle-valor">{{ valor }}</div>
+                    </div>
+                    {% endif %}
+                    {% endmacro %}
+
+                    {{ dato('Email', contacto.email, 'envelope') }}
+                    {{ dato('Teléfono', contacto.telefono, 'phone') }}
+                    {{ dato('WhatsApp', contacto.whatsapp, 'whatsapp') }}
+                    {% if contacto.sitio_web %}
+                    <div class="mb-2">
+                        <span class="crm-detalle-label"><i class="fas fa-globe mr-1"></i>Sitio Web</span>
+                        <div class="crm-detalle-valor">
+                            <a href="{{ contacto.sitio_web }}" target="_blank" rel="noopener">
+                                {{ contacto.sitio_web }}
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {{ dato('Dirección', contacto.direccion, 'map-marker-alt') }}
+                    {{ dato('Ciudad', contacto.ciudad, 'city') }}
+                    {{ dato('Origen', contacto.origen, 'tag') }}
+                </div>
+                {% if contacto.notas %}
+                <div class="card-body border-top">
+                    <span class="crm-detalle-label"><i class="fas fa-sticky-note mr-1"></i>Notas</span>
+                    <p class="small mt-1 mb-0">{{ contacto.notas }}</p>
+                </div>
+                {% endif %}
+                {% if contacto.usuario_email %}
+                <div class="card-body border-top">
+                    <span class="crm-detalle-label"><i class="fas fa-user-circle mr-1"></i>Usuario vinculado</span>
+                    <div class="crm-detalle-valor">{{ contacto.usuario_nombre }} ({{ contacto.usuario_email }})</div>
+                </div>
+                {% endif %}
+                <div class="card-footer text-muted small">
+                    Registrado: {{ contacto.created_at.strftime('%d/%m/%Y') if contacto.created_at else '—' }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Columna derecha: actividades, tareas, pedidos -->
+        <div class="col-xl-8 col-lg-7">
+
+            <!-- Card Actividades -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-comments mr-1"></i>Actividades / Seguimientos
+                    </h6>
+                    <a href="{{ url_for('crm.crm_actividad_crear', id=contacto.id) }}"
+                       class="btn btn-sm btn-primary shadow-sm">
+                        <i class="fas fa-plus fa-sm"></i> Nueva Actividad
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    {% if actividades %}
+                    <div class="table-responsive">
+                        <table class="table table-sm crm-tabla-interna mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width:90px;">Tipo</th>
+                                    <th>Asunto</th>
+                                    <th class="col-descripcion d-none d-md-table-cell">Descripción</th>
+                                    <th>Fecha</th>
+                                    <th>Por</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for a in actividades %}
+                                <tr>
+                                    <td>
+                                        {% set iconos = {
+                                            'llamada': 'phone', 'email': 'envelope',
+                                            'reunion': 'handshake', 'whatsapp': 'whatsapp',
+                                            'visita': 'map-marker-alt', 'nota': 'sticky-note', 'otro': 'ellipsis-h'
+                                        } %}
+                                        <i class="fas fa-{{ iconos.get(a.tipo, 'circle') }} mr-1 text-primary"></i>
+                                        {{ a.tipo|capitalize }}
+                                    </td>
+                                    <td class="font-weight-bold">{{ a.asunto }}</td>
+                                    <td class="col-descripcion d-none d-md-table-cell small text-muted">
+                                        {{ (a.descripcion or '')[:80] }}{% if a.descripcion and a.descripcion|length > 80 %}…{% endif %}
+                                    </td>
+                                    <td class="small">{{ a.fecha_actividad.strftime('%d/%m/%y %H:%M') if a.fecha_actividad else '—' }}</td>
+                                    <td class="small">{{ a.registrado_por or '—' }}</td>
+                                    <td>
+                                        <button class="btn btn-xs btn-danger"
+                                                onclick="confirmarEliminarAct({{ a.id }})">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                        <form id="form-del-act-{{ a.id }}"
+                                              action="{{ url_for('crm.crm_actividad_eliminar', id=a.id) }}"
+                                              method="POST" class="d-none"></form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-muted py-4 mb-0">Sin actividades registradas.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Card Tareas -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-warning">
+                        <i class="fas fa-tasks mr-1"></i>Tareas
+                    </h6>
+                    <a href="{{ url_for('crm.crm_tarea_crear', id=contacto.id) }}"
+                       class="btn btn-sm btn-warning shadow-sm">
+                        <i class="fas fa-plus fa-sm"></i> Nueva Tarea
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    {% if tareas %}
+                    <div class="table-responsive">
+                        <table class="table table-sm crm-tabla-interna mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Prioridad</th>
+                                    <th>Título</th>
+                                    <th>Fecha límite</th>
+                                    <th>Estado</th>
+                                    <th>Asignado</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for t in tareas %}
+                                {% set vencida = t.fecha_limite and t.estado == 'pendiente' and t.fecha_limite < hoy %}
+                                <tr {% if vencida %}class="crm-row-vencida"{% endif %}>
+                                    <td>
+                                        <span class="badge badge-prioridad-{{ t.prioridad }}">
+                                            {{ t.prioridad|capitalize }}
+                                        </span>
+                                    </td>
+                                    <td class="font-weight-bold">{{ t.titulo }}</td>
+                                    <td>
+                                        {% if t.fecha_limite %}
+                                        <span class="{% if vencida %}crm-fecha-vencida{% elif t.fecha_limite == hoy %}crm-fecha-hoy{% endif %}">
+                                            {{ t.fecha_limite.strftime('%d/%m/%Y') if t.fecha_limite else '—' }}
+                                        </span>
+                                        {% else %}—{% endif %}
+                                    </td>
+                                    <td>
+                                        {% if t.estado == 'completada' %}
+                                        <span class="badge badge-success">Completada</span>
+                                        {% elif t.estado == 'cancelada' %}
+                                        <span class="badge badge-secondary">Cancelada</span>
+                                        {% else %}
+                                        <span class="badge badge-warning text-dark">Pendiente</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="small">{{ t.asignado_nombre or '—' }}</td>
+                                    <td style="white-space:nowrap;">
+                                        {% if t.estado == 'pendiente' %}
+                                        <form action="{{ url_for('crm.crm_tarea_completar', id=t.id) }}"
+                                              method="POST" class="d-inline">
+                                            <button class="btn btn-xs btn-success" title="Completar">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                        <button class="btn btn-xs btn-danger"
+                                                onclick="confirmarEliminarTarea({{ t.id }})">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                        <form id="form-del-tarea-{{ t.id }}"
+                                              action="{{ url_for('crm.crm_tarea_eliminar', id=t.id) }}"
+                                              method="POST" class="d-none"></form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-muted py-4 mb-0">Sin tareas registradas.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Card Pedidos Vinculados -->
+            {% if pedidos %}
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-success">
+                        <i class="fas fa-shopping-bag mr-1"></i>Pedidos Vinculados
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm crm-tabla-interna mb-0">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Referencia</th>
+                                    <th>Pago</th>
+                                    <th>Envío</th>
+                                    <th>Total</th>
+                                    <th>Fecha</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for p in pedidos %}
+                                <tr>
+                                    <td>{{ p.id }}</td>
+                                    <td class="small font-weight-bold">{{ p.referencia_pedido or '—' }}</td>
+                                    <td><span class="badge badge-info">{{ p.estado_pago or '—' }}</span></td>
+                                    <td><span class="badge badge-secondary">{{ p.estado_envio or '—' }}</span></td>
+                                    <td>${{ "{:,.0f}".format(p.monto_total) if p.monto_total else '—' }}</td>
+                                    <td class="small">{{ p.fecha_creacion.strftime('%d/%m/%Y') if p.fecha_creacion else '—' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+        </div><!-- /col derecha -->
+    </div><!-- /row -->
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function confirmarEliminar(id, nombre) {
+    Swal.fire({
+        title: '¿Eliminar contacto?',
+        text: `"${nombre}" será desactivado.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then(r => { if (r.isConfirmed) document.getElementById('form-eliminar-contacto').submit(); });
+}
+function confirmarEliminarAct(id) {
+    Swal.fire({
+        title: '¿Eliminar actividad?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        confirmButtonText: 'Eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then(r => { if (r.isConfirmed) document.getElementById('form-del-act-' + id).submit(); });
+}
+function confirmarEliminarTarea(id) {
+    Swal.fire({
+        title: '¿Eliminar tarea?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        confirmButtonText: 'Eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then(r => { if (r.isConfirmed) document.getElementById('form-del-tarea-' + id).submit(); });
+}
+</script>
+{% endblock %}

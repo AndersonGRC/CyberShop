@@ -1,0 +1,78 @@
+{% extends "public/layout_admin.html" %}
+
+{% block title %}CRM — Nueva Tarea{% endblock %}
+
+{% block LinkAdicional %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/crm/crm_tarea_form.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{{ url_for('crm.crm_contactos_lista') }}">Contactos</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{{ url_for('crm.crm_contacto_ver', id=contacto.id) }}">{{ contacto.nombre }}</a>
+            </li>
+            <li class="breadcrumb-item active">Nueva Tarea</li>
+        </ol>
+    </nav>
+
+    <h1 class="h3 mb-4 text-gray-800">Crear Tarea</h1>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="form-group">
+                            <label class="font-weight-bold">Título <span class="text-danger">*</span></label>
+                            <input type="text" name="titulo" class="form-control"
+                                   placeholder="Descripción breve de la tarea" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="font-weight-bold">Descripción</label>
+                            <textarea name="descripcion" class="form-control" rows="4"
+                                      placeholder="Detalles adicionales…"></textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="col-md-4 form-group">
+                                <label class="font-weight-bold">Prioridad</label>
+                                <select name="prioridad" class="form-control">
+                                    <option value="alta">Alta</option>
+                                    <option value="media" selected>Media</option>
+                                    <option value="baja">Baja</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 form-group">
+                                <label class="font-weight-bold">Fecha límite</label>
+                                <input type="date" name="fecha_limite" class="form-control">
+                            </div>
+                            <div class="col-md-4 form-group">
+                                <label class="font-weight-bold">Asignar a</label>
+                                <select name="asignado_a" class="form-control">
+                                    <option value="">— Sin asignar —</option>
+                                    {% for u in usuarios %}
+                                    <option value="{{ u.id }}">{{ u.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="crm-form-botones">
+                            <button type="submit" class="btn btn-warning text-dark">
+                                <i class="fas fa-save mr-1"></i>Crear Tarea
+                            </button>
+                            <a href="{{ url_for('crm.crm_contacto_ver', id=contacto.id) }}"
+                               class="btn btn-secondary">Cancelar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

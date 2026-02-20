@@ -1,0 +1,135 @@
+{% extends "public/layout_admin.html" %}
+
+{% block title %}CRM — Tareas{% endblock %}
+
+{% block LinkAdicional %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/crm/crm_tareas.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Encabezado -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Tareas CRM</h1>
+        <a href="{{ url_for('crm.crm_contactos_lista') }}" class="btn btn-sm btn-secondary">
+            <i class="fas fa-address-card fa-sm"></i> Ver Contactos
+        </a>
+    </div>
+
+    <!-- Filtros estado -->
+    <div class="crm-filtros-estado mb-3">
+        {% for estado, label in [('pendiente','Pendientes'), ('completada','Completadas'), ('todas','Todas')] %}
+        <a href="{{ url_for('crm.crm_tareas_lista', estado=estado) }}"
+           class="btn btn-sm {% if estado_filtro == estado %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+            {{ label }}
+        </a>
+        {% endfor %}
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered crm-tabla" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Prioridad</th>
+                            <th>Título</th>
+                            <th>Contacto</th>
+                            <th>Fecha límite</th>
+                            <th>Estado</th>
+                            <th class="col-asignado d-none d-md-table-cell">Asignado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in tareas %}
+                        {% set vencida = t.fecha_limite and t.estado == 'pendiente' and t.fecha_limite < hoy %}
+                        <tr {% if vencida %}class="crm-row-vencida"{% endif %}>
+                            <td>
+                                <span class="badge badge-prioridad-{{ t.prioridad }}">
+                                    {{ t.prioridad|capitalize }}
+                                </span>
+                            </td>
+                            <td class="font-weight-bold">{{ t.titulo }}</td>
+                            <td>
+                                <a href="{{ url_for('crm.crm_contacto_ver', id=t.contacto_id) }}">
+                                    {{ t.contacto_nombre }}
+                                </a>
+                                <br>
+                                <span class="badge badge-crm-{{ t.contacto_tipo }} small">
+                                    {{ t.contacto_tipo|capitalize }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if t.fecha_limite %}
+                                <span class="crm-fecha-label">Límite: </span>
+                                <span class="{% if vencida %}crm-fecha-vencida{% elif t.fecha_limite == hoy %}crm-fecha-hoy{% endif %}">
+                                    {{ t.fecha_limite.strftime('%d/%m/%Y') }}
+                                    {% if vencida %} <i class="fas fa-exclamation-triangle"></i>{% endif %}
+                                </span>
+                                {% else %}—{% endif %}
+                            </td>
+                            <td>
+                                {% if t.estado == 'completada' %}
+                                <span class="badge badge-success">Completada</span>
+                                {% elif t.estado == 'cancelada' %}
+                                <span class="badge badge-secondary">Cancelada</span>
+                                {% else %}
+                                <span class="badge badge-warning text-dark">Pendiente</span>
+                                {% endif %}
+                            </td>
+                            <td class="col-asignado d-none d-md-table-cell small">
+                                {{ t.asignado_nombre or '—' }}
+                            </td>
+                            <td style="white-space:nowrap;">
+                                <a href="{{ url_for('crm.crm_contacto_ver', id=t.contacto_id) }}"
+                                   class="btn btn-sm btn-info" title="Ver contacto">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if t.estado == 'pendiente' %}
+                                <form action="{{ url_for('crm.crm_tarea_completar', id=t.id) }}"
+                                      method="POST" class="d-inline">
+                                    <button class="btn btn-sm btn-success" title="Completar">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                                <button class="btn btn-sm btn-danger"
+                                        onclick="confirmarEliminar({{ t.id }})">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                                <form id="form-del-{{ t.id }}"
+                                      action="{{ url_for('crm.crm_tarea_eliminar', id=t.id) }}"
+                                      method="POST" class="d-none"></form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">
+                                No hay tareas en este estado.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function confirmarEliminar(id) {
+    Swal.fire({
+        title: '¿Eliminar tarea?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        confirmButtonText: 'Eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then(r => { if (r.isConfirmed) document.getElementById('form-del-' + id).submit(); });
+}
+</script>
+{% endblock %}

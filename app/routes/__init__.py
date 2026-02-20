@@ -32,3 +32,7 @@ def register_blueprints(app):
     # Cuentas de Cobro
     from routes.billing import billing_bp
     app.register_blueprint(billing_bp)
+
+    # CRM
+    from routes.crm import crm_bp
+    app.register_blueprint(crm_bp)

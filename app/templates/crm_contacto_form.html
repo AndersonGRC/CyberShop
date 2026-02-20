@@ -1,0 +1,206 @@
+{% extends "public/layout_admin.html" %}
+
+{% block title %}CRM — {% if modo == 'crear' %}Nuevo Contacto{% else %}Editar Contacto{% endif %}{% endblock %}
+
+{% block LinkAdicional %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/crm/crm_contacto_form.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Encabezado -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            {% if modo == 'crear' %}Nuevo Contacto{% else %}Editar: {{ contacto.nombre }}{% endif %}
+        </h1>
+        <a href="{{ url_for('crm.crm_contactos_lista') }}" class="btn btn-sm btn-secondary">
+            <i class="fas fa-arrow-left fa-sm"></i> Volver
+        </a>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data">
+        <!-- Tabs de navegación -->
+        <ul class="nav nav-tabs crm-form-tabs mb-3" id="crmTabs" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" id="tab-id-tab" data-toggle="tab" href="#tab-id"
+                   role="tab">Identificación</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="tab-contacto-tab" data-toggle="tab" href="#tab-contacto"
+                   role="tab">Contacto</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="tab-sistema-tab" data-toggle="tab" href="#tab-sistema"
+                   role="tab">Sistema</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="tab-foto-tab" data-toggle="tab" href="#tab-foto"
+                   role="tab">Foto</a>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="crmTabsContent">
+
+            <!-- Tab Identificación -->
+            <div class="tab-pane fade show active" id="tab-id" role="tabpanel">
+                <div class="card shadow mb-4">
+                    <div class="card-body">
+                        <div class="form-row">
+                            <div class="col-md-6 form-group">
+                                <label class="font-weight-bold">Tipo <span class="text-danger">*</span></label>
+                                <select name="tipo" class="form-control" required>
+                                    <option value="">— Seleccionar —</option>
+                                    {% for t in [('cliente','Cliente'), ('proveedor','Proveedor'), ('lead','Lead/Prospecto'), ('socio','Socio')] %}
+                                    <option value="{{ t[0] }}"
+                                        {% if contacto and contacto.tipo == t[0] %}selected{% endif %}>
+                                        {{ t[1] }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6 form-group">
+                                <label class="font-weight-bold">Nombre <span class="text-danger">*</span></label>
+                                <input type="text" name="nombre" class="form-control" required
+                                       value="{{ contacto.nombre if contacto else '' }}">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="col-md-6 form-group">
+                                <label class="font-weight-bold">Empresa</label>
+                                <input type="text" name="empresa" class="form-control"
+                                       value="{{ contacto.empresa if contacto else '' }}">
+                            </div>
+                            <div class="col-md-6 form-group">
+                                <label class="font-weight-bold">Cargo</label>
+                                <input type="text" name="cargo" class="form-control"
+                                       value="{{ contacto.cargo if contacto else '' }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Contacto -->
+            <div class="tab-pane fade" id="tab-contacto" role="tabpanel">
+                <div class="card shadow mb-4">
+                    <div class="card-body">
+                        <div class="form-row">
+                            <div class="col-md-6 form-group">
+                                <label class="font-weight-bold">Email</label>
+                                <input type="email" name="email" class="form-control"
+                                       value="{{ contacto.email if contacto else '' }}">
+                            </div>
+                            <div class="col-md-6 form-group">
+                                <label class="font-weight-bold">Teléfono</label>
+                                <input type="text" name="telefono" class="form-control"
+                                       value="{{ contacto.telefono if contacto else '' }}">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="col-md-6 form-group">
+                                <label class="font-weight-bold">WhatsApp</label>
+                                <input type="text" name="whatsapp" class="form-control"
+                                       value="{{ contacto.whatsapp if contacto else '' }}">
+                            </div>
+                            <div class="col-md-6 form-group">
+                                <label class="font-weight-bold">Sitio Web</label>
+                                <input type="url" name="sitio_web" class="form-control"
+                                       value="{{ contacto.sitio_web if contacto else '' }}">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="col-md-8 form-group">
+                                <label class="font-weight-bold">Dirección</label>
+                                <input type="text" name="direccion" class="form-control"
+                                       value="{{ contacto.direccion if contacto else '' }}">
+                            </div>
+                            <div class="col-md-4 form-group">
+                                <label class="font-weight-bold">Ciudad</label>
+                                <input type="text" name="ciudad" class="form-control"
+                                       value="{{ contacto.ciudad if contacto else '' }}">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="font-weight-bold">Origen del contacto</label>
+                            <select name="origen" class="form-control">
+                                <option value="">— Seleccionar —</option>
+                                {% for o in [('web','Sitio Web'), ('referido','Referido'), ('evento','Evento'), ('llamada','Llamada'), ('otro','Otro')] %}
+                                <option value="{{ o[0] }}"
+                                    {% if contacto and contacto.origen == o[0] %}selected{% endif %}>
+                                    {{ o[1] }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Sistema -->
+            <div class="tab-pane fade" id="tab-sistema" role="tabpanel">
+                <div class="card shadow mb-4">
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="font-weight-bold">Vincular con usuario del sistema</label>
+                            <select name="usuario_id" class="form-control">
+                                <option value="">— Sin vinculación —</option>
+                                {% for u in usuarios %}
+                                <option value="{{ u.id }}"
+                                    {% if contacto and contacto.usuario_id == u.id %}selected{% endif %}>
+                                    {{ u.nombre }} ({{ u.email }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="font-weight-bold">Notas internas</label>
+                            <textarea name="notas" class="form-control" rows="5">{{ contacto.notas if contacto else '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Foto -->
+            <div class="tab-pane fade" id="tab-foto" role="tabpanel">
+                <div class="card shadow mb-4">
+                    <div class="card-body text-center">
+                        <img id="previewFoto"
+                             src="{% if contacto and contacto.foto_path %}{{ url_for('static', filename=contacto.foto_path) }}{% else %}{{ url_for('static', filename='img/Logo.png') }}{% endif %}"
+                             class="crm-foto-preview mb-3"
+                             alt="Vista previa">
+                        <div>
+                            <input type="file" name="foto" id="inputFoto" accept="image/*"
+                                   class="form-control-file">
+                            <small class="text-muted">Formatos: JPG, PNG, GIF, WEBP. Máx. recomendado: 2 MB.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /tab-content -->
+
+        <!-- Botones -->
+        <div class="crm-form-botones mt-2 mb-4">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i>
+                {% if modo == 'crear' %}Guardar Contacto{% else %}Actualizar Contacto{% endif %}
+            </button>
+            <a href="{{ url_for('crm.crm_contactos_lista') }}" class="btn btn-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Preview de foto
+document.getElementById('inputFoto').addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => { document.getElementById('previewFoto').src = e.target.result; };
+    reader.readAsDataURL(file);
+});
+</script>
+{% endblock %}

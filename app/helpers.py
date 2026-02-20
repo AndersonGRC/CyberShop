@@ -122,6 +122,16 @@ def get_data_app():
                 {"nombre": "Parametros", "url": "nomina.parametros_lista", "icono": "cogs"}
             ]
         },
+        {
+            "nombre": "CRM",
+            "url": "#",
+            "icono": "address-book",
+            "submodulos": [
+                {"nombre": "Dashboard CRM",  "url": "crm.crm_dashboard",      "icono": "chart-pie"},
+                {"nombre": "Contactos",      "url": "crm.crm_contactos_lista", "icono": "address-card"},
+                {"nombre": "Tareas",         "url": "crm.crm_tareas_lista",    "icono": "tasks"},
+            ]
+        },
         {"nombre": "Cerrar Sesion", "url": "auth.logout", "icono": "sign-out-alt"}
     ]
     return {
