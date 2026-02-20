@@ -247,20 +247,74 @@ def periodo_crear():
 @nomina_bp.route('/periodos/<int:id>')
 def periodo_ver(id):
     with get_db_cursor(dict_cursor=True) as cur:
-        # Info periodo
         cur.execute("SELECT * FROM nomina_periodos WHERE id = %s", (id,))
         periodo = cur.fetchone()
-        
-        # Detalle nomina
+
         cur.execute("""
-            SELECT nd.*, e.nombres, e.apellidos, e.numero_documento, e.cargo
+            SELECT nd.*, e.nombres, e.apellidos, e.numero_documento,
+                   e.cargo, e.tipo_vinculacion
             FROM nomina_detalle nd
             JOIN nomina_empleados e ON nd.empleado_id = e.id
             WHERE nd.periodo_id = %s
+            ORDER BY e.tipo_vinculacion, e.apellidos, e.nombres
         """, (id,))
         detalles = cur.fetchall()
-        
-    return render_template('nomina_periodo_detalle.html', p=periodo, detalles=detalles)
+
+        cur.execute("""
+            SELECT cp.empleado_id, cp.verificado
+            FROM nomina_contratistas_pila cp
+            WHERE cp.empleado_id IN (
+                SELECT nd2.empleado_id FROM nomina_detalle nd2
+                JOIN nomina_empleados e2 ON nd2.empleado_id = e2.id
+                WHERE nd2.periodo_id = %s AND e2.tipo_vinculacion = 'CONTRATISTA'
+            )
+        """, (id,))
+        pila_status = {row['empleado_id']: row['verificado'] for row in cur.fetchall()}
+
+    return render_template('nomina_periodo_detalle.html',
+                           p=periodo, detalles=detalles, pila_status=pila_status)
+
+@nomina_bp.route('/periodos/<int:id>/aprobar', methods=['POST'])
+def periodo_aprobar(id):
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT estado FROM nomina_periodos WHERE id = %s", (id,))
+            periodo = cur.fetchone()
+            if not periodo:
+                flash('Periodo no encontrado.', 'danger')
+                return redirect(url_for('nomina.periodos_lista'))
+            if periodo['estado'] != 'calculada':
+                flash('Solo se puede aprobar un periodo en estado "calculada".', 'warning')
+                return redirect(url_for('nomina.periodo_ver', id=id))
+            cur.execute("UPDATE nomina_periodos SET estado='aprobada' WHERE id=%s", (id,))
+        flash('Periodo aprobado exitosamente.', 'success')
+    except Exception as e:
+        flash(f'Error al aprobar el periodo: {str(e)}', 'danger')
+    return redirect(url_for('nomina.periodo_ver', id=id))
+
+
+@nomina_bp.route('/periodos/<int:id>/rechazar', methods=['POST'])
+def periodo_rechazar(id):
+    motivo = request.form.get('motivo', '').strip()
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT estado FROM nomina_periodos WHERE id = %s", (id,))
+            periodo = cur.fetchone()
+            if not periodo:
+                flash('Periodo no encontrado.', 'danger')
+                return redirect(url_for('nomina.periodos_lista'))
+            if periodo['estado'] != 'calculada':
+                flash('Solo se puede rechazar un periodo en estado "calculada".', 'warning')
+                return redirect(url_for('nomina.periodo_ver', id=id))
+            cur.execute("UPDATE nomina_periodos SET estado='rechazada' WHERE id=%s", (id,))
+        mensaje = 'Periodo rechazado.'
+        if motivo:
+            mensaje += f' Motivo: {motivo}'
+        flash(mensaje, 'warning')
+    except Exception as e:
+        flash(f'Error al rechazar el periodo: {str(e)}', 'danger')
+    return redirect(url_for('nomina.periodo_ver', id=id))
+
 
 @nomina_bp.route('/periodos/<int:periodo_id>/desprendible/<int:empleado_id>')
 def periodo_desprendible(periodo_id, empleado_id):
@@ -291,6 +345,11 @@ def periodo_calcular(id):
             cur.execute("SELECT * FROM nomina_periodos WHERE id = %s", (id,))
             periodo = cur.fetchone()
             
+            estados_validos = ('borrador', 'calculada', 'rechazada')
+            if periodo['estado'] not in estados_validos:
+                flash(f'No se puede recalcular un periodo en estado "{periodo["estado"]}".', 'warning')
+                return redirect(url_for('nomina.periodo_ver', id=id))
+
             cur.execute("SELECT * FROM nomina_parametros WHERE anio = %s", (periodo['anio'],))
             params = cur.fetchone()
             
@@ -302,7 +361,11 @@ def periodo_calcular(id):
             smmlv = float(params['salario_minimo'])
             aux_transporte = float(params['auxilio_transporte'])
             uvt = float(params['uvt'])
-            
+
+            ARL_NIVELES = {
+                'I': 0.522, 'II': 1.044, 'III': 2.436, 'IV': 4.350, 'V': 6.960,
+            }
+
             # 2. Obtener empleados activos
             cur.execute("SELECT * FROM nomina_empleados WHERE activo = TRUE AND tipo_vinculacion != 'CONTRATISTA'")
             empleados = cur.fetchall()
@@ -354,6 +417,35 @@ def periodo_calcular(id):
                     neto
                 ))
             
+            # Contratistas
+            cur.execute("""
+                SELECT * FROM nomina_empleados
+                WHERE activo = TRUE AND tipo_vinculacion = 'CONTRATISTA'
+            """)
+            contratistas = cur.fetchall()
+
+            for c in contratistas:
+                dias_trabajados = 15 if periodo['numero_periodo'] in [1, 2] else 30
+                honorarios_periodo = float(c['salario_base']) * (dias_trabajados / 30)
+                nivel_arl = (c['nivel_arl'] or 'I').strip().upper()
+                arl_pct = ARL_NIVELES.get(nivel_arl, ARL_NIVELES['I'])
+                ss = calcular_ss_contratista(honorarios_periodo, arl_pct)
+
+                cur.execute("DELETE FROM nomina_detalle WHERE periodo_id=%s AND empleado_id=%s", (id, c['id']))
+                cur.execute("""
+                    INSERT INTO nomina_detalle (
+                        periodo_id, empleado_id, dias_trabajados,
+                        sueldo_basico, auxilio_transporte, horas_extras, total_devengado,
+                        salud_empleado, pension_empleado, fondo_solidaridad,
+                        retencion_fuente, total_deducido, neto_pagar
+                    ) VALUES (%s,%s,%s, %s,%s,%s,%s, %s,%s,%s, %s,%s,%s)
+                """, (
+                    id, c['id'], dias_trabajados,
+                    honorarios_periodo, 0, 0, honorarios_periodo,
+                    ss['salud'], ss['pension'], ss['arl'],
+                    0, ss['total'], honorarios_periodo
+                ))
+
             # Actualizar estado periodo
             cur.execute("UPDATE nomina_periodos SET estado='calculada' WHERE id=%s", (id,))
             

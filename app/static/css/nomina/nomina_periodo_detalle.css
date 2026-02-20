@@ -1,2 +1,152 @@
-/* nomina_periodo_detalle.css — Estilos del detalle de periodo */
+/* nomina_periodo_detalle.css */
 @import url('../variables.css');
+
+/* ============================
+   BARRA DE ACCIONES
+   ============================ */
+
+.btn-periodo-acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+/* ============================
+   TABLAS DE EMPLEADOS
+   ============================ */
+
+.table-nomina thead th {
+    background-color: var(--color-primario);
+    color: var(--color-blanco);
+    white-space: nowrap;
+    font-size: 0.78rem;
+    vertical-align: middle;
+    border-color: var(--color-primario-oscuro);
+}
+
+.table-nomina tbody tr:nth-child(even) {
+    background-color: var(--color-fondo-form);
+}
+
+.table-nomina tbody tr:hover {
+    background-color: var(--color-gris-claro);
+    transition: background-color 0.15s;
+}
+
+.table-nomina td,
+.table-nomina th {
+    font-size: 0.82rem;
+    padding: 0.45rem 0.6rem;
+    vertical-align: middle;
+}
+
+.col-neto {
+    color: var(--color-exito);
+    font-weight: 700;
+}
+
+/* ============================
+   SECCIÓN CONTRATISTAS
+   ============================ */
+
+.card-contratistas > .card-header {
+    background-color: var(--color-secundario);
+    color: var(--color-blanco);
+    border-bottom: none;
+}
+
+.contratistas-nota {
+    background-color: #fff9e6;
+    border-left: 4px solid var(--color-warning);
+    padding: 0.6rem 1rem;
+    border-radius: 4px;
+    font-size: 0.82rem;
+    color: var(--color-texto);
+    margin-bottom: 1rem;
+}
+
+.table-contratistas thead th {
+    background-color: var(--color-secundario);
+    color: var(--color-blanco);
+    white-space: nowrap;
+    font-size: 0.78rem;
+    vertical-align: middle;
+    border-color: var(--color-primario-oscuro);
+}
+
+.table-contratistas tbody tr:nth-child(even) {
+    background-color: var(--color-fondo-form);
+}
+
+.table-contratistas tbody tr:hover {
+    background-color: var(--color-gris-claro);
+}
+
+.table-contratistas td,
+.table-contratistas th {
+    font-size: 0.82rem;
+    padding: 0.45rem 0.6rem;
+    vertical-align: middle;
+}
+
+/* ============================
+   RESPONSIVE — TABLET (≤768px)
+   ============================ */
+
+@media (max-width: 768px) {
+    .table-nomina td,
+    .table-nomina th,
+    .table-contratistas td,
+    .table-contratistas th {
+        font-size: 0.75rem;
+        padding: 0.35rem 0.45rem;
+    }
+}
+
+/* ============================
+   RESPONSIVE — SMARTPHONE (≤576px)
+   ============================ */
+
+@media (max-width: 576px) {
+    .d-sm-flex.align-items-center.justify-content-between {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 0.75rem;
+    }
+
+    .btn-periodo-acciones {
+        width: 100%;
+    }
+
+    .btn-periodo-acciones .btn,
+    .btn-periodo-acciones form {
+        flex: 1 1 auto;
+    }
+
+    .btn-periodo-acciones .btn {
+        width: 100%;
+        text-align: center;
+        justify-content: center;
+    }
+
+    .card-header h6 {
+        font-size: 0.82rem;
+    }
+
+    .table-nomina td,
+    .table-nomina th,
+    .table-contratistas td,
+    .table-contratistas th {
+        font-size: 0.72rem;
+        padding: 0.3rem 0.35rem;
+    }
+
+    .col-nombre {
+        min-width: 110px;
+    }
+
+    .col-cifra {
+        min-width: 75px;
+    }
+}
