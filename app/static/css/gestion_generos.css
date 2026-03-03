@@ -1,0 +1,275 @@
+@import url('variables.css');
+
+/* ================================================================
+   GESTION_GENEROS.CSS — Módulo de gestión de géneros
+   (Los estilos de .Submenunavegacion vienen de Menuapp.css)
+   ================================================================ */
+
+main { background: transparent; }
+
+/* ── Layout de dos columnas ──────────────────────────────────── */
+.generos-layout {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+}
+
+/* ── Paneles ─────────────────────────────────────────────────── */
+.panel-crear,
+.panel-lista {
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 4px 24px rgba(18, 44, 148, 0.08);
+    border: 1px solid var(--color-gris-borde);
+    overflow: hidden;
+}
+
+.panel-crear { flex: 0 0 280px; }
+.panel-lista { flex: 1; min-width: 0; }
+
+/* Cabecera de panel */
+.panel-header {
+    background: linear-gradient(135deg, var(--color-primario) 0%, var(--color-primario-oscuro) 100%);
+    padding: 18px 22px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.panel-header i  { color: rgba(255,255,255,0.85); font-size: 1.15rem; }
+.panel-header h2 {
+    margin: 0;
+    font-size: 1rem;
+    color: #ffffff;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.badge-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.25);
+    color: #ffffff;
+    border-radius: 50px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    padding: 2px 10px;
+    margin-left: 8px;
+}
+
+/* ── Formulario de creación ──────────────────────────────────── */
+.form-crear {
+    padding: 22px;
+}
+
+.form-crear .form-group { margin-bottom: 16px; }
+
+.form-crear label {
+    display: block;
+    font-weight: 600;
+    font-size: 0.82rem;
+    color: var(--color-gris-texto);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+}
+
+.form-crear input[type="text"] {
+    width: 100%;
+    padding: 10px 13px;
+    border: 1.5px solid var(--color-gris-borde);
+    border-radius: 8px;
+    font-size: 0.92rem;
+    font-family: 'Raleway', sans-serif;
+    color: var(--color-texto);
+    box-sizing: border-box;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-crear input[type="text"]:focus {
+    outline: none;
+    border-color: var(--color-primario);
+    box-shadow: 0 0 0 3px rgba(18, 44, 148, 0.10);
+}
+
+.btn-crear {
+    width: 100%;
+    padding: 11px;
+    background: linear-gradient(135deg, var(--color-exito) 0%, var(--color-exito-hover) 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    font-family: 'Raleway', sans-serif;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    letter-spacing: 0.02em;
+    box-shadow: 0 4px 12px rgba(40,167,69,0.28);
+    transition: box-shadow 0.25s, transform 0.15s;
+}
+
+.btn-crear:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(40,167,69,0.38);
+}
+
+.btn-crear:active { transform: translateY(0); }
+
+/* ── Tabla de géneros ────────────────────────────────────────── */
+.tabla-wrapper { overflow-x: auto; }
+
+.tabla-generos {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.91rem;
+}
+
+.tabla-generos thead tr {
+    background: linear-gradient(135deg, var(--color-primario) 0%, var(--color-primario-oscuro) 100%);
+}
+
+.tabla-generos th {
+    padding: 13px 16px;
+    text-align: left;
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+}
+
+.tabla-generos tbody tr {
+    border-bottom: 1px solid var(--color-gris-borde);
+    transition: background 0.15s;
+}
+
+.tabla-generos tbody tr:last-child { border-bottom: none; }
+
+.tabla-generos tbody tr:nth-child(even) { background: #f8f9fc; }
+
+.tabla-generos tbody tr:hover { background: rgba(18, 44, 148, 0.04); }
+
+.tabla-generos td {
+    padding: 12px 16px;
+    vertical-align: middle;
+    color: var(--color-texto);
+}
+
+.td-id {
+    color: var(--color-gris-texto);
+    font-size: 0.8rem;
+    font-weight: 600;
+    width: 50px;
+}
+
+/* Chip de cantidad de productos */
+.chip-productos {
+    display: inline-block;
+    background: var(--color-gris-borde);
+    color: var(--color-gris-texto);
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.chip-activo {
+    background: rgba(40, 167, 69, 0.12);
+    color: var(--color-exito-hover);
+}
+
+/* ── Botones de acción ───────────────────────────────────────── */
+.acciones-grupo { display: flex; gap: 7px; }
+.td-acciones { white-space: nowrap; }
+
+.btn-editar,
+.btn-eliminar,
+.btn-guardar,
+.btn-cancelar {
+    border: none;
+    border-radius: 7px;
+    padding: 7px 13px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 600;
+    font-family: 'Raleway', sans-serif;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    transition: transform 0.15s, box-shadow 0.2s;
+}
+
+.btn-editar {
+    background: linear-gradient(135deg, var(--color-info) 0%, #138496 100%);
+    color: #fff;
+    box-shadow: 0 3px 8px rgba(23,162,184,0.25);
+}
+.btn-eliminar {
+    background: linear-gradient(135deg, var(--color-peligro) 0%, var(--color-peligro-hover) 100%);
+    color: #fff;
+    box-shadow: 0 3px 8px rgba(220,53,69,0.25);
+}
+.btn-guardar {
+    background: linear-gradient(135deg, var(--color-exito) 0%, var(--color-exito-hover) 100%);
+    color: #fff;
+    box-shadow: 0 3px 8px rgba(40,167,69,0.25);
+}
+.btn-cancelar {
+    background: #6c757d;
+    color: #fff;
+    box-shadow: 0 3px 8px rgba(108,117,125,0.20);
+}
+
+.btn-editar:hover   { transform: translateY(-1px); box-shadow: 0 5px 12px rgba(23,162,184,0.38); }
+.btn-eliminar:hover { transform: translateY(-1px); box-shadow: 0 5px 12px rgba(220,53,69,0.38); }
+.btn-guardar:hover  { transform: translateY(-1px); box-shadow: 0 5px 12px rgba(40,167,69,0.38); }
+.btn-cancelar:hover { transform: translateY(-1px); box-shadow: 0 5px 12px rgba(108,117,125,0.30); }
+
+.btn-editar:active,
+.btn-eliminar:active,
+.btn-guardar:active,
+.btn-cancelar:active { transform: translateY(0); }
+
+/* ── Campo de edición inline ─────────────────────────────────── */
+.input-editar {
+    width: 100%;
+    padding: 8px 11px;
+    border: 2px solid var(--color-primario);
+    border-radius: 7px;
+    font-size: 0.88rem;
+    font-family: 'Raleway', sans-serif;
+    box-sizing: border-box;
+    box-shadow: 0 0 0 3px rgba(18,44,148,0.10);
+}
+
+.input-editar:focus { outline: none; }
+
+/* ── Estado vacío ────────────────────────────────────────────── */
+.sin-generos {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--color-gris-texto);
+}
+
+.sin-generos i { margin-bottom: 14px; opacity: 0.3; display: block; }
+.sin-generos p { margin: 5px 0; font-size: 0.9rem; }
+
+/* ── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 860px) {
+    .generos-layout {
+        flex-direction: column;
+    }
+
+    .panel-crear { flex: none; width: 100%; }
+
+    .tabla-generos th,
+    .tabla-generos td { padding: 10px 12px; }
+}

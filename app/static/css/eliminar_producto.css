@@ -1,205 +1,140 @@
 @import url('variables.css');
 
-/* Estilos generales */
+/* ================================================================
+   ELIMINAR_PRODUCTO.CSS — Lista de productos para eliminar
+   ================================================================ */
+
 main {
-    margin-bottom: 20px;
-    margin-right: 120px;
-    padding: auto;
-    justify-content: center;
+    background: transparent;
 }
 
 main h2 {
-    color: var(--color-negro);
+    color: var(--color-primario-oscuro);
     text-align: center;
-    margin-bottom: 20px;
-    margin-top: 20px;
+    margin: 0 0 24px;
+    font-size: 1.3rem;
+    font-weight: 700;
 }
 
-/* Submenú */
-.Submenunavegacion ul {
-    list-style-type: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    justify-content: center;
-    gap: 75px;
-}
-
-.Submenunavegacion {
-    margin: 5% auto 10%;
-    width: 80%;
-    max-width: 1200px;
-    text-align: center;
-    padding: 10px;
-    border-radius: 8px;
-    position: static;
-    margin-bottom: 1%;
-    margin-right: 5%;
-}
-
-.Submenunavegacion ul li {
-    display: inline;
-}
-
-.Submenunavegacion a {
-    text-decoration: none;
-    margin-top: 10%;
-    padding: 10px 20px;
-    background-color: var(--color-primario);
-    color: var(--color-fondo);
-    border-radius: 5px;
-    transition: background-color 0.3s ease;
-    display: inline-block;
-}
-
-.Submenunavegacion a:hover {
-    background-color: var(--color-primario-oscuro);
-}
-
-.Submenunavegacion a.active {
-    background-color: var(--color-primario-oscuro);
-}
-
-/* Media Queries para móviles */
-@media (max-width: 768px) {
-    .Submenunavegacion ul {
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 5px;
-    }
-
-    .Submenunavegacion {
-        width: 95%;
-        padding: 10px 5px;
-    }
-
-    .Submenunavegacion a {
-        padding: 12px 15px;
-        margin: 0;
-        flex: 0 0 auto;
-        white-space: nowrap;
-    }
-}
-
-@media (max-width: 480px) {
-    .Submenunavegacion ul {
-        gap: 4px;
-    }
-
-    .Submenunavegacion a {
-        padding: 10px 12px;
-        font-size: 0.95em;
-    }
-}
-
-/* Contenedor centrado de la tabla */
+/* ── Tabla de productos ──────────────────────────────────────── */
 .table-container {
     width: 100%;
-    display: flex;
-    justify-content: center;
-    margin-top: 20px;
-    margin-bottom: 20px;
-    overflow-x: auto;
-    border-radius: 0.5rem;
-    box-shadow: 0px 0px 8px rgba(0, 0, 0, 0.1);
-    border-radius: 0.5rem;
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 4px 24px rgba(18, 44, 148, 0.08);
+    border: 1px solid var(--color-gris-borde);
+    overflow: hidden;
+    margin-bottom: 24px;
 }
 
-/* Estilo de la tabla */
 table {
     border-collapse: collapse;
     width: 100%;
-    max-width: 1000px;
-    text-align: center;
-    background-color: var(--color-fondo);
-    box-shadow: 0px 0px 8px rgba(0, 0, 0, 0.1);
-}
-
-/* Celdas */
-table th,
-table td {
-    padding: 12px 15px;
-    text-align: left;
-    word-wrap: break-word;
-    white-space: normal;
-}
-
-table td {
-    color: var(--color-negro);
+    font-size: 0.92rem;
 }
 
 /* Encabezado */
+table thead tr {
+    background: linear-gradient(135deg, var(--color-primario) 0%, var(--color-primario-oscuro) 100%);
+}
+
 table th {
-    background-color: var(--color-primario);
-    color: var(--color-fondo);
-    position: sticky;
-    top: 0;
-    z-index: 1;
+    padding: 14px 18px;
+    text-align: left;
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
 }
 
-/* Filas alternadas y hover */
-table tr:nth-child(even) {
-    background-color: var(--color-fondo);
+/* Filas */
+table tbody tr {
+    border-bottom: 1px solid var(--color-gris-borde);
+    transition: background 0.18s ease;
 }
 
-table tr:hover {
-    background-color: var(--color-gris-claro);
+table tbody tr:last-child { border-bottom: none; }
+
+table tbody tr:nth-child(even) {
+    background-color: #f8f9fc;
 }
 
-/* Botón eliminar */
+table tbody tr:hover {
+    background-color: rgba(220, 53, 69, 0.04);
+}
+
+table td {
+    padding: 13px 18px;
+    color: var(--color-texto);
+    vertical-align: middle;
+}
+
+/* ID discreta */
+table td:first-child {
+    color: var(--color-gris-texto);
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+/* Precio */
+table td:nth-child(3) {
+    font-weight: 700;
+    color: var(--color-primario);
+}
+
+/* ── Botón eliminar ──────────────────────────────────────────── */
 .btn-eliminar {
     text-decoration: none;
-    padding: 5px 10px;
-    background-color: var(--color-eliminar);
-    color: var(--color-fondo);
-    border-radius: 3px;
-    transition: background-color 0.3s ease;
-    display: inline-block;
-    text-align: center;
+    padding: 7px 16px;
+    background: linear-gradient(135deg, var(--color-peligro) 0%, var(--color-peligro-hover) 100%);
+    color: #ffffff;
+    border-radius: 7px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    letter-spacing: 0.02em;
+    box-shadow: 0 3px 8px rgba(220, 53, 69, 0.30);
+    transition: box-shadow 0.2s ease, transform 0.15s ease;
+    white-space: nowrap;
+    cursor: pointer;
 }
 
 .btn-eliminar:hover {
-    background-color: var(--color-peligro-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 5px 12px rgba(220, 53, 69, 0.42);
 }
 
-/* Responsivo: Tablets y pantallas medianas */
+.btn-eliminar:active { transform: translateY(0); }
+
+/* ── Responsive ──────────────────────────────────────────────── */
 @media (max-width: 768px) {
-    main {
-        margin: 0
-    }
+    main { margin: 0; }
 
     .table-container {
-        padding: 0 10px;
+        border-radius: 10px;
         overflow-x: auto;
     }
 
-    table {
-        width: 100%;
-    }
-
     table th,
     table td {
-        padding: 8px 10px;
-        font-size: 0.9em;
+        padding: 10px 12px;
+        font-size: 0.85rem;
     }
 
     .btn-eliminar {
-        padding: 4px 8px;
-        font-size: 0.85em;
+        padding: 6px 12px;
+        font-size: 0.8rem;
     }
 }
 
-/* Responsivo: Móviles pequeños */
 @media (max-width: 480px) {
-
     table th,
     table td {
-        padding: 6px 8px;
-        font-size: 0.85em;
-    }
-
-    .btn-eliminar {
-        font-size: 0.8em;
-        padding: 4px 6px;
+        padding: 8px 10px;
+        font-size: 0.82rem;
     }
 }
