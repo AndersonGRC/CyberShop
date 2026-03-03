@@ -1262,10 +1262,10 @@ def buscar_producto_barcode():
     """Busca un producto por su código de barras (referencia)."""
     data = request.get_json()
     barcode = data.get('barcode', '').strip()
-    
+
     if not barcode:
         return jsonify({'success': False, 'error': 'Código de barras vacío'}), 400
-    
+
     try:
         with get_db_cursor(dict_cursor=True) as cur:
             cur.execute('''
@@ -1274,10 +1274,10 @@ def buscar_producto_barcode():
                 WHERE UPPER(TRIM(referencia)) = UPPER(TRIM(%s)) AND stock > 0
             ''', (barcode,))
             producto = cur.fetchone()
-            
+
             if not producto:
                 return jsonify({'success': False, 'error': 'Producto no encontrado o sin stock'}), 404
-            
+
             return jsonify({
                 'success': True,
                 'producto': {
@@ -1290,3 +1290,88 @@ def buscar_producto_barcode():
             })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# --- Gestion de Generos ---
+
+@admin_bp.route('/admin/generos')
+@rol_requerido(1)
+def gestion_generos():
+    """Lista todos los géneros y muestra el formulario de gestión."""
+    datosApp = get_data_app()
+    generos = []
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute('''
+                SELECT g.id, g.nombre, COUNT(p.id) AS total_productos
+                FROM generos g
+                LEFT JOIN productos p ON p.genero_id = g.id
+                GROUP BY g.id, g.nombre
+                ORDER BY g.nombre ASC
+            ''')
+            generos = cur.fetchall()
+    except Exception as e:
+        flash(f'Error al cargar géneros: {e}', 'error')
+    return render_template('gestion_generos.html', datosApp=datosApp, generos=generos)
+
+
+@admin_bp.route('/admin/generos/crear', methods=['POST'])
+@rol_requerido(1)
+def crear_genero():
+    """Crea un nuevo género de producto."""
+    nombre = request.form.get('nombre', '').strip()
+    if not nombre:
+        flash('El nombre del género no puede estar vacío.', 'warning')
+        return redirect(url_for('admin.gestion_generos'))
+    try:
+        with get_db_cursor() as cur:
+            cur.execute('INSERT INTO generos (nombre) VALUES (%s)', (nombre,))
+        flash(f'Género "{nombre}" creado correctamente.', 'success')
+    except Exception as e:
+        if 'unique' in str(e).lower() or 'duplicate' in str(e).lower():
+            flash(f'Ya existe un género con el nombre "{nombre}".', 'warning')
+        else:
+            flash(f'Error al crear género: {e}', 'error')
+    return redirect(url_for('admin.gestion_generos'))
+
+
+@admin_bp.route('/admin/generos/editar/<int:id>', methods=['POST'])
+@rol_requerido(1)
+def editar_genero(id):
+    """Actualiza el nombre de un género existente."""
+    nombre = request.form.get('nombre', '').strip()
+    if not nombre:
+        flash('El nombre del género no puede estar vacío.', 'warning')
+        return redirect(url_for('admin.gestion_generos'))
+    try:
+        with get_db_cursor() as cur:
+            cur.execute('UPDATE generos SET nombre = %s WHERE id = %s', (nombre, id))
+        flash(f'Género actualizado a "{nombre}".', 'success')
+    except Exception as e:
+        if 'unique' in str(e).lower() or 'duplicate' in str(e).lower():
+            flash(f'Ya existe un género con el nombre "{nombre}".', 'warning')
+        else:
+            flash(f'Error al editar género: {e}', 'error')
+    return redirect(url_for('admin.gestion_generos'))
+
+
+@admin_bp.route('/admin/generos/eliminar/<int:id>', methods=['POST'])
+@rol_requerido(1)
+def eliminar_genero(id):
+    """Elimina un género si no tiene productos asociados."""
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute('SELECT COUNT(*) AS total FROM productos WHERE genero_id = %s', (id,))
+            resultado = cur.fetchone()
+            if resultado and resultado['total'] > 0:
+                flash(
+                    f'No se puede eliminar: este género tiene {resultado["total"]} producto(s) asociado(s). '
+                    'Reasigna o elimina los productos primero.',
+                    'warning'
+                )
+                return redirect(url_for('admin.gestion_generos'))
+            cur.execute('DELETE FROM generos WHERE id = %s', (id,))
+        flash('Género eliminado correctamente.', 'success')
+    except Exception as e:
+        flash(f'Error al eliminar género: {e}', 'error')
+    return redirect(url_for('admin.gestion_generos'))

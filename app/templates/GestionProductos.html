@@ -1,6 +1,6 @@
 {% extends './plantillaapp.html' %}
 
-{% block titulo %}{{ datosApp.titulo }}{% endblock %}
+{% block titulo %}{{ datosApp.titulo }} — Crear Producto{% endblock %}
 
 {% block LinkAdicional %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/gestionproductos.css') }}">
@@ -8,54 +8,46 @@
 
 {% block body %}
 
-<!-- Submenú para Crear, Editar y Eliminar productos -->
+<!-- Submenú de navegación -->
 <div class="Submenunavegacion">
     <ul>
-        <li class="Submenunavegacion"><a href="{{ url_for('admin.GestionProductos') }}">Crear Producto</a></li>
-        <li class="Submenunavegacion"><a href="{{ url_for('admin.editar_productos') }}">Editar Productos</a></li>
-        <li class="Submenunavegacion"><a href="{{ url_for('admin.eliminar_productos') }}">Eliminar Productos</a></li>
+        <li><a href="{{ url_for('admin.GestionProductos') }}"><i class="fas fa-plus-circle"></i> Crear Producto</a></li>
+        <li><a href="{{ url_for('admin.editar_productos') }}"><i class="fas fa-edit"></i> Editar Productos</a></li>
+        <li><a href="{{ url_for('admin.eliminar_productos') }}"><i class="fas fa-trash-alt"></i> Eliminar Productos</a></li>
+        <li><a href="{{ url_for('admin.gestion_generos') }}"><i class="fas fa-tags"></i> Géneros</a></li>
     </ul>
 </div>
+
 <main>
+    <!-- Formulario: Agregar producto -->
     <div class="form-general">
         <div class="form-header">
+            <i class="fas fa-box-open"></i>
             <h2>Agregar Producto</h2>
         </div>
         <form action="{{ url_for('admin.GestionProductos') }}" method="POST" enctype="multipart/form-data">
-            <!-- Campo de imagen -->
             <div class="form-group">
-                <label for="imagen">Imagen:</label>
+                <label for="imagen"><i class="fas fa-image"></i> Imagen</label>
                 <input type="file" id="imagen" name="imagen" accept="image/*" required>
             </div>
-
-            <!-- Campo de nombre -->
             <div class="form-group">
-                <label for="nombre">Nombre:</label>
-                <input type="text" id="nombre" name="nombre" placeholder="Ingrese el nombre del producto" required>
+                <label for="nombre"><i class="fas fa-tag"></i> Nombre</label>
+                <input type="text" id="nombre" name="nombre" placeholder="Ej: Camiseta deportiva negra" required>
             </div>
-
-            <!-- Campo de precio -->
             <div class="form-group">
-                <label for="precio">Precio:</label>
-                <input type="number" id="precio" name="precio" step="0.01" placeholder="Ingrese el precio" required>
+                <label for="precio"><i class="fas fa-dollar-sign"></i> Precio</label>
+                <input type="number" id="precio" name="precio" step="0.01" placeholder="Ej: 59900" required>
             </div>
-
-            <!-- Campo de stock -->
             <div class="form-group">
-                <label for="stock">Stock:</label>
-                <input type="number" id="stock" name="stock" min="0" placeholder="Ingrese la cantidad disponible"
-                    required>
+                <label for="stock"><i class="fas fa-cubes"></i> Stock inicial</label>
+                <input type="number" id="stock" name="stock" min="0" placeholder="Ej: 50" required>
             </div>
-
-            <!-- Campo de referencia -->
             <div class="form-group">
-                <label for="referencia">Referencia:</label>
-                <input type="text" id="referencia" name="referencia" placeholder="Ingrese la referencia" required>
+                <label for="referencia"><i class="fas fa-barcode"></i> Referencia</label>
+                <input type="text" id="referencia" name="referencia" placeholder="Ej: CAM-001-NEG" required>
             </div>
-
-            <!-- Campo de género -->
             <div class="form-group">
-                <label for="genero_id">Género:</label>
+                <label for="genero_id"><i class="fas fa-layer-group"></i> Género / Categoría</label>
                 <select id="genero_id" name="genero_id" required>
                     <option value="" disabled selected>Seleccione un género</option>
                     {% for genero in generos %}
@@ -63,55 +55,50 @@
                     {% endfor %}
                 </select>
             </div>
-
-            <!-- Campo de descripción -->
             <div class="form-group">
-                <label for="descripcion">Descripción:</label>
-                <textarea id="descripcion" name="descripcion" placeholder="Ingrese la descripción del producto"
-                    required></textarea>
+                <label for="descripcion"><i class="fas fa-align-left"></i> Descripción</label>
+                <textarea id="descripcion" name="descripcion" placeholder="Describe el producto: material, características, tallas disponibles..." required></textarea>
             </div>
-
-            <!-- Botón de enviar -->
             <div class="form-group">
-                <button type="submit">Agregar Producto</button>
+                <button type="submit"><i class="fas fa-check-circle"></i> Agregar Producto</button>
             </div>
         </form>
     </div>
 
-    <!-- Sección de Cargue Masivo -->
-    <div class="form-general" style="margin-top: 40px;">
+    <!-- Formulario: Cargue masivo -->
+    <div class="form-general">
         <div class="form-header">
+            <i class="fas fa-file-excel"></i>
             <h2>Cargue Masivo de Productos</h2>
         </div>
 
-        <div class="alert-info">
-            <h4>Instrucciones para el Excel:</h4>
-            <p>El archivo debe estar en formato <strong>.xlsx</strong> y contener exactamente las siguientes columnas en
-                la primera fila:</p>
-            <ul>
-                <li><strong>Nombre del Producto</strong></li>
-                <li><strong>Referencia</strong> (Debe ser única)</li>
-                <li><strong>Género</strong> (Nombre exacto de la categoría)</li>
-                <li><strong>Descripción</strong></li>
-                <li><strong>Precio</strong> (Número sin símbolos)</li>
-            </ul>
-        </div>
-
-        <div class="form-group" style="text-align: center; margin-bottom: 30px;">
-            <a href="{{ url_for('admin.descargar_plantilla_productos') }}" class="btn-secundario"
-                style="color: var(--color-fondo); padding: 12px 20px; border-radius: 5px; width: auto; font-size: 16px;"><i
-                    class="fas fa-file-download"></i> Descargar Plantilla Excel</a>
-        </div>
-
         <form action="{{ url_for('admin.cargue_masivo_productos') }}" method="POST" enctype="multipart/form-data">
+            <div class="alert-info">
+                <h4><i class="fas fa-info-circle"></i> Instrucciones para el Excel</h4>
+                <p>El archivo debe estar en formato <strong>.xlsx</strong> con exactamente estas columnas:</p>
+                <ul>
+                    <li><strong>Nombre del Producto</strong></li>
+                    <li><strong>Referencia</strong> — debe ser única</li>
+                    <li><strong>Género</strong> — nombre exacto de la categoría</li>
+                    <li><strong>Descripción</strong></li>
+                    <li><strong>Precio</strong> — número sin símbolos</li>
+                </ul>
+            </div>
+
+            <div class="form-group" style="text-align:center; margin-bottom:20px;">
+                <a href="{{ url_for('admin.descargar_plantilla_productos') }}" class="btn-secundario"
+                   style="padding:11px 22px; font-size:0.9rem;">
+                    <i class="fas fa-file-download"></i> Descargar Plantilla Excel
+                </a>
+            </div>
+
             <div class="form-group">
-                <label for="archivo_excel">Archivo Excel (.xlsx):</label>
+                <label for="archivo_excel"><i class="fas fa-upload"></i> Archivo Excel (.xlsx)</label>
                 <input type="file" id="archivo_excel" name="archivo_excel"
-                    accept=".xlsx, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+                       accept=".xlsx, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
             </div>
             <div class="form-group">
-                <button type="submit" style="background-color: var(--color-primario); width: auto;"><i
-                        class="fas fa-upload"></i> Subir Productos masivamente</button>
+                <button type="submit"><i class="fas fa-cloud-upload-alt"></i> Subir Productos</button>
             </div>
         </form>
     </div>

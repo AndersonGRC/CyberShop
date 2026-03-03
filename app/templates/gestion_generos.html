@@ -1,0 +1,172 @@
+{% extends './plantillaapp.html' %}
+
+{% block titulo %}Gestión de Géneros{% endblock %}
+
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/gestion_generos.css') }}">
+{% endblock %}
+
+{% block body %}
+
+<!-- Submenú de navegación de productos -->
+<div class="Submenunavegacion">
+    <ul>
+        <li><a href="{{ url_for('admin.GestionProductos') }}"><i class="fas fa-plus-circle"></i> Crear Producto</a></li>
+        <li><a href="{{ url_for('admin.editar_productos') }}"><i class="fas fa-edit"></i> Editar Productos</a></li>
+        <li><a href="{{ url_for('admin.eliminar_productos') }}"><i class="fas fa-trash-alt"></i> Eliminar Productos</a></li>
+        <li><a href="{{ url_for('admin.gestion_generos') }}" class="active"><i class="fas fa-tags"></i> Géneros</a></li>
+    </ul>
+</div>
+
+<main>
+    <div class="generos-layout">
+
+        <!-- Panel izquierdo: formulario para crear nuevo género -->
+        <div class="panel-crear">
+            <div class="panel-header">
+                <i class="fas fa-tags"></i>
+                <h2>Nuevo Género</h2>
+            </div>
+            <form action="{{ url_for('admin.crear_genero') }}" method="POST" class="form-crear">
+                <div class="form-group">
+                    <label for="nombre">Nombre del género</label>
+                    <input type="text" id="nombre" name="nombre"
+                           placeholder="Ej: Electrónica, Ropa, Accesorios..."
+                           maxlength="100" required autocomplete="off">
+                </div>
+                <button type="submit" class="btn-crear">
+                    <i class="fas fa-plus-circle"></i> Agregar Género
+                </button>
+            </form>
+        </div>
+
+        <!-- Panel derecho: lista de géneros existentes -->
+        <div class="panel-lista">
+            <div class="panel-header">
+                <i class="fas fa-list"></i>
+                <h2>Géneros Registrados <span class="badge-count">{{ generos|length }}</span></h2>
+            </div>
+
+            {% if generos %}
+            <div class="tabla-wrapper">
+                <table class="tabla-generos">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Nombre</th>
+                            <th>Productos</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for g in generos %}
+                        <tr id="fila-{{ g.id }}">
+                            <td class="td-id">{{ g.id }}</td>
+
+                            <!-- Modo vista -->
+                            <td class="td-nombre" id="vista-{{ g.id }}">{{ g.nombre }}</td>
+
+                            <!-- Modo edición (oculto por defecto) -->
+                            <td class="td-editar" id="editar-{{ g.id }}" style="display:none;">
+                                <form action="{{ url_for('admin.editar_genero', id=g.id) }}" method="POST"
+                                      class="form-editar-inline" id="form-editar-{{ g.id }}">
+                                    <input type="text" name="nombre" value="{{ g.nombre }}"
+                                           maxlength="100" required class="input-editar">
+                                </form>
+                            </td>
+
+                            <td class="td-productos">
+                                <span class="chip-productos {% if g.total_productos > 0 %}chip-activo{% endif %}">
+                                    {{ g.total_productos }} producto{% if g.total_productos != 1 %}s{% endif %}
+                                </span>
+                            </td>
+
+                            <td class="td-acciones">
+                                <!-- Botones modo vista -->
+                                <div id="acciones-vista-{{ g.id }}" class="acciones-grupo">
+                                    <button class="btn-editar" onclick="activarEdicion({{ g.id }})" title="Editar">
+                                        <i class="fas fa-pen"></i>
+                                    </button>
+                                    <button class="btn-eliminar"
+                                            onclick="confirmarEliminar({{ g.id }}, '{{ g.nombre|e }}', {{ g.total_productos }})"
+                                            title="Eliminar">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
+
+                                <!-- Botones modo edición (ocultos) -->
+                                <div id="acciones-editar-{{ g.id }}" class="acciones-grupo" style="display:none;">
+                                    <button class="btn-guardar"
+                                            onclick="document.getElementById('form-editar-{{ g.id }}').submit()"
+                                            title="Guardar cambios">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="btn-cancelar" onclick="cancelarEdicion({{ g.id }})" title="Cancelar">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="sin-generos">
+                <i class="fas fa-tag fa-3x"></i>
+                <p>No hay géneros registrados aún.</p>
+                <p>Crea el primero usando el formulario de la izquierda.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</main>
+
+<!-- Formulario oculto para eliminar (se envía via JS) -->
+<form id="form-eliminar" method="POST" style="display:none;">
+    <input type="hidden" name="_method" value="POST">
+</form>
+
+<script>
+    function activarEdicion(id) {
+        document.getElementById('vista-' + id).style.display = 'none';
+        document.getElementById('editar-' + id).style.display = '';
+        document.getElementById('acciones-vista-' + id).style.display = 'none';
+        document.getElementById('acciones-editar-' + id).style.display = '';
+        document.querySelector('#form-editar-' + id + ' input[name="nombre"]').focus();
+    }
+
+    function cancelarEdicion(id) {
+        document.getElementById('vista-' + id).style.display = '';
+        document.getElementById('editar-' + id).style.display = 'none';
+        document.getElementById('acciones-vista-' + id).style.display = '';
+        document.getElementById('acciones-editar-' + id).style.display = 'none';
+    }
+
+    function confirmarEliminar(id, nombre, totalProductos) {
+        var mensaje = totalProductos > 0
+            ? 'Este género tiene <strong>' + totalProductos + ' producto(s)</strong> asociado(s) y no puede eliminarse.<br>Reasigna o elimina los productos primero.'
+            : '¿Deseas eliminar el género <strong>"' + nombre + '"</strong>? Esta acción no se puede deshacer.';
+
+        var esEliminable = totalProductos === 0;
+
+        Swal.fire({
+            title: esEliminable ? '¿Eliminar género?' : 'No se puede eliminar',
+            html: mensaje,
+            icon: esEliminable ? 'warning' : 'error',
+            showCancelButton: esEliminable,
+            confirmButtonColor: esEliminable ? '#d33' : '#122C94',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: esEliminable ? 'Sí, eliminar' : 'Entendido',
+            cancelButtonText: 'Cancelar'
+        }).then(function(result) {
+            if (result.isConfirmed && esEliminable) {
+                var form = document.getElementById('form-eliminar');
+                form.action = '/admin/generos/eliminar/' + id;
+                form.submit();
+            }
+        });
+    }
+</script>
+
+{% endblock %}

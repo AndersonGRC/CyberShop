@@ -1,26 +1,33 @@
 {% extends './plantillaapp.html' %}
 
 {% block titulo %}Eliminar Productos{% endblock %}
+
 {% block LinkAdicional %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/eliminar_producto.css') }}">
 {% endblock %}
+
 {% block body %}
+
+<!-- Submenú de navegación -->
 <div class="Submenunavegacion">
     <ul>
-        <li class="Submenunavegacion"><a href="{{ url_for('admin.GestionProductos') }}">Crear Producto</a></li>
-        <li class="Submenunavegacion"><a href="{{ url_for('admin.editar_productos') }}">Editar Productos</a></li>
-        <li class="Submenunavegacion"><a href="{{ url_for('admin.eliminar_productos') }}">Eliminar Productos</a></li>
+        <li><a href="{{ url_for('admin.GestionProductos') }}"><i class="fas fa-plus-circle"></i> Crear Producto</a></li>
+        <li><a href="{{ url_for('admin.editar_productos') }}"><i class="fas fa-edit"></i> Editar Productos</a></li>
+        <li><a href="{{ url_for('admin.eliminar_productos') }}"><i class="fas fa-trash-alt"></i> Eliminar Productos</a></li>
+        <li><a href="{{ url_for('admin.gestion_generos') }}"><i class="fas fa-tags"></i> Géneros</a></li>
     </ul>
 </div>
+
 <main>
-    <h2>Eliminar Productos</h2>
+    <h2><i class="fas fa-trash-alt" style="color:var(--color-peligro); margin-right:10px;"></i>Eliminar Productos</h2>
+
     <div class="table-container">
         <table>
             <thead>
                 <tr>
-                    <th>ID</th>
-                    <th>Nombre</th>
-                    <th>Precio</th>
+                    <th>#</th>
+                    <th><i class="fas fa-tag"></i> Nombre</th>
+                    <th><i class="fas fa-dollar-sign"></i> Precio</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
@@ -29,10 +36,20 @@
                 <tr>
                     <td>{{ producto[0] }}</td>
                     <td>{{ producto[2] }}</td>
-                    <td>{{ producto[3] }}</td>
+                    <td>${{ "{:,.0f}".format(producto[3]) }}</td>
                     <td>
-                        <a href="{{ url_for('admin.eliminar_producto', id=producto[0]) }}" class="btn-eliminar"
-                            onclick="return confirm('¿Estás seguro de que deseas eliminar este producto?')">Eliminar</a>
+                        <a href="{{ url_for('admin.eliminar_producto', id=producto[0]) }}"
+                           class="btn-eliminar"
+                           onclick="return confirmarEliminar(event, this, '{{ producto[2]|e }}')">
+                            <i class="fas fa-trash"></i> Eliminar
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" style="text-align:center; padding:40px; color:var(--color-gris-texto);">
+                        <i class="fas fa-box-open" style="font-size:2rem; opacity:0.3; display:block; margin-bottom:10px;"></i>
+                        No hay productos registrados.
                     </td>
                 </tr>
                 {% endfor %}
@@ -40,4 +57,26 @@
         </table>
     </div>
 </main>
+
+<script>
+function confirmarEliminar(e, link, nombre) {
+    e.preventDefault();
+    var destino = link.getAttribute('href');
+    Swal.fire({
+        title: '¿Eliminar producto?',
+        html: 'Vas a eliminar <strong>"' + nombre + '"</strong>.<br>Esta acción no se puede deshacer.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: '<i class="fas fa-trash"></i> Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then(function(result) {
+        if (result.isConfirmed) {
+            window.location.href = destino;
+        }
+    });
+    return false;
+}
+</script>
 {% endblock %}

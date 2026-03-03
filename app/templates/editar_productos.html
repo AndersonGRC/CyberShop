@@ -8,24 +8,27 @@
 
 {% block body %}
 
-<!-- Submenú para Crear, Editar y Eliminar productos -->
+<!-- Submenú de navegación -->
 <div class="Submenunavegacion">
     <ul>
-        <li class="Submenunavegacion"><a href="{{ url_for('admin.GestionProductos') }}">Crear Producto</a></li>
-        <li class="Submenunavegacion"><a href="{{ url_for('admin.editar_productos') }}">Editar Productos</a></li>
-        <li class="Submenunavegacion"><a href="{{ url_for('admin.eliminar_productos') }}">Eliminar Productos</a></li>
+        <li><a href="{{ url_for('admin.GestionProductos') }}"><i class="fas fa-plus-circle"></i> Crear Producto</a></li>
+        <li><a href="{{ url_for('admin.editar_productos') }}"><i class="fas fa-edit"></i> Editar Productos</a></li>
+        <li><a href="{{ url_for('admin.eliminar_productos') }}"><i class="fas fa-trash-alt"></i> Eliminar Productos</a></li>
+        <li><a href="{{ url_for('admin.gestion_generos') }}"><i class="fas fa-tags"></i> Géneros</a></li>
     </ul>
 </div>
+
 <main>
-    <h2>Editar Productos</h2>
+    <h2><i class="fas fa-edit" style="color:var(--color-primario); margin-right:10px;"></i>Editar Productos</h2>
+
     <div class="table-container">
         <table>
             <thead>
                 <tr>
-                    <th>ID</th>
-                    <th>Nombre</th>
-                    <th>Precio</th>
-                    <th>Stock</th>
+                    <th>#</th>
+                    <th><i class="fas fa-tag"></i> Nombre</th>
+                    <th><i class="fas fa-dollar-sign"></i> Precio</th>
+                    <th><i class="fas fa-cubes"></i> Stock</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
@@ -34,10 +37,19 @@
                 <tr>
                     <td>{{ producto[0] }}</td>
                     <td>{{ producto[2] }}</td>
-                    <td>${{ producto[3] }}</td>
+                    <td>${{ "{:,.0f}".format(producto[3]) }}</td>
                     <td>{{ producto[7] }}</td>
                     <td>
-                        <a href="{{ url_for('admin.editar_producto', id=producto[0]) }}" class="btn-edit">Editar</a>
+                        <a href="{{ url_for('admin.editar_producto', id=producto[0]) }}" class="btn-edit">
+                            <i class="fas fa-pen"></i> Editar
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" style="text-align:center; padding:40px; color:var(--color-gris-texto);">
+                        <i class="fas fa-box-open" style="font-size:2rem; opacity:0.3; display:block; margin-bottom:10px;"></i>
+                        No hay productos registrados.
                     </td>
                 </tr>
                 {% endfor %}

@@ -85,7 +85,8 @@ def get_data_app():
                 {"nombre": "Resumen / Stock", "url": "admin.gestion_inventario", "icono": "clipboard-list"},
                 {"nombre": "Agregar Producto", "url": "admin.GestionProductos", "icono": "plus-circle"},
                 {"nombre": "Editar Productos", "url": "admin.editar_productos", "icono": "edit"},
-                {"nombre": "Eliminar Productos", "url": "admin.eliminar_productos", "icono": "trash-alt"}
+                {"nombre": "Eliminar Productos", "url": "admin.eliminar_productos", "icono": "trash-alt"},
+                {"nombre": "Géneros", "url": "admin.gestion_generos", "icono": "tags"}
             ]
         },
         {

@@ -11,6 +11,16 @@ document.querySelector('.btn-menu').addEventListener('click', () => {
     document.querySelector('header').classList.toggle('hidden');
 });
 
+// Marca el enlace activo en el submenú de sección (tabs de productos/géneros)
+(function () {
+    const path = window.location.pathname;
+    document.querySelectorAll('.Submenunavegacion a').forEach(function (link) {
+        if (link.getAttribute('href') === path) {
+            link.classList.add('active');
+        }
+    });
+})();
+
 // Funcionalidad para submenús móviles
 if (window.matchMedia("(max-width: 768px)").matches) {
     document.querySelectorAll('.nav ul li').forEach(item => {
