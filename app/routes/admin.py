@@ -95,6 +95,137 @@ def GestionProductos():
 
             return redirect(url_for('admin.GestionProductos'))
     return render_template('GestionProductos.html', datosApp=datosApp, generos=generos)
+@admin_bp.route('/descargar-plantilla-productos')
+@rol_requerido(1)
+def descargar_plantilla_productos():
+    """Genera y descarga un archivo Excel plantilla para el cargue masivo de productos."""
+    import pandas as pd
+    import io
+    
+    # Definir las columnas exactas requeridas
+    columnas = ['Nombre del Producto', 'Referencia', 'Género', 'Descripción', 'Precio']
+    
+    # Crear un DataFrame vacío con esas columnas
+    df = pd.DataFrame(columns=columnas)
+    
+    # Escribir el DataFrame en un buffer de memoria como Excel
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Plantilla Productos')
+    
+    output.seek(0)
+    
+    # Retornar el archivo Excel
+    return Response(
+        output, 
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 
+        headers={"Content-Disposition": "attachment;filename=plantilla_productos.xlsx"}
+    )
+
+@admin_bp.route('/cargue-masivo-productos', methods=['POST'])
+@rol_requerido(1)
+def cargue_masivo_productos():
+    """Procesa el cargue masivo de productos desde un archivo Excel."""
+    from app import product_images
+    import pandas as pd
+    import requests
+    import os
+    import uuid
+    import time
+    
+    if 'archivo_excel' not in request.files:
+        flash('No se seleccionó ningún archivo.', 'error')
+        return redirect(url_for('admin.GestionProductos'))
+        
+    file = request.files['archivo_excel']
+    if file.filename == '':
+        flash('El archivo no tiene nombre.', 'error')
+        return redirect(url_for('admin.GestionProductos'))
+        
+    if not file.filename.endswith('.xlsx'):
+        flash('Formato de archivo inválido. Por favor suba un archivo .xlsx', 'error')
+        return redirect(url_for('admin.GestionProductos'))
+        
+    try:
+        df = pd.read_excel(file)
+        # Limpiar nombres de columnas para evitar problemas con espacios adicionales
+        df.columns = df.columns.str.strip()
+        
+        columnas_requeridas = ['Nombre del Producto', 'Referencia', 'Género', 'Descripción', 'Precio']
+        for col in columnas_requeridas:
+            if col not in df.columns:
+                flash(f'El archivo no tiene la columna requerida: {col}', 'error')
+                return redirect(url_for('admin.GestionProductos'))
+        
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Obtener mapeo de géneros
+        cur.execute('SELECT id, nombre FROM generos')
+        generos_rows = cur.fetchall()
+        generos_map = {row[1].strip().lower(): row[0] for row in generos_rows}
+        
+        productos_creados = 0
+        errores = []
+        
+        for index, row in df.iterrows():
+            try:
+                nombre = str(row['Nombre del Producto']).strip()
+                referencia = str(row['Referencia']).strip()
+                genero_nombre = str(row['Género']).strip().lower()
+                descripcion = str(row['Descripción']).strip()
+                precio = float(row['Precio'])
+                
+                # Validar campos vacíos esenciales
+                if pd.isna(row['Nombre del Producto']) or pd.isna(row['Referencia']) or pd.isna(row['Precio']):
+                    errores.append(f"Fila {index+2}: Faltan datos obligatorios.")
+                    continue
+                    
+                # Verificar referencia duplicada en la bd
+                cur.execute('SELECT id FROM productos WHERE referencia = %s', (referencia,))
+                if cur.fetchone():
+                    errores.append(f"Fila {index+2}: La referencia '{referencia}' ya existe en el sistema.")
+                    continue
+                    
+                # Validar género
+                if genero_nombre not in generos_map:
+                    errores.append(f"Fila {index+2}: El género '{row['Género']}' no existe en la base de datos.")
+                    continue
+                genero_id = generos_map[genero_nombre]
+                
+                # Asignamos imagen por defecto
+                imagen_final_url = '/static/media/producto_default.png'
+                
+                # Insertar en base de datos
+                cur.execute(
+                    'INSERT INTO productos (imagen, nombre, precio, referencia, genero_id, descripcion, stock) VALUES (%s, %s, %s, %s, %s, %s, %s)',
+                    (imagen_final_url, nombre, precio, referencia, genero_id, descripcion, 0)
+                )
+                productos_creados += 1
+                
+            except Exception as row_err:
+                errores.append(f"Fila {index+2}: Error de datos ({str(row_err)}).")
+                
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        if productos_creados > 0:
+            flash(f'¡Se importaron {productos_creados} productos exitosamente!', 'success')
+            
+        if errores:
+            # Mostramos un resumen de errores en un format amigable
+            error_msgs = "\n".join(errores[:10])
+            if len(errores) > 10:
+                error_msgs += f"\n...y {len(errores)-10} errores más."
+            flash(f'Hubo {len(errores)} errores durante la importación:\n{error_msgs}', 'warning')
+            
+        return redirect(url_for('admin.GestionProductos'))
+            
+    except Exception as e:
+        current_app.logger.error(f"Error procesando excel: {e}")
+        flash(f'Ocurrió un error al procesar el archivo Excel: {e}', 'error')
+        return redirect(url_for('admin.GestionProductos'))
 
 
 @admin_bp.route('/editar-productos')

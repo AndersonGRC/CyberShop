@@ -77,5 +77,43 @@
             </div>
         </form>
     </div>
+
+    <!-- Sección de Cargue Masivo -->
+    <div class="form-general" style="margin-top: 40px;">
+        <div class="form-header">
+            <h2>Cargue Masivo de Productos</h2>
+        </div>
+
+        <div class="alert-info">
+            <h4>Instrucciones para el Excel:</h4>
+            <p>El archivo debe estar en formato <strong>.xlsx</strong> y contener exactamente las siguientes columnas en
+                la primera fila:</p>
+            <ul>
+                <li><strong>Nombre del Producto</strong></li>
+                <li><strong>Referencia</strong> (Debe ser única)</li>
+                <li><strong>Género</strong> (Nombre exacto de la categoría)</li>
+                <li><strong>Descripción</strong></li>
+                <li><strong>Precio</strong> (Número sin símbolos)</li>
+            </ul>
+        </div>
+
+        <div class="form-group" style="text-align: center; margin-bottom: 30px;">
+            <a href="{{ url_for('admin.descargar_plantilla_productos') }}" class="btn-secundario"
+                style="color: var(--color-fondo); padding: 12px 20px; border-radius: 5px; width: auto; font-size: 16px;"><i
+                    class="fas fa-file-download"></i> Descargar Plantilla Excel</a>
+        </div>
+
+        <form action="{{ url_for('admin.cargue_masivo_productos') }}" method="POST" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="archivo_excel">Archivo Excel (.xlsx):</label>
+                <input type="file" id="archivo_excel" name="archivo_excel"
+                    accept=".xlsx, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+            </div>
+            <div class="form-group">
+                <button type="submit" style="background-color: var(--color-primario); width: auto;"><i
+                        class="fas fa-upload"></i> Subir Productos masivamente</button>
+            </div>
+        </form>
+    </div>
 </main>
 {% endblock %}
