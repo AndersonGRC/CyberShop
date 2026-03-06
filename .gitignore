@@ -1,30 +1,121 @@
+# =============================================================
 # Python
+# =============================================================
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
-*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
 .Python
-env/
-venv/
-.env
 
+# =============================================================
+# Entornos virtuales
+# =============================================================
+venv/
+env/
+.venv/
+
+# =============================================================
+# Archivos sensibles / credenciales
+# =============================================================
+.env
+*.env
+*.key
+*.pem
+*.crt
+
+# =============================================================
 # Flask
+# =============================================================
 instance/
 .webassets-cache
 
-# Generated Content
-app/static/cotizaciones/pdf/
-app/static/media/
-!app/static/media/.gitkeep
-app/static/cuentas_cobro/pdf/
-
+# =============================================================
 # Logs
+# =============================================================
 *.log
 
-# System
-.DS_Store
-Thumbs.db
+# =============================================================
+# Base de datos (dumps y exports — los schemas .sql sí se rastrean)
+# =============================================================
+*.sqlite3
+*.db
+*.pgdump
+*.pgrestore
+app/database.sql
 
-# IDE
+# =============================================================
+# PDFs generados en ejecución
+# =============================================================
+app/static/cotizaciones/pdf/
+!app/static/cotizaciones/pdf/.gitkeep
+app/static/cuentas_cobro/pdf/
+!app/static/cuentas_cobro/pdf/.gitkeep
+
+# =============================================================
+# Uploads y contenido dinámico (imágenes de productos, fotos
+# de usuarios, archivos subidos por el cliente)
+# =============================================================
+# Productos (Flask-Reuploaded sube aquí)
+app/static/media/media/
+!app/static/media/media/.gitkeep
+
+# Fotos de perfil de usuarios
+app/static/user/users/
+!app/static/user/users/.gitkeep
+
+# Carpeta uploads general
+app/static/uploads/
+!app/static/uploads/.gitkeep
+
+# Fotos de contactos CRM
+app/static/crm/fotos/
+!app/static/crm/fotos/.gitkeep
+
+# Static duplicado en raíz del repo (Flask-Uploads legacy)
+static/media/
+static/user/
+
+# =============================================================
+# Testing / Coverage
+# =============================================================
+.coverage
+htmlcov/
+.pytest_cache/
+
+# =============================================================
+# IDE / Editores
+# =============================================================
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+
+# =============================================================
+# Sistema operativo
+# =============================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =============================================================
+# Node (tooling JS eventual)
+# =============================================================
+node_modules/
+bower_components/
+
+# =============================================================
+# Claude Code
+# =============================================================
+.claude/
+
+# =============================================================
+# Archivos temporales
+# =============================================================
+*.tmp
+*.bak
+*.orig
