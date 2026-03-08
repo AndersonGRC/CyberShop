@@ -8,6 +8,7 @@ registro de actividades/seguimientos y tareas pendientes.
 import os
 from datetime import datetime, date
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask_mail import Message
 from werkzeug.utils import secure_filename
 from database import get_db_cursor
 from helpers import get_data_app
@@ -105,6 +106,7 @@ def crm_dashboard():
     conteos = {r['tipo']: r['total'] for r in conteos_raw}
     total_contactos = sum(conteos.values())
 
+    from helpers_google import session_user_tiene_google
     return render_template(
         'crm_dashboard.html',
         conteos=conteos,
@@ -114,6 +116,7 @@ def crm_dashboard():
         actividades_recientes=actividades_recientes,
         proximas_tareas=proximas_tareas,
         hoy=date.today(),
+        google_conectado=session_user_tiene_google(),
     )
 
 
@@ -401,7 +404,38 @@ def crm_actividad_crear(id):
                     INSERT INTO crm_actividades
                         (contacto_id, tipo, asunto, descripcion, fecha_actividad, usuario_id)
                     VALUES (%s, %s, %s, %s, %s, %s)
+                    RETURNING id
                 """, (id, tipo, asunto, descripcion, fecha_actividad, usuario_id))
+                actividad_id = cur.fetchone()[0]
+
+            # Sincronizar con Google Calendar
+            from helpers_google import session_user_tiene_google, crear_evento
+            if session_user_tiene_google():
+                try:
+                    invitados = [
+                        e.strip()
+                        for e in request.form.get('invitados_emails', '').split(',')
+                        if e.strip()
+                    ]
+                    event_id = crear_evento(
+                        usuario_id=usuario_id,
+                        summary=asunto,
+                        description=descripcion or '',
+                        start_date=fecha_actividad,
+                        end_date=fecha_actividad,
+                        attendees=invitados,
+                    )
+                    if event_id:
+                        with get_db_cursor() as cur:
+                            cur.execute("""
+                                UPDATE crm_actividades
+                                SET google_event_id  = %s,
+                                    invitados_emails = %s
+                                WHERE id = %s
+                            """, (event_id, ','.join(invitados) or None, actividad_id))
+                except Exception:
+                    flash('Actividad registrada, pero no se pudo sincronizar con Google Calendar.', 'warning')
+
             flash('Actividad registrada.', 'success')
             return redirect(url_for('crm.crm_contacto_ver', id=id))
         except Exception as e:
@@ -496,7 +530,69 @@ def crm_tarea_crear(id):
                         (contacto_id, titulo, descripcion, prioridad, fecha_limite,
                          asignado_a, creado_por)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
                 """, (id, titulo, descripcion, prioridad, fecha_limite, asignado_a, creado_por))
+                tarea_id = cur.fetchone()[0]
+
+            # Sincronizar con Google Calendar
+            if fecha_limite:
+                from helpers_google import session_user_tiene_google, crear_evento
+                if session_user_tiene_google():
+                    try:
+                        from datetime import date as _date
+                        invitados = [
+                            e.strip()
+                            for e in request.form.get('invitados_emails', '').split(',')
+                            if e.strip()
+                        ]
+                        fl = datetime.strptime(fecha_limite, '%Y-%m-%d').date() if isinstance(fecha_limite, str) else fecha_limite
+                        event_id = crear_evento(
+                            usuario_id=creado_por,
+                            summary=titulo,
+                            description=descripcion or '',
+                            start_date=fl,
+                            end_date=fl,
+                            attendees=invitados,
+                        )
+                        if event_id:
+                            with get_db_cursor() as cur:
+                                cur.execute("""
+                                    UPDATE crm_tareas
+                                    SET google_event_id = %s,
+                                        invitados_emails = %s
+                                    WHERE id = %s
+                                """, (event_id, ','.join(invitados) or None, tarea_id))
+                    except Exception:
+                        flash('Tarea creada, pero no se pudo sincronizar con Google Calendar.', 'warning')
+
+            # Notificación por email al asignado
+            if asignado_a:
+                try:
+                    with get_db_cursor(dict_cursor=True) as cur:
+                        cur.execute("SELECT nombre, email FROM usuarios WHERE id = %s", (asignado_a,))
+                        asignado = cur.fetchone()
+                    if asignado and asignado['email']:
+                        cuerpo = (
+                            f"Hola {asignado['nombre']},\n\n"
+                            f"Se te ha asignado una nueva tarea:\n\n"
+                            f"  Título:      {titulo}\n"
+                            f"  Contacto:    {contacto['nombre']}\n"
+                            f"  Prioridad:   {prioridad}\n"
+                            f"  Fecha límite: {fecha_limite or 'Sin fecha'}\n"
+                        )
+                        if descripcion:
+                            cuerpo += f"  Descripción: {descripcion}\n"
+                        msg = Message(
+                            subject=f"Nueva tarea asignada: {titulo}",
+                            recipients=[asignado['email']],
+                            body=cuerpo
+                        )
+                        from app import mail
+                        with mail.connect() as conn:
+                            conn.send(msg)
+                except Exception:
+                    flash('Tarea creada, pero no se pudo enviar el correo de notificación.', 'warning')
+
             flash('Tarea creada.', 'success')
             return redirect(url_for('crm.crm_contacto_ver', id=id))
         except Exception as e:
@@ -522,7 +618,10 @@ def crm_tarea_crear(id):
 @rol_requerido(1)
 def crm_tarea_completar(id):
     with get_db_cursor(dict_cursor=True) as cur:
-        cur.execute("SELECT contacto_id FROM crm_tareas WHERE id = %s", (id,))
+        cur.execute(
+            "SELECT contacto_id, google_event_id, titulo, creado_por FROM crm_tareas WHERE id = %s",
+            (id,)
+        )
         row = cur.fetchone()
 
     contacto_id = row['contacto_id'] if row else None
@@ -534,6 +633,19 @@ def crm_tarea_completar(id):
                 SET estado = 'completada', completada_en = CURRENT_TIMESTAMP
                 WHERE id = %s
             """, (id,))
+
+        # Actualizar evento en Google Calendar
+        if row and row['google_event_id']:
+            try:
+                from helpers_google import actualizar_evento
+                actualizar_evento(
+                    usuario_id=row['creado_por'],
+                    event_id=row['google_event_id'],
+                    summary=f"[Completada] {row['titulo']}",
+                )
+            except Exception:
+                pass
+
         flash('Tarea marcada como completada.', 'success')
     except Exception as e:
         flash(f'Error: {str(e)}', 'danger')

@@ -218,5 +218,36 @@
             </div>
         </div>
     </div><!-- /row tablas -->
+
+    <!-- Google Calendar -->
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3 d-flex align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-danger">
+                        <i class="fab fa-google mr-1"></i>Google Calendar
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if google_conectado %}
+                    <p class="text-success mb-2">
+                        <i class="fas fa-check-circle mr-1"></i>
+                        Tu cuenta de Google Calendar está conectada. Las tareas y actividades con fecha se sincronizarán automáticamente.
+                    </p>
+                    <form action="{{ url_for('google.desconectar') }}" method="POST" class="d-inline">
+                        <button class="btn btn-sm btn-outline-danger">
+                            <i class="fab fa-google mr-1"></i>Desconectar Google Calendar
+                        </button>
+                    </form>
+                    {% else %}
+                    <p class="text-muted mb-2">Conecta tu Google Calendar para sincronizar tareas y actividades automáticamente.</p>
+                    <a href="{{ url_for('google.autorizar') }}" class="btn btn-sm btn-outline-primary">
+                        <i class="fab fa-google mr-1"></i>Conectar Google Calendar
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}

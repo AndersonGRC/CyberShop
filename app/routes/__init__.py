@@ -36,3 +36,7 @@ def register_blueprints(app):
     # CRM
     from routes.crm import crm_bp
     app.register_blueprint(crm_bp)
+
+    # Google Calendar
+    from routes.google_calendar import google_bp
+    app.register_blueprint(google_bp)

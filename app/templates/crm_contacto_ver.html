@@ -147,7 +147,7 @@
                                     <td class="small">{{ a.fecha_actividad.strftime('%d/%m/%y %H:%M') if a.fecha_actividad else '—' }}</td>
                                     <td class="small">{{ a.registrado_por or '—' }}</td>
                                     <td>
-                                        <button class="btn btn-xs btn-danger"
+                                        <button class="btn btn-sm btn-danger"
                                                 onclick="confirmarEliminarAct({{ a.id }})">
                                             <i class="fas fa-trash-alt"></i>
                                         </button>
@@ -222,12 +222,12 @@
                                         {% if t.estado == 'pendiente' %}
                                         <form action="{{ url_for('crm.crm_tarea_completar', id=t.id) }}"
                                               method="POST" class="d-inline">
-                                            <button class="btn btn-xs btn-success" title="Completar">
+                                            <button class="btn btn-sm btn-success" title="Completar">
                                                 <i class="fas fa-check"></i>
                                             </button>
                                         </form>
                                         {% endif %}
-                                        <button class="btn btn-xs btn-danger"
+                                        <button class="btn btn-sm btn-danger"
                                                 onclick="confirmarEliminarTarea({{ t.id }})">
                                             <i class="fas fa-trash-alt"></i>
                                         </button>

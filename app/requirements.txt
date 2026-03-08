@@ -32,3 +32,13 @@ python-dotenv==1.1.0
 
 # Utilidades
 colorama==0.4.6
+
+
+
+pandas==2.2.2
+openpyxl==3.1.5
+
+# Google Calendar
+google-auth>=2.0.0
+google-auth-oauthlib>=1.0.0
+google-api-python-client>=2.0.0

@@ -61,6 +61,16 @@ class Config:
         'borde': '#000000',
     }
 
+    # --- Google Calendar OAuth 2.0 ---
+    GOOGLE_CLIENT_ID     = 'os.getenv("GOOGLE_CLIENT_ID")'
+    GOOGLE_CLIENT_SECRET = 'os.getenv("GOOGLE_CLIENT_SECRET")'
+    GOOGLE_REDIRECT_URI  = 'http://localhost:5001/admin/google/callback'
+    GOOGLE_CALENDAR_ID   = 'primary'
+    GOOGLE_SCOPES        = [
+        'https://www.googleapis.com/auth/calendar.events',
+        'openid', 'email'
+    ]
+
     # --- Datos por Defecto para Cuentas de Cobro ---
     BILLING_INFO = {
         'contractor_nombre': 'Anderson German Roa Cabiativa',
