@@ -23,6 +23,7 @@ env/
 # =============================================================
 .env
 *.env
+!.env.example
 *.key
 *.pem
 *.crt
@@ -45,7 +46,6 @@ instance/
 *.db
 *.pgdump
 *.pgrestore
-app/database.sql
 
 # =============================================================
 # PDFs generados en ejecución

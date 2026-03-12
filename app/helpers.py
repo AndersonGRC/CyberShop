@@ -47,8 +47,19 @@ def get_common_data():
     except Exception:
         pass
 
+    # Leer nombre de empresa desde cliente_config
+    nombre_empresa = 'CyberShop'
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT valor FROM cliente_config WHERE clave = 'empresa_nombre'")
+            row = cur.fetchone()
+            if row and row['valor']:
+                nombre_empresa = row['valor']
+    except Exception:
+        pass
+
     return {
-        'titulo': 'CyberShop',
+        'titulo': nombre_empresa,
         'MenuAppindex': MenuApp,
         'longMenuAppindex': len(MenuApp)
     }
@@ -133,10 +144,29 @@ def get_data_app():
                 {"nombre": "Tareas",         "url": "crm.crm_tareas_lista",    "icono": "tasks"},
             ]
         },
+        {
+            "nombre": "Configuración",
+            "url": "#",
+            "icono": "cog",
+            "submodulos": [
+                {"nombre": "Config. Cliente", "url": "admin.configuracion_cliente", "icono": "paint-brush"},
+            ]
+        },
         {"nombre": "Cerrar Sesion", "url": "auth.logout", "icono": "sign-out-alt"}
     ]
+    # Leer nombre de empresa desde cliente_config
+    nombre_empresa = 'CyberShop'
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT valor FROM cliente_config WHERE clave = 'empresa_nombre'")
+            row = cur.fetchone()
+            if row and row['valor']:
+                nombre_empresa = row['valor']
+    except Exception:
+        pass
+
     return {
-        'titulo': 'CyberShop',
+        'titulo': nombre_empresa,
         'MenuAppindex': App,
         'longMenuAppindex': len(App)
     }

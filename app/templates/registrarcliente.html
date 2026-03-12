@@ -2,6 +2,23 @@
 {% block titulo %}{{ datosApp.titulo }}{% endblock %}
 {% block LinkAdicional %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/registro.css') }}">
+<style>
+.btn-google {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+    color: #444;
+    text-decoration: none;
+    font-size: 14px;
+    transition: background 0.2s;
+}
+.btn-google:hover { background: #f5f5f5; color: #222; text-decoration: none; }
+.separador { text-align: center; color: #888; margin: 12px 0; font-size: 13px; }
+</style>
 {% endblock %}
 
 {% block body %}
@@ -13,6 +30,13 @@
 
     <!-- Columna del formulario -->
     <div class="right-column">
+        <div style="text-align:center; margin-bottom: 16px;">
+            <a href="{{ url_for('auth.google_login') }}" class="btn-google">
+                <img src="https://developers.google.com/identity/images/g-logo.png" width="18" alt="Google">
+                Registrarse con Google
+            </a>
+        </div>
+        <div class="separador">— o completa el formulario —</div>
         <form id="registroForm" method="POST" action="{{ url_for('auth.registrar_cliente') }}">
             <h2>Registro de Cliente</h2>
 

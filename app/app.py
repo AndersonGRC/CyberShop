@@ -52,17 +52,21 @@ os.makedirs(app.config['UPLOADED_USERIMAGES_DEST'], exist_ok=True)
 
 # --- Context processor: inyecta config_secciones a todos los templates ---
 @app.context_processor
-def inject_config_secciones():
+def inject_config_global():
     from database import get_db_cursor
     config = {}
+    brand  = {}
     try:
         with get_db_cursor(dict_cursor=True) as cur:
             cur.execute('SELECT clave, valor FROM config_secciones')
             for row in cur.fetchall():
                 config[row['clave']] = row['valor'] == 'true'
+            cur.execute('SELECT clave, valor FROM cliente_config')
+            for row in cur.fetchall():
+                brand[row['clave']] = row['valor']
     except Exception:
         pass
-    return dict(config_global=config)
+    return dict(config_global=config, brand_config=brand)
 
 # --- Registrar blueprints ---
 register_blueprints(app)

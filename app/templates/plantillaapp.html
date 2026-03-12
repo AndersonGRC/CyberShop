@@ -6,6 +6,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block titulo%} {% endblock%}</title>
     {% block LinkAdicional%} {% endblock%}
+
+    {% if brand_config %}
+    <style>
+    :root {
+      {% if brand_config.color_primario        %}--color-primario:        {{ brand_config.color_primario }};{% endif %}
+      {% if brand_config.color_primario_oscuro %}--color-primario-oscuro: {{ brand_config.color_primario_oscuro }};{% endif %}
+      {% if brand_config.color_secundario      %}--color-secundario:      {{ brand_config.color_secundario }};{% endif %}
+      {% if brand_config.color_acento          %}--color-accent:          {{ brand_config.color_acento }};{% endif %}
+      {% if brand_config.color_hover_menu      %}--color-hover-menu:      {{ brand_config.color_hover_menu }};{% endif %}
+    }
+    </style>
+    {% endif %}
+
     <link rel="shortcut icon" href="{{ url_for('static', filename='img/Logo.PNG') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/Menuapp.css') }}">
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css">

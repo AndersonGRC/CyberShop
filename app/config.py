@@ -22,24 +22,24 @@ class Config:
     SESSION_COOKIE_SAMESITE = 'Lax'
 
     # --- PayU Latam ---
-    PAYU_API_KEY = 'Egc0YoZIz87uaI7P67OmTD9r9w'
-    PAYU_API_LOGIN = 'IN19b1OVTQKsjNx'
-    PAYU_MERCHANT_ID = '1021517'
-    PAYU_ACCOUNT_ID = '1030609'
-    PAYU_ENV = 'production'  # sandbox / production
-    PAYU_URL = 'https://api.payulatam.com/payments-api/4.0/service.cgi'
-    PAYU_RESPONSE_URL = 'http://localhost:5001/respuesta-pago'
-    PAYU_CONFIRMATION_URL = 'http://localhost:5001/confirmacion-pago'
+    PAYU_API_KEY    = os.getenv('PAYU_API_KEY')
+    PAYU_API_LOGIN  = os.getenv('PAYU_API_LOGIN')
+    PAYU_MERCHANT_ID = os.getenv('PAYU_MERCHANT_ID')
+    PAYU_ACCOUNT_ID  = os.getenv('PAYU_ACCOUNT_ID')
+    PAYU_ENV         = os.getenv('PAYU_ENV', 'sandbox')
+    PAYU_URL         = 'https://api.payulatam.com/payments-api/4.0/service.cgi'
+    PAYU_RESPONSE_URL    = os.getenv('PAYU_RESPONSE_URL', 'http://localhost:5001/respuesta-pago')
+    PAYU_CONFIRMATION_URL = os.getenv('PAYU_CONFIRMATION_URL', 'http://localhost:5001/confirmacion-pago')
     PAYU_TIMEOUT = 45
 
     # --- Mail (Gmail SMTP) ---
-    MAIL_SERVER = 'smtp.gmail.com'
-    MAIL_PORT = 587
-    MAIL_DEBUG = True
-    MAIL_USE_TLS = True
-    MAIL_USERNAME = 'cybershop.digitalsales@gmail.com'
-    MAIL_PASSWORD = 'r k j q x v q a p o y t r v d q'
-    MAIL_DEFAULT_SENDER = 'cybershop.digitalsales@gmail.com'
+    MAIL_SERVER       = 'smtp.gmail.com'
+    MAIL_PORT         = 587
+    MAIL_DEBUG        = True
+    MAIL_USE_TLS      = True
+    MAIL_USERNAME     = os.getenv('MAIL_USERNAME')
+    MAIL_PASSWORD     = os.getenv('MAIL_PASSWORD')
+    MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER')
 
     # --- Uploads (imagenes) ---
     UPLOADED_IMAGES_DEST = os.path.join('static', 'media')
@@ -62,22 +62,26 @@ class Config:
     }
 
     # --- Google Calendar OAuth 2.0 ---
-    GOOGLE_CLIENT_ID     = 'os.getenv("GOOGLE_CLIENT_ID")'
-    GOOGLE_CLIENT_SECRET = 'os.getenv("GOOGLE_CLIENT_SECRET")'
-    GOOGLE_REDIRECT_URI  = 'http://localhost:5001/admin/google/callback'
+    GOOGLE_CLIENT_ID     = os.getenv('GOOGLE_CLIENT_ID')
+    GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
+    GOOGLE_REDIRECT_URI  = os.getenv('GOOGLE_REDIRECT_URI', 'http://localhost:5001/admin/google/callback')
     GOOGLE_CALENDAR_ID   = 'primary'
     GOOGLE_SCOPES        = [
         'https://www.googleapis.com/auth/calendar.events',
         'openid', 'email'
     ]
 
+    # --- Google Login OAuth 2.0 ---
+    GOOGLE_LOGIN_REDIRECT_URI = os.getenv('GOOGLE_LOGIN_REDIRECT_URI', 'http://localhost:5001/google/login/callback')
+    GOOGLE_LOGIN_SCOPES       = ['openid', 'email', 'profile']
+
     # --- Datos por Defecto para Cuentas de Cobro ---
     BILLING_INFO = {
-        'contractor_nombre': 'Anderson German Roa Cabiativa',
-        'contractor_id': '1027150819',
-        'contractor_telefono': '3015963776',
-        'contractor_email': 'cybershop.digitalsales@gmail.com',
-        'texto_pago': 'Yo Anderson German Roa Cabiativa autorizo realizar el pago de la presente cuenta de cobro en la cuenta del Bancolombia No 040 – 801329-86 a nombre de Anderson German Roa Cabiativa con numero de cedula 1027150819 o Pago en efectivo'
+        'contractor_nombre':  os.getenv('BILLING_NOMBRE', ''),
+        'contractor_id':      os.getenv('BILLING_ID', ''),
+        'contractor_telefono': os.getenv('BILLING_TELEFONO', ''),
+        'contractor_email':   os.getenv('BILLING_EMAIL', ''),
+        'texto_pago':         os.getenv('BILLING_TEXTO_PAGO', ''),
     }
 
 

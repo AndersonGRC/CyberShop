@@ -5,6 +5,7 @@ Rutas protegidas con @rol_requerido(1) para gestion de productos,
 usuarios y pedidos. Solo accesibles por usuarios con rol Admin.
 """
 
+import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session, Response, current_app
 import csv
 import io
@@ -1375,3 +1376,44 @@ def eliminar_genero(id):
     except Exception as e:
         flash(f'Error al eliminar género: {e}', 'error')
     return redirect(url_for('admin.gestion_generos'))
+
+
+# =============================================================
+# Panel de Configuración del Cliente
+# =============================================================
+
+@admin_bp.route('/admin/configuracion-cliente', methods=['GET', 'POST'])
+@rol_requerido(1)
+def configuracion_cliente():
+    """Panel visual para configurar nombre, colores y logo de la empresa."""
+    if request.method == 'POST':
+        for clave, valor in request.form.items():
+            try:
+                with get_db_cursor() as cur:
+                    cur.execute("UPDATE cliente_config SET valor=%s WHERE clave=%s", (valor, clave))
+            except Exception as e:
+                current_app.logger.error(f"Error actualizando cliente_config '{clave}': {e}")
+        # Logo
+        logo = request.files.get('logo')
+        if logo and logo.filename:
+            try:
+                logo_path = os.path.join(current_app.root_path, 'static', 'img', 'Logo.png')
+                logo.save(logo_path)
+            except Exception as e:
+                current_app.logger.error(f"Error guardando logo: {e}")
+                flash('Configuración guardada, pero hubo un error al subir el logo.', 'warning')
+                return redirect(url_for('admin.configuracion_cliente'))
+        flash('Configuración actualizada.', 'success')
+        return redirect(url_for('admin.configuracion_cliente'))
+
+    grupos = {}
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT * FROM cliente_config ORDER BY grupo, orden")
+            for item in cur.fetchall():
+                grupos.setdefault(item['grupo'], []).append(item)
+    except Exception as e:
+        current_app.logger.error(f"Error cargando cliente_config: {e}")
+        flash('Error al cargar la configuración.', 'error')
+
+    return render_template('configuracion_cliente.html', datosApp=get_data_app(), grupos=grupos)

@@ -2,6 +2,61 @@
 {% block titulo %}{{ datosApp.titulo }}{% endblock %}
 {% block LinkAdicional %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+<style>
+.google-wrapper {
+    margin: 20px 0 8px;
+}
+
+.separador-google {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 18px 0;
+    color: #aaa;
+    font-size: 13px;
+}
+.separador-google::before,
+.separador-google::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #e0e0e0;
+}
+
+.btn-google {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 16px;
+    background: #fff;
+    color: #3c4043;
+    border: 1.5px solid #dadce0;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 500;
+    font-family: 'Roboto', 'Raleway', sans-serif;
+    text-decoration: none;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.btn-google:hover {
+    background: #f7f8ff;
+    border-color: #a8b4fb;
+    box-shadow: 0 2px 8px rgba(66,133,244,0.15);
+    color: #1a1a1a;
+    text-decoration: none;
+}
+.btn-google:active {
+    background: #eef1ff;
+    box-shadow: none;
+}
+.btn-google img {
+    flex-shrink: 0;
+}
+</style>
 {% endblock %}
 
 {% block body %}
@@ -16,6 +71,15 @@
 
         <button type="submit">Ingresar</button>
     </form>
+
+    <div class="separador-google">o</div>
+
+    <div class="google-wrapper">
+        <a href="{{ url_for('auth.google_login') }}" class="btn-google">
+            <img src="https://developers.google.com/identity/images/g-logo.png" width="20" alt="Google">
+            Continuar con Google
+        </a>
+    </div>
 
     <p>¿No tienes una cuenta? <a href="{{ url_for('auth.registrar_cliente') }}">Regístrate aquí</a>.</p>
 

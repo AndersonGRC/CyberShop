@@ -6,23 +6,30 @@ y ``get_db_cursor()`` como context manager que abre conexion + cursor
 y cierra ambos automaticamente al salir del bloque ``with``.
 """
 
+import os
 from contextlib import contextmanager
+
 import psycopg2
 from psycopg2.extras import DictCursor
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def get_db_connection():
-    """Crea y retorna una conexion psycopg2 a la base de datos ``cybershop``.
+    """Crea y retorna una conexion psycopg2 a la base de datos.
+
+    Lee las credenciales desde variables de entorno (.env).
 
     Raises:
         psycopg2.OperationalError: Si no puede conectarse al servidor.
     """
     conn = psycopg2.connect(
-        dbname="cybershop",
-        user="postgres",
-        password="Omegafito7217*",
-        host="localhost",
-        port="5432"
+        dbname=os.getenv('DB_NAME', 'cybershop'),
+        user=os.getenv('DB_USER', 'postgres'),
+        password=os.getenv('DB_PASSWORD', ''),
+        host=os.getenv('DB_HOST', 'localhost'),
+        port=os.getenv('DB_PORT', '5432'),
     )
     return conn
 

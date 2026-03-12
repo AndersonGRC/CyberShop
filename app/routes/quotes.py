@@ -20,6 +20,26 @@ quotes_bp = Blueprint('quotes', __name__)
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
+
+def _get_brand_colors():
+    """Lee colores de marca desde cliente_config con fallback a Config."""
+    from config import Config
+    colores = dict(Config.BRAND_COLORS)
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT clave, valor FROM cliente_config WHERE grupo = 'colores'")
+            mapping = {
+                'color_primario':        'primario',
+                'color_primario_oscuro': 'primario_oscuro',
+                'color_secundario':      'secundario',
+            }
+            for row in cur.fetchall():
+                if row['clave'] in mapping:
+                    colores[mapping[row['clave']]] = row['valor']
+    except Exception:
+        pass
+    return colores
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -191,16 +211,7 @@ def generar_cotizacion():
             'descuento': formatear_moneda(total_descuentos),
             'iva': formatear_moneda(total_iva),
             'logo': logo_url or url_for('static', filename='img/Logo.png', _external=True),
-            'colores': app.config.get('BRAND_COLORS', {
-                'primario': '#122C94',
-                'primario_oscuro': '#091C5A',
-                'secundario': '#0e1b33',
-                'texto': '#333333',
-                'texto_claro': '#888888',
-                'fondo_claro': '#f9f9f9',
-                'exito': '#28a745',
-                'borde': '#000000',
-            })
+            'colores': _get_brand_colors()
         }
         
         rendered_html = render_template('pdf_quote.html', **datos_pdf)
