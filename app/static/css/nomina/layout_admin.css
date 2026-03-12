@@ -248,7 +248,7 @@ header {
 
 .form-control:focus {
     border-color: var(--color-primario) !important;
-    box-shadow: 0 0 0 0.2rem rgba(18, 44, 148, 0.25) !important;
+    box-shadow: var(--marca-focus-ring) !important;
 }
 
 /* ============================================

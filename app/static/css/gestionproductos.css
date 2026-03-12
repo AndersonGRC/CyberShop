@@ -17,7 +17,7 @@ main {
     margin: 0 auto 32px;
     background: #ffffff;
     border-radius: 14px;
-    box-shadow: 0 4px 24px rgba(18, 44, 148, 0.08);
+    box-shadow: var(--marca-sombra-card);
     border: 1px solid var(--color-gris-borde);
     overflow: hidden;
 }
@@ -86,7 +86,7 @@ main {
 .form-group textarea:focus {
     outline: none;
     border-color: var(--color-primario);
-    box-shadow: 0 0 0 3px rgba(18, 44, 148, 0.10);
+    box-shadow: var(--marca-focus-ring);
 }
 
 .form-group input[type="file"] {
@@ -139,12 +139,12 @@ main {
     font-weight: 600;
     letter-spacing: 0.02em;
     transition: box-shadow 0.25s ease, transform 0.15s ease !important;
-    box-shadow: 0 4px 14px rgba(18, 44, 148, 0.25) !important;
+    box-shadow: var(--marca-sombra-boton) !important;
 }
 
 .btn-secundario:hover {
     transform: translateY(-1px);
-    box-shadow: 0 6px 18px rgba(18, 44, 148, 0.35) !important;
+    box-shadow: var(--marca-sombra-boton-hover) !important;
     background: linear-gradient(135deg, var(--color-primario-oscuro) 0%, var(--color-primario) 100%) !important;
 }
 

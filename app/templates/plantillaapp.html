@@ -9,14 +9,31 @@
 
     {% if brand_config %}
     <style>
-    :root {
-      {% if brand_config.color_primario        %}--color-primario:        {{ brand_config.color_primario }};{% endif %}
-      {% if brand_config.color_primario_oscuro %}--color-primario-oscuro: {{ brand_config.color_primario_oscuro }};{% endif %}
-      {% if brand_config.color_secundario      %}--color-secundario:      {{ brand_config.color_secundario }};{% endif %}
-      {% if brand_config.color_acento          %}--color-accent:          {{ brand_config.color_acento }};{% endif %}
-      {% if brand_config.color_hover_menu      %}--color-hover-menu:      {{ brand_config.color_hover_menu }};{% endif %}
-    }
+        :root {
+          {% if brand_config.color_primario          %}--color-primario:          {{ brand_config.color_primario }};{% endif %}
+          {% if brand_config.color_primario_oscuro   %}--color-primario-oscuro:   {{ brand_config.color_primario_oscuro }};{% endif %}
+          {% if brand_config.color_secundario        %}--color-secundario:        {{ brand_config.color_secundario }};{% endif %}
+          {% if brand_config.color_acento            %}--color-accent:            {{ brand_config.color_acento }};{% endif %}
+          {% if brand_config.color_hover_menu        %}--color-hover-menu:        {{ brand_config.color_hover_menu }};{% endif %}
+          {% if brand_config.color_transicion        %}--color-transicion:        {{ brand_config.color_transicion }};{% endif %}
+          {% if brand_config.color_botones           %}--color-botones:           {{ brand_config.color_botones }};{% endif %}
+          {% if brand_config.color_acento_secundario %}--color-acento-secundario: {{ brand_config.color_acento_secundario }};{% endif %}
+          {% if brand_config.color_fondo_destacado   %}--color-fondo-destacado:   {{ brand_config.color_fondo_destacado }};{% endif %}
+          {% if brand_config.color_carrito           %}--color-carrito:           {{ brand_config.color_carrito }};{% endif %}
+          {% if brand_config.color_carrito_hover     %}--color-carrito-hover:     {{ brand_config.color_carrito_hover }};{% endif %}
+          {% if brand_config.color_producto_boton       %}--color-producto-boton:       {{ brand_config.color_producto_boton }};{% endif %}
+          {% if brand_config.color_producto_popup       %}--color-producto-popup:       {{ brand_config.color_producto_popup }};{% endif %}
+          {% if brand_config.color_admin_sidebar_fondo     %}--color-admin-sidebar-fondo:     {{ brand_config.color_admin_sidebar_fondo }};{% endif %}
+          {% if brand_config.color_admin_sidebar_fondo_fin %}--color-admin-sidebar-fondo-fin: {{ brand_config.color_admin_sidebar_fondo_fin }};{% endif %}
+          {% if brand_config.color_admin_sidebar_submenu   %}--color-admin-sidebar-submenu:   {{ brand_config.color_admin_sidebar_submenu }};{% endif %}
+          {% if brand_config.color_admin_footer      %}--color-admin-footer:      {{ brand_config.color_admin_footer }};{% endif %}
+          {% if brand_config.color_alerta_fondo      %}--color-alerta-fondo:      {{ brand_config.color_alerta_fondo }};{% endif %}
+          {% if brand_config.color_alerta_texto      %}--color-alerta-texto:      {{ brand_config.color_alerta_texto }};{% endif %}
+          {% if brand_config.color_alerta_confirmar  %}--color-alerta-confirmar:  {{ brand_config.color_alerta_confirmar }};{% endif %}
+          {% if brand_config.color_alerta_cancelar   %}--color-alerta-cancelar:   {{ brand_config.color_alerta_cancelar }};{% endif %}
+        }
     </style>
+    <script>const BRAND_COLOR_BTN = "{{ brand_config.color_alerta_confirmar or '#122C94' }}";</script>
     {% endif %}
 
     <link rel="shortcut icon" href="{{ url_for('static', filename='img/Logo.PNG') }}">
@@ -86,7 +103,7 @@
 
     <!-- Pie de página compacto -->
     <footer class="footer">
-        <p>&copy;2025 CyberShop Colombia. Desarrollador: andersongermancavi@gmail.com</p>
+        <p>&copy;{{ now.year if now else '2025' }} {{ brand_config.empresa_copyright or datosApp.titulo }}.</p>
     </footer>
 
     <script type="text/javascript" src="{{ url_for('static', filename='js/app.js') }}"></script>
@@ -122,7 +139,7 @@
                 // CORRECCIÓN AQUÍ: Usamos tojson para evitar errores con comillas
                 text: {{ message | tojson }},
             icon: tipoIcono,
-            confirmButtonColor: '#0d1b54',
+            confirmButtonColor: (typeof BRAND_COLOR_BTN !== 'undefined') ? BRAND_COLOR_BTN : '#0d1b54',
             confirmButtonText: 'Aceptar',
             backdrop: `rgba(0,0,123,0.1)`
                         });

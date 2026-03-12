@@ -12,7 +12,7 @@ body {
     margin-bottom: 2%;
     padding: 20px;
     border-radius: 16px;
-    box-shadow: 0 10px 25px var();
+    box-shadow: var(--sombra-fuerte);
     text-align: center;
     max-width: 500px;
     transition: transform 0.3s ease;

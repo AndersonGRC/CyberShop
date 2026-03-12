@@ -15,7 +15,7 @@
 
     <div class="container">
         <div class="header">
-            <h2>CYBERSHOP S.A.S.</h2>
+            <h2>{{ brand_config.empresa_nombre or 'CYBERSHOP S.A.S.' }}</h2>
             <p>NIT: 900.000.000-1</p>
             <h3>Comprobante de Nómina</h3>
             <p>Periodo: {{ p.anio }}-{{ p.mes }} / {% if p.numero_periodo == 0 %}Mensual{% else %}Quincena {{
@@ -107,7 +107,7 @@
         </div>
 
         <div class="footer">
-            <p>Generado automáticamente por CyberShop Payroll Module</p>
+            <p>Generado automáticamente por {{ brand_config.empresa_nombre or 'CyberShop' }} Payroll Module</p>
         </div>
     </div>
 </body>

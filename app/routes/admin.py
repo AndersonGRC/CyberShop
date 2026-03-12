@@ -1391,6 +1391,14 @@ def configuracion_cliente():
             try:
                 with get_db_cursor() as cur:
                     cur.execute("UPDATE cliente_config SET valor=%s WHERE clave=%s", (valor, clave))
+                    if cur.rowcount == 0:
+                        # La fila no existia, crearla con tipo y grupo adecuados
+                        tipo = 'color' if clave.startswith('color_') else 'text'
+                        grupo = 'colores' if clave.startswith('color_') else 'empresa'
+                        cur.execute(
+                            "INSERT INTO cliente_config (clave, valor, tipo, grupo) VALUES (%s, %s, %s, %s)",
+                            (clave, valor, tipo, grupo)
+                        )
             except Exception as e:
                 current_app.logger.error(f"Error actualizando cliente_config '{clave}': {e}")
         # Logo

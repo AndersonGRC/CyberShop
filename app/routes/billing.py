@@ -21,6 +21,19 @@ from security import rol_requerido
 
 billing_bp = Blueprint('billing', __name__)
 
+
+def _get_empresa_website():
+    """Lee la URL del sitio web de la empresa desde cliente_config."""
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT valor FROM cliente_config WHERE clave='empresa_website'")
+            row = cur.fetchone()
+            if row and row['valor']:
+                return row['valor']
+    except Exception:
+        pass
+    return 'https://cybershopcol.com'
+
 # Intentar configurar locale para fechas en español
 try:
     locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
@@ -223,7 +236,8 @@ def guardar_generar_cuenta():
             'total_valor': formatear_moneda(total),
             'total_texto': total_texto,
             'logo': url_for('static', filename='img/Logo.PNG', _external=True),
-            'brand': app.config.get('BRAND_COLORS', {})
+            'brand': app.config.get('BRAND_COLORS', {}),
+            'empresa_website': _get_empresa_website()
         }
         
         rendered_html = render_template('pdf_cuenta_cobro.html', **pdf_data)

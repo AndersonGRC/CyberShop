@@ -1,23 +1,501 @@
 {% extends './plantillaapp.html' %}
 {% block titulo %}Configuración del Cliente — {{ datosApp.titulo }}{% endblock %}
 
+{% block LinkAdicional %}
+<style>
+    /* ── Layout general del módulo ── */
+    .config-wrapper {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 0 16px 40px;
+    }
+
+    .config-header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 28px;
+        padding-bottom: 16px;
+        border-bottom: 2px solid var(--color-gris-borde);
+    }
+
+    .config-header .icon-circle {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: var(--marca-tinte, rgba(18, 44, 148, 0.08));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-primario);
+        font-size: 1.3rem;
+        flex-shrink: 0;
+    }
+
+    .config-header h2 {
+        margin: 0;
+        font-size: 1.25rem;
+        color: var(--color-primario-oscuro);
+        font-weight: 700;
+    }
+
+    .config-header p {
+        margin: 2px 0 0;
+        font-size: 0.85rem;
+        color: var(--color-gris-texto, #5a5c69);
+    }
+
+    /* ── Cards de sección ── */
+    .config-card {
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid var(--color-gris-borde, #e3e6f0);
+        box-shadow: var(--marca-sombra-card, 0 4px 24px rgba(18, 44, 148, 0.08));
+        margin-bottom: 24px;
+        overflow: hidden;
+    }
+
+    .config-card-header {
+        background: linear-gradient(135deg, var(--color-primario) 0%, var(--color-primario-oscuro) 100%);
+        padding: 14px 22px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.92rem;
+        letter-spacing: 0.02em;
+    }
+
+    .config-card-header i {
+        font-size: 1rem;
+        opacity: 0.85;
+    }
+
+    .config-card-body {
+        padding: 20px 22px;
+    }
+
+    /* ── Filas de formulario ── */
+    .config-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--color-borde-claro, #eee);
+    }
+
+    .config-row:last-child {
+        border-bottom: none;
+    }
+
+    .config-row label {
+        flex: 0 0 200px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: var(--color-gris-texto, #5a5c69);
+    }
+
+    .config-row .field {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .config-row input[type="text"],
+    .config-row input[type="url"],
+    .config-row input[type="email"],
+    .config-row input[type="tel"] {
+        width: 100%;
+        padding: 9px 12px;
+        border: 1.5px solid var(--color-gris-borde, #e3e6f0);
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-family: 'Raleway', sans-serif;
+        color: var(--color-texto, #333);
+        transition: border-color 0.2s, box-shadow 0.2s;
+        box-sizing: border-box;
+    }
+
+    .config-row input:focus {
+        outline: none;
+        border-color: var(--color-primario);
+        box-shadow: var(--marca-focus-ring, 0 0 0 3px rgba(18, 44, 148, 0.10));
+    }
+
+    /* ── Subgrupos de colores ── */
+    .color-subgroup {
+        margin-bottom: 18px;
+    }
+
+    .color-subgroup:last-child {
+        margin-bottom: 0;
+    }
+
+    .color-subgroup-title {
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--color-gris-texto, #5a5c69);
+        margin: 0 0 10px;
+        padding-bottom: 6px;
+        border-bottom: 1px dashed var(--color-gris-borde, #e3e6f0);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .color-subgroup-title i {
+        font-size: 0.72rem;
+        opacity: 0.6;
+    }
+
+    /* ── Color picker mejorado ── */
+    .color-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--color-borde-claro, #eee);
+    }
+
+    .color-item:last-child {
+        border-bottom: none;
+    }
+
+    .color-field {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+    }
+
+    .color-field .color-picker {
+        width: 44px;
+        height: 34px;
+        border: 2px solid var(--color-gris-borde, #e3e6f0);
+        border-radius: 8px;
+        padding: 2px;
+        cursor: pointer;
+        transition: border-color 0.2s;
+    }
+
+    .color-field .color-picker:hover {
+        border-color: var(--color-primario);
+    }
+
+    .color-field .color-hex {
+        width: 90px;
+        padding: 7px 8px;
+        border: 1.5px solid var(--color-gris-borde, #e3e6f0);
+        border-radius: 8px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.84rem;
+        font-weight: 600;
+        color: var(--color-texto, #333);
+        text-align: center;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .color-field .color-hex:focus {
+        outline: none;
+        border-color: var(--color-primario);
+        box-shadow: var(--marca-focus-ring, 0 0 0 3px rgba(18, 44, 148, 0.10));
+    }
+
+    .color-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .color-info .color-name {
+        font-weight: 700;
+        font-size: 0.88rem;
+        color: var(--color-texto, #333);
+        margin: 0 0 2px;
+    }
+
+    .color-info .color-help {
+        font-size: 0.78rem;
+        color: var(--color-texto-muted, #6c757d);
+        margin: 0;
+        line-height: 1.35;
+    }
+
+    .color-info .color-help .tag {
+        display: inline-block;
+        background: var(--color-fondo-form, #f8f9fc);
+        border: 1px solid var(--color-gris-borde, #e3e6f0);
+        border-radius: 4px;
+        padding: 1px 6px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: var(--color-gris-texto, #5a5c69);
+        margin: 2px 2px 0 0;
+        white-space: nowrap;
+    }
+
+    /* ── Sección de preview de colores ── */
+    .color-preview-bar {
+        display: flex;
+        gap: 0;
+        border-radius: 8px;
+        overflow: hidden;
+        height: 8px;
+        margin-top: 16px;
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+
+    .color-preview-bar .swatch {
+        flex: 1;
+        transition: background-color 0.3s;
+    }
+
+    /* ── Preview mini del sitio ── */
+    .site-preview-mini {
+        margin-top: 18px;
+        border: 1px solid var(--color-gris-borde, #e3e6f0);
+        border-radius: 8px;
+        overflow: hidden;
+        font-size: 0;
+    }
+
+    .sp-navbar {
+        height: 10px;
+        display: flex;
+    }
+
+    .sp-navbar .sp-bg {
+        flex: 1;
+    }
+
+    .sp-navbar .sp-hover {
+        flex: 0 0 30px;
+    }
+
+    .sp-body {
+        background: #f9f9f9;
+        padding: 6px 8px;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+    }
+
+    .sp-btn {
+        height: 8px;
+        width: 40px;
+        border-radius: 3px;
+    }
+
+    .sp-accent-dot {
+        height: 8px;
+        width: 8px;
+        border-radius: 50%;
+    }
+
+    .sp-footer {
+        height: 8px;
+    }
+
+    /* ── Logo section ── */
+    .logo-preview {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .logo-preview img {
+        max-height: 70px;
+        max-width: 180px;
+        border: 2px solid var(--color-gris-borde, #e3e6f0);
+        padding: 6px;
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    .logo-upload-area {
+        flex: 1;
+    }
+
+    .logo-upload-area input[type="file"] {
+        width: 100%;
+        padding: 8px;
+        font-size: 0.85rem;
+    }
+
+    .logo-upload-area small {
+        display: block;
+        margin-top: 4px;
+        color: var(--color-texto-muted, #6c757d);
+        font-size: 0.78rem;
+    }
+
+    /* ── Redes sociales con íconos ── */
+    .social-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--color-borde-claro, #eee);
+    }
+
+    .social-row:last-child {
+        border-bottom: none;
+    }
+
+    .social-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        color: #fff;
+        flex-shrink: 0;
+    }
+
+    .social-icon.facebook {
+        background: #1877F2;
+    }
+
+    .social-icon.twitter {
+        background: #1DA1F2;
+    }
+
+    .social-icon.youtube {
+        background: #FF0000;
+    }
+
+    .social-icon.linkedin {
+        background: #0A66C2;
+    }
+
+    .social-icon.instagram {
+        background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+    }
+
+    .social-row label {
+        flex: 0 0 120px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: var(--color-gris-texto, #5a5c69);
+    }
+
+    .social-row input {
+        flex: 1;
+        min-width: 0;
+        padding: 8px 12px;
+        border: 1.5px solid var(--color-gris-borde, #e3e6f0);
+        border-radius: 8px;
+        font-size: 0.88rem;
+        font-family: 'Raleway', sans-serif;
+        color: var(--color-texto, #333);
+        transition: border-color 0.2s;
+        box-sizing: border-box;
+    }
+
+    .social-row input:focus {
+        outline: none;
+        border-color: var(--color-primario);
+        box-shadow: var(--marca-focus-ring, 0 0 0 3px rgba(18, 44, 148, 0.10));
+    }
+
+    /* ── Botón guardar ── */
+    .btn-guardar-config {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        max-width: 300px;
+        margin: 8px auto 0;
+        padding: 13px 28px;
+        background: linear-gradient(135deg, var(--color-exito, #28a745) 0%, var(--color-exito-hover, #218838) 100%);
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        font-weight: 700;
+        font-family: 'Raleway', sans-serif;
+        cursor: pointer;
+        letter-spacing: 0.03em;
+        box-shadow: 0 4px 14px rgba(40, 167, 69, 0.30);
+        transition: box-shadow 0.25s, transform 0.15s;
+    }
+
+    .btn-guardar-config:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 18px rgba(40, 167, 69, 0.42);
+    }
+
+    .btn-guardar-config:active {
+        transform: translateY(0);
+    }
+
+    /* ── Contacto textarea-like para URLs largas ── */
+    .config-row input.input-long {
+        font-size: 0.8rem;
+        padding: 8px 10px;
+        color: var(--color-gris-texto, #5a5c69);
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+        .config-row {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+        }
+
+        .config-row label {
+            flex: none;
+        }
+
+        .config-row .field {
+            width: 100%;
+        }
+
+        .social-row {
+            flex-wrap: wrap;
+        }
+
+        .social-row label {
+            flex: 0 0 100px;
+        }
+
+        .logo-preview {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block body %}
-<div style="max-width: 800px; margin: 0 auto; padding: 24px;">
-    <h2 style="margin-bottom: 24px;"><i class="fas fa-paint-brush"></i> Configuración del Cliente</h2>
+<div class="config-wrapper">
+
+    <div class="config-header">
+        <div class="icon-circle"><i class="fas fa-sliders-h"></i></div>
+        <div>
+            <h2>Configuración del Cliente</h2>
+            <p>Personaliza la identidad visual, datos de empresa y redes sociales</p>
+        </div>
+    </div>
 
     <form method="POST" enctype="multipart/form-data" action="{{ url_for('admin.configuracion_cliente') }}">
 
         {# ── Empresa ── #}
         {% if grupos.empresa %}
-        <div class="card mb-4">
-            <div class="card-header"><strong><i class="fas fa-building"></i> Empresa</strong></div>
-            <div class="card-body">
+        <div class="config-card">
+            <div class="config-card-header"><i class="fas fa-building"></i> Datos de Empresa</div>
+            <div class="config-card-body">
                 {% for item in grupos.empresa %}
-                <div class="form-group row align-items-center">
-                    <label class="col-sm-4 col-form-label">{{ item.descripcion }}</label>
-                    <div class="col-sm-8">
-                        <input type="{{ item.tipo }}" name="{{ item.clave }}"
-                               value="{{ item.valor or '' }}" class="form-control">
+                <div class="config-row">
+                    <label>{{ item.descripcion }}</label>
+                    <div class="field">
+                        <input type="{{ item.tipo }}" name="{{ item.clave }}" value="{{ item.valor or '' }}"
+                            placeholder="{% if item.tipo == 'url' %}https://...{% elif item.tipo == 'tel' %}Ej: 573001234567{% endif %}">
                     </div>
                 </div>
                 {% endfor %}
@@ -25,24 +503,536 @@
         </div>
         {% endif %}
 
-        {# ── Colores ── #}
+        {# ══════════════════════════════════════════════════════════
+        COLORES DE MARCA — divididos por zona del sitio publico
+        ══════════════════════════════════════════════════════════ #}
         {% if grupos.colores %}
-        <div class="card mb-4">
-            <div class="card-header"><strong><i class="fas fa-palette"></i> Colores de Marca</strong></div>
-            <div class="card-body">
-                {% for item in grupos.colores %}
-                <div class="form-group row align-items-center">
-                    <label class="col-sm-4 col-form-label">{{ item.descripcion }}</label>
-                    <div class="col-sm-8 d-flex align-items-center gap-2">
-                        <input type="color" name="{{ item.clave }}"
-                               value="{{ item.valor or '#000000' }}"
-                               class="color-picker"
-                               oninput="actualizarPreview(this)"
-                               style="width:48px; height:36px; border:none; padding:0; cursor:pointer;">
-                        <input type="text" class="form-control color-hex" value="{{ item.valor or '#000000' }}"
-                               style="max-width:110px; font-family:monospace;"
-                               oninput="sincronizarColor(this)"
-                               readonly>
+        {% set color_help = {
+        'color_secundario': {
+            'nombre': 'Color oscuro de marca',
+            'ayuda': 'Color principal oscuro del sitio. Controla la barra de navegacion, pie de pagina, titulos de secciones, formulario de contacto, pagina de login y registro.',
+            'tags': ['Navbar', 'Footer', 'Titulos', 'Login/Registro', 'Formulario contacto', 'Slider sombras', 'Boton menu movil', 'Boton traductor', 'Pagina servicios', 'Pagina pago']},
+        'color_transicion': {
+            'nombre': 'Color de transicion',
+            'ayuda': 'Tono intermedio para hovers y gradientes. Aparece al pasar el mouse sobre enlaces de la navbar, en el gradiente de login, hover de botones en registro y en el borde de tarjetas de servicios.',
+            'tags': ['Hover navbar', 'Gradiente login', 'Hover boton registro', 'Borde servicios', 'Hover traductor']},
+        'color_fondo_destacado': {
+            'nombre': 'Fondo secciones destacadas',
+            'ayuda': 'Gradiente de fondo en la seccion Quienes Somos del inicio. Se mezcla con el color oscuro de marca para crear un degradado.',
+            'tags': ['Seccion Quienes Somos', 'Gradiente con Navbar/Footer']},
+        'color_primario': {
+            'nombre': 'Color principal de marca',
+            'ayuda': 'Color base de la marca. Se usa en botones principales, bordes de mision/vision, subrayados decorativos, boton continuar en pago, popup de producto y spinner de carga.',
+            'tags': ['Botones principales', 'Borde mision/vision', 'Subrayado decorativo', 'Boton continuar pago', 'Titulo popup producto', 'Spinner carga']},
+        'color_primario_oscuro': {
+            'nombre': 'Color principal oscuro',
+            'ayuda': 'Tono oscuro del color principal. Se usa en precios de productos, boton Ver Detalles, hover de botones de pago, franja de marca en respuesta de pago y etiquetas del popup.',
+            'tags': ['Precios productos', 'Boton Ver Detalles', 'Hover boton pago', 'Franja respuesta pago', 'Etiquetas popup', 'Hover confirmar alerta']},
+        'color_botones': {
+            'nombre': 'Color botones secundarios',
+            'ayuda': 'Color para botones de accion secundaria como descargar, exportar y seccion de cambio de contrasena.',
+            'tags': ['Boton descargar', 'Boton exportar', 'Seccion password']},
+        'color_acento': {
+            'nombre': 'Acento principal',
+            'ayuda': 'Color llamativo para resaltar elementos clave. Aparece como subrayado debajo de "Quienes Somos" en la seccion About Us del inicio.',
+            'tags': ['Subrayado Quienes Somos', 'Elementos destacados']},
+        'color_acento_secundario': {
+            'nombre': 'Acento secundario',
+            'ayuda': 'Color complementario para iconos decorativos. Aparece en el icono de busqueda, icono de pago con tarjeta y boton de pagar en la pagina de checkout.',
+            'tags': ['Icono busqueda', 'Icono tarjeta pago', 'Boton pagar checkout']},
+        'color_carrito': {
+            'nombre': 'Color principal carrito',
+            'ayuda': 'Color exclusivo del carrito de compras. Controla encabezado de tabla, titulo, boton flotante movil y texto del total.',
+            'tags': ['Encabezado tabla carrito', 'Titulo carrito', 'Boton flotante movil', 'Total carrito']},
+        'color_carrito_hover': {
+            'nombre': 'Color hover carrito',
+            'ayuda': 'Color al pasar el mouse sobre los controles del carrito: botones +/- de cantidad y boton flotante.',
+            'tags': ['Hover botones +/-', 'Hover boton flotante']},
+        'color_alerta_fondo': {
+            'nombre': 'Fondo de alerta',
+            'ayuda': 'Color de fondo de las ventanas emergentes (SweetAlert2). Aplica tanto en el sitio publico como en el admin.',
+            'tags': ['Fondo popup']},
+        'color_alerta_texto': {
+            'nombre': 'Texto de alerta',
+            'ayuda': 'Color del titulo y texto dentro de las ventanas emergentes.',
+            'tags': ['Titulo popup', 'Texto popup']},
+        'color_alerta_confirmar': {
+            'nombre': 'Boton Aceptar (alerta)',
+            'ayuda': 'Color del boton principal para aceptar o enviar en las alertas emergentes. Tambien se usa como color de confirmacion en SweetAlert2.',
+            'tags': ['Boton Ok popup', 'Boton Aceptar']},
+        'color_alerta_cancelar': {
+            'nombre': 'Boton Cancelar (alerta)',
+            'ayuda': 'Color del boton de cancelar en las alertas emergentes.',
+            'tags': ['Boton Cancelar popup']},
+        'color_producto_boton': {
+            'nombre': 'Boton y precio',
+            'ayuda': 'Color del boton "Ver Detalles", precio en la tarjeta y precio en el popup.',
+            'tags': ['Boton Ver Detalles', 'Precio tarjeta', 'Precio popup']},
+        'color_producto_popup': {
+            'nombre': 'Popup detalles',
+            'ayuda': 'Color del titulo, etiquetas (Referencia, Genero, etc.) y hover del boton.',
+            'tags': ['Titulo popup', 'Etiquetas', 'Hover boton']}
+        } %}
+
+        {# ── 1. Color Oscuro de Marca (Navbar / Footer / Headings) ── #}
+        <div class="config-card">
+            <div class="config-card-header"><i class="fas fa-window-maximize"></i> Navbar, Footer y Fondos Oscuros <small
+                    style="opacity:0.7; font-weight:400; margin-left:8px;">(el color mas usado del sitio publico)</small></div>
+            <div class="config-card-body">
+                {% for item in grupos.colores if item.clave in ('color_secundario', 'color_transicion', 'color_fondo_destacado') %}
+                {% set help = color_help.get(item.clave, {}) %}
+                <div class="color-item">
+                    <div class="color-field">
+                        <input type="color" name="{{ item.clave }}" value="{{ item.valor or '#000000' }}"
+                            class="color-picker" oninput="actualizarPreview(this)">
+                        <input type="text" class="color-hex" value="{{ item.valor or '#000000' }}"
+                            oninput="sincronizarColor(this)">
+                    </div>
+                    <div class="color-info">
+                        <p class="color-name">{{ help.nombre or item.descripcion }}</p>
+                        <p class="color-help">{{ help.ayuda or '' }}</p>
+                        <div>{% for tag in help.get('tags', []) %}<span class="tag">{{ tag }}</span>{% endfor %}</div>
+                    </div>
+                </div>
+                {% endfor %}
+                {# -- Mini preview del sitio -- #}
+                <div class="site-preview-mini" style="margin-top:14px;">
+                    <div class="sp-navbar">
+                        {% for item in grupos.colores if item.clave == 'color_secundario' %}
+                        <div class="sp-bg" data-clave="{{ item.clave }}" style="background:{{ item.valor }};"></div>
+                        {% endfor %}
+                        {% for item in grupos.colores if item.clave == 'color_transicion' %}
+                        <div class="sp-hover" data-clave="{{ item.clave }}" style="background:{{ item.valor }};"></div>
+                        {% endfor %}
+                    </div>
+                    <div class="sp-body" style="height:10px;"></div>
+                    <div style="height:14px; display:flex;">
+                        {% for item in grupos.colores if item.clave == 'color_secundario' %}
+                        <div data-clave="{{ item.clave }}" style="flex:1; background:{{ item.valor }};"></div>
+                        {% endfor %}
+                        {% for item in grupos.colores if item.clave == 'color_fondo_destacado' %}
+                        <div data-clave="{{ item.clave }}" style="flex:1; background:{{ item.valor }};"></div>
+                        {% endfor %}
+                    </div>
+                    <div style="text-align:center; font-size:0.6rem; color:var(--color-texto-muted); padding:1px 0; background:#f9f9f9;">
+                        Quienes Somos</div>
+                    <div class="sp-body" style="height:6px;"></div>
+                    <div class="sp-footer" style="opacity:0.3;">
+                        {% for item in grupos.colores if item.clave == 'color_secundario' %}
+                        <div style="background:{{ item.valor }}; height:100%;" data-clave="{{ item.clave }}"></div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {# -- Detalle de paginas afectadas -- #}
+                <div style="margin-top:12px; padding:10px 14px; background:var(--color-fondo-form, #f8f9fc); border-radius:8px; border:1px solid var(--color-gris-borde, #e3e6f0);">
+                    <p style="font-size:0.72rem; font-weight:700; color:var(--color-gris-texto); margin:0 0 6px; text-transform:uppercase;">
+                        <i class="fas fa-sitemap"></i> Paginas afectadas por "Color oscuro de marca"
+                    </p>
+                    <div style="display:flex; flex-wrap:wrap; gap:4px;">
+                        <span class="tag">layout.css &mdash; navbar bg, footer bg, logo hover, boton menu, traductor</span>
+                        <span class="tag">index.css &mdash; slider sombra, puntos nav, titulo publicaciones, h3 cards, h2 mision/vision, contacto form</span>
+                        <span class="tag">login.css &mdash; gradiente body, h2, labels, input focus, boton</span>
+                        <span class="tag">registro.css &mdash; sombra form, h2, labels, boton</span>
+                        <span class="tag">servicios.css &mdash; h2 servicio, modal h2/ul, hover gradiente</span>
+                        <span class="tag">pago.css &mdash; h2, h3, labels formulario, info producto, total resumen</span>
+                        <span class="tag">error404.css &mdash; texto body</span>
+                        <span class="tag">respuesta_pago.css &mdash; hover boton</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# ── 2. Botones y Enlaces ── #}
+        <div class="config-card">
+            <div class="config-card-header"><i class="fas fa-hand-pointer"></i> Botones y Enlaces <small
+                    style="opacity:0.7; font-weight:400; margin-left:8px;">(elementos interactivos en toda la pagina)</small></div>
+            <div class="config-card-body">
+                {% for item in grupos.colores if item.clave in ('color_primario', 'color_primario_oscuro', 'color_botones') %}
+                {% set help = color_help.get(item.clave, {}) %}
+                <div class="color-item">
+                    <div class="color-field">
+                        <input type="color" name="{{ item.clave }}" value="{{ item.valor or '#000000' }}"
+                            class="color-picker" oninput="actualizarPreview(this)">
+                        <input type="text" class="color-hex" value="{{ item.valor or '#000000' }}"
+                            oninput="sincronizarColor(this)">
+                    </div>
+                    <div class="color-info">
+                        <p class="color-name">{{ help.nombre or item.descripcion }}</p>
+                        <p class="color-help">{{ help.ayuda or '' }}</p>
+                        <div>{% for tag in help.get('tags', []) %}<span class="tag">{{ tag }}</span>{% endfor %}</div>
+                    </div>
+                </div>
+                {% endfor %}
+                {# -- Preview de botones -- #}
+                <div style="display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; align-items:center;">
+                    {% for item in grupos.colores if item.clave == 'color_primario' %}
+                    <div data-clave="{{ item.clave }}"
+                        style="background:{{ item.valor }}; color:#fff; padding:6px 16px; border-radius:6px; font-size:0.78rem; font-weight:700;">
+                        Boton principal</div>
+                    {% endfor %}
+                    {% for item in grupos.colores if item.clave == 'color_primario_oscuro' %}
+                    <div data-clave="{{ item.clave }}"
+                        style="background:{{ item.valor }}; color:#fff; padding:6px 16px; border-radius:6px; font-size:0.78rem; font-weight:700;">
+                        Ver Detalles</div>
+                    {% endfor %}
+                    {% for item in grupos.colores if item.clave == 'color_botones' %}
+                    <div data-clave="{{ item.clave }}"
+                        style="background:{{ item.valor }}; color:#fff; padding:6px 16px; border-radius:6px; font-size:0.78rem; font-weight:700;">
+                        Boton secundario</div>
+                    {% endfor %}
+                    {% for item in grupos.colores if item.clave == 'color_primario' %}
+                    <a href="#" onclick="return false" data-clave="{{ item.clave }}"
+                        style="color:{{ item.valor }}; font-size:0.78rem; font-weight:700; text-decoration:underline; padding:6px 0;">Enlace de ejemplo</a>
+                    {% endfor %}
+                    {% for item in grupos.colores if item.clave == 'color_primario_oscuro' %}
+                    <span data-clave="{{ item.clave }}" style="color:{{ item.valor }}; font-size:0.88rem; font-weight:700;">
+                        $150.000</span>
+                    <span style="font-size:0.68rem; color:var(--color-texto-muted);">(precio producto)</span>
+                    {% endfor %}
+                </div>
+                {# -- Detalle de paginas afectadas -- #}
+                <div style="margin-top:12px; padding:10px 14px; background:var(--color-fondo-form, #f8f9fc); border-radius:8px; border:1px solid var(--color-gris-borde, #e3e6f0);">
+                    <p style="font-size:0.72rem; font-weight:700; color:var(--color-gris-texto); margin:0 0 6px; text-transform:uppercase;">
+                        <i class="fas fa-sitemap"></i> Donde aparecen estos colores
+                    </p>
+                    <div style="display:flex; flex-wrap:wrap; gap:4px;">
+                        <span class="tag">Productos.css &mdash; precio, Ver Detalles, popup titulo/precio/labels</span>
+                        <span class="tag">pago.css &mdash; boton continuar, hover PSE, spinner carga</span>
+                        <span class="tag">index.css &mdash; borde mision/vision, subrayado h2</span>
+                        <span class="tag">respuesta_pago.css &mdash; franja marca, valor ticket, boton cyber</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# ── 3. Pagina de Productos ── #}
+        {# Extraer valores actuales con namespace para evitar scoping de Jinja2 #}
+        {% set ns_prod = namespace(boton='#091C5A', popup='#122C94') %}
+        {% if grupos.colores %}
+            {% for item in grupos.colores if item.clave == 'color_producto_boton' %}{% set ns_prod.boton = item.valor or '#091C5A' %}{% endfor %}
+            {% for item in grupos.colores if item.clave == 'color_producto_popup' %}{% set ns_prod.popup = item.valor or '#122C94' %}{% endfor %}
+        {% endif %}
+        <div class="config-card">
+            <div class="config-card-header"><i class="fas fa-box-open"></i> Pagina de Productos</div>
+            <div class="config-card-body" style="padding:24px;">
+
+                {# ══ Color pickers ARRIBA — siempre visibles ══ #}
+                <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:20px;">
+
+                    {# Picker 1: Boton y Precio #}
+                    <div style="flex:1; min-width:250px; background:var(--color-fondo-form, #f8f9fc); border:2px solid var(--color-gris-borde, #e3e6f0); border-radius:12px; padding:16px;">
+                        <p style="margin:0 0 10px; font-weight:700; font-size:0.9rem; color:#333;">
+                            <i class="fas fa-palette" style="margin-right:5px;"></i> Boton y Precio
+                        </p>
+                        <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                            <input type="color" name="color_producto_boton" value="{{ ns_prod.boton }}"
+                                class="color-picker" style="width:52px; height:40px; border:2px solid #ccc; border-radius:10px; padding:2px; cursor:pointer;"
+                                oninput="actualizarPreview(this); actualizarProductoPreview();">
+                            <input type="text" class="color-hex" value="{{ ns_prod.boton }}"
+                                style="width:100px; padding:8px 10px; border:1.5px solid #ddd; border-radius:8px; font-family:'Courier New',monospace; font-size:0.88rem; font-weight:600; text-align:center;"
+                                oninput="sincronizarColor(this); actualizarProductoPreview();">
+                        </div>
+                        <p style="margin:0; font-size:0.76rem; color:#888; line-height:1.4;">Color del boton "Ver Detalles", precio en la tarjeta y precio en el popup.</p>
+                        <div style="margin-top:6px;">
+                            <span class="tag">Boton Ver Detalles</span>
+                            <span class="tag">Precio tarjeta</span>
+                            <span class="tag">Precio popup</span>
+                        </div>
+                    </div>
+
+                    {# Picker 2: Popup y Etiquetas #}
+                    <div style="flex:1; min-width:250px; background:var(--color-fondo-form, #f8f9fc); border:2px solid var(--color-gris-borde, #e3e6f0); border-radius:12px; padding:16px;">
+                        <p style="margin:0 0 10px; font-weight:700; font-size:0.9rem; color:#333;">
+                            <i class="fas fa-window-restore" style="margin-right:5px;"></i> Popup y Etiquetas
+                        </p>
+                        <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                            <input type="color" name="color_producto_popup" value="{{ ns_prod.popup }}"
+                                class="color-picker" style="width:52px; height:40px; border:2px solid #ccc; border-radius:10px; padding:2px; cursor:pointer;"
+                                oninput="actualizarPreview(this); actualizarProductoPreview();">
+                            <input type="text" class="color-hex" value="{{ ns_prod.popup }}"
+                                style="width:100px; padding:8px 10px; border:1.5px solid #ddd; border-radius:8px; font-family:'Courier New',monospace; font-size:0.88rem; font-weight:600; text-align:center;"
+                                oninput="sincronizarColor(this); actualizarProductoPreview();">
+                        </div>
+                        <p style="margin:0; font-size:0.76rem; color:#888; line-height:1.4;">Color del titulo, etiquetas (Referencia, Genero, etc.) y hover del boton.</p>
+                        <div style="margin-top:6px;">
+                            <span class="tag">Titulo popup</span>
+                            <span class="tag">Etiquetas</span>
+                            <span class="tag">Hover boton</span>
+                        </div>
+                    </div>
+                </div>
+
+                {# ══ Vista previa en vivo ABAJO ══ #}
+                <p style="font-size:0.75rem; font-weight:700; color:var(--color-gris-texto); margin:0 0 12px; text-transform:uppercase; letter-spacing:0.05em;">
+                    <i class="fas fa-eye"></i> Vista previa en vivo
+                </p>
+
+                <div style="background:#f4f5f7; border-radius:12px; padding:20px; border:1px solid #e3e6f0;">
+                    <div style="display:flex; gap:20px; justify-content:center; flex-wrap:wrap; align-items:flex-start;">
+
+                        {# ── Tarjeta de producto ── #}
+                        <div style="text-align:center;">
+                            <p style="font-size:0.68rem; font-weight:600; color:#999; margin:0 0 8px; text-transform:uppercase; letter-spacing:0.06em;">Tarjeta de producto</p>
+                            <div id="prev-prod-card" style="border:1px solid #e3e6f0; border-radius:12px; padding:16px; width:200px; text-align:center; background:#fff; box-shadow:0 4px 16px rgba(0,0,0,0.08);">
+                                <div style="width:100%; height:110px; background:linear-gradient(135deg,#e8eaf6,#c5cae9); border-radius:10px; margin-bottom:12px; display:flex; align-items:center; justify-content:center;">
+                                    <i class="fas fa-laptop" style="font-size:2.5rem; color:#7986cb;"></i>
+                                </div>
+                                <p style="margin:0 0 2px; font-size:0.9rem; font-weight:700; color:#333;">Laptop Pro X</p>
+                                <p style="margin:0 0 6px; font-size:0.72rem; color:#aaa;">Ref: LAP-2025 &bull; <span style="color:#28a745; font-weight:600;">En stock</span></p>
+                                <p id="prev-prod-precio" style="margin:0 0 12px; font-size:1.15rem; font-weight:800; color:{{ ns_prod.boton }};">$3.450.000</p>
+                                <div style="display:flex; gap:8px; justify-content:center;">
+                                    <div style="background:#28a745; color:#fff; padding:7px 14px; border-radius:6px; font-size:0.72rem; font-weight:600; cursor:default;">
+                                        <i class="fas fa-cart-plus" style="margin-right:3px;"></i> Añadir</div>
+                                    <div id="prev-prod-btn" style="color:#fff; padding:7px 14px; border-radius:22px; font-size:0.72rem; font-weight:700; text-transform:uppercase; cursor:pointer; transition:all 0.3s; box-shadow:0 3px 8px rgba(0,0,0,0.18); background-color:{{ ns_prod.boton }};"
+                                        onmouseenter="this.style.backgroundColor=document.querySelector('input[name=color_producto_popup]').value"
+                                        onmouseleave="this.style.backgroundColor=document.querySelector('input[name=color_producto_boton]').value">
+                                        Ver Detalles</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {# ── Flecha indicadora ── #}
+                        <div style="display:flex; align-items:center; padding-top:60px; color:#ccc; font-size:1.5rem;">
+                            <i class="fas fa-long-arrow-alt-right"></i>
+                        </div>
+
+                        {# ── Popup de descripcion ── #}
+                        <div style="text-align:center;">
+                            <p style="font-size:0.68rem; font-weight:600; color:#999; margin:0 0 8px; text-transform:uppercase; letter-spacing:0.06em;">Popup de detalles</p>
+                            <div id="prev-prod-popup" style="border:1px solid #e3e6f0; border-radius:14px; padding:18px; width:240px; background:#fff; box-shadow:0 8px 28px rgba(0,0,0,0.13); position:relative; text-align:left;">
+                                <div style="position:absolute; top:10px; right:14px; font-size:1.2rem; color:#bbb; cursor:default;">&times;</div>
+                                <div style="width:100%; height:80px; background:linear-gradient(135deg,#e8eaf6,#c5cae9); border-radius:10px; margin-bottom:12px; display:flex; align-items:center; justify-content:center;">
+                                    <i class="fas fa-laptop" style="font-size:2rem; color:#7986cb;"></i>
+                                </div>
+                                <p id="prev-popup-titulo" style="margin:0 0 10px; font-size:1.05rem; font-weight:800; color:{{ ns_prod.popup }};">Laptop Pro X</p>
+                                <p style="margin:0 0 5px; font-size:0.8rem; line-height:1.5;">
+                                    <strong id="prev-popup-label1" style="font-weight:700; color:{{ ns_prod.popup }};">Referencia:</strong>
+                                    <span style="color:#555;"> LAP-PRO-2025</span>
+                                </p>
+                                <p style="margin:0 0 5px; font-size:0.8rem; line-height:1.5;">
+                                    <strong id="prev-popup-label2" style="font-weight:700; color:{{ ns_prod.popup }};">Genero:</strong>
+                                    <span style="color:#555;"> Tecnologia</span>
+                                </p>
+                                <p style="margin:0 0 5px; font-size:0.8rem; line-height:1.5;">
+                                    <strong id="prev-popup-label3" style="font-weight:700; color:{{ ns_prod.popup }};">Descripcion:</strong>
+                                    <span style="color:#555;"> Laptop de alto rendimiento con 16GB RAM y SSD 512GB</span>
+                                </p>
+                                <div style="margin-top:10px; padding-top:10px; border-top:1px dashed #e0e0e0;">
+                                    <p style="margin:0; font-size:0.72rem; color:#999;">Precio:</p>
+                                    <p id="prev-popup-precio" style="margin:2px 0 0; font-size:1.15rem; font-weight:800; color:{{ ns_prod.boton }};">$3.450.000</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# ── Leyenda visual ── #}
+                    <div style="display:flex; gap:20px; justify-content:center; margin-top:16px; flex-wrap:wrap;">
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <span id="prev-legend-boton" style="display:inline-block; width:14px; height:14px; border-radius:4px; background:{{ ns_prod.boton }}; border:1px solid rgba(0,0,0,0.1);"></span>
+                            <span style="font-size:0.72rem; color:#666; font-weight:600;">Color Boton/Precio</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <span id="prev-legend-popup" style="display:inline-block; width:14px; height:14px; border-radius:4px; background:{{ ns_prod.popup }}; border:1px solid rgba(0,0,0,0.1);"></span>
+                            <span style="font-size:0.72rem; color:#666; font-weight:600;">Color Popup/Etiquetas</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# ── 4. Acentos y Destacados ── #}
+        <div class="config-card">
+            <div class="config-card-header"><i class="fas fa-star"></i> Acentos y Destacados <small
+                    style="opacity:0.7; font-weight:400; margin-left:8px;">(badges, iconos decorativos, subrayados)</small></div>
+            <div class="config-card-body">
+                {% for item in grupos.colores if item.clave in ('color_acento', 'color_acento_secundario') %}
+                {% set help = color_help.get(item.clave, {}) %}
+                <div class="color-item">
+                    <div class="color-field">
+                        <input type="color" name="{{ item.clave }}" value="{{ item.valor or '#000000' }}"
+                            class="color-picker" oninput="actualizarPreview(this)">
+                        <input type="text" class="color-hex" value="{{ item.valor or '#000000' }}"
+                            oninput="sincronizarColor(this)">
+                    </div>
+                    <div class="color-info">
+                        <p class="color-name">{{ help.nombre or item.descripcion }}</p>
+                        <p class="color-help">{{ help.ayuda or '' }}</p>
+                        <div>{% for tag in help.get('tags', []) %}<span class="tag">{{ tag }}</span>{% endfor %}</div>
+                    </div>
+                </div>
+                {% endfor %}
+                <div style="display:flex; gap:10px; margin-top:14px; align-items:center; flex-wrap:wrap;">
+                    {% for item in grupos.colores if item.clave == 'color_acento' %}
+                    <span data-clave="{{ item.clave }}"
+                        style="background:{{ item.valor }}; color:#fff; padding:3px 12px; border-radius:20px; font-size:0.72rem; font-weight:700;">Badge</span>
+                    <span style="display:inline-flex; align-items:center; gap:4px;">
+                        <span data-clave="{{ item.clave }}" style="display:block; width:40px; height:3px; background:{{ item.valor }}; border-radius:2px;"></span>
+                        <span style="font-size:0.68rem; color:var(--color-texto-muted);">subrayado</span>
+                    </span>
+                    {% endfor %}
+                    {% for item in grupos.colores if item.clave == 'color_acento_secundario' %}
+                    <span data-clave="{{ item.clave }}" style="display:inline-flex; align-items:center; gap:4px;">
+                        <i class="fas fa-search" style="color:{{ item.valor }}; font-size:1rem;"></i>
+                        <i class="fas fa-credit-card" style="color:{{ item.valor }}; font-size:1rem;"></i>
+                        <span style="font-size:0.68rem; color:var(--color-texto-muted);">iconos</span>
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        {# ── 4. Carrito de Compras ── #}
+        <div class="config-card">
+            <div class="config-card-header"><i class="fas fa-shopping-cart"></i> Carrito de Compras <small
+                    style="opacity:0.7; font-weight:400; margin-left:8px;">(independiente del resto del sitio)</small></div>
+            <div class="config-card-body">
+                {% for item in grupos.colores if item.clave in ('color_carrito', 'color_carrito_hover') %}
+                {% set help = color_help.get(item.clave, {}) %}
+                <div class="color-item">
+                    <div class="color-field">
+                        <input type="color" name="{{ item.clave }}" value="{{ item.valor or '#000000' }}"
+                            class="color-picker" oninput="actualizarPreview(this)">
+                        <input type="text" class="color-hex" value="{{ item.valor or '#000000' }}"
+                            oninput="sincronizarColor(this)">
+                    </div>
+                    <div class="color-info">
+                        <p class="color-name">{{ help.nombre or item.descripcion }}</p>
+                        <p class="color-help">{{ help.ayuda or '' }}</p>
+                        <div>{% for tag in help.get('tags', []) %}<span class="tag">{{ tag }}</span>{% endfor %}</div>
+                    </div>
+                </div>
+                {% endfor %}
+                <div style="display:flex; gap:10px; margin-top:14px; align-items:center; flex-wrap:wrap;">
+                    {% for item in grupos.colores if item.clave == 'color_carrito' %}
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <div data-clave="{{ item.clave }}"
+                            style="width:40px; height:40px; border-radius:50%; background:{{ item.valor }}; display:flex; align-items:center; justify-content:center;">
+                            <i class="fas fa-shopping-cart" style="color:#fff; font-size:0.9rem;"></i>
+                        </div>
+                        <span style="font-size:0.72rem; color:var(--color-texto-muted);">Boton flotante</span>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:2px;">
+                        <div data-clave="{{ item.clave }}"
+                            style="background:{{ item.valor }}; color:#fff; padding:4px 20px; border-radius:4px 4px 0 0; font-size:0.68rem; font-weight:600; text-transform:uppercase;">
+                            Producto &nbsp; Precio &nbsp; Cant.</div>
+                        <div style="background:#f9f9f9; padding:4px 20px; font-size:0.68rem; color:#666;">Item ejemplo
+                            &nbsp; $50.000 &nbsp; 2</div>
+                    </div>
+                    {% endfor %}
+                    {% for item in grupos.colores if item.clave == 'color_carrito_hover' %}
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <div data-clave="{{ item.clave }}"
+                            style="width:24px; height:24px; border-radius:4px; background:{{ item.valor }}; display:flex; align-items:center; justify-content:center; color:#fff; font-size:0.7rem; font-weight:700;">
+                            +</div>
+                        <div data-clave="{{ item.clave }}"
+                            style="width:24px; height:24px; border-radius:4px; background:{{ item.valor }}; display:flex; align-items:center; justify-content:center; color:#fff; font-size:0.7rem; font-weight:700;">
+                            -</div>
+                        <span style="font-size:0.72rem; color:var(--color-texto-muted); margin-left:2px;">Hover controles</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                <p style="font-size:0.72rem; color:var(--color-texto-muted); margin:8px 0 0; text-align:center;">
+                    <i class="fas fa-info-circle"></i> Solo afecta carrito.css — no modifica navbar ni footer.
+                </p>
+            </div>
+        </div>
+
+        {# ── 5. Alertas Emergentes (SweetAlert2) ── #}
+        <div class="config-card">
+            <div class="config-card-header"><i class="fas fa-exclamation-circle"></i> Alertas Emergentes (Pop-ups)
+                <small style="opacity:0.7; font-weight:400; margin-left:8px;">(SweetAlert2 en todo el sitio)</small></div>
+            <div class="config-card-body">
+                {% for item in grupos.colores if item.clave in ('color_alerta_fondo', 'color_alerta_texto',
+                'color_alerta_confirmar', 'color_alerta_cancelar') %}
+                {% set help = color_help.get(item.clave, {}) %}
+                <div class="color-item">
+                    <div class="color-field">
+                        <input type="color" name="{{ item.clave }}" value="{{ item.valor or '#000000' }}"
+                            class="color-picker" oninput="actualizarPreview(this)">
+                        <input type="text" class="color-hex" value="{{ item.valor or '#000000' }}"
+                            oninput="sincronizarColor(this)">
+                    </div>
+                    <div class="color-info">
+                        <p class="color-name">{{ help.nombre or item.descripcion }}</p>
+                        <p class="color-help">{{ help.ayuda or '' }}</p>
+                        <div>{% for tag in help.get('tags', []) %}<span class="tag">{{ tag }}</span>{% endfor %}</div>
+                    </div>
+                </div>
+                {% endfor %}
+                <div style="display:flex; justify-content:center; margin-top:14px;">
+                    <button type="button" class="btn-guardar-config" onclick="Swal.fire({
+                        title: 'Alerta de Prueba',
+                        text: 'Asi se veran los colores de las notificaciones emergentes en el sitio.',
+                        icon: 'info',
+                        showCancelButton: true,
+                        confirmButtonText: 'Aceptar',
+                        cancelButtonText: 'Cancelar',
+                        confirmButtonColor: document.querySelector('input[name=color_alerta_confirmar]') ? document.querySelector('input[name=color_alerta_confirmar]').value : '#122C94',
+                        cancelButtonColor: document.querySelector('input[name=color_alerta_cancelar]') ? document.querySelector('input[name=color_alerta_cancelar]').value : '#dc3545',
+                        background: document.querySelector('input[name=color_alerta_fondo]') ? document.querySelector('input[name=color_alerta_fondo]').value : '#ffffff',
+                        color: document.querySelector('input[name=color_alerta_texto]') ? document.querySelector('input[name=color_alerta_texto]').value : '#333333'
+                    })" style="padding: 6px 16px; font-size:0.8rem; width: auto; max-width: none;">
+                        <i class="fas fa-eye"></i> Probar alerta
+                    </button>
+                </div>
+                <p style="font-size:0.72rem; color:var(--color-texto-muted); margin:8px 0 0; text-align:center;">
+                    <i class="fas fa-info-circle"></i> Estos colores aplican globalmente via variables.css (SweetAlert2 overrides). Funcionan en sitio publico y panel admin.
+                </p>
+            </div>
+        </div>
+
+        {# ── Barra de paleta completa ── #}
+        <div style="margin-bottom:24px;">
+            <p style="font-size:0.78rem; font-weight:600; color:var(--color-gris-texto); margin:0 0 6px; text-transform:uppercase; letter-spacing:0.04em;">
+                <i class="fas fa-swatchbook"></i> Paleta completa del sitio publico
+            </p>
+            <div class="color-preview-bar" id="colorPreviewBar">
+                {% for item in grupos.colores if item.clave not in ('color_admin_sidebar_fondo', 'color_admin_sidebar_fondo_fin', 'color_admin_sidebar_submenu', 'color_admin_footer', 'color_hover_menu') %}
+                <div class="swatch" data-clave="{{ item.clave }}"
+                    style="background-color:{{ item.valor or '#000000' }};" title="{{ item.clave }}"></div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Colores admin ocultos (se mantienen sus valores actuales) ── #}
+        {% if grupos.colores %}
+        {% for item in grupos.colores if item.clave in ('color_admin_sidebar_fondo', 'color_admin_sidebar_fondo_fin', 'color_admin_sidebar_submenu', 'color_admin_footer', 'color_hover_menu') %}
+        <input type="hidden" name="{{ item.clave }}" value="{{ item.valor or '' }}">
+        {% endfor %}
+        {% endif %}
+
+        {# ── Redes Sociales ── #}
+        {% if grupos.redes %}
+        <div class="config-card">
+            <div class="config-card-header"><i class="fas fa-share-alt"></i> Redes Sociales</div>
+            <div class="config-card-body">
+                {% for item in grupos.redes %}
+                {% set net = item.clave.replace('empresa_', '') %}
+                <div class="social-row">
+                    <div class="social-icon {{ net }}">
+                        <i class="fab fa-{{ 'twitter' if net == 'twitter' else net }}"></i>
+                    </div>
+                    <label>{{ item.descripcion }}</label>
+                    <input type="url" name="{{ item.clave }}" value="{{ item.valor or '' }}" placeholder="https://...">
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Ubicación y Contacto ── #}
+        {% if grupos.contacto %}
+        <div class="config-card">
+            <div class="config-card-header"><i class="fas fa-map-marker-alt"></i> Ubicación y Contacto</div>
+            <div class="config-card-body">
+                {% for item in grupos.contacto %}
+                <div class="config-row">
+                    <label>{{ item.descripcion }}</label>
+                    <div class="field">
+                        <input type="{{ item.tipo }}" name="{{ item.clave }}" value="{{ item.valor or '' }}" {% if
+                            item.clave=='empresa_maps_embed' %}class="input-long"
+                            placeholder="Pega aquí el src del iframe de Google Maps" {% endif %}>
                     </div>
                 </div>
                 {% endfor %}
@@ -51,58 +1041,88 @@
         {% endif %}
 
         {# ── Logo ── #}
-        <div class="card mb-4">
-            <div class="card-header"><strong><i class="fas fa-image"></i> Logo</strong></div>
-            <div class="card-body">
-                <div class="form-group row align-items-center">
-                    <label class="col-sm-4 col-form-label">Logo actual</label>
-                    <div class="col-sm-8">
-                        <img src="{{ url_for('static', filename='img/Logo.png') }}"
-                             alt="Logo actual" id="preview-logo"
-                             style="max-height:80px; max-width:200px; border:1px solid #eee; padding:4px; border-radius:4px;">
-                    </div>
-                </div>
-                <div class="form-group row align-items-center">
-                    <label class="col-sm-4 col-form-label">Subir nuevo logo</label>
-                    <div class="col-sm-8">
-                        <input type="file" name="logo" class="form-control-file"
-                               accept="image/*" onchange="previewLogo(this)">
-                        <small class="text-muted">Reemplazará el archivo Logo.png actual.</small>
+        <div class="config-card">
+            <div class="config-card-header"><i class="fas fa-image"></i> Logo de la Empresa</div>
+            <div class="config-card-body">
+                <div class="logo-preview">
+                    <img src="{{ url_for('static', filename='img/Logo.png') }}" alt="Logo actual" id="preview-logo">
+                    <div class="logo-upload-area">
+                        <input type="file" name="logo" accept="image/*" onchange="previewLogo(this)">
+                        <small>Formato recomendado: PNG transparente. Reemplazará el logo actual.</small>
                     </div>
                 </div>
             </div>
         </div>
 
-        <button type="submit" class="btn btn-primary">
-            <i class="fas fa-save"></i> Guardar cambios
+        <button type="submit" class="btn-guardar-config">
+            <i class="fas fa-save"></i> Guardar Configuración
         </button>
     </form>
 </div>
 
 <script>
-function actualizarPreview(colorInput) {
-    // Sincroniza el color-picker con el campo de texto hex adyacente
-    var row = colorInput.closest('.col-sm-8');
-    var hexInput = row.querySelector('.color-hex');
-    if (hexInput) hexInput.value = colorInput.value;
-}
-
-function sincronizarColor(hexInput) {
-    var row = hexInput.closest('.col-sm-8');
-    var picker = row.querySelector('.color-picker');
-    if (picker && /^#[0-9a-fA-F]{6}$/.test(hexInput.value)) {
-        picker.value = hexInput.value;
+    function actualizarPreviews(clave, color) {
+        // Actualizar barra de preview y mini-preview del sitio
+        document.querySelectorAll('[data-clave="' + clave + '"]').forEach(function (el) {
+            el.style.backgroundColor = color;
+            el.style.background = color;
+        });
     }
-}
 
-function previewLogo(input) {
-    if (input.files && input.files[0]) {
-        var reader = new FileReader();
-        reader.onload = function(e) {
-            document.getElementById('preview-logo').src = e.target.result;
-        };
-        reader.readAsDataURL(input.files[0]);
+    function actualizarPreview(colorInput) {
+        var row = colorInput.closest('.color-field');
+        var hexInput = row.querySelector('.color-hex');
+        if (hexInput) hexInput.value = colorInput.value;
+        actualizarPreviews(colorInput.name, colorInput.value);
     }
-}
+
+    function sincronizarColor(hexInput) {
+        var row = hexInput.closest('.color-field');
+        var picker = row.querySelector('.color-picker');
+        if (picker && /^#[0-9a-fA-F]{6}$/.test(hexInput.value)) {
+            picker.value = hexInput.value;
+            actualizarPreviews(picker.name, hexInput.value);
+        }
+    }
+
+    function actualizarProductoPreview() {
+        var botonInput = document.querySelector('input[name=color_producto_boton]');
+        var popupInput = document.querySelector('input[name=color_producto_popup]');
+        if (!botonInput || !popupInput) return;
+        var cBoton = botonInput.value;
+        var cPopup = popupInput.value;
+
+        // Tarjeta: precio y boton
+        var precio = document.getElementById('prev-prod-precio');
+        if (precio) precio.style.color = cBoton;
+        var btn = document.getElementById('prev-prod-btn');
+        if (btn) btn.style.backgroundColor = cBoton;
+
+        // Popup: titulo, labels, precio
+        var titulo = document.getElementById('prev-popup-titulo');
+        if (titulo) titulo.style.color = cPopup;
+        ['prev-popup-label1', 'prev-popup-label2', 'prev-popup-label3'].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) el.style.color = cPopup;
+        });
+        var popupPrecio = document.getElementById('prev-popup-precio');
+        if (popupPrecio) popupPrecio.style.color = cBoton;
+
+        // Leyenda
+        var legBoton = document.getElementById('prev-legend-boton');
+        if (legBoton) legBoton.style.background = cBoton;
+        var legPopup = document.getElementById('prev-legend-popup');
+        if (legPopup) legPopup.style.background = cPopup;
+    }
+
+    function previewLogo(input) {
+        if (input.files && input.files[0]) {
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                document.getElementById('preview-logo').src = e.target.result;
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
 </script>
 {% endblock %}

@@ -16,7 +16,7 @@ main {
     margin: 0 auto 40px;
     background: #ffffff;
     border-radius: 14px;
-    box-shadow: 0 4px 24px rgba(18, 44, 148, 0.08);
+    box-shadow: 0 4px 24px var(--marca-tinte);
     border: 1px solid var(--color-gris-borde);
     overflow: hidden;
     padding-bottom: 28px;
@@ -80,7 +80,7 @@ main {
 .form-group textarea:focus {
     outline: none;
     border-color: var(--color-primario);
-    box-shadow: 0 0 0 3px rgba(18, 44, 148, 0.10);
+    box-shadow: var(--marca-focus-ring);
 }
 
 .form-group input[type="file"] {

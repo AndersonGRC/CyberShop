@@ -66,7 +66,7 @@
 
                     <!-- Total -->
                     <td data-label="Total">
-                        <strong style="color:#0d1b54; font-size:1.2em;">${{ "{:,.0f}".format(p['monto_total'])
+                        <strong style="color: var(--color-primario-oscuro); font-size:1.2em;">${{ "{:,.0f}".format(p['monto_total'])
                             }}</strong>
                     </td>
 
@@ -123,7 +123,7 @@
             <button class="close-btn" onclick="cerrarModal()">&times;</button>
         </div>
         <div class="modal-body">
-            <p><strong>Ref:</strong> <span id="modalRef" style="color:#0d1b54; word-break:break-all;"></span></p>
+            <p><strong>Ref:</strong> <span id="modalRef" style="color: var(--color-primario-oscuro); word-break:break-all;"></span></p>
             <hr style="margin:15px 0; border:0; border-top:1px dashed #eee;">
             <h4 style="margin-bottom:10px;">Productos:</h4>
             <ul id="modalListaProductos" style="padding-left:20px; margin-bottom:20px;"></ul>
@@ -133,7 +133,7 @@
                 <p><strong>Teléfono:</strong> <span id="modalTelefono"></span></p>
             </div>
             <button onclick="cerrarModal()"
-                style="width:100%; padding:12px; background:#0d1b54; color:white; border:none; border-radius:8px; margin-top:20px; font-weight:bold;">Cerrar</button>
+                style="width:100%; padding:12px; background: var(--color-primario-oscuro); color:white; border:none; border-radius:8px; margin-top:20px; font-weight:bold;">Cerrar</button>
         </div>
     </div>
 </div>

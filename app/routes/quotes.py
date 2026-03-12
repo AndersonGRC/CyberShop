@@ -22,12 +22,13 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 
 def _get_brand_colors():
-    """Lee colores de marca desde cliente_config con fallback a Config."""
+    """Lee colores de marca y datos de empresa desde cliente_config con fallback a Config."""
     from config import Config
     colores = dict(Config.BRAND_COLORS)
+    colores['website'] = 'https://cybershopcol.com'
     try:
         with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute("SELECT clave, valor FROM cliente_config WHERE grupo = 'colores'")
+            cur.execute("SELECT clave, valor FROM cliente_config WHERE grupo IN ('colores', 'empresa')")
             mapping = {
                 'color_primario':        'primario',
                 'color_primario_oscuro': 'primario_oscuro',
@@ -36,6 +37,8 @@ def _get_brand_colors():
             for row in cur.fetchall():
                 if row['clave'] in mapping:
                     colores[mapping[row['clave']]] = row['valor']
+                elif row['clave'] == 'empresa_website' and row['valor']:
+                    colores['website'] = row['valor']
     except Exception:
         pass
     return colores

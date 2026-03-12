@@ -19,13 +19,26 @@
     {% if brand_config %}
     <style>
     :root {
-      {% if brand_config.color_primario        %}--color-primario:        {{ brand_config.color_primario }};{% endif %}
-      {% if brand_config.color_primario_oscuro %}--color-primario-oscuro: {{ brand_config.color_primario_oscuro }};{% endif %}
-      {% if brand_config.color_secundario      %}--color-secundario:      {{ brand_config.color_secundario }};{% endif %}
-      {% if brand_config.color_acento          %}--color-accent:          {{ brand_config.color_acento }};{% endif %}
-      {% if brand_config.color_hover_menu      %}--color-hover-menu:      {{ brand_config.color_hover_menu }};{% endif %}
+      {% if brand_config.color_primario          %}--color-primario:          {{ brand_config.color_primario }};{% endif %}
+      {% if brand_config.color_primario_oscuro   %}--color-primario-oscuro:   {{ brand_config.color_primario_oscuro }};{% endif %}
+      {% if brand_config.color_secundario        %}--color-secundario:        {{ brand_config.color_secundario }};{% endif %}
+      {% if brand_config.color_acento            %}--color-accent:            {{ brand_config.color_acento }};{% endif %}
+      {% if brand_config.color_hover_menu        %}--color-hover-menu:        {{ brand_config.color_hover_menu }};{% endif %}
+      {% if brand_config.color_transicion        %}--color-transicion:        {{ brand_config.color_transicion }};{% endif %}
+      {% if brand_config.color_botones           %}--color-botones:           {{ brand_config.color_botones }};{% endif %}
+      {% if brand_config.color_acento_secundario %}--color-acento-secundario: {{ brand_config.color_acento_secundario }};{% endif %}
+      {% if brand_config.color_fondo_destacado   %}--color-fondo-destacado:   {{ brand_config.color_fondo_destacado }};{% endif %}
+      {% if brand_config.color_carrito           %}--color-carrito:           {{ brand_config.color_carrito }};{% endif %}
+      {% if brand_config.color_carrito_hover     %}--color-carrito-hover:     {{ brand_config.color_carrito_hover }};{% endif %}
+      {% if brand_config.color_producto_boton       %}--color-producto-boton:       {{ brand_config.color_producto_boton }};{% endif %}
+      {% if brand_config.color_producto_popup       %}--color-producto-popup:       {{ brand_config.color_producto_popup }};{% endif %}
+      {% if brand_config.color_alerta_fondo      %}--color-alerta-fondo:      {{ brand_config.color_alerta_fondo }};{% endif %}
+      {% if brand_config.color_alerta_texto      %}--color-alerta-texto:      {{ brand_config.color_alerta_texto }};{% endif %}
+      {% if brand_config.color_alerta_confirmar  %}--color-alerta-confirmar:  {{ brand_config.color_alerta_confirmar }};{% endif %}
+      {% if brand_config.color_alerta_cancelar   %}--color-alerta-cancelar:   {{ brand_config.color_alerta_cancelar }};{% endif %}
     }
     </style>
+    <script>const BRAND_COLOR_BTN = "{{ brand_config.color_alerta_confirmar or '#122C94' }}";</script>
     {% endif %}
 
 </head>
@@ -36,7 +49,7 @@
 
     <div class="nav">
         <div class="wrap">
-            <div class="logo logo_small"><a class="link" href="{{ url_for('public.index') }}">CYBERSHOP</a></div>
+            <div class="logo logo_small"><a class="link" href="{{ url_for('public.index') }}">{{ datosApp.titulo or 'CYBERSHOP' }}</a></div>
             <nav>
                 {% if datosApp.longMenuAppindex > 0 %}
                 <ul>
@@ -86,20 +99,31 @@
 
     <footer class="footer">
         <div class="footer-content">
-            <h3>CyberShop Colombia</h3>
+            <h3>{{ brand_config.empresa_copyright or datosApp.titulo }}</h3>
             <p>Síguenos en nuestras redes sociales y compra nuestros planes especiales.</p>
             <ul class="socials">
-                <li><a href="#"><i class="fa fa-facebook"></i></a></li>
-                <li><a href="#"><i class="fa fa-twitter"></i></a></li>
-                <li><a href="mailto:cybershop.digitalsales@gmail.com"><i class="fa fa-google-plus"></i></a></li>
-                <li><a href="https://www.youtube.com/@codecraftershubs"><i class="fa fa-youtube"></i></a></li>
-                <li><a href="https://www.linkedin.com/in/andersonroatech/" target="_blank"><i
-                            class="fa fa-linkedin-square"></i></a></li>
+                {% if brand_config.empresa_facebook and brand_config.empresa_facebook != '#' %}
+                <li><a href="{{ brand_config.empresa_facebook }}"><i class="fa fa-facebook"></i></a></li>
+                {% endif %}
+                {% if brand_config.empresa_twitter and brand_config.empresa_twitter != '#' %}
+                <li><a href="{{ brand_config.empresa_twitter }}"><i class="fa fa-twitter"></i></a></li>
+                {% endif %}
+                {% if brand_config.empresa_email %}
+                <li><a href="mailto:{{ brand_config.empresa_email }}"><i class="fa fa-google-plus"></i></a></li>
+                {% endif %}
+                {% if brand_config.empresa_youtube and brand_config.empresa_youtube != '#' %}
+                <li><a href="{{ brand_config.empresa_youtube }}"><i class="fa fa-youtube"></i></a></li>
+                {% endif %}
+                {% if brand_config.empresa_linkedin and brand_config.empresa_linkedin != '#' %}
+                <li><a href="{{ brand_config.empresa_linkedin }}" target="_blank"><i class="fa fa-linkedin-square"></i></a></li>
+                {% endif %}
+                {% if brand_config.empresa_instagram and brand_config.empresa_instagram != '#' %}
+                <li><a href="{{ brand_config.empresa_instagram }}" target="_blank"><i class="fa fa-instagram"></i></a></li>
+                {% endif %}
             </ul>
         </div>
         <div class="footer-bottom">
-            <p>&copy;2025 CyberShop Colombia.</p>
-            <span class="Empresa">Desarrollador: andersongermancavi@gmail.com</span>
+            <p>&copy;{{ now.year if now else '2025' }} {{ brand_config.empresa_copyright or datosApp.titulo }}.</p>
         </div>
     </footer>
 
@@ -155,7 +179,7 @@
                 title: titulo,
                 text: '{{ message }}',
                 icon: tipoIcono,
-                confirmButtonColor: '#0d1b54', // Azul CyberShop
+                confirmButtonColor: (typeof BRAND_COLOR_BTN !== 'undefined') ? BRAND_COLOR_BTN : '#0d1b54',
                 confirmButtonText: 'Entendido',
                 backdrop: `rgba(0,0,123,0.1)`
             });
@@ -177,7 +201,7 @@
     {% endif %}
 
     <div class="chat-button">
-        <a href="https://wa.me/573027974969" target="_blank">
+        <a href="https://wa.me/{{ brand_config.empresa_whatsapp or '573027974969' }}" target="_blank">
             <img src="https://cdn-icons-png.flaticon.com/512/3670/3670051.png" alt="Chat Icon">
             <span>Chatea con nosotros</span>
         </a>

@@ -117,10 +117,20 @@ def enviar_mensaje():
         if request.form.get('website'):
             return redirect(url_for('public.index'))
         from app import mail
+        from database import get_db_cursor
+        email_destino = app.config['MAIL_DEFAULT_SENDER']
+        try:
+            with get_db_cursor(dict_cursor=True) as cur:
+                cur.execute("SELECT valor FROM cliente_config WHERE clave='contacto_email_destino'")
+                row = cur.fetchone()
+                if row and row['valor']:
+                    email_destino = row['valor']
+        except Exception:
+            pass
         msg = Message(
             subject=f"Contacto: {request.form.get('name')}",
             sender=app.config['MAIL_USERNAME'],
-            recipients=[app.config['MAIL_DEFAULT_SENDER']],
+            recipients=[email_destino],
             body=f"Mensaje de {request.form.get('name')} ({request.form.get('email')}): \n\n {request.form.get('message')}"
         )
         with mail.connect() as conn:

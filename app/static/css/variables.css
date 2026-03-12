@@ -7,110 +7,209 @@
    ================================================================ */
 
 :root {
-  /* ============================================
+   /* ============================================
      COLORES DE MARCA
      Estos son los colores que definen la identidad
      visual del cliente. Cambiarlos actualiza TODO
      el proyecto (sitio publico, panel admin, PDFs).
      ============================================ */
-  --color-primario: #122C94;
-  /* Azul principal - botones, encabezados de tabla, enlaces */
-  --color-primario-oscuro: #091C5A;
-  /* Azul oscuro - hover de botones, sidebar admin */
-  --color-secundario: #0e1b33;
-  /* Azul muy oscuro - navbar, footer, fondos oscuros */
-  --color-transicion: #2a4d69;
-  /* Azul medio - hover de navbar, gradientes */
-  --color-botones: #1F3A93;
-  /* Azul botones - botones secundarios, seccion password */
-  --color-hover-menu: #fb8500;
-  /* Naranja - hover del menu admin */
-  --color-accent: #e60023;
-  /* Rojo acento - elementos destacados */
-  --color-acento-secundario: #a6c438;
-  /* Verde lima - iconos de busqueda, pago con tarjeta */
+   --color-primario: #122C94;
+   /* Azul principal - botones, encabezados de tabla, enlaces */
+   --color-primario-oscuro: #091C5A;
+   /* Azul oscuro - hover de botones, sidebar admin */
+   --color-secundario: #0e1b33;
+   /* Azul muy oscuro - navbar, footer, fondos oscuros */
+   --color-transicion: #2a4d69;
+   /* Azul medio - hover de navbar, gradientes */
+   --color-botones: #1F3A93;
+   /* Azul botones - botones secundarios, seccion password */
+   --color-hover-menu: #fb8500;
+   /* Naranja - hover del menu admin */
+   --color-accent: #e60023;
+   /* Rojo acento - elementos destacados */
+   --color-acento-secundario: #a6c438;
+   /* Verde lima - iconos de busqueda, pago con tarjeta */
+   --color-fondo-destacado: #091C5A;
+   /* Gradiente de secciones oscuras publicas (Quienes Somos, banners) */
+   --color-carrito: #0e1b33;
+   /* Color principal del carrito: encabezados tabla, titulo, boton flotante, total */
+   --color-carrito-hover: #2a4d69;
+   /* Color hover del carrito: botones +/-, boton flotante hover */
 
-  /* ============================================
+   /* -- Pagina de productos -- */
+   --color-producto-boton: var(--color-primario-oscuro);
+   /* Boton "Ver Detalles": fondo, precio en tarjeta */
+   --color-producto-popup: var(--color-primario);
+   /* Popup detalles: titulo, etiquetas, precio */
+
+   /* ============================================
+     COLORES PANEL ADMIN Y ALERTAS EMERGENTES
+     ============================================ */
+   --color-admin-sidebar-fondo: var(--color-primario-oscuro);
+   /* Fondo principal (arriba) del menu lateral admin */
+   --color-admin-sidebar-fondo-fin: var(--color-primario);
+   /* Degradado final (abajo) del menu lateral admin */
+   --color-admin-sidebar-submenu: var(--color-secundario);
+   /* Fondo de los submenus desplegables en el sidebar */
+   --color-admin-footer: var(--color-primario-oscuro);
+   /* Fondo del pie de pagina en el panel de administracion */
+   --color-admin-footer-texto: #ffffff;
+   /* Texto del pie de pagina de administracion */
+
+   --color-alerta-fondo: #ffffff;
+   /* Fondo de la alerta emergente (SweetAlert2) */
+   --color-alerta-texto: var(--color-texto);
+   /* Texto dentro de la alerta emergente */
+   --color-alerta-confirmar: var(--color-primario);
+   /* Boton de confirmar/ok en la alerta emergente */
+   --color-alerta-cancelar: var(--color-peligro);
+   /* Boton de cancelar/cerrar en la alerta emergente */
+
+   /* ============================================
      COLORES NEUTROS
      ============================================ */
 
-  /* -- Fondos -- */
-  --color-fondo: #f9f9f9;
-  /* Fondo general de paginas */
-  --color-fondo-form: #f8f9fc;
-  /* Fondo de formularios y cards */
-  --color-fondo-alt: #f0f2f5;
-  /* Fondo alternativo (respuesta de pago) */
-  --color-blanco: #ffffff;
-  --color-negro: #000000;
+   /* -- Fondos -- */
+   --color-fondo: #f9f9f9;
+   /* Fondo general de paginas */
+   --color-fondo-form: #f8f9fc;
+   /* Fondo de formularios y cards */
+   --color-fondo-alt: #f0f2f5;
+   /* Fondo alternativo (respuesta de pago) */
+   --color-blanco: #ffffff;
+   --color-negro: #000000;
 
-  /* -- Texto -- */
-  --color-texto: #333333;
-  /* Texto principal del cuerpo */
-  --color-texto-secundario: #555555;
-  /* Texto secundario, labels */
-  --color-gris-texto: #5a5c69;
-  /* Texto gris para formularios admin */
-  --color-texto-claro: #7f8c8d;
-  /* Texto terciario, descripciones */
-  --color-texto-muted: #6c757d;
-  /* Texto desvanecido, etiquetas de ticket */
+   /* -- Texto -- */
+   --color-texto: #333333;
+   /* Texto principal del cuerpo */
+   --color-texto-secundario: #555555;
+   /* Texto secundario, labels */
+   --color-gris-texto: #5a5c69;
+   /* Texto gris para formularios admin */
+   --color-texto-claro: #7f8c8d;
+   /* Texto terciario, descripciones */
+   --color-texto-muted: #6c757d;
+   /* Texto desvanecido, etiquetas de ticket */
 
-  /* -- Grises -- */
-  --color-gris: #9b9b9b;
-  /* Gris medio general */
-  --color-gris-medio: #888888;
-  /* Gris medio para subtitulos */
-  --color-gris-claro: #f1f1f1;
-  /* Gris muy claro - hover de filas */
-  --color-gris-oscuro: #4A4A4A;
-  /* Gris oscuro - logo small admin */
+   /* -- Grises -- */
+   --color-gris: #9b9b9b;
+   /* Gris medio general */
+   --color-gris-medio: #888888;
+   /* Gris medio para subtitulos */
+   --color-gris-claro: #f1f1f1;
+   /* Gris muy claro - hover de filas */
+   --color-gris-oscuro: #4A4A4A;
+   /* Gris oscuro - logo small admin */
 
-  /* -- Bordes -- */
-  --color-gris-borde: #e3e6f0;
-  /* Bordes de inputs y cards */
-  --color-borde: #e0e0e0;
-  /* Bordes generales */
-  --color-borde-claro: #eeeeee;
-  /* Bordes sutiles entre filas */
-  --color-gris-deshabilitado: #cccccc;
-  /* Elementos deshabilitados */
+   /* -- Bordes -- */
+   --color-gris-borde: #e3e6f0;
+   /* Bordes de inputs y cards */
+   --color-borde: #e0e0e0;
+   /* Bordes generales */
+   --color-borde-claro: #eeeeee;
+   /* Bordes sutiles entre filas */
+   --color-gris-deshabilitado: #cccccc;
+   /* Elementos deshabilitados */
 
-  /* ============================================
+   /* ============================================
      COLORES DE ESTADO
      ============================================ */
-  --color-exito: #28a745;
-  /* Verde - acciones exitosas, boton pagar */
-  --color-exito-hover: #218838;
-  /* Verde oscuro - hover de exito */
-  --color-peligro: #dc3545;
-  /* Rojo - errores, alertas */
-  --color-peligro-hover: #c82333;
-  /* Rojo oscuro - hover de peligro */
-  --color-eliminar: #ff0000;
-  /* Rojo puro - boton eliminar */
-  --color-warning: #ffc107;
-  /* Amarillo - advertencias */
-  --color-warning-hover: #e0a800;
-  /* Amarillo oscuro - hover warning */
-  --color-info: #17a2b8;
-  /* Cyan - informacion, boton ver */
+   --color-exito: #28a745;
+   /* Verde - acciones exitosas, boton pagar */
+   --color-exito-hover: #218838;
+   /* Verde oscuro - hover de exito */
+   --color-peligro: #dc3545;
+   /* Rojo - errores, alertas */
+   --color-peligro-hover: #c82333;
+   /* Rojo oscuro - hover de peligro */
+   --color-eliminar: #ff0000;
+   /* Rojo puro - boton eliminar */
+   --color-warning: #ffc107;
+   /* Amarillo - advertencias */
+   --color-warning-hover: #e0a800;
+   /* Amarillo oscuro - hover warning */
+   --color-info: #17a2b8;
+   /* Cyan - informacion, boton ver */
 
-  /* ============================================
+   /* ============================================
      COLORES DE TERCEROS
      ============================================ */
-  --color-whatsapp: #25D366;
-  /* Verde WhatsApp */
-  --color-whatsapp-hover: #128C7E;
-  /* Verde WhatsApp oscuro */
+   --color-whatsapp: #25D366;
+   /* Verde WhatsApp */
+   --color-whatsapp-hover: #128C7E;
+   /* Verde WhatsApp oscuro */
 
-  /* ============================================
+   /* ============================================
+     COLORES DERIVADOS DE MARCA
+     Para sombras, tintes y fondos semitransparentes
+     que dependen de --color-primario (#122C94 = rgb(18,44,148))
+     ============================================ */
+   --color-marca-rgb: 18, 44, 148;
+   /* Valor RGB base del color primario — usado para rgba() */
+
+   /* Tintes de fondo (backgrounds semitransparentes de marca) */
+   --marca-tinte-sutil: rgba(18, 44, 148, 0.04);
+   --marca-tinte-leve: rgba(18, 44, 148, 0.05);
+   --marca-tinte: rgba(18, 44, 148, 0.08);
+   --marca-tinte-medio: rgba(18, 44, 148, 0.12);
+
+   /* Focus rings y sombras sutiles de marca */
+   --marca-focus-ring: 0 0 0 3px rgba(18, 44, 148, 0.10);
+   --marca-sombra-sutil: 0 2px 12px rgba(18, 44, 148, 0.10);
+   --marca-sombra-card: 0 4px 24px rgba(18, 44, 148, 0.08);
+   --marca-sombra-media: 0 4px 12px rgba(18, 44, 148, 0.30);
+   --marca-sombra-fuerte: 0 6px 16px rgba(18, 44, 148, 0.40);
+   --marca-sombra-boton: 0 4px 14px rgba(18, 44, 148, 0.25);
+   --marca-sombra-boton-hover: 0 6px 18px rgba(18, 44, 148, 0.35);
+   --marca-sombra-activa: 0 3px 10px rgba(18, 44, 148, 0.30);
+
+   /* ============================================
      SOMBRAS REUTILIZABLES
      ============================================ */
-  --sombra-suave: 0 2px 5px rgba(0, 0, 0, 0.05);
-  --sombra-media: 0 4px 10px rgba(0, 0, 0, 0.1);
-  --sombra-fuerte: 0 10px 25px rgba(0, 0, 0, 0.2);
-  --sombra-card: 0 4px 15px rgba(0, 0, 0, 0.05);
-  --overlay-claro: rgba(0, 0, 0, 0.5);
-  --overlay-oscuro: rgba(0, 0, 0, 0.8);
+   --sombra-suave: 0 2px 5px rgba(0, 0, 0, 0.05);
+   --sombra-media: 0 4px 10px rgba(0, 0, 0, 0.1);
+   --sombra-fuerte: 0 10px 25px rgba(0, 0, 0, 0.2);
+   --sombra-card: 0 4px 15px rgba(0, 0, 0, 0.05);
+   --overlay-claro: rgba(0, 0, 0, 0.5);
+   --overlay-oscuro: rgba(0, 0, 0, 0.8);
+}
+
+/* ============================================
+   SOBREESCRITURAS DE COMPONENTES GLOBALES
+   Para aplicar eficientemente los colores a elementos
+   comunes como las alertas emergentes (SweetAlert2)
+   ============================================ */
+body.swal2-shown [class^="swal2-"] {
+   font-family: inherit;
+}
+
+div.swal2-popup {
+   background-color: var(--color-alerta-fondo) !important;
+   color: var(--color-alerta-texto) !important;
+   border-radius: 12px !important;
+   box-shadow: var(--marca-sombra-fuerte) !important;
+   border: 1px solid var(--color-gris-borde) !important;
+}
+
+div.swal2-title,
+div.swal2-html-container {
+   color: var(--color-alerta-texto) !important;
+}
+
+button.swal2-confirm {
+   background-color: var(--color-alerta-confirmar) !important;
+   box-shadow: var(--marca-sombra-boton) !important;
+   transition: all 0.2s ease !important;
+   border: none !important;
+}
+
+button.swal2-confirm:hover {
+   background-color: var(--color-primario-oscuro) !important;
+   box-shadow: var(--marca-sombra-boton-hover) !important;
+   transform: translateY(-2px);
+}
+
+button.swal2-cancel {
+   background-color: var(--color-alerta-cancelar) !important;
+   border: none !important;
 }

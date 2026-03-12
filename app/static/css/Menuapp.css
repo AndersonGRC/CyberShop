@@ -12,7 +12,7 @@ body {
     margin: 0;
     padding: 0;
     font-family: 'Raleway', sans-serif;
-    background-color: #f0f2f7;
+    background-color: var(--color-fondo-alt);
     color: var(--color-negro);
     transition: margin-left 0.3s ease;
 }
@@ -35,7 +35,7 @@ main {
     align-items: center;
     justify-content: space-between;
     padding: 0 24px;
-    box-shadow: 0 2px 16px rgba(18, 44, 148, 0.10);
+    box-shadow: var(--marca-sombra-sutil);
     border-bottom: 3px solid var(--color-primario);
     z-index: 1000;
     transition: left 0.3s ease;
@@ -48,8 +48,13 @@ main {
 }
 
 @media (min-width: 769px) {
-    header:not(.hidden) ~ .header .header-logo img { opacity: 0; }
-    header.hidden ~ .header .header-logo img      { opacity: 1; }
+    header:not(.hidden)~.header .header-logo img {
+        opacity: 0;
+    }
+
+    header.hidden~.header .header-logo img {
+        opacity: 1;
+    }
 }
 
 /* Botón hamburguesa rediseñado */
@@ -61,7 +66,7 @@ main {
     height: 42px;
     cursor: pointer;
     border-radius: 10px;
-    box-shadow: 0 4px 12px rgba(18, 44, 148, 0.30);
+    box-shadow: var(--marca-sombra-media);
     font-size: 16px;
     display: flex;
     align-items: center;
@@ -72,12 +77,16 @@ main {
 .btn-menu:hover {
     background: var(--color-primario-oscuro);
     transform: scale(1.06);
-    box-shadow: 0 6px 16px rgba(18, 44, 148, 0.40);
+    box-shadow: var(--marca-sombra-fuerte);
 }
 
-.btn-menu:active { transform: scale(0.96); }
+.btn-menu:active {
+    transform: scale(0.96);
+}
 
-header.hidden ~ .header { left: 0; }
+header.hidden~.header {
+    left: 0;
+}
 
 /* ── Menú lateral ────────────────────────────────────────────── */
 header {
@@ -86,7 +95,7 @@ header {
     top: 0;
     height: 100vh;
     width: 250px;
-    background: linear-gradient(180deg, var(--color-primario-oscuro) 0%, #0d2268 100%);
+    background: linear-gradient(180deg, var(--color-admin-sidebar-fondo) 0%, var(--color-admin-sidebar-fondo-fin) 100%);
     color: #ffffff;
     box-shadow: 4px 0 20px rgba(0, 0, 0, 0.18);
     transition: transform 0.3s ease;
@@ -113,10 +122,14 @@ header .menu-logo img {
 }
 
 @media (min-width: 769px) {
-    header.hidden .menu-logo img { opacity: 0; }
+    header.hidden .menu-logo img {
+        opacity: 0;
+    }
 }
 
-header.hidden { transform: translateX(-100%); }
+header.hidden {
+    transform: translateX(-100%);
+}
 
 /* ── Navegación del sidebar ──────────────────────────────────── */
 header .nav {
@@ -124,7 +137,7 @@ header .nav {
     overflow-y: auto;
     flex: 1;
     scrollbar-width: thin;
-    scrollbar-color: rgba(255,255,255,0.2) transparent;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
 header .nav ul {
@@ -133,7 +146,9 @@ header .nav ul {
     padding: 0 8px;
 }
 
-header .nav ul li { margin: 2px 0; }
+header .nav ul li {
+    margin: 2px 0;
+}
 
 header .nav ul li a {
     color: rgba(255, 255, 255, 0.88);
@@ -163,7 +178,10 @@ header .nav ul li a i {
     opacity: 0.85;
 }
 
-header .nav ul li a:hover i { color: var(--color-hover-menu); opacity: 1; }
+header .nav ul li a:hover i {
+    color: var(--color-hover-menu);
+    opacity: 1;
+}
 
 /* Ícono de chevron */
 .nav ul li a i.fa-chevron-down {
@@ -174,17 +192,21 @@ header .nav ul li a:hover i { color: var(--color-hover-menu); opacity: 1; }
     opacity: 0.6;
 }
 
-.nav ul li:hover a i.fa-chevron-down { transform: rotate(180deg); }
+.nav ul li:hover a i.fa-chevron-down {
+    transform: rotate(180deg);
+}
 
 /* ── Submenús del sidebar ────────────────────────────────────── */
-.nav ul li { position: relative; }
+.nav ul li {
+    position: relative;
+}
 
 .nav ul li .submenu {
     display: none;
     position: absolute;
     top: 100%;
     left: 0;
-    background: rgba(6, 18, 60, 0.97);
+    background: var(--color-admin-sidebar-submenu);
     list-style: none;
     padding: 8px 0;
     margin: 0;
@@ -197,7 +219,9 @@ header .nav ul li a:hover i { color: var(--color-hover-menu); opacity: 1; }
     border-top: 2px solid var(--color-primario);
 }
 
-.nav ul li .submenu li { margin: 0; }
+.nav ul li .submenu li {
+    margin: 0;
+}
 
 .nav ul li .submenu li a {
     padding: 9px 18px 9px 24px;
@@ -223,7 +247,9 @@ header .nav ul li a:hover i { color: var(--color-hover-menu); opacity: 1; }
     margin-right: 9px;
 }
 
-.nav ul li:hover .submenu { display: block; }
+.nav ul li:hover .submenu {
+    display: block;
+}
 
 /* ── Contenido principal ─────────────────────────────────────── */
 main {
@@ -234,7 +260,9 @@ main {
     height: 100%;
 }
 
-header.hidden ~ main { margin-left: 0; }
+header.hidden~main {
+    margin-left: 0;
+}
 
 /* ── Footer ──────────────────────────────────────────────────── */
 .footer {
@@ -242,8 +270,8 @@ header.hidden ~ main { margin-left: 0; }
     bottom: 0;
     left: 250px;
     right: 0;
-    background: var(--color-primario-oscuro);
-    color: rgba(255,255,255,0.75);
+    background: var(--color-admin-footer);
+    color: var(--color-admin-footer-texto);
     padding: 8px 20px;
     text-align: center;
     font-size: 12px;
@@ -252,7 +280,9 @@ header.hidden ~ main { margin-left: 0; }
     letter-spacing: 0.02em;
 }
 
-header.hidden ~ .footer { left: 0; }
+header.hidden~.footer {
+    left: 0;
+}
 
 /* ── Submenú de páginas de productos (tabs) ──────────────────── */
 .Submenunavegacion {
@@ -272,11 +302,13 @@ header.hidden ~ .footer { left: 0; }
     justify-content: center;
     background: #ffffff;
     border-radius: 12px;
-    box-shadow: 0 2px 12px rgba(18, 44, 148, 0.10);
+    box-shadow: var(--marca-sombra-sutil);
     border: 1px solid var(--color-gris-borde);
 }
 
-.Submenunavegacion ul li { display: block; }
+.Submenunavegacion ul li {
+    display: block;
+}
 
 .Submenunavegacion a {
     text-decoration: none;
@@ -295,14 +327,14 @@ header.hidden ~ .footer { left: 0; }
 }
 
 .Submenunavegacion a:hover {
-    background-color: rgba(18, 44, 148, 0.08);
+    background-color: var(--marca-tinte);
     color: var(--color-primario-oscuro);
 }
 
 .Submenunavegacion a.active {
     background-color: var(--color-primario);
     color: #ffffff;
-    box-shadow: 0 3px 10px rgba(18, 44, 148, 0.30);
+    box-shadow: var(--marca-sombra-activa);
 }
 
 /* ── Encabezado de sección de página ─────────────────────────── */
@@ -318,7 +350,7 @@ header.hidden ~ .footer { left: 0; }
 .page-header i {
     font-size: 1.5rem;
     color: var(--color-primario);
-    background: rgba(18, 44, 148, 0.08);
+    background: var(--marca-tinte);
     width: 48px;
     height: 48px;
     border-radius: 10px;
@@ -343,14 +375,19 @@ header.hidden ~ .footer { left: 0; }
 
 /* ── Responsive ──────────────────────────────────────────────── */
 @media (max-width: 768px) {
-    .header { left: 0; height: 60px; }
+    .header {
+        left: 0;
+        height: 60px;
+    }
 
     header {
         width: 250px;
         transform: translateX(-100%);
     }
 
-    header.hidden { transform: translateX(0); }
+    header.hidden {
+        transform: translateX(0);
+    }
 
     main {
         margin-left: 0;
@@ -360,28 +397,38 @@ header.hidden ~ .footer { left: 0; }
         overflow-y: auto;
     }
 
-    .footer { left: 0; }
+    .footer {
+        left: 0;
+    }
 
     header .menu-logo img,
-    .header .header-logo img { opacity: 1 !important; }
+    .header .header-logo img {
+        opacity: 1 !important;
+    }
 
     .nav ul li .submenu {
         position: relative;
         top: 0;
         width: 100%;
         box-shadow: none;
-        background: rgba(6, 18, 60, 0.95);
+        background: var(--color-admin-sidebar-submenu);
         padding-left: 8px;
         border-radius: 0;
-        border-top: 1px solid rgba(255,255,255,0.1);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
 
-    .nav ul li.active .submenu { display: block; }
+    .nav ul li.active .submenu {
+        display: block;
+    }
 
-    .nav ul li.active a i.fa-chevron-down { transform: rotate(180deg); }
+    .nav ul li.active a i.fa-chevron-down {
+        transform: rotate(180deg);
+    }
 
     .nav ul li a:hover,
-    .nav ul li a:hover i { padding-left: 14px; }
+    .nav ul li a:hover i {
+        padding-left: 14px;
+    }
 
     .Submenunavegacion ul {
         gap: 4px;

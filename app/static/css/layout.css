@@ -73,7 +73,7 @@
     z-index: 10000 !important;
     float: left;
     width: 100%;
-    background: var(--color-negro);
+    background: var(--color-secundario);
     color: var(--color-fondo);
     padding: 0 20px;
     transition: .3s ease all;
@@ -401,7 +401,7 @@ html {
     justify-content: center;
     width: 55px;
     height: 55px;
-    background-color: var(--color-secundario);
+    background-color: var(--color-carrito);
     color: white;
     text-decoration: none;
     border-radius: 50%;
@@ -416,7 +416,7 @@ html {
 
 .cart-floating-button a:hover {
     transform: scale(1.1);
-    background-color: var(--color-transicion);
+    background-color: var(--color-carrito-hover);
 }
 
 .cart-floating-button .cart-badge {

@@ -21,7 +21,7 @@ main h2 {
     width: 100%;
     background: #ffffff;
     border-radius: 14px;
-    box-shadow: 0 4px 24px rgba(18, 44, 148, 0.08);
+    box-shadow: var(--marca-sombra-card);
     border: 1px solid var(--color-gris-borde);
     overflow: hidden;
     margin-bottom: 24px;
@@ -58,7 +58,7 @@ table tbody tr {
 table tbody tr:last-child { border-bottom: none; }
 
 table tbody tr:nth-child(even) {
-    background-color: #f8f9fc;
+    background-color: var(--color-fondo-form);
 }
 
 table tbody tr:hover {

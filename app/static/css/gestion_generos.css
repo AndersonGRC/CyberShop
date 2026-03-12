@@ -19,7 +19,7 @@ main { background: transparent; }
 .panel-lista {
     background: #ffffff;
     border-radius: 14px;
-    box-shadow: 0 4px 24px rgba(18, 44, 148, 0.08);
+    box-shadow: var(--marca-sombra-card);
     border: 1px solid var(--color-gris-borde);
     overflow: hidden;
 }
@@ -90,7 +90,7 @@ main { background: transparent; }
 .form-crear input[type="text"]:focus {
     outline: none;
     border-color: var(--color-primario);
-    box-shadow: 0 0 0 3px rgba(18, 44, 148, 0.10);
+    box-shadow: var(--marca-focus-ring);
 }
 
 .btn-crear {
@@ -151,9 +151,9 @@ main { background: transparent; }
 
 .tabla-generos tbody tr:last-child { border-bottom: none; }
 
-.tabla-generos tbody tr:nth-child(even) { background: #f8f9fc; }
+.tabla-generos tbody tr:nth-child(even) { background: var(--color-fondo-form); }
 
-.tabla-generos tbody tr:hover { background: rgba(18, 44, 148, 0.04); }
+.tabla-generos tbody tr:hover { background: var(--marca-tinte-sutil); }
 
 .tabla-generos td {
     padding: 12px 16px;
@@ -247,7 +247,7 @@ main { background: transparent; }
     font-size: 0.88rem;
     font-family: 'Raleway', sans-serif;
     box-sizing: border-box;
-    box-shadow: 0 0 0 3px rgba(18,44,148,0.10);
+    box-shadow: var(--marca-focus-ring);
 }
 
 .input-editar:focus { outline: none; }

@@ -66,7 +66,8 @@ def inject_config_global():
                 brand[row['clave']] = row['valor']
     except Exception:
         pass
-    return dict(config_global=config, brand_config=brand)
+    from datetime import datetime
+    return dict(config_global=config, brand_config=brand, now=datetime.now())
 
 # --- Registrar blueprints ---
 register_blueprints(app)

@@ -334,7 +334,7 @@
 
 /* Estilos para la sección "Acerca de Nosotros" */
 .about-us {
-    background: linear-gradient(135deg, var(--color-secundario) 0%, var(--color-primario-oscuro) 100%);
+    background: linear-gradient(135deg, var(--color-secundario) 0%, var(--color-fondo-destacado) 100%);
     padding: 60px 20px;
     margin-top: 20px;
 }
