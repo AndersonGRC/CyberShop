@@ -7,9 +7,10 @@ sola clase ``Config`` que luego se aplica a la app Flask.
 """
 
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(Path(__file__).parent / '.cybershop.conf')
 
 
 class Config:

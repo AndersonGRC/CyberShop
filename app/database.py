@@ -11,15 +11,16 @@ from contextlib import contextmanager
 
 import psycopg2
 from psycopg2.extras import DictCursor
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(Path(__file__).parent / '.cybershop.conf')
 
 
 def get_db_connection():
     """Crea y retorna una conexion psycopg2 a la base de datos.
 
-    Lee las credenciales desde variables de entorno (.env).
+    Lee las credenciales desde variables de entorno (.cybershop.conf).
 
     Raises:
         psycopg2.OperationalError: Si no puede conectarse al servidor.

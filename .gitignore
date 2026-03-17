@@ -24,6 +24,7 @@ env/
 .env
 *.env
 !.env.example
+.cybershop.conf
 *.key
 *.pem
 *.crt
