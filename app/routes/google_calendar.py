@@ -60,6 +60,7 @@ def autorizar():
         prompt='consent',
     )
     session['google_oauth_state'] = state
+    session['google_calendar_code_verifier'] = flow.code_verifier
     return redirect(auth_url)
 
 
@@ -76,10 +77,12 @@ def callback():
         return redirect(url_for('crm.crm_dashboard'))
 
     flow = _build_flow()
+    flow.code_verifier = session.get('google_calendar_code_verifier')
     flow.state = state
 
     try:
-        flow.fetch_token(authorization_response=request.url)
+        auth_response = request.url.replace('http://', 'https://', 1)
+        flow.fetch_token(authorization_response=auth_response)
     except Exception as e:
         flash(f'Error al obtener token de Google: {e}', 'danger')
         return redirect(url_for('crm.crm_dashboard'))

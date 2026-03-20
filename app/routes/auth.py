@@ -128,6 +128,7 @@ def google_login():
         prompt='select_account',
     )
     session['google_login_state'] = state
+    session['google_code_verifier'] = flow.code_verifier
     return redirect(auth_url)
 
 
@@ -142,9 +143,11 @@ def google_login_callback():
 
     # 2. Intercambiar code por tokens
     flow = _build_login_flow()
+    flow.code_verifier = session.get('google_code_verifier')
     flow.state = state
     try:
-        flow.fetch_token(authorization_response=request.url)
+        auth_response = request.url.replace('http://', 'https://', 1)
+        flow.fetch_token(authorization_response=auth_response)
     except Exception as e:
         app.logger.error(f"Error obteniendo token Google Login: {e}")
         flash('Error al autenticar con Google. Intenta de nuevo.', 'error')
@@ -185,7 +188,7 @@ def google_login_callback():
             if usuario:
                 # Actualizar google_sub si faltaba y ultima_conexion
                 cur.execute(
-                    'UPDATE usuarios SET google_sub = %s, foto_google = %s, ultima_conexion = NOW() WHERE id = %s',
+                    'UPDATE usuarios SET google_sub = %s, fotografia = %s, ultima_conexion = NOW() WHERE id = %s',
                     (google_sub, picture, usuario['id'])
                 )
             else:
@@ -193,7 +196,7 @@ def google_login_callback():
                 hash_aleatorio = generate_password_hash(secrets.token_hex(32))
                 cur.execute(
                     '''INSERT INTO usuarios
-                       (nombre, email, contraseña, rol_id, estado, google_sub, foto_google)
+                       (nombre, email, contraseña, rol_id, estado, google_sub, fotografia)
                        VALUES (%s, %s, %s, 3, 'habilitado', %s, %s)
                        RETURNING *''',
                     (name, email, hash_aleatorio, google_sub, picture)

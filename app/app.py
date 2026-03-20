@@ -9,16 +9,22 @@ blueprints de rutas. Ejecutar con ``python app.py``.
 import os
 import logging
 
+# Permite que oauthlib acepte scopes equivalentes devueltos por Google
+# (e.g. "profile" vs "https://www.googleapis.com/auth/userinfo.profile")
+os.environ.setdefault('OAUTHLIB_RELAX_TOKEN_SCOPE', '1')
+
 from flask import Flask
 from flask_uploads import UploadSet, configure_uploads, IMAGES
 from flask_mail import Mail
 from flask_cors import CORS
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config import Config, verificar_configuracion_payu
 from routes import register_blueprints
 
 # --- Crear aplicacion ---
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.config.from_object(Config)
 app.secret_key = app.config['SECRET_KEY']
 
