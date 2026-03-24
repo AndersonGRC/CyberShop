@@ -49,10 +49,11 @@ def get_credentials(usuario_id):
     )
 
     # Forzar expiración si ya pasó
+    # google-auth compara con utcnow() que es naive, así que se elimina el timezone
     if row['token_expiry']:
         expiry = row['token_expiry']
-        if expiry.tzinfo is None:
-            expiry = expiry.replace(tzinfo=timezone.utc)
+        if expiry.tzinfo is not None:
+            expiry = expiry.replace(tzinfo=None)
         creds.expiry = expiry
 
     if not creds.valid:
@@ -79,7 +80,7 @@ def get_calendar_service(usuario_id):
 
 def session_user_tiene_google():
     """Comprueba si el usuario en sesión tiene Google Calendar conectado."""
-    usuario_id = session.get('id')
+    usuario_id = session.get('usuario_id')
     if not usuario_id:
         return False
     with get_db_cursor(dict_cursor=True) as cur:
@@ -246,4 +247,4 @@ def _guardar_tokens(usuario_id, creds):
                 token_expiry  = %s,
                 updated_at    = NOW()
             WHERE usuario_id = %s
-        """, (creds.token, expiry, usuario_id))
+        """, (creds.token, creds.expiry, usuario_id))

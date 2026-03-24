@@ -13,7 +13,7 @@ from psycopg2.extras import DictCursor
 from google_auth_oauthlib.flow import Flow
 
 from database import get_db_connection, get_db_cursor
-from helpers import get_common_data, get_data_app
+from helpers import get_common_data, get_data_app, get_data_cliente
 from security import rol_requerido, autenticar_usuario
 
 auth_bp = Blueprint('auth', __name__)
@@ -77,6 +77,10 @@ def login():
             session['email'] = usuario['email']
             session['rol_id'] = usuario['rol_id']
             session['username'] = usuario['nombre']
+            # Redirigir a la página pendiente (ej: checkout) si la hay
+            next_url = session.pop('login_next', None)
+            if next_url:
+                return redirect(next_url)
             if usuario['rol_id'] == 1: return redirect(url_for('admin.dashboard_admin'))
             elif usuario['rol_id'] == 2: return redirect(url_for('admin.dashboard_admin'))
             elif usuario['rol_id'] == 3: return redirect(url_for('auth.dashboard_cliente'))
@@ -89,8 +93,82 @@ def login():
 @rol_requerido(3)
 def dashboard_cliente():
     """Panel principal del cliente autenticado."""
-    datosApp = get_data_app()
-    return render_template('dashboard_cliente.html', datosApp=datosApp)
+    from database import get_db_cursor
+    datosApp = get_data_cliente()
+    email = session.get('email')
+    resumen = {'total_pedidos': 0, 'pendientes': 0, 'aprobados': 0, 'ultimo': None}
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("""
+                SELECT COUNT(*) AS total,
+                       SUM(CASE WHEN estado_pago='PENDIENTE' THEN 1 ELSE 0 END) AS pendientes,
+                       SUM(CASE WHEN estado_pago='APROBADO'  THEN 1 ELSE 0 END) AS aprobados
+                FROM pedidos WHERE cliente_email = %s
+            """, (email,))
+            row = cur.fetchone()
+            if row:
+                resumen['total_pedidos'] = row['total'] or 0
+                resumen['pendientes']    = row['pendientes'] or 0
+                resumen['aprobados']     = row['aprobados'] or 0
+            cur.execute("""
+                SELECT referencia_pedido, estado_pago, monto_total, fecha_creacion
+                FROM pedidos WHERE cliente_email = %s
+                ORDER BY fecha_creacion DESC LIMIT 1
+            """, (email,))
+            resumen['ultimo'] = cur.fetchone()
+    except Exception as e:
+        app.logger.error(f"Error cargando resumen cliente: {e}")
+    return render_template('dashboard_cliente.html', datosApp=datosApp, resumen=resumen)
+
+
+@auth_bp.route('/cliente/mis-pedidos')
+@rol_requerido(3)
+def mis_pedidos():
+    """Lista de pedidos del cliente autenticado."""
+    from database import get_db_cursor
+    datosApp = get_data_cliente()
+    email = session.get('email')
+    pedidos = []
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("""
+                SELECT p.id, p.referencia_pedido, p.fecha_creacion, p.monto_total,
+                       p.estado_pago, p.estado_envio, p.metodo_pago,
+                       COUNT(dp.id) AS num_items
+                FROM pedidos p
+                LEFT JOIN detalle_pedidos dp ON dp.pedido_id = p.id
+                WHERE p.cliente_email = %s
+                GROUP BY p.id
+                ORDER BY p.fecha_creacion DESC
+            """, (email,))
+            pedidos = cur.fetchall()
+    except Exception as e:
+        app.logger.error(f"Error listando pedidos cliente: {e}")
+    return render_template('mis_pedidos.html', datosApp=datosApp, pedidos=pedidos)
+
+
+@auth_bp.route('/cliente/mis-pedidos/<int:pedido_id>')
+@rol_requerido(3)
+def detalle_pedido_cliente(pedido_id):
+    """Detalle de un pedido del cliente autenticado."""
+    from database import get_db_cursor
+    datosApp = get_data_cliente()
+    email = session.get('email')
+    pedido = None
+    items = []
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT * FROM pedidos WHERE id = %s AND cliente_email = %s", (pedido_id, email))
+            pedido = cur.fetchone()
+            if pedido:
+                cur.execute("SELECT * FROM detalle_pedidos WHERE pedido_id = %s", (pedido_id,))
+                items = cur.fetchall()
+    except Exception as e:
+        app.logger.error(f"Error cargando detalle pedido {pedido_id}: {e}")
+    if not pedido:
+        flash("Pedido no encontrado.", "warning")
+        return redirect(url_for('auth.mis_pedidos'))
+    return render_template('detalle_pedido_cliente.html', datosApp=datosApp, pedido=pedido, items=items)
 
 
 @auth_bp.route('/logout')
@@ -192,16 +270,9 @@ def google_login_callback():
                     (google_sub, picture, usuario['id'])
                 )
             else:
-                # Crear nuevo usuario cliente
-                hash_aleatorio = generate_password_hash(secrets.token_hex(32))
-                cur.execute(
-                    '''INSERT INTO usuarios
-                       (nombre, email, contraseña, rol_id, estado, google_sub, fotografia)
-                       VALUES (%s, %s, %s, 3, 'habilitado', %s, %s)
-                       RETURNING *''',
-                    (name, email, hash_aleatorio, google_sub, picture)
-                )
-                usuario = cur.fetchone()
+                # Usuario no registrado: debe registrarse primero
+                flash(f'El correo {email} no está registrado. Por favor regístrate para continuar.', 'error')
+                return redirect(url_for('auth.registrar_cliente'))
     except Exception as e:
         app.logger.error(f"Error en Google Login callback BD: {e}")
         flash('Error interno al procesar tu cuenta. Intenta de nuevo.', 'error')
@@ -218,7 +289,10 @@ def google_login_callback():
     session['rol_id']     = usuario['rol_id']
     session['username']   = usuario['nombre']
 
-    # 7. Redirigir según rol
+    # 7. Redirigir según rol (o a página pendiente como checkout)
+    next_url = session.pop('login_next', None)
+    if next_url:
+        return redirect(next_url)
     rol = usuario['rol_id']
     if rol in (1, 2):
         return redirect(url_for('admin.dashboard_admin'))

@@ -483,6 +483,61 @@ def cambiar_password(id):
     return redirect(url_for('admin.editar_usuario', id=id))
 
 
+# --- Vista Cliente (prueba para admin) ---
+
+@admin_bp.route('/admin/vista-cliente')
+@rol_requerido(1)
+def vista_cliente_admin():
+    """Permite al admin ver el módulo de pedidos como lo ve un cliente (para pruebas)."""
+    from database import get_db_cursor
+    datosApp = get_data_app()
+    email_buscar = request.args.get('email', '').strip()
+    pedidos = []
+    if email_buscar:
+        try:
+            with get_db_cursor(dict_cursor=True) as cur:
+                cur.execute("""
+                    SELECT p.id, p.referencia_pedido, p.fecha_creacion, p.monto_total,
+                           p.estado_pago, p.estado_envio, p.metodo_pago,
+                           p.cliente_nombre, p.cliente_email,
+                           COUNT(dp.id) AS num_items
+                    FROM pedidos p
+                    LEFT JOIN detalle_pedidos dp ON dp.pedido_id = p.id
+                    WHERE p.cliente_email ILIKE %s
+                    GROUP BY p.id
+                    ORDER BY p.fecha_creacion DESC
+                """, (f'%{email_buscar}%',))
+                pedidos = cur.fetchall()
+        except Exception as e:
+            flash(f'Error: {e}', 'danger')
+    return render_template('mis_pedidos.html', datosApp=datosApp, pedidos=pedidos,
+                           modo_admin=True, email_buscar=email_buscar)
+
+
+@admin_bp.route('/admin/vista-cliente/pedido/<int:pedido_id>')
+@rol_requerido(1)
+def vista_detalle_pedido_admin(pedido_id):
+    """Permite al admin ver el detalle de un pedido en vista cliente."""
+    from database import get_db_cursor
+    datosApp = get_data_app()
+    pedido = None
+    items = []
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT * FROM pedidos WHERE id = %s", (pedido_id,))
+            pedido = cur.fetchone()
+            if pedido:
+                cur.execute("SELECT * FROM detalle_pedidos WHERE pedido_id = %s", (pedido_id,))
+                items = cur.fetchall()
+    except Exception as e:
+        flash(f'Error: {e}', 'danger')
+    if not pedido:
+        flash("Pedido no encontrado.", "warning")
+        return redirect(url_for('admin.vista_cliente_admin'))
+    return render_template('detalle_pedido_cliente.html', datosApp=datosApp,
+                           pedido=pedido, items=items, modo_admin=True)
+
+
 # --- Gestion de Pedidos ---
 
 @admin_bp.route('/gestion-pedidos')
@@ -1182,6 +1237,22 @@ def procesar_venta_pos():
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
         """, (numero_venta, cliente_nombre, cliente_documento, cliente_telefono, metodo_pago, total_venta, total_venta, notas, usuario_id))
         venta_id = cur.fetchone()[0]
+
+        # Registrar en contabilidad
+        try:
+            from routes.contabilidad import registrar_movimiento
+            registrar_movimiento(
+                tipo='ingreso',
+                categoria='venta_pos',
+                descripcion=f"Venta POS {numero_venta} — {cliente_nombre or 'Cliente'}",
+                monto=total_venta,
+                referencia_tipo='venta_pos',
+                referencia_id=venta_id,
+                usuario_id=session.get('usuario_id'),
+                auto_generado=True
+            )
+        except Exception as _e:
+            current_app.logger.warning(f"Contabilidad POS: {_e}")
 
         # Insertar detalles
         for det in detalles_para_insertar:

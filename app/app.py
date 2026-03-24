@@ -73,7 +73,17 @@ def inject_config_global():
     except Exception:
         pass
     from datetime import datetime
-    return dict(config_global=config, brand_config=brand, now=datetime.now())
+    from flask import session as _s
+    session_usuario = None
+    if _s.get('usuario_id'):
+        session_usuario = {
+            'id':     _s['usuario_id'],
+            'nombre': _s.get('username', ''),
+            'email':  _s.get('email', ''),
+            'rol_id': _s.get('rol_id'),
+        }
+    return dict(config_global=config, brand_config=brand, now=datetime.now(),
+                session_usuario=session_usuario)
 
 # --- Registrar blueprints ---
 register_blueprints(app)

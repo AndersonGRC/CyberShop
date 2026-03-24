@@ -81,14 +81,19 @@ def callback():
     flow.state = state
 
     try:
-        auth_response = request.url.replace('http://', 'https://', 1)
+        # Reconstruir la URL de respuesta usando el redirect_uri configurado
+        # para evitar mismatch entre http/https cuando hay proxy reverso
+        redirect_uri = current_app.config['GOOGLE_REDIRECT_URI']
+        query_string = request.query_string.decode('utf-8')
+        auth_response = f"{redirect_uri}?{query_string}"
         flow.fetch_token(authorization_response=auth_response)
     except Exception as e:
+        current_app.logger.error(f"Google Calendar token error: {e}")
         flash(f'Error al obtener token de Google: {e}', 'danger')
         return redirect(url_for('crm.crm_dashboard'))
 
     creds = flow.credentials
-    usuario_id = session.get('id')
+    usuario_id = session.get('usuario_id')
 
     expiry = creds.expiry
     if expiry and expiry.tzinfo is None:
@@ -132,7 +137,7 @@ def callback():
 @google_bp.route('/desconectar', methods=['POST'])
 @rol_requerido(1)
 def desconectar():
-    usuario_id = session.get('id')
+    usuario_id = session.get('usuario_id')
 
     with get_db_cursor() as cur:
         cur.execute(

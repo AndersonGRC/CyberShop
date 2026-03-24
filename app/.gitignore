@@ -1,0 +1,50 @@
+# ── Logs y procesos ──────────────────────────────────────
+nohup.out
+*.log
+logs/
+
+# ── Python ───────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Entornos virtuales ───────────────────────────────────
+venv/
+.venv/
+env/
+.env
+
+# ── Variables de entorno / secretos ─────────────────────
+# IMPORTANTE: nunca subir credenciales al repositorio.
+# Copiar .env.example → .env en cada despliegue.
+.env
+.env.*
+*.secret
+
+# ── Archivos de sistema ──────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# ── IDEs ─────────────────────────────────────────────────
+.vscode/
+.idea/
+*.sublime-*
+
+# ── Archivos generados (PDFs, uploads) ──────────────────
+# Los PDFs de cotizaciones y cuentas de cobro se regeneran bajo demanda.
+# Para migrar a otro cliente: limpiar estas carpetas manualmente.
+static/cotizaciones/pdf/
+static/uploads/
+static/user/
+
+# ── Base de datos local ──────────────────────────────────
+*.sqlite3
+*.db

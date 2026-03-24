@@ -453,10 +453,16 @@ def crm_actividad_crear(id):
 @rol_requerido(1)
 def crm_actividad_eliminar(id):
     with get_db_cursor(dict_cursor=True) as cur:
-        cur.execute("SELECT contacto_id FROM crm_actividades WHERE id = %s", (id,))
+        cur.execute("SELECT contacto_id, google_event_id FROM crm_actividades WHERE id = %s", (id,))
         row = cur.fetchone()
 
     contacto_id = row['contacto_id'] if row else None
+
+    # Eliminar evento de Google Calendar si existe
+    if row and row.get('google_event_id'):
+        from helpers_google import eliminar_evento
+        usuario_id = session.get('usuario_id')
+        eliminar_evento(usuario_id, row['google_event_id'])
 
     try:
         with get_db_cursor() as cur:
@@ -663,10 +669,16 @@ def crm_tarea_completar(id):
 @rol_requerido(1)
 def crm_tarea_eliminar(id):
     with get_db_cursor(dict_cursor=True) as cur:
-        cur.execute("SELECT contacto_id FROM crm_tareas WHERE id = %s", (id,))
+        cur.execute("SELECT contacto_id, google_event_id FROM crm_tareas WHERE id = %s", (id,))
         row = cur.fetchone()
 
     contacto_id = row['contacto_id'] if row else None
+
+    # Eliminar evento de Google Calendar si existe
+    if row and row.get('google_event_id'):
+        from helpers_google import eliminar_evento
+        usuario_id = session.get('usuario_id')
+        eliminar_evento(usuario_id, row['google_event_id'])
 
     try:
         with get_db_cursor() as cur:

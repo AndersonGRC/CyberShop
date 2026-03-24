@@ -68,6 +68,12 @@ def consultar_estado_real_payu(referencia):
 @payments_bp.route('/metodos-pago')
 def metodos_pago():
     """Muestra los metodos de pago disponibles con el resumen del carrito."""
+    # Requerir autenticacion como cliente antes de continuar con la compra
+    if not session.get('usuario_id'):
+        session['login_next'] = url_for('payments.metodos_pago')
+        flash('Inicia sesión o regístrate para continuar con tu compra.', 'info')
+        return redirect(url_for('auth.login'))
+
     carrito_json = request.args.get('carrito')
     if carrito_json:
         try:
@@ -83,8 +89,20 @@ def metodos_pago():
         except Exception:
             carrito['total'] = 0
 
+    # Cargar datos del usuario para pre-llenar el formulario
+    usuario = None
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute(
+                'SELECT nombre, email, telefono, direccion FROM usuarios WHERE id = %s',
+                (session['usuario_id'],)
+            )
+            usuario = cur.fetchone()
+    except Exception:
+        pass
+
     datosApp = get_common_data()
-    return render_template('metodos_pago.html', datosApp=datosApp, carrito=carrito)
+    return render_template('metodos_pago.html', datosApp=datosApp, carrito=carrito, usuario=usuario)
 
 
 @payments_bp.route('/crear-orden', methods=['POST'])
@@ -263,6 +281,23 @@ def confirmacion_pago():
         conn.commit()
         cur.close()
         conn.close()
+
+        # Registrar en contabilidad si el pago fue aprobado
+        if estado_bd == 'APROBADO':
+            try:
+                from routes.contabilidad import registrar_movimiento
+                registrar_movimiento(
+                    tipo='ingreso',
+                    categoria='pedido_online',
+                    descripcion=f"Pedido online {reference_sale}",
+                    monto=float(value or 0),
+                    referencia_tipo='pedido',
+                    usuario_id=None,
+                    auto_generado=True
+                )
+            except Exception as _e:
+                app.logger.warning(f"Contabilidad confirmacion_pago: {_e}")
+
         return "OK", 200
     except Exception as e:
         app.logger.error(f"Error PayU Confirm: {e}")
@@ -334,6 +369,22 @@ def respuesta_pago():
         conn.close()
     except Exception as e:
         app.logger.error(f"Error BD Respuesta: {e}")
+
+    # Registrar en contabilidad si el pago fue aprobado
+    if estado_bd == 'APROBADO':
+        try:
+            from routes.contabilidad import registrar_movimiento
+            registrar_movimiento(
+                tipo='ingreso',
+                categoria='pedido_online',
+                descripcion=f"Pedido online {referencia}",
+                monto=float(valor or 0),
+                referencia_tipo='pedido',
+                usuario_id=session.get('usuario_id'),
+                auto_generado=True
+            )
+        except Exception as _e:
+            app.logger.warning(f"Contabilidad respuesta_pago: {_e}")
 
     return render_template('respuesta_pago.html', datosApp=datosApp, datos=datos_comprobante)
 

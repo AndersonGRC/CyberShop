@@ -58,10 +58,67 @@ def get_common_data():
     except Exception:
         pass
 
+    # Si el usuario ya está logueado, quitar "Ingresar" del menú público
+    try:
+        from flask import session as _s
+        if _s.get('usuario_id'):
+            MenuApp = [m for m in MenuApp if m.get('url') != 'auth.login']
+    except Exception:
+        pass
+
     return {
         'titulo': nombre_empresa,
         'MenuAppindex': MenuApp,
         'longMenuAppindex': len(MenuApp)
+    }
+
+
+def get_data_cliente():
+    """Retorna los datos del menú lateral para clientes (rol 3).
+
+    Solo incluye secciones relevantes para el cliente:
+    Mi Cuenta, Mis Pedidos, Soporte, Tienda y Cerrar Sesión.
+    No expone ninguna opción administrativa.
+    """
+    from database import get_db_cursor
+
+    nombre_empresa = 'CyberShop'
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT valor FROM cliente_config WHERE clave = 'empresa_nombre'")
+            row = cur.fetchone()
+            if row and row['valor']:
+                nombre_empresa = row['valor']
+    except Exception:
+        pass
+
+    # Verificar si el módulo de soporte está habilitado
+    soporte_habilitado = True
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT valor FROM cliente_config WHERE clave = 'soporte_habilitado'")
+            row = cur.fetchone()
+            if row and row['valor'] == 'false':
+                soporte_habilitado = False
+    except Exception:
+        pass
+
+    menu = [
+        {"nombre": "Mi Cuenta",        "url": "auth.dashboard_cliente", "icono": "user-circle"},
+        {"nombre": "Mis Pedidos",       "url": "auth.mis_pedidos",       "icono": "shopping-bag"},
+    ]
+    if soporte_habilitado:
+        menu.append({"nombre": "Soporte", "url": "soporte.mis_tickets", "icono": "headset"})
+
+    menu += [
+        {"nombre": "Tienda",            "url": "public.productos",       "icono": "store"},
+        {"nombre": "Cerrar Sesión",     "url": "auth.logout",            "icono": "sign-out-alt"},
+    ]
+
+    return {
+        'titulo': nombre_empresa,
+        'MenuAppindex': menu,
+        'longMenuAppindex': len(menu),
     }
 
 
@@ -142,6 +199,26 @@ def get_data_app():
                 {"nombre": "Dashboard CRM",  "url": "crm.crm_dashboard",      "icono": "chart-pie"},
                 {"nombre": "Contactos",      "url": "crm.crm_contactos_lista", "icono": "address-card"},
                 {"nombre": "Tareas",         "url": "crm.crm_tareas_lista",    "icono": "tasks"},
+            ]
+        },
+        {
+            "nombre": "Contabilidad",
+            "url": "#",
+            "icono": "chart-line",
+            "submodulos": [
+                {"nombre": "Dashboard",    "url": "contabilidad.dashboard",    "icono": "tachometer-alt"},
+                {"nombre": "Movimientos",  "url": "contabilidad.movimientos",  "icono": "exchange-alt"},
+                {"nombre": "Plantillas",   "url": "contabilidad.plantillas",   "icono": "clone"},
+                {"nombre": "Cierres",      "url": "contabilidad.cierres",      "icono": "flag-checkered"},
+            ]
+        },
+        {
+            "nombre": "Soporte",
+            "url": "#",
+            "icono": "headset",
+            "submodulos": [
+                {"nombre": "Tickets clientes", "url": "soporte.admin_tickets",     "icono": "ticket-alt"},
+                {"nombre": "Configuración",     "url": "soporte.admin_soporte_config", "icono": "sliders-h"},
             ]
         },
         {

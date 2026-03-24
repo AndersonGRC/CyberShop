@@ -40,3 +40,11 @@ def register_blueprints(app):
     # Google Calendar
     from routes.google_calendar import google_bp
     app.register_blueprint(google_bp)
+
+    # Soporte / Tickets
+    from routes.soporte import soporte_bp
+    app.register_blueprint(soporte_bp)
+
+    # Contabilidad
+    from routes.contabilidad import contabilidad_bp
+    app.register_blueprint(contabilidad_bp)

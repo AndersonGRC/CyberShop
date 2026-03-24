@@ -22,6 +22,23 @@ from security import rol_requerido
 billing_bp = Blueprint('billing', __name__)
 
 
+def _pdf_link_callback(uri, rel):
+    """Resuelve URLs a rutas locales absolutas para xhtml2pdf.
+    Evita peticiones HTTP durante la generación del PDF."""
+    from flask import current_app as _app
+    if uri.startswith('file://'):
+        return uri
+    if 'static/' in uri:
+        try:
+            after_static = uri.split('static/')[-1].split('?')[0]
+            local = os.path.join(_app.root_path, 'static', after_static)
+            if os.path.isfile(local):
+                return local
+        except Exception:
+            pass
+    return uri
+
+
 def _get_empresa_website():
     """Lee la URL del sitio web de la empresa desde cliente_config."""
     try:
@@ -178,7 +195,23 @@ def guardar_generar_cuenta():
                       cliente_telefono, cliente_ciudad, contractor_nombre, contractor_id,
                       contractor_telefono, contractor_email, texto_pago, total))
                 cuenta_id = cur.fetchone()['id']
-            
+                # Registrar en contabilidad
+                try:
+                    from routes.contabilidad import registrar_movimiento
+                    registrar_movimiento(
+                        tipo='ingreso',
+                        categoria='cuenta_cobro',
+                        descripcion=f"Cuenta de cobro #{cuenta_id} — {cliente_nombre}",
+                        monto=total,
+                        fecha=fecha_str,
+                        referencia_tipo='cuenta_cobro',
+                        referencia_id=cuenta_id,
+                        usuario_id=session.get('usuario_id'),
+                        auto_generado=True
+                    )
+                except Exception as _e:
+                    app.logger.warning(f"No se pudo registrar en contabilidad: {_e}")
+
             # Insertar Detalles
             for i in range(len(descripciones)):
                 f_labor = fechas_labor[i] if i < len(fechas_labor) else fecha_str
@@ -215,6 +248,8 @@ def guardar_generar_cuenta():
             fecha_larga = fecha_str
             consecutivo_formatted = f"CDC-{cuenta_id}"
 
+        logo_local = 'file://' + os.path.join(app.root_path, 'static', 'img', 'Logo.PNG')
+
         pdf_data = {
             'id': cuenta_id,
             'consecutivo': consecutivo_formatted,
@@ -235,15 +270,16 @@ def guardar_generar_cuenta():
             'items': items_data,
             'total_valor': formatear_moneda(total),
             'total_texto': total_texto,
-            'logo': url_for('static', filename='img/Logo.PNG', _external=True),
+            'logo': logo_local,
             'brand': app.config.get('BRAND_COLORS', {}),
             'empresa_website': _get_empresa_website()
         }
-        
+
         rendered_html = render_template('pdf_cuenta_cobro.html', **pdf_data)
-        
+
         pdf_output = BytesIO()
-        pisa_status = pisa.CreatePDF(rendered_html, dest=pdf_output)
+        pisa_status = pisa.CreatePDF(rendered_html, dest=pdf_output,
+                                     link_callback=_pdf_link_callback)
         
         if pisa_status.err:
             return Response("Error generando PDF", status=500)
