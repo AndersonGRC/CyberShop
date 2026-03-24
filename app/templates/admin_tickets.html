@@ -1,0 +1,130 @@
+{% extends './plantillaapp.html' %}
+{% block titulo %}Soporte / Tickets | {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+@media (max-width: 600px) {
+    .stats-cards { flex-direction: column !important; }
+    .stats-cards > div { min-width: unset !important; width: 100%; box-sizing: border-box; }
+    .ticket-meta { flex-direction: column !important; gap: 4px !important; }
+    .ticket-meta .ticket-estado { align-self: flex-start; }
+    .ticket-asunto { white-space: normal !important; }
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="main-container">
+<div class="content-wrapper" style="padding:28px 24px; max-width:960px;">
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
+        <h1 class="page-title" style="margin:0;">
+            <i class="fas fa-headset"></i> Tickets de soporte
+        </h1>
+        <a href="{{ url_for('soporte.admin_soporte_config') }}"
+           style="color:#888; font-size:0.85em; text-decoration:none;">
+            <i class="fas fa-sliders-h"></i> Configuración
+        </a>
+    </div>
+
+    <!-- Stats cards -->
+    <div class="stats-cards" style="display:flex; gap:14px; flex-wrap:wrap; margin-bottom:24px;">
+        <div style="flex:1; min-width:130px; background:#fff; border-radius:10px; padding:16px 20px;
+                    box-shadow:0 2px 6px rgba(0,0,0,0.07); border-left:4px solid var(--color-primario);">
+            <div style="font-size:1.8rem; font-weight:700; color:var(--color-primario);">{{ stats.get('abierto', 0) }}</div>
+            <div style="color:#777; font-size:0.85em; margin-top:2px;">Abiertos</div>
+        </div>
+        <div style="flex:1; min-width:130px; background:#fff; border-radius:10px; padding:16px 20px;
+                    box-shadow:0 2px 6px rgba(0,0,0,0.07); border-left:4px solid #28a745;">
+            <div style="font-size:1.8rem; font-weight:700; color:#28a745;">{{ stats.get('respondido', 0) }}</div>
+            <div style="color:#777; font-size:0.85em; margin-top:2px;">Respondidos</div>
+        </div>
+        <div style="flex:1; min-width:130px; background:#fff; border-radius:10px; padding:16px 20px;
+                    box-shadow:0 2px 6px rgba(0,0,0,0.07); border-left:4px solid #6c757d;">
+            <div style="font-size:1.8rem; font-weight:700; color:#6c757d;">{{ stats.get('cerrado', 0) }}</div>
+            <div style="color:#777; font-size:0.85em; margin-top:2px;">Cerrados</div>
+        </div>
+        <div style="flex:1; min-width:130px; background:#fff; border-radius:10px; padding:16px 20px;
+                    box-shadow:0 2px 6px rgba(0,0,0,0.07); border-left:4px solid #f0ad4e;">
+            <div style="font-size:1.8rem; font-weight:700; color:#f0ad4e;">
+                {{ (stats.get('abierto', 0) + stats.get('respondido', 0) + stats.get('cerrado', 0)) }}
+            </div>
+            <div style="color:#777; font-size:0.85em; margin-top:2px;">Total</div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px;">
+        {% for estado, label in [('todos','Todos'), ('abierto','Abiertos'), ('respondido','Respondidos'), ('cerrado','Cerrados')] %}
+        <a href="{{ url_for('soporte.admin_tickets', estado=estado) }}"
+           style="padding:6px 16px; border-radius:20px; font-size:0.83em; font-weight:600; text-decoration:none;
+                  background:{{ 'var(--color-primario)' if estado_filtro == estado else '#e9ecef' }};
+                  color:{{ '#fff' if estado_filtro == estado else '#555' }};">
+            {{ label }}
+            {% if estado == 'abierto' and stats.get('abierto', 0) > 0 %}
+            <span style="background:rgba(255,255,255,0.3); border-radius:10px; padding:1px 7px; margin-left:4px; font-size:0.9em;">
+                {{ stats.get('abierto', 0) }}
+            </span>
+            {% endif %}
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- Lista de tickets -->
+    {% if tickets %}
+    <div style="display:flex; flex-direction:column; gap:10px;">
+        {% for t in tickets %}
+        <a href="{{ url_for('soporte.admin_ver_ticket', ticket_id=t.id) }}"
+           style="background:#fff; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.07);
+                  padding:16px 20px; text-decoration:none; color:#333; display:block;
+                  border-left:4px solid {{ '#28a745' if t.estado == 'respondido' else ('#6c757d' if t.estado == 'cerrado' else 'var(--color-primario)') }};"
+           onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,0.12)'"
+           onmouseout="this.style.boxShadow='0 2px 6px rgba(0,0,0,0.07)'">
+            <div class="ticket-meta" style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:0;">
+                    <div style="font-weight:600; margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        {{ t.asunto }}
+                    </div>
+                    <div style="color:#888; font-size:0.82em;">
+                        <i class="fas fa-user"></i> {{ t.cliente_nombre }}
+                        &nbsp;·&nbsp;
+                        <i class="fas fa-clock"></i> {{ t.fecha_creacion.strftime('%d/%m/%Y %H:%M') if t.fecha_creacion else '' }}
+                        {% if t.num_respuestas %}
+                        &nbsp;·&nbsp; <i class="fas fa-reply"></i> {{ t.num_respuestas }} resp.
+                        {% endif %}
+                        {% if t.fecha_actualizado %}
+                        &nbsp;·&nbsp; Actualizado: {{ t.fecha_actualizado.strftime('%d/%m/%Y') }}
+                        {% endif %}
+                    </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
+                    {% if t.estado == 'abierto' %}
+                    <span style="background:#cce5ff; color:#004085; padding:4px 12px; border-radius:20px; font-size:0.8em; font-weight:600; white-space:nowrap;">
+                        <i class="fas fa-envelope"></i> Abierto
+                    </span>
+                    {% elif t.estado == 'respondido' %}
+                    <span style="background:#d4edda; color:#155724; padding:4px 12px; border-radius:20px; font-size:0.8em; font-weight:600; white-space:nowrap;">
+                        <i class="fas fa-check-circle"></i> Respondido
+                    </span>
+                    {% else %}
+                    <span style="background:#e2e3e5; color:#495057; padding:4px 12px; border-radius:20px; font-size:0.8em; font-weight:600; white-space:nowrap;">
+                        <i class="fas fa-lock"></i> Cerrado
+                    </span>
+                    {% endif %}
+                    <i class="fas fa-chevron-right" style="color:#ccc; font-size:0.85em;"></i>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+
+    {% else %}
+    <div style="text-align:center; padding:60px 20px; color:#ccc;">
+        <i class="fas fa-headset" style="font-size:3rem; margin-bottom:14px; display:block;"></i>
+        <p>No hay tickets{% if estado_filtro != 'todos' %} con estado <strong>{{ estado_filtro }}</strong>{% endif %}.</p>
+    </div>
+    {% endif %}
+
+</div>
+</div>
+{% endblock %}

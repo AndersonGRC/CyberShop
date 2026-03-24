@@ -1,0 +1,159 @@
+{% extends './plantillaapp.html' %}
+{% block titulo %}Configuración Soporte | {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+@media (max-width: 500px) {
+    .config-save { justify-content: stretch !important; }
+    .config-save button { width: 100%; }
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="main-container">
+<div class="content-wrapper" style="padding:28px 24px; max-width:680px;">
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
+        <h1 class="page-title" style="margin:0;">
+            <i class="fas fa-sliders-h"></i> Configuración del módulo de soporte
+        </h1>
+        <a href="{{ url_for('soporte.admin_tickets') }}" style="color:#888; font-size:0.88em; text-decoration:none;">
+            <i class="fas fa-arrow-left"></i> Volver a tickets
+        </a>
+    </div>
+
+    <form action="{{ url_for('soporte.admin_soporte_config') }}" method="POST">
+
+        <!-- Módulo general -->
+        <div style="background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.08);
+                    padding:24px; margin-bottom:20px;">
+            <h3 style="margin:0 0 18px; font-size:0.95em; color:#444; font-weight:700; text-transform:uppercase; letter-spacing:.4px;">
+                <i class="fas fa-toggle-on" style="color:var(--color-primario);"></i> General
+            </h3>
+
+            <!-- Módulo habilitado -->
+            <div style="margin-bottom:18px;">
+                <label style="display:block; font-size:0.88em; font-weight:600; color:#555; margin-bottom:6px;">
+                    Módulo de soporte
+                </label>
+                <div style="display:flex; gap:10px;">
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.9em;">
+                        <input type="radio" name="soporte_habilitado" value="true"
+                               {{ 'checked' if cfg.soporte_habilitado != 'false' else '' }}>
+                        Habilitado
+                    </label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.9em;">
+                        <input type="radio" name="soporte_habilitado" value="false"
+                               {{ 'checked' if cfg.soporte_habilitado == 'false' else '' }}>
+                        Deshabilitado
+                    </label>
+                </div>
+                <p style="margin:5px 0 0; color:#aaa; font-size:0.8em;">
+                    Si se deshabilita, los clientes no verán el módulo de soporte.
+                </p>
+            </div>
+
+            <!-- Límite semanal -->
+            <div style="margin-bottom:18px;">
+                <label style="display:block; font-size:0.88em; font-weight:600; color:#555; margin-bottom:5px;">
+                    Tickets activos permitidos por cliente (por semana)
+                </label>
+                <input type="number" name="soporte_limite_semana" min="1" max="10"
+                       value="{{ cfg.soporte_limite_semana or '1' }}"
+                       class="form-control"
+                       style="width:100px; padding:8px 12px; border-radius:6px; border:1px solid #ddd;">
+                <p style="margin:5px 0 0; color:#aaa; font-size:0.8em;">
+                    Solo cuenta tickets en estado abierto o respondido. Los cerrados no bloquean la creación de nuevos.
+                </p>
+            </div>
+
+            <!-- Auto-cierre -->
+            <div>
+                <label style="display:block; font-size:0.88em; font-weight:600; color:#555; margin-bottom:5px;">
+                    Cierre automático por inactividad (días)
+                </label>
+                <input type="number" name="soporte_auto_cierre_dias" min="0" max="365"
+                       value="{{ cfg.soporte_auto_cierre_dias or '0' }}"
+                       class="form-control"
+                       style="width:100px; padding:8px 12px; border-radius:6px; border:1px solid #ddd;">
+                <p style="margin:5px 0 0; color:#aaa; font-size:0.8em;">
+                    Cierra automáticamente tickets sin actividad por este número de días. <strong>0 = desactivado.</strong>
+                </p>
+            </div>
+        </div>
+
+        <!-- Notificaciones email -->
+        <div style="background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.08);
+                    padding:24px; margin-bottom:20px;">
+            <h3 style="margin:0 0 18px; font-size:0.95em; color:#444; font-weight:700; text-transform:uppercase; letter-spacing:.4px;">
+                <i class="fas fa-envelope" style="color:var(--color-primario);"></i> Notificaciones por correo
+            </h3>
+
+            <!-- Email destino -->
+            <div style="margin-bottom:18px;">
+                <label style="display:block; font-size:0.88em; font-weight:600; color:#555; margin-bottom:5px;">
+                    Correo del vendedor / soporte
+                </label>
+                <input type="email" name="contacto_email_destino"
+                       value="{{ cfg.contacto_email_destino or '' }}"
+                       placeholder="ejemplo@empresa.com"
+                       class="form-control"
+                       style="width:100%; padding:9px 12px; border-radius:6px; border:1px solid #ddd;">
+                <p style="margin:5px 0 0; color:#aaa; font-size:0.8em;">
+                    A este correo llegan las notificaciones cuando un cliente abre o responde un ticket.
+                    Si está vacío, se usa el correo configurado en el servidor SMTP.
+                </p>
+            </div>
+
+            <!-- Notificar al vendedor -->
+            <div style="margin-bottom:18px;">
+                <label style="display:block; font-size:0.88em; font-weight:600; color:#555; margin-bottom:6px;">
+                    Notificar al vendedor cuando el cliente crea o responde un ticket
+                </label>
+                <div style="display:flex; gap:10px;">
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.9em;">
+                        <input type="radio" name="soporte_email_vendedor" value="true"
+                               {{ 'checked' if cfg.soporte_email_vendedor != 'false' else '' }}>
+                        Sí
+                    </label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.9em;">
+                        <input type="radio" name="soporte_email_vendedor" value="false"
+                               {{ 'checked' if cfg.soporte_email_vendedor == 'false' else '' }}>
+                        No
+                    </label>
+                </div>
+            </div>
+
+            <!-- Notificar al cliente -->
+            <div>
+                <label style="display:block; font-size:0.88em; font-weight:600; color:#555; margin-bottom:6px;">
+                    Notificar al cliente cuando el vendedor responde
+                </label>
+                <div style="display:flex; gap:10px;">
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.9em;">
+                        <input type="radio" name="soporte_email_cliente" value="true"
+                               {{ 'checked' if cfg.soporte_email_cliente != 'false' else '' }}>
+                        Sí
+                    </label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.9em;">
+                        <input type="radio" name="soporte_email_cliente" value="false"
+                               {{ 'checked' if cfg.soporte_email_cliente == 'false' else '' }}>
+                        No
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="config-save" style="display:flex; justify-content:flex-end;">
+            <button type="submit"
+                    style="background:var(--color-primario); color:#fff; border:none; border-radius:6px;
+                           padding:11px 30px; font-size:0.95em; font-weight:600; cursor:pointer;">
+                <i class="fas fa-save"></i> Guardar configuración
+            </button>
+        </div>
+    </form>
+
+</div>
+</div>
+{% endblock %}

@@ -1,0 +1,161 @@
+{% extends './plantillaapp.html' %}
+
+{% block titulo %}Mis Pedidos | {{ datosApp.titulo }}{% endblock %}
+
+{% block body %}
+<div class="main-container">
+    <div class="content-wrapper" style="padding: 28px 24px;">
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
+            <h1 class="page-title" style="margin:0;">
+                <i class="fas fa-shopping-bag"></i>
+                {% if modo_admin %}Vista de Pedidos (Modo Admin){% else %}Mis Pedidos{% endif %}
+            </h1>
+            {% if not modo_admin %}
+            <a href="{{ url_for('auth.dashboard_cliente') }}"
+               style="color:#666; text-decoration:none; font-size:0.9em;">
+                <i class="fas fa-arrow-left"></i> Volver a mi cuenta
+            </a>
+            {% endif %}
+        </div>
+
+        <!-- Buscador solo para admin -->
+        {% if modo_admin %}
+        <div style="background:#fff3cd; border-radius:8px; padding:14px 18px; margin-bottom:20px;
+                    border-left:4px solid #f0ad4e; font-size:0.9em;">
+            <i class="fas fa-tools" style="color:#f0ad4e;"></i>
+            <strong>Modo administrador</strong> — Esta es la vista que ve el cliente al consultar sus pedidos.
+        </div>
+        <form method="GET" style="display:flex; gap:10px; margin-bottom:24px;">
+            <input type="email" name="email" value="{{ email_buscar or '' }}"
+                   placeholder="Buscar por correo del cliente..."
+                   class="form-control" style="max-width:340px; padding:8px 12px;">
+            <button type="submit"
+                    style="background:var(--color-primario); color:#fff; border:none; border-radius:6px;
+                           padding:8px 20px; cursor:pointer;">
+                <i class="fas fa-search"></i> Buscar
+            </button>
+        </form>
+        {% endif %}
+
+        {% if pedidos %}
+        <!-- Tabla de pedidos -->
+        <div style="background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.08); overflow:hidden;">
+            <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr style="background:var(--color-primario); color:#fff;">
+                        <th style="padding:14px 16px; text-align:left; font-weight:600; font-size:0.88em;">Referencia</th>
+                        <th style="padding:14px 16px; text-align:left; font-weight:600; font-size:0.88em;">Fecha</th>
+                        <th style="padding:14px 10px; text-align:center; font-weight:600; font-size:0.88em;">Productos</th>
+                        <th style="padding:14px 16px; text-align:right; font-weight:600; font-size:0.88em;">Total</th>
+                        <th style="padding:14px 10px; text-align:center; font-weight:600; font-size:0.88em;">Pago</th>
+                        <th style="padding:14px 10px; text-align:center; font-weight:600; font-size:0.88em;">Envío</th>
+                        <th style="padding:14px 10px; text-align:center; font-weight:600; font-size:0.88em;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in pedidos %}
+                    <tr style="border-bottom:1px solid #f0f0f0;"
+                        onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
+
+                        <td style="padding:14px 16px;">
+                            <span style="font-family:monospace; font-size:0.85em; color:#555;">{{ p.referencia_pedido }}</span>
+                        </td>
+
+                        <td style="padding:14px 16px; color:#666; font-size:0.88em;">
+                            {{ p.fecha_creacion.strftime('%d/%m/%Y') if p.fecha_creacion else '—' }}<br>
+                            <span style="color:#aaa; font-size:0.85em;">{{ p.fecha_creacion.strftime('%H:%M') if p.fecha_creacion else '' }}</span>
+                        </td>
+
+                        <td style="padding:14px 10px; text-align:center; color:#666; font-size:0.88em;">
+                            {{ p.num_items }} ítem{{ 's' if p.num_items != 1 else '' }}
+                        </td>
+
+                        <td style="padding:14px 16px; text-align:right; font-weight:600;">
+                            ${{ '{:,.0f}'.format(p.monto_total) }} COP
+                        </td>
+
+                        <td style="padding:14px 10px; text-align:center;">
+                            {% if p.estado_pago == 'APROBADO' %}
+                            <span style="background:#d4edda; color:#155724; padding:3px 10px; border-radius:20px; font-size:0.8em; font-weight:600; white-space:nowrap;">
+                                <i class="fas fa-check-circle"></i> Aprobado
+                            </span>
+                            {% elif p.estado_pago == 'PENDIENTE' %}
+                            <span style="background:#fff3cd; color:#856404; padding:3px 10px; border-radius:20px; font-size:0.8em; font-weight:600; white-space:nowrap;">
+                                <i class="fas fa-hourglass-half"></i> Pendiente
+                            </span>
+                            {% elif p.estado_pago == 'RECHAZADO' %}
+                            <span style="background:#f8d7da; color:#721c24; padding:3px 10px; border-radius:20px; font-size:0.8em; font-weight:600; white-space:nowrap;">
+                                <i class="fas fa-times-circle"></i> Rechazado
+                            </span>
+                            {% else %}
+                            <span style="background:#e2e3e5; color:#495057; padding:3px 10px; border-radius:20px; font-size:0.8em; font-weight:600;">
+                                {{ p.estado_pago }}
+                            </span>
+                            {% endif %}
+                        </td>
+
+                        <td style="padding:14px 10px; text-align:center;">
+                            {% if p.estado_envio == 'DESPACHADO' or p.estado_envio == 'ENTREGADO' %}
+                            <span style="background:#cce5ff; color:#004085; padding:3px 10px; border-radius:20px; font-size:0.8em; font-weight:600; white-space:nowrap;">
+                                <i class="fas fa-truck"></i> {{ p.estado_envio|title }}
+                            </span>
+                            {% elif p.estado_envio == 'POR_DESPACHAR' %}
+                            <span style="background:#e2d9f3; color:#5a0d8a; padding:3px 10px; border-radius:20px; font-size:0.8em; font-weight:600; white-space:nowrap;">
+                                <i class="fas fa-box"></i> Por despachar
+                            </span>
+                            {% elif p.estado_envio == 'CANCELADO' %}
+                            <span style="background:#f8d7da; color:#721c24; padding:3px 10px; border-radius:20px; font-size:0.8em; font-weight:600; white-space:nowrap;">
+                                <i class="fas fa-ban"></i> Cancelado
+                            </span>
+                            {% else %}
+                            <span style="color:#aaa; font-size:0.8em;">{{ p.estado_envio or '—' }}</span>
+                            {% endif %}
+                        </td>
+
+                        <td style="padding:14px 10px; text-align:center;">
+                            {% if modo_admin %}
+                            <a href="{{ url_for('admin.vista_detalle_pedido_admin', pedido_id=p.id) }}"
+                               style="background:var(--color-primario); color:#fff; padding:5px 14px; border-radius:6px;
+                                      text-decoration:none; font-size:0.82em; white-space:nowrap;">
+                                <i class="fas fa-eye"></i> Ver
+                            </a>
+                            {% else %}
+                            <a href="{{ url_for('auth.detalle_pedido_cliente', pedido_id=p.id) }}"
+                               style="background:var(--color-primario); color:#fff; padding:5px 14px; border-radius:6px;
+                                      text-decoration:none; font-size:0.82em; white-space:nowrap;">
+                                <i class="fas fa-eye"></i> Ver
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% elif modo_admin and email_buscar %}
+        <div style="text-align:center; padding:40px; color:#888;">
+            <i class="fas fa-search" style="font-size:2.5rem; margin-bottom:12px; display:block;"></i>
+            No se encontraron pedidos para <strong>{{ email_buscar }}</strong>
+        </div>
+        {% elif modo_admin %}
+        <div style="text-align:center; padding:40px; color:#888;">
+            <i class="fas fa-search" style="font-size:2.5rem; margin-bottom:12px; display:block;"></i>
+            Ingresa el correo del cliente para buscar sus pedidos.
+        </div>
+        {% else %}
+        <div style="text-align:center; padding:60px 20px; color:#888;">
+            <i class="fas fa-shopping-bag" style="font-size:3rem; margin-bottom:16px; display:block; color:#ddd;"></i>
+            <p style="font-size:1.1em;">Aún no tienes pedidos registrados.</p>
+            <a href="{{ url_for('public.productos') }}"
+               style="background:var(--color-primario); color:#fff; padding:10px 24px; border-radius:6px;
+                      text-decoration:none; display:inline-block; margin-top:12px;">
+                <i class="fas fa-store"></i> Explorar productos
+            </a>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

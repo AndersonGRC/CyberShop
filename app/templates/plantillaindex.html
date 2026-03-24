@@ -15,6 +15,93 @@
     <script type="text/javascript" src="{{ url_for('static', filename='js/layout.js') }}" defer></script>
 
     {% block LinkAdicional%} {% endblock%}
+    <style>
+    /* ── Chip de usuario en nav ─────────────────────── */
+    .user-nav-chip-wrap {
+        position: relative;
+        display: inline-block;
+    }
+    .user-nav-chip {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 20px;
+        color: #fff;
+        padding: 6px 14px;
+        font-size: 0.88em;
+        font-weight: 600;
+        cursor: pointer;
+        margin: 12px 8px;
+        transition: background 0.2s;
+        white-space: nowrap;
+    }
+    .user-nav-chip:hover {
+        background: rgba(255,255,255,0.22);
+    }
+    .user-nav-chip i.fa-user-circle { font-size: 1.1em; }
+
+    /* Dropdown */
+    .user-nav-dropdown {
+        display: none;
+        position: absolute;
+        right: 0;
+        top: calc(100% + 4px);
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 8px 28px rgba(0,0,0,0.18);
+        min-width: 210px;
+        z-index: 9999;
+        overflow: hidden;
+    }
+    .user-nav-dropdown.open { display: block; }
+    .user-nav-header {
+        padding: 14px 16px 10px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #eee;
+    }
+    .user-nav-dropdown a {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 16px;
+        font-size: 0.88em;
+        color: #333 !important;
+        text-decoration: none;
+        transition: background 0.15s;
+    }
+    .user-nav-dropdown a:hover { background: #f0f4ff; }
+    .user-nav-dropdown a i { width: 16px; color: var(--color-primario); }
+    .user-nav-divider { height: 1px; background: #eee; margin: 4px 0; }
+
+    /* ── Mini-barra de sesión activa ────────────────── */
+    .session-bar {
+        background: var(--color-primario, #122C94);
+        color: rgba(255,255,255,0.92);
+        font-size: 0.78em;
+        padding: 5px 18px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+        position: relative;
+        z-index: 100;
+    }
+    .session-bar a {
+        color: rgba(255,255,255,0.85);
+        text-decoration: none;
+        margin-left: 14px;
+        font-weight: 600;
+        transition: color 0.2s;
+    }
+    .session-bar a:hover { color: #fff; }
+    @media (max-width: 600px) {
+        .user-nav-chip span { display: none; }
+        .user-nav-chip { padding: 6px 10px; }
+    }
+    </style>
 
     {% if brand_config %}
     <style>
@@ -68,6 +155,34 @@
                         </a>
                     </li>
                     {% endif %}
+
+                    <!-- Chip de usuario logueado -->
+                    {% if session_usuario %}
+                    <li class="user-nav-chip-wrap">
+                        <button class="user-nav-chip" onclick="toggleUserDropdown(event)" type="button">
+                            <i class="fas fa-user-circle"></i>
+                            <span>{{ session_usuario.nombre.split()[0] if session_usuario.nombre else 'Mi cuenta' }}</span>
+                            <i class="fas fa-chevron-down" style="font-size:0.65em; margin-left:3px;"></i>
+                        </button>
+                        <div class="user-nav-dropdown" id="user-nav-dropdown">
+                            <div class="user-nav-header">
+                                <div style="font-weight:600; font-size:0.9em;">{{ session_usuario.nombre }}</div>
+                                <div style="color:#aaa; font-size:0.78em; margin-top:2px;">{{ session_usuario.email }}</div>
+                            </div>
+                            {% if session_usuario.rol_id == 3 %}
+                            <a href="{{ url_for('auth.dashboard_cliente') }}"><i class="fas fa-tachometer-alt"></i> Mi Cuenta</a>
+                            <a href="{{ url_for('auth.mis_pedidos') }}"><i class="fas fa-shopping-bag"></i> Mis Pedidos</a>
+                            <a href="{{ url_for('soporte.mis_tickets') }}"><i class="fas fa-headset"></i> Soporte</a>
+                            {% else %}
+                            <a href="{{ url_for('admin.dashboard_admin') }}"><i class="fas fa-tools"></i> Panel Admin</a>
+                            {% endif %}
+                            <div class="user-nav-divider"></div>
+                            <a href="{{ url_for('auth.logout') }}" style="color:#dc3545 !important;">
+                                <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                            </a>
+                        </div>
+                    </li>
+                    {% endif %}
                 </ul>
                 {% else %}
                 <h2>NO HAY DATOS DEL APP</h2>
@@ -91,6 +206,21 @@
 </header>
 
 <body>
+
+    <!-- Mini-barra de sesión activa (solo clientes logueados) -->
+    {% if session_usuario and session_usuario.rol_id == 3 %}
+    <div class="session-bar">
+        <span>
+            <i class="fas fa-user-check"></i>
+            Hola, <strong>{{ session_usuario.nombre.split()[0] }}</strong> — estás comprando con tu cuenta
+        </span>
+        <span>
+            <a href="{{ url_for('auth.dashboard_cliente') }}"><i class="fas fa-tachometer-alt"></i> Mi cuenta</a>
+            <a href="{{ url_for('auth.mis_pedidos') }}"><i class="fas fa-shopping-bag"></i> Mis pedidos</a>
+            <a href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i> Salir</a>
+        </span>
+    </div>
+    {% endif %}
 
     {% block body %}
     {% endblock %}
@@ -211,6 +341,18 @@
 
 {% block script%}
 {% endblock %}
+
+<script>
+function toggleUserDropdown(e) {
+    e.stopPropagation();
+    var dd = document.getElementById('user-nav-dropdown');
+    if (dd) dd.classList.toggle('open');
+}
+document.addEventListener('click', function() {
+    var dd = document.getElementById('user-nav-dropdown');
+    if (dd) dd.classList.remove('open');
+});
+</script>
 
 {% if config_global.get('mostrar_modulo_ventas', true) %}
 <script src="{{ url_for('static', filename='js/Shoppingcar.js') }}"></script>

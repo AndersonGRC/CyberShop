@@ -42,6 +42,13 @@
 
         <div class="seccion-formulario">
 
+            {% if usuario %}
+            <div style="background: #f0f7e6; border-left: 4px solid #a6c438; padding: 10px 16px; border-radius: 6px; margin-bottom: 18px; font-size: 0.92em; color: #444;">
+                <i class="fas fa-user-circle" style="color: #a6c438; margin-right: 6px;"></i>
+                Comprando como <strong>{{ usuario.nombre }}</strong> — <a href="{{ url_for('auth.logout') }}" style="color: #888; font-size: 0.9em;">No soy yo</a>
+            </div>
+            {% endif %}
+
             <div id="paso-1" class="paso-activo">
                 <h3 style="text-align: center; margin-bottom: 25px;">Selecciona tu método de pago</h3>
 
@@ -74,13 +81,15 @@
                     <div class="form-group">
                         <label class="form-label">Nombre completo</label>
                         <input type="text" name="buyerFullName" class="form-control" required
-                            placeholder="Ej: Juan Pérez">
+                            placeholder="Ej: Juan Pérez"
+                            value="{{ usuario.nombre if usuario else '' }}">
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Correo electrónico</label>
                         <input type="email" name="buyerEmail" class="form-control" required
-                            placeholder="Ej: juan@email.com">
+                            placeholder="Ej: juan@email.com"
+                            value="{{ usuario.email if usuario else '' }}">
                     </div>
 
                     <div class="fila-doble">
@@ -103,7 +112,9 @@
 
                     <div class="form-group">
                         <label class="form-label">Teléfono de contacto</label>
-                        <input type="text" name="buyerPhone" class="form-control" required placeholder="Ej: 3001234567">
+                        <input type="text" name="buyerPhone" class="form-control" required
+                            placeholder="Ej: 3001234567"
+                            value="{{ usuario.telefono if usuario and usuario.telefono else '' }}">
                     </div>
 
                     <div class="fila-doble">
@@ -115,7 +126,8 @@
                         <div class="form-group" style="flex: 1.5;">
                             <label class="form-label">Dirección de entrega</label>
                             <input type="text" name="shippingAddress" class="form-control" required
-                                placeholder="Ej: Calle 123 # 45-67 Apto 101">
+                                placeholder="Ej: Calle 123 # 45-67 Apto 101"
+                                value="{{ usuario.direccion if usuario and usuario.direccion else '' }}">
                         </div>
                     </div>
 

@@ -1,0 +1,376 @@
+{% extends './plantillaapp.html' %}
+{% block titulo %}Contabilidad | {{ datosApp.titulo }}{% endblock %}
+{% block LinkAdicional %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* Quick-add modal */
+#modal-rapido { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45);
+                z-index:9999; align-items:center; justify-content:center; }
+#modal-rapido.open { display:flex; }
+.modal-box { background:#fff; border-radius:14px; padding:28px 28px 22px;
+             width:100%; max-width:420px; box-shadow:0 20px 60px rgba(0,0,0,0.2);
+             position:relative; }
+.modal-box h3 { margin:0 0 18px; font-size:1em; color:#333; }
+.modal-close { position:absolute; top:14px; right:16px; background:none; border:none;
+               font-size:1.2em; cursor:pointer; color:#aaa; }
+.tipo-toggle { display:flex; border-radius:8px; overflow:hidden; border:1px solid #ddd;
+               margin-bottom:14px; }
+.tipo-toggle button { flex:1; padding:9px; background:#f8f9fa; border:none; cursor:pointer;
+                      font-size:0.88em; font-weight:600; transition:all 0.15s; }
+.tipo-toggle button.active-ing { background:#d4edda; color:#155724; }
+.tipo-toggle button.active-egr { background:#f8d7da; color:#721c24; }
+.mf { margin-bottom:12px; }
+.mf label { display:block; font-size:0.78em; color:#888; margin-bottom:3px; font-weight:600; }
+.mf input, .mf select, .mf textarea {
+    width:100%; padding:8px 10px; border-radius:6px; border:1px solid #ddd;
+    font-size:0.9em; box-sizing:border-box; }
+
+@media (max-width:768px) {
+    #grid-dash-main { grid-template-columns:1fr !important; }
+    .kpi-cards { flex-direction:column !important; }
+    .kpi-cards > div { min-width:unset !important; width:100%; box-sizing:border-box; }
+    .dash-actions { flex-direction:column !important; align-items:flex-start !important; }
+    .dash-actions a { width:100%; text-align:center; box-sizing:border-box; }
+    #wrap-table-dash { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    #wrap-table-dash table { min-width:500px; }
+    .modal-box { margin:16px; }
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="main-container">
+<div class="content-wrapper" style="padding:28px 24px; max-width:1200px;">
+
+    <!-- Encabezado -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+        <h1 class="page-title" style="margin:0;"><i class="fas fa-chart-line"></i> Contabilidad</h1>
+        <div class="dash-actions" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            {% for p, lbl in [('semana','Semana'),('mes','Este mes'),('mes_ant','Mes ant.'),('anio','Este año')] %}
+            <a href="{{ url_for('contabilidad.dashboard', periodo=p) }}"
+               style="padding:5px 14px; border-radius:20px; font-size:0.82em; font-weight:600; text-decoration:none;
+                      background:{{ 'var(--color-primario)' if periodo==p else '#e9ecef' }};
+                      color:{{ '#fff' if periodo==p else '#555' }};">{{ lbl }}</a>
+            {% endfor %}
+            <a href="{{ url_for('contabilidad.movimientos') }}"
+               style="padding:5px 14px; border-radius:20px; font-size:0.82em; font-weight:600; text-decoration:none; background:#e9ecef; color:#555;">
+                <i class="fas fa-list"></i> Movimientos
+            </a>
+            <a href="{{ url_for('contabilidad.cierres') }}"
+               style="padding:5px 14px; border-radius:20px; font-size:0.82em; font-weight:600; text-decoration:none; background:#e9ecef; color:#555;">
+                <i class="fas fa-flag-checkered"></i> Cierres
+            </a>
+            <!-- Botón registro rápido -->
+            <button onclick="abrirModal()" type="button"
+                    style="padding:7px 16px; border-radius:20px; font-size:0.82em; font-weight:700;
+                           background:var(--color-primario); color:#fff; border:none; cursor:pointer;
+                           display:flex; align-items:center; gap:6px;">
+                <i class="fas fa-plus"></i> Registro rápido
+            </button>
+        </div>
+    </div>
+
+    <p style="color:#888; font-size:0.85em; margin:0 0 20px;">
+        <i class="fas fa-calendar"></i> {{ label_periodo }}
+        — {{ fecha_ini.strftime('%d/%m/%Y') }} al {{ fecha_fin.strftime('%d/%m/%Y') }}
+    </p>
+
+    <!-- Alerta plantillas pendientes -->
+    {% if pendientes_plantillas > 0 %}
+    <div style="background:#fff3cd; border-left:4px solid #f0ad4e; border-radius:8px;
+                padding:14px 18px; margin-bottom:20px; display:flex;
+                justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <span style="font-size:0.9em; color:#856404;">
+            <i class="fas fa-clock"></i>
+            <strong>{{ pendientes_plantillas }} plantilla{{ 's' if pendientes_plantillas != 1 else '' }}
+            pendiente{{ 's' if pendientes_plantillas != 1 else '' }}</strong>
+            de generar este mes.
+        </span>
+        <a href="{{ url_for('contabilidad.plantillas') }}"
+           style="background:#f0ad4e; color:#fff; padding:7px 16px; border-radius:6px;
+                  font-size:0.85em; font-weight:600; text-decoration:none; white-space:nowrap;">
+            <i class="fas fa-bolt"></i> Generar ahora
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- KPI cards -->
+    <div class="kpi-cards" style="display:flex; gap:14px; flex-wrap:wrap; margin-bottom:20px;">
+
+        <div style="flex:1; min-width:160px; background:#fff; border-radius:12px; padding:18px 22px;
+                    box-shadow:0 2px 8px rgba(0,0,0,0.07); border-left:4px solid #28a745;">
+            <div style="font-size:0.78em; color:#888; font-weight:700; text-transform:uppercase; letter-spacing:.5px;">Ingresos netos</div>
+            <div style="font-size:1.8rem; font-weight:700; color:#28a745; margin:5px 0; line-height:1;">
+                ${{ '{:,.0f}'.format(stats.ingresos) }}
+            </div>
+            <div style="color:#aaa; font-size:0.78em;">{{ stats.num_ingresos }} mov. · Bruto ${{ '{:,.0f}'.format(stats.ingresos_bruto) }}</div>
+        </div>
+
+        <div style="flex:1; min-width:160px; background:#fff; border-radius:12px; padding:18px 22px;
+                    box-shadow:0 2px 8px rgba(0,0,0,0.07); border-left:4px solid #dc3545;">
+            <div style="font-size:0.78em; color:#888; font-weight:700; text-transform:uppercase; letter-spacing:.5px;">Egresos</div>
+            <div style="font-size:1.8rem; font-weight:700; color:#dc3545; margin:5px 0; line-height:1;">
+                ${{ '{:,.0f}'.format(stats.egresos) }}
+            </div>
+            <div style="color:#aaa; font-size:0.78em;">{{ stats.num_egresos }} movimiento{{ 's' if stats.num_egresos != 1 else '' }}</div>
+        </div>
+
+        <div style="flex:1; min-width:160px; background:#fff; border-radius:12px; padding:18px 22px;
+                    box-shadow:0 2px 8px rgba(0,0,0,0.07);
+                    border-left:4px solid {{ '#28a745' if stats.saldo >= 0 else '#dc3545' }};">
+            <div style="font-size:0.78em; color:#888; font-weight:700; text-transform:uppercase; letter-spacing:.5px;">Saldo</div>
+            <div style="font-size:1.8rem; font-weight:700; color:{{ '#28a745' if stats.saldo >= 0 else '#dc3545' }}; margin:5px 0; line-height:1;">
+                {{ '+' if stats.saldo >= 0 else '' }}${{ '{:,.0f}'.format(stats.saldo) }}
+            </div>
+            <div style="color:#aaa; font-size:0.78em;">Ingresos netos − Egresos</div>
+        </div>
+
+        {% if stats.retenciones > 0 %}
+        <div style="flex:1; min-width:160px; background:#fff; border-radius:12px; padding:18px 22px;
+                    box-shadow:0 2px 8px rgba(0,0,0,0.07); border-left:4px solid #e67e22;">
+            <div style="font-size:0.78em; color:#888; font-weight:700; text-transform:uppercase; letter-spacing:.5px;">Retenciones</div>
+            <div style="font-size:1.8rem; font-weight:700; color:#e67e22; margin:5px 0; line-height:1;">
+                ${{ '{:,.0f}'.format(stats.retenciones) }}
+            </div>
+            <div style="color:#aaa; font-size:0.78em; line-height:1.5;">
+                {% if stats.retefuente > 0 %}RteFte ${{ '{:,.0f}'.format(stats.retefuente) }}<br>{% endif %}
+                {% if stats.reteiva   > 0 %}ReteIVA ${{ '{:,.0f}'.format(stats.reteiva) }}<br>{% endif %}
+                {% if stats.reteica   > 0 %}ReteICA ${{ '{:,.0f}'.format(stats.reteica) }}{% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <div id="grid-dash-main" style="display:grid; grid-template-columns:1fr 300px; gap:20px; align-items:start; margin-bottom:24px;">
+
+        <!-- Gráfico -->
+        <div style="background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.07); padding:22px 24px;">
+            <h3 style="margin:0 0 16px; font-size:0.92em; color:#444;">
+                <i class="fas fa-chart-bar" style="color:var(--color-primario);"></i> Evolución mensual (últimos 6 meses)
+            </h3>
+            <canvas id="chartMensual" height="100"></canvas>
+        </div>
+
+        <!-- Desglose por categoría -->
+        <div style="background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.07); padding:22px 24px;">
+            <h3 style="margin:0 0 14px; font-size:0.92em; color:#444;">
+                <i class="fas fa-tags" style="color:var(--color-primario);"></i> Por categoría
+            </h3>
+            {% if por_categoria %}
+            <div style="display:flex; flex-direction:column; gap:8px; max-height:320px; overflow-y:auto;">
+                {% for r in por_categoria %}
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.84em; padding:5px 0; border-bottom:1px solid #f5f5f5;">
+                    <span style="display:flex; align-items:center; gap:6px;">
+                        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; flex-shrink:0;
+                                     background:{{ '#28a745' if r.tipo=='ingreso' else '#dc3545' }};"></span>
+                        {{ label_cat(r.categoria) }}
+                    </span>
+                    <span style="font-weight:600; color:{{ '#28a745' if r.tipo=='ingreso' else '#dc3545' }}; margin-left:8px; white-space:nowrap;">
+                        ${{ '{:,.0f}'.format(r.total) }}
+                        <span style="color:#ccc; font-weight:400; font-size:0.85em;">({{ r.cnt }})</span>
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p style="color:#ccc; font-size:0.88em; text-align:center; padding:30px 0;">Sin movimientos en este período.</p>
+            {% endif %}
+        </div>
+
+    </div>
+
+    <!-- Últimos movimientos -->
+    <div style="background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.07); padding:22px 24px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+            <h3 style="margin:0; font-size:0.92em; color:#444;">
+                <i class="fas fa-clock" style="color:var(--color-primario);"></i> Últimos movimientos
+            </h3>
+            <a href="{{ url_for('contabilidad.movimientos') }}"
+               style="font-size:0.82em; color:var(--color-primario); text-decoration:none;">
+                Ver todos <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
+        {% if ultimos %}
+        <div id="wrap-table-dash">
+        <table style="width:100%; border-collapse:collapse; font-size:0.87em;">
+            <thead>
+                <tr style="border-bottom:2px solid #f0f0f0; color:#888; font-size:0.8em; text-transform:uppercase; letter-spacing:.3px;">
+                    <th style="padding:8px 10px; text-align:left; font-weight:600;">Fecha</th>
+                    <th style="padding:8px 10px; text-align:left; font-weight:600;">Descripción</th>
+                    <th style="padding:8px 10px; text-align:left; font-weight:600;">Categoría</th>
+                    <th style="padding:8px 10px; text-align:center; font-weight:600;">Tipo</th>
+                    <th style="padding:8px 10px; text-align:right; font-weight:600;">Neto</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in ultimos %}
+                <tr style="border-bottom:1px solid #f9f9f9;"
+                    onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
+                    <td style="padding:9px 10px; color:#888; white-space:nowrap;">
+                        {{ m.fecha.strftime('%d/%m/%Y') if m.fecha else '' }}
+                    </td>
+                    <td style="padding:9px 10px; max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                        {{ m.descripcion[:55] }}{% if m.descripcion|length > 55 %}…{% endif %}
+                        {% if m.auto_generado %}
+                        <i class="fas fa-robot" style="color:#ccc; font-size:0.8em; margin-left:3px;" title="Auto-generado"></i>
+                        {% endif %}
+                    </td>
+                    <td style="padding:9px 10px; color:#777; font-size:0.85em;">{{ label_cat(m.categoria) }}</td>
+                    <td style="padding:9px 10px; text-align:center;">
+                        {% if m.tipo == 'ingreso' %}
+                        <span style="background:#d4edda; color:#155724; padding:2px 9px; border-radius:20px; font-size:0.78em; font-weight:600;">
+                            <i class="fas fa-arrow-up"></i> Ingreso
+                        </span>
+                        {% else %}
+                        <span style="background:#f8d7da; color:#721c24; padding:2px 9px; border-radius:20px; font-size:0.78em; font-weight:600;">
+                            <i class="fas fa-arrow-down"></i> Egreso
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td style="padding:9px 10px; text-align:right; font-weight:700;
+                               color:{{ '#28a745' if m.tipo=='ingreso' else '#dc3545' }};">
+                        {{ '+' if m.tipo=='ingreso' else '-' }}${{ '{:,.0f}'.format(m.monto) }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div><!-- /wrap-table-dash -->
+        {% else %}
+        <p style="text-align:center; color:#ccc; padding:30px 0; font-size:0.9em;">
+            <i class="fas fa-inbox" style="font-size:2rem; display:block; margin-bottom:8px;"></i>
+            Sin movimientos registrados aún.
+        </p>
+        {% endif %}
+    </div>
+
+</div>
+</div>
+
+<!-- ── Modal Registro Rápido ───────────────────────────────── -->
+<div id="modal-rapido" onclick="cerrarModalFuera(event)">
+  <div class="modal-box">
+    <button class="modal-close" onclick="cerrarModal()" type="button"><i class="fas fa-times"></i></button>
+    <h3><i class="fas fa-bolt" style="color:var(--color-primario);"></i> Registro rápido</h3>
+
+    <!-- Toggle ingreso/gasto -->
+    <div class="tipo-toggle" id="tipoToggle">
+        <button type="button" id="btnIng" class="active-ing" onclick="setTipoRapido('ingreso')">
+            <i class="fas fa-arrow-up"></i> Ingreso
+        </button>
+        <button type="button" id="btnEgr" onclick="setTipoRapido('egreso')">
+            <i class="fas fa-arrow-down"></i> Gasto
+        </button>
+    </div>
+
+    <form action="{{ url_for('contabilidad.nuevo_movimiento') }}" method="POST">
+        <input type="hidden" name="tipo"   id="rTipo"   value="ingreso">
+        <input type="hidden" name="next"   value="{{ url_for('contabilidad.dashboard', periodo=periodo) }}">
+        <!-- Hidden tax fields (0 = sin retenciones en registro rápido) -->
+        <input type="hidden" name="retefuente_pct_val" value="0">
+        <input type="hidden" name="iva_pct_val"        value="0">
+        <input type="hidden" name="reteiva_pct_val"    value="0">
+        <input type="hidden" name="reteica_pct_val"    value="0">
+
+        <div class="mf">
+            <label>Categoría</label>
+            <select name="categoria" id="rCategoria" required style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid #ddd; font-size:0.9em;">
+                <optgroup label="Ingresos" id="grpIng">
+                    {% for v,l in categorias_ingreso %}<option value="{{ v }}">{{ l }}</option>{% endfor %}
+                </optgroup>
+                <optgroup label="Gastos" id="grpEgr" style="display:none">
+                    {% for v,l in categorias_egreso %}<option value="{{ v }}">{{ l }}</option>{% endfor %}
+                </optgroup>
+            </select>
+        </div>
+        <div class="mf">
+            <label>Descripción</label>
+            <input type="text" name="descripcion" required maxlength="200" placeholder="Ej: Honorarios cliente ABC">
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div class="mf">
+                <label>Monto (COP)</label>
+                <input type="number" name="monto_bruto" required min="1" step="0.01" placeholder="0">
+            </div>
+            <div class="mf">
+                <label>Fecha</label>
+                <input type="date" name="fecha" value="{{ now.strftime('%Y-%m-%d') if now else '' }}" required>
+            </div>
+        </div>
+        <div class="mf">
+            <label>Notas (opcional)</label>
+            <textarea name="notas" rows="2" maxlength="400" placeholder="Observaciones…" style="resize:none;"></textarea>
+        </div>
+        <button type="submit"
+                style="width:100%; background:var(--color-primario); color:#fff; border:none;
+                       border-radius:8px; padding:11px; font-size:0.95em; font-weight:700; cursor:pointer; margin-top:4px;">
+            <i class="fas fa-save"></i> Guardar
+        </button>
+    </form>
+  </div>
+</div>
+
+<script>
+/* ── Chart ─────────────────────────────────────────── */
+var ctx = document.getElementById('chartMensual');
+if (ctx) {
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: {{ chart_labels | tojson }},
+            datasets: [
+                { label: 'Ingresos', data: {{ chart_ingresos | tojson }},
+                  backgroundColor: 'rgba(40,167,69,0.72)', borderRadius: 4 },
+                { label: 'Egresos',  data: {{ chart_egresos  | tojson }},
+                  backgroundColor: 'rgba(220,53,69,0.72)',  borderRadius: 4 }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'top' } },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { callback: function(v) { return '$' + v.toLocaleString('es-CO'); } }
+                }
+            }
+        }
+    });
+}
+
+/* ── Modal rápido ───────────────────────────────────── */
+function abrirModal() {
+    document.getElementById('modal-rapido').classList.add('open');
+}
+function cerrarModal() {
+    document.getElementById('modal-rapido').classList.remove('open');
+}
+function cerrarModalFuera(e) {
+    if (e.target === document.getElementById('modal-rapido')) cerrarModal();
+}
+
+function setTipoRapido(tipo) {
+    document.getElementById('rTipo').value = tipo;
+    var btnI = document.getElementById('btnIng');
+    var btnE = document.getElementById('btnEgr');
+    var gi   = document.getElementById('grpIng');
+    var ge   = document.getElementById('grpEgr');
+    var sel  = document.getElementById('rCategoria');
+
+    if (tipo === 'ingreso') {
+        btnI.className = 'active-ing'; btnE.className = '';
+        gi.style.display = ''; ge.style.display = 'none';
+        if (gi.options && gi.options.length > 0) sel.value = gi.options[0].value;
+    } else {
+        btnE.className = 'active-egr'; btnI.className = '';
+        ge.style.display = ''; gi.style.display = 'none';
+        if (ge.options && ge.options.length > 0) sel.value = ge.options[0].value;
+    }
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') cerrarModal();
+});
+</script>
+{% endblock %}

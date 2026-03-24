@@ -1,0 +1,126 @@
+{% extends './plantillaapp.html' %}
+{% block titulo %}Soporte | {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+@media (max-width: 500px) {
+    .ticket-form-footer { flex-direction: column !important; align-items: flex-start !important; }
+    .ticket-form-footer button { width: 100%; margin-top: 4px; }
+    .ticket-item-row { flex-direction: column !important; gap: 6px !important; }
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="main-container">
+<div class="content-wrapper" style="padding:28px 24px; max-width:820px;">
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
+        <h1 class="page-title" style="margin:0;">
+            <i class="fas fa-headset"></i> Soporte / Contactar vendedor
+        </h1>
+        <a href="{{ url_for('auth.dashboard_cliente') }}" style="color:#888; font-size:0.88em; text-decoration:none;">
+            <i class="fas fa-arrow-left"></i> Mi cuenta
+        </a>
+    </div>
+
+    <!-- Formulario nuevo ticket -->
+    {% if puede_crear %}
+    <div style="background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.08);
+                padding:24px; margin-bottom:28px; border-top:4px solid var(--color-primario);">
+        <h3 style="margin:0 0 16px; font-size:1em; color:#444;">
+            <i class="fas fa-paper-plane" style="color:var(--color-primario);"></i> Enviar nuevo ticket
+        </h3>
+        <form action="{{ url_for('soporte.crear_ticket') }}" method="POST">
+            <div style="margin-bottom:14px;">
+                <label style="display:block; font-size:0.88em; font-weight:600; color:#555; margin-bottom:5px;">Asunto</label>
+                <input type="text" name="asunto" required maxlength="120"
+                       placeholder="Ej: Problema con mi pedido #CYBER-001"
+                       class="form-control" style="width:100%; padding:9px 12px; border-radius:6px; border:1px solid #ddd;">
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="display:block; font-size:0.88em; font-weight:600; color:#555; margin-bottom:5px;">Mensaje</label>
+                <textarea name="mensaje" required rows="4" maxlength="1200"
+                          placeholder="Describe tu consulta o problema con el mayor detalle posible..."
+                          class="form-control" style="width:100%; padding:9px 12px; border-radius:6px; border:1px solid #ddd; resize:vertical;"></textarea>
+            </div>
+            <div class="ticket-form-footer" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                <span style="color:#aaa; font-size:0.8em;">
+                    <i class="fas fa-info-circle"></i>
+                    Máximo {{ limite }} ticket{{ 's' if limite != 1 else '' }} activo{{ 's' if limite != 1 else '' }} por semana.
+                    Te responderemos por aquí y por correo.
+                </span>
+                <button type="submit"
+                        style="background:var(--color-primario); color:#fff; border:none; border-radius:6px;
+                               padding:10px 24px; font-size:0.95em; font-weight:600; cursor:pointer;">
+                    <i class="fas fa-paper-plane"></i> Enviar
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {% else %}
+    <div style="background:#fff8e1; border-left:4px solid #f0ad4e; border-radius:8px;
+                padding:16px 20px; margin-bottom:28px; font-size:0.92em; color:#856404;">
+        <i class="fas fa-clock"></i>
+        <strong>Ya tienes {{ limite }} ticket{{ 's' if limite != 1 else '' }} activo{{ 's' if limite != 1 else '' }}.</strong>
+        Podrás abrir uno nuevo en <strong>{{ dias_restantes }} día{{ 's' if dias_restantes != 1 else '' }}</strong>
+        o cuando se cierre uno de los activos.
+        Revisa las respuestas en el historial de abajo.
+    </div>
+    {% endif %}
+
+    <!-- Historial -->
+    <h3 style="font-size:0.95em; color:#666; margin-bottom:14px; font-weight:600; text-transform:uppercase; letter-spacing:.5px;">
+        Historial de tickets
+    </h3>
+
+    {% if tickets %}
+    <div style="display:flex; flex-direction:column; gap:12px;">
+        {% for t in tickets %}
+        <a href="{{ url_for('soporte.ver_ticket_cliente', ticket_id=t.id) }}"
+           style="background:#fff; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.07);
+                  padding:16px 20px; text-decoration:none; color:#333; display:block;
+                  border-left:4px solid {{ '#28a745' if t.estado == 'respondido' else ('#dc3545' if t.estado == 'cerrado' else 'var(--color-primario)') }};"
+           onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,0.12)'"
+           onmouseout="this.style.boxShadow='0 2px 6px rgba(0,0,0,0.07)'">
+            <div class="ticket-item-row" style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+                <div>
+                    <div style="font-weight:600; margin-bottom:4px;">{{ t.asunto }}</div>
+                    <div style="color:#aaa; font-size:0.82em;">
+                        <i class="fas fa-clock"></i>
+                        {{ t.fecha_creacion.strftime('%d/%m/%Y %H:%M') if t.fecha_creacion else '' }}
+                        {% if t.num_respuestas %}
+                        &nbsp;·&nbsp; <i class="fas fa-reply"></i> {{ t.num_respuestas }} respuesta{{ 's' if t.num_respuestas != 1 else '' }}
+                        {% endif %}
+                    </div>
+                </div>
+                <div>
+                    {% if t.estado == 'respondido' %}
+                    <span style="background:#d4edda; color:#155724; padding:4px 12px; border-radius:20px; font-size:0.8em; font-weight:600; white-space:nowrap;">
+                        <i class="fas fa-check-circle"></i> Respondido
+                    </span>
+                    {% elif t.estado == 'cerrado' %}
+                    <span style="background:#e2e3e5; color:#495057; padding:4px 12px; border-radius:20px; font-size:0.8em; font-weight:600; white-space:nowrap;">
+                        <i class="fas fa-lock"></i> Cerrado
+                    </span>
+                    {% else %}
+                    <span style="background:#cce5ff; color:#004085; padding:4px 12px; border-radius:20px; font-size:0.8em; font-weight:600; white-space:nowrap;">
+                        <i class="fas fa-envelope"></i> Abierto
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align:center; padding:40px; color:#ccc;">
+        <i class="fas fa-headset" style="font-size:2.5rem; margin-bottom:12px; display:block;"></i>
+        Aún no tienes tickets. Usa el formulario de arriba para contactar al vendedor.
+    </div>
+    {% endif %}
+
+</div>
+</div>
+{% endblock %}

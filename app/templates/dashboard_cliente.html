@@ -1,1 +1,131 @@
 {% extends './plantillaapp.html' %}
+
+{% block titulo %}Mi cuenta | {{ datosApp.titulo }}{% endblock %}
+
+{% block body %}
+<div class="main-container">
+    <div class="content-wrapper" style="padding: 28px 24px;">
+
+        <h1 class="page-title">
+            <i class="fas fa-user-circle"></i> Bienvenido, {{ session.username }}
+        </h1>
+
+        <!-- Tarjetas resumen -->
+        <div style="display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 30px;">
+
+            <div style="flex:1; min-width:160px; background:#fff; border-radius:10px; padding:20px 24px;
+                        box-shadow:0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid var(--color-primario);">
+                <div style="font-size:2rem; font-weight:700; color:var(--color-primario);">{{ resumen.total_pedidos }}</div>
+                <div style="color:#777; font-size:0.9em; margin-top:4px;">Total pedidos</div>
+            </div>
+
+            <div style="flex:1; min-width:160px; background:#fff; border-radius:10px; padding:20px 24px;
+                        box-shadow:0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #f0ad4e;">
+                <div style="font-size:2rem; font-weight:700; color:#f0ad4e;">{{ resumen.pendientes }}</div>
+                <div style="color:#777; font-size:0.9em; margin-top:4px;">En proceso</div>
+            </div>
+
+            <div style="flex:1; min-width:160px; background:#fff; border-radius:10px; padding:20px 24px;
+                        box-shadow:0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #28a745;">
+                <div style="font-size:2rem; font-weight:700; color:#28a745;">{{ resumen.aprobados }}</div>
+                <div style="color:#777; font-size:0.9em; margin-top:4px;">Aprobados</div>
+            </div>
+
+        </div>
+
+        <!-- Último pedido -->
+        {% if resumen.ultimo %}
+        <div style="background:#fff; border-radius:10px; padding:20px 24px;
+                    box-shadow:0 2px 8px rgba(0,0,0,0.08); margin-bottom:24px;">
+            <h3 style="margin-bottom:14px; font-size:1em; color:#555;">
+                <i class="fas fa-clock" style="color:var(--color-primario);"></i> Último pedido
+            </h3>
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <div>
+                    <div style="font-weight:600;">{{ resumen.ultimo.referencia_pedido }}</div>
+                    <div style="color:#888; font-size:0.85em;">{{ resumen.ultimo.fecha_creacion.strftime('%d/%m/%Y %H:%M') if resumen.ultimo.fecha_creacion else '' }}</div>
+                </div>
+                <div>
+                    <span style="font-size:1.1em; font-weight:700;">
+                        ${{ '{:,.0f}'.format(resumen.ultimo.monto_total) }} COP
+                    </span>
+                </div>
+                <div>
+                    {% if resumen.ultimo.estado_pago == 'APROBADO' %}
+                    <span style="background:#d4edda; color:#155724; padding:4px 12px; border-radius:20px; font-size:0.85em; font-weight:600;">
+                        <i class="fas fa-check-circle"></i> Aprobado
+                    </span>
+                    {% elif resumen.ultimo.estado_pago == 'PENDIENTE' %}
+                    <span style="background:#fff3cd; color:#856404; padding:4px 12px; border-radius:20px; font-size:0.85em; font-weight:600;">
+                        <i class="fas fa-hourglass-half"></i> Pendiente
+                    </span>
+                    {% else %}
+                    <span style="background:#f8d7da; color:#721c24; padding:4px 12px; border-radius:20px; font-size:0.85em; font-weight:600;">
+                        <i class="fas fa-times-circle"></i> {{ resumen.ultimo.estado_pago }}
+                    </span>
+                    {% endif %}
+                </div>
+                <a href="{{ url_for('auth.mis_pedidos') }}"
+                   style="background:var(--color-primario); color:#fff; padding:8px 18px; border-radius:6px;
+                          text-decoration:none; font-size:0.9em;">
+                    Ver todos mis pedidos
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Accesos rápidos -->
+        <div style="display:flex; gap:16px; flex-wrap:wrap;">
+
+            <a href="{{ url_for('auth.mis_pedidos') }}"
+               style="flex:1; min-width:180px; background:#fff; border-radius:10px; padding:22px 20px;
+                      box-shadow:0 2px 8px rgba(0,0,0,0.08); text-decoration:none; color:#333;
+                      display:flex; flex-direction:column; align-items:center; gap:10px;
+                      transition: box-shadow .2s;"
+               onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.14)'"
+               onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)'">
+                <i class="fas fa-shopping-bag" style="font-size:2rem; color:var(--color-primario);"></i>
+                <span style="font-weight:600;">Mis pedidos</span>
+                <span style="color:#888; font-size:0.82em;">Ver historial de compras</span>
+            </a>
+
+            <a href="{{ url_for('public.productos') }}"
+               style="flex:1; min-width:180px; background:#fff; border-radius:10px; padding:22px 20px;
+                      box-shadow:0 2px 8px rgba(0,0,0,0.08); text-decoration:none; color:#333;
+                      display:flex; flex-direction:column; align-items:center; gap:10px;
+                      transition: box-shadow .2s;"
+               onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.14)'"
+               onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)'">
+                <i class="fas fa-store" style="font-size:2rem; color:var(--color-acento-secundario);"></i>
+                <span style="font-weight:600;">Seguir comprando</span>
+                <span style="color:#888; font-size:0.82em;">Ver catálogo de productos</span>
+            </a>
+
+            <a href="{{ url_for('soporte.mis_tickets') }}"
+               style="flex:1; min-width:180px; background:#fff; border-radius:10px; padding:22px 20px;
+                      box-shadow:0 2px 8px rgba(0,0,0,0.08); text-decoration:none; color:#333;
+                      display:flex; flex-direction:column; align-items:center; gap:10px;
+                      transition: box-shadow .2s;"
+               onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.14)'"
+               onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)'">
+                <i class="fas fa-headset" style="font-size:2rem; color:#17a2b8;"></i>
+                <span style="font-weight:600;">Soporte</span>
+                <span style="color:#888; font-size:0.82em;">Contactar al vendedor</span>
+            </a>
+
+            <a href="{{ url_for('auth.logout') }}"
+               style="flex:1; min-width:180px; background:#fff; border-radius:10px; padding:22px 20px;
+                      box-shadow:0 2px 8px rgba(0,0,0,0.08); text-decoration:none; color:#333;
+                      display:flex; flex-direction:column; align-items:center; gap:10px;
+                      transition: box-shadow .2s;"
+               onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.14)'"
+               onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)'">
+                <i class="fas fa-sign-out-alt" style="font-size:2rem; color:#dc3545;"></i>
+                <span style="font-weight:600;">Cerrar sesión</span>
+                <span style="color:#888; font-size:0.82em;">Salir de mi cuenta</span>
+            </a>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

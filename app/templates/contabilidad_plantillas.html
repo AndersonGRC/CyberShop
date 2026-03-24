@@ -1,0 +1,209 @@
+{% extends './plantillaapp.html' %}
+{% block titulo %}Plantillas | {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+@media (max-width:768px) {
+    #grid-plantilla-form { grid-template-columns:1fr !important; }
+    .plantilla-row-meta { flex-direction:column !important; gap:6px !important; }
+    .plantilla-row-meta .actions { flex-direction:row !important; }
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="main-container">
+<div class="content-wrapper" style="padding:28px 24px; max-width:960px;">
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:12px;">
+        <h1 class="page-title" style="margin:0;"><i class="fas fa-clone"></i> Plantillas recurrentes</h1>
+        <a href="{{ url_for('contabilidad.dashboard') }}" style="color:#888; font-size:0.88em; text-decoration:none;">
+            <i class="fas fa-arrow-left"></i> Dashboard
+        </a>
+    </div>
+    <p style="color:#888; font-size:0.87em; margin:0 0 24px;">
+        Define tus gastos e ingresos fijos (arriendo, nómina, suscripciones…).
+        Con un clic generas todos los movimientos del mes sin escribir nada.
+    </p>
+
+    <!-- Botón generar -->
+    {% if plantillas %}
+    {% set activas = plantillas | selectattr('activo') | list %}
+    {% if activas %}
+    <div style="background:linear-gradient(135deg,var(--color-primario),var(--color-primario-oscuro,#091C5A));
+                border-radius:12px; padding:20px 24px; margin-bottom:24px;
+                display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div style="color:#fff;">
+            <div style="font-weight:700; font-size:1em; margin-bottom:3px;">
+                <i class="fas fa-bolt"></i> {{ activas|length }} plantilla{{ 's' if activas|length != 1 else '' }} activa{{ 's' if activas|length != 1 else '' }}
+            </div>
+            <div style="font-size:0.83em; opacity:0.85;">
+                Total mensual estimado:
+                <strong>${{ '{:,.0f}'.format(activas | sum(attribute='monto_bruto')) }}</strong>
+            </div>
+        </div>
+        <form action="{{ url_for('contabilidad.generar_desde_plantillas') }}" method="POST" style="display:inline;">
+            <button type="submit"
+                    style="background:#fff; color:var(--color-primario); border:none; border-radius:8px;
+                           padding:10px 24px; font-size:0.92em; font-weight:700; cursor:pointer; white-space:nowrap;">
+                <i class="fas fa-magic"></i> Generar este mes
+            </button>
+        </form>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <div style="display:grid; grid-template-columns:1fr 320px; gap:22px; align-items:start;">
+
+        <!-- Lista de plantillas -->
+        <div>
+            <h3 style="font-size:0.88em; color:#666; margin:0 0 14px; font-weight:700; text-transform:uppercase; letter-spacing:.5px;">
+                Plantillas configuradas
+            </h3>
+
+            {% if plantillas %}
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                {% for p in plantillas %}
+                <div style="background:#fff; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.07);
+                            padding:16px 18px;
+                            border-left:4px solid {{ '#28a745' if p.tipo=='ingreso' else '#dc3545' }};
+                            opacity:{{ '1' if p.activo else '0.55' }};">
+                    <div class="plantilla-row-meta" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+                        <div style="flex:1; min-width:0;">
+                            <div style="font-weight:600; font-size:0.95em; margin-bottom:3px;">
+                                {{ p.descripcion }}
+                                {% if not p.activo %}
+                                <span style="background:#e9ecef; color:#888; font-size:0.73em; border-radius:10px; padding:2px 8px; margin-left:6px; font-weight:600;">
+                                    INACTIVA
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div style="font-size:0.82em; color:#888;">
+                                <span style="background:{{ '#d4edda' if p.tipo=='ingreso' else '#f8d7da' }};
+                                             color:{{ '#155724' if p.tipo=='ingreso' else '#721c24' }};
+                                             padding:2px 8px; border-radius:10px; font-weight:600; font-size:0.9em;">
+                                    {{ 'Ingreso' if p.tipo=='ingreso' else 'Gasto' }}
+                                </span>
+                                &nbsp;{{ label_cat(p.categoria) }}
+                                {% if p.notas %}
+                                <span style="color:#aaa; margin-left:6px;">· {{ p.notas[:60] }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
+                            <span style="font-weight:700; font-size:1.05em;
+                                         color:{{ '#28a745' if p.tipo=='ingreso' else '#dc3545' }};">
+                                ${{ '{:,.0f}'.format(p.monto_bruto) }}
+                            </span>
+                            <!-- Toggle activo -->
+                            <form action="{{ url_for('contabilidad.toggle_plantilla', p_id=p.id) }}" method="POST" style="display:inline;">
+                                <button type="submit" title="{{ 'Desactivar' if p.activo else 'Activar' }}"
+                                        style="background:none; border:none; cursor:pointer; font-size:0.92em;
+                                               color:{{ '#28a745' if p.activo else '#aaa' }}; padding:2px 4px;">
+                                    <i class="fas fa-{{ 'toggle-on' if p.activo else 'toggle-off' }}"></i>
+                                </button>
+                            </form>
+                            <!-- Eliminar -->
+                            <form action="{{ url_for('contabilidad.eliminar_plantilla', p_id=p.id) }}" method="POST" style="display:inline;">
+                                <button type="submit"
+                                        onclick="return confirm('¿Eliminar esta plantilla? Los movimientos ya generados no se borran.')"
+                                        title="Eliminar plantilla"
+                                        style="background:none; border:none; cursor:pointer; font-size:0.88em; color:#dc3545; padding:2px 4px;">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            {% else %}
+            <div style="text-align:center; padding:50px 20px; color:#ccc; background:#fff; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.06);">
+                <i class="fas fa-clone" style="font-size:2.5rem; display:block; margin-bottom:12px;"></i>
+                <p style="margin:0 0 4px;">Aún no tienes plantillas configuradas.</p>
+                <p style="font-size:0.85em; margin:0;">Crea una usando el formulario de la derecha.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Formulario nueva plantilla -->
+        <div style="background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.08);
+                    padding:22px; border-top:4px solid var(--color-primario); position:sticky; top:20px;">
+            <h3 style="margin:0 0 16px; font-size:0.88em; color:#444; font-weight:700; text-transform:uppercase; letter-spacing:.4px;">
+                <i class="fas fa-plus-circle" style="color:var(--color-primario);"></i> Nueva plantilla
+            </h3>
+            <form action="{{ url_for('contabilidad.plantillas') }}" method="POST">
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:0.8em; color:#888; display:block; margin-bottom:3px; font-weight:600;">Tipo</label>
+                    <select name="tipo" id="pTipo" onchange="actualizarCatPlantilla()" required
+                            style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid #ddd; font-size:0.88em;">
+                        <option value="egreso">Gasto</option>
+                        <option value="ingreso">Ingreso</option>
+                    </select>
+                </div>
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:0.8em; color:#888; display:block; margin-bottom:3px; font-weight:600;">Categoría</label>
+                    <select name="categoria" id="pCat" required
+                            style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid #ddd; font-size:0.88em;">
+                        {% for v,l in categorias_egreso  %}<option value="{{ v }}" class="cat-egr">{{ l }}</option>{% endfor %}
+                        {% for v,l in categorias_ingreso %}<option value="{{ v }}" class="cat-ing" style="display:none;">{{ l }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:0.8em; color:#888; display:block; margin-bottom:3px; font-weight:600;">Descripción</label>
+                    <input type="text" name="descripcion" required maxlength="200"
+                           placeholder="Ej: Arriendo local, Plan internet…"
+                           style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid #ddd; font-size:0.88em; box-sizing:border-box;">
+                </div>
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:0.8em; color:#888; display:block; margin-bottom:3px; font-weight:600;">Monto mensual (COP)</label>
+                    <input type="number" name="monto_bruto" required min="1" step="0.01"
+                           placeholder="0"
+                           style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid #ddd; font-size:0.88em; box-sizing:border-box;">
+                </div>
+                <div style="margin-bottom:14px;">
+                    <label style="font-size:0.8em; color:#888; display:block; margin-bottom:3px; font-weight:600;">Notas (opcional)</label>
+                    <textarea name="notas" rows="2" maxlength="300"
+                              placeholder="Contrato, proveedor, referencia…"
+                              style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid #ddd; font-size:0.88em; resize:none; box-sizing:border-box;"></textarea>
+                </div>
+                <button type="submit"
+                        style="width:100%; background:var(--color-primario); color:#fff; border:none;
+                               border-radius:6px; padding:10px; font-size:0.92em; font-weight:600; cursor:pointer;">
+                    <i class="fas fa-save"></i> Guardar plantilla
+                </button>
+            </form>
+        </div>
+
+    </div><!-- /grid -->
+
+    <!-- Info box -->
+    <div style="background:#f0f4ff; border-radius:10px; padding:16px 20px; margin-top:22px; font-size:0.85em; color:#444;">
+        <i class="fas fa-info-circle" style="color:var(--color-primario);"></i>
+        <strong>¿Cómo funciona?</strong>
+        Define una vez cada gasto o ingreso fijo. Al inicio de cada mes haz clic en
+        <strong>"Generar este mes"</strong> y todos los movimientos se crean automáticamente con la fecha de hoy.
+        Si ya los generaste, no se duplican. Puedes editarlos desde
+        <a href="{{ url_for('contabilidad.movimientos') }}" style="color:var(--color-primario);">Movimientos</a>.
+    </div>
+
+</div>
+</div>
+
+<script>
+function actualizarCatPlantilla() {
+    var tipo = document.getElementById('pTipo').value;
+    document.querySelectorAll('.cat-egr').forEach(function(o) {
+        o.style.display = tipo === 'egreso' ? '' : 'none';
+    });
+    document.querySelectorAll('.cat-ing').forEach(function(o) {
+        o.style.display = tipo === 'ingreso' ? '' : 'none';
+    });
+    var sel = document.getElementById('pCat');
+    for (var i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].style.display !== 'none') { sel.selectedIndex = i; break; }
+    }
+}
+</script>
+{% endblock %}

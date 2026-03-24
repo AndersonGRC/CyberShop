@@ -1,0 +1,221 @@
+{% extends './plantillaapp.html' %}
+
+{% block titulo %}Pedido {{ pedido.referencia_pedido }} | {{ datosApp.titulo }}{% endblock %}
+
+{% block body %}
+<div class="main-container">
+    <div class="content-wrapper" style="padding: 28px 24px;">
+
+        <!-- Encabezado -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
+            <div>
+                <h1 class="page-title" style="margin:0 0 4px 0;">
+                    <i class="fas fa-receipt"></i> Pedido
+                    <span style="font-family:monospace; font-size:0.85em; color:#555;">{{ pedido.referencia_pedido }}</span>
+                </h1>
+                <span style="color:#999; font-size:0.88em;">
+                    {{ pedido.fecha_creacion.strftime('%d de %B de %Y, %H:%M') if pedido.fecha_creacion else '' }}
+                </span>
+            </div>
+            {% if modo_admin %}
+            <a href="{{ url_for('admin.vista_cliente_admin') }}"
+               style="color:#666; text-decoration:none; font-size:0.9em;">
+                <i class="fas fa-arrow-left"></i> Volver a búsqueda
+            </a>
+            {% else %}
+            <a href="{{ url_for('auth.mis_pedidos') }}"
+               style="color:#666; text-decoration:none; font-size:0.9em;">
+                <i class="fas fa-arrow-left"></i> Volver a mis pedidos
+            </a>
+            {% endif %}
+        </div>
+
+        <!-- Banner modo admin -->
+        {% if modo_admin %}
+        <div style="background:#fff3cd; border-radius:8px; padding:12px 18px; margin-bottom:20px;
+                    border-left:4px solid #f0ad4e; font-size:0.9em;">
+            <i class="fas fa-tools" style="color:#f0ad4e;"></i>
+            <strong>Modo administrador</strong> — Viendo el pedido de <strong>{{ pedido.cliente_email }}</strong>
+        </div>
+        {% endif %}
+
+        <div style="display:grid; grid-template-columns: 1fr 340px; gap:20px; align-items:start;">
+
+            <!-- Columna izquierda: productos + timeline -->
+            <div>
+
+                <!-- Productos -->
+                <div style="background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.08);
+                            padding:20px 24px; margin-bottom:20px;">
+                    <h3 style="margin:0 0 16px 0; font-size:1em; color:#444;">
+                        <i class="fas fa-box-open" style="color:var(--color-primario);"></i> Productos
+                    </h3>
+                    <table style="width:100%; border-collapse:collapse;">
+                        <thead>
+                            <tr style="border-bottom:2px solid #f0f0f0;">
+                                <th style="text-align:left; padding:8px 0; font-size:0.85em; color:#888; font-weight:600;">Producto</th>
+                                <th style="text-align:center; padding:8px; font-size:0.85em; color:#888; font-weight:600;">Cant.</th>
+                                <th style="text-align:right; padding:8px 0; font-size:0.85em; color:#888; font-weight:600;">Precio unit.</th>
+                                <th style="text-align:right; padding:8px 0; font-size:0.85em; color:#888; font-weight:600;">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr style="border-bottom:1px solid #f9f9f9;">
+                                <td style="padding:12px 0; font-size:0.92em;">{{ item.producto_nombre }}</td>
+                                <td style="padding:12px 8px; text-align:center; color:#666;">{{ item.cantidad }}</td>
+                                <td style="padding:12px 0; text-align:right; color:#666; font-size:0.92em;">
+                                    ${{ '{:,.0f}'.format(item.precio_unitario) }}
+                                </td>
+                                <td style="padding:12px 0; text-align:right; font-weight:600; font-size:0.92em;">
+                                    ${{ '{:,.0f}'.format(item.subtotal) }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" style="padding:14px 0 0; text-align:right; font-weight:700; font-size:1em;">Total</td>
+                                <td style="padding:14px 0 0; text-align:right; font-weight:700; font-size:1.1em; color:var(--color-primario);">
+                                    ${{ '{:,.0f}'.format(pedido.monto_total) }} COP
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <!-- Timeline de estado -->
+                <div style="background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.08); padding:20px 24px;">
+                    <h3 style="margin:0 0 20px 0; font-size:1em; color:#444;">
+                        <i class="fas fa-route" style="color:var(--color-primario);"></i> Estado del pedido
+                    </h3>
+
+                    {% set pasos = [
+                        ('ESPERA_PAGO',    'fas fa-credit-card',  'Pago recibido'),
+                        ('POR_DESPACHAR',  'fas fa-box',          'Preparando pedido'),
+                        ('DESPACHADO',     'fas fa-truck',        'En camino'),
+                        ('ENTREGADO',      'fas fa-home',         'Entregado'),
+                    ] %}
+
+                    {% set orden_envio = ['ESPERA_PAGO','POR_DESPACHAR','DESPACHADO','ENTREGADO','CANCELADO'] %}
+                    {% set idx_actual = orden_envio.index(pedido.estado_envio) if pedido.estado_envio in orden_envio else 0 %}
+
+                    <div style="display:flex; align-items:flex-start; gap:0; position:relative;">
+                        {% for estado_paso, icono, label in pasos %}
+                        {% set idx_paso = loop.index0 %}
+                        {% set activo = idx_paso <= idx_actual and pedido.estado_envio != 'CANCELADO' %}
+                        {% set actual = idx_paso == idx_actual and pedido.estado_envio != 'CANCELADO' %}
+
+                        <div style="flex:1; text-align:center; position:relative;">
+                            <!-- Línea conectora -->
+                            {% if not loop.last %}
+                            <div style="position:absolute; top:20px; left:50%; width:100%; height:3px;
+                                        background:{{ '#a6c438' if activo else '#e0e0e0' }}; z-index:0;"></div>
+                            {% endif %}
+
+                            <!-- Círculo -->
+                            <div style="width:42px; height:42px; border-radius:50%; margin:0 auto 8px;
+                                        position:relative; z-index:1;
+                                        background:{{ 'var(--color-primario)' if activo else '#e0e0e0' }};
+                                        display:flex; align-items:center; justify-content:center;
+                                        {% if actual %}box-shadow:0 0 0 4px rgba(18,44,148,0.18);{% endif %}">
+                                <i class="{{ icono }}" style="color:{{ '#fff' if activo else '#bbb' }}; font-size:1rem;"></i>
+                            </div>
+
+                            <div style="font-size:0.78em; color:{{ '#333' if activo else '#bbb' }};
+                                        font-weight:{{ '600' if actual else '400' }};">
+                                {{ label }}
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        <!-- Paso cancelado si aplica -->
+                        {% if pedido.estado_envio == 'CANCELADO' %}
+                        <div style="flex:1; text-align:center;">
+                            <div style="width:42px; height:42px; border-radius:50%; margin:0 auto 8px;
+                                        background:#dc3545; display:flex; align-items:center; justify-content:center;">
+                                <i class="fas fa-ban" style="color:#fff; font-size:1rem;"></i>
+                            </div>
+                            <div style="font-size:0.78em; color:#dc3545; font-weight:600;">Cancelado</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Columna derecha: datos del pedido -->
+            <div style="display:flex; flex-direction:column; gap:16px;">
+
+                <!-- Estado pago -->
+                <div style="background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.08); padding:20px 24px;">
+                    <h3 style="margin:0 0 14px 0; font-size:0.95em; color:#444;">
+                        <i class="fas fa-money-bill-wave" style="color:var(--color-primario);"></i> Pago
+                    </h3>
+                    <div style="margin-bottom:8px;">
+                        {% if pedido.estado_pago == 'APROBADO' %}
+                        <span style="background:#d4edda; color:#155724; padding:5px 14px; border-radius:20px; font-size:0.88em; font-weight:600;">
+                            <i class="fas fa-check-circle"></i> Pago aprobado
+                        </span>
+                        {% elif pedido.estado_pago == 'PENDIENTE' %}
+                        <span style="background:#fff3cd; color:#856404; padding:5px 14px; border-radius:20px; font-size:0.88em; font-weight:600;">
+                            <i class="fas fa-hourglass-half"></i> Pago pendiente
+                        </span>
+                        {% elif pedido.estado_pago == 'RECHAZADO' %}
+                        <span style="background:#f8d7da; color:#721c24; padding:5px 14px; border-radius:20px; font-size:0.88em; font-weight:600;">
+                            <i class="fas fa-times-circle"></i> Pago rechazado
+                        </span>
+                        {% else %}
+                        <span style="background:#e2e3e5; color:#495057; padding:5px 14px; border-radius:20px; font-size:0.88em; font-weight:600;">
+                            {{ pedido.estado_pago }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% if pedido.metodo_pago %}
+                    <div style="color:#888; font-size:0.85em; margin-top:8px;">
+                        <i class="fas fa-credit-card"></i> {{ pedido.metodo_pago }}
+                    </div>
+                    {% endif %}
+                    {% if pedido.id_transaccion_payu %}
+                    <div style="color:#aaa; font-size:0.78em; margin-top:4px; font-family:monospace;">
+                        TX: {{ pedido.id_transaccion_payu }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Datos de envío -->
+                <div style="background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.08); padding:20px 24px;">
+                    <h3 style="margin:0 0 14px 0; font-size:0.95em; color:#444;">
+                        <i class="fas fa-map-marker-alt" style="color:var(--color-primario);"></i> Envío
+                    </h3>
+                    <div style="font-size:0.88em; color:#555; line-height:1.7;">
+                        <div><strong>{{ pedido.cliente_nombre }}</strong></div>
+                        <div>{{ pedido.direccion_envio }}</div>
+                        <div>{{ pedido.ciudad }}</div>
+                        <div style="color:#888;">{{ pedido.cliente_telefono }}</div>
+                    </div>
+                </div>
+
+                <!-- Acción: seguir comprando -->
+                {% if not modo_admin %}
+                <a href="{{ url_for('public.productos') }}"
+                   style="background:var(--color-primario); color:#fff; padding:12px 20px; border-radius:8px;
+                          text-decoration:none; text-align:center; font-weight:600; display:block;">
+                    <i class="fas fa-store"></i> Seguir comprando
+                </a>
+                {% endif %}
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<style>
+@media (max-width: 768px) {
+    .main-container .content-wrapper > div:last-child {
+        grid-template-columns: 1fr !important;
+    }
+}
+</style>
+{% endblock %}
