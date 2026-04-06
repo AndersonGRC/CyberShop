@@ -17,7 +17,7 @@
     width: 100%;
     max-width: 450px;
     border-radius: 15px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 10px 30px var(--negro-alpha-010);
     overflow: hidden;
     border: 1px solid var(--color-borde);
     margin: 0 auto;
@@ -80,6 +80,33 @@
     color: var(--color-primario-oscuro);
     text-align: right;
 }
+.ticket-titulo { margin: 0; font-size: 24px; font-weight: bold; }
+.ticket-subtitulo { margin: 5px 0 0 0; font-size: 13px; opacity: 0.9; }
+.ticket-value-mono { font-size: 12px; font-family: monospace; }
+.ticket-value-grande { font-size: 1.1em; }
+
+/* Empresa y errores */
+.ticket-empresa-wrap {
+    text-align: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--color-dropdown-borde);
+    padding-bottom: 15px;
+}
+.ticket-empresa {
+    color: var(--color-primario-oscuro);
+    margin: 0;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+.ticket-row-error {
+    border-bottom: none;
+    margin-top: 15px;
+    background-color: var(--color-fondo-error-tinte);
+    padding: 10px;
+    border-radius: 5px;
+}
+.ticket-label-error { color: var(--color-peligro); }
+.ticket-value-error { color: var(--color-peligro); }
 
 .btn-cyber {
     display: block;

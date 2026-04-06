@@ -203,6 +203,44 @@
         margin-left: 10px;
     }
 
+    .modal-anular {
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 8px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-top: 10px;
+        margin-left: 10px;
+    }
+
+    .modal-anular:hover {
+        background: #c82333;
+    }
+
+    .fila-anulada {
+        opacity: 0.6;
+    }
+
+    .fila-anulada td {
+        text-decoration: line-through;
+    }
+
+    .fila-anulada td[data-label="Acciones"],
+    .fila-anulada td:last-child {
+        text-decoration: none;
+    }
+
+    .badge-anulada {
+        background: #dc3545;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        margin-left: 6px;
+        text-decoration: none !important;
+    }
+
     .hist-resumen {
         display: flex;
         gap: 15px;
@@ -315,11 +353,11 @@
     {% if ventas|length > 0 %}
     <div class="hist-resumen">
         <div class="stat-card">
-            <div class="stat-num">{{ ventas|length }}</div>
-            <div class="stat-label">Ventas Totales</div>
+            <div class="stat-num">{{ num_activas }}</div>
+            <div class="stat-label">Ventas Activas</div>
         </div>
         <div class="stat-card" style="background:#28a745">
-            <div class="stat-num">${{ "{:,.0f}".format(ventas|sum(attribute='total')) }}</div>
+            <div class="stat-num">${{ "{:,.0f}".format(total_activas) }}</div>
             <div class="stat-label">Ingresos Totales</div>
         </div>
     </div>
@@ -341,6 +379,14 @@
                 <option value="OTRO">Otro</option>
             </select>
         </div>
+        <div>
+            <label>Estado</label>
+            <select id="filtro-estado" onchange="filtrarHistorial()">
+                <option value="">Todas</option>
+                <option value="activa">Activas</option>
+                <option value="anulada">Anuladas</option>
+            </select>
+        </div>
     </div>
 
     <table class="hist-table" id="tabla-historial">
@@ -356,8 +402,8 @@
         </thead>
         <tbody>
             {% for v in ventas %}
-            <tr data-metodo="{{ v.metodo_pago }}" data-buscar="{{ v.numero_venta }} {{ v.cliente_nombre or '' }}">
-                <td data-label="No. Venta"><strong>{{ v.numero_venta }}</strong></td>
+            <tr data-metodo="{{ v.metodo_pago }}" data-buscar="{{ v.numero_venta }} {{ v.cliente_nombre or '' }}" data-estado="{{ v.estado|default('activa') }}" class="{% if v.estado == 'anulada' %}fila-anulada{% endif %}">
+                <td data-label="No. Venta"><strong>{{ v.numero_venta }}</strong>{% if v.estado == 'anulada' %} <span class="badge-anulada">ANULADA</span>{% endif %}</td>
                 <td data-label="Fecha">{{ v.fecha.strftime('%Y-%m-%d %H:%M') }}</td>
                 <td data-label="Cliente">{{ v.cliente_nombre or 'Consumidor Final' }}</td>
                 <td data-label="Metodo"><span class="badge-metodo {{ v.metodo_pago }}">{{ v.metodo_pago }}</span></td>
@@ -404,16 +450,24 @@
             <button class="modal-close"
                 onclick="document.getElementById('modal-detalle').classList.remove('activo')">Cerrar</button>
             <button class="modal-print" onclick="window.print()"><i class="fas fa-print"></i> Imprimir</button>
+            <button class="modal-anular" id="btn-anular" onclick="anularVenta()"><i class="fas fa-ban"></i> Anular Venta</button>
         </div>
     </div>
 </div>
 
 <script>
+    var currentVentaId = null;
+    var currentVentaDian = false;
+
     function verDetalle(id) {
         fetch("{{ url_for('admin.detalle_venta_pos', id=0) }}".replace('/0', '/' + id))
             .then(r => r.json())
             .then(data => {
                 if (data.error) { Swal.fire('Error', data.error, 'error'); return; }
+
+                currentVentaId = id;
+                currentVentaDian = !!data.factura_dian_id;
+
                 document.getElementById('det-numero').textContent = data.numero_venta;
                 document.getElementById('det-fecha').textContent = data.fecha;
                 document.getElementById('det-cliente').textContent = data.cliente_nombre;
@@ -426,6 +480,14 @@
                     document.getElementById('det-notas-wrap').style.display = 'block';
                 } else {
                     document.getElementById('det-notas-wrap').style.display = 'none';
+                }
+
+                // Mostrar u ocultar botón anular según estado
+                var btnAnular = document.getElementById('btn-anular');
+                if (data.estado === 'anulada') {
+                    btnAnular.style.display = 'none';
+                } else {
+                    btnAnular.style.display = '';
                 }
 
                 const tbody = document.getElementById('det-items');
@@ -443,17 +505,69 @@
             });
     }
 
+    function anularVenta() {
+        if (!currentVentaId) return;
+
+        var mensaje = 'Se restaurará el stock y se creará una nota de crédito.';
+        if (currentVentaDian) {
+            mensaje += '\n\n⚠️ Esta venta tiene factura electrónica DIAN. La anulación será solo local.';
+        }
+
+        Swal.fire({
+            title: 'Anular Venta',
+            text: mensaje,
+            input: 'textarea',
+            inputLabel: 'Motivo de anulación (obligatorio)',
+            inputPlaceholder: 'Ingresa el motivo...',
+            inputValidator: function(value) {
+                if (!value || !value.trim()) return 'Debes ingresar un motivo';
+            },
+            showCancelButton: true,
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#dc3545',
+            confirmButtonText: 'Sí, anular venta',
+            icon: 'warning'
+        }).then(function(result) {
+            if (result.isConfirmed) {
+                fetch('/admin/pos/' + currentVentaId + '/anular', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ motivo: result.value })
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        var msg = 'Nota de crédito: ' + data.numero_nota;
+                        if (data.advertencia_dian) {
+                            msg += '\n\n⚠️ Recuerda gestionar la nota crédito ante la DIAN por separado.';
+                        }
+                        Swal.fire('Venta Anulada', msg, 'success')
+                            .then(function() { location.reload(); });
+                    } else {
+                        Swal.fire('Error', data.error, 'error');
+                    }
+                })
+                .catch(function(err) {
+                    Swal.fire('Error', 'No se pudo procesar la anulación', 'error');
+                });
+            }
+        });
+    }
+
     function filtrarHistorial() {
         const buscar = document.getElementById('filtro-buscar').value.toLowerCase();
         const metodo = document.getElementById('filtro-metodo').value;
+        const estado = document.getElementById('filtro-estado').value;
         const filas = document.querySelectorAll('#tabla-historial tbody tr');
 
         filas.forEach(fila => {
             const textoBuscar = (fila.dataset.buscar || '').toLowerCase();
             const metodoFila = fila.dataset.metodo || '';
+            const estadoFila = fila.dataset.estado || 'activa';
             const coincideBuscar = !buscar || textoBuscar.includes(buscar);
             const coincideMetodo = !metodo || metodoFila === metodo;
-            fila.style.display = (coincideBuscar && coincideMetodo) ? '' : 'none';
+            const coincideEstado = !estado || estadoFila === estado;
+            fila.style.display = (coincideBuscar && coincideMetodo && coincideEstado) ? '' : 'none';
         });
     }
 </script>

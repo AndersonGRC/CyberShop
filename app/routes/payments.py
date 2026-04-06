@@ -18,8 +18,13 @@ from flask import current_app as app
 
 from database import get_db_connection, get_db_cursor
 from helpers import get_common_data, generar_reference_code
-
 payments_bp = Blueprint('payments', __name__)
+
+
+def csrf_exempt(f):
+    """Marca una vista como exenta de protección CSRF."""
+    f.csrf_exempt = True
+    return f
 
 
 def consultar_estado_real_payu(referencia):
@@ -74,13 +79,6 @@ def metodos_pago():
         flash('Inicia sesión o regístrate para continuar con tu compra.', 'info')
         return redirect(url_for('auth.login'))
 
-    carrito_json = request.args.get('carrito')
-    if carrito_json:
-        try:
-            session['carritoPendiente'] = json.loads(carrito_json)
-        except Exception as e:
-            app.logger.warning(f"Error parsing cart: {e}")
-
     carrito = session.get('carritoPendiente', {'items': [], 'total': 0})
 
     if 'total' not in carrito or carrito['total'] == 0:
@@ -126,12 +124,61 @@ def crear_orden():
         flash("Tu carrito está vacío o ha expirado.", "error")
         return redirect(url_for('public.productos'))
 
-    total_amount = carrito.get('total', 0)
     referencia = generar_reference_code()
 
     try:
         conn = get_db_connection()
         cur = conn.cursor()
+
+        # SECURITY C1+M4: Validar precios desde BD (nunca confiar en el cliente)
+        # y bloquear filas con FOR UPDATE para prevenir race conditions de stock.
+        total_calculado = 0
+        items_validados = []
+
+        for item in carrito['items']:
+            prod_id   = item.get('id')
+            prod_nombre = item.get('nombre', '')
+            cantidad  = max(1, int(item.get('cantidad', 1)))
+
+            if prod_id:
+                cur.execute(
+                    "SELECT id, nombre, precio, stock FROM productos WHERE id = %s FOR UPDATE",
+                    (prod_id,)
+                )
+            else:
+                cur.execute(
+                    "SELECT id, nombre, precio, stock FROM productos WHERE nombre = %s FOR UPDATE",
+                    (prod_nombre,)
+                )
+            prod_db = cur.fetchone()
+
+            if not prod_db:
+                conn.rollback()
+                flash(f"Producto '{prod_nombre}' no encontrado.", "error")
+                return redirect(url_for('public.carrito'))
+
+            pid, nombre_db, precio_db, stock_db = prod_db
+
+            if stock_db < cantidad:
+                conn.rollback()
+                flash(f"No hay suficiente stock para '{nombre_db}'.", "error")
+                return redirect(url_for('public.carrito'))
+
+            precio_real = float(precio_db)
+            subtotal    = precio_real * cantidad
+            total_calculado += subtotal
+            items_validados.append({
+                'id': pid, 'nombre': nombre_db,
+                'precio': precio_real, 'cantidad': cantidad, 'subtotal': subtotal,
+            })
+
+        if total_calculado <= 0:
+            conn.rollback()
+            flash("El total del pedido no puede ser cero.", "error")
+            return redirect(url_for('public.carrito'))
+
+        total_amount = total_calculado
+
         cur.execute("""
             INSERT INTO pedidos
             (referencia_pedido, cliente_nombre, cliente_email,
@@ -143,44 +190,20 @@ def crear_orden():
 
         pedido_id_generado = cur.fetchone()[0]
 
-        # Validar stock primero
-        for item in carrito['items']:
-            prod_nombre = item.get('nombre')
-            cantidad = int(item.get('cantidad', 1))
-            cur.execute("SELECT stock FROM productos WHERE nombre = %s", (prod_nombre,))
-            res = cur.fetchone()
-            if not res or res[0] < cantidad:
-                conn.rollback()
-                flash(f"No hay suficiente stock para el producto {prod_nombre}", "error")
-                return redirect(url_for('public.carrito'))
-
-        for item in carrito['items']:
-            prod_nombre = item.get('nombre')
-            cantidad = int(item.get('cantidad', 1))
-            precio = float(item.get('precio', 0))
-            subtotal = precio * cantidad
+        for item in items_validados:
             cur.execute("""
                 INSERT INTO detalle_pedidos (pedido_id, producto_nombre, cantidad, precio_unitario, subtotal)
                 VALUES (%s, %s, %s, %s, %s)
-            """, (pedido_id_generado, prod_nombre, cantidad, precio, subtotal))
+            """, (pedido_id_generado, item['nombre'], item['cantidad'], item['precio'], item['subtotal']))
 
-            # Actualizar stock
-            cur.execute("UPDATE productos SET stock = stock - %s WHERE nombre = %s", (cantidad, prod_nombre))
-            
-            # Registrar en log de inventario (VENTA)
-            # Primero obtener ID y stock actual/nuevo para el log
-            cur.execute("SELECT id, stock FROM productos WHERE nombre = %s", (prod_nombre,))
-            res_prod = cur.fetchone()
-            if res_prod:
-                pid = res_prod[0]
-                stock_current = res_prod[1] # Ya esta actualizado
-                stock_before = stock_current + cantidad
-                
-                # Usuario NULL o sistema (podriamos usar un ID fijo para 'Web')
-                cur.execute("""
-                    INSERT INTO inventario_log (producto_id, tipo, cantidad, stock_anterior, stock_nuevo, motivo, fecha)
-                    VALUES (%s, 'VENTA', %s, %s, %s, %s, CURRENT_TIMESTAMP)
-                """, (pid, cantidad, stock_before, stock_current, f"Pedido {referencia}"))
+            cur.execute("UPDATE productos SET stock = stock - %s WHERE id = %s", (item['cantidad'], item['id']))
+
+            cur.execute("SELECT stock FROM productos WHERE id = %s", (item['id'],))
+            stock_nuevo = cur.fetchone()[0]
+            cur.execute("""
+                INSERT INTO inventario_log (producto_id, tipo, cantidad, stock_anterior, stock_nuevo, motivo, fecha)
+                VALUES (%s, 'VENTA', %s, %s, %s, %s, CURRENT_TIMESTAMP)
+            """, (item['id'], item['cantidad'], stock_nuevo + item['cantidad'], stock_nuevo, f"Pedido {referencia}"))
 
         conn.commit()
         cur.close()
@@ -222,6 +245,7 @@ def crear_orden():
 
 
 @payments_bp.route('/confirmacion-pago', methods=['POST'])
+@csrf_exempt
 def confirmacion_pago():
     """Webhook de confirmacion de PayU (server-to-server).
 
@@ -253,8 +277,10 @@ def confirmacion_pago():
         msg = f"{api_key}~{merchant_id}~{reference_sale}~{value_formatted}~{currency}~{state_pol}"
         sign_local = hashlib.md5(msg.encode('utf-8')).hexdigest()
 
+        # SECURITY C2: Rechazar webhook si la firma no coincide
         if sign_local != sign_received:
-            app.logger.warning("Firma inválida en confirmación PayU")
+            app.logger.warning(f"Firma inválida en confirmación PayU para referencia {reference_sale}")
+            return "Firma invalida", 400
 
         estado_bd = 'PENDIENTE'
         estado_envio_bd = 'ESPERA_PAGO'
@@ -267,12 +293,21 @@ def confirmacion_pago():
             estado_envio_bd = 'CANCELADO'
             liberar_stock(reference_sale)
 
-
         transaccion_id = data.get('transaction_id')
         metodo = data.get('payment_method_name')
 
         conn = get_db_connection()
         cur = conn.cursor()
+
+        # SECURITY M5: Verificar idempotencia — no procesar si ya fue APROBADO
+        cur.execute("SELECT estado_pago FROM pedidos WHERE referencia_pedido = %s", (reference_sale,))
+        row = cur.fetchone()
+        if row and row[0] == 'APROBADO':
+            cur.close()
+            conn.close()
+            app.logger.info(f"Webhook duplicado ignorado para referencia {reference_sale}")
+            return "OK", 200
+
         cur.execute("""
             UPDATE pedidos
             SET estado_pago = %s, id_transaccion_payu = %s, metodo_pago = %s, estado_envio = %s
@@ -297,6 +332,22 @@ def confirmacion_pago():
                 )
             except Exception as _e:
                 app.logger.warning(f"Contabilidad confirmacion_pago: {_e}")
+
+        # Facturación electrónica automática (solo si módulo activo)
+        if estado_bd == 'APROBADO':
+            try:
+                from routes.factura_electronica import emitir_factura_electronica, facturacion_habilitada
+                if facturacion_habilitada():
+                    with get_db_cursor() as _cur:
+                        _cur.execute(
+                            "SELECT id FROM pedidos WHERE referencia_pedido = %s",
+                            (reference_sale,)
+                        )
+                        _row = _cur.fetchone()
+                    if _row:
+                        emitir_factura_electronica(_row[0])
+            except Exception as _fe:
+                app.logger.warning(f"Facturación electrónica confirmacion_pago: {_fe}")
 
         return "OK", 200
     except Exception as e:
@@ -357,16 +408,12 @@ def respuesta_pago():
         session.pop('carritoPendiente', None)
 
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            UPDATE pedidos
-            SET estado_pago = %s, id_transaccion_payu = %s, metodo_pago = %s, estado_envio = %s
-            WHERE referencia_pedido = %s
-        """, (estado_bd, transaccion_id, metodo, estado_envio_bd, referencia))
-        conn.commit()
-        cur.close()
-        conn.close()
+        with get_db_cursor() as cur:
+            cur.execute("""
+                UPDATE pedidos
+                SET estado_pago = %s, id_transaccion_payu = %s, metodo_pago = %s, estado_envio = %s
+                WHERE referencia_pedido = %s AND estado_pago = 'PENDIENTE'
+            """, (estado_bd, transaccion_id, metodo, estado_envio_bd, referencia))
     except Exception as e:
         app.logger.error(f"Error BD Respuesta: {e}")
 
@@ -390,6 +437,7 @@ def respuesta_pago():
 
 
 @payments_bp.route('/procesar-carrito', methods=['POST'])
+@csrf_exempt
 def procesar_carrito():
     """Recibe el carrito desde el frontend (JSON) y lo guarda en la sesion."""
     try:
@@ -397,16 +445,10 @@ def procesar_carrito():
         session['carritoPendiente'] = data
         return jsonify({"success": True})
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        app.logger.error(f"Error procesar_carrito: {e}")
+        return jsonify({"success": False, "error": "Error interno"}), 500
 
 
-@payments_bp.route('/debug-session')
-def debug_session():
-    """Endpoint de depuracion para ver el contenido de la sesion."""
-    return jsonify({
-        'carritoPendiente': session.get('carritoPendiente'),
-        'session_keys': list(session.keys())
-    })
 def liberar_stock(referencia_pedido):
     """Devuelve el stock de los productos de un pedido cancelado/rechazado."""
     try:

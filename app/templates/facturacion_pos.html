@@ -447,6 +447,16 @@
         color: white;
     }
 
+    .btn-facturar-dian {
+        background: #fd7e14;
+        color: white;
+    }
+
+    .btn-facturar-dian:disabled {
+        background: #aaa;
+        cursor: not-allowed;
+    }
+
     /* Modal atajos */
     .shortcuts-modal {
         display: none;
@@ -667,6 +677,7 @@
         <div class="comp-total">TOTAL: <span id="comp-total"></span></div>
         <div class="comp-actions">
             <button class="btn-imprimir" onclick="window.print()"><i class="fas fa-print"></i> Imprimir</button>
+            <button class="btn-facturar-dian" id="btn-facturar-dian" onclick="facturarDian()" title="Emitir factura electrónica DIAN"><i class="fas fa-file-invoice"></i> Facturar</button>
             <button class="btn-nueva-venta" onclick="nuevaVenta()"><i class="fas fa-plus"></i> Nueva Venta</button>
         </div>
     </div>
@@ -1532,7 +1543,15 @@ function actualizarStockDropdowns(stockUpdates) {
     }
 }
 
+let ventaIdActual = null;
+
 function mostrarComprobante(data) {
+    ventaIdActual = data.venta_id || null;
+    const btnFacturar = document.getElementById('btn-facturar-dian');
+    if (btnFacturar) {
+        btnFacturar.disabled = false;
+        btnFacturar.innerHTML = '<i class="fas fa-file-invoice"></i> Facturar';
+    }
     document.getElementById('comp-numero').textContent = data.numero_venta;
     document.getElementById('comp-fecha').textContent = data.fecha;
     document.getElementById('comp-cliente').textContent = data.cliente_nombre || 'Consumidor Final';
@@ -1560,6 +1579,39 @@ function nuevaVenta() {
     document.getElementById('comprobante-overlay').classList.remove('activo');
     VentasTabs.removeCurrentAndNew();
     document.getElementById('barcode-input').focus();
+}
+
+function facturarDian() {
+    if (!ventaIdActual) {
+        Swal.fire('Error', 'No se pudo identificar la venta.', 'error');
+        return;
+    }
+    const btn = document.getElementById('btn-facturar-dian');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+
+    fetch('/admin/pos/' + ventaIdActual + '/facturar', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                btn.innerHTML = '<i class="fas fa-check"></i> Facturada';
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Factura enviada',
+                    text: 'La factura fue encolada en el sistema DIAN. El CUFE estará disponible en el portal de facturación.',
+                    confirmButtonText: 'Aceptar'
+                });
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-file-invoice"></i> Facturar';
+                Swal.fire('Error', data.error || 'No se pudo enviar la factura.', 'error');
+            }
+        })
+        .catch(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-file-invoice"></i> Facturar';
+            Swal.fire('Error', 'Error de conexión al enviar la factura.', 'error');
+        });
 }
 
 
