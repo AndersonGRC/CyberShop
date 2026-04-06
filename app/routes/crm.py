@@ -8,16 +8,43 @@ registro de actividades/seguimientos y tareas pendientes.
 import os
 from datetime import datetime, date
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from flask_mail import Message
+from helpers_gmail import enviar_email_gmail
 from werkzeug.utils import secure_filename
 from database import get_db_cursor
 from helpers import get_data_app
-from security import rol_requerido
+from security import rol_requerido, ADMIN_STAFF
 
 crm_bp = Blueprint('crm', __name__, url_prefix='/admin/crm')
 
 UPLOAD_DIR = os.path.join('static', 'crm', 'fotos')
 ALLOWED_EXT = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
+
+
+def _sync_google_calendar(tabla, registro_id, usuario_id, summary, description, start_date, end_date, invitados_raw):
+    """Sincroniza un registro CRM con Google Calendar si el usuario tiene token."""
+    from helpers_google import session_user_tiene_google, crear_evento
+    if not session_user_tiene_google():
+        return
+    try:
+        invitados = [e.strip() for e in invitados_raw.split(',') if e.strip()] if invitados_raw else []
+        event_id = crear_evento(
+            usuario_id=usuario_id,
+            summary=summary,
+            description=description or '',
+            start_date=start_date,
+            end_date=end_date,
+            attendees=invitados,
+        )
+        if event_id:
+            with get_db_cursor() as cur:
+                cur.execute(f"""
+                    UPDATE {tabla}
+                    SET google_event_id = %s, invitados_emails = %s
+                    WHERE id = %s
+                """, (event_id, ','.join(invitados) or None, registro_id))
+    except Exception:
+        entity = 'Actividad' if tabla == 'crm_actividades' else 'Tarea'
+        flash(f'{entity} registrada, pero no se pudo sincronizar con Google Calendar.', 'warning')
 
 
 @crm_bp.context_processor
@@ -56,7 +83,7 @@ def _eliminar_foto(foto_path):
 # ------------------------------------------------------------------
 
 @crm_bp.route('/')
-@rol_requerido(1)
+@rol_requerido(ADMIN_STAFF)
 def crm_dashboard():
     with get_db_cursor(dict_cursor=True) as cur:
         # Conteo por tipo
@@ -125,7 +152,7 @@ def crm_dashboard():
 # ------------------------------------------------------------------
 
 @crm_bp.route('/contactos')
-@rol_requerido(1)
+@rol_requerido(ADMIN_STAFF)
 def crm_contactos_lista():
     tipo_filtro = request.args.get('tipo')
     with get_db_cursor(dict_cursor=True) as cur:
@@ -146,7 +173,7 @@ def crm_contactos_lista():
 # ------------------------------------------------------------------
 
 @crm_bp.route('/contactos/crear', methods=['GET', 'POST'])
-@rol_requerido(1)
+@rol_requerido(ADMIN_STAFF)
 def crm_contacto_crear():
     if request.method == 'POST':
         tipo      = request.form.get('tipo')
@@ -211,7 +238,7 @@ def crm_contacto_crear():
 # ------------------------------------------------------------------
 
 @crm_bp.route('/contactos/<int:id>')
-@rol_requerido(1)
+@rol_requerido(ADMIN_STAFF)
 def crm_contacto_ver(id):
     with get_db_cursor(dict_cursor=True) as cur:
         # 1. Datos contacto
@@ -279,7 +306,7 @@ def crm_contacto_ver(id):
 # ------------------------------------------------------------------
 
 @crm_bp.route('/contactos/<int:id>/editar', methods=['GET', 'POST'])
-@rol_requerido(1)
+@rol_requerido(ADMIN_STAFF)
 def crm_contacto_editar(id):
     with get_db_cursor(dict_cursor=True) as cur:
         cur.execute("SELECT * FROM crm_contactos WHERE id = %s", (id,))
@@ -352,7 +379,7 @@ def crm_contacto_editar(id):
 # ------------------------------------------------------------------
 
 @crm_bp.route('/contactos/<int:id>/eliminar', methods=['POST'])
-@rol_requerido(1)
+@rol_requerido(ADMIN_STAFF)
 def crm_contacto_eliminar(id):
     try:
         with get_db_cursor() as cur:
@@ -372,7 +399,7 @@ def crm_contacto_eliminar(id):
 # ------------------------------------------------------------------
 
 @crm_bp.route('/contactos/<int:id>/actividades/nueva', methods=['GET', 'POST'])
-@rol_requerido(1)
+@rol_requerido(ADMIN_STAFF)
 def crm_actividad_crear(id):
     with get_db_cursor(dict_cursor=True) as cur:
         cur.execute("SELECT id, nombre FROM crm_contactos WHERE id = %s", (id,))
@@ -387,7 +414,7 @@ def crm_actividad_crear(id):
         asunto      = request.form.get('asunto', '').strip()
         descripcion = request.form.get('descripcion', '').strip() or None
         fecha_str   = request.form.get('fecha_actividad')
-        usuario_id  = session.get('id')
+        usuario_id  = session.get('usuario_id')
 
         if not tipo or not asunto:
             flash('Tipo y asunto son obligatorios.', 'warning')
@@ -409,32 +436,10 @@ def crm_actividad_crear(id):
                 actividad_id = cur.fetchone()[0]
 
             # Sincronizar con Google Calendar
-            from helpers_google import session_user_tiene_google, crear_evento
-            if session_user_tiene_google():
-                try:
-                    invitados = [
-                        e.strip()
-                        for e in request.form.get('invitados_emails', '').split(',')
-                        if e.strip()
-                    ]
-                    event_id = crear_evento(
-                        usuario_id=usuario_id,
-                        summary=asunto,
-                        description=descripcion or '',
-                        start_date=fecha_actividad,
-                        end_date=fecha_actividad,
-                        attendees=invitados,
-                    )
-                    if event_id:
-                        with get_db_cursor() as cur:
-                            cur.execute("""
-                                UPDATE crm_actividades
-                                SET google_event_id  = %s,
-                                    invitados_emails = %s
-                                WHERE id = %s
-                            """, (event_id, ','.join(invitados) or None, actividad_id))
-                except Exception:
-                    flash('Actividad registrada, pero no se pudo sincronizar con Google Calendar.', 'warning')
+            _sync_google_calendar(
+                'crm_actividades', actividad_id, usuario_id,
+                asunto, descripcion, fecha_actividad, fecha_actividad,
+                request.form.get('invitados_emails', ''))
 
             flash('Actividad registrada.', 'success')
             return redirect(url_for('crm.crm_contacto_ver', id=id))
@@ -450,7 +455,7 @@ def crm_actividad_crear(id):
 # ------------------------------------------------------------------
 
 @crm_bp.route('/actividades/<int:id>/eliminar', methods=['POST'])
-@rol_requerido(1)
+@rol_requerido(ADMIN_STAFF)
 def crm_actividad_eliminar(id):
     with get_db_cursor(dict_cursor=True) as cur:
         cur.execute("SELECT contacto_id, google_event_id FROM crm_actividades WHERE id = %s", (id,))
@@ -481,7 +486,7 @@ def crm_actividad_eliminar(id):
 # ------------------------------------------------------------------
 
 @crm_bp.route('/tareas')
-@rol_requerido(1)
+@rol_requerido(ADMIN_STAFF)
 def crm_tareas_lista():
     estado = request.args.get('estado', 'pendiente')
     with get_db_cursor(dict_cursor=True) as cur:
@@ -507,7 +512,7 @@ def crm_tareas_lista():
 # ------------------------------------------------------------------
 
 @crm_bp.route('/contactos/<int:id>/tareas/nueva', methods=['GET', 'POST'])
-@rol_requerido(1)
+@rol_requerido(ADMIN_STAFF)
 def crm_tarea_crear(id):
     with get_db_cursor(dict_cursor=True) as cur:
         cur.execute("SELECT id, nombre FROM crm_contactos WHERE id = %s", (id,))
@@ -523,7 +528,8 @@ def crm_tarea_crear(id):
         prioridad   = request.form.get('prioridad', 'media')
         fecha_limite = request.form.get('fecha_limite') or None
         asignado_a  = request.form.get('asignado_a') or None
-        creado_por  = session.get('id')
+        creado_por  = session.get('usuario_id')
+        recordatorio_diario = bool(request.form.get('recordatorio_diario'))
 
         if not titulo:
             flash('El título es obligatorio.', 'warning')
@@ -534,42 +540,20 @@ def crm_tarea_crear(id):
                 cur.execute("""
                     INSERT INTO crm_tareas
                         (contacto_id, titulo, descripcion, prioridad, fecha_limite,
-                         asignado_a, creado_por)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                         asignado_a, creado_por, recordatorio_diario)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING id
-                """, (id, titulo, descripcion, prioridad, fecha_limite, asignado_a, creado_por))
+                """, (id, titulo, descripcion, prioridad, fecha_limite,
+                      asignado_a, creado_por, recordatorio_diario))
                 tarea_id = cur.fetchone()[0]
 
             # Sincronizar con Google Calendar
             if fecha_limite:
-                from helpers_google import session_user_tiene_google, crear_evento
-                if session_user_tiene_google():
-                    try:
-                        from datetime import date as _date
-                        invitados = [
-                            e.strip()
-                            for e in request.form.get('invitados_emails', '').split(',')
-                            if e.strip()
-                        ]
-                        fl = datetime.strptime(fecha_limite, '%Y-%m-%d').date() if isinstance(fecha_limite, str) else fecha_limite
-                        event_id = crear_evento(
-                            usuario_id=creado_por,
-                            summary=titulo,
-                            description=descripcion or '',
-                            start_date=fl,
-                            end_date=fl,
-                            attendees=invitados,
-                        )
-                        if event_id:
-                            with get_db_cursor() as cur:
-                                cur.execute("""
-                                    UPDATE crm_tareas
-                                    SET google_event_id = %s,
-                                        invitados_emails = %s
-                                    WHERE id = %s
-                                """, (event_id, ','.join(invitados) or None, tarea_id))
-                    except Exception:
-                        flash('Tarea creada, pero no se pudo sincronizar con Google Calendar.', 'warning')
+                fl = datetime.strptime(fecha_limite, '%Y-%m-%d').date() if isinstance(fecha_limite, str) else fecha_limite
+                _sync_google_calendar(
+                    'crm_tareas', tarea_id, creado_por,
+                    titulo, descripcion, fl, fl,
+                    request.form.get('invitados_emails', ''))
 
             # Notificación por email al asignado
             if asignado_a:
@@ -578,24 +562,81 @@ def crm_tarea_crear(id):
                         cur.execute("SELECT nombre, email FROM usuarios WHERE id = %s", (asignado_a,))
                         asignado = cur.fetchone()
                     if asignado and asignado['email']:
-                        cuerpo = (
+                        color_prioridad = {'alta': '#dc3545', 'media': '#ffc107', 'baja': '#28a745'}.get(prioridad, '#6c757d')
+                        texto_prioridad = prioridad.capitalize()
+                        fecha_txt = fecha_limite or 'Sin fecha'
+                        desc_html = f'<p style="margin:0;color:#333;line-height:1.5;">{descripcion}</p>' if descripcion else '<p style="margin:0;color:#999;">Sin descripción</p>'
+                        nota_recordatorio = ''
+                        if recordatorio_diario:
+                            nota_recordatorio = '''
+                            <div style="background:#fff8e1;border-left:4px solid #ffc107;border-radius:0 8px 8px 0;padding:12px 16px;margin-top:16px;">
+                                <p style="margin:0;color:#856404;font-size:0.9em;">
+                                    <i>&#128276;</i> <strong>Recordatorio diario activado</strong> —
+                                    Recibirás un correo cada mañana mientras esta tarea esté pendiente.
+                                </p>
+                            </div>'''
+
+                        cuerpo_plano = (
                             f"Hola {asignado['nombre']},\n\n"
                             f"Se te ha asignado una nueva tarea:\n\n"
-                            f"  Título:      {titulo}\n"
-                            f"  Contacto:    {contacto['nombre']}\n"
-                            f"  Prioridad:   {prioridad}\n"
-                            f"  Fecha límite: {fecha_limite or 'Sin fecha'}\n"
+                            f"  Título:       {titulo}\n"
+                            f"  Contacto:     {contacto['nombre']}\n"
+                            f"  Prioridad:    {texto_prioridad}\n"
+                            f"  Fecha límite: {fecha_txt}\n"
                         )
                         if descripcion:
-                            cuerpo += f"  Descripción: {descripcion}\n"
-                        msg = Message(
-                            subject=f"Nueva tarea asignada: {titulo}",
-                            recipients=[asignado['email']],
-                            body=cuerpo
+                            cuerpo_plano += f"  Descripción:  {descripcion}\n"
+                        if recordatorio_diario:
+                            cuerpo_plano += "\nRecibirás un recordatorio diario hasta completar esta tarea.\n"
+
+                        cuerpo_html = f"""
+                        <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #e0e0e0;border-radius:12px;overflow:hidden;">
+                            <div style="background:linear-gradient(135deg,#122C94,#091C5A);padding:24px 30px;">
+                                <h2 style="color:#fff;margin:0;font-size:20px;">
+                                    &#9745; Nueva tarea asignada
+                                </h2>
+                            </div>
+                            <div style="padding:28px 30px;background:#fff;">
+                                <p style="margin:0 0 18px;color:#555;font-size:1em;">
+                                    Hola <strong>{asignado['nombre']}</strong>, se te ha asignado una nueva tarea:
+                                </p>
+                                <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+                                    <tr>
+                                        <td style="padding:10px 14px;background:#f4f6fb;font-weight:600;color:#555;width:130px;border-radius:8px 0 0 0;">Título</td>
+                                        <td style="padding:10px 14px;background:#f4f6fb;color:#222;font-weight:600;border-radius:0 8px 0 0;">{titulo}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:10px 14px;font-weight:600;color:#555;">Contacto</td>
+                                        <td style="padding:10px 14px;color:#222;">{contacto['nombre']}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:10px 14px;background:#f4f6fb;font-weight:600;color:#555;">Prioridad</td>
+                                        <td style="padding:10px 14px;background:#f4f6fb;">
+                                            <span style="display:inline-block;background:{color_prioridad};color:#fff;padding:3px 12px;border-radius:12px;font-size:0.85em;font-weight:600;">{texto_prioridad}</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:10px 14px;font-weight:600;color:#555;">Fecha límite</td>
+                                        <td style="padding:10px 14px;color:#222;">{fecha_txt}</td>
+                                    </tr>
+                                </table>
+                                <div style="background:#f9fafb;border-left:4px solid #122C94;border-radius:0 8px 8px 0;padding:14px 18px;">
+                                    <p style="margin:0 0 6px;font-weight:600;color:#555;font-size:0.8em;text-transform:uppercase;letter-spacing:0.5px;">Descripción</p>
+                                    {desc_html}
+                                </div>
+                                {nota_recordatorio}
+                            </div>
+                            <div style="background:#f4f6fb;padding:14px 30px;text-align:center;font-size:12px;color:#999;">
+                                Notificación automática del sistema CRM
+                            </div>
+                        </div>"""
+
+                        enviar_email_gmail(
+                            asignado['email'],
+                            f"Nueva tarea asignada: {titulo}",
+                            cuerpo_plano,
+                            html=cuerpo_html
                         )
-                        from app import mail
-                        with mail.connect() as conn:
-                            conn.send(msg)
                 except Exception:
                     flash('Tarea creada, pero no se pudo enviar el correo de notificación.', 'warning')
 
@@ -621,7 +662,7 @@ def crm_tarea_crear(id):
 # ------------------------------------------------------------------
 
 @crm_bp.route('/tareas/<int:id>/completar', methods=['POST'])
-@rol_requerido(1)
+@rol_requerido(ADMIN_STAFF)
 def crm_tarea_completar(id):
     with get_db_cursor(dict_cursor=True) as cur:
         cur.execute(
@@ -666,7 +707,7 @@ def crm_tarea_completar(id):
 # ------------------------------------------------------------------
 
 @crm_bp.route('/tareas/<int:id>/eliminar', methods=['POST'])
-@rol_requerido(1)
+@rol_requerido(ADMIN_STAFF)
 def crm_tarea_eliminar(id):
     with get_db_cursor(dict_cursor=True) as cur:
         cur.execute("SELECT contacto_id, google_event_id FROM crm_tareas WHERE id = %s", (id,))

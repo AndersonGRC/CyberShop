@@ -82,7 +82,7 @@
                             <td class="col-asignado d-none d-md-table-cell small">
                                 {{ t.asignado_nombre or '—' }}
                             </td>
-                            <td style="white-space:nowrap;">
+                            <td class="crm-td-acciones">
                                 <a href="{{ url_for('crm.crm_contacto_ver', id=t.contacto_id) }}"
                                    class="btn btn-sm btn-info" title="Ver contacto">
                                     <i class="fas fa-eye"></i>

@@ -40,7 +40,7 @@
                     {% else %}
                     <div class="crm-perfil-foto d-inline-flex align-items-center justify-content-center
                                 bg-secondary text-white mb-3"
-                         style="font-size:2rem;">
+                         class="crm-perfil-avatar-inicial">
                         {{ contacto.nombre[0]|upper }}
                     </div>
                     {% endif %}
@@ -120,7 +120,7 @@
                         <table class="table table-sm crm-tabla-interna mb-0">
                             <thead>
                                 <tr>
-                                    <th style="width:90px;">Tipo</th>
+                                    <th class="crm-th-tipo">Tipo</th>
                                     <th>Asunto</th>
                                     <th class="col-descripcion d-none d-md-table-cell">Descripción</th>
                                     <th>Fecha</th>
@@ -218,7 +218,7 @@
                                         {% endif %}
                                     </td>
                                     <td class="small">{{ t.asignado_nombre or '—' }}</td>
-                                    <td style="white-space:nowrap;">
+                                    <td class="crm-td-acciones">
                                         {% if t.estado == 'pendiente' %}
                                         <form action="{{ url_for('crm.crm_tarea_completar', id=t.id) }}"
                                               method="POST" class="d-inline">

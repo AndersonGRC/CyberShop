@@ -48,7 +48,7 @@
                 <table class="table table-bordered crm-tabla" width="100%" cellspacing="0">
                     <thead>
                         <tr>
-                            <th style="width:40px;"></th>
+                            <th class="crm-th-avatar"></th>
                             <th>Nombre</th>
                             <th class="col-empresa d-none d-md-table-cell">Empresa</th>
                             <th>Tipo</th>
@@ -66,8 +66,8 @@
                                 <img src="{{ url_for('static', filename=c.foto_path) }}"
                                      class="crm-avatar" alt="Foto">
                                 {% else %}
-                                <span class="crm-avatar d-inline-flex align-items-center justify-content-center
-                                             bg-secondary text-white" style="font-size:0.7rem;">
+                                <span class="crm-avatar crm-avatar-inicial d-inline-flex align-items-center justify-content-center
+                                             bg-secondary text-white">
                                     {{ c.nombre[0]|upper }}
                                 </span>
                                 {% endif %}

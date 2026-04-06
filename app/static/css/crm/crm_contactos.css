@@ -14,6 +14,9 @@
 }
 
 /* --- Badges tipo contacto --- */
+.crm-th-avatar { width: 40px; }
+.crm-avatar-inicial { font-size: 0.7rem; }
+
 .badge-crm-cliente   { background: var(--color-primario);  color: var(--color-blanco); }
 .badge-crm-proveedor { background: var(--color-info);      color: var(--color-blanco); }
 .badge-crm-lead      { background: var(--color-warning);   color: var(--color-negro);  }

@@ -23,6 +23,8 @@
     letter-spacing: 0.04em;
 }
 .crm-detalle-valor { font-size: 0.92rem; color: var(--color-texto); }
+.crm-perfil-avatar-inicial { font-size: 2rem; }
+.crm-th-tipo { width: 90px; }
 
 /* --- Badges tipo contacto --- */
 .badge-crm-cliente   { background: var(--color-primario);  color: var(--color-blanco); }

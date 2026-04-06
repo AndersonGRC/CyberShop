@@ -62,9 +62,22 @@
                                 </select>
                             </div>
                         </div>
+                        <div class="form-group" id="grupo-recordatorio" style="display:none;">
+                            <div class="recordatorio-box">
+                                <label class="recordatorio-label">
+                                    <input type="checkbox" name="recordatorio_diario" value="1"
+                                           class="recordatorio-checkbox">
+                                    <i class="fas fa-bell icono-campana"></i>
+                                    Enviar recordatorio diario por correo hasta completar
+                                </label>
+                            </div>
+                            <small class="text-muted recordatorio-ayuda">
+                                Se enviará un correo cada mañana al usuario asignado mientras la tarea esté pendiente.
+                            </small>
+                        </div>
                         <div class="form-group">
                             <label class="font-weight-bold">
-                                <i class="fab fa-google mr-1 text-danger"></i>Invitar por Gmail
+                                <i class="fab fa-google mr-1 text-danger"></i>Agregar invitados a Google Calendar
                                 <small class="text-muted font-weight-normal">(separados por coma)</small>
                             </label>
                             <input type="text" name="invitados_emails" class="form-control"
@@ -83,4 +96,22 @@
         </div>
     </div>
 </div>
+
+<script>
+(function(){
+    var sel = document.querySelector('select[name="asignado_a"]');
+    var grupo = document.getElementById('grupo-recordatorio');
+    if(sel && grupo){
+        function toggle(){
+            grupo.style.display = sel.value ? 'block' : 'none';
+            if(!sel.value){
+                var cb = grupo.querySelector('input[type="checkbox"]');
+                if(cb) cb.checked = false;
+            }
+        }
+        sel.addEventListener('change', toggle);
+        toggle();
+    }
+})();
+</script>
 {% endblock %}

@@ -17,6 +17,7 @@
 .crm-fecha-hoy     { color: var(--color-warning);  font-weight: 700; }
 
 /* --- Filtros --- */
+.crm-td-acciones { white-space: nowrap; }
 .crm-filtros-estado { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 
 /* --- Tabla --- */

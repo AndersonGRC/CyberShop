@@ -4,6 +4,12 @@
    CRM FORMULARIO DE TAREA
    ============================================= */
 
+.recordatorio-box { background: #f0f7ff; border: 1px solid #c8ddf5; border-radius: 8px; padding: 14px 18px; display: flex; align-items: center; gap: 12px; }
+.recordatorio-label { margin: 0; display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; color: #333; }
+.recordatorio-checkbox { width: 18px; height: 18px; accent-color: #122C94; }
+.icono-campana { color: #e67e22; }
+.recordatorio-ayuda { margin-top: 6px; display: block; }
+
 .crm-form-botones { display: flex; gap: 0.5rem; }
 
 /* ====== SMARTPHONE (≤576px) ====== */
