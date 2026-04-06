@@ -42,6 +42,14 @@
    --color-producto-popup: var(--color-primario);
    /* Popup detalles: titulo, etiquetas, precio */
 
+   /* -- Reseñas / Calificaciones (estrellas) -- */
+   --color-star-on: #f5a623;
+   /* Estrella activa / seleccionada */
+   --color-star-off: var(--color-gris-borde);
+   /* Estrella vacía */
+   --color-star-sombra: rgba(245, 166, 35, 0.30);
+   /* Sombra para badge de rating */
+
    /* ============================================
      COLORES PANEL ADMIN Y ALERTAS EMERGENTES
      ============================================ */
@@ -172,6 +180,69 @@
    --sombra-card: 0 4px 15px rgba(0, 0, 0, 0.05);
    --overlay-claro: rgba(0, 0, 0, 0.5);
    --overlay-oscuro: rgba(0, 0, 0, 0.8);
+
+   /* -- Sombras de color exito (boton carrito) -- */
+   --sombra-exito: 0 4px 14px rgba(40, 167, 69, 0.25);
+   --sombra-exito-hover: 0 6px 20px rgba(40, 167, 69, 0.38);
+
+   /* -- Tintes de peligro (eliminar item carrito) -- */
+   --color-peligro-tinte: #ffebee;
+   --color-peligro-tinte-hover: #ffcdd2;
+
+   /* ============================================
+     BLANCO SEMITRANSPARENTE
+     Nav chip, session bar, overlays sobre fondos oscuros
+     ============================================ */
+   --blanco-alpha-12: rgba(255, 255, 255, 0.12);
+   --blanco-alpha-22: rgba(255, 255, 255, 0.22);
+   --blanco-alpha-25: rgba(255, 255, 255, 0.25);
+   --blanco-alpha-80: rgba(255, 255, 255, 0.8);
+   --blanco-alpha-85: rgba(255, 255, 255, 0.85);
+   --blanco-alpha-90: rgba(255, 255, 255, 0.9);
+   --blanco-alpha-92: rgba(255, 255, 255, 0.92);
+
+   /* ============================================
+     NEGRO SEMITRANSPARENTE
+     Sombras genericas y overlays
+     ============================================ */
+   --negro-alpha-005: rgba(0, 0, 0, 0.05);
+   --negro-alpha-007: rgba(0, 0, 0, 0.07);
+   --negro-alpha-008: rgba(0, 0, 0, 0.08);
+   --negro-alpha-010: rgba(0, 0, 0, 0.1);
+   --negro-alpha-012: rgba(0, 0, 0, 0.12);
+   --negro-alpha-015: rgba(0, 0, 0, 0.15);
+   --negro-alpha-018: rgba(0, 0, 0, 0.18);
+   --negro-alpha-020: rgba(0, 0, 0, 0.2);
+   --negro-alpha-025: rgba(0, 0, 0, 0.25);
+   --negro-alpha-030: rgba(0, 0, 0, 0.3);
+   --negro-alpha-050: rgba(0, 0, 0, 0.5);
+   --negro-alpha-052: rgba(0, 0, 0, 0.52);
+   --negro-alpha-070: rgba(0, 0, 0, 0.7);
+
+   /* ============================================
+     BOTON GOOGLE (login y registro)
+     ============================================ */
+   --color-google-texto: #3c4043;
+   --color-google-borde: #dadce0;
+   --color-google-hover-fondo: #f7f8ff;
+   --color-google-hover-borde: #a8b4fb;
+   --color-google-hover-sombra: rgba(66, 133, 244, 0.15);
+   --color-google-hover-texto: #1a1a1a;
+   --color-google-active-fondo: #eef1ff;
+
+   /* ============================================
+     COMPONENTES UI
+     Dropdown, separadores, errores
+     ============================================ */
+   --color-dropdown-header-fondo: #f8f9fa;
+   --color-dropdown-borde: #eeeeee;
+   --color-dropdown-link-hover: #f0f4ff;
+   --color-separador-texto: #aaaaaa;
+   --color-fondo-error-tinte: #fff5f5;
+   --color-fondo-hover-suave: #f5f5f5;
+   --color-texto-oscuro: #222222;
+   --sombra-eliminar: rgba(255, 0, 0, 0.3);
+   --sombra-exito-leve: rgba(40, 167, 69, 0.3);
 }
 
 /* ============================================

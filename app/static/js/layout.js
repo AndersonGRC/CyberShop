@@ -11,17 +11,24 @@
  * Dependencias: jQuery 3.3.1, Vue.js 2.x
  */
 
-/*1. Botón de menú desplegable*/
-document.querySelector('.btn-menu').addEventListener('click', function () {
-    const menu = document.querySelector('nav ul');
-    menu.classList.toggle('open');
-    menu.classList.toggle('hidden');
-});
-
+/*1. Botón de menú desplegable — un solo listener unificado */
+var btnMenu = document.querySelector('.btn-menu');
+if (btnMenu) {
+    btnMenu.addEventListener('click', function () {
+        var menu = document.querySelector('nav ul');
+        if (menu) {
+            menu.classList.toggle('open');
+            menu.classList.toggle('hidden');
+        }
+        // También alternar nav-toggle (antes se hacía duplicado con jQuery)
+        var nav = document.querySelector('.nav');
+        if (nav) nav.classList.toggle('nav-toggle');
+    });
+}
 
 /*2. Menú fijo al hacer scroll*/
 
-var elementTop = $('.nav').offset().top;
+var elementTop = $('.nav').offset() ? $('.nav').offset().top : 0;
 
 $(window).scroll(function () {
     if ($(window).scrollTop() >= elementTop) {
@@ -29,13 +36,6 @@ $(window).scroll(function () {
     } else {
         $('body').removeClass('nav_fixed');
     }
-});
-/*3. Alternar clase del menú*/
-
-// Agrega un evento 'click' al botón con la clase 'btn-menu'
-$('.btn-menu').on('click', function () {
-    // Alterna la clase 'nav-toggle' en el elemento con la clase 'nav'
-    $('.nav').toggleClass('nav-toggle');
 });
 
 /*5. Slider de imágenes*/
@@ -48,6 +48,11 @@ const slides = document.querySelectorAll(".slide"); // Todas las diapositivas
 const slideIcons = document.querySelectorAll(".slide-icon"); // Iconos de las diapositivas
 const numberOfSlides = slides.length; // Número total de diapositivas
 var slideNumber = 0; // Índice actual de la diapositiva
+
+// Guard: esta página no tiene slider
+if (!nextBtn || !prevBtn || !slider || numberOfSlides === 0) {
+    // noop — el resto del archivo no se ejecuta para páginas sin slider
+} else {
 
 // Evento para pasar a la siguiente diapositiva
 nextBtn.addEventListener("click", () => {
@@ -125,7 +130,12 @@ slider.addEventListener("mouseout", () => {
     repeater(); // Reinicia el autoplay
 });
 
+// Limpiar el intervalo al salir de la página para evitar memory leaks
+window.addEventListener('pagehide', function () {
+    if (playSlider) clearInterval(playSlider);
+});
 
+} // end if slider exists
 
 
 

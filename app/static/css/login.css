@@ -80,6 +80,63 @@ button:hover {
     transform: scale(1.05);
 }
 
+/* =========================================================
+   BOTÓN GOOGLE Y SEPARADOR
+   ========================================================= */
+.google-wrapper {
+    margin: 20px 0 8px;
+}
+
+.separador-google {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 18px 0;
+    color: var(--color-separador-texto);
+    font-size: 13px;
+}
+.separador-google::before,
+.separador-google::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--color-borde);
+}
+
+.btn-google {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--color-blanco);
+    color: var(--color-google-texto);
+    border: 1.5px solid var(--color-google-borde);
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 500;
+    font-family: 'Roboto', 'Raleway', sans-serif;
+    text-decoration: none;
+    cursor: pointer;
+    box-shadow: 0 1px 3px var(--negro-alpha-008);
+    transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.btn-google:hover {
+    background: var(--color-google-hover-fondo);
+    border-color: var(--color-google-hover-borde);
+    box-shadow: 0 2px 8px var(--color-google-hover-sombra);
+    color: var(--color-google-hover-texto);
+    text-decoration: none;
+}
+.btn-google:active {
+    background: var(--color-google-active-fondo);
+    box-shadow: none;
+}
+.btn-google img {
+    flex-shrink: 0;
+}
+
 /* Responsividad */
 @media (max-width: 480px) {
     .main {

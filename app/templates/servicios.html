@@ -136,10 +136,10 @@
 {% endif %}
 
 <!-- Modal -->
-<div id="modal" class="modal">
+<div id="modal" class="modal" role="dialog" aria-labelledby="modal-titulo" aria-modal="true">
     <div class="modal-content">
-        <span class="close">&times;</span>
-        <h2>Beneficios</h2>
+        <span class="close" role="button" aria-label="Cerrar">&times;</span>
+        <h2 id="modal-titulo">Beneficios</h2>
         <div id="beneficios-content"></div>
     </div>
 </div>
@@ -157,7 +157,14 @@
             servicio.addEventListener("click", () => {
                 const beneficios = servicio.getAttribute("data-beneficios");
                 if (!beneficios) return;
-                beneficiosContent.innerHTML = `<ul>${beneficios.split("\n").filter(b => b.trim()).map(b => `<li>${b.trim().replace(/^-\s*/, '')}</li>`).join("")}</ul>`;
+                const ul = document.createElement('ul');
+                beneficios.split("\n").filter(b => b.trim()).forEach(b => {
+                    const li = document.createElement('li');
+                    li.textContent = b.trim().replace(/^-\s*/, '');
+                    ul.appendChild(li);
+                });
+                beneficiosContent.innerHTML = '';
+                beneficiosContent.appendChild(ul);
                 modal.style.display = "flex";
             });
         });

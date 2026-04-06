@@ -70,7 +70,7 @@
    3. BARRA DE NAVEGACIÓN (NAV)
    ========================================================= */
 .nav {
-    z-index: 10000 !important;
+    z-index: 1000 !important;
     float: left;
     width: 100%;
     background: var(--color-secundario);
@@ -134,7 +134,7 @@ body.nav_fixed .nav .wrap {
 }
 
 header {
-    z-index: 10000 !important;
+    z-index: 1000 !important;
     position: relative;
 }
 
@@ -246,22 +246,22 @@ html {
 #google_translate_container {
     display: inline-block;
     margin: 10px;
-    z-index: 10001;
+    z-index: 1001;
     position: relative;
 }
 
 #custom_translate_btn {
     background: var(--color-secundario);
-    color: #fff;
+    color: var(--color-blanco);
     border: none;
     border-radius: 8px;
     padding: 6px 14px;
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--sombra-media);
     transition: all 0.3s ease;
-    z-index: 10002;
+    z-index: 1002;
     position: relative;
 }
 
@@ -272,7 +272,7 @@ html {
 
 #custom_translate_btn:focus {
     outline: none;
-    box-shadow: 0 0 0 2px rgba(42, 77, 105, 0.5);
+    box-shadow: var(--marca-focus-ring);
 }
 
 .goog-te-combo {
@@ -280,6 +280,10 @@ html {
     left: -9999px;
     opacity: 0.01;
 }
+
+.menu-carrito-link { position: relative; padding-right: 15px; }
+.menu-carrito-icono { font-size: 1.2rem; }
+.dropdown-arrow-icon { font-size: 0.65em; margin-left: 3px; }
 
 /* =========================================================
    6. ELEMENTOS UI (BADGE, ANIMACIONES)
@@ -289,7 +293,7 @@ html {
     top: 5px;
     right: 5px;
     background-color: var(--color-eliminar);
-    color: white;
+    color: var(--color-blanco);
     font-size: 0.7rem;
     font-weight: bold;
     padding: 2px 5px;
@@ -299,27 +303,34 @@ html {
     line-height: 14px;
     text-align: center;
     display: none;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-    z-index: 1003;
+    box-shadow: var(--sombra-suave);
+    z-index: 103;
     pointer-events: none;
 }
 
 .cart-badge.bounce {
-    animation: bounce 0.3s ease-in-out;
+    animation: cartBadgePop 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 
-@keyframes bounce {
-    0% {
-        transform: scale(1);
-    }
+@keyframes cartBadgePop {
+    0%   { transform: scale(1);    }
+    30%  { transform: scale(1.6);  }
+    55%  { transform: scale(0.85); }
+    75%  { transform: scale(1.2);  }
+    100% { transform: scale(1);    }
+}
 
-    50% {
-        transform: scale(1.5);
-    }
+/* Pulso de impacto cuando el producto llega al carrito */
+.cart-hit {
+    animation: cartImpact 0.45s ease-out !important;
+}
 
-    100% {
-        transform: scale(1);
-    }
+@keyframes cartImpact {
+    0%   { transform: scale(1);    }
+    25%  { transform: scale(1.4);  }
+    55%  { transform: scale(0.9);  }
+    78%  { transform: scale(1.15); }
+    100% { transform: scale(1);    }
 }
 
 @keyframes shake {
@@ -346,20 +357,12 @@ html {
 
 .btn-agregado {
     background-color: var(--color-exito) !important;
-    color: white !important;
+    color: var(--color-blanco) !important;
     animation: shake 0.4s ease-in-out;
     pointer-events: none;
 }
 
-.fly-img {
-    position: fixed;
-    z-index: 9999;
-    border-radius: 50%;
-    object-fit: cover;
-    pointer-events: none;
-    transition: all 0.8s cubic-bezier(0.19, 1, 0.22, 1);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-}
+/* .fly-img reemplazado por animarVuelo() en Shoppingcar.js (Web Animations API) */
 
 /* =========================================================
    7. CONFIGURACIÓN BOTONES FLOTANTES (ESCRITORIO)
@@ -379,7 +382,7 @@ html {
     color: var(--color-fondo);
     cursor: pointer;
     transition: all 500ms cubic-bezier(1, 0, 0, 1);
-    z-index: 10060;
+    z-index: 1060;
 }
 
 .btn-menu:hover {
@@ -392,7 +395,7 @@ html {
     display: none;
     /* No se ve en PC */
     position: fixed !important;
-    z-index: 9999 !important;
+    z-index: 999 !important;
 }
 
 .cart-floating-button a {
@@ -402,10 +405,10 @@ html {
     width: 55px;
     height: 55px;
     background-color: var(--color-carrito);
-    color: white;
+    color: var(--color-blanco);
     text-decoration: none;
     border-radius: 50%;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 10px var(--negro-alpha-030);
     transition: all 0.3s ease;
     position: relative;
 }
@@ -427,7 +430,7 @@ html {
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 2px solid #fff;
+    border: 2px solid var(--color-blanco);
     font-size: 0.75rem;
 }
 
@@ -436,7 +439,7 @@ html {
     position: fixed !important;
     bottom: 20px !important;
     right: 20px !important;
-    z-index: 10000 !important;
+    z-index: 1000 !important;
 }
 
 .chat-button a {
@@ -469,7 +472,16 @@ html {
 /* =========================================================
    8. MEDIA QUERIES (MÓVIL - TORRE UNIFORME DE 3 BOTONES)
    ========================================================= */
-@media screen and (max-width: 800px) {
+/* Focus visible para botones flotantes (accesibilidad) */
+.btn-menu:focus-visible,
+.cart-floating-button a:focus-visible,
+.chat-button a:focus-visible {
+    outline: 3px solid var(--color-primario);
+    outline-offset: 2px;
+    box-shadow: var(--marca-focus-ring);
+}
+
+@media screen and (max-width: 768px) {
 
     /* --- ESTILOS DE LA PÁGINA --- */
     .logo_main {
@@ -516,7 +528,7 @@ html {
 
     .nav-toggle {
         transform: translateX(0%);
-        box-shadow: 5px 0 15px rgba(0, 0, 0, 0.5);
+        box-shadow: 5px 0 15px var(--overlay-claro);
     }
 
     .main {
@@ -548,9 +560,9 @@ html {
 
         border-radius: 50% !important;
         transform: none !important;
-        z-index: 10060 !important;
+        z-index: 1060 !important;
         background: var(--color-secundario);
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        box-shadow: var(--sombra-media);
     }
 
     /* 2. CARRITO - MEDIO DE LA TORRE */
@@ -559,7 +571,7 @@ html {
         bottom: 90px !important;
         /* 20px + 55px + 15px espacio */
         right: 20px !important;
-        z-index: 10050 !important;
+        z-index: 1050 !important;
     }
 
     .cart-floating-button a {
@@ -574,7 +586,7 @@ html {
         bottom: 160px !important;
         /* 90px + 55px + 15px espacio */
         right: 20px !important;
-        z-index: 10055 !important;
+        z-index: 1055 !important;
     }
 
     .chat-button a {
@@ -610,8 +622,8 @@ html {
         background: var(--color-secundario) !important;
         border: 2px solid var(--color-fondo) !important;
         border-radius: 50% !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
-        z-index: 10050 !important;
+        box-shadow: var(--sombra-media) !important;
+        z-index: 1050 !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
@@ -638,9 +650,107 @@ html {
 }
 
 /* =========================================================
+   9. CHIP DE USUARIO EN NAV Y DROPDOWN
+   ========================================================= */
+.user-nav-chip-wrap {
+    position: relative;
+    display: inline-block;
+}
+.user-nav-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--blanco-alpha-12);
+    border: 1px solid var(--blanco-alpha-25);
+    border-radius: 20px;
+    color: var(--color-blanco);
+    padding: 6px 14px;
+    font-size: 0.88em;
+    font-weight: 600;
+    cursor: pointer;
+    margin: 12px 8px;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+.user-nav-chip:hover {
+    background: var(--blanco-alpha-22);
+}
+.user-nav-chip i.fa-user-circle { font-size: 1.1em; }
+
+/* Dropdown */
+.user-nav-dropdown {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    background: var(--color-blanco);
+    border-radius: 10px;
+    box-shadow: 0 8px 28px var(--negro-alpha-018);
+    min-width: 210px;
+    z-index: 9999;
+    overflow: hidden;
+}
+.user-nav-dropdown.open { display: block; }
+.user-nav-header {
+    padding: 14px 16px 10px;
+    background: var(--color-dropdown-header-fondo);
+    border-bottom: 1px solid var(--color-dropdown-borde);
+}
+.user-nav-header-nombre {
+    font-weight: 600;
+    font-size: 0.9em;
+}
+.user-nav-email {
+    color: var(--color-separador-texto);
+    font-size: 0.78em;
+    margin-top: 2px;
+}
+.user-nav-dropdown a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    font-size: 0.88em;
+    color: var(--color-texto) !important;
+    text-decoration: none;
+    transition: background 0.15s;
+}
+.user-nav-dropdown a:hover { background: var(--color-dropdown-link-hover); }
+.user-nav-dropdown a i { width: 16px; color: var(--color-primario); }
+.user-nav-dropdown .user-nav-logout { color: var(--color-peligro) !important; }
+.user-nav-divider { height: 1px; background: var(--color-dropdown-borde); margin: 4px 0; }
+
+/* ── Mini-barra de sesión activa ──────────────── */
+.session-bar {
+    background: var(--color-primario, #122C94);
+    color: var(--blanco-alpha-92);
+    font-size: 0.78em;
+    padding: 5px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    position: relative;
+    z-index: 100;
+}
+.session-bar a {
+    color: var(--blanco-alpha-85);
+    text-decoration: none;
+    margin-left: 14px;
+    font-weight: 600;
+    transition: color 0.2s;
+}
+.session-bar a:hover { color: var(--color-blanco); }
+@media (max-width: 600px) {
+    .user-nav-chip span { display: none; }
+    .user-nav-chip { padding: 6px 10px; }
+}
+
+/* =========================================================
    CORRECCIÓN BADGE CARRITO EN MENÚ MÓVIL
    ========================================================= */
-@media screen and (max-width: 800px) {
+@media screen and (max-width: 768px) {
 
     /* En el menú lateral, el enlace ocupa todo el ancho (100%).
        Por eso 'right: 5px' manda el badge muy lejos.

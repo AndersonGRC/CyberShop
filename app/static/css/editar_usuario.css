@@ -1,5 +1,7 @@
 @import url('variables.css');
 
+.foto-perfil-preview { max-width: 200px; }
+
 /* Contenedor principal */
 .container-fluid {
     padding: 2rem;

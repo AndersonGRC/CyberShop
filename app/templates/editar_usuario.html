@@ -19,8 +19,7 @@
                         <!-- Sección de imagen -->
                         <div class="form-group text-center">
                             {% if usuario.fotografia %}
-                            <img src="{{ usuario.fotografia }}" alt="Foto de perfil" class="img-thumbnail mb-3"
-                                style="max-width: 200px;">
+                            <img src="{{ usuario.fotografia }}" alt="Foto de perfil" class="img-thumbnail mb-3 foto-perfil-preview">
                             {% else %}
                             <div class="bg-light p-4 mb-3 text-center">
                                 <i class="fas fa-user-circle fa-5x text-muted"></i>
