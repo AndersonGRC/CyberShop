@@ -43,6 +43,11 @@ main {
     color: rgba(255,255,255,0.85);
 }
 
+.form-label-hint { font-weight: normal; text-transform: none; letter-spacing: 0; color: var(--color-texto-claro); }
+.icono-primario { color: var(--color-primario); }
+.form-group-centrado { text-align: center; margin-bottom: 20px; }
+.btn-descargar-plantilla { padding: 11px 22px; font-size: 0.9rem; }
+
 /* Contenedor interno de los campos */
 .form-general > form,
 .form-general > .form-body {

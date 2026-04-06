@@ -1,0 +1,1038 @@
+@import url('variables.css');
+
+/* ================================================================
+   ProductoDetalle.css — Módulo de página de detalle de producto
+   ================================================================
+   ÍNDICE DE SECCIONES
+   ──────────────────────────────────────────────────────────────
+   1. Animaciones         @keyframes pd-fadeSlideUp / pd-barraCrecer
+                          @keyframes pd-starPop / pd-pulseRing / pd-shimmer
+   2. Layout wrapper      .detalle-wrapper
+   3. Breadcrumb          .detalle-breadcrumb
+   4. Grid principal      .detalle-grid  (2 columnas desktop, 1 móvil)
+   5. Galería             .detalle-galeria · .detalle-imagen-principal-wrap
+                          .detalle-miniatura · .detalle-nav-btn
+   6. Información         .detalle-info · .detalle-categoria-tag
+                          .detalle-nombre · .detalle-precio
+                          .detalle-meta · .detalle-stock
+                          .detalle-descripcion-section
+   7. Controles de compra .detalle-cantidad-wrap · .detalle-qty-btn
+                          .btn-detalle-carrito · .btn-detalle-volver
+   8. Compartir           .detalle-compartir · .detalle-share-btn
+   9. Productos rel.      .detalle-relacionados · .detalle-rel-card
+   10. Reseñas            .resenas-seccion
+       10a. Resumen       .resenas-resumen · .resenas-promedio-bloque
+                          .resenas-barras · .resenas-barra-fill
+       10b. Lista         .resenas-lista · .resena-card · .resena-avatar
+       10c. Formulario    .resenas-form-wrap · .star-selector · .star-btn
+   11. Responsive         @media ≤768px / ≤480px
+
+   VARIABLES QUE CONTROLAN ESTE MÓDULO (editar en variables.css)
+   ──────────────────────────────────────────────────────────────
+   Identidad visual:
+     --color-producto-popup      Color principal (títulos, iconos, botón enviar reseña)
+     --color-producto-boton      Precio, botón "Ver Detalles"
+     --color-primario-oscuro     Hover de botón enviar reseña
+     --color-botones             Gradiente del avatar de reseña
+
+   Estrellas / Rating:
+     --color-star-on             Color de estrella activa            (#f5a623 naranja)
+     --color-star-off            Color de estrella vacía             (alias de --color-gris-borde)
+     --color-star-sombra         Sombra para badge de calificación
+
+   Botón Añadir al carrito:
+     --color-exito               Fondo normal
+     --color-exito-hover         Fondo hover
+     --sombra-exito              Box-shadow normal
+     --sombra-exito-hover        Box-shadow hover
+
+   Formulario / Focus:
+     --marca-focus-ring          Ring de foco (inputs y selector cantidad)
+     --marca-tinte-leve          Fondo del aviso de moderación
+     --marca-tinte-medio         Borde hover de cards de reseña
+
+   Sombras de cards:
+     --sombra-card               Sombra normal de cards y galería
+     --marca-sombra-card         Sombra hover de cards
+     --marca-sombra-boton        Sombra del botón enviar reseña
+     --marca-sombra-boton-hover  Sombra hover del botón enviar reseña
+
+   REGLA: ningún color puede estar hardcodeado en este archivo.
+          Toda personalización se hace en variables.css.
+   ================================================================ */
+
+/* =========================================================
+   PÁGINA DE DETALLE DE PRODUCTO
+   Todos los colores usan variables de variables.css.
+   Para personalizar: edita variables.css → sección COLORES DE MARCA.
+   ========================================================= */
+
+/* Animaciones globales del módulo */
+@keyframes pd-fadeSlideUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pd-barraCrecer {
+    from { width: 0 !important; }
+}
+@keyframes pd-starPop {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.35); }
+    70%  { transform: scale(0.9); }
+    100% { transform: scale(1); }
+}
+@keyframes pd-pulseRing {
+    0%   { box-shadow: 0 0 0 0 rgba(var(--color-marca-rgb), 0.30); }
+    70%  { box-shadow: 0 0 0 8px rgba(var(--color-marca-rgb), 0); }
+    100% { box-shadow: 0 0 0 0 rgba(var(--color-marca-rgb), 0); }
+}
+@keyframes pd-shimmer {
+    0%   { background-position: -400px 0; }
+    100% { background-position: 400px 0; }
+}
+
+.detalle-wrapper {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 10px 20px 48px;
+}
+
+/* ─── Breadcrumb ─────────────────────────────────────────── */
+.detalle-breadcrumb {
+    font-size: 0.85rem;
+    color: var(--color-texto-claro);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    animation: pd-fadeSlideUp 0.4s ease both;
+}
+.detalle-breadcrumb a {
+    color: var(--color-producto-popup);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+.detalle-breadcrumb a:hover { color: var(--color-producto-boton); }
+.detalle-breadcrumb .sep    { color: var(--color-gris-borde); }
+
+/* ─── Grid principal ─────────────────────────────────────── */
+.detalle-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    align-items: start;
+    animation: pd-fadeSlideUp 0.45s ease 0.05s both;
+}
+
+/* =========================================================
+   GALERÍA
+   ========================================================= */
+.detalle-galeria {
+    position: sticky;
+    top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.detalle-imagen-principal-wrap {
+    width: 100%;
+    aspect-ratio: 5 / 6;
+    overflow: hidden;
+    border-radius: 20px;
+    background: var(--color-fondo);
+    border: 1px solid var(--color-gris-borde);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    cursor: zoom-in;
+    transition: box-shadow 0.3s ease;
+    box-shadow: var(--sombra-card);
+}
+.detalle-imagen-principal-wrap:hover {
+    box-shadow: var(--marca-sombra-card);
+}
+
+.detalle-imagen-principal {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    transition: opacity 0.25s ease, transform 0.4s ease;
+    padding: 8px;
+}
+.detalle-imagen-principal-wrap:hover .detalle-imagen-principal {
+    transform: scale(1.05);
+}
+
+/* Miniaturas */
+.detalle-miniaturas {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-gris-borde) transparent;
+}
+.detalle-miniaturas::-webkit-scrollbar { height: 5px; }
+.detalle-miniaturas::-webkit-scrollbar-track { background: transparent; }
+.detalle-miniaturas::-webkit-scrollbar-thumb {
+    background: var(--color-gris-borde);
+    border-radius: 4px;
+}
+
+.detalle-miniatura {
+    flex-shrink: 0;
+    width: 62px;
+    height: 62px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 2px solid var(--color-gris-borde);
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.18s, box-shadow 0.2s;
+    background: var(--color-fondo);
+}
+.detalle-miniatura:hover {
+    border-color: var(--color-producto-popup);
+    transform: scale(1.07);
+}
+.detalle-miniatura.activa {
+    border-color: var(--color-producto-boton);
+    box-shadow: var(--marca-focus-ring);
+}
+
+/* Flechas carrusel */
+.detalle-galeria-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 2px;
+}
+.detalle-nav-btn {
+    background: var(--color-producto-popup);
+    color: var(--color-blanco);
+    border: none;
+    border-radius: 50%;
+    width: 38px;
+    height: 38px;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, transform 0.18s, box-shadow 0.2s;
+    flex-shrink: 0;
+    box-shadow: var(--marca-sombra-sutil);
+}
+.detalle-nav-btn:hover {
+    background: var(--color-producto-boton);
+    transform: scale(1.12);
+    box-shadow: var(--marca-sombra-activa);
+}
+.detalle-nav-btn:disabled {
+    background: var(--color-gris-deshabilitado);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+.detalle-contador-img {
+    font-size: 0.82rem;
+    color: var(--color-texto-claro);
+    min-width: 52px;
+    text-align: center;
+}
+
+/* Badge agotado */
+.detalle-badge-agotado {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    background: var(--color-eliminar);
+    color: var(--color-blanco);
+    font-size: 0.77rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    padding: 5px 12px;
+    border-radius: 6px;
+    z-index: 2;
+    box-shadow: var(--sombra-suave);
+}
+
+/* =========================================================
+   INFORMACIÓN (columna derecha)
+   ========================================================= */
+.detalle-info {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.detalle-categoria-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--marca-tinte-leve);
+    color: var(--color-producto-popup);
+    font-size: 0.79rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    padding: 4px 13px;
+    border-radius: 20px;
+    border: 1px solid var(--marca-tinte-medio);
+    width: fit-content;
+}
+
+.detalle-nombre {
+    font-size: clamp(1.4rem, 3vw, 2rem);
+    font-weight: 800;
+    color: var(--color-producto-popup);
+    margin: 0;
+    line-height: 1.25;
+}
+
+.detalle-precio-wrap {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+}
+.detalle-precio {
+    font-size: clamp(1.65rem, 4vw, 2.3rem);
+    font-weight: 800;
+    color: var(--color-producto-boton);
+    line-height: 1;
+}
+.detalle-precio-label {
+    font-size: 0.82rem;
+    color: var(--color-texto-claro);
+}
+
+/* Meta */
+.detalle-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px 18px;
+    background: var(--color-fondo);
+    border-radius: 12px;
+    border: 1px solid var(--color-gris-borde);
+}
+.detalle-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+    color: var(--color-texto-secundario);
+}
+.detalle-meta-item strong {
+    color: var(--color-texto);
+    min-width: 92px;
+}
+.detalle-meta-item i {
+    color: var(--color-producto-popup);
+    width: 16px;
+    text-align: center;
+}
+
+/* Stock */
+.detalle-stock {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.88rem;
+}
+.detalle-stock-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.detalle-stock-dot.disponible { background: var(--color-exito); }
+.detalle-stock-dot.bajo       { background: var(--color-warning); }
+.detalle-stock-dot.agotado    { background: var(--color-eliminar); }
+.detalle-stock-text           { color: var(--color-texto-secundario); }
+.detalle-stock-text strong    { font-weight: 700; }
+
+/* Descripción */
+.detalle-descripcion-section {
+    border-top: 1px solid var(--color-borde-claro);
+    padding-top: 18px;
+}
+.detalle-descripcion-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--color-texto-claro);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.detalle-descripcion-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--color-borde-claro);
+}
+.detalle-descripcion-texto {
+    font-size: 0.96rem;
+    color: var(--color-texto);
+    line-height: 1.75;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0;
+}
+
+/* Cantidad */
+.detalle-cantidad-wrap {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+.detalle-cantidad-label {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--color-texto-secundario);
+}
+.detalle-cantidad-ctrl {
+    display: flex;
+    align-items: center;
+    border: 2px solid var(--color-gris-borde);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+}
+.detalle-cantidad-ctrl:focus-within {
+    border-color: var(--color-producto-popup);
+    box-shadow: var(--marca-focus-ring);
+}
+.detalle-qty-btn {
+    width: 40px;
+    height: 40px;
+    background: var(--color-fondo);
+    border: none;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--color-texto);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.detalle-qty-btn:hover:not(:disabled) {
+    background: var(--color-producto-popup);
+    color: var(--color-blanco);
+}
+.detalle-qty-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+.detalle-qty-num {
+    min-width: 46px;
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-texto);
+    padding: 0 6px;
+}
+
+/* Botones de acción */
+.detalle-acciones {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.btn-detalle-carrito {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: var(--color-exito);
+    color: var(--color-blanco);
+    border: none;
+    padding: 15px 24px;
+    border-radius: 14px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.18s, box-shadow 0.2s;
+    box-shadow: var(--sombra-exito);
+    width: 100%;
+    letter-spacing: 0.02em;
+}
+.btn-detalle-carrito:hover:not(:disabled) {
+    background: var(--color-exito-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--sombra-exito-hover);
+}
+.btn-detalle-carrito:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: var(--sombra-exito);
+}
+.btn-detalle-carrito:disabled {
+    background: var(--color-gris-deshabilitado);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+.btn-detalle-volver {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: transparent;
+    color: var(--color-producto-popup);
+    border: 2px solid var(--color-producto-popup);
+    padding: 13px 24px;
+    border-radius: 14px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.2s, color 0.2s, transform 0.18s;
+    width: 100%;
+    text-align: center;
+}
+.btn-detalle-volver:hover {
+    background: var(--color-producto-popup);
+    color: var(--color-blanco);
+    transform: translateY(-1px);
+}
+
+/* Compartir */
+.detalle-compartir {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 6px;
+    border-top: 1px solid var(--color-borde-claro);
+    flex-wrap: wrap;
+}
+.detalle-compartir-label {
+    font-size: 0.82rem;
+    color: var(--color-texto-claro);
+    font-weight: 600;
+}
+.detalle-share-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    transition: opacity 0.2s, transform 0.18s;
+}
+.detalle-share-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+.detalle-share-btn.whatsapp { background: var(--color-whatsapp); color: #fff; }
+.detalle-share-btn.copiar   { background: var(--color-fondo); color: var(--color-texto); border: 1px solid var(--color-gris-borde); }
+
+/* =========================================================
+   SECCIÓN PRODUCTOS RELACIONADOS
+   ========================================================= */
+.detalle-relacionados {
+    margin-top: 64px;
+}
+.detalle-relacionados-titulo {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--color-producto-popup);
+    margin-bottom: 22px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.detalle-relacionados-titulo::after {
+    content: '';
+    flex: 1;
+    height: 2px;
+    background: linear-gradient(to right, var(--color-producto-popup), transparent);
+    border-radius: 2px;
+}
+.detalle-relacionados-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 18px;
+}
+.detalle-rel-card {
+    border: 1px solid var(--color-gris-borde);
+    border-radius: 14px;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    transition: box-shadow 0.25s, transform 0.22s;
+    background: var(--color-blanco);
+    display: flex;
+    flex-direction: column;
+    animation: pd-fadeSlideUp 0.4s ease both;
+}
+.detalle-rel-card:hover {
+    box-shadow: var(--marca-sombra-card);
+    transform: translateY(-4px);
+}
+.detalle-rel-img {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    background: var(--color-fondo);
+    transition: transform 0.35s ease;
+}
+.detalle-rel-card:hover .detalle-rel-img {
+    transform: scale(1.04);
+}
+.detalle-rel-body {
+    padding: 12px 14px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.detalle-rel-nombre {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--color-texto);
+    line-height: 1.3;
+}
+.detalle-rel-precio {
+    font-size: 0.93rem;
+    font-weight: 700;
+    color: var(--color-producto-boton);
+}
+
+/* =========================================================
+   SECCIÓN DE RESEÑAS Y CALIFICACIONES
+   Colores centralizados — editar en variables.css:
+     --color-star-on      → estrella activa
+     --color-star-off     → estrella vacía (alias de --color-gris-borde)
+     --color-star-sombra  → sombra del badge de rating
+   ========================================================= */
+
+.resenas-seccion {
+    margin-top: 64px;
+    padding-top: 40px;
+    border-top: 2px solid var(--color-borde-claro);
+    animation: pd-fadeSlideUp 0.5s ease 0.1s both;
+}
+
+/* Título de sección (igual estilo que relacionados) */
+.resenas-titulo {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--color-producto-popup);
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.resenas-titulo::after {
+    content: '';
+    flex: 1;
+    height: 2px;
+    background: linear-gradient(to right, var(--color-producto-popup), transparent);
+    border-radius: 2px;
+}
+
+/* ─── Bloque de resumen (promedio + barras) ─────────────── */
+.resenas-resumen {
+    display: flex;
+    gap: 36px;
+    align-items: center;
+    background: var(--color-fondo);
+    border: 1px solid var(--color-gris-borde);
+    border-radius: 18px;
+    padding: 28px 32px;
+    margin-bottom: 36px;
+    flex-wrap: wrap;
+    box-shadow: var(--sombra-card);
+    transition: box-shadow 0.25s;
+}
+.resenas-resumen:hover {
+    box-shadow: var(--marca-sombra-card);
+}
+
+/* Número grande de promedio */
+.resenas-promedio-bloque {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-width: 120px;
+}
+.resenas-num-grande {
+    font-size: 3.8rem;
+    font-weight: 800;
+    color: var(--color-texto);
+    line-height: 1;
+    letter-spacing: -0.03em;
+}
+.resenas-estrellas-grandes {
+    font-size: 1.35rem;
+    display: flex;
+    gap: 4px;
+}
+.resenas-estrellas-grandes .fa-star {
+    color: var(--color-star-on);
+}
+.resenas-estrellas-grandes .fa-star.vacia {
+    color: var(--color-star-off);
+}
+.resenas-total-text {
+    font-size: 0.82rem;
+    color: var(--color-texto-claro);
+    font-weight: 500;
+}
+
+/* Divisor vertical */
+.resenas-divisor {
+    width: 1px;
+    height: 80px;
+    background: var(--color-gris-borde);
+    flex-shrink: 0;
+}
+
+/* Barras de distribución */
+.resenas-barras {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    min-width: 200px;
+}
+.resenas-barra-fila {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.resenas-barra-label {
+    font-size: 0.82rem;
+    color: var(--color-texto-secundario);
+    width: 38px;
+    flex-shrink: 0;
+    text-align: right;
+    white-space: nowrap;
+}
+.resenas-barra-track {
+    flex: 1;
+    height: 9px;
+    background: var(--color-gris-borde);
+    border-radius: 6px;
+    overflow: hidden;
+}
+.resenas-barra-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-star-on), var(--color-warning));
+    border-radius: 6px;
+    animation: pd-barraCrecer 0.8s ease both;
+}
+.resenas-barra-cnt {
+    font-size: 0.78rem;
+    color: var(--color-texto-claro);
+    min-width: 22px;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Estado vacío */
+.resenas-sin-resenas {
+    font-size: 0.95rem;
+    color: var(--color-texto-claro);
+    text-align: center;
+    padding: 24px 0 8px;
+}
+
+/* ─── Lista de reseñas ──────────────────────────────────── */
+.resenas-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 40px;
+}
+
+.resena-card {
+    background: var(--color-blanco);
+    border: 1px solid var(--color-gris-borde);
+    border-radius: 16px;
+    padding: 20px 22px;
+    transition: box-shadow 0.25s, transform 0.22s, border-color 0.25s;
+    animation: pd-fadeSlideUp 0.4s ease both;
+    box-shadow: var(--sombra-suave);
+}
+.resena-card:hover {
+    box-shadow: var(--marca-sombra-card);
+    transform: translateY(-2px);
+    border-color: var(--marca-tinte-medio);
+}
+
+.resena-cabecera {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.resena-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--color-producto-popup), var(--color-botones));
+    color: var(--color-blanco);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    box-shadow: var(--marca-sombra-sutil);
+}
+
+.resena-meta {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+.resena-autor {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--color-texto);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.resena-fecha {
+    font-size: 0.78rem;
+    color: var(--color-texto-claro);
+}
+
+.resena-estrellas {
+    display: flex;
+    gap: 3px;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+}
+.resena-estrellas .fa-star       { color: var(--color-star-on); }
+.resena-estrellas .fa-star.vacia { color: var(--color-star-off); }
+
+.resena-texto {
+    font-size: 0.93rem;
+    color: var(--color-texto);
+    line-height: 1.65;
+    margin: 0;
+    word-break: break-word;
+}
+
+/* ─── Formulario de reseña ──────────────────────────────── */
+.resenas-form-wrap {
+    background: var(--color-fondo-form);
+    border: 1px solid var(--color-gris-borde);
+    border-radius: 18px;
+    padding: 32px;
+    max-width: 640px;
+    box-shadow: var(--sombra-card);
+    transition: box-shadow 0.25s;
+}
+.resenas-form-wrap:focus-within {
+    box-shadow: var(--marca-sombra-card);
+    border-color: var(--marca-tinte-medio);
+}
+
+.resenas-form-titulo {
+    font-size: 1.08rem;
+    font-weight: 700;
+    color: var(--color-producto-popup);
+    margin: 0 0 22px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.resenas-form-titulo::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 1.1em;
+    background: var(--color-producto-popup);
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.resenas-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+.resenas-form-campo {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+.resenas-form-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-texto-secundario);
+}
+.requerido { color: var(--color-peligro); }
+
+.resenas-form-input,
+.resenas-form-textarea {
+    width: 100%;
+    border: 1.5px solid var(--color-gris-borde);
+    border-radius: 10px;
+    padding: 11px 14px;
+    font-size: 0.93rem;
+    color: var(--color-texto);
+    background: var(--color-blanco);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+.resenas-form-input:focus,
+.resenas-form-textarea:focus {
+    outline: none;
+    border-color: var(--color-producto-popup);
+    box-shadow: var(--marca-focus-ring);
+}
+.resenas-form-textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+/* ─── Selector de estrellas interactivo ─────────────────── */
+.star-selector {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    user-select: none;
+}
+
+.star-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.75rem;
+    color: var(--color-star-off);
+    padding: 2px 3px;
+    transition: color 0.15s, transform 0.15s;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+}
+.star-btn:hover {
+    color: var(--color-star-on);
+    transform: scale(1.2);
+}
+.star-btn.activa {
+    color: var(--color-star-on);
+    animation: pd-starPop 0.3s ease;
+}
+.star-btn.activa:hover {
+    transform: scale(1.1);
+}
+
+.star-selector-hint {
+    font-size: 0.82rem;
+    color: var(--color-texto-claro);
+    margin-left: 10px;
+    min-width: 80px;
+    transition: color 0.15s;
+}
+.star-selector-hint.seleccionado {
+    color: var(--color-star-on);
+    font-weight: 600;
+}
+
+/* Botón enviar reseña */
+.resenas-form-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    background: var(--color-producto-popup);
+    color: var(--color-blanco);
+    border: none;
+    padding: 13px 28px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.18s, box-shadow 0.2s;
+    align-self: flex-start;
+    box-shadow: var(--marca-sombra-boton);
+    letter-spacing: 0.02em;
+}
+.resenas-form-btn:hover {
+    background: var(--color-primario-oscuro);
+    transform: translateY(-2px);
+    box-shadow: var(--marca-sombra-boton-hover);
+}
+.resenas-form-btn:active {
+    transform: translateY(0);
+    box-shadow: var(--marca-sombra-activa);
+}
+
+/* Aviso de moderación */
+.resenas-aviso {
+    font-size: 0.8rem;
+    color: var(--color-texto-claro);
+    margin: 14px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 14px;
+    background: var(--marca-tinte-sutil);
+    border-radius: 8px;
+    border: 1px solid var(--marca-tinte-leve);
+}
+.resenas-aviso i {
+    color: var(--color-producto-popup);
+    flex-shrink: 0;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+@media (max-width: 768px) {
+    .detalle-wrapper { padding: 16px 16px 48px; }
+    .detalle-grid {
+        grid-template-columns: 1fr;
+        gap: 28px;
+    }
+    .detalle-galeria { position: static; }
+    .detalle-imagen-principal-wrap { aspect-ratio: 4 / 3; }
+    .detalle-miniatura { width: 62px; height: 62px; }
+    .detalle-nombre  { font-size: 1.45rem; }
+    .detalle-precio  { font-size: 1.75rem; }
+    .resenas-resumen { padding: 22px 20px; gap: 22px; }
+    .resenas-divisor { display: none; }
+    .resenas-form-wrap { padding: 24px 20px; }
+}
+
+@media (max-width: 480px) {
+    .detalle-wrapper { padding: 12px 12px 40px; }
+    .detalle-miniatura { width: 54px; height: 54px; }
+    .detalle-imagen-principal-wrap { aspect-ratio: 1 / 1; }
+    .detalle-relacionados-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    .btn-detalle-carrito,
+    .btn-detalle-volver { padding: 13px 16px; font-size: 0.92rem; }
+    .resenas-resumen {
+        flex-direction: column;
+        gap: 18px;
+        padding: 18px;
+    }
+    .resenas-promedio-bloque { flex-direction: row; gap: 14px; min-width: unset; }
+    .resenas-num-grande { font-size: 3rem; }
+    .resenas-form-wrap { padding: 18px 16px; }
+    .star-btn { font-size: 1.5rem; }
+    .resenas-form-btn { width: 100%; justify-content: center; }
+}

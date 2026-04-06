@@ -40,6 +40,10 @@ main {
     letter-spacing: 0.02em;
 }
 
+.form-header-icon { color: rgba(255,255,255,0.85); font-size: 1.2rem; }
+.form-header-id { opacity: 0.7; font-weight: 400; font-size: 0.9rem; }
+.sin-imagenes-msg { color: var(--color-texto-claro); margin-top: 8px; }
+
 /* ── Grupos de campo ─────────────────────────────────────────── */
 .form-group {
     margin-bottom: 20px;

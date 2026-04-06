@@ -6,6 +6,7 @@ formato de moneda colombiana y generacion de codigos de referencia.
 """
 
 import locale
+import os
 import uuid
 from datetime import datetime
 
@@ -154,7 +155,8 @@ def get_data_app():
                 {"nombre": "Agregar Producto", "url": "admin.GestionProductos", "icono": "plus-circle"},
                 {"nombre": "Editar Productos", "url": "admin.editar_productos", "icono": "edit"},
                 {"nombre": "Eliminar Productos", "url": "admin.eliminar_productos", "icono": "trash-alt"},
-                {"nombre": "Géneros", "url": "admin.gestion_generos", "icono": "tags"}
+                {"nombre": "Géneros", "url": "admin.gestion_generos", "icono": "tags"},
+                {"nombre": "Reseñas", "url": "admin.gestion_resenas", "icono": "star"}
             ]
         },
         {
@@ -165,7 +167,6 @@ def get_data_app():
                 {"nombre": "Publicaciones", "url": "admin.gestion_publicaciones", "icono": "file-alt"},
                 {"nombre": "Slides Carrusel", "url": "admin.gestion_slides", "icono": "images"},
                 {"nombre": "Servicios", "url": "admin.gestion_servicios", "icono": "concierge-bell"},
-                {"nombre": "Config Secciones", "url": "admin.config_secciones", "icono": "sliders-h"}
             ]
         },
         {
@@ -222,12 +223,19 @@ def get_data_app():
             ]
         },
         {
+        {
             "nombre": "Configuración",
             "url": "#",
             "icono": "cog",
             "submodulos": [
-                {"nombre": "Config. Cliente", "url": "admin.configuracion_cliente", "icono": "paint-brush"},
+                {"nombre": "Config. Cliente",   "url": "admin.configuracion_cliente", "icono": "paint-brush"},
+                {"nombre": "Config. Secciones", "url": "admin.config_secciones",      "icono": "sliders-h"},
             ]
+        },
+        {
+            "nombre": "Facturación DIAN",
+            "url": "admin.facturacion_dian",
+            "icono": "file-invoice"
         },
         {"nombre": "Cerrar Sesion", "url": "auth.logout", "icono": "sign-out-alt"}
     ]
@@ -239,6 +247,14 @@ def get_data_app():
             row = cur.fetchone()
             if row and row['valor']:
                 nombre_empresa = row['valor']
+    except Exception:
+        pass
+
+    # El grupo "Configuración" solo es visible para el Super Admin (rol_id = 1)
+    try:
+        from flask import session as _s
+        if _s.get('rol_id') != 1:
+            App = [item for item in App if item.get('nombre') != 'Configuración']
     except Exception:
         pass
 
@@ -269,3 +285,32 @@ def generar_reference_code():
     fecha = datetime.now().strftime("%Y%m%d")
     random_code = uuid.uuid4().hex[:6].upper()
     return f"CYBERSHOP-{fecha}-{random_code}"
+
+
+# --- Utilidades PDF compartidas (quotes.py y billing.py) ---
+
+def pdf_link_callback(uri, rel):
+    """Resuelve URLs a rutas locales absolutas para xhtml2pdf.
+    Evita peticiones HTTP durante la generacion del PDF."""
+    from flask import current_app as _app
+    if uri.startswith('file://'):
+        return uri[7:]
+    if 'static/' in uri:
+        try:
+            after_static = uri.split('static/')[-1].split('?')[0]
+            local = os.path.join(_app.root_path, 'static', after_static)
+            if os.path.isfile(local):
+                return local
+        except Exception:
+            pass
+    return uri
+
+
+def logo_local_path(root_path):
+    """Resuelve la ruta absoluta del logo por defecto.
+    Prueba Logo.png primero, luego Logo.PNG como fallback."""
+    for nombre in ('Logo.png', 'Logo.PNG'):
+        path = os.path.join(root_path, 'static', 'img', nombre)
+        if os.path.isfile(path):
+            return path
+    return os.path.join(root_path, 'static', 'img', 'Logo.png')

@@ -4,6 +4,127 @@
 
 {% block LinkAdicional %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/gestionproductos.css') }}">
+<style>
+/* ── Carrusel de preview de imágenes ───────────────────────── */
+.adm-carrusel {
+    margin-top: 14px;
+    border-radius: 12px;
+    border: 1px solid var(--color-gris-borde);
+    overflow: hidden;
+    background: var(--color-fondo);
+    display: none;
+}
+.adm-c-principal {
+    display: flex;
+    align-items: stretch;
+    background: #111;
+    position: relative;
+    min-height: 220px;
+}
+.adm-c-img-wrap {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 220px;
+    overflow: hidden;
+}
+.adm-c-img-wrap img {
+    max-width: 100%;
+    max-height: 280px;
+    object-fit: contain;
+    display: block;
+    transition: opacity 0.18s ease;
+}
+.adm-c-nav {
+    background: rgba(0,0,0,0.45);
+    color: #fff;
+    border: none;
+    padding: 0 14px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.2s;
+    z-index: 2;
+    flex-shrink: 0;
+}
+.adm-c-nav:hover { background: rgba(0,0,0,0.72); }
+.adm-c-nav:disabled { opacity: 0.2; cursor: default; }
+.adm-c-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: var(--color-primario);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 11px;
+    border-radius: 20px;
+}
+.adm-c-count {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 20px;
+}
+.adm-c-thumbs {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px;
+    overflow-x: auto;
+    background: var(--color-fondo-alt);
+    scrollbar-width: thin;
+}
+.adm-c-thumbs::-webkit-scrollbar { height: 4px; }
+.adm-c-thumbs::-webkit-scrollbar-thumb { background: var(--color-gris-borde); border-radius: 4px; }
+.adm-c-thumb-wrap { position: relative; flex-shrink: 0; }
+.adm-c-thumb {
+    width: 62px;
+    height: 62px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 2.5px solid transparent;
+    cursor: pointer;
+    transition: border-color 0.18s, transform 0.14s;
+    display: block;
+}
+.adm-c-thumb:hover { transform: scale(1.07); border-color: var(--color-primario); }
+.adm-c-thumb.activa { border-color: var(--color-primario); box-shadow: 0 0 0 3px rgba(18,44,148,0.18); }
+.adm-c-thumb-wrap .badge-p {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: var(--color-primario);
+    color: #fff;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+}
+.adm-c-hint {
+    padding: 8px 14px;
+    font-size: 0.82rem;
+    color: var(--color-texto-claro);
+    background: #fff;
+    margin: 0;
+    border-top: 1px solid var(--color-borde-claro);
+}
+@media (max-width: 600px) {
+    .adm-c-img-wrap { min-height: 180px; }
+    .adm-c-img-wrap img { max-height: 200px; }
+    .adm-c-thumb { width: 50px; height: 50px; }
+    .adm-c-nav { padding: 0 10px; font-size: 0.9rem; }
+}
+</style>
 {% endblock %}
 
 {% block body %}
@@ -26,10 +147,40 @@
             <h2>Agregar Producto</h2>
         </div>
         <form action="{{ url_for('admin.GestionProductos') }}" method="POST" enctype="multipart/form-data">
+
             <div class="form-group">
-                <label for="imagen"><i class="fas fa-image"></i> Imagen</label>
-                <input type="file" id="imagen" name="imagen" accept="image/*" required>
+                <label for="imagenes">
+                    <i class="fas fa-images"></i> Imágenes del producto
+                    <small class="form-label-hint">
+                        — selecciona una o varias; la primera será la principal
+                    </small>
+                </label>
+                <input type="file" id="imagenes" name="imagenes" accept="image/*" multiple required>
+
+                <!-- Carrusel de preview -->
+                <div class="adm-carrusel" id="carrusel-preview">
+                    <div class="adm-c-principal">
+                        <button type="button" class="adm-c-nav" id="btn-prev">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <div class="adm-c-img-wrap">
+                            <img id="preview-main" src="" alt="Vista previa">
+                            <span class="adm-c-badge" id="preview-badge">✓ Principal</span>
+                            <span class="adm-c-count" id="preview-count"></span>
+                        </div>
+                        <button type="button" class="adm-c-nav" id="btn-next">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                    <div class="adm-c-thumbs" id="preview-thumbs"></div>
+                    <p class="adm-c-hint">
+                        <i class="fas fa-star icono-primario"></i>
+                        La imagen con el badge <strong>Principal</strong> será la que aparece en el catálogo.
+                        Usa las flechas o las miniaturas para navegar.
+                    </p>
+                </div>
             </div>
+
             <div class="form-group">
                 <label for="nombre"><i class="fas fa-tag"></i> Nombre</label>
                 <input type="text" id="nombre" name="nombre" placeholder="Ej: Camiseta deportiva negra" required>
@@ -57,7 +208,8 @@
             </div>
             <div class="form-group">
                 <label for="descripcion"><i class="fas fa-align-left"></i> Descripción</label>
-                <textarea id="descripcion" name="descripcion" placeholder="Describe el producto: material, características, tallas disponibles..." required></textarea>
+                <textarea id="descripcion" name="descripcion"
+                    placeholder="Describe el producto: material, características, tallas disponibles..." required></textarea>
             </div>
             <div class="form-group">
                 <button type="submit"><i class="fas fa-check-circle"></i> Agregar Producto</button>
@@ -85,9 +237,8 @@
                 </ul>
             </div>
 
-            <div class="form-group" style="text-align:center; margin-bottom:20px;">
-                <a href="{{ url_for('admin.descargar_plantilla_productos') }}" class="btn-secundario"
-                   style="padding:11px 22px; font-size:0.9rem;">
+            <div class="form-group form-group-centrado">
+                <a href="{{ url_for('admin.descargar_plantilla_productos') }}" class="btn-secundario btn-descargar-plantilla">
                     <i class="fas fa-file-download"></i> Descargar Plantilla Excel
                 </a>
             </div>
@@ -103,4 +254,89 @@
         </form>
     </div>
 </main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    const input      = document.getElementById('imagenes');
+    const carrusel   = document.getElementById('carrusel-preview');
+    const mainImg    = document.getElementById('preview-main');
+    const badge      = document.getElementById('preview-badge');
+    const counter    = document.getElementById('preview-count');
+    const thumbsWrap = document.getElementById('preview-thumbs');
+    const btnPrev    = document.getElementById('btn-prev');
+    const btnNext    = document.getElementById('btn-next');
+
+    let urls = [];
+    let idx  = 0;
+
+    const irA = (i) => {
+        idx = Math.max(0, Math.min(i, urls.length - 1));
+        mainImg.style.opacity = '0';
+        setTimeout(() => {
+            mainImg.src = urls[idx];
+            mainImg.style.opacity = '1';
+        }, 100);
+        badge.style.display = idx === 0 ? 'block' : 'none';
+        counter.textContent  = `${idx + 1} / ${urls.length}`;
+        btnPrev.disabled = idx === 0;
+        btnNext.disabled = idx === urls.length - 1;
+        thumbsWrap.querySelectorAll('.adm-c-thumb').forEach((t, j) => {
+            t.classList.toggle('activa', j === idx);
+        });
+        // Scroll thumbnail into view
+        const th = thumbsWrap.querySelectorAll('.adm-c-thumb-wrap')[idx];
+        if (th) th.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    };
+
+    const buildThumbs = () => {
+        thumbsWrap.innerHTML = '';
+        urls.forEach((url, i) => {
+            const wrap = document.createElement('div');
+            wrap.className = 'adm-c-thumb-wrap';
+
+            const img = document.createElement('img');
+            img.src = url;
+            img.className = 'adm-c-thumb' + (i === 0 ? ' activa' : '');
+            img.alt = `Imagen ${i + 1}`;
+            img.addEventListener('click', () => irA(i));
+            wrap.appendChild(img);
+
+            if (i === 0) {
+                const b = document.createElement('span');
+                b.className = 'badge-p';
+                b.innerHTML = '<i class="fas fa-star"></i>';
+                b.title = 'Imagen principal';
+                wrap.appendChild(b);
+            }
+            thumbsWrap.appendChild(wrap);
+        });
+    };
+
+    input.addEventListener('change', function () {
+        const files = Array.from(this.files);
+        if (!files.length) { carrusel.style.display = 'none'; return; }
+
+        urls = [];
+        let cargados = 0;
+        files.forEach((file, i) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                urls[i] = e.target.result;
+                cargados++;
+                if (cargados === files.length) {
+                    buildThumbs();
+                    carrusel.style.display = 'block';
+                    irA(0);
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    });
+
+    btnPrev.addEventListener('click', () => irA(idx - 1));
+    btnNext.addEventListener('click', () => irA(idx + 1));
+})();
+</script>
 {% endblock %}

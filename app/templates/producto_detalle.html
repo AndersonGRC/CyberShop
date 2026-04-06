@@ -1,0 +1,527 @@
+{% extends './plantillaindex.html' %}
+
+{% block titulo %}{{ producto.nombre }} — {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ProductoDetalle.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="detalle-wrapper">
+
+    <!-- Breadcrumb -->
+    <nav class="detalle-breadcrumb" aria-label="Ruta de navegación">
+        <a href="{{ url_for('public.index') }}"><i class="fas fa-home"></i> Inicio</a>
+        <span class="sep"><i class="fas fa-chevron-right" style="font-size:0.7em;"></i></span>
+        <a href="{{ url_for('public.productos') }}">Productos</a>
+        <span class="sep"><i class="fas fa-chevron-right" style="font-size:0.7em;"></i></span>
+        <span>{{ producto.nombre }}</span>
+    </nav>
+
+    <!-- Grid principal -->
+    <div class="detalle-grid">
+
+        <!-- ================================================
+             COLUMNA IZQUIERDA: Galería
+             ================================================ -->
+        <div class="detalle-galeria">
+
+            <!-- Imagen principal -->
+            <div class="detalle-imagen-principal-wrap" id="img-principal-wrap">
+                {% if producto.stock == 0 %}
+                <div class="detalle-badge-agotado">Agotado</div>
+                {% endif %}
+                <img
+                    id="detalle-img-principal"
+                    src="{{ producto.imagenes[0] if producto.imagenes else producto.imagen }}"
+                    alt="{{ producto.nombre }}"
+                    class="detalle-imagen-principal"
+                    {% if producto.stock == 0 %}style="opacity:0.55; filter:grayscale(60%);"{% endif %}
+                >
+            </div>
+
+            <!-- Miniaturas -->
+            {% if producto.imagenes | length > 1 %}
+            <div class="detalle-miniaturas" id="detalle-miniaturas">
+                {% for url in producto.imagenes %}
+                <img
+                    src="{{ url }}"
+                    alt="Vista {{ loop.index }}"
+                    class="detalle-miniatura{% if loop.first %} activa{% endif %}"
+                    data-src="{{ url }}"
+                    data-index="{{ loop.index0 }}"
+                >
+                {% endfor %}
+            </div>
+
+            <!-- Flechas de navegación -->
+            <div class="detalle-galeria-nav">
+                <button class="detalle-nav-btn" id="btn-prev-img" aria-label="Anterior" disabled>
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <span class="detalle-contador-img" id="contador-img">1 / {{ producto.imagenes | length }}</span>
+                <button class="detalle-nav-btn" id="btn-next-img" aria-label="Siguiente"
+                    {% if producto.imagenes | length <= 1 %}disabled{% endif %}>
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+            {% endif %}
+
+        </div>
+
+        <!-- ================================================
+             COLUMNA DERECHA: Información
+             ================================================ -->
+        <div class="detalle-info">
+
+            <!-- Etiqueta de categoría -->
+            <span class="detalle-categoria-tag">
+                <i class="fas fa-tag"></i>
+                {{ producto.genero }}
+            </span>
+
+            <!-- Nombre -->
+            <h1 class="detalle-nombre">{{ producto.nombre }}</h1>
+
+            <!-- Precio -->
+            <div class="detalle-precio-wrap">
+                <span class="detalle-precio">{{ producto.precio_fmt }}</span>
+                <span class="detalle-precio-label">IVA incluido</span>
+            </div>
+
+            <!-- Meta: referencia + categoría -->
+            <div class="detalle-meta">
+                <div class="detalle-meta-item">
+                    <i class="fas fa-barcode"></i>
+                    <strong>Referencia:</strong>
+                    <span>{{ producto.referencia or '—' }}</span>
+                </div>
+                <div class="detalle-meta-item">
+                    <i class="fas fa-layer-group"></i>
+                    <strong>Categoría:</strong>
+                    <span>{{ producto.genero }}</span>
+                </div>
+            </div>
+
+            <!-- Stock -->
+            <div class="detalle-stock">
+                {% if producto.stock == 0 %}
+                <span class="detalle-stock-dot agotado"></span>
+                <span class="detalle-stock-text">
+                    <strong>Sin stock</strong> — producto agotado
+                </span>
+                {% elif producto.stock < 5 %}
+                <span class="detalle-stock-dot bajo"></span>
+                <span class="detalle-stock-text">
+                    Últimas <strong>{{ producto.stock }}</strong> unidades disponibles
+                </span>
+                {% else %}
+                <span class="detalle-stock-dot disponible"></span>
+                <span class="detalle-stock-text">
+                    <strong>{{ producto.stock }}</strong> unidades disponibles
+                </span>
+                {% endif %}
+            </div>
+
+            <!-- Descripción -->
+            {% if producto.descripcion %}
+            <div class="detalle-descripcion-section">
+                <div class="detalle-descripcion-label">Descripción</div>
+                <p class="detalle-descripcion-texto">{{ producto.descripcion }}</p>
+            </div>
+            {% endif %}
+
+            {% if config_global.get('mostrar_modulo_ventas', true) %}
+            <!-- Selector de cantidad -->
+            {% if producto.stock > 0 %}
+            <div class="detalle-cantidad-wrap">
+                <span class="detalle-cantidad-label">Cantidad:</span>
+                <div class="detalle-cantidad-ctrl">
+                    <button class="detalle-qty-btn" id="qty-menos" aria-label="Disminuir" disabled>−</button>
+                    <span class="detalle-qty-num" id="qty-num">1</span>
+                    <button class="detalle-qty-btn" id="qty-mas" aria-label="Aumentar">+</button>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Botones de acción -->
+            <div class="detalle-acciones">
+                {% if producto.stock > 0 %}
+                <button
+                    class="btn-detalle-carrito"
+                    id="btn-agregar-detalle"
+                    data-id="{{ producto.id }}"
+                    data-name="{{ producto.nombre }}"
+                    data-price="{{ producto.precio }}"
+                    data-image="{{ producto.imagenes[0] if producto.imagenes else producto.imagen }}"
+                    data-reference="{{ producto.referencia or '' }}"
+                    data-stock="{{ producto.stock }}"
+                >
+                    <i class="fas fa-cart-plus"></i>
+                    Añadir al carrito
+                </button>
+                {% else %}
+                <button class="btn-detalle-carrito" disabled>
+                    <i class="fas fa-times-circle"></i>
+                    Producto agotado
+                </button>
+                {% endif %}
+
+                <a href="{{ url_for('public.productos') }}" class="btn-detalle-volver">
+                    <i class="fas fa-arrow-left"></i>
+                    Volver al catálogo
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- Compartir -->
+            <div class="detalle-compartir">
+                <span class="detalle-compartir-label"><i class="fas fa-share-alt"></i> Compartir:</span>
+                <a
+                    class="detalle-share-btn whatsapp"
+                    href="https://wa.me/?text={{ (producto.nombre + ' — ' + producto.precio_fmt) | urlencode }}"
+                    target="_blank"
+                    rel="noopener"
+                >
+                    <i class="fab fa-whatsapp"></i> WhatsApp
+                </a>
+                <button class="detalle-share-btn copiar" id="btn-copiar-link">
+                    <i class="fas fa-link"></i> Copiar enlace
+                </button>
+            </div>
+
+        </div>
+        <!-- /detalle-info -->
+    </div>
+    <!-- /detalle-grid -->
+
+    <!-- =========================================================
+         SECCIÓN DE RESEÑAS Y CALIFICACIONES
+         ========================================================= -->
+    <section class="resenas-seccion" id="resenas">
+
+        <h2 class="resenas-titulo">
+            <i class="fas fa-star" style="font-size:0.85em;"></i>
+            Reseñas y calificaciones
+        </h2>
+
+        <!-- Resumen de calificaciones -->
+        {% set promedio = stats_rating.get('promedio') | float %}
+        {% set total    = stats_rating.get('total', 0) | int %}
+        {% if total > 0 %}
+        <div class="resenas-resumen">
+
+            <!-- Promedio grande -->
+            <div class="resenas-promedio-bloque">
+                <span class="resenas-num-grande">{{ '%.1f' | format(promedio) }}</span>
+                <div class="resenas-estrellas-grandes">
+                    {% for i in range(1, 6) %}
+                    <i class="fas fa-star{% if i > promedio|round(0,'ceil')|int %}-o{% elif i <= promedio|int %}{% else %}-half-alt{% endif %}"
+                       style="color: {% if i <= promedio %}var(--color-star-on, #f5a623){% else %}var(--color-gris-borde){% endif %};"></i>
+                    {% endfor %}
+                </div>
+                <span class="resenas-total-text">{{ total }} reseña{{ 's' if total != 1 }}</span>
+            </div>
+
+            <!-- Barras por estrella -->
+            <div class="resenas-barras">
+                {% for num in [5,4,3,2,1] %}
+                {% set cnt = stats_rating.get('c' ~ num, 0) | int %}
+                {% set pct = ((cnt / total) * 100) | round | int if total > 0 else 0 %}
+                <div class="resenas-barra-fila">
+                    <span class="resenas-barra-label">{{ num }} <i class="fas fa-star" style="font-size:0.75em;color:var(--color-star-on,#f5a623);"></i></span>
+                    <div class="resenas-barra-track">
+                        <div class="resenas-barra-fill" style="width: {{ pct }}%;"></div>
+                    </div>
+                    <span class="resenas-barra-cnt">{{ cnt }}</span>
+                </div>
+                {% endfor %}
+            </div>
+
+        </div>
+        {% else %}
+        <p class="resenas-sin-resenas">Aún no hay reseñas. ¡Sé el primero en opinar!</p>
+        {% endif %}
+
+        <!-- Lista de comentarios -->
+        {% if comentarios %}
+        <div class="resenas-lista">
+            {% for c in comentarios %}
+            <div class="resena-card">
+                <div class="resena-cabecera">
+                    <div class="resena-avatar">{{ c.autor_nombre[0] | upper }}</div>
+                    <div class="resena-meta">
+                        <span class="resena-autor">{{ c.autor_nombre }}</span>
+                        <span class="resena-fecha">{{ c.fecha_creacion.strftime('%d/%m/%Y') if c.fecha_creacion else '' }}</span>
+                    </div>
+                    <div class="resena-estrellas">
+                        {% for i in range(1, 6) %}
+                        <i class="fas fa-star" style="color:{% if i <= c.calificacion %}var(--color-star-on,#f5a623){% else %}var(--color-gris-borde){% endif %};"></i>
+                        {% endfor %}
+                    </div>
+                </div>
+                <p class="resena-texto">{{ c.comentario }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Formulario para dejar reseña -->
+        <div class="resenas-form-wrap">
+            <h3 class="resenas-form-titulo">Deja tu reseña</h3>
+            <form class="resenas-form" method="POST"
+                  action="{{ url_for('public.comentar_producto', producto_id=producto.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <!-- Selector de estrellas -->
+                <div class="resenas-form-campo">
+                    <label class="resenas-form-label">Calificación <span class="requerido">*</span></label>
+                    <div class="star-selector" id="star-selector">
+                        {% for i in range(1, 6) %}
+                        <button type="button" class="star-btn" data-val="{{ i }}" aria-label="{{ i }} estrella{{ 's' if i != 1 }}">
+                            <i class="fas fa-star"></i>
+                        </button>
+                        {% endfor %}
+                        <span class="star-selector-hint" id="star-hint">Sin calificar</span>
+                    </div>
+                    <input type="hidden" name="calificacion" id="input-calificacion" value="0">
+                </div>
+
+                <div class="resenas-form-campo">
+                    <label class="resenas-form-label" for="autor_nombre">Tu nombre <span class="requerido">*</span></label>
+                    <input type="text" id="autor_nombre" name="autor_nombre" class="resenas-form-input"
+                           placeholder="Ej: Juan García" maxlength="100" required>
+                </div>
+
+                <div class="resenas-form-campo">
+                    <label class="resenas-form-label" for="comentario">Comentario <span class="requerido">*</span></label>
+                    <textarea id="comentario" name="comentario" class="resenas-form-textarea"
+                              rows="4" placeholder="Cuéntanos tu experiencia con este producto..." required></textarea>
+                </div>
+
+                <button type="submit" class="resenas-form-btn">
+                    <i class="fas fa-paper-plane"></i> Enviar reseña
+                </button>
+            </form>
+            <p class="resenas-aviso"><i class="fas fa-info-circle"></i> Tu reseña será visible tras ser aprobada.</p>
+        </div>
+
+    </section>
+
+    <!-- =========================================================
+         PRODUCTOS RELACIONADOS
+         ========================================================= -->
+    {% if relacionados %}
+    <section class="detalle-relacionados">
+        <h2 class="detalle-relacionados-titulo">
+            <i class="fas fa-th-large" style="font-size:0.9em;"></i>
+            También te puede interesar
+        </h2>
+        <div class="detalle-relacionados-grid">
+            {% for rp in relacionados %}
+            <a href="{{ url_for('public.detalle_producto', producto_id=rp.id) }}" class="detalle-rel-card">
+                <img
+                    src="{{ rp.imagen }}"
+                    alt="{{ rp.nombre }}"
+                    class="detalle-rel-img"
+                    loading="lazy"
+                >
+                <div class="detalle-rel-body">
+                    <div class="detalle-rel-nombre">{{ rp.nombre }}</div>
+                    <div class="detalle-rel-precio">{{ rp.precio_fmt }}</div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+</div>
+
+<!-- Loader de pago (reutilizado del carrito) -->
+<div id="loader" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:1000;">
+    <div style="background:white; padding:20px; border-radius:5px;">
+        <p>Procesando...</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    // ─── Carrusel de imágenes ────────────────────────────
+    const imgPrincipal  = document.getElementById('detalle-img-principal');
+    const miniaturas    = document.querySelectorAll('.detalle-miniatura');
+    const btnPrev       = document.getElementById('btn-prev-img');
+    const btnNext       = document.getElementById('btn-next-img');
+    const contador      = document.getElementById('contador-img');
+    let idxActual       = 0;
+    const totalImgs     = miniaturas.length;
+
+    function irAImagen(idx) {
+        if (!totalImgs) return;
+        idxActual = Math.max(0, Math.min(idx, totalImgs - 1));
+
+        // Transición suave
+        imgPrincipal.style.opacity = '0';
+        setTimeout(function () {
+            imgPrincipal.src = miniaturas[idxActual].dataset.src;
+            imgPrincipal.style.opacity = '1';
+        }, 180);
+
+        // Miniaturas activas
+        miniaturas.forEach(function (m) { m.classList.remove('activa'); });
+        miniaturas[idxActual].classList.add('activa');
+
+        // Scroll automático de la miniatura activa a la vista
+        miniaturas[idxActual].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+
+        // Contador
+        if (contador) contador.textContent = (idxActual + 1) + ' / ' + totalImgs;
+
+        // Estado de flechas
+        if (btnPrev) btnPrev.disabled = idxActual === 0;
+        if (btnNext) btnNext.disabled = idxActual === totalImgs - 1;
+    }
+
+    // Clicks en miniaturas
+    miniaturas.forEach(function (m) {
+        m.addEventListener('click', function () {
+            irAImagen(parseInt(m.dataset.index));
+        });
+    });
+
+    // Flechas
+    if (btnPrev) btnPrev.addEventListener('click', function () { irAImagen(idxActual - 1); });
+    if (btnNext) btnNext.addEventListener('click', function () { irAImagen(idxActual + 1); });
+
+    // Swipe táctil en imagen principal
+    var touchStartX = 0;
+    var wrap = document.getElementById('img-principal-wrap');
+    if (wrap) {
+        wrap.addEventListener('touchstart', function (e) {
+            touchStartX = e.changedTouches[0].screenX;
+        }, { passive: true });
+        wrap.addEventListener('touchend', function (e) {
+            var dx = e.changedTouches[0].screenX - touchStartX;
+            if (Math.abs(dx) > 40) { // umbral mínimo
+                irAImagen(dx < 0 ? idxActual + 1 : idxActual - 1);
+            }
+        }, { passive: true });
+    }
+
+    // ─── Selector de cantidad ────────────────────────────
+    const btnMenos   = document.getElementById('qty-menos');
+    const btnMas     = document.getElementById('qty-mas');
+    const qtyNum     = document.getElementById('qty-num');
+    const stockMax   = parseInt('{{ producto.stock }}') || 0;
+    let cantidadSel  = 1;
+
+    function actualizarQty() {
+        if (!qtyNum) return;
+        qtyNum.textContent = cantidadSel;
+        if (btnMenos) btnMenos.disabled = cantidadSel <= 1;
+        if (btnMas)   btnMas.disabled   = cantidadSel >= stockMax;
+    }
+
+    if (btnMenos) {
+        btnMenos.addEventListener('click', function () {
+            if (cantidadSel > 1) { cantidadSel--; actualizarQty(); }
+        });
+    }
+    if (btnMas) {
+        btnMas.addEventListener('click', function () {
+            if (cantidadSel < stockMax) { cantidadSel++; actualizarQty(); }
+        });
+    }
+
+    // ─── Añadir al carrito ───────────────────────────────
+    const btnAgregar = document.getElementById('btn-agregar-detalle');
+    if (btnAgregar) {
+        btnAgregar.addEventListener('click', function () {
+            const producto = {
+                id:        btnAgregar.dataset.id,
+                nombre:    btnAgregar.dataset.name,
+                precio:    btnAgregar.dataset.price,
+                imagen:    btnAgregar.dataset.image,
+                referencia: btnAgregar.dataset.reference,
+                stock:     btnAgregar.dataset.stock
+            };
+            const imagen = document.getElementById('detalle-img-principal');
+
+            // Agregar la cantidad seleccionada
+            for (var i = 0; i < cantidadSel; i++) {
+                agregarAlCarrito(producto, i === 0 ? imagen : null);
+            }
+
+            // Feedback visual en el botón
+            btnAgregar.innerHTML = '<i class="fas fa-check"></i> ¡Agregado!';
+            btnAgregar.style.background = 'var(--color-exito-hover)';
+            setTimeout(function () {
+                btnAgregar.innerHTML = '<i class="fas fa-cart-plus"></i> Añadir al carrito';
+                btnAgregar.style.background = '';
+                cantidadSel = 1;
+                actualizarQty();
+            }, 1800);
+        });
+    }
+
+    // ─── Copiar enlace ───────────────────────────────────
+    var btnCopiar = document.getElementById('btn-copiar-link');
+    if (btnCopiar) {
+        btnCopiar.addEventListener('click', function () {
+            navigator.clipboard.writeText(window.location.href).then(function () {
+                btnCopiar.innerHTML = '<i class="fas fa-check"></i> ¡Copiado!';
+                setTimeout(function () {
+                    btnCopiar.innerHTML = '<i class="fas fa-link"></i> Copiar enlace';
+                }, 2000);
+            }).catch(function () {
+                // fallback para navegadores sin clipboard API
+                var temp = document.createElement('input');
+                temp.value = window.location.href;
+                document.body.appendChild(temp);
+                temp.select();
+                document.execCommand('copy');
+                document.body.removeChild(temp);
+                btnCopiar.innerHTML = '<i class="fas fa-check"></i> ¡Copiado!';
+                setTimeout(function () {
+                    btnCopiar.innerHTML = '<i class="fas fa-link"></i> Copiar enlace';
+                }, 2000);
+            });
+        });
+    }
+
+    // Inicializar estado
+    actualizarQty();
+
+    // ─── Selector de estrellas en formulario ─────────────────
+    var starBtns    = document.querySelectorAll('.star-btn');
+    var inputCal    = document.getElementById('input-calificacion');
+    var starHint    = document.getElementById('star-hint');
+    var hintTexts   = ['', 'Muy malo', 'Malo', 'Regular', 'Bueno', 'Excelente'];
+    var calActual   = 0;
+
+    function pintarEstrellas(val) {
+        starBtns.forEach(function(btn, idx) {
+            btn.classList.toggle('activa', idx < val);
+        });
+        if (starHint) starHint.textContent = hintTexts[val] || 'Sin calificar';
+    }
+
+    starBtns.forEach(function(btn) {
+        btn.addEventListener('mouseenter', function() {
+            pintarEstrellas(parseInt(btn.dataset.val));
+        });
+        btn.addEventListener('mouseleave', function() {
+            pintarEstrellas(calActual);
+        });
+        btn.addEventListener('click', function() {
+            calActual = parseInt(btn.dataset.val);
+            if (inputCal) inputCal.value = calActual;
+            pintarEstrellas(calActual);
+        });
+    });
+});
+</script>
+{% endblock %}

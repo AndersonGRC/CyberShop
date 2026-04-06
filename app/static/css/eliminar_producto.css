@@ -16,6 +16,10 @@ main h2 {
     font-weight: 700;
 }
 
+.icono-titulo-peligro { color: var(--color-peligro); margin-right: 10px; }
+.tabla-celda-vacia { text-align: center; padding: 40px; color: var(--color-gris-texto); }
+.tabla-icono-vacio { font-size: 2rem; opacity: 0.3; display: block; margin-bottom: 10px; }
+
 /* ── Tabla de productos ──────────────────────────────────────── */
 .table-container {
     width: 100%;

@@ -4,6 +4,167 @@
 
 {% block LinkAdicional %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/editar_producto.css') }}">
+<style>
+/* ── Carrusel admin (editar) ─────────────────────────────────── */
+.adm-carrusel {
+    border-radius: 12px;
+    border: 1px solid var(--color-gris-borde);
+    overflow: hidden;
+    background: var(--color-fondo);
+    margin-top: 10px;
+}
+.adm-c-principal {
+    display: flex;
+    align-items: stretch;
+    background: #111;
+    min-height: 240px;
+}
+.adm-c-img-wrap {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 240px;
+    overflow: hidden;
+}
+.adm-c-img-wrap img {
+    max-width: 100%;
+    max-height: 300px;
+    object-fit: contain;
+    display: block;
+    transition: opacity 0.18s ease;
+}
+.adm-c-nav {
+    background: rgba(0,0,0,0.42);
+    color: #fff;
+    border: none;
+    padding: 0 14px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+.adm-c-nav:hover  { background: rgba(0,0,0,0.7); }
+.adm-c-nav:disabled { opacity: 0.2; cursor: default; }
+.adm-c-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: var(--color-primario);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 11px;
+    border-radius: 20px;
+    display: none;
+}
+.adm-c-count {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 20px;
+}
+/* Acciones de la imagen actual */
+.adm-c-acciones {
+    display: flex;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #fff;
+    border-top: 1px solid var(--color-borde-claro);
+    flex-wrap: wrap;
+    align-items: center;
+    min-height: 44px;
+}
+.btn-img-estrella, .btn-img-borrar {
+    border: none;
+    padding: 7px 15px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-size: 0.83rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: opacity 0.2s, transform 0.14s;
+}
+.btn-img-estrella { background: var(--color-primario); color: #fff; }
+.btn-img-borrar   { background: var(--color-peligro);  color: #fff; }
+.btn-img-estrella:hover, .btn-img-borrar:hover { opacity: 0.85; transform: translateY(-1px); }
+.tag-principal {
+    font-size: 0.83rem;
+    color: var(--color-primario);
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+/* Miniaturas */
+.adm-c-thumbs {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px;
+    overflow-x: auto;
+    background: var(--color-fondo-alt);
+    scrollbar-width: thin;
+}
+.adm-c-thumbs::-webkit-scrollbar { height: 4px; }
+.adm-c-thumbs::-webkit-scrollbar-thumb { background: var(--color-gris-borde); border-radius: 4px; }
+.adm-c-thumb-wrap { position: relative; flex-shrink: 0; }
+.adm-c-thumb {
+    width: 62px;
+    height: 62px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 2.5px solid transparent;
+    cursor: pointer;
+    transition: border-color 0.18s, transform 0.14s;
+    display: block;
+}
+.adm-c-thumb:hover  { transform: scale(1.07); border-color: var(--color-primario); }
+.adm-c-thumb.activa { border-color: var(--color-primario); box-shadow: 0 0 0 3px rgba(18,44,148,0.18); }
+.adm-c-thumb-wrap .badge-p {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: var(--color-primario);
+    color: #fff;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+}
+/* Preview de nuevas imágenes */
+.adm-carrusel-nuevo { display: none; margin-top: 10px; }
+.adm-c-hint {
+    padding: 8px 14px;
+    font-size: 0.82rem;
+    color: var(--color-texto-claro);
+    background: #fff;
+    margin: 0;
+    border-top: 1px solid var(--color-borde-claro);
+}
+@media (max-width: 600px) {
+    .adm-c-img-wrap { min-height: 180px; }
+    .adm-c-img-wrap img { max-height: 200px; }
+    .adm-c-thumb { width: 50px; height: 50px; }
+    .adm-c-nav { padding: 0 10px; }
+    .adm-c-acciones { padding: 8px 10px; }
+}
+</style>
+
+<!-- Datos de imágenes para JS -->
+<script id="imagenes-data" type="application/json">
+[{% for img in imagenes %}{"id":{{ img[0] }},"url":"{{ img[1] }}","principal":{{ img[2] | tojson }}}{% if not loop.last %},{% endif %}{% endfor %}]
+</script>
 {% endblock %}
 
 {% block body %}
@@ -23,20 +184,70 @@
           enctype="multipart/form-data">
 
         <div class="form-header">
-            <i class="fas fa-pen-to-square" style="color:rgba(255,255,255,0.85); font-size:1.2rem;"></i>
-            <h2>Editar Producto <span style="opacity:0.7; font-weight:400; font-size:0.9rem;">#{{ producto[0] }}</span></h2>
+            <i class="fas fa-pen-to-square form-header-icon"></i>
+            <h2>Editar Producto <span class="form-header-id">#{{ producto[0] }}</span></h2>
         </div>
 
+        <!-- ── Galería de imágenes actuales (carrusel) ── -->
         <div class="form-group">
-            <label>Imagen actual</label>
-            <div class="current-image">
-                <img src="{{ producto[1] }}" alt="Imagen actual del producto" class="product-image">
+            <label><i class="fas fa-images"></i> Imágenes actuales</label>
+            {% if imagenes %}
+            <div class="adm-carrusel" id="carrusel-actual">
+                <div class="adm-c-principal">
+                    <button type="button" class="adm-c-nav" id="prev-actual">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <div class="adm-c-img-wrap">
+                        <img id="main-actual" src="" alt="Imagen del producto">
+                        <span class="adm-c-badge" id="badge-actual">✓ Principal</span>
+                        <span class="adm-c-count" id="count-actual"></span>
+                    </div>
+                    <button type="button" class="adm-c-nav" id="next-actual">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+                <!-- Acciones dinámicas según imagen activa -->
+                <div class="adm-c-acciones" id="acciones-actual"></div>
+                <!-- Miniaturas -->
+                <div class="adm-c-thumbs" id="thumbs-actual"></div>
             </div>
+            {% else %}
+            <p class="sin-imagenes-msg">
+                <i class="fas fa-exclamation-triangle"></i> No hay imágenes registradas para este producto.
+            </p>
+            {% endif %}
         </div>
 
+        <!-- ── Agregar más imágenes ── -->
         <div class="form-group">
-            <label for="imagen"><i class="fas fa-camera"></i> Cambiar imagen</label>
-            <input type="file" id="imagen" name="imagen" accept="image/*">
+            <label for="imagenes_nuevas">
+                <i class="fas fa-plus-circle"></i> Agregar más imágenes
+                <small class="form-label-hint">
+                    — opcional, puedes seleccionar varias a la vez
+                </small>
+            </label>
+            <input type="file" id="imagenes_nuevas" name="imagenes_nuevas" accept="image/*" multiple>
+
+            <!-- Carrusel preview de nuevas imágenes -->
+            <div class="adm-carrusel adm-carrusel-nuevo" id="carrusel-nuevo">
+                <div class="adm-c-principal">
+                    <button type="button" class="adm-c-nav" id="prev-nuevo">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <div class="adm-c-img-wrap">
+                        <img id="main-nuevo" src="" alt="Vista previa">
+                        <span class="adm-c-count" id="count-nuevo"></span>
+                    </div>
+                    <button type="button" class="adm-c-nav" id="next-nuevo">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+                <div class="adm-c-thumbs" id="thumbs-nuevo"></div>
+                <p class="adm-c-hint">
+                    <i class="fas fa-info-circle icono-primario"></i>
+                    Estas imágenes se añadirán a las ya existentes al guardar.
+                </p>
+            </div>
         </div>
 
         <div class="form-group">
@@ -79,4 +290,154 @@
         </div>
     </form>
 </main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    /* ── Carrusel de imágenes EXISTENTES ─────────────────────── */
+    const raw = document.getElementById('imagenes-data');
+    if (!raw) return;
+    const imgs = JSON.parse(raw.textContent || '[]');
+    if (!imgs.length) return;
+
+    const mainEl    = document.getElementById('main-actual');
+    const badgeEl   = document.getElementById('badge-actual');
+    const countEl   = document.getElementById('count-actual');
+    const accionesEl= document.getElementById('acciones-actual');
+    const thumbsEl  = document.getElementById('thumbs-actual');
+    const btnPrev   = document.getElementById('prev-actual');
+    const btnNext   = document.getElementById('next-actual');
+    let idx = 0;
+
+    const renderAcciones = () => {
+        const img = imgs[idx];
+        accionesEl.innerHTML = '';
+        if (img.principal) {
+            const tag = document.createElement('span');
+            tag.className = 'tag-principal';
+            tag.innerHTML = '<i class="fas fa-star"></i> Imagen principal';
+            accionesEl.appendChild(tag);
+        } else {
+            // Botón "Hacer principal"
+            const fStar = document.createElement('form');
+            fStar.method = 'POST';
+            fStar.action = `/producto-imagen/principal/${img.id}`;
+            const bStar = document.createElement('button');
+            bStar.type = 'submit';
+            bStar.className = 'btn-img-estrella';
+            bStar.innerHTML = '<i class="fas fa-star"></i> Hacer principal';
+            fStar.appendChild(bStar);
+            accionesEl.appendChild(fStar);
+        }
+        // Botón "Eliminar"
+        const fDel = document.createElement('form');
+        fDel.method = 'POST';
+        fDel.action = `/producto-imagen/eliminar/${img.id}`;
+        fDel.onsubmit = () => confirm('¿Eliminar esta imagen?') || (false);
+        const bDel = document.createElement('button');
+        bDel.type = 'submit';
+        bDel.className = 'btn-img-borrar';
+        bDel.innerHTML = '<i class="fas fa-trash"></i> Eliminar';
+        fDel.appendChild(bDel);
+        accionesEl.appendChild(fDel);
+    };
+
+    const irA = (i) => {
+        idx = Math.max(0, Math.min(i, imgs.length - 1));
+        mainEl.style.opacity = '0';
+        setTimeout(() => {
+            mainEl.src = imgs[idx].url;
+            mainEl.style.opacity = '1';
+        }, 100);
+        badgeEl.style.display = imgs[idx].principal ? 'block' : 'none';
+        countEl.textContent = `${idx + 1} / ${imgs.length}`;
+        btnPrev.disabled = idx === 0;
+        btnNext.disabled = idx === imgs.length - 1;
+        thumbsEl.querySelectorAll('.adm-c-thumb').forEach((t, j) => {
+            t.classList.toggle('activa', j === idx);
+        });
+        const tw = thumbsEl.querySelectorAll('.adm-c-thumb-wrap')[idx];
+        if (tw) tw.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        renderAcciones();
+    };
+
+    // Construir miniaturas
+    imgs.forEach((img, i) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'adm-c-thumb-wrap';
+        const t = document.createElement('img');
+        t.src = img.url;
+        t.className = 'adm-c-thumb' + (i === 0 ? ' activa' : '');
+        t.alt = `Imagen ${i + 1}`;
+        t.addEventListener('click', () => irA(i));
+        wrap.appendChild(t);
+        if (img.principal) {
+            const b = document.createElement('span');
+            b.className = 'badge-p';
+            b.innerHTML = '<i class="fas fa-star"></i>';
+            b.title = 'Imagen principal';
+            wrap.appendChild(b);
+        }
+        thumbsEl.appendChild(wrap);
+    });
+
+    btnPrev.addEventListener('click', () => irA(idx - 1));
+    btnNext.addEventListener('click', () => irA(idx + 1));
+    irA(0);
+
+    /* ── Carrusel de NUEVAS imágenes (preview) ─────────────────── */
+    const inputNuevo  = document.getElementById('imagenes_nuevas');
+    const carruselN   = document.getElementById('carrusel-nuevo');
+    const mainN       = document.getElementById('main-nuevo');
+    const countN      = document.getElementById('count-nuevo');
+    const thumbsN     = document.getElementById('thumbs-nuevo');
+    const prevN       = document.getElementById('prev-nuevo');
+    const nextN       = document.getElementById('next-nuevo');
+    let urlsN = [], idxN = 0;
+
+    const irAN = (i) => {
+        idxN = Math.max(0, Math.min(i, urlsN.length - 1));
+        mainN.style.opacity = '0';
+        setTimeout(() => { mainN.src = urlsN[idxN]; mainN.style.opacity = '1'; }, 100);
+        countN.textContent = `${idxN + 1} / ${urlsN.length}`;
+        prevN.disabled = idxN === 0;
+        nextN.disabled = idxN === urlsN.length - 1;
+        thumbsN.querySelectorAll('.adm-c-thumb').forEach((t, j) => t.classList.toggle('activa', j === idxN));
+    };
+
+    inputNuevo.addEventListener('change', function () {
+        const files = Array.from(this.files);
+        if (!files.length) { carruselN.style.display = 'none'; return; }
+        urlsN = [];
+        let loaded = 0;
+        files.forEach((f, i) => {
+            const r = new FileReader();
+            r.onload = (e) => {
+                urlsN[i] = e.target.result;
+                loaded++;
+                if (loaded === files.length) {
+                    thumbsN.innerHTML = '';
+                    urlsN.forEach((url, j) => {
+                        const wrap = document.createElement('div');
+                        wrap.className = 'adm-c-thumb-wrap';
+                        const t = document.createElement('img');
+                        t.src = url;
+                        t.className = 'adm-c-thumb' + (j === 0 ? ' activa' : '');
+                        t.addEventListener('click', () => irAN(j));
+                        wrap.appendChild(t);
+                        thumbsN.appendChild(wrap);
+                    });
+                    carruselN.style.display = 'block';
+                    irAN(0);
+                }
+            };
+            r.readAsDataURL(f);
+        });
+    });
+
+    prevN.addEventListener('click', () => irAN(idxN - 1));
+    nextN.addEventListener('click', () => irAN(idxN + 1));
+})();
+</script>
 {% endblock %}

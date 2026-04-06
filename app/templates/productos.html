@@ -1,87 +1,443 @@
 {% extends './plantillaindex.html' %}
 
-{% block titulo %}{{ datosApp.titulo }}{% endblock %}
+{% block titulo %}Productos — {{ datosApp.titulo }}{% endblock %}
 
 {% block LinkAdicional %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/Productos.css') }}">
 {% endblock %}
 
 {% block body %}
-<div class="container">
-    <!-- Contenido principal -->
-    <div class="main-content">
-        <h2>Productos Disponibles</h2>
-        <div class="productos">
-            <!-- Productos generados dinámicamente -->
-            {% if datosApp.productos %}
-            {% for producto in datosApp.productos %}
-            <div class="producto" data-id="{{ producto['id'] }}" data-name="{{ producto['nombre'] }}"
-                data-price="{{ producto['precio'] }}" data-reference="{{ producto['referencia'] }}"
-                data-gender="{{ producto.get('genero', '') }}" data-description="{{ producto['descripcion'] }}"
-                data-image="{{ producto['imagen'] }}" data-stock="{{ producto['stock'] }}">
+
+{# ══════════════════════════════════════════════════════
+   HERO DE LA SECCIÓN
+   ══════════════════════════════════════════════════════ #}
+<div class="cat-hero">
+    <h1 class="cat-hero-titulo">Nuestros Productos</h1>
+    <p class="cat-hero-sub">
+        {% if datosApp.productos | length > 0 %}
+            {{ datosApp.productos | length }} producto{{ 's' if datosApp.productos | length != 1 }} disponibles
+        {% else %}
+            Explora todo nuestro catálogo
+        {% endif %}
+    </p>
+</div>
+
+{# ══════════════════════════════════════════════════════
+   BARRA DE FILTROS
+   ══════════════════════════════════════════════════════ #}
+<div class="cat-filtros-wrap">
+    <div class="cat-filtros-inner">
+
+        <form class="cat-search-form" method="GET" action="{{ url_for('public.productos') }}">
+
+            {# Búsqueda por texto #}
+            <div class="cat-search-field">
+                <i class="fas fa-search cat-search-icon"></i>
+                <input
+                    type="text"
+                    name="q"
+                    class="cat-search-input"
+                    placeholder="Buscar productos…"
+                    value="{{ filtros.q }}"
+                    autocomplete="off"
+                >
+                {% if filtros.q %}
+                <a href="{{ url_for('public.productos', categoria=filtros.categoria, orden=filtros.orden, precio_min=filtros.precio_min, precio_max=filtros.precio_max) }}"
+                   class="cat-search-clear" title="Limpiar búsqueda">
+                    <i class="fas fa-times"></i>
+                </a>
+                {% endif %}
+            </div>
+
+            {# Ordenar #}
+            <select name="orden" class="cat-sort-select" onchange="this.form.submit()">
+                <option value=""            {% if not filtros.orden            %}selected{% endif %}>Ordenar por…</option>
+                <option value="nuevo"       {% if filtros.orden == 'nuevo'       %}selected{% endif %}>Más nuevos</option>
+                <option value="precio_asc"  {% if filtros.orden == 'precio_asc'  %}selected{% endif %}>Precio: menor → mayor</option>
+                <option value="precio_desc" {% if filtros.orden == 'precio_desc' %}selected{% endif %}>Precio: mayor → menor</option>
+                <option value="nombre"      {% if filtros.orden == 'nombre'      %}selected{% endif %}>Nombre A–Z</option>
+            </select>
+
+            {# Rango de precio #}
+            <div class="cat-precio-range">
+                <span class="cat-precio-label"><i class="fas fa-tag"></i></span>
+                <input type="number" name="precio_min" class="cat-precio-input"
+                       placeholder="Mín" value="{{ filtros.precio_min }}" min="0">
+                <span class="cat-precio-sep">—</span>
+                <input type="number" name="precio_max" class="cat-precio-input"
+                       placeholder="Máx" value="{{ filtros.precio_max }}" min="0">
+                <button type="submit" class="cat-precio-btn" title="Aplicar rango de precio">
+                    <i class="fas fa-check"></i>
+                </button>
+            </div>
+
+            {# Preservar categoría activa al buscar #}
+            {% if filtros.categoria %}
+            <input type="hidden" name="categoria" value="{{ filtros.categoria }}">
+            {% endif %}
+
+        </form>
+
+        {# Pills de categorías #}
+        <div class="cat-pills-wrap">
+            <a href="{{ url_for('public.productos', q=filtros.q, orden=filtros.orden, precio_min=filtros.precio_min, precio_max=filtros.precio_max) }}"
+               class="cat-pill {% if not filtros.categoria %}activa{% endif %}">
+                <i class="fas fa-th" style="font-size:0.75em; margin-right:4px;"></i>Todos
+            </a>
+            {% for g in generos %}
+            <a href="{{ url_for('public.productos', q=filtros.q, categoria=g.id, orden=filtros.orden, precio_min=filtros.precio_min, precio_max=filtros.precio_max) }}"
+               class="cat-pill {% if filtros.categoria|string == g.id|string %}activa{% endif %}">
+                {{ g.nombre }}
+            </a>
+            {% endfor %}
+        </div>
+
+    </div>
+
+    {# Chips de filtros activos + contador #}
+    {% if filtros_activos %}
+    <div class="cat-resultados-bar">
+        <span class="cat-resultados-count">
+            <strong>{{ datosApp.productos | length }}</strong>
+            resultado{{ 's' if datosApp.productos | length != 1 }}
+        </span>
+        <div class="cat-chips">
+            {% if filtros.q %}
+            <span class="cat-chip">
+                <i class="fas fa-search"></i> "{{ filtros.q }}"
+                <a href="{{ url_for('public.productos', categoria=filtros.categoria, orden=filtros.orden, precio_min=filtros.precio_min, precio_max=filtros.precio_max) }}"
+                   class="cat-chip-close"><i class="fas fa-times"></i></a>
+            </span>
+            {% endif %}
+            {% if filtros.categoria %}
+                {% for g in generos %}{% if g.id|string == filtros.categoria|string %}
+                <span class="cat-chip">
+                    <i class="fas fa-tag"></i> {{ g.nombre }}
+                    <a href="{{ url_for('public.productos', q=filtros.q, orden=filtros.orden, precio_min=filtros.precio_min, precio_max=filtros.precio_max) }}"
+                       class="cat-chip-close"><i class="fas fa-times"></i></a>
+                </span>
+                {% endif %}{% endfor %}
+            {% endif %}
+            {% if filtros.precio_min or filtros.precio_max %}
+            <span class="cat-chip">
+                <i class="fas fa-dollar-sign"></i>
+                {% if filtros.precio_min %}desde ${{ filtros.precio_min }}{% endif %}
+                {% if filtros.precio_min and filtros.precio_max %} – {% endif %}
+                {% if filtros.precio_max %}hasta ${{ filtros.precio_max }}{% endif %}
+                <a href="{{ url_for('public.productos', q=filtros.q, categoria=filtros.categoria, orden=filtros.orden) }}"
+                   class="cat-chip-close"><i class="fas fa-times"></i></a>
+            </span>
+            {% endif %}
+            <a href="{{ url_for('public.productos') }}" class="cat-chip cat-chip-clear">
+                <i class="fas fa-times-circle"></i> Limpiar todo
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{# ══════════════════════════════════════════════════════
+   GRID DE PRODUCTOS
+   ══════════════════════════════════════════════════════ #}
+<div class="cat-container">
+
+    {% if datosApp.productos %}
+    <div class="productos" id="productos-grid">
+
+        {% for producto in datosApp.productos %}
+        <div class="producto"
+             data-id="{{ producto['id'] }}"
+             data-name="{{ producto['nombre'] | e }}"
+             data-price="{{ producto['precio'] }}"
+             data-reference="{{ producto['referencia'] or '' }}"
+             data-gender="{{ producto.get('genero', '') }}"
+             data-description="{{ (producto['descripcion'] or '') | e }}"
+             data-image="{{ producto['imagenes'][0] if producto['imagenes'] else (producto['imagen'] or '') }}"
+             data-images="{{ producto['imagenes'] | tojson }}"
+             data-stock="{{ producto['stock'] }}">
+
+            {# ─ Imagen ─ #}
+            <div class="prod-img-wrap">
+                <img
+                    src="{{ producto['imagenes'][0] if producto['imagenes'] else (producto['imagen'] or url_for('static', filename='img/no-image.png')) }}"
+                    alt="{{ producto['nombre'] }}"
+                    class="prod-img"
+                    loading="lazy"
+                    {% if producto['stock'] == 0 %}style="filter:grayscale(55%) opacity(0.7)"{% endif %}
+                >
 
                 {% if producto['stock'] == 0 %}
-                <div
-                    style="position: absolute; top: 10px; right: 10px; background: var(--color-eliminar); color: white; padding: 5px 10px; border-radius: 5px; font-weight: bold; font-size: 0.9em; z-index: 10;">
-                    AGOTADO</div>
-                <img src="{{ producto['imagen'] }}" alt="{{ producto['nombre'] }}"
-                    style="width: 100%; border-radius: 8px; margin-bottom: 10px; opacity: 0.6; filter: grayscale(100%);">
-                {% else %}
-                <img src="{{ producto['imagen'] }}" alt="{{ producto['nombre'] }}"
-                    style="width: 100%; border-radius: 8px; margin-bottom: 10px;">
+                <span class="prod-badge agotado">Agotado</span>
+                {% elif producto['stock'] < 5 %}
+                <span class="prod-badge bajo-stock">Últimas {{ producto['stock'] }}</span>
                 {% endif %}
 
-                <h3>{{ producto['nombre'] }}</h3>
-                <p>{{ producto['precio_fmt'] }}</p>
+                <div class="prod-overlay">
+                    <button class="prod-overlay-btn" data-open-popup>
+                        <i class="fas fa-eye"></i> Vista rápida
+                    </button>
+                </div>
+            </div>
 
-                <p class="stock-info" style="font-size: 0.9em; color: #666; margin-bottom: 5px;">
-                    Disponibles: <span
-                        style="font-weight: bold; color: {{ 'red' if producto['stock'] < 5 else 'green' }}">{{
-                        producto['stock'] }}</span>
+            {# ─ Info ─ #}
+            <div class="prod-body">
+
+                <span class="prod-cat-tag">{{ producto.get('genero', '—') }}</span>
+
+                <h3 class="prod-nombre">{{ producto['nombre'] }}</h3>
+
+                {% if producto['rating_total'] > 0 %}
+                <div class="prod-rating">
+                    {% set r = producto['rating_promedio'] | round | int %}
+                    {% for i in range(1, 6) %}
+                    <i class="fas fa-star{% if i > r %} prod-star-off{% endif %}"></i>
+                    {% endfor %}
+                    <span class="prod-rating-cnt">({{ producto['rating_total'] }})</span>
+                </div>
+                {% endif %}
+
+                <div class="prod-precio">{{ producto['precio_fmt'] }}</div>
+
+                <p class="stock-info">
+                    <i class="fas fa-box" style="font-size:0.7em;"></i>
+                    Stock: <strong style="color:{% if producto['stock'] == 0 %}var(--color-peligro){% elif producto['stock'] < 5 %}var(--color-warning){% else %}var(--color-exito){% endif %}">{{ producto['stock'] }}</strong>
                 </p>
 
-                {% if config_global.get('mostrar_modulo_ventas', true) %}
-                {% if producto['stock'] > 0 %}
-                <button class="añadir-carrito">Añadir al carrito</button>
-                {% else %}
-                <button class="agotado-btn" disabled
-                    style="background-color: #ccc; cursor: not-allowed;">Agotado</button>
-                {% endif %}
-                {% endif %}
+                <div class="prod-acciones">
+                    {% if producto['stock'] > 0 %}
+                    <button class="añadir-carrito">
+                        <i class="fas fa-cart-plus"></i> Añadir
+                    </button>
+                    {% else %}
+                    <button class="agotado-btn" disabled>
+                        <i class="fas fa-ban"></i> Agotado
+                    </button>
+                    {% endif %}
+                    <a href="{{ url_for('public.detalle_producto', producto_id=producto['id']) }}"
+                       class="ver-descripcion" title="Ver detalle completo">
+                        <i class="fas fa-external-link-alt"></i>
+                    </a>
+                </div>
 
-                <button class="ver-descripcion">Ver Detalles</button> <!-- Botón para ver los detalles -->
             </div>
-            {% endfor %}
-            {% else %}
-            <p>No hay productos disponibles.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    {# ── Paginación ── #}
+    {% if total_paginas > 1 %}
+    <nav class="cat-paginacion" aria-label="Paginación de productos" style="display:flex; justify-content:center; gap:8px; margin-top:32px; flex-wrap:wrap;">
+        {% if pagina > 1 %}
+        <a href="{{ url_for('public.productos', q=filtros.q, categoria=filtros.categoria, orden=filtros.orden, precio_min=filtros.precio_min, precio_max=filtros.precio_max, pagina=pagina-1) }}"
+           class="cat-pill" style="min-width:40px; justify-content:center;">
+            <i class="fas fa-chevron-left"></i>
+        </a>
+        {% endif %}
+
+        {% for p in range(1, total_paginas + 1) %}
+            {% if p == pagina %}
+            <span class="cat-pill activa" style="min-width:40px; justify-content:center;">{{ p }}</span>
+            {% elif p <= 3 or p > total_paginas - 2 or (p >= pagina - 1 and p <= pagina + 1) %}
+            <a href="{{ url_for('public.productos', q=filtros.q, categoria=filtros.categoria, orden=filtros.orden, precio_min=filtros.precio_min, precio_max=filtros.precio_max, pagina=p) }}"
+               class="cat-pill" style="min-width:40px; justify-content:center;">{{ p }}</a>
+            {% elif p == 4 or p == total_paginas - 2 %}
+            <span class="cat-pill" style="min-width:40px; justify-content:center; pointer-events:none;">…</span>
             {% endif %}
-        </div>
+        {% endfor %}
+
+        {% if pagina < total_paginas %}
+        <a href="{{ url_for('public.productos', q=filtros.q, categoria=filtros.categoria, orden=filtros.orden, precio_min=filtros.precio_min, precio_max=filtros.precio_max, pagina=pagina+1) }}"
+           class="cat-pill" style="min-width:40px; justify-content:center;">
+            <i class="fas fa-chevron-right"></i>
+        </a>
+        {% endif %}
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <div class="cat-empty">
+        <i class="fas fa-box-open cat-empty-icon"></i>
+        <h3 class="cat-empty-title">Sin resultados</h3>
+        <p class="cat-empty-text">
+            No encontramos productos que coincidan con tu búsqueda.<br>
+            Intenta con otros términos o elimina los filtros.
+        </p>
+        <a href="{{ url_for('public.productos') }}" class="cat-empty-btn">
+            <i class="fas fa-arrow-left"></i> Ver todos los productos
+        </a>
     </div>
+    {% endif %}
 
+</div>
 
-    <!-- Pop-up para los detalles del producto -->
-    <div id="popup-descripcion" class="popup">
-        <div class="popup-contenido">
-            <span class="cerrar-popup">&times;</span>
-            <img id="popup-imagen" src="" alt="Imagen del producto"
-                style="width: 100%; border-radius: 8px; margin-bottom: 10px;">
-            <h2 id="popup-titulo"></h2>
-            <p><strong>Referencia:</strong> <span id="popup-referencia"></span></p>
-            <p><strong>Género:</strong> <span id="popup-genero"></span></p>
-            <p><strong>Descripción:</strong> <span id="popup-descripcion-texto"></span></p>
-            <p><strong>Precio:</strong><span id="popup-precio"></span></p>
+{# ══════════════════════════════════════════════════════
+   POPUP DE VISTA RÁPIDA
+   ══════════════════════════════════════════════════════ #}
+<div id="popup" class="popup" style="display:none;" role="dialog" aria-label="Vista rápida del producto" aria-modal="true">
+    <div class="popup-contenido">
+        <button class="cerrar-popup" id="cerrar-popup" aria-label="Cerrar">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="popup-layout">
+
+            <div class="popup-galeria">
+                <div class="popup-imagen-principal-wrap">
+                    <img id="popup-imagen-principal" class="popup-imagen-principal" src="" alt="Imagen del producto">
+                </div>
+                <div class="popup-miniaturas" id="popup-miniaturas"></div>
+            </div>
+
+            <div class="popup-info">
+                <h2 id="popup-titulo"></h2>
+                <p class="popup-precio"><span id="popup-precio"></span></p>
+                <div class="popup-meta" id="popup-meta"></div>
+                <div class="popup-descripcion-wrap">
+                    <strong>Descripción</strong>
+                    <p id="popup-descripcion-texto"></p>
+                </div>
+                <div class="popup-acciones">
+                    <button class="popup-btn-carrito" id="popup-btn-carrito">
+                        <i class="fas fa-cart-plus"></i> Añadir al carrito
+                    </button>
+                    <a id="popup-ver-detalle" href="#" class="popup-btn-detalle">
+                        <i class="fas fa-external-link-alt"></i> Ver página completa
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-
-<div id="loader"
-    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
-    <div style="background: white; padding: 20px; border-radius: 5px;">
-        <p>Procesando pago...</p>
-        <div class="spinner"></div>
-    </div>
-</div>
+{% endblock %}
 
 
+{% block script %}
+<script>
+/* ── Popup vista rápida ─────────────────────────────────────── */
+(function () {
+    var popup       = document.getElementById('popup');
+    var cerrarBtn   = document.getElementById('cerrar-popup');
+    var popupImg    = document.getElementById('popup-imagen-principal');
+    var popupMins   = document.getElementById('popup-miniaturas');
+    var popupTit    = document.getElementById('popup-titulo');
+    var popupPrecio = document.getElementById('popup-precio');
+    var popupMeta   = document.getElementById('popup-meta');
+    var popupDesc   = document.getElementById('popup-descripcion-texto');
+    var popupCart   = document.getElementById('popup-btn-carrito');
+    var popupLink   = document.getElementById('popup-ver-detalle');
+    var currentCard = null;
+
+    function formatCOP(val) {
+        return new Intl.NumberFormat('es-CO', {
+            style: 'currency', currency: 'COP', minimumFractionDigits: 0
+        }).format(val);
+    }
+
+    function abrirPopup(card) {
+        currentCard = card;
+        var imagenes = [];
+        try { imagenes = JSON.parse(card.dataset.images || '[]'); } catch (e) {}
+        if (!imagenes.length && card.dataset.image) imagenes = [card.dataset.image];
+
+        popupTit.textContent    = card.dataset.name;
+        popupDesc.textContent   = card.dataset.description || '—';
+        popupImg.src            = imagenes[0] || '';
+        popupImg.alt            = card.dataset.name;
+        popupPrecio.textContent = formatCOP(parseFloat(card.dataset.price) || 0);
+
+        /* Meta info — Construir DOM sin innerHTML para evitar XSS */
+        popupMeta.innerHTML = '';
+        if (card.dataset.reference) {
+            var pRef = document.createElement('p');
+            var sRef = document.createElement('strong');
+            sRef.textContent = 'Referencia: ';
+            pRef.appendChild(sRef);
+            pRef.appendChild(document.createTextNode(card.dataset.reference));
+            popupMeta.appendChild(pRef);
+        }
+        if (card.dataset.gender) {
+            var pCat = document.createElement('p');
+            var sCat = document.createElement('strong');
+            sCat.textContent = 'Categoría: ';
+            pCat.appendChild(sCat);
+            pCat.appendChild(document.createTextNode(card.dataset.gender));
+            popupMeta.appendChild(pCat);
+        }
+        var pStock = document.createElement('p');
+        var sStock = document.createElement('strong');
+        sStock.textContent = 'Stock: ';
+        pStock.appendChild(sStock);
+        pStock.appendChild(document.createTextNode((card.dataset.stock || '0') + ' unidades'));
+        popupMeta.appendChild(pStock);
+
+        /* Miniaturas */
+        popupMins.innerHTML = '';
+        imagenes.forEach(function (url, idx) {
+            var img = document.createElement('img');
+            img.src = url;
+            img.className = 'popup-miniatura' + (idx === 0 ? ' activa' : '');
+            img.addEventListener('click', function () {
+                popupImg.style.opacity = '0';
+                setTimeout(function () { popupImg.src = url; popupImg.style.opacity = '1'; }, 140);
+                popupMins.querySelectorAll('.popup-miniatura').forEach(function (m) { m.classList.remove('activa'); });
+                img.classList.add('activa');
+            });
+            popupMins.appendChild(img);
+        });
+
+        /* Botón carrito */
+        var stock = parseInt(card.dataset.stock) || 0;
+        popupCart.disabled = stock === 0;
+        popupCart.innerHTML = stock === 0
+            ? '<i class="fas fa-ban"></i> Agotado'
+            : '<i class="fas fa-cart-plus"></i> Añadir al carrito';
+
+        popupLink.href = '/producto/' + card.dataset.id;
+
+        popup.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+
+    function cerrarPopup() {
+        popup.style.display = 'none';
+        document.body.style.overflow = '';
+        currentCard = null;
+    }
+
+    /* Abrir con botón overlay */
+    document.querySelectorAll('[data-open-popup]').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var card = btn.closest('.producto');
+            if (card) abrirPopup(card);
+        });
+    });
+
+    /* Cerrar */
+    cerrarBtn.addEventListener('click', cerrarPopup);
+    popup.addEventListener('click', function (e) { if (e.target === popup) cerrarPopup(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') cerrarPopup(); });
+
+    /* Añadir al carrito desde popup */
+    popupCart.addEventListener('click', function () {
+        if (!currentCard) return;
+        if (typeof agregarAlCarrito === 'function') {
+            agregarAlCarrito({
+                id:         currentCard.dataset.id,
+                nombre:     currentCard.dataset.name,
+                precio:     currentCard.dataset.price,
+                imagen:     currentCard.dataset.image,
+                referencia: currentCard.dataset.reference,
+                stock:      currentCard.dataset.stock
+            }, popupImg);
+        }
+        // Retrasamos el cierre para que el clon de la animación ya esté pintado
+        // antes de que el popup desaparezca y provoque un reflow
+        setTimeout(cerrarPopup, 120);
+    });
+
+    popupImg.style.transition = 'opacity 0.14s ease';
+})();
+</script>
 {% endblock %}
