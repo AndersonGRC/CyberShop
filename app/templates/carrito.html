@@ -26,15 +26,15 @@
             </tbody>
         </table>
 
-        <div id="mensaje-vacio" style="display: none; text-align: center; padding: 40px;">
-            <p style="font-size: 1.2rem; color: #9b9b9b;text-align: center;">Tu carrito está vacío.</p>
+        <div id="mensaje-vacio" class="carrito-mensaje-vacio-wrap">
+            <p class="carrito-mensaje-vacio">Tu carrito está vacío.</p>
             <br><br><br>
-            <a href="{{ url_for('public.productos') }}" class="btn-carrito btn-pagar" style="margin-top: 15px;">Ir a la
+            <a href="{{ url_for('public.productos') }}" class="btn-carrito btn-pagar btn-ir-tienda">Ir a la
                 Tienda</a>
         </div>
 
         <div class="total-container">
-            <p style="text-align: left;">Total a Pagar: <span id="total-pagina">$0.00</span></p>
+            <p class="total-texto">Total a Pagar: <span id="total-pagina">$0.00</span></p>
         </div>
 
         <div class="acciones-carrito" id="controles-finales">

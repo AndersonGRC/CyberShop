@@ -57,64 +57,104 @@ const ocultarLoader = () => {
 };
 
 // =============================================
-// ANIMACIÓN: VOLAR AL CARRITO
+// ANIMACIÓN: ARCO AL CARRITO
 // =============================================
 const animarVuelo = (imagenOrigen) => {
 
-    // 1. Determinar el Destino según el dispositivo
-    let destinoFinal;
+    // 1. Determinar destino según dispositivo (768px = breakpoint CSS)
+    const destinoEl = window.innerWidth <= 768
+        ? document.querySelector('.cart-floating-button a')
+        : document.getElementById('menu-carrito-icon');
 
-    // Si la pantalla es menor a 800px (Móvil según tu CSS)
-    if (window.innerWidth <= 800) {
-        // MÓVIL: El destino es el botón flotante redondo
-        destinoFinal = document.querySelector('.cart-floating-button a');
-    } else {
-        // PC: El destino es el ícono en la barra de menú
-        destinoFinal = document.getElementById('menu-carrito-icon');
-    }
+    if (!destinoEl || !imagenOrigen) return;
 
-    // Validación de seguridad: si no existe el destino elegido, no hacemos nada
-    if (!destinoFinal || !imagenOrigen) return;
+    const rectOrigen  = imagenOrigen.getBoundingClientRect();
+    const rectDestino = destinoEl.getBoundingClientRect();
 
-    // 2. Clonar la imagen
-    const imagenClon = imagenOrigen.cloneNode(true);
+    // 2. Crear thumbnail volador (tamaño fijo, no clonar el DOM entero)
+    const SIZE = 60;
+    const clon = document.createElement('div');
+    Object.assign(clon.style, {
+        position:      'fixed',
+        zIndex:        '9999',
+        top:           `${rectOrigen.top  + rectOrigen.height / 2 - SIZE / 2}px`,
+        left:          `${rectOrigen.left + rectOrigen.width  / 2 - SIZE / 2}px`,
+        width:         `${SIZE}px`,
+        height:        `${SIZE}px`,
+        borderRadius:  '10px',
+        overflow:      'hidden',
+        pointerEvents: 'none',
+        boxShadow:     '0 6px 20px rgba(0,0,0,0.35)',
+        willChange:    'transform, opacity',
+    });
 
-    // 3. Obtener coordenadas (Aquí está la magia: calcula dónde está el destino AHORA)
-    const rectOrigen = imagenOrigen.getBoundingClientRect();
-    const rectDestino = destinoFinal.getBoundingClientRect();
+    const imgEl = document.createElement('img');
+    imgEl.src = imagenOrigen.currentSrc || imagenOrigen.src;
+    Object.assign(imgEl.style, {
+        width: '100%', height: '100%', objectFit: 'cover', display: 'block'
+    });
+    clon.appendChild(imgEl);
+    document.body.appendChild(clon);
 
-    // 4. Configurar estilo inicial del clon (encima de la imagen original)
-    imagenClon.classList.add('fly-img');
-    imagenClon.style.top = `${rectOrigen.top}px`;
-    imagenClon.style.left = `${rectOrigen.left}px`;
-    imagenClon.style.width = `${rectOrigen.width}px`;
-    imagenClon.style.height = `${rectOrigen.height}px`;
-    imagenClon.style.opacity = '1';
+    // 3. Calcular puntos del arco
+    // Centros de origen y destino
+    const startCX = rectOrigen.left  + rectOrigen.width  / 2;
+    const startCY = rectOrigen.top   + rectOrigen.height / 2;
+    const endCX   = rectDestino.left + rectDestino.width  / 2;
+    const endCY   = rectDestino.top  + rectDestino.height / 2;
 
-    document.body.appendChild(imagenClon);
+    // Punto de control del arco: por encima del punto medio
+    const arcCX = (startCX + endCX) / 2;
+    const arcCY = Math.min(startCY, endCY) - 110;
 
-    // 5. Iniciar animación hacia el destino calculado
-    setTimeout(() => {
-        // Ajustamos +10px para que caiga en el centro del ícono
-        imagenClon.style.top = `${rectDestino.top + 10}px`;
-        imagenClon.style.left = `${rectDestino.left + 10}px`;
-        imagenClon.style.width = '20px'; // Se hace pequeña
-        imagenClon.style.height = '20px';
-        imagenClon.style.opacity = '0.5';
-    }, 50);
+    // Desplazamientos relativos al centro inicial del clon
+    const dx1 = arcCX - startCX;
+    const dy1 = arcCY - startCY;
+    const dx2 = endCX - startCX;
+    const dy2 = endCY - startCY;
 
-    // 6. Limpiar al terminar
-    setTimeout(() => {
-        imagenClon.remove();
+    // 4. Animar con Web Animations API (arco real de 3 puntos)
+    const anim = clon.animate([
+        {
+            transform:    'translate(0, 0) scale(1) rotate(0deg)',
+            opacity:      1,
+            borderRadius: '10px',
+        },
+        {
+            transform:    `translate(${dx1}px, ${dy1}px) scale(0.6) rotate(14deg)`,
+            opacity:      0.88,
+            borderRadius: '50%',
+            offset:       0.45,
+        },
+        {
+            transform:    `translate(${dx2}px, ${dy2}px) scale(0.08) rotate(28deg)`,
+            opacity:      0,
+            borderRadius: '50%',
+        },
+    ], {
+        duration: 1100,
+        easing:   'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+        fill:     'forwards',
+    });
 
-        // Efecto de rebote en TODOS los badges (para que se vea en móvil y PC)
-        const badges = document.querySelectorAll('.cart-badge');
-        badges.forEach(badge => {
+    // 5. Al terminar: limpiar + impacto en carrito
+    anim.onfinish = () => {
+        clon.remove();
+
+        // Rebote en todos los badges
+        document.querySelectorAll('.cart-badge').forEach(badge => {
+            badge.classList.remove('bounce');
+            void badge.offsetWidth;
             badge.classList.add('bounce');
-            setTimeout(() => badge.classList.remove('bounce'), 300);
+            setTimeout(() => badge.classList.remove('bounce'), 400);
         });
 
-    }, 800);
+        // Pulso de impacto en el ícono del carrito
+        destinoEl.classList.remove('cart-hit');
+        void destinoEl.offsetWidth;
+        destinoEl.classList.add('cart-hit');
+        setTimeout(() => destinoEl.classList.remove('cart-hit'), 500);
+    };
 };
 
 // =============================================
@@ -184,32 +224,72 @@ const actualizarCarrito = () => {
             const cantidad = parseInt(item.cantidad) || 1;
             const subtotal = precio * cantidad;
 
+            // SECURITY A3: Construir DOM sin innerHTML para evitar XSS
             const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <img src="${item.imagen}" class="img-carrito-preview">
-                        <div>
-                            <strong>${item.nombre}</strong><br>
-                            <small>${item.referencia || ''}</small>
-                        </div>
-                    </div>
-                </td>
-                <td>${formatearPrecio(precio)}</td>
-                <td>
-                    <div class="item-controls">
-                        <button class="disminuir btn-control" data-id="${item.id}">-</button>
-                        <span class="cantidad">${cantidad}</span>
-                        <button class="aumentar btn-control" data-id="${item.id}">+</button>
-                    </div>
-                </td>
-                <td>${formatearPrecio(subtotal)}</td>
-                <td>
-                    <button class="eliminar-item" data-id="${item.id}">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
-            `;
+
+            // Columna producto
+            const tdProd = document.createElement('td');
+            const divProd = document.createElement('div');
+            divProd.style.cssText = 'display:flex; align-items:center; gap:10px;';
+            const img = document.createElement('img');
+            img.src = item.imagen || '';
+            img.className = 'img-carrito-preview';
+            const divTexto = document.createElement('div');
+            const strong = document.createElement('strong');
+            strong.textContent = item.nombre || '';
+            const br = document.createElement('br');
+            const small = document.createElement('small');
+            small.textContent = item.referencia || '';
+            divTexto.appendChild(strong);
+            divTexto.appendChild(br);
+            divTexto.appendChild(small);
+            divProd.appendChild(img);
+            divProd.appendChild(divTexto);
+            tdProd.appendChild(divProd);
+
+            // Columna precio
+            const tdPrecio = document.createElement('td');
+            tdPrecio.textContent = formatearPrecio(precio);
+
+            // Columna controles cantidad
+            const tdCtrl = document.createElement('td');
+            const divCtrl = document.createElement('div');
+            divCtrl.className = 'item-controls';
+            const btnMenos = document.createElement('button');
+            btnMenos.className = 'disminuir btn-control';
+            btnMenos.dataset.id = item.id;
+            btnMenos.textContent = '-';
+            const spanCant = document.createElement('span');
+            spanCant.className = 'cantidad';
+            spanCant.textContent = cantidad;
+            const btnMas = document.createElement('button');
+            btnMas.className = 'aumentar btn-control';
+            btnMas.dataset.id = item.id;
+            btnMas.textContent = '+';
+            divCtrl.appendChild(btnMenos);
+            divCtrl.appendChild(spanCant);
+            divCtrl.appendChild(btnMas);
+            tdCtrl.appendChild(divCtrl);
+
+            // Columna subtotal
+            const tdSub = document.createElement('td');
+            tdSub.textContent = formatearPrecio(subtotal);
+
+            // Columna eliminar
+            const tdElim = document.createElement('td');
+            const btnElim = document.createElement('button');
+            btnElim.className = 'eliminar-item';
+            btnElim.dataset.id = item.id;
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-trash';
+            btnElim.appendChild(icon);
+            tdElim.appendChild(btnElim);
+
+            tr.appendChild(tdProd);
+            tr.appendChild(tdPrecio);
+            tr.appendChild(tdCtrl);
+            tr.appendChild(tdSub);
+            tr.appendChild(tdElim);
             tablaCuerpo.appendChild(tr);
         });
 
@@ -271,7 +351,14 @@ const actualizarCarrito = () => {
     });
 };
 
+// Anti double-click: evita agregar duplicados por clic rápido
+let _agregandoAlCarrito = false;
+
 const agregarAlCarrito = (producto, imagenElemento) => {
+    if (_agregandoAlCarrito) return;
+    _agregandoAlCarrito = true;
+    setTimeout(() => { _agregandoAlCarrito = false; }, 1000);
+
     const precio = parsearPrecio(producto.precio);
     const itemExistente = carrito.find(item => item.id === producto.id);
 
@@ -394,45 +481,40 @@ const configurarEventos = () => {
         });
     }
 
-    // 3. Popups (sin cambios)
-    document.querySelectorAll('.ver-descripcion').forEach(boton => {
-        boton.addEventListener('click', () => {
-            const card = boton.closest('.producto');
-            const popup = document.getElementById('popup-descripcion');
-            if (popup) {
-                document.getElementById('popup-imagen').src = card.dataset.image;
-                document.getElementById('popup-titulo').textContent = card.dataset.name;
-                document.getElementById('popup-referencia').textContent = card.dataset.reference;
-                document.getElementById('popup-genero').textContent = card.dataset.gender;
-                document.getElementById('popup-descripcion-texto').textContent = card.dataset.description;
-                document.getElementById('popup-precio').textContent = formatearPrecio(parsearPrecio(card.dataset.price));
-                popup.style.display = 'flex';
-            }
-        });
-    });
-
-    const cerrar = document.querySelector('.cerrar-popup');
-    if (cerrar) cerrar.addEventListener('click', () => document.getElementById('popup-descripcion').style.display = 'none');
-
-    window.addEventListener('click', (e) => {
-        const popup = document.getElementById('popup-descripcion');
-        if (popup && e.target === popup) popup.style.display = 'none';
-    });
 };
 
-// Lógica de Pago
-const procesarPago = () => {
+// Lógica de Pago — SECURITY C1: enviar por POST, no exponer carrito en URL
+const procesarPago = async () => {
     if (carrito.length === 0) return alert("Carrito vacío");
     mostrarLoader();
 
-    let total = 0;
-    carrito.forEach(i => total += parsearPrecio(i.precio) * (parseInt(i.cantidad) || 1));
+    // Solo enviar IDs y cantidades; el backend recalcula precios desde BD
+    const data = {
+        items: carrito.map(i => ({
+            id: i.id,
+            nombre: i.nombre,
+            imagen: i.imagen,
+            referencia: i.referencia,
+            cantidad: parseInt(i.cantidad) || 1
+        }))
+    };
 
-    const data = { items: carrito, total: total };
-    sessionStorage.setItem('carritoPendiente', JSON.stringify(data));
-    localStorage.setItem('carrito', JSON.stringify(carrito));
-
-    window.location.href = `/metodos-pago?carrito=${encodeURIComponent(JSON.stringify(data))}`;
+    try {
+        const resp = await fetch('/procesar-carrito', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        if (resp.ok) {
+            window.location.href = '/metodos-pago';
+        } else {
+            ocultarLoader();
+            alert('Error al procesar el carrito. Intenta de nuevo.');
+        }
+    } catch (err) {
+        ocultarLoader();
+        alert('Error de conexión. Intenta de nuevo.');
+    }
 };
 
 // INICIO

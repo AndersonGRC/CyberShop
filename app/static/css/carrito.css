@@ -2,14 +2,28 @@
 
 /* static/css/carrito.css */
 
+/* Mensaje carrito vacío */
+.carrito-mensaje-vacio-wrap {
+    text-align: center;
+    padding: 40px;
+}
+.carrito-mensaje-vacio {
+    font-size: 1.2rem;
+    color: var(--color-gris);
+    text-align: center;
+}
+
+.btn-ir-tienda { margin-top: 15px; }
+.total-texto { text-align: left; }
+
 /* Contenedor Principal */
 .carrito-container {
     max-width: 1000px;
     margin: 50px auto;
     padding: 30px;
-    background: #fff;
+    background: var(--color-blanco);
     border-radius: 10px;
-    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--sombra-fuerte);
 }
 
 .carrito-container h2 {
@@ -29,7 +43,7 @@
 
 .tabla-carrito th {
     background-color: var(--color-carrito);
-    color: #fff;
+    color: var(--color-blanco);
     padding: 15px;
     text-align: left;
     font-weight: 600;
@@ -39,7 +53,7 @@
 
 .tabla-carrito td {
     padding: 15px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--color-borde-claro);
     vertical-align: middle;
     color: var(--color-negro);
 }
@@ -54,7 +68,7 @@
     height: 80px;
     object-fit: cover;
     border-radius: 8px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--sombra-media);
 }
 
 /* Controles de Cantidad (+ / -) */
@@ -120,7 +134,7 @@
     justify-content: flex-end;
     gap: 15px;
     margin-top: 20px;
-    border-top: 1px solid #eee;
+    border-top: 1px solid var(--color-borde-claro);
     padding-top: 20px;
 }
 
@@ -135,7 +149,16 @@
     transition: background 0.3s ease;
     text-decoration: none;
     display: inline-block;
-    color: white;
+    color: var(--color-blanco);
+}
+
+/* Focus visible para botones del carrito (accesibilidad) */
+.btn-carrito:focus-visible,
+.btn-control:focus-visible,
+.eliminar-item:focus-visible {
+    outline: 3px solid var(--color-primario);
+    outline-offset: 2px;
+    box-shadow: var(--marca-focus-ring);
 }
 
 /* Colores específicos para botones */
@@ -161,7 +184,7 @@
 
 .btn-pagar:hover {
     background-color: var(--color-exito-hover);
-    box-shadow: 0 4px 10px rgba(40, 167, 69, 0.3);
+    box-shadow: 0 4px 10px var(--sombra-exito-leve);
 }
 
 
@@ -190,11 +213,11 @@
     .carrito-container h2 {
         font-size: 1.4rem;
         text-align: center;
-        background: #fff;
+        background: var(--color-blanco);
         padding: 15px;
         border-radius: 10px;
         margin-bottom: 20px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        box-shadow: var(--sombra-suave);
     }
 
     /* 2. Convertir filas en Tarjetas Compactas */
@@ -213,15 +236,15 @@
         display: flex;
         flex-wrap: wrap;
         /* Permite que los elementos se acomoden */
-        background: #fff;
+        background: var(--color-blanco);
         margin-bottom: 15px;
         border-radius: 12px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        box-shadow: var(--sombra-suave);
         /* Sombra suave */
         padding: 15px;
         position: relative;
         /* Para posicionar el botón eliminar */
-        border: 1px solid #f0f0f0;
+        border: 1px solid var(--color-gris-claro);
     }
 
     /* 3. Estilos de las celdas (td) */
@@ -240,7 +263,7 @@
         gap: 15px;
         margin-bottom: 10px;
         padding-bottom: 10px;
-        border-bottom: 1px dashed #eee;
+        border-bottom: 1px dashed var(--color-borde-claro);
     }
 
     /* Ajuste de la imagen */
@@ -300,7 +323,7 @@
     .btn-eliminar-fila,
     .eliminar-item {
         background: transparent;
-        color: #ccc;
+        color: var(--color-gris-deshabilitado);
         border: none;
         font-size: 1.2rem;
         padding: 5px;
@@ -315,11 +338,11 @@
     /* 4. Ajustes del Footer y Botones */
     .total-container {
         text-align: center;
-        background: #fff;
+        background: var(--color-blanco);
         padding: 15px;
         border-radius: 10px;
         margin-bottom: 15px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        box-shadow: var(--sombra-suave);
     }
 
     .acciones-carrito {
@@ -341,9 +364,9 @@
     /* Pagar primero */
     .btn-seguir {
         order: 2;
-        background: #fff;
+        background: var(--color-blanco);
         color: var(--color-gris);
-        border: 1px solid #ddd;
+        border: 1px solid var(--color-borde);
     }
 
     #vaciar-carrito-btn {
@@ -374,8 +397,8 @@
 /* Efecto Hover: Se llena de rojo */
 .btn-vaciar:hover {
     background-color: var(--color-eliminar);
-    color: #fff;
-    box-shadow: 0 5px 15px rgba(255, 0, 0, 0.3);
+    color: var(--color-blanco);
+    box-shadow: 0 5px 15px var(--sombra-eliminar);
     /* Resplandor rojo */
     transform: translateY(-2px);
     /* Se eleva un poco */
