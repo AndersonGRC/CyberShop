@@ -48,3 +48,7 @@ def register_blueprints(app):
     # Contabilidad
     from routes.contabilidad import contabilidad_bp
     app.register_blueprint(contabilidad_bp)
+
+    # Videollamadas
+    from routes.video import video_bp
+    app.register_blueprint(video_bp)

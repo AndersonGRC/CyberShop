@@ -111,6 +111,20 @@ def get_data_cliente():
     if soporte_habilitado:
         menu.append({"nombre": "Soporte", "url": "soporte.mis_tickets", "icono": "headset"})
 
+    # Verificar si el módulo de videollamadas está habilitado
+    video_habilitado = True
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT valor FROM cliente_config WHERE clave = 'video_habilitado'")
+            row = cur.fetchone()
+            if row and row['valor'] == 'false':
+                video_habilitado = False
+    except Exception:
+        pass
+
+    if video_habilitado:
+        menu.append({"nombre": "Videollamadas", "url": "video.mis_videollamadas", "icono": "video"})
+
     menu += [
         {"nombre": "Tienda",            "url": "public.productos",       "icono": "store"},
         {"nombre": "Cerrar Sesión",     "url": "auth.logout",            "icono": "sign-out-alt"},
@@ -223,6 +237,15 @@ def get_data_app():
             ]
         },
         {
+            "nombre": "Videollamadas",
+            "url": "#",
+            "icono": "video",
+            "submodulos": [
+                {"nombre": "Mis Salas",      "url": "video.admin_video_lista",  "icono": "door-open"},
+                {"nombre": "Nueva Sala",     "url": "video.admin_video_crear",  "icono": "plus-circle"},
+                {"nombre": "Configuración",  "url": "video.admin_video_config", "icono": "sliders-h"},
+            ]
+        },
         {
             "nombre": "Configuración",
             "url": "#",

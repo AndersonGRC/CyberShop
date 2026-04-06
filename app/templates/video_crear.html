@@ -1,0 +1,77 @@
+{% extends './plantillaapp.html' %}
+{% block titulo %}Nueva Sala | {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/video/video_lista.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="main-container">
+<div class="content-wrapper" style="padding:28px 24px; max-width:680px;">
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
+        <h1 class="page-title" style="margin:0;">
+            <i class="fas fa-plus-circle"></i> Nueva Sala de Videollamada
+        </h1>
+        <a href="{{ url_for('video.admin_video_lista') }}" style="color:#888; font-size:0.88em; text-decoration:none;">
+            <i class="fas fa-arrow-left"></i> Mis Salas
+        </a>
+    </div>
+
+    <div style="background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.08);
+                padding:28px; border-top:4px solid var(--color-primario);">
+        <form action="{{ url_for('video.admin_video_crear') }}" method="POST">
+            <div style="margin-bottom:18px;">
+                <label style="display:block; font-size:0.88em; font-weight:600; color:#555; margin-bottom:5px;">
+                    Nombre de la sala *
+                </label>
+                <input type="text" name="nombre" required maxlength="200"
+                       placeholder="Ej: Reunion con cliente, Soporte tecnico..."
+                       style="width:100%; padding:10px 14px; border-radius:6px; border:1px solid #ddd; font-size:0.95em;">
+            </div>
+
+            <div style="margin-bottom:18px;">
+                <label style="display:block; font-size:0.88em; font-weight:600; color:#555; margin-bottom:5px;">
+                    Descripcion (opcional)
+                </label>
+                <textarea name="descripcion" rows="3" maxlength="500"
+                          placeholder="Breve descripcion del proposito de la reunion..."
+                          style="width:100%; padding:10px 14px; border-radius:6px; border:1px solid #ddd; resize:vertical; font-size:0.95em;"></textarea>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:18px;">
+                <div>
+                    <label style="display:block; font-size:0.88em; font-weight:600; color:#555; margin-bottom:5px;">
+                        Fecha y hora de inicio (opcional)
+                    </label>
+                    <input type="datetime-local" name="fecha_inicio"
+                           style="width:100%; padding:10px 14px; border-radius:6px; border:1px solid #ddd; font-size:0.95em;">
+                </div>
+                <div>
+                    <label style="display:block; font-size:0.88em; font-weight:600; color:#555; margin-bottom:5px;">
+                        Contrasena de sala (opcional)
+                    </label>
+                    <input type="text" name="password_sala" maxlength="100"
+                           placeholder="Dejar vacio = sin contrasena"
+                           style="width:100%; padding:10px 14px; border-radius:6px; border:1px solid #ddd; font-size:0.95em;">
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:24px;">
+                <a href="{{ url_for('video.admin_video_lista') }}"
+                   style="padding:10px 20px; border-radius:6px; border:1px solid #ddd;
+                          color:#666; text-decoration:none; font-size:0.92em;">
+                    Cancelar
+                </a>
+                <button type="submit"
+                        style="background:var(--color-primario); color:#fff; border:none; border-radius:6px;
+                               padding:10px 24px; font-size:0.95em; font-weight:600; cursor:pointer;">
+                    <i class="fas fa-video"></i> Crear Sala
+                </button>
+            </div>
+        </form>
+    </div>
+
+</div>
+</div>
+{% endblock %}

@@ -1,0 +1,159 @@
+@import url('../variables.css');
+
+/* ─────────────────────────────────────────────
+   VIDEO SALA — Lobby + Jitsi Container
+   ───────────────────────────────────────────── */
+
+#video-container {
+    min-height: calc(100vh - 60px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-fondo, #f4f6f8);
+}
+
+/* Lobby */
+#video-lobby,
+#video-ended {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 40px 20px;
+}
+
+.lobby-nombre { font-weight: 600; }
+.lobby-email { color: #aaa; font-size: 0.85em; }
+.lobby-icon-exito { background: var(--color-exito, #28a745); }
+.btn-volver-inicio { text-decoration: none; text-align: center; }
+
+.lobby-card {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    padding: 40px 36px;
+    max-width: 460px;
+    width: 100%;
+    text-align: center;
+}
+
+.lobby-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: var(--color-primario, #122C94);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    margin: 0 auto 20px;
+}
+
+.lobby-card h2 {
+    margin: 0 0 8px;
+    color: var(--color-texto, #333);
+    font-size: 1.4rem;
+}
+
+.lobby-desc {
+    color: var(--color-texto-secundario, #888);
+    font-size: 0.92em;
+    margin: 0 0 24px;
+}
+
+.lobby-user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--color-fondo-claro, #f8f9fa);
+    padding: 12px 16px;
+    border-radius: 10px;
+    margin-bottom: 24px;
+    text-align: left;
+}
+
+.lobby-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--color-primario, #122C94);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.lobby-notice {
+    background: #fff8e1;
+    border-left: 4px solid #f0ad4e;
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-size: 0.88em;
+    color: #856404;
+    text-align: left;
+    margin-bottom: 20px;
+}
+
+.btn-unirse {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--color-primario, #122C94);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 14px 36px;
+    font-size: 1.05em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+    margin-bottom: 16px;
+}
+
+.btn-unirse:hover {
+    background: var(--color-primario-oscuro, #091C5A);
+    transform: translateY(-1px);
+}
+
+.lobby-hint {
+    color: var(--color-texto-secundario, #aaa);
+    font-size: 0.8em;
+    margin: 0;
+}
+
+/* Jitsi container */
+#jitsi-container {
+    display: none;
+    width: 100%;
+    height: calc(100vh - 60px);
+}
+
+#jitsi-container iframe {
+    border: none;
+    border-radius: 0;
+}
+
+/* Responsive */
+@media (max-width: 520px) {
+    .lobby-card {
+        padding: 28px 20px;
+    }
+
+    .lobby-card h2 {
+        font-size: 1.2rem;
+    }
+
+    .btn-unirse {
+        width: 100%;
+        padding: 14px;
+    }
+
+    #jitsi-container {
+        height: calc(100vh - 50px);
+    }
+}

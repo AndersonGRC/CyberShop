@@ -1,0 +1,84 @@
+{% extends base_template %}
+{% block titulo %}{{ sala.nombre }} | Videollamada{% endblock %}
+
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/video/video_sala.css') }}">
+{% endblock %}
+
+{% block body %}
+<div id="video-container">
+
+    <!-- Lobby pre-union -->
+    <div id="video-lobby">
+        <div class="lobby-card">
+            <div class="lobby-icon">
+                <i class="fas fa-video"></i>
+            </div>
+            <h2>{{ sala.nombre }}</h2>
+            {% if sala.descripcion %}
+            <p class="lobby-desc">{{ sala.descripcion }}</p>
+            {% endif %}
+
+            <div class="lobby-user-info">
+                <div class="lobby-avatar">{{ nombre_participante[0]|upper if nombre_participante else '?' }}</div>
+                <div>
+                    <div class="lobby-nombre">{{ nombre_participante }}</div>
+                    <div class="lobby-email">{{ email_participante }}</div>
+                </div>
+            </div>
+
+            {% if sala.estado == 'programada' %}
+            <div class="lobby-notice">
+                <i class="fas fa-clock"></i>
+                Esta reunion aun no ha sido iniciada por el organizador.
+                {% if sala.fecha_inicio %}
+                <br>Programada para: <strong>{{ sala.fecha_inicio.strftime('%d/%m/%Y %H:%M') }}</strong>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if sala.estado == 'activa' %}
+            <button id="btn-unirse" class="btn-unirse">
+                <i class="fas fa-sign-in-alt"></i> Unirse a la reunion
+            </button>
+            {% endif %}
+
+            <p class="lobby-hint">
+                <i class="fas fa-info-circle"></i>
+                Se usara tu camara y microfono. Puedes desactivarlos dentro de la reunion.
+            </p>
+        </div>
+    </div>
+
+    <!-- Contenedor Jitsi (oculto hasta unirse) -->
+    <div id="jitsi-container"></div>
+
+    <!-- Pantalla de fin -->
+    <div id="video-ended" style="display:none;">
+        <div class="lobby-card">
+            <div class="lobby-icon lobby-icon-exito">
+                <i class="fas fa-check"></i>
+            </div>
+            <h2>Reunion finalizada</h2>
+            <p class="lobby-desc">Gracias por participar.</p>
+            <a href="/" class="btn-unirse btn-volver-inicio">
+                <i class="fas fa-home"></i> Volver al inicio
+            </a>
+        </div>
+    </div>
+</div>
+
+<script src="https://meet.jit.si/external_api.js"></script>
+<script>
+    var VIDEO_CONFIG = {
+        domain: {{ jitsi_domain|tojson }},
+        roomName: {{ sala.codigo_sala|tojson }},
+        displayName: {{ nombre_participante|tojson }},
+        email: {{ email_participante|tojson }},
+        isModerator: {{ 'true' if es_moderador else 'false' }},
+        password: {{ (sala.password_sala or '')|tojson }},
+        salaActiva: {{ 'true' if sala.estado == 'activa' else 'false' }}
+    };
+</script>
+<script src="{{ url_for('static', filename='js/video_sala.js') }}"></script>
+{% endblock %}
