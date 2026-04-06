@@ -14,7 +14,7 @@ from google_auth_oauthlib.flow import Flow
 
 from database import get_db_connection, get_db_cursor
 from helpers import get_common_data, get_data_app, get_data_cliente
-from security import rol_requerido, autenticar_usuario
+from security import rol_requerido, autenticar_usuario, controlar_tasa_solicitudes
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -24,6 +24,9 @@ def registrar_cliente():
     """Muestra el formulario de registro y procesa nuevos clientes (rol 3)."""
     datosApp = get_common_data()
     if request.method == 'POST':
+        if not controlar_tasa_solicitudes(request.remote_addr, max_requests=5, interval=300):
+            flash('Demasiados intentos de registro. Espera unos minutos.', 'warning')
+            return redirect(url_for('auth.registrar_cliente'))
         nombre = request.form.get('nombre')
         email = request.form.get('email')
         password = request.form.get('password')
@@ -35,31 +38,26 @@ def registrar_cliente():
             flash('Por favor, complete todos los campos obligatorios.', 'error')
             return redirect(url_for('auth.registrar_cliente'))
 
-        conn = get_db_connection()
-        cur = conn.cursor(cursor_factory=DictCursor)
         try:
-            cur.execute('SELECT * FROM usuarios WHERE email = %s', (email,))
-            usuario_existente = cur.fetchone()
-            if usuario_existente:
-                flash('El correo electrónico ya está registrado.', 'error')
-                return redirect(url_for('auth.registrar_cliente'))
+            with get_db_cursor(dict_cursor=True) as cur:
+                cur.execute('SELECT * FROM usuarios WHERE email = %s', (email,))
+                usuario_existente = cur.fetchone()
+                if usuario_existente:
+                    flash('El correo electrónico ya está registrado.', 'error')
+                    return redirect(url_for('auth.registrar_cliente'))
 
-            hashed_password = generate_password_hash(password)
-            cur.execute(
-                '''INSERT INTO usuarios
-                   (nombre, email, contraseña, rol_id, fecha_nacimiento, telefono, direccion, estado)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, 'habilitado')''',
-                (nombre, email, hashed_password, 3, fecha_nacimiento, telefono, direccion)
-            )
-            conn.commit()
+                hashed_password = generate_password_hash(password)
+                cur.execute(
+                    '''INSERT INTO usuarios
+                       (nombre, email, contraseña, rol_id, fecha_nacimiento, telefono, direccion, estado)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, 'habilitado')''',
+                    (nombre, email, hashed_password, 3, fecha_nacimiento, telefono, direccion)
+                )
             flash('Cliente registrado correctamente. Por favor, inicie sesión.', 'success')
             return redirect(url_for('auth.login'))
         except Exception as e:
             app.logger.error(f"Error al registrar cliente: {e}")
-            flash(f'Error al registrar el cliente: {str(e)}', 'error')
-        finally:
-            cur.close()
-            conn.close()
+            flash('Error al registrar el cliente. Intenta de nuevo.', 'error')
 
     return render_template('registrarcliente.html', datosApp=datosApp)
 
@@ -69,6 +67,11 @@ def login():
     """Muestra el formulario de login y autentica al usuario."""
     datosApp = get_common_data()
     if request.method == 'POST':
+        # SECURITY M6: Rate limiting — máximo 10 intentos/minuto por IP
+        ip = request.remote_addr
+        if not controlar_tasa_solicitudes(ip, max_requests=10, interval=60):
+            flash('Demasiados intentos de inicio de sesión. Espera un momento.', 'error')
+            return render_template('login.html', datosApp=datosApp)
         email = request.form.get('email')
         password = request.form.get('password')
         usuario = autenticar_usuario(email, password)
@@ -79,7 +82,7 @@ def login():
             session['username'] = usuario['nombre']
             # Redirigir a la página pendiente (ej: checkout) si la hay
             next_url = session.pop('login_next', None)
-            if next_url:
+            if next_url and next_url.startswith('/'):
                 return redirect(next_url)
             if usuario['rol_id'] == 1: return redirect(url_for('admin.dashboard_admin'))
             elif usuario['rol_id'] == 2: return redirect(url_for('admin.dashboard_admin'))
@@ -291,7 +294,7 @@ def google_login_callback():
 
     # 7. Redirigir según rol (o a página pendiente como checkout)
     next_url = session.pop('login_next', None)
-    if next_url:
+    if next_url and next_url.startswith('/'):
         return redirect(next_url)
     rol = usuario['rol_id']
     if rol in (1, 2):
