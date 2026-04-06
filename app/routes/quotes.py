@@ -13,8 +13,8 @@ from xhtml2pdf import pisa
 from io import BytesIO
 
 from database import get_db_cursor
-from helpers import get_data_app, formatear_moneda
-from security import rol_requerido
+from helpers import get_data_app, formatear_moneda, pdf_link_callback, logo_local_path as resolve_logo_path
+from security import rol_requerido, ADMIN_STAFF, ADMIN_FULL
 
 quotes_bp = Blueprint('quotes', __name__)
 
@@ -44,31 +44,13 @@ def _get_brand_colors():
     return colores
 
 
-def _pdf_link_callback(uri, rel):
-    """Resuelve URLs a rutas locales absolutas para xhtml2pdf.
-    Evita peticiones HTTP durante la generación del PDF."""
-    from flask import current_app as _app
-    # Si ya es file://, devolver como está
-    if uri.startswith('file://'):
-        return uri
-    # Resolver URLs que apunten a static/
-    if 'static/' in uri:
-        try:
-            after_static = uri.split('static/')[-1].split('?')[0]
-            local = os.path.join(_app.root_path, 'static', after_static)
-            if os.path.isfile(local):
-                return local
-        except Exception:
-            pass
-    return uri
-
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
 @quotes_bp.route('/admin/cotizar')
-@rol_requerido(1)
+@rol_requerido(ADMIN_STAFF)
 def cotizar():
     """Renderiza la interfaz de generacion de cotizaciones."""
     datosApp = get_data_app()
@@ -85,7 +67,7 @@ def cotizar():
 
 
 @quotes_bp.route('/admin/cotizar/generar', methods=['POST'])
-@rol_requerido(1)
+@rol_requerido(ADMIN_STAFF)
 def generar_cotizacion():
     """Procesa el formulario, guarda la cotizacion y genera el PDF."""
     try:
@@ -116,9 +98,10 @@ def generar_cotizacion():
                 logo_url_db = url_for('static', filename=f'uploads/{filename}', _external=True)
 
         if logo_local_path is None:
-            logo_local_path = 'file://' + os.path.join(app.root_path, 'static', 'img', 'Logo.PNG')
-        elif not logo_local_path.startswith('file://'):
-            logo_local_path = 'file://' + logo_local_path
+            logo_local_path = resolve_logo_path(app.root_path)
+        # Normalizar: xhtml2pdf necesita path puro, sin file://
+        if logo_local_path.startswith('file://'):
+            logo_local_path = logo_local_path[7:]
 
         # 3. Procesar Items
         items = []
@@ -167,8 +150,9 @@ def generar_cotizacion():
                 cantidad        = int(cantidades[i]) if i < len(cantidades) and cantidades[i] else 1
                 descripcion     = descripciones[i]
                 precio_unitario = float(precios[i]) if i < len(precios) and precios[i] else 0
-                descuento_porc  = float(descuentos[i]) if i < len(descuentos) and descuentos[i] else 0
-                iva_porc        = float(ivas[i]) if i < len(ivas) and ivas[i] else 0
+                # SECURITY A4: Limitar descuento al rango válido [0, 100]
+                descuento_porc  = max(0.0, min(100.0, float(descuentos[i]) if i < len(descuentos) and descuentos[i] else 0))
+                iva_porc        = max(0.0, float(ivas[i]) if i < len(ivas) and ivas[i] else 0)
 
                 subtotal_linea     = cantidad * precio_unitario
                 monto_descuento    = subtotal_linea * (descuento_porc / 100)
@@ -264,7 +248,7 @@ def generar_cotizacion():
 
         pdf_output = BytesIO()
         pisa_status = pisa.CreatePDF(rendered_html, dest=pdf_output,
-                                     link_callback=_pdf_link_callback)
+                                     link_callback=pdf_link_callback)
 
         if pisa_status.err:
             return Response("Error generando PDF", status=500)
@@ -301,7 +285,7 @@ def generar_cotizacion():
 
 
 @quotes_bp.route('/admin/mis_cotizaciones')
-@rol_requerido(1)
+@rol_requerido(ADMIN_STAFF)
 def ver_cotizaciones():
     """Lista las cotizaciones generadas."""
     datosApp = get_data_app()
@@ -309,7 +293,8 @@ def ver_cotizaciones():
     try:
         with get_db_cursor(dict_cursor=True) as cur:
             cur.execute("""
-                SELECT id, fecha, cliente_nombre, cliente_documento, total, pdf_path
+                SELECT id, fecha, cliente_nombre, cliente_documento, total, pdf_path,
+                       COALESCE(estado, 'pendiente') AS estado
                 FROM cotizaciones
                 ORDER BY fecha DESC
             """)
@@ -321,7 +306,7 @@ def ver_cotizaciones():
 
 
 @quotes_bp.route('/admin/cotizar/editar/<int:id>')
-@rol_requerido(1)
+@rol_requerido(ADMIN_STAFF)
 def editar_cotizacion(id):
     """Renderiza el formulario con datos de una cotización existente."""
     datosApp = get_data_app()
@@ -357,8 +342,63 @@ def editar_cotizacion(id):
                            detalles=detalles)
 
 
+@quotes_bp.route('/admin/cotizar/aprobar/<int:id>', methods=['POST'])
+@rol_requerido(ADMIN_FULL)  # SECURITY A2: solo Admin/Propietario puede registrar ingresos
+def aprobar_cotizacion(id):
+    """Marca la cotización como aprobada y la registra en contabilidad."""
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT id, cliente_nombre, total, estado FROM cotizaciones WHERE id=%s", (id,))
+            cot = cur.fetchone()
+
+        if not cot:
+            flash("Cotización no encontrada.", "warning")
+            return redirect(url_for('quotes.ver_cotizaciones'))
+
+        if cot['estado'] == 'aprobada':
+            flash("Esta cotización ya fue aprobada.", "info")
+            return redirect(url_for('quotes.ver_cotizaciones'))
+
+        with get_db_cursor() as cur:
+            cur.execute("UPDATE cotizaciones SET estado='aprobada' WHERE id=%s", (id,))
+
+        # Registrar ingreso en contabilidad
+        from routes.contabilidad import registrar_movimiento
+        registrar_movimiento(
+            tipo='ingreso',
+            categoria='cuenta_cobro',
+            descripcion=f"Cotización aprobada COT {str(id).zfill(10)} — {cot['cliente_nombre']}",
+            monto=float(cot['total'] or 0),
+            referencia_tipo='cotizacion',
+            referencia_id=id,
+            usuario_id=session.get('usuario_id'),
+            auto_generado=False,
+        )
+
+        flash(f"Cotización COT {str(id).zfill(10)} aprobada y registrada en contabilidad.", "success")
+    except Exception as e:
+        app.logger.error(f"Error aprobando cotización {id}: {e}")
+        flash(f"Error al aprobar: Revisa el log para más detalles.", "danger")
+
+    return redirect(url_for('quotes.ver_cotizaciones'))
+
+
+@quotes_bp.route('/admin/cotizar/rechazar/<int:id>', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+def rechazar_cotizacion(id):
+    """Marca la cotización como rechazada."""
+    try:
+        with get_db_cursor() as cur:
+            cur.execute("UPDATE cotizaciones SET estado='rechazada' WHERE id=%s", (id,))
+        flash("Cotización marcada como rechazada.", "warning")
+    except Exception as e:
+        app.logger.error(f"Error rechazando cotización {id}: {e}")
+        flash(f"Error: Revisa el log para más detalles.", "danger")
+    return redirect(url_for('quotes.ver_cotizaciones'))
+
+
 @quotes_bp.route('/admin/cotizar/eliminar/<int:id>', methods=['POST'])
-@rol_requerido(1)
+@rol_requerido(ADMIN_STAFF)
 def eliminar_cotizacion(id):
     """Elimina una cotización y su archivo PDF."""
     try:
@@ -371,14 +411,14 @@ def eliminar_cotizacion(id):
             cur.execute("DELETE FROM cotizaciones WHERE id=%s", (id,))
 
         if pdf_path:
-            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            full_path = os.path.join(base_dir, 'static', pdf_path.replace('/', os.sep))
-            if os.path.exists(full_path):
+            base_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'static')
+            full_path = os.path.normpath(os.path.join(base_dir, pdf_path.replace('/', os.sep)))
+            if full_path.startswith(os.path.normpath(base_dir)) and os.path.exists(full_path):
                 os.remove(full_path)
 
         flash("Cotización eliminada correctamente.", "success")
     except Exception as e:
         app.logger.error(f"Error eliminando cotización {id}: {e}")
-        flash(f"Error al eliminar: {e}", "danger")
+        flash(f"Error al eliminar: Revisa el log para más detalles.", "danger")
 
     return redirect(url_for('quotes.ver_cotizaciones'))

@@ -7,6 +7,18 @@
     <div class="content-wrapper" style="padding: 20px;">
         <h1 class="page-title"><i class="fas fa-history"></i> Mis Cotizaciones Generadas</h1>
 
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ 'success' if category == 'success' else ('warning' if category == 'warning' else ('info' if category == 'info' else 'danger')) }}"
+                 style="padding: 12px 16px; border-radius: 6px; margin-bottom: 16px;
+                        background: {{ '#d4edda' if category == 'success' else ('#fff3cd' if category == 'warning' else ('#d1ecf1' if category == 'info' else '#f8d7da')) }};
+                        color: {{ '#155724' if category == 'success' else ('#856404' if category == 'warning' else ('#0c5460' if category == 'info' else '#721c24')) }};
+                        border: 1px solid {{ '#c3e6cb' if category == 'success' else ('#ffeeba' if category == 'warning' else ('#bee5eb' if category == 'info' else '#f5c6cb')) }};">
+                {{ message }}
+            </div>
+          {% endfor %}
+        {% endwith %}
+
         <div class="card"
             style="margin-top: 20px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
 
@@ -20,6 +32,7 @@
                             <th style="padding: 12px; text-align: left;">Cliente</th>
                             <th style="padding: 12px; text-align: left;">Documento</th>
                             <th style="padding: 12px; text-align: right;">Total</th>
+                            <th style="padding: 12px; text-align: center;">Estado</th>
                             <th style="padding: 12px; text-align: center;">Acciones</th>
                         </tr>
                     </thead>
@@ -31,19 +44,56 @@
                             <td style="padding: 12px;">{{ cot.cliente_nombre }}</td>
                             <td style="padding: 12px;">{{ cot.cliente_documento }}</td>
                             <td style="padding: 12px; text-align: right;">{{ cot.total }}</td>
-                            <!-- Formato moneda se podria ajustar en backend o filter -->
                             <td style="padding: 12px; text-align: center;">
+                                {% if cot.estado == 'aprobada' %}
+                                    <span style="background: #d4edda; color: #155724; padding: 4px 10px; border-radius: 12px; font-size: 0.82em; font-weight: 600;">
+                                        <i class="fas fa-check-circle"></i> Aprobada
+                                    </span>
+                                {% elif cot.estado == 'rechazada' %}
+                                    <span style="background: #f8d7da; color: #721c24; padding: 4px 10px; border-radius: 12px; font-size: 0.82em; font-weight: 600;">
+                                        <i class="fas fa-times-circle"></i> Rechazada
+                                    </span>
+                                {% else %}
+                                    <span style="background: #fff3cd; color: #856404; padding: 4px 10px; border-radius: 12px; font-size: 0.82em; font-weight: 600;">
+                                        <i class="fas fa-clock"></i> Pendiente
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 12px; text-align: center; white-space: nowrap;">
                                 {% if cot.pdf_path %}
                                 <a href="{{ url_for('static', filename=cot.pdf_path) }}" target="_blank"
                                     class="btn-action"
-                                    style="background: #28a745; color: white; padding: 5px 10px; border-radius: 4px; text-decoration: none; margin-right: 5px;">
+                                    style="background: #28a745; color: white; padding: 5px 10px; border-radius: 4px; text-decoration: none; margin-right: 4px; display: inline-block;">
                                     <i class="fas fa-file-pdf"></i> PDF
                                 </a>
                                 {% endif %}
+
+                                {% if cot.estado == 'pendiente' %}
+                                <form action="{{ url_for('quotes.aprobar_cotizacion', id=cot.id) }}" method="POST"
+                                    style="display: inline;"
+                                    onsubmit="return confirm('¿Aprobar esta cotización y registrarla en contabilidad?');">
+                                    <button type="submit"
+                                        style="background: #17a2b8; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; margin-right: 4px;">
+                                        <i class="fas fa-check"></i> Aprobar
+                                    </button>
+                                </form>
+                                <form action="{{ url_for('quotes.rechazar_cotizacion', id=cot.id) }}" method="POST"
+                                    style="display: inline;"
+                                    onsubmit="return confirm('¿Marcar esta cotización como rechazada?');">
+                                    <button type="submit"
+                                        style="background: #6c757d; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; margin-right: 4px;">
+                                        <i class="fas fa-times"></i> Rechazar
+                                    </button>
+                                </form>
+                                {% endif %}
+
+                                {% if cot.estado != 'aprobada' %}
                                 <a href="{{ url_for('quotes.editar_cotizacion', id=cot.id) }}" class="btn-action"
-                                    style="background: #007bff; color: white; padding: 5px 10px; border-radius: 4px; text-decoration: none; margin-right: 5px;">
+                                    style="background: #007bff; color: white; padding: 5px 10px; border-radius: 4px; text-decoration: none; margin-right: 4px; display: inline-block;">
                                     <i class="fas fa-edit"></i> Editar
                                 </a>
+                                {% endif %}
+
                                 <form action="{{ url_for('quotes.eliminar_cotizacion', id=cot.id) }}" method="POST"
                                     style="display: inline;"
                                     onsubmit="return confirm('¿Está seguro de eliminar esta cotización?');">

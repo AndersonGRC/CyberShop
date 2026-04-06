@@ -1,0 +1,99 @@
+{% extends './plantillaapp.html' %}
+
+{% block titulo %}Facturación Electrónica DIAN{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+    .bloqueado-wrap {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 60vh;
+        padding: 40px 20px;
+    }
+    .bloqueado-card {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+        padding: 56px 48px;
+        max-width: 520px;
+        width: 100%;
+        text-align: center;
+    }
+    .bloqueado-icono {
+        font-size: 4rem;
+        color: var(--color-primario, #122C94);
+        margin-bottom: 20px;
+    }
+    .bloqueado-card h2 {
+        color: var(--color-primario-oscuro, #091C5A);
+        margin: 0 0 12px;
+        font-size: 1.6rem;
+    }
+    .bloqueado-card p {
+        color: #555;
+        line-height: 1.6;
+        margin-bottom: 8px;
+    }
+    .bloqueado-card .modulo-tag {
+        display: inline-block;
+        background: var(--marca-tinte-leve, #eef1fb);
+        color: var(--color-primario, #122C94);
+        border-radius: 20px;
+        padding: 4px 16px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 24px;
+    }
+    .bloqueado-card .btn-volver {
+        display: inline-block;
+        margin-top: 28px;
+        padding: 11px 28px;
+        background: var(--color-primario, #122C94);
+        color: #fff;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: background 0.2s;
+    }
+    .bloqueado-card .btn-volver:hover {
+        background: var(--color-primario-oscuro, #091C5A);
+    }
+    .bloqueado-divider {
+        border: none;
+        border-top: 1px solid #e8e8e8;
+        margin: 28px 0 20px;
+    }
+    .bloqueado-contacto {
+        font-size: 0.9rem;
+        color: #888;
+    }
+    .bloqueado-contacto a {
+        color: var(--color-primario, #122C94);
+    }
+</style>
+{% endblock %}
+
+{% block contenido %}
+<div class="bloqueado-wrap">
+    <div class="bloqueado-card">
+        <div class="bloqueado-icono">
+            <i class="fas fa-lock"></i>
+        </div>
+        <h2>Módulo no activado</h2>
+        <span class="modulo-tag">Facturación Electrónica DIAN</span>
+        <p>Este módulo no está incluido en tu plan actual.</p>
+        <p>Con él podrás emitir facturas electrónicas válidas ante la DIAN directamente desde CyberShop, cumpliendo con la obligación tributaria colombiana.</p>
+
+        <hr class="bloqueado-divider">
+
+        <p class="bloqueado-contacto">
+            Para adquirir este módulo, comunícate con soporte.<br>
+        </p>
+
+        <a href="{{ url_for('admin.dashboard_admin') }}" class="btn-volver">
+            <i class="fas fa-arrow-left"></i>&nbsp; Volver al Panel
+        </a>
+    </div>
+</div>
+{% endblock %}

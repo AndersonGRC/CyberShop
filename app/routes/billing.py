@@ -16,27 +16,11 @@ from io import BytesIO
 import num2words
 
 from database import get_db_cursor
-from helpers import get_data_app, formatear_moneda
-from security import rol_requerido
+from helpers import get_data_app, formatear_moneda, pdf_link_callback, logo_local_path as resolve_logo_path
+from security import rol_requerido, ADMIN_CONTADOR
 
 billing_bp = Blueprint('billing', __name__)
 
-
-def _pdf_link_callback(uri, rel):
-    """Resuelve URLs a rutas locales absolutas para xhtml2pdf.
-    Evita peticiones HTTP durante la generación del PDF."""
-    from flask import current_app as _app
-    if uri.startswith('file://'):
-        return uri
-    if 'static/' in uri:
-        try:
-            after_static = uri.split('static/')[-1].split('?')[0]
-            local = os.path.join(_app.root_path, 'static', after_static)
-            if os.path.isfile(local):
-                return local
-        except Exception:
-            pass
-    return uri
 
 
 def _get_empresa_website():
@@ -61,7 +45,7 @@ except:
         pass # Fallback a default
 
 @billing_bp.route('/admin/cuenta_cobro')
-@rol_requerido(1)
+@rol_requerido(ADMIN_CONTADOR)
 def crear_cuenta():
     """Renderiza el formulario para crear una nueva cuenta de cobro."""
     datosApp = get_data_app()
@@ -85,7 +69,7 @@ def crear_cuenta():
                           cuenta=None)
 
 @billing_bp.route('/admin/cuenta_cobro/editar/<int:id>')
-@rol_requerido(1)
+@rol_requerido(ADMIN_CONTADOR)
 def editar_cuenta(id):
     """Renderiza el formulario con datos de una cuenta existente."""
     datosApp = get_data_app()
@@ -124,7 +108,7 @@ def editar_cuenta(id):
                           detalles=detalles)
 
 @billing_bp.route('/admin/cuenta_cobro/generar', methods=['POST'])
-@rol_requerido(1)
+@rol_requerido(ADMIN_CONTADOR)
 def guardar_generar_cuenta():
     """Guarda (inserta o actualiza) la cuenta y genera el PDF."""
     try:
@@ -248,7 +232,7 @@ def guardar_generar_cuenta():
             fecha_larga = fecha_str
             consecutivo_formatted = f"CDC-{cuenta_id}"
 
-        logo_local = 'file://' + os.path.join(app.root_path, 'static', 'img', 'Logo.PNG')
+        logo_local = resolve_logo_path(app.root_path)
 
         pdf_data = {
             'id': cuenta_id,
@@ -279,7 +263,7 @@ def guardar_generar_cuenta():
 
         pdf_output = BytesIO()
         pisa_status = pisa.CreatePDF(rendered_html, dest=pdf_output,
-                                     link_callback=_pdf_link_callback)
+                                     link_callback=pdf_link_callback)
         
         if pisa_status.err:
             return Response("Error generando PDF", status=500)
@@ -315,7 +299,7 @@ def guardar_generar_cuenta():
         return Response(f"Error: {e}", status=500)
 
 @billing_bp.route('/admin/cuenta_cobro/eliminar/<int:id>', methods=['POST'])
-@rol_requerido(1)
+@rol_requerido(ADMIN_CONTADOR)
 def eliminar_cuenta(id):
     """Elimina una cuenta de cobro y su archivo PDF."""
     try:
@@ -330,20 +314,20 @@ def eliminar_cuenta(id):
             
         # Borrar archivo fisico
         if pdf_path:
-            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            full_path = os.path.join(base_dir, 'static', pdf_path.replace('/', os.sep))
-            if os.path.exists(full_path):
+            base_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'static')
+            full_path = os.path.normpath(os.path.join(base_dir, pdf_path.replace('/', os.sep)))
+            if full_path.startswith(os.path.normpath(base_dir)) and os.path.exists(full_path):
                 os.remove(full_path)
-                
+
         flash("Cuenta de cobro eliminada correctamente.", "success")
     except Exception as e:
         app.logger.error(f"Error eliminando cuenta {id}: {e}")
-        flash(f"Error al eliminar: {e}", "danger")
+        flash(f"Error al eliminar: Revisa el log para más detalles.", "danger")
         
     return redirect(url_for('billing.listar_cuentas'))
 
 @billing_bp.route('/admin/mis_cuentas_cobro')
-@rol_requerido(1)
+@rol_requerido(ADMIN_CONTADOR)
 def listar_cuentas():
     """Lista el historial de cuentas de cobro generadas."""
     datosApp = get_data_app()
