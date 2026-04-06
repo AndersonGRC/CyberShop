@@ -19,7 +19,7 @@ from googleapiclient.errors import HttpError
 
 from database import get_db_cursor
 from helpers_google import get_calendar_service, registrar_watch
-from security import rol_requerido
+from security import rol_requerido, ADMIN_STAFF
 
 google_bp = Blueprint('google', __name__, url_prefix='/admin/google')
 
@@ -51,7 +51,7 @@ def _build_flow():
 # ------------------------------------------------------------------
 
 @google_bp.route('/autorizar')
-@rol_requerido(1)
+@rol_requerido(ADMIN_STAFF)
 def autorizar():
     flow = _build_flow()
     auth_url, state = flow.authorization_url(
@@ -69,7 +69,7 @@ def autorizar():
 # ------------------------------------------------------------------
 
 @google_bp.route('/callback')
-@rol_requerido(1)
+@rol_requerido(ADMIN_STAFF)
 def callback():
     state = session.get('google_oauth_state')
     if not state or state != request.args.get('state'):
@@ -135,7 +135,7 @@ def callback():
 # ------------------------------------------------------------------
 
 @google_bp.route('/desconectar', methods=['POST'])
-@rol_requerido(1)
+@rol_requerido(ADMIN_STAFF)
 def desconectar():
     usuario_id = session.get('usuario_id')
 
@@ -224,3 +224,122 @@ def webhook():
             """, (nuevo_summary, nueva_fecha or None, event_id))
 
     return '', 200
+
+
+# ==================================================================
+# Gmail API OAuth 2.0 — Autorizar cuenta para envío de notificaciones
+# ==================================================================
+
+def _build_gmail_flow():
+    """Construye el flujo OAuth 2.0 para Gmail API."""
+    cfg = current_app.config
+    return Flow.from_client_config(
+        {
+            'web': {
+                'client_id':     cfg['GOOGLE_CLIENT_ID'],
+                'client_secret': cfg['GOOGLE_CLIENT_SECRET'],
+                'auth_uri':      'https://accounts.google.com/o/oauth2/auth',
+                'token_uri':     'https://oauth2.googleapis.com/token',
+                'redirect_uris': [cfg['GOOGLE_GMAIL_REDIRECT_URI']],
+            }
+        },
+        scopes=cfg['GOOGLE_GMAIL_SCOPES'],
+        redirect_uri=cfg['GOOGLE_GMAIL_REDIRECT_URI'],
+    )
+
+
+@google_bp.route('/gmail/autorizar')
+@rol_requerido(ADMIN_STAFF)
+def gmail_autorizar():
+    flow = _build_gmail_flow()
+    auth_url, state = flow.authorization_url(
+        access_type='offline',
+        include_granted_scopes='true',
+        prompt='consent',
+    )
+    session['google_gmail_oauth_state'] = state
+    session['google_gmail_code_verifier'] = flow.code_verifier
+    return redirect(auth_url)
+
+
+@google_bp.route('/gmail/callback')
+@rol_requerido(ADMIN_STAFF)
+def gmail_callback():
+    state = session.get('google_gmail_oauth_state')
+    if not state or state != request.args.get('state'):
+        flash('Estado OAuth inválido. Intenta de nuevo.', 'danger')
+        return redirect(url_for('admin.configuracion_cliente'))
+
+    flow = _build_gmail_flow()
+    flow.code_verifier = session.get('google_gmail_code_verifier')
+    flow.state = state
+
+    try:
+        redirect_uri = current_app.config['GOOGLE_GMAIL_REDIRECT_URI']
+        query_string = request.query_string.decode('utf-8')
+        auth_response = f"{redirect_uri}?{query_string}"
+        flow.fetch_token(authorization_response=auth_response)
+    except Exception as e:
+        current_app.logger.error(f"Gmail token error: {e}")
+        flash(f'Error al obtener token de Gmail: {e}', 'danger')
+        return redirect(url_for('admin.configuracion_cliente'))
+
+    creds = flow.credentials
+    usuario_id = session.get('usuario_id')
+
+    expiry = creds.expiry
+    if expiry and expiry.tzinfo is None:
+        from datetime import timezone as tz
+        expiry = expiry.replace(tzinfo=tz.utc)
+
+    # Merge de scopes: conservar Calendar si ya existía
+    new_scopes = set(creds.scopes or [])
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            "SELECT scope FROM google_oauth_tokens WHERE usuario_id = %s",
+            (usuario_id,)
+        )
+        existing = cur.fetchone()
+    if existing and existing['scope']:
+        new_scopes |= set(existing['scope'].split())
+
+    with get_db_cursor() as cur:
+        cur.execute("""
+            INSERT INTO google_oauth_tokens
+                (usuario_id, access_token, refresh_token, token_expiry, scope)
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (usuario_id) DO UPDATE SET
+                access_token  = EXCLUDED.access_token,
+                refresh_token = COALESCE(EXCLUDED.refresh_token,
+                                         google_oauth_tokens.refresh_token),
+                token_expiry  = EXCLUDED.token_expiry,
+                scope         = EXCLUDED.scope,
+                updated_at    = NOW()
+        """, (
+            usuario_id,
+            creds.token,
+            creds.refresh_token,
+            expiry,
+            ' '.join(new_scopes),
+        ))
+
+        # Guardar este usuario como remitente del sistema
+        cur.execute("""
+            INSERT INTO cliente_config (clave, valor, tipo, grupo)
+            VALUES ('gmail_usuario_id', %s, 'text', 'correo')
+            ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor
+        """, (str(usuario_id),))
+
+    flash('Gmail conectado exitosamente para notificaciones.', 'success')
+    return redirect(url_for('admin.configuracion_cliente'))
+
+
+@google_bp.route('/gmail/desconectar', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+def gmail_desconectar():
+    with get_db_cursor() as cur:
+        cur.execute(
+            "DELETE FROM cliente_config WHERE clave = 'gmail_usuario_id'"
+        )
+    flash('Gmail desconectado. Las notificaciones por correo se desactivaron.', 'info')
+    return redirect(url_for('admin.configuracion_cliente'))

@@ -21,12 +21,16 @@ from database import get_db_cursor
 # Credenciales
 # ------------------------------------------------------------------
 
-def get_credentials(usuario_id):
+def get_credentials(usuario_id, scopes=None):
     """Carga el token OAuth del usuario desde la BD y lo refresca si venció.
+
+    Args:
+        usuario_id: ID del usuario en la BD.
+        scopes: Lista de scopes a usar. Si es None usa GOOGLE_SCOPES.
 
     Returns:
         google.oauth2.credentials.Credentials o None si el usuario no
-        tiene Google Calendar conectado.
+        tiene Google conectado.
     """
     with get_db_cursor(dict_cursor=True) as cur:
         cur.execute("""
@@ -45,7 +49,7 @@ def get_credentials(usuario_id):
         token_uri='https://oauth2.googleapis.com/token',
         client_id=current_app.config['GOOGLE_CLIENT_ID'],
         client_secret=current_app.config['GOOGLE_CLIENT_SECRET'],
-        scopes=current_app.config['GOOGLE_SCOPES'],
+        scopes=scopes or current_app.config['GOOGLE_SCOPES'],
     )
 
     # Forzar expiración si ya pasó
