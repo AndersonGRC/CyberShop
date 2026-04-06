@@ -10,6 +10,9 @@ blinker==1.9.0
 # Base de datos
 psycopg2-binary>=2.9.10
 
+# CSRF Protection
+Flask-WTF>=1.2.0
+
 # Autenticacion
 Flask-Bcrypt==1.0.1
 bcrypt==4.2.1

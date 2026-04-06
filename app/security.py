@@ -13,7 +13,32 @@ from flask import session, flash, redirect, url_for, request, jsonify
 from werkzeug.security import check_password_hash
 from psycopg2.extras import DictCursor
 
-from database import get_db_connection
+from database import get_db_connection, get_db_cursor
+
+
+# ─────────────────────────────────────────────────────────
+# IDs de roles
+# ─────────────────────────────────────────────────────────
+ROL_SUPER_ADMIN = 1   # Administrador del sitio (desarrollador / control total)
+ROL_PROPIETARIO = 2   # Dueño del negocio / cliente del software
+ROL_CLIENTE     = 3   # Cliente final (comprador en la tienda)
+ROL_EMPLEADO    = 4   # Empleado del negocio (ventas, productos, CRM)
+ROL_CONTADOR    = 5   # Contador (solo módulos contabilidad y facturación)
+
+# ─────────────────────────────────────────────────────────
+# Grupos de permisos reutilizables
+# ─────────────────────────────────────────────────────────
+ADMIN_FULL     = [ROL_SUPER_ADMIN, ROL_PROPIETARIO]
+# Super Admin + Propietario: gestión de usuarios, configuración global
+
+ADMIN_STAFF    = [ROL_SUPER_ADMIN, ROL_PROPIETARIO, ROL_EMPLEADO]
+# + Empleado: productos, pedidos, POS, cotizaciones, CRM, soporte
+
+ADMIN_CONTADOR = [ROL_SUPER_ADMIN, ROL_PROPIETARIO, ROL_CONTADOR]
+# + Contador: contabilidad, facturación, historial POS
+
+ROLES_CLIENTE  = [ROL_CLIENTE]
+# Solo cliente final: portal de compras y soporte al cliente
 
 
 # --- Control de acceso por rol ---
@@ -21,16 +46,20 @@ from database import get_db_connection
 def rol_requerido(rol_id):
     """Decorador que restringe el acceso a una vista segun el rol del usuario.
 
-    Verifica que exista ``rol_id`` en la sesion Flask y que coincida
-    con el valor esperado. Si no, redirige al login con mensaje de error.
+    Acepta un ID numerico o una lista de IDs permitidos.
 
     Args:
-        rol_id: ID numerico del rol permitido (1=Admin, 2=Staff, 3=Cliente).
+        rol_id: ID numerico del rol permitido, o lista de IDs permitidos.
+                Ejemplos: rol_requerido(1), rol_requerido(ADMIN_STAFF)
     """
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            if 'rol_id' not in session or session['rol_id'] != rol_id:
+            if 'rol_id' not in session:
+                flash('No tienes permiso para acceder a esta página.', 'error')
+                return redirect(url_for('auth.login'))
+            permitidos = rol_id if isinstance(rol_id, list) else [rol_id]
+            if session['rol_id'] not in permitidos:
                 flash('No tienes permiso para acceder a esta página.', 'error')
                 return redirect(url_for('auth.login'))
             return f(*args, **kwargs)
@@ -56,12 +85,9 @@ def autenticar_usuario(email, password):
         es exitosa, o ``None`` si falla.
     """
     try:
-        conn = get_db_connection()
-        cur = conn.cursor(cursor_factory=DictCursor)
-        cur.execute('SELECT * FROM usuarios WHERE email = %s', (email,))
-        usuario = cur.fetchone()
-        cur.close()
-        conn.close()
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute('SELECT * FROM usuarios WHERE email = %s', (email,))
+            usuario = cur.fetchone()
         if usuario and check_password_hash(usuario['contraseña'], password):
             if usuario['estado'] != 'habilitado':
                 flash('Tu cuenta está inhabilitada.', 'error')
@@ -73,7 +99,8 @@ def autenticar_usuario(email, password):
             flash('Correo o contraseña incorrectos.', 'error')
             return None
     except Exception as e:
-        print(f"Error al autenticar usuario: {e}")
+        from flask import current_app
+        current_app.logger.error(f"Error al autenticar usuario: {e}")
         return None
 
 
@@ -84,19 +111,28 @@ def actualizar_ultima_conexion(user_id):
         user_id: ID del usuario en la tabla ``usuarios``.
     """
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute('UPDATE usuarios SET ultima_conexion = CURRENT_TIMESTAMP WHERE id = %s', (user_id,))
-        conn.commit()
-        cur.close()
-        conn.close()
+        with get_db_cursor() as cur:
+            cur.execute('UPDATE usuarios SET ultima_conexion = CURRENT_TIMESTAMP WHERE id = %s', (user_id,))
     except Exception as e:
-        print(f"Error al actualizar última conexión: {e}")
+        from flask import current_app
+        current_app.logger.error(f"Error al actualizar última conexión: {e}")
 
 
 # --- Rate limiting basico ---
 
 request_log = {}
+_MAX_IPS_TRACKED = 10000
+
+
+def _purgar_request_log():
+    """Elimina IPs expiradas para evitar crecimiento ilimitado del dict."""
+    if len(request_log) <= _MAX_IPS_TRACKED:
+        return
+    current_time = time.time()
+    ips_expiradas = [ip for ip, ts in request_log.items()
+                     if not ts or current_time - ts[-1] > 300]
+    for ip in ips_expiradas:
+        del request_log[ip]
 
 
 def controlar_tasa_solicitudes(ip, max_requests=10, interval=60):
@@ -104,6 +140,8 @@ def controlar_tasa_solicitudes(ip, max_requests=10, interval=60):
 
     Mantiene un registro en memoria de los timestamps de cada IP
     y rechaza solicitudes que excedan el limite en el intervalo.
+    Purga automaticamente IPs inactivas cuando el registro supera
+    el limite de _MAX_IPS_TRACKED.
 
     Args:
         ip: Direccion IP del cliente.
@@ -114,6 +152,7 @@ def controlar_tasa_solicitudes(ip, max_requests=10, interval=60):
         ``True`` si la solicitud esta permitida, ``False`` si excede el limite.
     """
     current_time = time.time()
+    _purgar_request_log()
 
     if ip not in request_log:
         request_log[ip] = []

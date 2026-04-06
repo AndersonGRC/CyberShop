@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block titulo%} {% endblock%}</title>
     {% block LinkAdicional%} {% endblock%}
 
@@ -80,7 +81,7 @@
                     {% endfor %}
                 </ul>
                 {% else %}
-                <h2>NO HAY DATOS DEL APP</h2>
+                <h2 hidden>Menú no disponible</h2>
                 {% endif %}
             </nav>
         </div>
@@ -149,6 +150,25 @@
     </script>
     {% endif %}
     {% endwith %}
+    {% block scripts %}{% endblock %}
+
+    <script>
+    /* Auto-inyectar CSRF token en todos los formularios POST */
+    (function() {
+        var token = document.querySelector('meta[name="csrf-token"]');
+        if (!token) return;
+        var csrfValue = token.getAttribute('content');
+        document.querySelectorAll('form[method="POST"], form[method="post"]').forEach(function(form) {
+            if (!form.querySelector('input[name="csrf_token"]')) {
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'csrf_token';
+                input.value = csrfValue;
+                form.prepend(input);
+            }
+        });
+    })();
+    </script>
 
 </body>
 

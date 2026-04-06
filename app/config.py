@@ -17,10 +17,16 @@ class Config:
     """Configuracion principal de la aplicacion Flask."""
 
     # --- General / Sesion ---
-    SECRET_KEY = os.getenv('FLASK_SECRET_KEY', 'una-clave-secreta-muy-segura-y-compleja')
-    SESSION_COOKIE_SECURE = False
+    # SECURITY M2: Sin fallback débil — falla explícitamente si no está configurado
+    SECRET_KEY = os.getenv('FLASK_SECRET_KEY')
+    if not SECRET_KEY:
+        raise RuntimeError("FLASK_SECRET_KEY no está configurada. Define esta variable de entorno.")
+    # SECURITY A5: Activar en producción (HTTPS). En desarrollo local (HTTP) dejar en false.
+    SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'false').lower() == 'true'
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
+    PERMANENT_SESSION_LIFETIME = 3600  # 1 hora
+    MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # 10 MB max upload
 
     # --- PayU Latam ---
     PAYU_API_KEY    = os.getenv('PAYU_API_KEY')
@@ -33,10 +39,13 @@ class Config:
     PAYU_CONFIRMATION_URL = os.getenv('PAYU_CONFIRMATION_URL', 'http://localhost:5001/confirmacion-pago')
     PAYU_TIMEOUT = 45
 
-    # --- Mail (Gmail SMTP) ---
-    MAIL_SERVER       = 'smtp.gmail.com'
-    MAIL_PORT         = 587
-    MAIL_DEBUG        = True
+    # --- reCAPTCHA ---
+    RECAPTCHA_SECRET_KEY = os.getenv('RECAPTCHA_SECRET_KEY')
+
+    # --- Mail (Gmail SMTP — respaldo cuando Gmail API no está autorizado) ---
+    MAIL_SERVER       = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+    MAIL_PORT         = int(os.getenv('MAIL_PORT', 587))
+    MAIL_DEBUG        = False
     MAIL_USE_TLS      = True
     MAIL_USERNAME     = os.getenv('MAIL_USERNAME')
     MAIL_PASSWORD     = os.getenv('MAIL_PASSWORD')
@@ -72,6 +81,16 @@ class Config:
         'openid', 'email'
     ]
 
+    # --- Gmail API OAuth 2.0 (envío de notificaciones) ---
+    GOOGLE_GMAIL_SCOPES       = [
+        'https://www.googleapis.com/auth/gmail.send',
+        'openid', 'email'
+    ]
+    GOOGLE_GMAIL_REDIRECT_URI = os.getenv(
+        'GOOGLE_GMAIL_REDIRECT_URI',
+        'http://localhost:5001/admin/google/gmail/callback'
+    )
+
     # --- Google Login OAuth 2.0 ---
     GOOGLE_LOGIN_REDIRECT_URI = os.getenv('GOOGLE_LOGIN_REDIRECT_URI', 'http://localhost:5001/google/login/callback')
     GOOGLE_LOGIN_SCOPES       = ['openid', 'email', 'profile']
@@ -98,7 +117,5 @@ def verificar_configuracion_payu(app):
             raise ValueError(f"Configuracion faltante: {key}")
 
     if app.config['PAYU_ENV'] == 'sandbox':
-        app.logger.info("Modo Sandbox activado:")
-        app.logger.info(f"API Login: {app.config['PAYU_API_LOGIN']}")
-        app.logger.info(f"Merchant ID: {app.config['PAYU_MERCHANT_ID']}")
-        app.logger.info(f"Endpoint: {app.config['PAYU_URL']}")
+        # SECURITY M3: No registrar credenciales en logs
+        app.logger.info("Modo Sandbox activado.")

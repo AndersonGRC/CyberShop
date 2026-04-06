@@ -168,8 +168,9 @@ CREATE TABLE IF NOT EXISTS google_calendar_watches (
 );
 
 -- IDs de evento en Google y lista de invitados
-ALTER TABLE crm_tareas      ADD COLUMN IF NOT EXISTS google_event_id   TEXT;
-ALTER TABLE crm_tareas      ADD COLUMN IF NOT EXISTS invitados_emails   TEXT;
+ALTER TABLE crm_tareas      ADD COLUMN IF NOT EXISTS google_event_id       TEXT;
+ALTER TABLE crm_tareas      ADD COLUMN IF NOT EXISTS invitados_emails      TEXT;
+ALTER TABLE crm_tareas      ADD COLUMN IF NOT EXISTS recordatorio_diario   BOOLEAN DEFAULT FALSE;
 
 -- =============================================================
 -- MIGRACIÓN: Login con Google OAuth 2.0
@@ -192,6 +193,32 @@ CREATE TABLE IF NOT EXISTS cliente_config (
     orden       INTEGER DEFAULT 0
 );
 
+-- =============================================================
+-- MIGRACIÓN: Nuevos roles del sistema
+-- =============================================================
+
+-- Renombrar el rol existente 1 a Super Admin
+UPDATE roles SET nombre = 'Super Admin' WHERE id = 1;
+
+-- Renombrar el rol existente 2 (Staff) a Propietario
+UPDATE roles SET nombre = 'Propietario' WHERE id = 2;
+
+-- El rol 3 (Cliente) se mantiene igual
+
+-- Agregar roles nuevos si no existen
+INSERT INTO roles (id, nombre) VALUES (4, 'Empleado')
+    ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre;
+
+INSERT INTO roles (id, nombre) VALUES (5, 'Contador')
+    ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre;
+
+-- =============================================================
+-- MIGRACIÓN: Estado de cotizaciones y vinculación con contabilidad
+-- =============================================================
+
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS estado VARCHAR(20) DEFAULT 'pendiente';
+-- estado: 'pendiente' | 'aprobada' | 'rechazada'
+
 INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden) VALUES
 ('empresa_nombre',        'CyberShop',                          'text',  'empresa',  'Nombre de la empresa',              1),
 ('empresa_email',         'cybershop.digitalsales@gmail.com',   'email', 'empresa',  'Email de contacto',                 2),
@@ -205,3 +232,125 @@ INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden) VALUE
 ON CONFLICT (clave) DO NOTHING;
 ALTER TABLE crm_actividades ADD COLUMN IF NOT EXISTS google_event_id   TEXT;
 ALTER TABLE crm_actividades ADD COLUMN IF NOT EXISTS invitados_emails   TEXT;
+-- =============================================================
+-- MIGRACIÓN: Calificaciones y comentarios de productos
+-- =============================================================
+
+CREATE TABLE IF NOT EXISTS producto_comentarios (
+    id             SERIAL PRIMARY KEY,
+    producto_id    INTEGER NOT NULL REFERENCES productos(id) ON DELETE CASCADE,
+    usuario_id     INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+    autor_nombre   VARCHAR(100) NOT NULL,
+    calificacion   SMALLINT NOT NULL CHECK (calificacion BETWEEN 1 AND 5),
+    comentario     TEXT NOT NULL,
+    aprobado       BOOLEAN DEFAULT FALSE,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_pc_producto_aprobado
+    ON producto_comentarios (producto_id, aprobado);
+
+-- =============================================================
+-- ÍNDICES DE RENDIMIENTO (consultas frecuentes)
+-- =============================================================
+CREATE INDEX IF NOT EXISTS idx_usuarios_email
+    ON usuarios (email);
+
+CREATE INDEX IF NOT EXISTS idx_config_secciones_clave
+    ON config_secciones (clave);
+
+CREATE INDEX IF NOT EXISTS idx_cliente_config_clave
+    ON cliente_config (clave);
+
+CREATE INDEX IF NOT EXISTS idx_pc_usuario
+    ON producto_comentarios (usuario_id);
+
+CREATE INDEX IF NOT EXISTS idx_detalle_cotizacion_cot_id
+    ON detalle_cotizacion (cotizacion_id);
+
+CREATE INDEX IF NOT EXISTS idx_detalle_pedidos_pedido_id
+    ON detalle_pedidos (pedido_id);
+
+-- =============================================================
+-- MIGRACIÓN: Facturación Electrónica DIAN
+-- =============================================================
+
+ALTER TABLE pedidos    ADD COLUMN IF NOT EXISTS factura_dian_id UUID;
+ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS factura_dian_id UUID;
+
+INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
+SELECT 'facturacion_electronica', 'false', 'boolean', 'modulos', 'Módulo de Facturación Electrónica DIAN', 10
+WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'facturacion_electronica');
+
+-- =============================================================
+-- MIGRACIÓN: Notas de Crédito POS
+-- =============================================================
+
+CREATE TABLE IF NOT EXISTS notas_credito_pos (
+    id              SERIAL PRIMARY KEY,
+    numero_nota     VARCHAR(30) NOT NULL UNIQUE,
+    venta_id        INTEGER NOT NULL REFERENCES ventas_pos(id),
+    motivo          TEXT NOT NULL,
+    total           NUMERIC NOT NULL,
+    usuario_id      INTEGER REFERENCES usuarios(id),
+    fecha           TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_nc_pos_venta_id ON notas_credito_pos(venta_id);
+
+ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS estado VARCHAR(20) DEFAULT 'activa';
+ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS nota_credito_id INTEGER;
+
+-- =============================================================
+-- MIGRACIÓN: Módulo de Videollamadas
+-- =============================================================
+
+CREATE TABLE IF NOT EXISTS salas_video (
+    id                SERIAL PRIMARY KEY,
+    codigo_sala       VARCHAR(64)  NOT NULL UNIQUE,
+    nombre            VARCHAR(200) NOT NULL,
+    descripcion       TEXT,
+    creado_por        INTEGER,
+    estado            VARCHAR(20)  NOT NULL DEFAULT 'programada',
+    fecha_inicio      TIMESTAMP,
+    fecha_fin         TIMESTAMP,
+    duracion_real     INTEGER,
+    max_participantes INTEGER      DEFAULT 10,
+    password_sala     VARCHAR(100),
+    ticket_id         INTEGER,
+    contacto_crm_id   INTEGER,
+    created_at        TIMESTAMP    DEFAULT NOW(),
+    updated_at        TIMESTAMP    DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS sala_video_participantes (
+    id            SERIAL PRIMARY KEY,
+    sala_id       INTEGER      NOT NULL REFERENCES salas_video(id) ON DELETE CASCADE,
+    usuario_id    INTEGER,
+    email         VARCHAR(200),
+    nombre        VARCHAR(200),
+    token_acceso  VARCHAR(128) NOT NULL UNIQUE,
+    rol_sala      VARCHAR(20)  DEFAULT 'participante',
+    invitado      BOOLEAN      DEFAULT FALSE,
+    email_enviado BOOLEAN      DEFAULT FALSE,
+    se_unio       BOOLEAN      DEFAULT FALSE,
+    fecha_union   TIMESTAMP,
+    created_at    TIMESTAMP    DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_salas_video_codigo     ON salas_video (codigo_sala);
+CREATE INDEX IF NOT EXISTS idx_salas_video_estado      ON salas_video (estado);
+CREATE INDEX IF NOT EXISTS idx_salas_video_creado_por  ON salas_video (creado_por);
+CREATE INDEX IF NOT EXISTS idx_sala_part_token         ON sala_video_participantes (token_acceso);
+CREATE INDEX IF NOT EXISTS idx_sala_part_sala          ON sala_video_participantes (sala_id);
+
+INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
+SELECT 'video_habilitado', 'true', 'boolean', 'modulos', 'Módulo de videollamadas', 15
+WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'video_habilitado');
+
+INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
+SELECT 'video_jitsi_domain', 'meet.jit.si', 'text', 'video', 'Dominio del servidor Jitsi', 1
+WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'video_jitsi_domain');
+
+INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
+SELECT 'video_max_participantes', '10', 'number', 'video', 'Máximo de participantes por sala', 2
+WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'video_max_participantes');

@@ -5,6 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block titulo%} {% endblock%}</title>
+    <meta name="description" content="{% block meta_description %}Tienda en línea — productos y servicios tecnológicos{% endblock %}">
+    <meta property="og:title" content="{% block og_title %}{{ datosApp.titulo if datosApp else 'CyberShop' }}{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Productos y servicios tecnológicos{% endblock %}">
+    <meta property="og:type" content="website">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="shortcut icon" href="{{ url_for('static', filename='img/Logo.PNG') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css">
@@ -15,93 +20,6 @@
     <script type="text/javascript" src="{{ url_for('static', filename='js/layout.js') }}" defer></script>
 
     {% block LinkAdicional%} {% endblock%}
-    <style>
-    /* ── Chip de usuario en nav ─────────────────────── */
-    .user-nav-chip-wrap {
-        position: relative;
-        display: inline-block;
-    }
-    .user-nav-chip {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        background: rgba(255,255,255,0.12);
-        border: 1px solid rgba(255,255,255,0.25);
-        border-radius: 20px;
-        color: #fff;
-        padding: 6px 14px;
-        font-size: 0.88em;
-        font-weight: 600;
-        cursor: pointer;
-        margin: 12px 8px;
-        transition: background 0.2s;
-        white-space: nowrap;
-    }
-    .user-nav-chip:hover {
-        background: rgba(255,255,255,0.22);
-    }
-    .user-nav-chip i.fa-user-circle { font-size: 1.1em; }
-
-    /* Dropdown */
-    .user-nav-dropdown {
-        display: none;
-        position: absolute;
-        right: 0;
-        top: calc(100% + 4px);
-        background: #fff;
-        border-radius: 10px;
-        box-shadow: 0 8px 28px rgba(0,0,0,0.18);
-        min-width: 210px;
-        z-index: 9999;
-        overflow: hidden;
-    }
-    .user-nav-dropdown.open { display: block; }
-    .user-nav-header {
-        padding: 14px 16px 10px;
-        background: #f8f9fa;
-        border-bottom: 1px solid #eee;
-    }
-    .user-nav-dropdown a {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 10px 16px;
-        font-size: 0.88em;
-        color: #333 !important;
-        text-decoration: none;
-        transition: background 0.15s;
-    }
-    .user-nav-dropdown a:hover { background: #f0f4ff; }
-    .user-nav-dropdown a i { width: 16px; color: var(--color-primario); }
-    .user-nav-divider { height: 1px; background: #eee; margin: 4px 0; }
-
-    /* ── Mini-barra de sesión activa ────────────────── */
-    .session-bar {
-        background: var(--color-primario, #122C94);
-        color: rgba(255,255,255,0.92);
-        font-size: 0.78em;
-        padding: 5px 18px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 6px;
-        position: relative;
-        z-index: 100;
-    }
-    .session-bar a {
-        color: rgba(255,255,255,0.85);
-        text-decoration: none;
-        margin-left: 14px;
-        font-weight: 600;
-        transition: color 0.2s;
-    }
-    .session-bar a:hover { color: #fff; }
-    @media (max-width: 600px) {
-        .user-nav-chip span { display: none; }
-        .user-nav-chip { padding: 6px 10px; }
-    }
-    </style>
 
     {% if brand_config %}
     <style>
@@ -149,8 +67,8 @@
                     {% if config_global.get('mostrar_modulo_ventas', true) %}
                     <li>
                         <a href="{{ url_for('public.ver_carrito') }}" id="menu-carrito-icon"
-                            style="position: relative; padding-right: 15px;">
-                            <i class="fas fa-shopping-cart" style="font-size: 1.2rem;"></i>
+                            class="menu-carrito-link">
+                            <i class="fas fa-shopping-cart menu-carrito-icono"></i>
                             <span id="badge-carrito" class="cart-badge">0</span>
                         </a>
                     </li>
@@ -162,12 +80,12 @@
                         <button class="user-nav-chip" onclick="toggleUserDropdown(event)" type="button">
                             <i class="fas fa-user-circle"></i>
                             <span>{{ session_usuario.nombre.split()[0] if session_usuario.nombre else 'Mi cuenta' }}</span>
-                            <i class="fas fa-chevron-down" style="font-size:0.65em; margin-left:3px;"></i>
+                            <i class="fas fa-chevron-down dropdown-arrow-icon"></i>
                         </button>
                         <div class="user-nav-dropdown" id="user-nav-dropdown">
                             <div class="user-nav-header">
-                                <div style="font-weight:600; font-size:0.9em;">{{ session_usuario.nombre }}</div>
-                                <div style="color:#aaa; font-size:0.78em; margin-top:2px;">{{ session_usuario.email }}</div>
+                                <div class="user-nav-header-nombre">{{ session_usuario.nombre }}</div>
+                                <div class="user-nav-email">{{ session_usuario.email }}</div>
                             </div>
                             {% if session_usuario.rol_id == 3 %}
                             <a href="{{ url_for('auth.dashboard_cliente') }}"><i class="fas fa-tachometer-alt"></i> Mi Cuenta</a>
@@ -177,7 +95,7 @@
                             <a href="{{ url_for('admin.dashboard_admin') }}"><i class="fas fa-tools"></i> Panel Admin</a>
                             {% endif %}
                             <div class="user-nav-divider"></div>
-                            <a href="{{ url_for('auth.logout') }}" style="color:#dc3545 !important;">
+                            <a href="{{ url_for('auth.logout') }}" class="user-nav-logout">
                                 <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
                             </a>
                         </div>
@@ -185,7 +103,7 @@
                     {% endif %}
                 </ul>
                 {% else %}
-                <h2>NO HAY DATOS DEL APP</h2>
+                <h2 hidden>Menú no disponible</h2>
                 {% endif %}
             </nav>
             <div id="google_translate_container">
@@ -199,7 +117,7 @@
                     <option value="pt">🇧🇷 Português</option>
                 </select>
             </div>
-            <div id="google_translate_element" style="display:none;"></div>
+            <div id="google_translate_element" hidden></div>
         </div>
     </div>
     <i class="fas fa-ellipsis-v btn-menu"></i>
@@ -341,6 +259,24 @@
 
 {% block script%}
 {% endblock %}
+
+<script>
+/* Auto-inyectar CSRF token en todos los formularios POST */
+(function() {
+    var token = document.querySelector('meta[name="csrf-token"]');
+    if (!token) return;
+    var csrfValue = token.getAttribute('content');
+    document.querySelectorAll('form[method="POST"], form[method="post"]').forEach(function(form) {
+        if (!form.querySelector('input[name="csrf_token"]')) {
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'csrf_token';
+            input.value = csrfValue;
+            form.prepend(input);
+        }
+    });
+})();
+</script>
 
 <script>
 function toggleUserDropdown(e) {
