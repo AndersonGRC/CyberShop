@@ -36,11 +36,11 @@ Parametrizable vía tabla cliente_config (grupo='soporte'):
 
 from flask import (Blueprint, render_template, request, redirect,
                    url_for, session, flash, current_app as app)
-from flask_mail import Message
+from helpers_gmail import enviar_email_gmail
 
 from database import get_db_cursor
 from helpers import get_data_app, get_data_cliente
-from security import rol_requerido
+from security import rol_requerido, ADMIN_STAFF
 
 soporte_bp = Blueprint('soporte', __name__)
 
@@ -83,18 +83,8 @@ def _email_destino(cfg):
 
 
 def _enviar_email(destinatario, asunto, cuerpo):
-    try:
-        from app import mail
-        msg = Message(
-            subject=asunto,
-            sender=app.config['MAIL_USERNAME'],
-            recipients=[destinatario],
-            body=cuerpo
-        )
-        with mail.connect() as conn:
-            conn.send(msg)
-    except Exception as e:
-        app.logger.warning(f"Email soporte no enviado: {e}")
+    if not enviar_email_gmail(destinatario, asunto, cuerpo):
+        app.logger.warning(f"Email soporte no enviado a {destinatario}")
 
 
 def _auto_cerrar(cfg):
@@ -385,7 +375,7 @@ def cliente_cerrar_ticket(ticket_id):
 # ──────────────────────────────────────────────
 
 @soporte_bp.route('/admin/soporte')
-@rol_requerido(1)
+@rol_requerido(ADMIN_STAFF)
 def admin_tickets():
     datosApp     = get_data_app()
     estado_filtro = request.args.get('estado', 'todos')
@@ -429,7 +419,7 @@ def admin_tickets():
 
 
 @soporte_bp.route('/admin/soporte/<int:ticket_id>')
-@rol_requerido(1)
+@rol_requerido(ADMIN_STAFF)
 def admin_ver_ticket(ticket_id):
     datosApp   = get_data_app()
     ticket     = None
@@ -466,7 +456,7 @@ def admin_ver_ticket(ticket_id):
 
 
 @soporte_bp.route('/admin/soporte/<int:ticket_id>/responder', methods=['POST'])
-@rol_requerido(1)
+@rol_requerido(ADMIN_STAFF)
 def admin_responder_ticket(ticket_id):
     usuario_id = session['usuario_id']
     mensaje    = request.form.get('mensaje', '').strip()
@@ -518,7 +508,7 @@ def admin_responder_ticket(ticket_id):
 
 
 @soporte_bp.route('/admin/soporte/<int:ticket_id>/cerrar', methods=['POST'])
-@rol_requerido(1)
+@rol_requerido(ADMIN_STAFF)
 def admin_cerrar_ticket(ticket_id):
     try:
         with get_db_cursor() as cur:
@@ -533,7 +523,7 @@ def admin_cerrar_ticket(ticket_id):
 
 
 @soporte_bp.route('/admin/soporte/<int:ticket_id>/reabrir', methods=['POST'])
-@rol_requerido(1)
+@rol_requerido(ADMIN_STAFF)
 def admin_reabrir_ticket(ticket_id):
     """Reabre un ticket cerrado para continuar la conversación."""
     try:
@@ -553,7 +543,7 @@ def admin_reabrir_ticket(ticket_id):
 # ──────────────────────────────────────────────
 
 @soporte_bp.route('/admin/soporte/configuracion', methods=['GET', 'POST'])
-@rol_requerido(1)
+@rol_requerido(ADMIN_STAFF)
 def admin_soporte_config():
     """Página de configuración parametrizable del módulo de soporte."""
     datosApp = get_data_app()

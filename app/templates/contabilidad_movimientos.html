@@ -390,6 +390,17 @@
                                 <i class="fas fa-trash-alt"></i>
                             </button>
                         </form>
+                        {% elif session.get('rol_id') == 1 %}
+                        <form action="{{ url_for('contabilidad.eliminar_movimiento', mov_id=m.id) }}" method="POST"
+                              style="display:inline;" onclick="event.stopPropagation()">
+                            <button type="submit"
+                                    onclick="return confirm('⚠️ Este es un movimiento AUTO-GENERADO.\n¿Está seguro de que desea eliminarlo?\nEsta acción no se puede deshacer.')"
+                                    style="background:none; border:none; color:#e67e22; cursor:pointer; font-size:0.9em;"
+                                    title="Eliminar movimiento auto-generado (Super Admin)">
+                                <i class="fas fa-trash-alt"></i>
+                                <i class="fas fa-bolt" style="font-size:0.6em; vertical-align:super; color:#e67e22;"></i>
+                            </button>
+                        </form>
                         {% else %}
                         <span title="Auto-generado, no eliminable" style="color:#ddd; font-size:0.9em;">
                             <i class="fas fa-lock"></i>

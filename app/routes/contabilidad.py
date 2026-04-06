@@ -30,7 +30,7 @@ from flask import (Blueprint, render_template, request, redirect,
 
 from database import get_db_cursor
 from helpers import get_data_app
-from security import rol_requerido
+from security import rol_requerido, ADMIN_CONTADOR, ROL_SUPER_ADMIN
 
 contabilidad_bp = Blueprint('contabilidad', __name__)
 
@@ -83,6 +83,7 @@ CATEGORIAS_EGRESO = [
     ('marketing',   'Marketing / publicidad'),
     ('impuestos',   'Impuestos / obligaciones'),
     ('prestamos',   'Préstamos / cuotas'),
+    ('anulacion_pos', 'Anulación venta POS'),
     ('otro_egreso', 'Otro egreso'),
 ]
 ALL_CATEGORIAS = dict(CATEGORIAS_INGRESO + CATEGORIAS_EGRESO)
@@ -135,7 +136,7 @@ def _mes_fin(d):
 # ─────────────────────────────────────────────────────────
 
 @contabilidad_bp.route('/admin/contabilidad')
-@rol_requerido(1)
+@rol_requerido(ADMIN_CONTADOR)
 def dashboard():
     datosApp = get_data_app()
     periodo  = request.args.get('periodo', 'mes')
@@ -284,7 +285,7 @@ def dashboard():
 # ─────────────────────────────────────────────────────────
 
 @contabilidad_bp.route('/admin/contabilidad/movimientos')
-@rol_requerido(1)
+@rol_requerido(ADMIN_CONTADOR)
 def movimientos():
     datosApp   = get_data_app()
     tipo_f     = request.args.get('tipo', 'todos')
@@ -360,7 +361,7 @@ def movimientos():
 
 
 @contabilidad_bp.route('/admin/contabilidad/movimientos/nuevo', methods=['POST'])
-@rol_requerido(1)
+@rol_requerido(ADMIN_CONTADOR)
 def nuevo_movimiento():
     tipo        = request.form.get('tipo', '').strip()
     categoria   = request.form.get('categoria', '').strip()
@@ -422,7 +423,7 @@ def nuevo_movimiento():
 
 
 @contabilidad_bp.route('/admin/contabilidad/movimientos/<int:mov_id>/eliminar', methods=['POST'])
-@rol_requerido(1)
+@rol_requerido(ADMIN_CONTADOR)
 def eliminar_movimiento(mov_id):
     try:
         with get_db_cursor(dict_cursor=True) as cur:
@@ -431,7 +432,11 @@ def eliminar_movimiento(mov_id):
             if not row:
                 flash('Movimiento no encontrado.', 'warning')
             elif row['auto_generado']:
-                flash('Los movimientos automáticos (PayU/POS/Cuentas) no se pueden eliminar.', 'warning')
+                if session.get('rol_id') == ROL_SUPER_ADMIN:
+                    cur.execute("DELETE FROM contabilidad_movimientos WHERE id=%s", (mov_id,))
+                    flash('Movimiento auto-generado eliminado por Super Admin.', 'success')
+                else:
+                    flash('Los movimientos automáticos (PayU/POS/Cuentas) no se pueden eliminar.', 'warning')
             else:
                 cur.execute("DELETE FROM contabilidad_movimientos WHERE id=%s", (mov_id,))
                 flash('Movimiento eliminado.', 'success')
@@ -446,7 +451,7 @@ def eliminar_movimiento(mov_id):
 # ─────────────────────────────────────────────────────────
 
 @contabilidad_bp.route('/admin/contabilidad/exportar')
-@rol_requerido(1)
+@rol_requerido(ADMIN_CONTADOR)
 def exportar_movimientos():
     tipo_f   = request.args.get('tipo', 'todos')
     cat_f    = request.args.get('categoria', '')
@@ -538,7 +543,7 @@ def exportar_movimientos():
 # ─────────────────────────────────────────────────────────
 
 @contabilidad_bp.route('/admin/contabilidad/plantillas', methods=['GET', 'POST'])
-@rol_requerido(1)
+@rol_requerido(ADMIN_CONTADOR)
 def plantillas():
     datosApp = get_data_app()
 
@@ -594,7 +599,7 @@ def plantillas():
 
 
 @contabilidad_bp.route('/admin/contabilidad/plantillas/<int:p_id>/eliminar', methods=['POST'])
-@rol_requerido(1)
+@rol_requerido(ADMIN_CONTADOR)
 def eliminar_plantilla(p_id):
     try:
         with get_db_cursor() as cur:
@@ -607,7 +612,7 @@ def eliminar_plantilla(p_id):
 
 
 @contabilidad_bp.route('/admin/contabilidad/plantillas/<int:p_id>/toggle', methods=['POST'])
-@rol_requerido(1)
+@rol_requerido(ADMIN_CONTADOR)
 def toggle_plantilla(p_id):
     try:
         with get_db_cursor(dict_cursor=True) as cur:
@@ -625,7 +630,7 @@ def toggle_plantilla(p_id):
 
 
 @contabilidad_bp.route('/admin/contabilidad/plantillas/generar', methods=['POST'])
-@rol_requerido(1)
+@rol_requerido(ADMIN_CONTADOR)
 def generar_desde_plantillas():
     """Genera movimientos del mes actual desde plantillas activas. Evita duplicados."""
     hoy     = date.today()
@@ -692,7 +697,7 @@ def generar_desde_plantillas():
 # ─────────────────────────────────────────────────────────
 
 @contabilidad_bp.route('/admin/contabilidad/cierres')
-@rol_requerido(1)
+@rol_requerido(ADMIN_CONTADOR)
 def cierres():
     datosApp = get_data_app()
     lista = []
@@ -711,7 +716,7 @@ def cierres():
 
 
 @contabilidad_bp.route('/admin/contabilidad/cierres/nuevo', methods=['POST'])
-@rol_requerido(1)
+@rol_requerido(ADMIN_CONTADOR)
 def nuevo_cierre():
     nombre     = request.form.get('nombre', '').strip()
     fecha_ini  = request.form.get('fecha_inicio', '')
@@ -763,7 +768,7 @@ def nuevo_cierre():
 
 
 @contabilidad_bp.route('/admin/contabilidad/cierres/<int:cierre_id>/eliminar', methods=['POST'])
-@rol_requerido(1)
+@rol_requerido(ADMIN_CONTADOR)
 def eliminar_cierre(cierre_id):
     try:
         with get_db_cursor() as cur:
