@@ -401,6 +401,57 @@
         box-shadow: var(--marca-focus-ring, 0 0 0 3px rgba(18, 44, 148, 0.10));
     }
 
+    /* ── Secciones del sitio (toggle switches) ── */
+    .config-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 15px 20px;
+        border: 1px solid var(--color-gris-borde, #eee);
+        border-radius: 8px;
+        margin-bottom: 12px;
+        background: var(--color-fondo-form, #fafafa);
+        transition: background 0.2s;
+    }
+    .config-item:hover { background: #f0f0f0; }
+    .config-info { flex: 1; }
+    .config-info .config-label {
+        font-weight: 600;
+        color: var(--color-texto, #333);
+        font-size: 1rem;
+        display: block;
+        margin-bottom: 3px;
+    }
+    .config-info .config-desc { color: #888; font-size: 0.85rem; }
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 52px;
+        height: 28px;
+        flex-shrink: 0;
+        margin-left: 15px;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider-toggle {
+        position: absolute;
+        cursor: pointer;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: #ccc;
+        transition: 0.3s;
+        border-radius: 28px;
+    }
+    .slider-toggle:before {
+        position: absolute;
+        content: "";
+        height: 22px; width: 22px;
+        left: 3px; bottom: 3px;
+        background-color: white;
+        transition: 0.3s;
+        border-radius: 50%;
+    }
+    input:checked + .slider-toggle { background-color: #28a745; }
+    input:checked + .slider-toggle:before { transform: translateX(24px); }
+
     /* ── Botón guardar ── */
     .btn-guardar-config {
         display: flex;
@@ -484,6 +535,7 @@
     </div>
 
     <form method="POST" enctype="multipart/form-data" action="{{ url_for('admin.configuracion_cliente') }}">
+        <input type="hidden" name="form_type" value="cliente">
 
         {# ── Empresa ── #}
         {% if grupos.empresa %}
@@ -1058,6 +1110,81 @@
             <i class="fas fa-save"></i> Guardar Configuración
         </button>
     </form>
+
+    {# ── Correo Gmail API ── #}
+    <div class="config-card" style="margin-top: 30px;">
+        <div class="config-card-header"><i class="fas fa-envelope"></i> Correo Gmail (API)</div>
+        <div class="config-card-body" style="padding: 24px;">
+            {% if gmail_activo %}
+            <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+                <span style="display:inline-flex; align-items:center; gap:8px; background:#d4edda; color:#155724; padding:8px 16px; border-radius:8px; font-size:0.95em;">
+                    <i class="fas fa-check-circle"></i>
+                    Gmail conectado como: <strong>{{ gmail_email }}</strong>
+                </span>
+                <form action="{{ url_for('google.gmail_desconectar') }}" method="POST" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" onclick="return confirm('¿Desconectar Gmail? Las notificaciones por correo dejarán de funcionar.')"
+                            style="background:#dc3545; color:#fff; border:none; padding:8px 18px; border-radius:8px; cursor:pointer; font-size:0.9em;">
+                        <i class="fas fa-unlink"></i> Desconectar
+                    </button>
+                </form>
+            </div>
+            <p style="margin-top:12px; color:#666; font-size:0.85em;">
+                <i class="fas fa-info-circle"></i>
+                Todas las notificaciones del sistema (contacto, soporte, CRM) se envían desde esta cuenta.
+            </p>
+            {% else %}
+            <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+                <span style="display:inline-flex; align-items:center; gap:8px; background:#fff3cd; color:#856404; padding:8px 16px; border-radius:8px; font-size:0.95em;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Gmail no autorizado — los correos del sistema no se enviarán.
+                </span>
+                <a href="{{ url_for('google.gmail_autorizar') }}"
+                   style="display:inline-flex; align-items:center; gap:8px; background:#28a745; color:#fff; padding:8px 18px; border-radius:8px; text-decoration:none; font-size:0.9em;">
+                    <i class="fab fa-google"></i> Autorizar Gmail
+                </a>
+            </div>
+            <p style="margin-top:12px; color:#666; font-size:0.85em;">
+                <i class="fas fa-info-circle"></i>
+                Conecta una cuenta de Gmail para habilitar el envío de notificaciones por correo (contacto, soporte, CRM).
+            </p>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if secciones %}
+    <div class="config-card" id="secciones" style="margin-top: 30px;">
+        <div class="config-card-header">
+            <i class="fas fa-sliders-h"></i> Secciones del Sitio
+        </div>
+        <div class="config-card-body">
+            <p style="color:var(--color-gris-texto, #666); margin-bottom:20px; font-size:0.9rem;">
+                Activa o desactiva las secciones visibles en la página principal.
+            </p>
+            <form method="POST" action="{{ url_for('admin.configuracion_cliente') }}">
+                <input type="hidden" name="form_type" value="secciones">
+                {% for sec in secciones %}
+                <div class="config-item">
+                    <div class="config-info">
+                        <span class="config-label">{{ sec.clave | replace('_', ' ') | title }}</span>
+                        <span class="config-desc">{{ sec.descripcion or '' }}</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="{{ sec.clave }}" value="true"
+                               {% if sec.valor == 'true' %}checked{% endif %}>
+                        <span class="slider-toggle"></span>
+                    </label>
+                </div>
+                {% endfor %}
+                <div style="text-align:right; margin-top:20px;">
+                    <button type="submit" class="btn-guardar-config" style="max-width:220px; margin:0 0 0 auto;">
+                        <i class="fas fa-save"></i> Guardar Secciones
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <script>

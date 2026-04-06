@@ -149,6 +149,169 @@ BRAND_COLORS = {
 - Logica de calculo: editar `routes/quotes.py::generar_cotizacion()`
 - Formato de moneda: editar `helpers.py::formatear_moneda()`
 
+## Documentación CSS
+
+### Mapa de archivos CSS
+
+Cada página o módulo tiene su propio CSS. Todos importan `variables.css` como primera línea.
+
+| Archivo CSS | Página / Módulo |
+|---|---|
+| `variables.css` | Sistema de variables global — **único lugar para cambiar colores** |
+| `ProductoDetalle.css` | Página `/producto/<id>`: galería, info, reseñas |
+| `Productos.css` | Catálogo `/productos`: tarjetas, popup, carrito lateral |
+| `Menuapp.css` | Sidebar y header del panel admin |
+| `carrito.css` | Página `/carrito` |
+| *(otros)* | Un CSS por template adicional |
+
+### Regla de colores
+
+> **Ningún hex ni `rgba()` directo en archivos CSS de módulo.**
+> Todo color va en `variables.css`. Los módulos solo referencian variables.
+
+### variables.css — Grupos de variables
+
+#### COLORES DE MARCA *(los únicos que cambian por cliente)*
+
+```css
+--color-primario            Azul principal (botones, encabezados, links admin)
+--color-primario-oscuro     Azul oscuro (hover de botones, sidebar)
+--color-secundario          Azul muy oscuro (navbar, footer)
+--color-transicion          Azul medio (hover navbar, gradientes)
+--color-botones             Azul botones secundarios
+--color-hover-menu          Naranja (hover menú admin)
+--color-accent              Rojo acento (elementos destacados)
+--color-acento-secundario   Verde lima (iconos búsqueda, pago)
+--color-fondo-destacado     Gradiente secciones oscuras públicas
+--color-carrito             Encabezados tabla, título y botón flotante carrito
+--color-carrito-hover       Hover de botones carrito
+```
+
+#### Página de productos y reseñas
+
+```css
+--color-producto-boton      Precio y botón "Ver Detalles" en catálogo
+--color-producto-popup      Título popup, tag categoría, iconos en detalle
+--color-star-on             Estrella activa/seleccionada en rating  (#f5a623)
+--color-star-off            Estrella vacía  (alias de --color-gris-borde)
+--color-star-sombra         Sombra para badge de calificación
+```
+
+#### Botón carrito / compra
+
+```css
+--sombra-exito              Box-shadow normal del botón "Añadir al carrito"
+--sombra-exito-hover        Box-shadow hover del botón "Añadir al carrito"
+```
+
+#### Tintes de peligro (eliminar ítem)
+
+```css
+--color-peligro-tinte       Fondo suave rojo del botón eliminar  (#ffebee)
+--color-peligro-tinte-hover Hover del botón eliminar             (#ffcdd2)
+```
+
+#### Sombras de marca (derivadas de --color-primario)
+
+```css
+--marca-focus-ring          Ring de foco en inputs y controles
+--marca-sombra-sutil        Sombra muy suave de marca
+--marca-sombra-card         Sombra hover de tarjetas
+--marca-sombra-boton        Sombra de botones primarios
+--marca-sombra-boton-hover  Sombra hover de botones primarios
+--marca-tinte-leve          Fondo tintado de marca (fondos de aviso, tags)
+--marca-tinte-medio         Borde tintado de marca (hover de cards)
+```
+
+### ProductoDetalle.css — Módulo detalle de producto
+
+**Clases principales:**
+
+| Clase | Descripción |
+|---|---|
+| `.detalle-wrapper` | Contenedor máximo (1140px centrado) |
+| `.detalle-grid` | Grid 2 col. (galería + info) |
+| `.detalle-galeria` | Columna izquierda sticky con imagen y miniaturas |
+| `.detalle-imagen-principal-wrap` | Contenedor cuadrado con zoom hover |
+| `.detalle-miniatura` | Miniatura del carrusel; `.activa` marca la seleccionada |
+| `.detalle-nav-btn` | Flechas prev/next del carrusel |
+| `.detalle-info` | Columna derecha con toda la info del producto |
+| `.detalle-categoria-tag` | Pill de categoría |
+| `.detalle-cantidad-ctrl` | Control +/- de cantidad con `focus-within` animado |
+| `.btn-detalle-carrito` | Botón principal de compra (verde, con sombra de marca) |
+| `.btn-detalle-volver` | Botón outline secundario |
+| `.detalle-relacionados` | Sección de productos relacionados |
+| `.detalle-rel-card` | Tarjeta de producto relacionado con zoom imagen en hover |
+
+**Módulo de reseñas (clases `.resenas-*` y `.resena-*`):**
+
+| Clase | Descripción |
+|---|---|
+| `.resenas-seccion` | Contenedor de toda la sección de reseñas (`#resenas`) |
+| `.resenas-resumen` | Card con promedio + barras de distribución |
+| `.resenas-num-grande` | Número de promedio (3.8rem) |
+| `.resenas-estrellas-grandes` | Fila de iconos de estrellas (usa `--color-star-on`) |
+| `.resenas-barra-fill` | Barra de progreso animada (`pd-barraCrecer`) con gradiente |
+| `.resenas-lista` | Contenedor de tarjetas de reseñas aprobadas |
+| `.resena-card` | Tarjeta individual con hover elevado |
+| `.resena-avatar` | Círculo con inicial del autor (gradiente de marca) |
+| `.resenas-form-wrap` | Card del formulario; cambia sombra con `focus-within` |
+| `.star-selector` | Contenedor del selector interactivo de estrellas |
+| `.star-btn` | Botón de estrella individual; `.activa` dispara `pd-starPop` |
+| `.resenas-form-btn` | Botón enviar reseña (color primario, sombra de marca) |
+| `.resenas-aviso` | Aviso de moderación (fondo `--marca-tinte-sutil`) |
+
+**Animaciones definidas en este archivo:**
+
+| Nombre | Efecto |
+|---|---|
+| `pd-fadeSlideUp` | Aparición suave desde abajo (entrada de secciones) |
+| `pd-barraCrecer` | Crecimiento de 0% hacia el ancho real (barras de rating) |
+| `pd-starPop` | Rebote de escala al seleccionar una estrella |
+| `pd-pulseRing` | Ring de pulso de marca (disponible para uso) |
+| `pd-shimmer` | Efecto shimmer de carga (disponible para skeleton loaders) |
+
+### Productos.css — Módulo catálogo y popup
+
+**Clases principales:**
+
+| Clase / ID | Descripción |
+|---|---|
+| `.producto` | Tarjeta de producto en el catálogo |
+| `.añadir-carrito` | Botón verde de la tarjeta (fondo `--color-exito`) |
+| `.ver-descripcion` | Botón pill "Ver Detalles" (fondo `--color-producto-boton`) |
+| `.popup` | Overlay fijo del modal de detalle rápido |
+| `.popup-contenido` | Card del modal (max 860px, animación `scaleUp`) |
+| `.popup-layout` | Grid 2 col. dentro del modal |
+| `.popup-galeria` | Galería de imágenes del modal |
+| `.popup-miniatura` | Miniatura del modal; `.activa` marca la seleccionada |
+| `.popup-btn-carrito` | Botón "Añadir al carrito" dentro del modal |
+| `.carrito-lateral` | Panel derecho del carrito en la vista de catálogo |
+| `#vaciar-carrito` | Botón vaciar carrito (rojo `--color-eliminar`) |
+| `#pagar-carrito` | Botón pagar carrito (verde `--color-exito`) |
+| `.item-controls` | Controles +/- de cantidad por ítem en el carrito |
+| `.item-controls .eliminar-item` | Botón eliminar ítem (fondo `--color-peligro-tinte`) |
+
+### Módulo de reseñas — Backend
+
+**Tabla BD:** `producto_comentarios`
+
+```sql
+id, producto_id, usuario_id, autor_nombre,
+calificacion (1-5), comentario, aprobado (bool), fecha_creacion
+```
+
+**Rutas públicas** (`routes/public.py`):
+- `GET  /producto/<id>`            → muestra detalle + reseñas aprobadas + stats
+- `POST /producto/<id>/comentar`   → guarda reseña (aprobado=false por defecto)
+
+**Rutas admin** (`routes/admin.py`):
+- `GET  /admin/resenas`                       → lista con filtro `?filtro=pendientes|aprobadas|todas`
+- `POST /admin/resenas/<id>/aprobar`           → aprueba una reseña
+- `POST /admin/resenas/<id>/rechazar`          → elimina una reseña
+
+**Menú admin:** Inventario → Reseñas (`admin.gestion_resenas`)
+
 ## Conventions
 
 - All user-facing text is in Spanish
