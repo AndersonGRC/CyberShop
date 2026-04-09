@@ -53,6 +53,17 @@ def registrar_cliente():
                        VALUES (%s, %s, %s, %s, %s, %s, %s, 'habilitado')''',
                     (nombre, email, hashed_password, 3, fecha_nacimiento, telefono, direccion)
                 )
+            # Email de bienvenida
+            try:
+                from helpers_email_templates import generar_email_bienvenida
+                from helpers_gmail import enviar_email_gmail
+                email_data = generar_email_bienvenida(nombre, email)
+                if email_data:
+                    asunto, texto, html = email_data
+                    enviar_email_gmail(email, asunto, texto, html=html)
+            except Exception as _be:
+                app.logger.warning(f"Email bienvenida: {_be}")
+
             flash('Cliente registrado correctamente. Por favor, inicie sesión.', 'success')
             return redirect(url_for('auth.login'))
         except Exception as e:

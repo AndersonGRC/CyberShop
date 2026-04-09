@@ -4,6 +4,7 @@
 
 {% block LinkAdicional %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/Productos.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/wishlist.css') }}">
 {% endblock %}
 
 {% block body %}
@@ -171,6 +172,10 @@
                 {% elif producto['stock'] < 5 %}
                 <span class="prod-badge bajo-stock">Últimas {{ producto['stock'] }}</span>
                 {% endif %}
+
+                <button class="wishlist-btn" data-wishlist-id="{{ producto['id'] }}" title="Agregar a favoritos">
+                    <i class="far fa-heart"></i>
+                </button>
 
                 <div class="prod-overlay">
                     <button class="prod-overlay-btn" data-open-popup>
@@ -440,4 +445,5 @@
     popupImg.style.transition = 'opacity 0.14s ease';
 })();
 </script>
+<script src="{{ url_for('static', filename='js/wishlist.js') }}"></script>
 {% endblock %}

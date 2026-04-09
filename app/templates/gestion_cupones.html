@@ -1,0 +1,114 @@
+{% extends './plantillaapp.html' %}
+{% block titulo %}Cupones de Descuento | {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/cupones.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="main-container">
+<div class="cupones-wrapper">
+
+    <div class="cupones-header">
+        <h1 class="page-title">
+            <i class="fas fa-ticket-alt"></i> Cupones de Descuento
+        </h1>
+        <a href="{{ url_for('cupones.crear_cupon') }}" class="btn-crear-cupon">
+            <i class="fas fa-plus-circle"></i> Nuevo Cupón
+        </a>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }}">{{ msg }}</div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <div class="cupones-filtros">
+        <a href="{{ url_for('cupones.gestion_cupones', filtro='todos') }}"
+           class="filtro-btn {% if filtro == 'todos' %}activo{% endif %}">
+            <i class="fas fa-list"></i> Todos
+        </a>
+        <a href="{{ url_for('cupones.gestion_cupones', filtro='activo') }}"
+           class="filtro-btn {% if filtro == 'activo' %}activo{% endif %}">
+            <i class="fas fa-check-circle"></i> Activos
+        </a>
+        <a href="{{ url_for('cupones.gestion_cupones', filtro='inactivo') }}"
+           class="filtro-btn {% if filtro == 'inactivo' %}activo{% endif %}">
+            <i class="fas fa-pause-circle"></i> Inactivos
+        </a>
+        <a href="{{ url_for('cupones.gestion_cupones', filtro='agotado') }}"
+           class="filtro-btn {% if filtro == 'agotado' %}activo{% endif %}">
+            <i class="fas fa-times-circle"></i> Agotados
+        </a>
+    </div>
+
+    {% if cupones %}
+    <div class="cupones-grid">
+        {% for c in cupones %}
+        <div class="cupon-card">
+            <div class="cupon-card-header">
+                <span class="cupon-codigo">{{ c.codigo }}</span>
+                <span class="cupon-badge cupon-badge-{{ c.estado }}">{{ c.estado }}</span>
+            </div>
+            <div class="cupon-card-body">
+                {% if c.descripcion %}
+                <p class="cupon-desc">{{ c.descripcion }}</p>
+                {% endif %}
+                <div class="cupon-valor">
+                    {% if c.tipo == 'porcentaje' %}
+                        <span class="cupon-valor-num">{{ c.valor|int }}%</span>
+                        <span class="cupon-valor-tipo">de descuento</span>
+                    {% else %}
+                        <span class="cupon-valor-num">${{ "{:,.0f}".format(c.valor) }}</span>
+                        <span class="cupon-valor-tipo">de descuento</span>
+                    {% endif %}
+                </div>
+                <div class="cupon-meta">
+                    {% if c.minimo_orden and c.minimo_orden > 0 %}
+                    <span><i class="fas fa-shopping-cart"></i> Mín: ${{ "{:,.0f}".format(c.minimo_orden) }}</span>
+                    {% endif %}
+                    {% if c.maximo_descuento %}
+                    <span><i class="fas fa-arrow-down"></i> Máx: ${{ "{:,.0f}".format(c.maximo_descuento) }}</span>
+                    {% endif %}
+                    <span><i class="fas fa-redo"></i> {{ c.usos_actual }}{% if c.limite_usos %}/{{ c.limite_usos }}{% endif %} usos</span>
+                </div>
+                {% if c.fecha_inicio or c.fecha_fin %}
+                <div class="cupon-fechas">
+                    {% if c.fecha_inicio %}
+                    <span><i class="fas fa-calendar-plus"></i> {{ c.fecha_inicio.strftime('%d/%m/%Y') }}</span>
+                    {% endif %}
+                    {% if c.fecha_fin %}
+                    <span><i class="fas fa-calendar-minus"></i> {{ c.fecha_fin.strftime('%d/%m/%Y') }}</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            <div class="cupon-card-actions">
+                <a href="{{ url_for('cupones.editar_cupon', id=c.id) }}" class="btn-cupon-editar">
+                    <i class="fas fa-edit"></i> Editar
+                </a>
+                <form action="{{ url_for('cupones.eliminar_cupon', id=c.id) }}" method="POST"
+                      onsubmit="return confirm('¿Eliminar cupón {{ c.codigo }}?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn-cupon-eliminar">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="cupones-vacio">
+        <i class="fas fa-ticket-alt"></i>
+        <p>No hay cupones {{ filtro if filtro != 'todos' else '' }}.</p>
+        <a href="{{ url_for('cupones.crear_cupon') }}" class="btn-crear-cupon">Crear primer cupón</a>
+    </div>
+    {% endif %}
+
+</div>
+</div>
+{% endblock %}

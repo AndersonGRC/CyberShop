@@ -1,0 +1,88 @@
+{% extends './plantillaindex.html' %}
+{% block titulo %}Mis Favoritos | {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/wishlist.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="wishlist-wrapper">
+
+    <div class="wishlist-header">
+        <h1 class="page-title">
+            <i class="fas fa-heart" style="color:#e60023;"></i> Mis Favoritos
+        </h1>
+        <span class="wishlist-count">{{ productos|length }} producto{{ 's' if productos|length != 1 else '' }}</span>
+    </div>
+
+    {% if productos %}
+    <div class="wishlist-grid">
+        {% for p in productos %}
+        <div class="wishlist-card" id="wishlist-card-{{ p.id }}">
+            <a href="{{ url_for('public.detalle_producto', id=p.id) }}">
+                <img src="{{ url_for('static', filename='media/' + (p.imagen_principal or p.imagen)) }}"
+                     alt="{{ p.nombre }}" class="wishlist-card-img"
+                     onerror="this.src='{{ url_for('static', filename='img/Logo.png') }}'">
+            </a>
+            <div class="wishlist-card-body">
+                <h3 class="wishlist-card-nombre" title="{{ p.nombre }}">{{ p.nombre }}</h3>
+                <p class="wishlist-card-precio">${{ "{:,.0f}".format(p.precio) }}</p>
+                {% if p.stock > 0 %}
+                <span class="wishlist-card-stock"><i class="fas fa-check-circle"></i> En stock ({{ p.stock }})</span>
+                {% else %}
+                <span class="wishlist-card-stock agotado"><i class="fas fa-times-circle"></i> Agotado</span>
+                {% endif %}
+            </div>
+            <div class="wishlist-card-actions">
+                {% if p.stock > 0 %}
+                <a href="{{ url_for('public.detalle_producto', id=p.id) }}" class="btn-wishlist-carrito">
+                    <i class="fas fa-shopping-cart"></i> Ver producto
+                </a>
+                {% else %}
+                <span class="btn-wishlist-carrito" style="opacity:0.5;pointer-events:none;">Agotado</span>
+                {% endif %}
+                <button class="btn-wishlist-quitar"
+                        data-wishlist-id="{{ p.id }}"
+                        onclick="quitarDeWishlist({{ p.id }})">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="wishlist-vacio">
+        <i class="fas fa-heart"></i>
+        <p>Aún no tienes productos en tu lista de deseos.</p>
+        <a href="{{ url_for('public.productos') }}" class="btn-ir-tienda">
+            <i class="fas fa-store"></i> Explorar tienda
+        </a>
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+function quitarDeWishlist(prodId) {
+    var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    var token = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+    fetch('/api/wishlist/toggle/' + prodId, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': token}
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.action === 'removed') {
+            var card = document.getElementById('wishlist-card-' + prodId);
+            if (card) {
+                card.style.transition = 'opacity 0.3s, transform 0.3s';
+                card.style.opacity = '0';
+                card.style.transform = 'scale(0.9)';
+                setTimeout(function() { card.remove(); }, 300);
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

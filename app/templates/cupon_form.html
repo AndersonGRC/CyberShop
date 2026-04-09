@@ -1,0 +1,121 @@
+{% extends './plantillaapp.html' %}
+{% block titulo %}{{ 'Crear' if modo == 'crear' else 'Editar' }} Cupón | {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/cupones.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="main-container">
+<div class="cupones-wrapper" style="max-width:640px;">
+
+    <div class="cupones-header">
+        <h1 class="page-title">
+            <i class="fas fa-{{ 'plus-circle' if modo == 'crear' else 'edit' }}"></i>
+            {{ 'Crear' if modo == 'crear' else 'Editar' }} Cupón
+        </h1>
+        <a href="{{ url_for('cupones.gestion_cupones') }}" class="btn-cupon-volver">
+            <i class="fas fa-arrow-left"></i> Volver
+        </a>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }}">{{ msg }}</div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <form method="POST" class="cupon-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="form-group">
+            <label for="codigo"><i class="fas fa-barcode"></i> Código del cupón</label>
+            <input type="text" id="codigo" name="codigo" required
+                   placeholder="Ej: DESCUENTO20"
+                   value="{{ cupon.codigo if cupon else '' }}"
+                   style="text-transform:uppercase;">
+        </div>
+
+        <div class="form-group">
+            <label for="descripcion"><i class="fas fa-align-left"></i> Descripción (opcional)</label>
+            <input type="text" id="descripcion" name="descripcion"
+                   placeholder="Ej: 20% de descuento en toda la tienda"
+                   value="{{ cupon.descripcion if cupon else '' }}">
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="tipo"><i class="fas fa-tag"></i> Tipo de descuento</label>
+                <select id="tipo" name="tipo" required>
+                    <option value="porcentaje" {% if cupon and cupon.tipo == 'porcentaje' %}selected{% endif %}>Porcentaje (%)</option>
+                    <option value="monto_fijo" {% if cupon and cupon.tipo == 'monto_fijo' %}selected{% endif %}>Monto fijo ($)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="valor"><i class="fas fa-dollar-sign"></i> Valor</label>
+                <input type="number" id="valor" name="valor" required min="0" step="0.01"
+                       placeholder="Ej: 20"
+                       value="{{ cupon.valor if cupon else '' }}">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="minimo_orden"><i class="fas fa-shopping-cart"></i> Mínimo de orden ($)</label>
+                <input type="number" id="minimo_orden" name="minimo_orden" min="0" step="0.01"
+                       placeholder="0 = sin mínimo"
+                       value="{{ cupon.minimo_orden if cupon and cupon.minimo_orden else '' }}">
+            </div>
+            <div class="form-group">
+                <label for="maximo_descuento"><i class="fas fa-arrow-down"></i> Máximo descuento ($)</label>
+                <input type="number" id="maximo_descuento" name="maximo_descuento" min="0" step="0.01"
+                       placeholder="Solo para porcentaje"
+                       value="{{ cupon.maximo_descuento if cupon and cupon.maximo_descuento else '' }}">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="limite_usos"><i class="fas fa-redo"></i> Límite de usos</label>
+                <input type="number" id="limite_usos" name="limite_usos" min="1"
+                       placeholder="Vacío = ilimitado"
+                       value="{{ cupon.limite_usos if cupon and cupon.limite_usos else '' }}">
+            </div>
+            {% if modo == 'editar' %}
+            <div class="form-group">
+                <label for="estado"><i class="fas fa-toggle-on"></i> Estado</label>
+                <select id="estado" name="estado">
+                    <option value="activo" {% if cupon and cupon.estado == 'activo' %}selected{% endif %}>Activo</option>
+                    <option value="inactivo" {% if cupon and cupon.estado == 'inactivo' %}selected{% endif %}>Inactivo</option>
+                    <option value="agotado" {% if cupon and cupon.estado == 'agotado' %}selected{% endif %}>Agotado</option>
+                </select>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="fecha_inicio"><i class="fas fa-calendar-plus"></i> Válido desde</label>
+                <input type="date" id="fecha_inicio" name="fecha_inicio"
+                       value="{{ cupon.fecha_inicio.strftime('%Y-%m-%d') if cupon and cupon.fecha_inicio else '' }}">
+            </div>
+            <div class="form-group">
+                <label for="fecha_fin"><i class="fas fa-calendar-minus"></i> Válido hasta</label>
+                <input type="date" id="fecha_fin" name="fecha_fin"
+                       value="{{ cupon.fecha_fin.strftime('%Y-%m-%d') if cupon and cupon.fecha_fin else '' }}">
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn-guardar-cupon">
+                <i class="fas fa-save"></i> {{ 'Crear Cupón' if modo == 'crear' else 'Guardar Cambios' }}
+            </button>
+            <a href="{{ url_for('cupones.gestion_cupones') }}" class="btn-cancelar">Cancelar</a>
+        </div>
+    </form>
+
+</div>
+</div>
+{% endblock %}

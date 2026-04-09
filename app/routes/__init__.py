@@ -52,3 +52,11 @@ def register_blueprints(app):
     # Videollamadas
     from routes.video import video_bp
     app.register_blueprint(video_bp)
+
+    # Cupones de descuento
+    from routes.cupones import cupones_bp
+    app.register_blueprint(cupones_bp)
+
+    # Wishlist / Lista de deseos
+    from routes.wishlist import wishlist_bp
+    app.register_blueprint(wishlist_bp)

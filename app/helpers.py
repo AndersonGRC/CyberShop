@@ -104,10 +104,23 @@ def get_data_cliente():
     except Exception:
         pass
 
+    # Verificar si el módulo de wishlist está habilitado
+    wishlist_habilitado = True
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT valor FROM cliente_config WHERE clave = 'wishlist_habilitado'")
+            row = cur.fetchone()
+            if row and row['valor'] == 'false':
+                wishlist_habilitado = False
+    except Exception:
+        pass
+
     menu = [
-        {"nombre": "Mi Cuenta",        "url": "auth.dashboard_cliente", "icono": "user-circle"},
-        {"nombre": "Mis Pedidos",       "url": "auth.mis_pedidos",       "icono": "shopping-bag"},
+        {"nombre": "Mi Cuenta",    "url": "auth.dashboard_cliente", "icono": "user-circle"},
+        {"nombre": "Mis Pedidos",  "url": "auth.mis_pedidos",       "icono": "shopping-bag"},
     ]
+    if wishlist_habilitado:
+        menu.append({"nombre": "Mis Favoritos", "url": "wishlist.mi_lista_deseos", "icono": "heart"})
     if soporte_habilitado:
         menu.append({"nombre": "Soporte", "url": "soporte.mis_tickets", "icono": "headset"})
 
@@ -157,7 +170,8 @@ def get_data_app():
                 {"nombre": "Nueva Cotización", "url": "quotes.cotizar", "icono": "file-invoice-dollar"},
                 {"nombre": "Mis Cotizaciones", "url": "quotes.ver_cotizaciones", "icono": "history"},
                 {"nombre": "Nueva Cuenta de Cobro", "url": "billing.crear_cuenta", "icono": "file-invoice"},
-                {"nombre": "Mis Cuentas de Cobro", "url": "billing.listar_cuentas", "icono": "folder-open"}
+                {"nombre": "Mis Cuentas de Cobro", "url": "billing.listar_cuentas", "icono": "folder-open"},
+                {"nombre": "Cupones", "url": "cupones.gestion_cupones", "icono": "ticket-alt"}
             ]
         },
         {
@@ -170,7 +184,8 @@ def get_data_app():
                 {"nombre": "Editar Productos", "url": "admin.editar_productos", "icono": "edit"},
                 {"nombre": "Eliminar Productos", "url": "admin.eliminar_productos", "icono": "trash-alt"},
                 {"nombre": "Géneros", "url": "admin.gestion_generos", "icono": "tags"},
-                {"nombre": "Reseñas", "url": "admin.gestion_resenas", "icono": "star"}
+                {"nombre": "Reseñas", "url": "admin.gestion_resenas", "icono": "star"},
+                {"nombre": "Wishlist Stats", "url": "wishlist.wishlist_estadisticas", "icono": "heart"}
             ]
         },
         {

@@ -177,16 +177,31 @@ def crear_orden():
             flash("El total del pedido no puede ser cero.", "error")
             return redirect(url_for('public.carrito'))
 
-        total_amount = total_calculado
+        # Aplicar cupón de descuento si existe
+        cupon_id = None
+        descuento_total = 0
+        cupon_codigo = request.form.get('cupon_codigo', '').strip()
+        if cupon_codigo:
+            try:
+                from routes.cupones import validar_cupon
+                resultado_cupon = validar_cupon(cupon_codigo, total_calculado)
+                if resultado_cupon:
+                    cupon_id = resultado_cupon['id']
+                    descuento_total = resultado_cupon['descuento_calculado']
+            except Exception:
+                pass
+
+        total_amount = total_calculado - descuento_total
 
         cur.execute("""
             INSERT INTO pedidos
             (referencia_pedido, cliente_nombre, cliente_email,
              cliente_tipo_documento, cliente_documento, cliente_telefono,
-             direccion_envio, ciudad, monto_total, estado_pago, estado_envio)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'PENDIENTE', 'ESPERA_PAGO')
+             direccion_envio, ciudad, monto_total, estado_pago, estado_envio,
+             cupon_id, descuento_total)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'PENDIENTE', 'ESPERA_PAGO', %s, %s)
             RETURNING id
-        """, (referencia, nombre, email, tipo_doc, documento, telefono, direccion, ciudad, total_amount))
+        """, (referencia, nombre, email, tipo_doc, documento, telefono, direccion, ciudad, total_amount, cupon_id, descuento_total))
 
         pedido_id_generado = cur.fetchone()[0]
 
@@ -208,6 +223,14 @@ def crear_orden():
         conn.commit()
         cur.close()
         conn.close()
+
+        # Registrar uso del cupón (fuera de la transacción principal)
+        if cupon_id and descuento_total > 0:
+            try:
+                from routes.cupones import registrar_uso_cupon
+                registrar_uso_cupon(cupon_id, pedido_id_generado, session.get('usuario_id'), descuento_total)
+            except Exception as _ce:
+                app.logger.warning(f"Error registrando uso cupón: {_ce}")
 
     except Exception as e:
         app.logger.error(f"Error BD Pedidos: {e}")
@@ -332,6 +355,32 @@ def confirmacion_pago():
                 )
             except Exception as _e:
                 app.logger.warning(f"Contabilidad confirmacion_pago: {_e}")
+
+        # Notificación por email al cliente (solo si pago aprobado)
+        if estado_bd == 'APROBADO':
+            try:
+                from helpers_email_templates import generar_email_confirmacion_pedido
+                from helpers_gmail import enviar_email_gmail
+                with get_db_cursor(dict_cursor=True) as _cur:
+                    _cur.execute(
+                        "SELECT * FROM pedidos WHERE referencia_pedido = %s",
+                        (reference_sale,)
+                    )
+                    pedido_data = _cur.fetchone()
+                    detalles_data = []
+                    if pedido_data:
+                        _cur.execute(
+                            "SELECT * FROM detalle_pedidos WHERE pedido_id = %s",
+                            (pedido_data['id'],)
+                        )
+                        detalles_data = _cur.fetchall()
+                if pedido_data:
+                    email_data = generar_email_confirmacion_pedido(pedido_data, detalles_data)
+                    if email_data:
+                        asunto, texto, html = email_data
+                        enviar_email_gmail(pedido_data['cliente_email'], asunto, texto, html=html)
+            except Exception as _ne:
+                app.logger.warning(f"Email confirmación pedido: {_ne}")
 
         # Facturación electrónica automática (solo si módulo activo)
         if estado_bd == 'APROBADO':

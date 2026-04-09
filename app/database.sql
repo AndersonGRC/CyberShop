@@ -354,3 +354,95 @@ WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'video_jitsi_domain
 INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
 SELECT 'video_max_participantes', '10', 'number', 'video', 'Máximo de participantes por sala', 2
 WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'video_max_participantes');
+
+-- =============================================================
+-- MIGRACIÓN: Sistema de Cupones de Descuento
+-- =============================================================
+
+CREATE TABLE IF NOT EXISTS cupones (
+    id                SERIAL PRIMARY KEY,
+    codigo            VARCHAR(50)  UNIQUE NOT NULL,
+    descripcion       TEXT,
+    tipo              VARCHAR(20)  NOT NULL,  -- 'porcentaje' | 'monto_fijo'
+    valor             NUMERIC      NOT NULL,
+    minimo_orden      NUMERIC      DEFAULT 0,
+    maximo_descuento  NUMERIC,                -- tope máximo para tipo porcentaje
+    limite_usos       INTEGER,                -- NULL = ilimitado
+    usos_actual       INTEGER      DEFAULT 0,
+    estado            VARCHAR(20)  DEFAULT 'activo', -- 'activo' | 'inactivo' | 'agotado'
+    fecha_inicio      TIMESTAMP,
+    fecha_fin         TIMESTAMP,
+    fecha_creacion    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS cupones_uso (
+    id                  SERIAL PRIMARY KEY,
+    cupon_id            INTEGER REFERENCES cupones(id) ON DELETE CASCADE,
+    pedido_id           INTEGER REFERENCES pedidos(id) ON DELETE SET NULL,
+    usuario_id          INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+    descuento_aplicado  NUMERIC NOT NULL,
+    fecha_uso           TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_cupones_codigo   ON cupones (codigo);
+CREATE INDEX IF NOT EXISTS idx_cupones_estado   ON cupones (estado);
+CREATE INDEX IF NOT EXISTS idx_cupones_uso_cupon ON cupones_uso (cupon_id);
+
+ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS cupon_id        INTEGER REFERENCES cupones(id);
+ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS descuento_total NUMERIC DEFAULT 0;
+
+INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
+SELECT 'cupones_habilitado', 'true', 'boolean', 'modulos', 'Módulo de cupones de descuento', 12
+WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'cupones_habilitado');
+
+-- =============================================================
+-- MIGRACIÓN: Lista de Deseos (Wishlist)
+-- =============================================================
+
+CREATE TABLE IF NOT EXISTS lista_deseos (
+    id              SERIAL PRIMARY KEY,
+    usuario_id      INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    producto_id     INTEGER NOT NULL REFERENCES productos(id) ON DELETE CASCADE,
+    fecha_agregado  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(usuario_id, producto_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_lista_deseos_usuario  ON lista_deseos (usuario_id);
+CREATE INDEX IF NOT EXISTS idx_lista_deseos_producto ON lista_deseos (producto_id);
+
+INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
+SELECT 'wishlist_habilitado', 'true', 'boolean', 'modulos', 'Lista de deseos para clientes', 13
+WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'wishlist_habilitado');
+
+-- =============================================================
+-- MIGRACIÓN: Reportes Generados
+-- =============================================================
+
+CREATE TABLE IF NOT EXISTS reportes_generados (
+    id              SERIAL PRIMARY KEY,
+    titulo          VARCHAR(200) NOT NULL,
+    tipo            VARCHAR(50)  NOT NULL,  -- 'ventas' | 'productos' | 'clientes' | 'cupones'
+    fecha_inicio    DATE,
+    fecha_fin       DATE,
+    archivo_url     VARCHAR,
+    usuario_id      INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+    fecha_creacion  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_reportes_tipo ON reportes_generados (tipo);
+
+-- =============================================================
+-- MIGRACIÓN: Config de Notificaciones Email
+-- =============================================================
+
+INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
+SELECT 'notif_email_pedido', 'true', 'boolean', 'modulos', 'Enviar email de confirmación de pedido', 14
+WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'notif_email_pedido');
+
+INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
+SELECT 'notif_email_bienvenida', 'true', 'boolean', 'modulos', 'Enviar email de bienvenida al registrarse', 15
+WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'notif_email_bienvenida');
+
+INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
+SELECT 'notif_email_envio', 'true', 'boolean', 'modulos', 'Enviar email al cambiar estado de envío', 16
+WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'notif_email_envio');

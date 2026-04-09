@@ -1,0 +1,77 @@
+{% extends './plantillaapp.html' %}
+{% block titulo %}Wishlist Estadísticas | {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/wishlist.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="main-container">
+<div class="wishlist-wrapper">
+
+    <div class="wishlist-header">
+        <h1 class="page-title">
+            <i class="fas fa-heart" style="color:#e60023;"></i> Estadísticas de Favoritos
+        </h1>
+        <span class="wishlist-count">{{ total_deseos }} total</span>
+    </div>
+
+    <div class="wishlist-stats-grid">
+        <div class="wishlist-stats-card">
+            <h3><i class="fas fa-fire"></i> Productos más deseados</h3>
+            {% if productos_top %}
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Precio</th>
+                        <th>Stock</th>
+                        <th>Deseos</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in productos_top %}
+                    <tr>
+                        <td>{{ p.nombre }}</td>
+                        <td>${{ "{:,.0f}".format(p.precio) }}</td>
+                        <td>{{ p.stock }}</td>
+                        <td><span class="stats-badge">{{ p.deseos }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p style="color:var(--color-texto-claro);font-size:0.88rem;">No hay datos aún.</p>
+            {% endif %}
+        </div>
+
+        <div class="wishlist-stats-card">
+            <h3><i class="fas fa-users"></i> Usuarios más activos</h3>
+            {% if usuarios_top %}
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Email</th>
+                        <th>Favoritos</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in usuarios_top %}
+                    <tr>
+                        <td>{{ u.nombre }}</td>
+                        <td>{{ u.email }}</td>
+                        <td><span class="stats-badge">{{ u.cantidad }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p style="color:var(--color-texto-claro);font-size:0.88rem;">No hay datos aún.</p>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+</div>
+{% endblock %}

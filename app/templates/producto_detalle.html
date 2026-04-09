@@ -4,6 +4,7 @@
 
 {% block LinkAdicional %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/ProductoDetalle.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/wishlist.css') }}">
 {% endblock %}
 
 {% block body %}
@@ -166,6 +167,10 @@
                     Producto agotado
                 </button>
                 {% endif %}
+
+                <button class="wishlist-btn-detalle" data-wishlist-id="{{ producto.id }}" title="Agregar a favoritos">
+                    <i class="far fa-heart"></i> Favorito
+                </button>
 
                 <a href="{{ url_for('public.productos') }}" class="btn-detalle-volver">
                     <i class="fas fa-arrow-left"></i>
@@ -524,4 +529,5 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 </script>
+<script src="{{ url_for('static', filename='js/wishlist.js') }}"></script>
 {% endblock %}
