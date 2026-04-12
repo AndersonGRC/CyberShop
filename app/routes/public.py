@@ -351,10 +351,16 @@ def enviar_mensaje():
             flash('Demasiadas solicitudes. Espera un momento.', 'warning')
             return redirect(url_for('public.index'))
 
-        # Validar reCAPTCHA si está configurado
-        recaptcha_response = request.form.get('g-recaptcha-response')
+        # Validar reCAPTCHA (obligatorio)
+        recaptcha_response = request.form.get('g-recaptcha-response', '').strip()
         recaptcha_secret = app.config.get('RECAPTCHA_SECRET_KEY')
-        if recaptcha_secret and recaptcha_response:
+        if not recaptcha_secret:
+            flash('El servicio de contacto no está configurado correctamente.', 'error')
+            return redirect(url_for('public.index') + '#contactenos')
+        if not recaptcha_response:
+            flash('Por favor completa la verificación "No soy un robot".', 'warning')
+            return redirect(url_for('public.index') + '#contactenos')
+        try:
             import requests as http_requests
             verify = http_requests.post('https://www.google.com/recaptcha/api/siteverify', data={
                 'secret': recaptcha_secret,
@@ -362,9 +368,12 @@ def enviar_mensaje():
                 'remoteip': request.remote_addr
             }, timeout=5)
             result = verify.json()
-            if not result.get('success'):
-                flash('Verificación de seguridad fallida. Intenta de nuevo.', 'error')
-                return redirect(url_for('public.index'))
+        except Exception:
+            flash('No se pudo verificar el reCAPTCHA. Intenta de nuevo.', 'error')
+            return redirect(url_for('public.index') + '#contactenos')
+        if not result.get('success'):
+            flash('Verificación de seguridad fallida. Intenta de nuevo.', 'error')
+            return redirect(url_for('public.index') + '#contactenos')
 
         # Sanitizar entrada (evitar email header injection)
         name = request.form.get('name', '').strip()[:200]

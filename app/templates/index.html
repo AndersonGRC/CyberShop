@@ -131,7 +131,7 @@
   {% if config.get('mostrar_contacto', true) %}
   <div id="contactenos" class="contact-form">
     <h2>Contáctanos</h2>
-    <form action="{{ url_for('public.enviar_mensaje') }}" method="POST">
+    <form action="{{ url_for('public.enviar_mensaje') }}" method="POST" onsubmit="return validarRecaptchaContacto(this);">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-group">
         <label for="name">Nombre</label>
@@ -169,4 +169,19 @@
 {% endblock %}
 {% block script%}
 <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+<script>
+function validarRecaptchaContacto(form) {
+  try {
+    var resp = (typeof grecaptcha !== 'undefined') ? grecaptcha.getResponse() : '';
+    if (!resp) {
+      alert('Por favor completa la verificación "No soy un robot" antes de enviar.');
+      return false;
+    }
+  } catch (e) {
+    alert('No se pudo cargar el reCAPTCHA. Recarga la página.');
+    return false;
+  }
+  return true;
+}
+</script>
 {% endblock %}
