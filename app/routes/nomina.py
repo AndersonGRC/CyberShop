@@ -2,6 +2,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from database import get_db_cursor
 from nomina_engine import *
+from nomina_inteligente import calcular_nomina_periodo_inteligente
 from helpers import get_data_app
 
 nomina_bp = Blueprint('nomina', __name__, url_prefix='/admin/nomina')
@@ -339,12 +340,14 @@ def periodo_desprendible(periodo_id, empleado_id):
 @nomina_bp.route('/periodos/<int:id>/calcular', methods=['POST'])
 def periodo_calcular(id):
     try:
-        # Lógica de cálculo masivo
-        # 1. Obtener periodo y parametros
+        resultado = None
         with get_db_cursor(dict_cursor=True) as cur:
             cur.execute("SELECT * FROM nomina_periodos WHERE id = %s", (id,))
             periodo = cur.fetchone()
-            
+            if not periodo:
+                flash('Periodo no encontrado.', 'danger')
+                return redirect(url_for('nomina.periodos_lista'))
+
             estados_validos = ('borrador', 'calculada', 'rechazada')
             if periodo['estado'] not in estados_validos:
                 flash(f'No se puede recalcular un periodo en estado "{periodo["estado"]}".', 'warning')
@@ -357,52 +360,28 @@ def periodo_calcular(id):
                 flash(f"Error: No se encontraron parámetros de nómina para el año {periodo['anio']}. Por favor créelos primero en la sección de Parámetros.", "danger")
                 return redirect(url_for('nomina.periodos_lista'))
 
-            # Parametros necesarios (simplificado, deberian cargarse todos)
-            smmlv = float(params['salario_minimo'])
-            aux_transporte = float(params['auxilio_transporte'])
-            uvt = float(params['uvt'])
+            cur.execute("SELECT * FROM nomina_empleados WHERE activo = TRUE")
+            empleados = [dict(row) for row in cur.fetchall()]
 
-            ARL_NIVELES = {
-                'I': 0.522, 'II': 1.044, 'III': 2.436, 'IV': 4.350, 'V': 6.960,
-            }
+            cur.execute("""
+                SELECT periodo_id, empleado_id, UPPER(tipo_novedad) AS tipo_novedad,
+                       COALESCE(SUM(cantidad), 0) AS cantidad,
+                       COALESCE(SUM(valor_total), 0) AS valor_total
+                FROM nomina_novedades
+                WHERE periodo_id = %s
+                GROUP BY periodo_id, empleado_id, UPPER(tipo_novedad)
+            """, (id,))
+            novedades = [dict(row) for row in cur.fetchall()]
 
-            # 2. Obtener empleados activos
-            cur.execute("SELECT * FROM nomina_empleados WHERE activo = TRUE AND tipo_vinculacion != 'CONTRATISTA'")
-            empleados = cur.fetchall()
-            
-            for e in empleados:
-                # 3. Calcular para cada empleado
-                # Dias trabajados (simplificado a 15 o 30)
-                dias_trabajados = 15 if periodo['numero_periodo'] in [1, 2] else 30
-                
-                # Devengados
-                basico = (float(e['salario_base']) / 30) * dias_trabajados
-                aux_trans = calcular_auxilio_transporte(float(e['salario_base']), smmlv, aux_transporte)
-                if periodo['numero_periodo'] in [1, 2]: aux_trans /= 2 # Ajuste si es quincenal
-                
-                # Novedades (Extras, Recargos) - TODO: Leer de tabla novedades
-                extras = 0 
-                
-                total_devengado = basico + aux_trans + extras
-                
-                # Deducciones
-                # Salud/Pension
-                base_ss = total_devengado - aux_trans
-                salud_emp, pension_emp = calcular_salud_pension(base_ss, 4, 4)
-                
-                # Fondo Solidaridad
-                fsp = calcular_fondo_solidaridad(base_ss, smmlv)
-                
-                # Retencion (solo si aplica, simplificado)
-                retencion = 0
-                
-                total_deducido = salud_emp + pension_emp + fsp + retencion
-                neto = total_devengado - total_deducido
-                
-                # 4. Guardar/Actualizar en base de datos
-                # Borrar calculo previo si existe
-                cur.execute("DELETE FROM nomina_detalle WHERE periodo_id=%s AND empleado_id=%s", (id, e['id']))
-                
+            resultado = calcular_nomina_periodo_inteligente(
+                dict(periodo),
+                dict(params),
+                empleados,
+                novedades,
+            )
+
+            cur.execute("DELETE FROM nomina_detalle WHERE periodo_id=%s", (id,))
+            for detalle in resultado['detalles']:
                 cur.execute("""
                     INSERT INTO nomina_detalle (
                         periodo_id, empleado_id, dias_trabajados,
@@ -411,45 +390,39 @@ def periodo_calcular(id):
                         neto_pagar
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
-                    id, e['id'], dias_trabajados,
-                    basico, aux_trans, extras, total_devengado,
-                    salud_emp, pension_emp, fsp, retencion, total_deducido,
-                    neto
-                ))
-            
-            # Contratistas
-            cur.execute("""
-                SELECT * FROM nomina_empleados
-                WHERE activo = TRUE AND tipo_vinculacion = 'CONTRATISTA'
-            """)
-            contratistas = cur.fetchall()
-
-            for c in contratistas:
-                dias_trabajados = 15 if periodo['numero_periodo'] in [1, 2] else 30
-                honorarios_periodo = float(c['salario_base']) * (dias_trabajados / 30)
-                nivel_arl = (c['nivel_arl'] or 'I').strip().upper()
-                arl_pct = ARL_NIVELES.get(nivel_arl, ARL_NIVELES['I'])
-                ss = calcular_ss_contratista(honorarios_periodo, arl_pct)
-
-                cur.execute("DELETE FROM nomina_detalle WHERE periodo_id=%s AND empleado_id=%s", (id, c['id']))
-                cur.execute("""
-                    INSERT INTO nomina_detalle (
-                        periodo_id, empleado_id, dias_trabajados,
-                        sueldo_basico, auxilio_transporte, horas_extras, total_devengado,
-                        salud_empleado, pension_empleado, fondo_solidaridad,
-                        retencion_fuente, total_deducido, neto_pagar
-                    ) VALUES (%s,%s,%s, %s,%s,%s,%s, %s,%s,%s, %s,%s,%s)
-                """, (
-                    id, c['id'], dias_trabajados,
-                    honorarios_periodo, 0, 0, honorarios_periodo,
-                    ss['salud'], ss['pension'], ss['arl'],
-                    0, ss['total'], honorarios_periodo
+                    id,
+                    detalle['empleado_id'],
+                    detalle['dias_trabajados'],
+                    detalle['sueldo_basico'],
+                    detalle['auxilio_transporte'],
+                    detalle['horas_extras'],
+                    detalle['total_devengado'],
+                    detalle['salud_empleado'],
+                    detalle['pension_empleado'],
+                    detalle['fondo_solidaridad'],
+                    detalle['retencion_fuente'],
+                    detalle['total_deducido'],
+                    detalle['neto_pagar'],
                 ))
 
             # Actualizar estado periodo
             cur.execute("UPDATE nomina_periodos SET estado='calculada' WHERE id=%s", (id,))
-            
-        flash('Cálculo de nómina realizado exitosamente.', 'success')
+
+        alertas = resultado.get('alertas', []) if resultado else []
+        for alerta in alertas[:8]:
+            flash(alerta.get('mensaje', 'Se generó una alerta de validación.'), alerta.get('nivel', 'warning'))
+        if len(alertas) > 8:
+            flash(f"Se generaron {len(alertas)} alertas normativas. Se muestran las primeras 8.", 'warning')
+
+        resumen = resultado.get('resumen', {}) if resultado else {}
+        flash(
+            (
+                "Cálculo de nómina realizado exitosamente. "
+                f"Procesados {resumen.get('empleados', 0)} empleados y "
+                f"{resumen.get('contratistas', 0)} contratistas."
+            ),
+            'success'
+        )
     except Exception as e:
         flash(f'Error en el cálculo: {str(e)}', 'danger')
         
@@ -571,19 +544,41 @@ def liquidacion_crear():
                 
                 smmlv = params['salario_minimo']
                 
-                # 2. Calcular indemnización (Simplificado)
+                fecha_retiro_dt = datetime.strptime(fecha_retiro, '%Y-%m-%d').date()
+                salario_base = float(e['salario_base'])
+
+                # 2. Calcular indemnización
                 indemnizacion = calcular_indemnizacion(
-                    e['salario_base'], e['tipo_vinculacion'], e['fecha_ingreso'], 
-                    datetime.strptime(fecha_retiro, '%Y-%m-%d').date(), smmlv
+                    salario_base, e['tipo_vinculacion'], e['fecha_ingreso'],
+                    fecha_retiro_dt, float(smmlv),
+                    fecha_fin_contrato=e.get('fecha_fin_contrato')
                 )
-                
-                # 3. Calcular prestaciones (Simplificado - debería usar días proporcionales reales)
-                # Asumimos 180 días proporcionales para el ejemplo
-                dias_prop = 180 
-                cesantias = (e['salario_base'] * dias_prop) / 360
-                intereses = (cesantias * dias_prop * 0.12) / 360
-                prima = (e['salario_base'] * dias_prop) / 360
-                vacaciones = (e['salario_base'] * dias_prop) / 720
+
+                # 3. Prestaciones — sobre los días realmente laborados
+                # (semestre actual para cesantías/prima; año para vacaciones)
+                dias_total = dias_360(e['fecha_ingreso'], fecha_retiro_dt)
+
+                # Inicio del semestre vigente (1 ene o 1 jul del año del retiro)
+                if fecha_retiro_dt.month <= 6:
+                    inicio_semestre = fecha_retiro_dt.replace(month=1, day=1)
+                else:
+                    inicio_semestre = fecha_retiro_dt.replace(month=7, day=1)
+                if e['fecha_ingreso'] and e['fecha_ingreso'] > inicio_semestre:
+                    inicio_semestre = e['fecha_ingreso']
+                dias_semestre = dias_360(inicio_semestre, fecha_retiro_dt)
+
+                # Inicio del año vigente para vacaciones
+                inicio_anio = fecha_retiro_dt.replace(month=1, day=1)
+                if e['fecha_ingreso'] and e['fecha_ingreso'] > inicio_anio:
+                    inicio_anio = e['fecha_ingreso']
+                dias_anio = dias_360(inicio_anio, fecha_retiro_dt)
+
+                dias_prop = dias_semestre  # se guarda como referencia del periodo liquidado
+
+                cesantias = (salario_base * dias_semestre) / 360
+                intereses = (cesantias * dias_semestre * 0.12) / 360
+                prima = (salario_base * dias_semestre) / 360
+                vacaciones = (salario_base * dias_anio) / 720
                 
                 total = cesantias + intereses + prima + vacaciones + indemnizacion
                 

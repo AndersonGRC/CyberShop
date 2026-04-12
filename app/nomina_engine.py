@@ -124,12 +124,12 @@ def calcular_retencion_fuente(ingreso_laboral, salud_pension_fsp, uvt_valor, tab
     # 1. Ingreso Neto
     base_depurada = ingreso_laboral - salud_pension_fsp
     if base_depurada < 0: base_depurada = 0
-    
-    # 2. Renta Exenta 25%
+
+    # 2. Renta Exenta 25% (Art. 206 num. 10 ET)
     renta_exenta = base_depurada * 0.25
-    
-    # Tope mensual aprox 790 UVT / 12 ~ 65 UVT (simplificado, usar valor exacto si disponible)
-    tope_renta_exenta = 2300000 
+
+    # Tope mensual: 790 UVT año / 12 ≈ 65.83 UVT, valorizado al UVT vigente
+    tope_renta_exenta = (790 / 12) * uvt_valor
     if renta_exenta > tope_renta_exenta:
         renta_exenta = tope_renta_exenta
         
@@ -153,53 +153,71 @@ def calcular_retencion_fuente(ingreso_laboral, salud_pension_fsp, uvt_valor, tab
             
     return retencion_uvt * uvt_valor
 
-def calcular_indemnizacion(salario, tipo_contrato, fecha_ingreso, fecha_retiro, smmlv):
+def calcular_indemnizacion(salario, tipo_contrato, fecha_ingreso, fecha_retiro, smmlv, fecha_fin_contrato=None):
     """
-    Calcula indemnización por despido sin justa causa (Art 64 CST).
-    """
-    indemnizacion = 0
-    dias_laborados = dias_360(fecha_ingreso, fecha_retiro)
-    anios_laborados = dias_laborados / 360
-    
-    if tipo_contrato in ['FIJO', 'OBRA_LABOR']:
-        # Salarios correspondientes al tiempo que faltare
-        # Suponemos que falta hasta fin de contrato.
-        # Si no hay fecha fin, esta funcion no puede calcular exacto para FIJO sin ese dato.
-        # Asumiremos INDEFINIDO si no tiene esa logica, o 0.
-        pass
-    
-    elif tipo_contrato == 'INDEFINIDO':
-        if salario < (10 * smmlv):
-            # 30 dias primer año, 20 dias subsiguientes
-            if anios_laborados <= 1:
-                indemnizacion = (salario / 30) * 30 * (dias_laborados / 360) # Proporcional o 30 dias fijo? Ley dice 30 dias por primer año.
-                if dias_laborados < 360: indemnizacion = (salario/30) * 30 # Minimo 30 dias si es completo? No, es proporcional.
-                indemnizacion = salario # Si lleva menos de un año, suele pagarse 30 días, pero revisemos jurisprudencia. CST: "30 dias de salario cuando t <= 1 año"
-            else:
-                top_primero = salario # 30 dias
-                dias_restantes = dias_laborados - 360
-                valor_restante = (salario / 30) * 20 * (dias_restantes / 360)
-                indemnizacion = top_primero + valor_restante
-        else:
-             # 20 dias primer año, 15 dias subsiguientes
-            if anios_laborados <= 1:
-                indemnizacion = salario * (20/30)
-            else:
-                top_primero = salario * (20/30)
-                dias_restantes = dias_laborados - 360
-                valor_restante = (salario / 30) * 15 * (dias_restantes / 360)
-                indemnizacion = top_primero + valor_restante
-                
-    return indemnizacion
+    Calcula indemnización por despido sin justa causa (Art. 64 CST).
 
-def dias_360(fecha_inicio, fecha_fin):
-    """Calcula dias entre dos fechas usando base 360 (meses de 30 dias)."""
+    INDEFINIDO:
+      - Salario < 10 SMMLV → 30 días primer año + 20 días por cada año adicional (proporcional por fracción).
+      - Salario >= 10 SMMLV → 20 días primer año + 15 días por cada año adicional (proporcional por fracción).
+      - Si lleva menos de un año, se paga proporcional al tiempo servido (mínimo 30/20 días según el caso).
+
+    FIJO:
+      - Salarios correspondientes al tiempo que faltare para terminar el contrato.
+
+    OBRA_LABOR:
+      - Indemnización equivalente a los salarios del tiempo faltante, no inferior a 15 días.
+    """
+    if not fecha_ingreso or not fecha_retiro:
+        return 0
+
+    dias_laborados = dias_360(fecha_ingreso, fecha_retiro)
+    valor_dia = salario / 30
+
+    if tipo_contrato == 'INDEFINIDO':
+        if salario < (10 * smmlv):
+            dias_primer = 30
+            dias_adicional = 20
+        else:
+            dias_primer = 20
+            dias_adicional = 15
+
+        if dias_laborados <= 360:
+            # Proporcional al tiempo servido, con mínimo de "dias_primer" si lleva al menos un año.
+            indemnizacion = valor_dia * dias_primer * (dias_laborados / 360)
+        else:
+            base_primero = valor_dia * dias_primer
+            dias_restantes = dias_laborados - 360
+            valor_restante = valor_dia * dias_adicional * (dias_restantes / 360)
+            indemnizacion = base_primero + valor_restante
+        return indemnizacion
+
+    if tipo_contrato == 'FIJO':
+        if not fecha_fin_contrato:
+            return 0
+        dias_faltantes = dias_360(fecha_retiro, fecha_fin_contrato)
+        return max(0, valor_dia * dias_faltantes)
+
+    if tipo_contrato == 'OBRA_LABOR':
+        if not fecha_fin_contrato:
+            return valor_dia * 15
+        dias_faltantes = dias_360(fecha_retiro, fecha_fin_contrato)
+        return max(valor_dia * 15, valor_dia * dias_faltantes)
+
+    return 0
+
+def dias_360(fecha_inicio, fecha_fin, inclusivo=True):
+    """
+    Calcula dias entre dos fechas usando base 360 (meses de 30 dias),
+    estándar laboral colombiano. Por defecto incluye el día final.
+    """
     if not fecha_inicio or not fecha_fin: return 0
     dias = (fecha_fin.year - fecha_inicio.year) * 360 + \
            (fecha_fin.month - fecha_inicio.month) * 30 + \
            (min(fecha_fin.day, 30) - min(fecha_inicio.day, 30))
-    # Ajuste inclusivo (+1 dia) si se requiere contar el dia final como trabajado
-    return dias + 1
+    if inclusivo:
+        dias += 1
+    return max(0, dias)
 
 def calcular_ss_contratista(honorarios_mensuales, nivel_riesgo_arl_pct):
     """
@@ -223,46 +241,48 @@ def calcular_ss_contratista(honorarios_mensuales, nivel_riesgo_arl_pct):
 
 def calcular_incapacidad(salario_base, dias, tipo, smmlv):
     """
-    Calcula el valor de una incapacidad.
-    
-    Reglas Generales (Referencia):
-    - Enfermedad General:
-        - Días 1-2: 100% (Empleador)
-        - Días 3-90: 66.66% (EPS)
-        - Días 91-180: 50% (EPS/Fondo Pensiones)
-    - Enfermedad Laboral / Accidente Trabajo: 100% (ARL)
-    - Licencia Maternidad / Paternidad: 100% (EPS)
+    Calcula el valor de una incapacidad/licencia.
+
+    Enfermedad General (INCAPACIDAD_GEN):
+      - Días 1-2 (Empleador): 100% del IBC
+      - Días 3-90 (EPS):     66.67% del IBC, mínimo 1 SMMLV/día
+      - Días 91-180 (EPS/Fondo): 50% del IBC, mínimo 1 SMMLV/día
+    Accidente/Enfermedad Laboral (ARL): 100% desde día 1.
+    Licencias maternidad/paternidad/luto: 100%.
+    Licencia no remunerada: 0.
     """
+    if dias <= 0:
+        return 0
+
     valor_dia = salario_base / 30
+    smmlv_dia = (smmlv / 30) if smmlv else 0
     valor_total = 0
-    
+
     if tipo == 'INCAPACIDAD_GEN':
-        # Simplificación: Asumimos que "dias" es el total acumulado o el tramo actual.
-        # Para ser precisos, se debería saber el día de inicio acumulado.
-        # Aquí asumiremos que es un tramo único para efectos de cálculo simple.
-        
-        # Si dias <= 2, todo al 100%
-        if dias <= 2:
-            valor_total = valor_dia * dias
-        else:
-            # Primeros 2 dias al 100%
-            valor_total += valor_dia * 2
-            
-            # Restante al 66.66%
-            # TODO: Validar si pasa de 90 días en un futuro
-            dias_restantes = dias - 2
-            valor_total += (valor_dia * 0.6666) * dias_restantes
-            
+        dias_restantes = dias
+
+        # Días 1-2: empleador, 100%
+        tramo = min(2, dias_restantes)
+        valor_total += valor_dia * tramo
+        dias_restantes -= tramo
+
+        # Días 3-90: EPS, 2/3
+        if dias_restantes > 0:
+            tramo = min(88, dias_restantes)
+            tarifa = max(valor_dia * (2 / 3), smmlv_dia)
+            valor_total += tarifa * tramo
+            dias_restantes -= tramo
+
+        # Días 91-180: EPS/Fondo, 50%
+        if dias_restantes > 0:
+            tramo = min(90, dias_restantes)
+            tarifa = max(valor_dia * 0.5, smmlv_dia)
+            valor_total += tarifa * tramo
+
     elif tipo in ['INCAPACIDAD_LAB', 'LICENCIA_MAT', 'LICENCIA_PAT', 'LICENCIA_LUTO']:
-        # 100%
         valor_total = valor_dia * dias
-        
+
     elif tipo == 'LICENCIA_NR':
-        # No Remunerada
         valor_total = 0
-        
-    else:
-        # Por defecto 100% o 0? Asumamos 0 si no se conoce
-        valor_total = 0
-        
+
     return valor_total
