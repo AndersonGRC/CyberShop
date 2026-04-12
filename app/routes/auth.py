@@ -15,6 +15,7 @@ from google_auth_oauthlib.flow import Flow
 from database import get_db_connection, get_db_cursor
 from helpers import get_common_data, get_data_app, get_data_cliente
 from security import rol_requerido, autenticar_usuario, controlar_tasa_solicitudes
+from tenant_features import bind_session_tenant
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -91,6 +92,7 @@ def login():
             session['email'] = usuario['email']
             session['rol_id'] = usuario['rol_id']
             session['username'] = usuario['nombre']
+            bind_session_tenant(usuario=usuario)
             # Redirigir a la página pendiente (ej: checkout) si la hay
             next_url = session.pop('login_next', None)
             if next_url and next_url.startswith('/'):
@@ -302,6 +304,7 @@ def google_login_callback():
     session['email']      = usuario['email']
     session['rol_id']     = usuario['rol_id']
     session['username']   = usuario['nombre']
+    bind_session_tenant(usuario=usuario)
 
     # 7. Redirigir según rol (o a página pendiente como checkout)
     next_url = session.pop('login_next', None)

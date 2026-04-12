@@ -28,6 +28,7 @@ from database import get_db_cursor
 from helpers import get_data_app, get_data_cliente
 from helpers_gmail import enviar_email_gmail
 from security import rol_requerido, ADMIN_STAFF, ROLES_CLIENTE
+from tenant_features import MODULE_VIDEO, is_module_active, set_module_state
 
 video_bp = Blueprint('video', __name__)
 
@@ -56,6 +57,7 @@ def _get_config():
                     cfg[row['clave']] = row['valor']
     except Exception:
         pass
+    cfg['video_habilitado'] = 'true' if is_module_active(MODULE_VIDEO) else 'false'
     return cfg
 
 
@@ -513,12 +515,14 @@ def admin_video_config():
     datosApp = get_data_app()
 
     if request.method == 'POST':
+        module_enabled = request.form.get('video_habilitado', 'false') == 'true'
         campos = {
-            'video_habilitado':        request.form.get('video_habilitado', 'false'),
             'video_jitsi_domain':      request.form.get('video_jitsi_domain', 'meet.jit.si').strip(),
             'video_max_participantes': request.form.get('video_max_participantes', '10').strip(),
         }
         try:
+            if not set_module_state(MODULE_VIDEO, module_enabled):
+                raise RuntimeError('No fue posible actualizar el estado del modulo de videollamadas.')
             with get_db_cursor() as cur:
                 for clave, valor in campos.items():
                     cur.execute("""

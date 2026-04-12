@@ -41,6 +41,7 @@ from helpers_gmail import enviar_email_gmail
 from database import get_db_cursor
 from helpers import get_data_app, get_data_cliente
 from security import rol_requerido, ADMIN_STAFF
+from tenant_features import MODULE_SUPPORT, is_module_active, set_module_state
 
 soporte_bp = Blueprint('soporte', __name__)
 
@@ -73,6 +74,7 @@ def _get_config():
                     cfg[row['clave']] = row['valor']
     except Exception:
         pass
+    cfg['soporte_habilitado'] = 'true' if is_module_active(MODULE_SUPPORT) else 'false'
     return cfg
 
 
@@ -550,12 +552,15 @@ def admin_soporte_config():
     cfg = _get_config()
 
     if request.method == 'POST':
+        module_enabled = request.form.get('soporte_habilitado', '').strip().lower() == 'true'
         campos = [
-            'soporte_habilitado', 'soporte_limite_semana',
+            'soporte_limite_semana',
             'soporte_auto_cierre_dias', 'soporte_email_vendedor',
             'soporte_email_cliente', 'contacto_email_destino'
         ]
         try:
+            if not set_module_state(MODULE_SUPPORT, module_enabled):
+                raise RuntimeError('No fue posible actualizar el estado del modulo de soporte.')
             with get_db_cursor() as cur:
                 for clave in campos:
                     valor = request.form.get(clave, '').strip()

@@ -1,0 +1,575 @@
+{% extends "plantillaapp.html" %}
+
+{% block titulo %}{{ page_title }} | {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/restaurant_tables.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="rt-shell" data-view-mode="{{ view_mode }}">
+    <section class="rt-hero rt-hero-{{ view_mode }}">
+        <div class="rt-hero-copy">
+            <span class="rt-kicker">Restaurant Tables</span>
+            <h1>{{ page_title }}</h1>
+            <p>{{ page_description }}</p>
+        </div>
+        <div class="rt-hero-actions">
+            {% if view_mode in ['builder', 'service'] %}
+            <button id="rtRefreshButton" class="rt-btn rt-btn-secondary" type="button">
+                <i class="fas fa-sync-alt"></i> Refrescar
+            </button>
+            {% endif %}
+            {% if view_mode == 'builder' %}
+            <button id="rtPlaceTableButton" class="rt-btn rt-btn-primary" type="button">
+                <i class="fas fa-mouse-pointer"></i> Ubicar en el plano
+            </button>
+            {% elif view_mode == 'service' and not is_waiter_only %}
+            <button id="rtNewTableButton" class="rt-btn rt-btn-primary" type="button">
+                <i class="fas fa-plus-circle"></i> Crear mesa
+            </button>
+            {% endif %}
+        </div>
+    </section>
+
+    {% if not is_waiter_only %}
+    {% include "_restaurant_tables_nav.html" %}
+    {% endif %}
+
+    {% if floor_data.schema_ready is defined and not floor_data.schema_ready %}
+    <section class="rt-panel-card rt-panel-warning">
+        <div class="rt-panel-heading">
+            <h3>Esquema pendiente</h3>
+        </div>
+        <p class="rt-panel-warning-text">{{ floor_data.schema_message }}</p>
+    </section>
+    {% endif %}
+
+    {% if view_mode != 'reports' %}
+    <section class="rt-summary-grid" id="rtSummaryGrid">
+        <article class="rt-stat-card rt-stat-neutral">
+            <span>Total mesas</span>
+            <strong data-summary="total_mesas">{{ floor_data.summary.total_mesas or 0 }}</strong>
+        </article>
+        <article class="rt-stat-card rt-stat-success">
+            <span>Disponibles</span>
+            <strong data-summary="disponibles">{{ floor_data.summary.disponibles or 0 }}</strong>
+        </article>
+        <article class="rt-stat-card rt-stat-danger">
+            <span>Ocupadas</span>
+            <strong data-summary="ocupadas">{{ floor_data.summary.ocupadas or 0 }}</strong>
+        </article>
+        <article class="rt-stat-card rt-stat-warning">
+            <span>Reservadas</span>
+            <strong data-summary="reservadas">{{ floor_data.summary.reservadas or 0 }}</strong>
+        </article>
+        <article class="rt-stat-card rt-stat-accent">
+            <span>Cuenta solicitada</span>
+            <strong data-summary="cuenta_solicitada">{{ floor_data.summary.cuenta_solicitada or 0 }}</strong>
+        </article>
+        <article class="rt-stat-card rt-stat-dark">
+            <span>Platillos pendientes</span>
+            <strong data-summary="pendientes">{{ floor_data.summary.pendientes or 0 }}</strong>
+        </article>
+    </section>
+    {% endif %}
+
+    {% if view_mode == 'builder' %}
+    <div class="rt-workspace rt-workspace-builder">
+        <section class="rt-floor-card rt-floor-card-builder">
+            <div id="restaurantFloor" class="rt-floorboard"></div>
+        </section>
+
+        <aside class="rt-sidebar">
+            <section class="rt-panel-card">
+                <div class="rt-panel-heading">
+                    <h3>Creación rápida</h3>
+                    <span id="rtPlacementBadge" class="rt-state-badge">Edición manual</span>
+                </div>
+                <div class="rt-builder-tools-panel">
+                    <button id="rtLayoutModeButton" class="rt-btn rt-btn-secondary" type="button">
+                        <i class="fas fa-border-all"></i> Snap activo
+                    </button>
+                    <div class="rt-legend rt-legend-card">
+                        <span class="available">Disponible</span>
+                        <span class="occupied">Ocupada</span>
+                        <span class="reserved">Reservada</span>
+                        <span class="bill">Cuenta solicitada</span>
+                    </div>
+                </div>
+                <div class="rt-preset-header-img">
+                    <img src="{{ url_for('static', filename='img/restaurant_sala.png') }}" alt="Sala restaurante" class="rt-sala-icon">
+                </div>
+                <div class="rt-preset-grid" id="rtPresetGrid">
+                    <button class="rt-preset-card is-active" type="button" data-preset-shape="square" data-preset-capacity="4" data-preset-width="16" data-preset-height="16">
+                        <strong>Cuadrada 4</strong>
+                        <span>Rápida para salón</span>
+                    </button>
+                    <button class="rt-preset-card" type="button" data-preset-shape="round" data-preset-capacity="2" data-preset-width="14" data-preset-height="14">
+                        <strong>Redonda 2</strong>
+                        <span>Ideal para pareja</span>
+                    </button>
+                    <button class="rt-preset-card" type="button" data-preset-shape="rectangle" data-preset-capacity="6" data-preset-width="22" data-preset-height="14">
+                        <strong>Rectangular 6</strong>
+                        <span>Familias y grupos</span>
+                    </button>
+                </div>
+                <div class="rt-inline-fields rt-inline-fields-builder">
+                    <label>
+                        Área rápida
+                        <input id="builderAreaInput" type="text" list="restaurantAreaOptions" placeholder="Salon principal" value="{{ request.args.get('area', '') or 'Salon principal' }}">
+                    </label>
+                    <label>
+                        Rotación preset
+                        <input id="builderRotationInput" type="number" min="0" max="359" step="1" value="0">
+                    </label>
+                </div>
+                <p class="rt-helper-copy">El clic en el plano crea la mesa con código automático. Después puedes editar nombre, tamaño o estado sin salir del constructor.</p>
+            </section>
+
+            <section class="rt-panel-card">
+                <div class="rt-panel-heading">
+                    <h3>Editor de mesa</h3>
+                    <span id="rtSelectedStateBadge" class="rt-state-badge">Sin seleccionar</span>
+                </div>
+                <form id="tableEditorForm" class="rt-form-grid">
+                    <input type="hidden" id="table_id" name="table_id">
+                    <label>
+                        Código
+                        <input type="text" id="codigo" name="codigo" placeholder="M-01">
+                    </label>
+                    <label>
+                        Nombre
+                        <input type="text" id="nombre" name="nombre" placeholder="Mesa terraza 01">
+                    </label>
+                    <label>
+                        Área
+                        <input type="text" id="area" name="area" list="restaurantAreaOptions" value="Salon principal">
+                    </label>
+                    <label>
+                        Capacidad
+                        <input type="number" id="capacidad" name="capacidad" min="1" value="4">
+                    </label>
+                    <label>
+                        Forma
+                        <select id="forma" name="forma">
+                            <option value="square">Cuadrada</option>
+                            <option value="rectangle">Rectangular</option>
+                            <option value="round">Redonda</option>
+                        </select>
+                    </label>
+                    <label>
+                        Estado
+                        <select id="estado" name="estado">
+                            {% for key, label in table_states.items() %}
+                            <option value="{{ key }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label>
+                        X %
+                        <input type="number" id="pos_x" name="pos_x" step="0.1" min="0" max="96" value="8">
+                    </label>
+                    <label>
+                        Y %
+                        <input type="number" id="pos_y" name="pos_y" step="0.1" min="0" max="92" value="10">
+                    </label>
+                    <label>
+                        Ancho %
+                        <input type="number" id="ancho" name="ancho" step="0.1" min="8" max="30" value="16">
+                    </label>
+                    <label>
+                        Alto %
+                        <input type="number" id="alto" name="alto" step="0.1" min="8" max="30" value="16">
+                    </label>
+                    <label class="rt-form-grid-full">
+                        Rotación
+                        <input type="number" id="rotacion" name="rotacion" step="1" min="0" max="359" value="0">
+                    </label>
+                </form>
+
+                <div class="rt-action-row">
+                    <button id="rtSaveTableButton" class="rt-btn rt-btn-primary" type="button">
+                        <i class="fas fa-save"></i> Guardar cambios
+                    </button>
+                    <button id="rtResetSelectionButton" class="rt-btn rt-btn-ghost" type="button">
+                        <i class="fas fa-crosshairs"></i> Limpiar
+                    </button>
+                </div>
+            </section>
+        </aside>
+    </div>
+    {% elif view_mode == 'service' %}
+    <div class="rt-service-layout">
+        <section class="rt-floor-card rt-service-stage">
+            <div class="rt-area-switcher" id="rtAreaSwitcher" hidden>
+                <button class="rt-area-chip is-active" type="button" data-area="all">Todas</button>
+                {% for area_name in floor_data.areas or [] %}
+                <button class="rt-area-chip" type="button" data-area="{{ area_name }}">{{ area_name }}</button>
+                {% endfor %}
+            </div>
+            <div id="restaurantFloor" class="rt-floorboard"></div>
+        </section>
+    </div>
+    {% else %}
+    <section class="rt-panel-card rt-report-filter-card">
+        <form class="rt-report-filter-form" method="GET" action="{{ url_for('restaurant_tables.restaurant_tables_reports') }}">
+            <label>
+                Desde
+                <input type="date" name="date_from" value="{{ report_data.filters.date_from }}">
+            </label>
+            <label>
+                Hasta
+                <input type="date" name="date_to" value="{{ report_data.filters.date_to }}">
+            </label>
+            <label>
+                Área
+                <select name="area">
+                    <option value="">Todas</option>
+                    {% for area_name in report_data.areas %}
+                    <option value="{{ area_name }}" {% if report_data.filters.area == area_name %}selected{% endif %}>{{ area_name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                Estado
+                <select name="status">
+                    <option value="">Todos</option>
+                    <option value="abierta" {% if report_data.filters.status == 'abierta' %}selected{% endif %}>Abierta</option>
+                    <option value="cerrada" {% if report_data.filters.status == 'cerrada' %}selected{% endif %}>Cerrada</option>
+                    <option value="cancelada" {% if report_data.filters.status == 'cancelada' %}selected{% endif %}>Cancelada</option>
+                </select>
+            </label>
+            <div class="rt-report-filter-actions">
+                <button class="rt-btn rt-btn-primary" type="submit">
+                    <i class="fas fa-filter"></i> Filtrar
+                </button>
+                <a class="rt-btn rt-btn-ghost" href="{{ url_for('restaurant_tables.restaurant_tables_reports') }}">
+                    <i class="fas fa-undo"></i> Limpiar
+                </a>
+            </div>
+        </form>
+    </section>
+
+    <section class="rt-summary-grid rt-summary-grid-reports">
+        <article class="rt-stat-card rt-stat-success">
+            <span>Ventas cerradas</span>
+            <strong>{{ report_data.summary.ventas_cerradas }}</strong>
+        </article>
+        <article class="rt-stat-card rt-stat-danger">
+            <span>Ventas anuladas</span>
+            <strong>{{ report_data.summary.ventas_canceladas }}</strong>
+        </article>
+        <article class="rt-stat-card rt-stat-accent">
+            <span>Ingresos del rango</span>
+            <strong>${{ '{:,.0f}'.format(report_data.summary.ingresos_totales|float) }}</strong>
+        </article>
+        <article class="rt-stat-card rt-stat-warning">
+            <span>Anulaciones</span>
+            <strong>${{ '{:,.0f}'.format(report_data.summary.anulaciones_totales|float) }}</strong>
+        </article>
+        <article class="rt-stat-card rt-stat-dark">
+            <span>Ticket promedio</span>
+            <strong>${{ '{:,.0f}'.format(report_data.summary.ticket_promedio|float) }}</strong>
+        </article>
+        <article class="rt-stat-card rt-stat-neutral">
+            <span>Sync contable</span>
+            <strong>{{ report_data.summary.sincronizadas }}/{{ report_data.summary.sincronizadas + report_data.summary.pendientes_sync }}</strong>
+        </article>
+    </section>
+
+    <div class="rt-report-layout">
+        <section class="rt-panel-card">
+            <div class="rt-panel-heading">
+                <h3>Lecturas rápidas</h3>
+            </div>
+            <div class="rt-report-kpi-grid">
+                <article class="rt-kpi-item">
+                    <span>Órdenes abiertas en el rango</span>
+                    <strong>{{ report_data.summary.ordenes_abiertas }}</strong>
+                </article>
+                <article class="rt-kpi-item">
+                    <span>Pendientes de sincronización</span>
+                    <strong>{{ report_data.summary.pendientes_sync }}</strong>
+                </article>
+            </div>
+            <div class="rt-report-breakdown">
+                <div>
+                    <h4>Ventas por mesa</h4>
+                    <ul class="rt-breakdown-list">
+                        {% for item in report_data.top_tables %}
+                        <li><span>{{ item.codigo }}</span><strong>${{ '{:,.0f}'.format(item.total|float) }}</strong></li>
+                        {% else %}
+                        <li><span>Sin datos</span><strong>$0</strong></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div>
+                    <h4>Medios de pago</h4>
+                    <ul class="rt-breakdown-list">
+                        {% for item in report_data.payment_breakdown %}
+                        <li><span>{{ item.label }}</span><strong>${{ '{:,.0f}'.format(item.total|float) }}</strong></li>
+                        {% else %}
+                        <li><span>Sin datos</span><strong>$0</strong></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="rt-panel-card">
+            <div class="rt-panel-heading">
+                <h3>Historial operacional</h3>
+                <span class="rt-order-meta">{{ report_data.orders|length }} registros</span>
+            </div>
+            <div class="rt-report-table-wrap">
+                <table class="rt-report-table">
+                    <thead>
+                        <tr>
+                            <th>Orden</th>
+                            <th>Mesa</th>
+                            <th>Área</th>
+                            <th>Estado</th>
+                            <th>Total</th>
+                            <th>Pago</th>
+                            <th>Duración</th>
+                            <th>Contabilidad</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in report_data.orders %}
+                        <tr>
+                            <td>
+                                <strong>#{{ order.id }}</strong>
+                                <small>{{ order.cliente_nombre or 'Cliente general' }}</small>
+                            </td>
+                            <td>
+                                <strong>{{ order.codigo_mesa }}</strong>
+                                <small>{{ order.nombre_mesa }}</small>
+                            </td>
+                            <td>{{ order.area }}</td>
+                            <td>
+                                <span class="rt-state-badge {{ 'ocupada' if order.estado == 'abierta' else ('disponible' if order.estado == 'cerrada' else 'reservada') }}">
+                                    {{ order.estado|replace('_', ' ')|title }}
+                                </span>
+                            </td>
+                            <td>${{ '{:,.0f}'.format(order.total_acumulado|float) }}</td>
+                            <td>{{ order.payment_method_label }}</td>
+                            <td>{{ order.duration_minutes }} min</td>
+                            <td>
+                                <span class="rt-sync-pill rt-sync-{{ order.accounting_status or 'pendiente' }}">
+                                    {{ order.accounting_status_label }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if order.can_cancel_sale %}
+                                <button class="rt-report-action" type="button" data-order-id="{{ order.id }}">
+                                    Anular venta
+                                </button>
+                                {% else %}
+                                <span class="rt-note">{{ order.cancel_reason or 'Sin acción' }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="9" class="rt-empty-cell">No hay ventas de mesas en el rango seleccionado.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+    {% endif %}
+
+    <datalist id="restaurantAreaOptions">
+        {% for area_name in floor_data.areas or [] %}
+        <option value="{{ area_name }}"></option>
+        {% endfor %}
+    </datalist>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     MODAL DE MESA — Se abre cuando el mesero selecciona una mesa
+     en modo "Atención". Permite ver y gestionar todo desde aquí.
+     ══════════════════════════════════════════════════════════════ -->
+<div id="rtTableModal" class="rtm-overlay" role="dialog" aria-modal="true" aria-labelledby="rtmTableTitle" hidden>
+    <div class="rtm-dialog">
+        <button id="rtmCloseButton" class="rtm-dialog-close" type="button" aria-label="Cerrar">
+            <i class="fas fa-times"></i>
+        </button>
+
+        <!-- ── Cuerpo principal ───────────────────────────────── -->
+        <div class="rtm-body">
+
+            <!-- Columna izquierda: cuenta activa -->
+            <aside class="rtm-order-col">
+                <section class="rtm-table-summary">
+                    <div class="rtm-table-summary-head">
+                        <div class="rtm-table-summary-title">
+                            <span id="rtmTableCode" class="rtm-code-pill"></span>
+                            <h2 id="rtmTableTitle">Mesa</h2>
+                        </div>
+                        <span id="rtmTableStatus" class="rt-state-badge"></span>
+                    </div>
+                    <div class="rtm-table-summary-meta">
+                        <div class="rtm-summary-chip">
+                            <i class="fas fa-receipt"></i>
+                            <span>Total</span>
+                            <strong id="rtmTotal">$0</strong>
+                        </div>
+                        <div class="rtm-summary-chip">
+                            <i class="fas fa-clock"></i>
+                            <span>Tiempo</span>
+                            <strong id="rtmTime">0 min</strong>
+                        </div>
+                        <div class="rtm-summary-chip">
+                            <i class="fas fa-fire-alt"></i>
+                            <span>Cocina</span>
+                            <strong id="rtmKitchen">Sin orden</strong>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="rtm-section-title">
+                    <i class="fas fa-clipboard-list"></i> Cuenta activa
+                    <span id="rtmOrderCode" class="rtm-order-pill">Sin cuenta</span>
+                </div>
+
+                <!-- Info cliente -->
+                <div class="rtm-client-row">
+                    <label class="rtm-mini-label">
+                        Cliente
+                        <input id="rtmClientName" type="text" placeholder="Nombre del cliente">
+                    </label>
+                    <label class="rtm-mini-label">
+                        Comensales
+                        <input id="rtmDinings" type="number" min="1" value="1">
+                    </label>
+                </div>
+
+                <!-- Consumos -->
+                <div id="rtmConsumptionList" class="rtm-consumption-list">
+                    <div class="rtm-empty-order">
+                        <i class="fas fa-utensils"></i>
+                        <p>Aún no hay consumos.<br>Selecciona platos a la derecha.</p>
+                    </div>
+                </div>
+
+                <!-- Resumen cobro -->
+                <div class="rtm-order-footer">
+                    <div class="rtm-order-total-row">
+                        <span>Total a cobrar</span>
+                        <strong id="rtmFooterTotal">$0</strong>
+                    </div>
+                    <label class="rtm-mini-label rtm-payment-label">
+                        Medio de pago
+                        <select id="rtmPaymentMethod">
+                            {% for key, label in payment_methods.items() %}
+                            <option value="{{ key }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+
+                    <!-- Cambio de estado rápido -->
+                    <div class="rtm-quick-states">
+                        <button class="rtm-state-btn rtm-state-disponible" data-next-state="disponible" type="button">
+                            <i class="fas fa-check-circle"></i> Disponible
+                        </button>
+                        <button class="rtm-state-btn rtm-state-reservada" data-next-state="reservada" type="button">
+                            <i class="fas fa-bookmark"></i> Reservada
+                        </button>
+                        <button class="rtm-state-btn rtm-state-ocupada" data-next-state="ocupada" type="button">
+                            <i class="fas fa-user-check"></i> Ocupada
+                        </button>
+                        <button class="rtm-state-btn rtm-state-cuenta" data-next-state="cuenta_solicitada" type="button">
+                            <i class="fas fa-hand-holding-usd"></i> Solicitar cuenta
+                        </button>
+                    </div>
+
+                    <!-- Acciones principales -->
+                    <div class="rtm-primary-actions">
+                        {% if can_charge_tables %}
+                        <button id="rtmChargeButton" class="rtm-btn-charge" type="button">
+                            <i class="fas fa-cash-register"></i> Cobrar mesa
+                        </button>
+                        {% endif %}
+                        {% if can_cancel_tables %}
+                        <button id="rtmCancelButton" class="rtm-btn-cancel" type="button">
+                            <i class="fas fa-ban"></i> Cancelar
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Columna derecha: catálogo por categorías -->
+            <section class="rtm-catalog-col">
+                <div class="rtm-section-title">
+                    <i class="fas fa-book-open"></i> Agregar platos
+                </div>
+
+                <!-- Filtro por categoría -->
+                <div id="rtmCategoryBar" class="rtm-category-bar">
+                    <button class="rtm-cat-btn is-active" data-cat="all" type="button">
+                        <i class="fas fa-th"></i> Todos
+                    </button>
+                    <!-- JS inyecta botones de categorías aquí -->
+                </div>
+
+                <!-- Búsqueda -->
+                <div class="rtm-search-wrap">
+                    <i class="fas fa-search rtm-search-icon"></i>
+                    <input id="rtmProductSearch" type="text" placeholder="Buscar plato o bebida...">
+                </div>
+
+                <!-- Grid de productos -->
+                <div id="rtmProductGrid" class="rtm-product-grid"></div>
+
+                <!-- Panel de añadir (aparece al seleccionar un producto) -->
+                <div id="rtmAddPanel" class="rtm-add-panel" hidden>
+                    <div class="rtm-add-product-info">
+                        <span id="rtmSelectedProductName">Producto</span>
+                        <strong id="rtmSelectedProductPrice">$0</strong>
+                    </div>
+                    <div class="rtm-add-controls">
+                        <button id="rtmQtyMinus" class="rtm-qty-btn" type="button"><i class="fas fa-minus"></i></button>
+                        <input id="rtmQty" type="number" min="1" value="1" class="rtm-qty-input">
+                        <button id="rtmQtyPlus" class="rtm-qty-btn" type="button"><i class="fas fa-plus"></i></button>
+                    </div>
+                    <label class="rtm-notes-label">
+                        <i class="fas fa-comment-alt"></i>
+                        <textarea id="rtmNotes" rows="2" placeholder="Notas cocina: sin cebolla, término medio..."></textarea>
+                    </label>
+                    <button id="rtmAddButton" class="rtm-btn-add" type="button">
+                        <i class="fas fa-plus-circle"></i> Añadir a la cuenta
+                    </button>
+                </div>
+            </section>
+
+        </div><!-- /rtm-body -->
+    </div><!-- /rtm-dialog -->
+</div><!-- /rtm-overlay -->
+
+<script>
+window.RESTAURANT_PAGE = {
+    viewMode: {{ view_mode | tojson }},
+    floorData: {{ floor_data | tojson }},
+    products: {{ products | tojson }},
+    reportData: {{ report_data | default({}, true) | tojson }},
+    endpoints: {
+        data: {{ url_for('restaurant_tables.restaurant_tables_data') | tojson }},
+        layout: {{ url_for('restaurant_tables.restaurant_tables_layout_save') | tojson }},
+        tableStateBase: {{ url_for('restaurant_tables.restaurant_table_state_change', table_id=0) | replace('/0/', '/__TABLE_ID__/') | tojson }},
+        addConsumptionBase: {{ url_for('restaurant_tables.restaurant_table_add_consumption', table_id=0) | replace('/0/', '/__TABLE_ID__/') | tojson }},
+        consumptionStateBase: {{ url_for('restaurant_tables.restaurant_consumption_state_change', consumption_id=0) | replace('/0/', '/__CONSUMPTION_ID__/') | tojson }},
+        closeAccountBase: {{ url_for('restaurant_tables.restaurant_table_close', table_id=0) | replace('/0/', '/__TABLE_ID__/') | tojson }},
+        cancelOpenBase: {{ url_for('restaurant_tables.restaurant_table_cancel_open', table_id=0) | replace('/0/', '/__TABLE_ID__/') | tojson }},
+        cancelClosedBase: {{ url_for('restaurant_tables.restaurant_closed_order_cancel', order_id=0) | replace('/0/', '/__ORDER_ID__/') | tojson }},
+    }
+};
+</script>
+<script src="{{ url_for('static', filename='js/restaurant_tables.js') }}"></script>
+{% endblock %}

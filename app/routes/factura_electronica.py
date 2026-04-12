@@ -5,7 +5,8 @@ Este módulo es el único punto de contacto entre CyberShop y el microservicio
 de facturación. NO contiene lógica tributaria ni XML — todo eso vive en
 /var/www/FacturacionDIAN/.
 
-Feature flag: el módulo solo opera si cliente_config.facturacion_electronica = 'true'.
+Feature flag: el módulo solo opera si la configuración central de módulos lo
+mantiene activo. Se conserva compatibilidad con cliente_config.facturacion_electronica.
 Clientes sin el módulo contratado verán la ruta /admin/facturacion-dian bloqueada
 y los flujos de pago NO intentarán facturar.
 
@@ -24,6 +25,7 @@ import os
 import logging
 import requests
 from database import get_db_cursor
+from tenant_features import MODULE_FACTURACION_ELECTRONICA, is_module_active
 
 logger = logging.getLogger(__name__)
 
@@ -69,16 +71,8 @@ MUNICIPIO_MAP = {
 
 
 def facturacion_habilitada() -> bool:
-    """Retorna True si el módulo de Facturación Electrónica está activo en cliente_config."""
-    try:
-        with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute(
-                "SELECT valor FROM cliente_config WHERE clave = 'facturacion_electronica'"
-            )
-            row = cur.fetchone()
-            return bool(row and str(row['valor']).lower() == 'true')
-    except Exception:
-        return False
+    """Retorna True si el módulo de Facturación Electrónica está activo."""
+    return is_module_active(MODULE_FACTURACION_ELECTRONICA)
 
 
 def _municipio_codigo(ciudad: str) -> str:

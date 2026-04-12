@@ -1,0 +1,116 @@
+{% extends "plantillaapp.html" %}
+
+{% block titulo %}Modulos SaaS | {{ datosApp.titulo }}{% endblock %}
+
+{% block body %}
+<style>
+.tenant-mod-shell { max-width: 1220px; margin: 0 auto; padding: 28px 22px 40px; }
+.tenant-mod-hero { display:flex; justify-content:space-between; gap:18px; align-items:flex-start; flex-wrap:wrap; margin-bottom:24px; }
+.tenant-mod-hero h2 { margin:0 0 8px; font-size:2rem; color:var(--color-primario, #122C94); }
+.tenant-mod-hero p { margin:0; color:#607089; max-width:760px; line-height:1.6; }
+.tenant-select-card, .tenant-module-card { background:#fff; border:1px solid rgba(17, 28, 58, 0.08); border-radius:22px; box-shadow:0 16px 36px rgba(10, 21, 52, 0.08); }
+.tenant-select-card { padding:18px; margin-bottom:20px; }
+.tenant-select-card form { display:flex; gap:14px; align-items:end; flex-wrap:wrap; }
+.tenant-select-card label { display:block; font-size:0.85rem; font-weight:700; color:#44516a; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.06em; }
+.tenant-select-card select { min-width:280px; padding:12px 14px; border-radius:14px; border:1px solid #d9dfeb; background:#f7f9fd; }
+.tenant-pill { display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius:999px; font-size:0.82rem; font-weight:700; background:#eef5ff; color:#1e5aa8; }
+.tenant-pill.default { background:#ecfff4; color:#147247; }
+.tenant-module-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:18px; }
+.tenant-module-card { padding:20px; position:relative; overflow:hidden; }
+.tenant-module-card::before { content:""; position:absolute; inset:0 auto auto 0; width:100%; height:4px; background:linear-gradient(90deg, var(--color-primario, #122C94), #4fb3ff); opacity:0.9; }
+.tenant-module-card h3 { margin:0 0 8px; font-size:1.15rem; color:#1b2840; }
+.tenant-module-card p { margin:0; color:#62708a; line-height:1.55; min-height:72px; }
+.tenant-module-meta { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0 18px; }
+.tenant-module-meta span { display:inline-flex; align-items:center; gap:6px; padding:7px 11px; border-radius:999px; background:#f4f7fc; color:#55627d; font-size:0.78rem; font-weight:700; }
+.tenant-switch-row { display:flex; justify-content:space-between; align-items:center; gap:14px; padding-top:16px; border-top:1px dashed #d7deea; }
+.switch { position:relative; display:inline-block; width:60px; height:32px; }
+.switch input { opacity:0; width:0; height:0; }
+.slider { position:absolute; cursor:pointer; inset:0; background:#ccd6e7; transition:0.25s; border-radius:999px; }
+.slider:before { position:absolute; content:""; width:24px; height:24px; left:4px; top:4px; background:#fff; transition:0.25s; border-radius:50%; box-shadow:0 4px 10px rgba(0,0,0,0.15); }
+.switch input:checked + .slider { background:linear-gradient(90deg, #0f9d58, #53d795); }
+.switch input:checked + .slider:before { transform:translateX(28px); }
+.tenant-actions { display:flex; justify-content:flex-end; margin-top:24px; }
+.tenant-actions button { border:none; border-radius:14px; padding:12px 20px; font-weight:700; background:linear-gradient(135deg, var(--color-primario, #122C94), #2548c8); color:#fff; box-shadow:0 14px 30px rgba(18, 44, 148, 0.24); }
+.tenant-empty { padding:20px; background:#fff9e9; border:1px solid #f1df9a; color:#8b6d00; border-radius:18px; }
+@media (max-width: 768px) {
+  .tenant-mod-shell { padding: 22px 16px 34px; }
+  .tenant-mod-hero h2 { font-size:1.6rem; }
+  .tenant-select-card form { flex-direction:column; align-items:stretch; }
+  .tenant-select-card select { min-width:0; width:100%; }
+}
+</style>
+
+<div class="tenant-mod-shell">
+    <div class="tenant-mod-hero">
+        <div>
+            <h2>Feature Flags por Tenant</h2>
+            <p>Activa o desactiva modulos SaaS por suscriptor sin tocar el core. El backend sigue protegiendo las rutas y el frontend oculta los accesos cuando un modulo no esta contratado.</p>
+        </div>
+        {% if selected_tenant_id %}
+        <span class="tenant-pill"><i class="fas fa-fingerprint"></i> Tenant activo #{{ selected_tenant_id }}</span>
+        {% endif %}
+    </div>
+
+    {% if tenants %}
+    <div class="tenant-select-card">
+        <form method="GET" action="{{ url_for('restaurant_tables.saas_modules_admin') }}">
+            <div>
+                <label for="tenant_id">Suscriptor</label>
+                <select id="tenant_id" name="tenant_id" onchange="this.form.submit()">
+                    {% for tenant in tenants %}
+                    <option value="{{ tenant.id }}" {% if tenant.id == selected_tenant_id %}selected{% endif %}>
+                        {{ tenant.nombre }} {% if tenant.slug %}({{ tenant.slug }}){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% for tenant in tenants if tenant.id == selected_tenant_id %}
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <span class="tenant-pill {% if tenant.is_default %}default{% endif %}">
+                    <i class="fas fa-{{ 'star' if tenant.is_default else 'layer-group' }}"></i>
+                    {{ 'Tenant por defecto' if tenant.is_default else 'Tenant registrado' }}
+                </span>
+                <span class="tenant-pill">
+                    <i class="fas fa-signal"></i> {{ tenant.estado or 'activo' }}
+                </span>
+            </div>
+            {% endfor %}
+        </form>
+    </div>
+
+    <form method="POST" action="{{ url_for('restaurant_tables.saas_modules_admin_save', tenant_id=selected_tenant_id) }}">
+        <div class="tenant-module-grid">
+            {% for module in modules %}
+            <div class="tenant-module-card">
+                <h3>{{ module.nombre }}</h3>
+                <p>{{ module.descripcion }}</p>
+                <div class="tenant-module-meta">
+                    <span><i class="fas fa-code-branch"></i> {{ module.code }}</span>
+                    <span><i class="fas fa-box-open"></i> {{ module.categoria or 'general' }}</span>
+                    <span><i class="fas fa-{{ 'shield-alt' if module.is_core else 'plug' }}"></i> {{ 'Core' if module.is_core else 'Pluggable' }}</span>
+                </div>
+                <div class="tenant-switch-row">
+                    <div>
+                        <strong style="display:block; color:#22314c;">{{ 'Activo' if module.is_active else 'Inactivo' }}</strong>
+                        <small style="color:#73819b;">{{ 'Visible y accesible para el tenant.' if module.is_active else 'Oculto en menu y bloqueado en backend.' }}</small>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="module_{{ module.code }}" value="true" {% if module.is_active %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="tenant-actions">
+            <button type="submit"><i class="fas fa-save"></i> Guardar Suscripcion</button>
+        </div>
+    </form>
+    {% else %}
+    <div class="tenant-empty">
+        No hay tenants cargados. Ejecuta la migracion del modulo SaaS para crear el tenant por defecto y el catalogo de modulos.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

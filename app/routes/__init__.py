@@ -11,6 +11,7 @@ from routes.public import public_bp
 from routes.admin import admin_bp
 from routes.payments import payments_bp
 from routes.quotes import quotes_bp
+from routes.restaurant_tables import restaurant_tables_bp
 
 
 def register_blueprints(app):
@@ -24,6 +25,7 @@ def register_blueprints(app):
     app.register_blueprint(admin_bp)
     app.register_blueprint(payments_bp)
     app.register_blueprint(quotes_bp)
+    app.register_blueprint(restaurant_tables_bp)
     
     # Nomina
     from routes.nomina import nomina_bp

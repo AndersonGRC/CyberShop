@@ -1,0 +1,20 @@
+<nav class="rt-module-nav" aria-label="Submódulos de restaurante">
+    <a href="{{ url_for('restaurant_tables.restaurant_tables_builder') }}"
+       class="rt-module-link {% if view_mode == 'builder' %}is-active{% endif %}">
+        <i class="fas fa-drafting-compass"></i>
+        <span>Crear Mesas</span>
+        <small>Arma el salón</small>
+    </a>
+    <a href="{{ url_for('restaurant_tables.restaurant_tables_service') }}"
+       class="rt-module-link {% if view_mode == 'service' %}is-active{% endif %}">
+        <i class="fas fa-concierge-bell"></i>
+        <span>Atender</span>
+        <small>Cobrar mesas</small>
+    </a>
+    <a href="{{ url_for('restaurant_tables.restaurant_tables_reports') }}"
+       class="rt-module-link {% if view_mode == 'reports' %}is-active{% endif %}">
+        <i class="fas fa-chart-bar"></i>
+        <span>Ventas</span>
+        <small>Resumen del día</small>
+    </a>
+</nav>

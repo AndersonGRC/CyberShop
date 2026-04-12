@@ -1152,6 +1152,40 @@
         </div>
     </div>
 
+    {% if module_toggles %}
+    <div class="config-card" id="modulos-sistema" style="margin-top: 30px;">
+        <div class="config-card-header">
+            <i class="fas fa-toggle-on"></i> Activación de Módulos
+        </div>
+        <div class="config-card-body">
+            <p style="color:var(--color-gris-texto, #666); margin-bottom:20px; font-size:0.9rem;">
+                Desde aquí puedes activar o desactivar los módulos funcionales del panel. Los cambios ocultan accesos del menú para esta instancia y dejan centralizada la configuración del superadministrador.
+            </p>
+            <form method="POST" action="{{ url_for('admin.configuracion_cliente') }}">
+                <input type="hidden" name="form_type" value="modulos">
+                {% for module in module_toggles %}
+                <div class="config-item">
+                    <div class="config-info">
+                        <span class="config-label">{{ module.nombre }}</span>
+                        <span class="config-desc">{{ module.descripcion }}</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="module_{{ module.code }}" value="true"
+                               {% if module.is_active %}checked{% endif %}>
+                        <span class="slider-toggle"></span>
+                    </label>
+                </div>
+                {% endfor %}
+                <div style="text-align:right; margin-top:20px;">
+                    <button type="submit" class="btn-guardar-config" style="max-width:240px; margin:0 0 0 auto;">
+                        <i class="fas fa-save"></i> Guardar Módulos
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
     {% if secciones %}
     <div class="config-card" id="secciones" style="margin-top: 30px;">
         <div class="config-card-header">

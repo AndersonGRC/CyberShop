@@ -18,6 +18,7 @@ from psycopg2.extras import DictCursor
 from database import get_db_connection, get_db_cursor
 from helpers import get_data_app
 from security import rol_requerido, ADMIN_FULL, ADMIN_STAFF, ADMIN_CONTADOR, ROL_SUPER_ADMIN
+from tenant_features import get_module_settings, set_module_state
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -1739,6 +1740,20 @@ def configuracion_cliente():
                 flash(f'Error actualizando secciones: Revisa el log para más detalles.', 'error')
             return redirect(url_for('admin.configuracion_cliente') + '#secciones')
 
+        if form_type == 'modulos':
+            try:
+                for module in get_module_settings():
+                    field_name = f"module_{module['code']}"
+                    desired_state = bool(request.form.get(field_name))
+                    if not set_module_state(module['code'], desired_state):
+                        flash(f"No fue posible actualizar el modulo {module['nombre']}.", 'error')
+                        return redirect(url_for('admin.configuracion_cliente') + '#modulos-sistema')
+                flash('Activacion de modulos actualizada.', 'success')
+            except Exception as e:
+                current_app.logger.error(f"Error actualizando modulos locales: {e}")
+                flash('Error al actualizar los modulos.', 'error')
+            return redirect(url_for('admin.configuracion_cliente') + '#modulos-sistema')
+
         else:
             # Procesar configuración de empresa, colores y logo
             for clave, valor in request.form.items():
@@ -1786,6 +1801,8 @@ def configuracion_cliente():
     except Exception as e:
         current_app.logger.error(f"Error cargando config_secciones: {e}")
 
+    module_toggles = get_module_settings()
+
     # Estado de Gmail API
     gmail_activo = False
     gmail_email = ''
@@ -1805,6 +1822,7 @@ def configuracion_cliente():
     return render_template('configuracion_cliente.html',
                            datosApp=get_data_app(), grupos=grupos,
                            secciones=secciones,
+                           module_toggles=module_toggles,
                            gmail_activo=gmail_activo, gmail_email=gmail_email)
 
 

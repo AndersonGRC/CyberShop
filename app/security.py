@@ -24,6 +24,8 @@ ROL_PROPIETARIO = 2   # Dueño del negocio / cliente del software
 ROL_CLIENTE     = 3   # Cliente final (comprador en la tienda)
 ROL_EMPLEADO    = 4   # Empleado del negocio (ventas, productos, CRM)
 ROL_CONTADOR    = 5   # Contador (solo módulos contabilidad y facturación)
+ROL_MESERO      = 6   # Mesero del restaurante (toma pedidos en mesas)
+ROL_CAJERO      = 7   # Cajero del restaurante (cobra y anula)
 
 # ─────────────────────────────────────────────────────────
 # Grupos de permisos reutilizables
@@ -40,8 +42,30 @@ ADMIN_CONTADOR = [ROL_SUPER_ADMIN, ROL_PROPIETARIO, ROL_CONTADOR]
 ROLES_CLIENTE  = [ROL_CLIENTE]
 # Solo cliente final: portal de compras y soporte al cliente
 
+# ─────────────────────────────────────────────────────────
+# Restaurante: permisos operativos
+# ─────────────────────────────────────────────────────────
+RESTAURANT_OPERATIONAL = ADMIN_STAFF + [ROL_MESERO, ROL_CAJERO]
+# Quién puede entrar a "Atender Mesas" y agregar consumos: mesero, cajero, staff
+
+RESTAURANT_CHARGE      = ADMIN_FULL + [ROL_CAJERO]
+# Quién puede cobrar/cerrar la cuenta de una mesa: cajero y dueño/admin
+
+RESTAURANT_CANCEL      = ADMIN_FULL + [ROL_CAJERO]
+# Quién puede anular consumos, cancelar mesas abiertas o anular ventas cerradas
+
 
 # --- Control de acceso por rol ---
+
+def _is_json_request():
+    """Detecta si la peticion espera una respuesta JSON."""
+    return (
+        request.is_json
+        or request.headers.get('Accept', '').startswith('application/json')
+        or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        or request.path.endswith('/data')
+    )
+
 
 def rol_requerido(rol_id):
     """Decorador que restringe el acceso a una vista segun el rol del usuario.
@@ -56,10 +80,14 @@ def rol_requerido(rol_id):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             if 'rol_id' not in session:
+                if _is_json_request():
+                    return jsonify({'success': False, 'error': 'Sesión expirada. Inicia sesión de nuevo.'}), 401
                 flash('No tienes permiso para acceder a esta página.', 'error')
                 return redirect(url_for('auth.login'))
             permitidos = rol_id if isinstance(rol_id, list) else [rol_id]
             if session['rol_id'] not in permitidos:
+                if _is_json_request():
+                    return jsonify({'success': False, 'error': 'No tienes permiso para esta acción.'}), 403
                 flash('No tienes permiso para acceder a esta página.', 'error')
                 return redirect(url_for('auth.login'))
             return f(*args, **kwargs)

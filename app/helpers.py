@@ -93,27 +93,10 @@ def get_data_cliente():
     except Exception:
         pass
 
-    # Verificar si el módulo de soporte está habilitado
-    soporte_habilitado = True
-    try:
-        with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute("SELECT valor FROM cliente_config WHERE clave = 'soporte_habilitado'")
-            row = cur.fetchone()
-            if row and row['valor'] == 'false':
-                soporte_habilitado = False
-    except Exception:
-        pass
+    from tenant_features import MODULE_SUPPORT, MODULE_VIDEO, MODULE_WISHLIST, is_module_active
 
-    # Verificar si el módulo de wishlist está habilitado
-    wishlist_habilitado = True
-    try:
-        with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute("SELECT valor FROM cliente_config WHERE clave = 'wishlist_habilitado'")
-            row = cur.fetchone()
-            if row and row['valor'] == 'false':
-                wishlist_habilitado = False
-    except Exception:
-        pass
+    soporte_habilitado = is_module_active(MODULE_SUPPORT)
+    wishlist_habilitado = is_module_active(MODULE_WISHLIST)
 
     menu = [
         {"nombre": "Mi Cuenta",    "url": "auth.dashboard_cliente", "icono": "user-circle"},
@@ -124,16 +107,7 @@ def get_data_cliente():
     if soporte_habilitado:
         menu.append({"nombre": "Soporte", "url": "soporte.mis_tickets", "icono": "headset"})
 
-    # Verificar si el módulo de videollamadas está habilitado
-    video_habilitado = True
-    try:
-        with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute("SELECT valor FROM cliente_config WHERE clave = 'video_habilitado'")
-            row = cur.fetchone()
-            if row and row['valor'] == 'false':
-                video_habilitado = False
-    except Exception:
-        pass
+    video_habilitado = is_module_active(MODULE_VIDEO)
 
     if video_habilitado:
         menu.append({"nombre": "Videollamadas", "url": "video.mis_videollamadas", "icono": "video"})
@@ -156,6 +130,32 @@ def get_data_app():
     Incluye el titulo del sitio y la estructura del menu lateral
     con modulos, submodulos e iconos de Font Awesome.
     """
+    from flask import session as _s
+
+    from security import ROL_SUPER_ADMIN
+    from tenant_features import (
+        MODULE_ACCOUNTING,
+        MODULE_BILLING,
+        MODULE_CONTENT,
+        MODULE_COUPONS,
+        MODULE_CRM,
+        MODULE_FACTURACION_ELECTRONICA,
+        MODULE_INVENTORY,
+        MODULE_ORDERS,
+        MODULE_PAYROLL,
+        MODULE_POS,
+        MODULE_QUOTES,
+        MODULE_RESTAURANT_TABLES,
+        MODULE_SUPPORT,
+        MODULE_USERS,
+        MODULE_VIDEO,
+        MODULE_WISHLIST,
+        get_active_module_codes,
+    )
+
+    active_modules = get_active_module_codes()
+    rol_actual = _s.get('rol_id')
+
     App = [
         {"nombre": "Panel Principal", "url": "admin.dashboard_admin", "icono": "home"},
         
@@ -164,20 +164,21 @@ def get_data_app():
             "url": "#", # Grupo
             "icono": "cash-register",
             "submodulos": [
-                {"nombre": "Punto de Venta", "url": "admin.facturacion_pos", "icono": "cash-register"},
-                {"nombre": "Historial POS", "url": "admin.historial_pos", "icono": "receipt"},
-                {"nombre": "Gestionar Pedidos", "url": "admin.gestion_pedidos", "icono": "truck"},
-                {"nombre": "Nueva Cotización", "url": "quotes.cotizar", "icono": "file-invoice-dollar"},
-                {"nombre": "Mis Cotizaciones", "url": "quotes.ver_cotizaciones", "icono": "history"},
-                {"nombre": "Nueva Cuenta de Cobro", "url": "billing.crear_cuenta", "icono": "file-invoice"},
-                {"nombre": "Mis Cuentas de Cobro", "url": "billing.listar_cuentas", "icono": "folder-open"},
-                {"nombre": "Cupones", "url": "cupones.gestion_cupones", "icono": "ticket-alt"}
+                {"nombre": "Punto de Venta", "url": "admin.facturacion_pos", "icono": "cash-register", "module_code": MODULE_POS},
+                {"nombre": "Historial POS", "url": "admin.historial_pos", "icono": "receipt", "module_code": MODULE_POS},
+                {"nombre": "Gestionar Pedidos", "url": "admin.gestion_pedidos", "icono": "truck", "module_code": MODULE_ORDERS},
+                {"nombre": "Nueva Cotización", "url": "quotes.cotizar", "icono": "file-invoice-dollar", "module_code": MODULE_QUOTES},
+                {"nombre": "Mis Cotizaciones", "url": "quotes.ver_cotizaciones", "icono": "history", "module_code": MODULE_QUOTES},
+                {"nombre": "Nueva Cuenta de Cobro", "url": "billing.crear_cuenta", "icono": "file-invoice", "module_code": MODULE_BILLING},
+                {"nombre": "Mis Cuentas de Cobro", "url": "billing.listar_cuentas", "icono": "folder-open", "module_code": MODULE_BILLING},
+                {"nombre": "Cupones", "url": "cupones.gestion_cupones", "icono": "ticket-alt", "module_code": MODULE_COUPONS}
             ]
         },
         {
             "nombre": "Inventario",
             "url": "#", # Grupo
             "icono": "boxes",
+            "module_code": MODULE_INVENTORY,
             "submodulos": [
                 {"nombre": "Resumen / Stock", "url": "admin.gestion_inventario", "icono": "clipboard-list"},
                 {"nombre": "Agregar Producto", "url": "admin.GestionProductos", "icono": "plus-circle"},
@@ -185,13 +186,14 @@ def get_data_app():
                 {"nombre": "Eliminar Productos", "url": "admin.eliminar_productos", "icono": "trash-alt"},
                 {"nombre": "Géneros", "url": "admin.gestion_generos", "icono": "tags"},
                 {"nombre": "Reseñas", "url": "admin.gestion_resenas", "icono": "star"},
-                {"nombre": "Wishlist Stats", "url": "wishlist.wishlist_estadisticas", "icono": "heart"}
+                {"nombre": "Wishlist Stats", "url": "wishlist.wishlist_estadisticas", "icono": "heart", "module_code": MODULE_WISHLIST}
             ]
         },
         {
             "nombre": "Contenido Web",
             "url": "#",
             "icono": "newspaper",
+            "module_code": MODULE_CONTENT,
             "submodulos": [
                 {"nombre": "Publicaciones", "url": "admin.gestion_publicaciones", "icono": "file-alt"},
                 {"nombre": "Slides Carrusel", "url": "admin.gestion_slides", "icono": "images"},
@@ -202,6 +204,7 @@ def get_data_app():
             "nombre": "Usuarios",
             "url": "#",
             "icono": "users",
+            "module_code": MODULE_USERS,
             "submodulos": [
                 {"nombre": "Gestión Usuarios", "url": "admin.gestion_usuarios", "icono": "user-cog"},
                 {"nombre": "Crear Usuario", "url": "admin.crear_usuario", "icono": "user-plus"}
@@ -211,6 +214,7 @@ def get_data_app():
             "nombre": "Empleados",
             "url": "#",
             "icono": "id-card",
+            "module_code": MODULE_PAYROLL,
             "submodulos": [
                 {"nombre": "Dashboard Nomina", "url": "nomina.nomina_dashboard", "icono": "chart-line"},
                 {"nombre": "Empleados", "url": "nomina.empleados_lista", "icono": "users"},
@@ -225,6 +229,7 @@ def get_data_app():
             "nombre": "CRM",
             "url": "#",
             "icono": "address-book",
+            "module_code": MODULE_CRM,
             "submodulos": [
                 {"nombre": "Dashboard CRM",  "url": "crm.crm_dashboard",      "icono": "chart-pie"},
                 {"nombre": "Contactos",      "url": "crm.crm_contactos_lista", "icono": "address-card"},
@@ -235,6 +240,7 @@ def get_data_app():
             "nombre": "Contabilidad",
             "url": "#",
             "icono": "chart-line",
+            "module_code": MODULE_ACCOUNTING,
             "submodulos": [
                 {"nombre": "Dashboard",    "url": "contabilidad.dashboard",    "icono": "tachometer-alt"},
                 {"nombre": "Movimientos",  "url": "contabilidad.movimientos",  "icono": "exchange-alt"},
@@ -246,6 +252,7 @@ def get_data_app():
             "nombre": "Soporte",
             "url": "#",
             "icono": "headset",
+            "module_code": MODULE_SUPPORT,
             "submodulos": [
                 {"nombre": "Tickets clientes", "url": "soporte.admin_tickets",     "icono": "ticket-alt"},
                 {"nombre": "Configuración",     "url": "soporte.admin_soporte_config", "icono": "sliders-h"},
@@ -255,10 +262,22 @@ def get_data_app():
             "nombre": "Videollamadas",
             "url": "#",
             "icono": "video",
+            "module_code": MODULE_VIDEO,
             "submodulos": [
                 {"nombre": "Mis Salas",      "url": "video.admin_video_lista",  "icono": "door-open"},
                 {"nombre": "Nueva Sala",     "url": "video.admin_video_crear",  "icono": "plus-circle"},
                 {"nombre": "Configuración",  "url": "video.admin_video_config", "icono": "sliders-h"},
+            ]
+        },
+        {
+            "nombre": "Restaurante",
+            "url": "#",
+            "icono": "utensils",
+            "module_code": MODULE_RESTAURANT_TABLES,
+            "submodulos": [
+                {"nombre": "Atención de Mesas", "url": "restaurant_tables.restaurant_tables_dashboard", "icono": "concierge-bell"},
+                {"nombre": "Construcción de Plano", "url": "restaurant_tables.restaurant_tables_builder", "icono": "drafting-compass"},
+                {"nombre": "Reportes de Mesas", "url": "restaurant_tables.restaurant_tables_reports", "icono": "chart-bar"},
             ]
         },
         {
@@ -268,12 +287,14 @@ def get_data_app():
             "submodulos": [
                 {"nombre": "Config. Cliente",   "url": "admin.configuracion_cliente", "icono": "paint-brush"},
                 {"nombre": "Config. Secciones", "url": "admin.config_secciones",      "icono": "sliders-h"},
+                {"nombre": "Módulos SaaS",      "url": "restaurant_tables.saas_modules_admin", "icono": "toggle-on"},
             ]
         },
         {
             "nombre": "Facturación DIAN",
             "url": "admin.facturacion_dian",
-            "icono": "file-invoice"
+            "icono": "file-invoice",
+            "module_code": MODULE_FACTURACION_ELECTRONICA
         },
         {"nombre": "Cerrar Sesion", "url": "auth.logout", "icono": "sign-out-alt"}
     ]
@@ -288,11 +309,41 @@ def get_data_app():
     except Exception:
         pass
 
-    # El grupo "Configuración" solo es visible para el Super Admin (rol_id = 1)
     try:
-        from flask import session as _s
-        if _s.get('rol_id') != 1:
-            App = [item for item in App if item.get('nombre') != 'Configuración']
+        filtered_app = []
+        for item in App:
+            group_module = item.get('module_code')
+            if group_module and group_module not in active_modules:
+                continue
+            if item.get('nombre') == 'Configuración' and rol_actual != ROL_SUPER_ADMIN:
+                continue
+
+            item_copy = dict(item)
+            submodulos = item_copy.get('submodulos')
+            if submodulos is not None:
+                item_copy['submodulos'] = [
+                    dict(sub)
+                    for sub in submodulos
+                    if not sub.get('module_code') or sub['module_code'] in active_modules
+                ]
+                if not item_copy['submodulos']:
+                    continue
+
+            filtered_app.append(item_copy)
+
+        App = filtered_app
+
+        # Mesero (6) y Cajero (7): solo ven Restaurante y Cerrar Sesión
+        if rol_actual in (6, 7):
+            App = [item for item in App if item.get('nombre') in ('Restaurante', 'Cerrar Sesion')]
+            if rol_actual == 6:
+                for grupo in App:
+                    if grupo.get('nombre') == 'Restaurante':
+                        grupo['submodulos'] = [
+                            sub for sub in grupo.get('submodulos', [])
+                            if sub.get('url') == 'restaurant_tables.restaurant_tables_dashboard'
+                        ]
+                App = [item for item in App if item.get('nombre') != 'Restaurante' or item.get('submodulos')]
     except Exception:
         pass
 

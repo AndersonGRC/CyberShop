@@ -212,6 +212,16 @@ INSERT INTO roles (id, nombre) VALUES (4, 'Empleado')
 INSERT INTO roles (id, nombre) VALUES (5, 'Contador')
     ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre;
 
+-- Roles operativos del módulo Restaurante
+INSERT INTO roles (id, nombre) VALUES (6, 'Mesero')
+    ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre;
+
+INSERT INTO roles (id, nombre) VALUES (7, 'Cajero')
+    ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre;
+
+-- Asegurar que el secuencial no choque con los IDs insertados manualmente
+SELECT setval('roles_id_seq', GREATEST((SELECT MAX(id) FROM roles), 7));
+
 -- =============================================================
 -- MIGRACIÓN: Estado de cotizaciones y vinculación con contabilidad
 -- =============================================================
@@ -279,8 +289,12 @@ ALTER TABLE pedidos    ADD COLUMN IF NOT EXISTS factura_dian_id UUID;
 ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS factura_dian_id UUID;
 
 INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
-SELECT 'facturacion_electronica', 'false', 'boolean', 'modulos', 'Módulo de Facturación Electrónica DIAN', 10
+SELECT 'facturacion_electronica', 'false', 'boolean', 'modulos', 'Módulo de Facturación Electrónica DIAN', 160
 WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'facturacion_electronica');
+
+INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
+SELECT 'restaurant_tables_habilitado', 'true', 'boolean', 'modulos', 'Módulo de mesas de restaurante', 150
+WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'restaurant_tables_habilitado');
 
 -- =============================================================
 -- MIGRACIÓN: Notas de Crédito POS
@@ -344,7 +358,51 @@ CREATE INDEX IF NOT EXISTS idx_sala_part_token         ON sala_video_participant
 CREATE INDEX IF NOT EXISTS idx_sala_part_sala          ON sala_video_participantes (sala_id);
 
 INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
-SELECT 'video_habilitado', 'true', 'boolean', 'modulos', 'Módulo de videollamadas', 15
+SELECT 'pedidos_habilitado', 'true', 'boolean', 'modulos', 'Gestión de pedidos del panel administrativo', 10
+WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'pedidos_habilitado');
+
+INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
+SELECT 'pos_habilitado', 'true', 'boolean', 'modulos', 'Punto de venta e historial POS', 20
+WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'pos_habilitado');
+
+INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
+SELECT 'cotizaciones_habilitado', 'true', 'boolean', 'modulos', 'Módulo de cotizaciones PDF', 30
+WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'cotizaciones_habilitado');
+
+INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
+SELECT 'cuentas_cobro_habilitado', 'true', 'boolean', 'modulos', 'Módulo de cuentas de cobro', 40
+WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'cuentas_cobro_habilitado');
+
+INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
+SELECT 'inventario_habilitado', 'true', 'boolean', 'modulos', 'Inventario, catálogo y reseñas', 60
+WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'inventario_habilitado');
+
+INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
+SELECT 'contenido_web_habilitado', 'true', 'boolean', 'modulos', 'Publicaciones, slides y servicios del sitio', 80
+WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'contenido_web_habilitado');
+
+INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
+SELECT 'usuarios_habilitado', 'true', 'boolean', 'modulos', 'Gestión de usuarios administrativos', 90
+WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'usuarios_habilitado');
+
+INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
+SELECT 'nomina_habilitada', 'true', 'boolean', 'modulos', 'Módulo de nómina y empleados', 100
+WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'nomina_habilitada');
+
+INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
+SELECT 'crm_habilitado', 'true', 'boolean', 'modulos', 'Módulo CRM de contactos y tareas', 110
+WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'crm_habilitado');
+
+INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
+SELECT 'contabilidad_habilitada', 'true', 'boolean', 'modulos', 'Módulo de contabilidad', 120
+WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'contabilidad_habilitada');
+
+INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
+SELECT 'soporte_habilitado', 'true', 'boolean', 'modulos', 'Módulo de tickets de soporte', 130
+WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'soporte_habilitado');
+
+INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
+SELECT 'video_habilitado', 'true', 'boolean', 'modulos', 'Módulo de videollamadas', 140
 WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'video_habilitado');
 
 INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
@@ -392,7 +450,7 @@ ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS cupon_id        INTEGER REFERENCES 
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS descuento_total NUMERIC DEFAULT 0;
 
 INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
-SELECT 'cupones_habilitado', 'true', 'boolean', 'modulos', 'Módulo de cupones de descuento', 12
+SELECT 'cupones_habilitado', 'true', 'boolean', 'modulos', 'Módulo de cupones de descuento', 50
 WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'cupones_habilitado');
 
 -- =============================================================
@@ -411,7 +469,7 @@ CREATE INDEX IF NOT EXISTS idx_lista_deseos_usuario  ON lista_deseos (usuario_id
 CREATE INDEX IF NOT EXISTS idx_lista_deseos_producto ON lista_deseos (producto_id);
 
 INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
-SELECT 'wishlist_habilitado', 'true', 'boolean', 'modulos', 'Lista de deseos para clientes', 13
+SELECT 'wishlist_habilitado', 'true', 'boolean', 'modulos', 'Lista de deseos para clientes', 70
 WHERE NOT EXISTS (SELECT 1 FROM cliente_config WHERE clave = 'wishlist_habilitado');
 
 -- =============================================================

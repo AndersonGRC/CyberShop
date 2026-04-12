@@ -71,6 +71,7 @@ def registrar_movimiento(tipo, categoria, descripcion, monto,
 CATEGORIAS_INGRESO = [
     ('cuenta_cobro',  'Cuenta de cobro'),
     ('venta_pos',     'Venta POS'),
+    ('venta_restaurante', 'Venta restaurante'),
     ('pedido_online', 'Pedido online'),
     ('honorarios',    'Honorarios'),
     ('otro_ingreso',  'Otro ingreso'),
@@ -84,6 +85,7 @@ CATEGORIAS_EGRESO = [
     ('impuestos',   'Impuestos / obligaciones'),
     ('prestamos',   'Préstamos / cuotas'),
     ('anulacion_pos', 'Anulación venta POS'),
+    ('anulacion_restaurante', 'Anulación venta restaurante'),
     ('otro_egreso', 'Otro egreso'),
 ]
 ALL_CATEGORIAS = dict(CATEGORIAS_INGRESO + CATEGORIAS_EGRESO)
