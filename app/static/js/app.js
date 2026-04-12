@@ -1,51 +1,178 @@
 /**
- * app.js — Comportamiento del sidebar en el panel de administracion.
+ * app.js — Comportamiento compartido del panel de administracion.
  *
- * Maneja el toggle del menu lateral (hamburguesa) y la navegacion
- * de submenus en dispositivos moviles con cierre automatico al
- * hacer clic fuera del area de navegacion.
+ * Controla la apertura del sidebar en desktop/mobile, el backdrop en
+ * pantallas pequenas, el marcado de enlace activo y los submenus
+ * desplegables en navegacion movil.
  */
 
-// Toggle del menú principal
-document.querySelector('.btn-menu').addEventListener('click', () => {
-    document.querySelector('header').classList.toggle('hidden');
-});
-
-// Marca el enlace activo en el submenú de sección (tabs de productos/géneros)
 (function () {
-    const path = window.location.pathname;
-    document.querySelectorAll('.Submenunavegacion a').forEach(function (link) {
-        if (link.getAttribute('href') === path) {
-            link.classList.add('active');
+    var sidebar = document.getElementById('app-sidebar') || document.querySelector('header');
+    var toggleButton = document.querySelector('.btn-menu');
+    var backdrop = document.querySelector('.layout-backdrop');
+    var pageSubnavLinks = document.querySelectorAll('.Submenunavegacion a');
+    var submenuParents = document.querySelectorAll('.nav ul li');
+
+    if (!sidebar || !toggleButton) {
+        return;
+    }
+
+    var wasMobile = window.matchMedia('(max-width: 768px)').matches;
+
+    function isMobile() {
+        return window.matchMedia('(max-width: 768px)').matches;
+    }
+
+    /* On mobile the CSS is inverted: default = translateX(-100%) hidden,
+       .hidden class = translateX(0) visible.
+       On desktop: default = visible, .hidden = translateX(-100%) hidden. */
+    function isSidebarOpen() {
+        return isMobile()
+            ? sidebar.classList.contains('hidden')
+            : !sidebar.classList.contains('hidden');
+    }
+
+    function syncSidebarState() {
+        var mobile = isMobile();
+        var open = isSidebarOpen();
+
+        document.body.classList.toggle('sidebar-mobile-open', mobile && open);
+        toggleButton.setAttribute('aria-expanded', String(open));
+
+        if (backdrop) {
+            backdrop.hidden = !(mobile && open);
         }
+    }
+
+    function closeSidebarOnMobile() {
+        if (!isMobile()) {
+            return;
+        }
+        sidebar.classList.remove('hidden');
+        syncSidebarState();
+    }
+
+    function resetSidebarForViewport() {
+        var mobile = isMobile();
+
+        if (mobile !== wasMobile) {
+            sidebar.classList.remove('hidden');
+            submenuParents.forEach(function (item) { item.classList.remove('active'); });
+            wasMobile = mobile;
+        }
+
+        syncSidebarState();
+    }
+
+    toggleButton.addEventListener('click', function () {
+        sidebar.classList.toggle('hidden');
+        syncSidebarState();
     });
-})();
 
-// Funcionalidad para submenús móviles
-if (window.matchMedia("(max-width: 768px)").matches) {
-    document.querySelectorAll('.nav ul li').forEach(item => {
-        if (item.querySelector('.submenu')) {
-            const link = item.querySelector('a');
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                item.classList.toggle('active');
+    if (backdrop) {
+        backdrop.addEventListener('click', closeSidebarOnMobile);
+    }
 
-                // Cerrar otros submenús
-                document.querySelectorAll('.nav ul li').forEach(otherItem => {
-                    if (otherItem !== item) {
-                        otherItem.classList.remove('active');
+    // Marca el enlace activo del submenu de pagina (tabs horizontales)
+    (function markPageSubnav() {
+        var currentPath = window.location.pathname.replace(/\/+$/, '') || '/';
+
+        pageSubnavLinks.forEach(function (link) {
+            try {
+                var linkPath = new URL(link.href, window.location.origin).pathname.replace(/\/+$/, '') || '/';
+                if (linkPath === currentPath) {
+                    link.classList.add('active');
+                }
+            } catch (e) {
+                // Ignora enlaces no parseables
+            }
+        });
+    })();
+
+    // Marca enlaces activos del sidebar y abre su submenu contenedor
+    (function markSidebarActiveLink() {
+        var currentPath = window.location.pathname.replace(/\/+$/, '') || '/';
+
+        document.querySelectorAll('header .nav a[href]').forEach(function (link) {
+            try {
+                var linkPath = new URL(link.href, window.location.origin).pathname.replace(/\/+$/, '') || '/';
+                if (linkPath !== currentPath) {
+                    return;
+                }
+
+                link.classList.add('is-active');
+
+                var parentSubmenu = link.closest('.submenu');
+                if (parentSubmenu) {
+                    var parentItem = parentSubmenu.closest('li');
+                    if (parentItem) {
+                        parentItem.classList.add('has-active-child', 'active');
+                        var trigger = parentItem.querySelector(':scope > a');
+                        if (trigger) {
+                            trigger.classList.add('is-active-parent');
+                            trigger.setAttribute('aria-expanded', 'true');
+                        }
                     }
-                });
+                }
+            } catch (e) {
+                // Ignora enlaces no parseables
+            }
+        });
+    })();
+
+    // Submenus desplegables en mobile
+    submenuParents.forEach(function (item) {
+        var submenu = item.querySelector(':scope > .submenu');
+        var trigger = item.querySelector(':scope > a');
+
+        if (!submenu || !trigger) {
+            return;
+        }
+
+        trigger.setAttribute('aria-expanded', String(item.classList.contains('active')));
+
+        trigger.addEventListener('click', function (event) {
+            if (!isMobile()) {
+                return;
+            }
+
+            event.preventDefault();
+
+            var willOpen = !item.classList.contains('active');
+            submenuParents.forEach(function (otherItem) {
+                if (otherItem !== item) {
+                    otherItem.classList.remove('active');
+                    var otherTrigger = otherItem.querySelector(':scope > a');
+                    if (otherTrigger) {
+                        otherTrigger.setAttribute('aria-expanded', 'false');
+                    }
+                }
             });
+
+            item.classList.toggle('active', willOpen);
+            trigger.setAttribute('aria-expanded', String(willOpen));
+        });
+    });
+
+    // Click fuera del sidebar cierra submenus y sidebar en mobile
+    document.addEventListener('click', function (event) {
+        if (!isMobile()) {
+            return;
+        }
+
+        if (!event.target.closest('#app-sidebar') && !event.target.closest('header') && !event.target.closest('.btn-menu')) {
+            submenuParents.forEach(function (item) {
+                item.classList.remove('active');
+                var trigger = item.querySelector(':scope > a');
+                if (trigger) {
+                    trigger.setAttribute('aria-expanded', 'false');
+                }
+            });
+
+            closeSidebarOnMobile();
         }
     });
 
-    // Cerrar submenús al hacer click fuera
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('.nav ul li')) {
-            document.querySelectorAll('.nav ul li').forEach(item => {
-                item.classList.remove('active');
-            });
-        }
-    });
-}
+    window.addEventListener('resize', resetSidebarForViewport);
+    syncSidebarState();
+})();

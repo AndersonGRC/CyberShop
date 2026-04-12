@@ -7,126 +7,163 @@
 {% endblock %}
 
 {% block body %}
-<div class="container-fluid">
-    <div class="form-container">
-        <h1 class="h3 mb-4 text-gray-800">Crear Nuevo Usuario</h1>
-
-        <div class="card shadow mb-4">
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('admin.crear_usuario') }}" enctype="multipart/form-data">
-                    <div class="row">
-                        <!-- Columna izquierda -->
-                        <div class="col-md-6">
-                            <!-- Sección de imagen -->
-                            <div class="profile-pic-container">
-                                <div class="bg-light p-4 mb-3 text-center">
-                                    <i class="fas fa-user-circle fa-5x text-muted"></i>
-                                </div>
-                                <!--  <img id="profile-pic-preview" src="" alt="Previsualización" class="img-thumbnail mb-3" style="max-width: 200px;"> -->
-                                <div class="custom-file">
-                                    <input type="file" class="custom-file-input" id="fotografia" name="fotografia"
-                                        accept="image/jpeg, image/png">
-                                    <label class="custom-file-label" for="fotografia">Seleccionar imagen</label>
-                                    <small class="form-text text-muted">Formatos: JPG, PNG (Max. 2MB)</small>
-                                </div>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="nombre" class="required-field">Nombre Completo</label>
-                                <input type="text" class="form-control" id="nombre" name="nombre" required>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="email" class="required-field">Email</label>
-                                <input type="email" class="form-control" id="email" name="email" required>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="fecha_nacimiento">Fecha de Nacimiento</label>
-                                <input type="date" class="form-control" id="fecha_nacimiento" name="fecha_nacimiento">
-                            </div>
-                        </div>
-
-                        <!-- Columna derecha -->
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="rol_id" class="required-field">Rol</label>
-                                <select class="form-control" id="rol_id" name="rol_id" required>
-                                    <option value="">Seleccione un rol</option>
-                                    {% for rol in roles %}
-                                    <option value="{{ rol.id }}">{{ rol.nombre }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="password" class="required-field">Contraseña</label>
-                                <input type="password" class="form-control" id="password" name="password" required
-                                    minlength="8">
-                                <small class="form-text text-muted">Mínimo 8 caracteres</small>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="confirm_password" class="required-field">Confirmar Contraseña</label>
-                                <input type="password" class="form-control" id="confirm_password"
-                                    name="confirm_password" required>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="telefono">Teléfono</label>
-                                <input type="tel" class="form-control" id="telefono" name="telefono">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="form-group">
-                                <label for="direccion">Dirección</label>
-                                <textarea class="form-control" id="direccion" name="direccion" rows="2"></textarea>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-group mt-4">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> Guardar Usuario
-                        </button>
-                        <a href="{{ url_for('admin.gestion_usuarios') }}" class="btn btn-secondary">
-                            <i class="fas fa-times"></i> Cancelar
-                        </a>
-                    </div>
-                </form>
+<section class="page-shell page-shell--narrow">
+    <div class="page-header">
+        <div class="page-header__intro">
+            <div class="page-header__icon">
+                <i class="fas fa-user-plus"></i>
+            </div>
+            <div>
+                <span class="page-header__eyebrow">Alta de accesos</span>
+                <h1>Crear nuevo usuario</h1>
+                <p>Registra un perfil interno con una distribucion mas clara entre identidad, permisos y datos de
+                    contacto.</p>
             </div>
         </div>
+        <div class="page-header__actions">
+            <a href="{{ url_for('admin.gestion_usuarios') }}" class="btn-admin btn-admin--secondary">
+                <i class="fas fa-arrow-left"></i>
+                Volver al listado
+            </a>
+        </div>
     </div>
-</div>
+
+    <form id="user-create-form" method="POST" action="{{ url_for('admin.crear_usuario') }}"
+        enctype="multipart/form-data" class="user-form-stack">
+        <div class="user-form-grid">
+            <section class="surface-card profile-panel">
+                <div class="section-heading">
+                    <div>
+                        <h3>Identidad visual</h3>
+                        <p>La foto se puede previsualizar de inmediato para validar formato y encuadre antes de guardar.</p>
+                    </div>
+                </div>
+
+                <div class="profile-preview">
+                    <img src="" alt="Previsualizacion de la foto de perfil" class="avatar-preview"
+                        id="profile-pic-preview" hidden>
+                    <div class="avatar-placeholder" id="profile-placeholder">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="profile-preview__copy">
+                        <strong>Nuevo usuario</strong>
+                        <span>Completa los datos base para activar el acceso.</span>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label for="fotografia">Imagen de perfil</label>
+                    <input type="file" id="fotografia" name="fotografia" accept="image/jpeg, image/png">
+                    <small>Formatos permitidos: JPG o PNG. Tamano maximo recomendado: 2MB.</small>
+                </div>
+
+                <div class="field-grid">
+                    <div class="field">
+                        <label for="nombre">Nombre completo <span class="required-mark">*</span></label>
+                        <input type="text" id="nombre" name="nombre" required>
+                    </div>
+                    <div class="field">
+                        <label for="email">Email <span class="required-mark">*</span></label>
+                        <input type="email" id="email" name="email" required>
+                    </div>
+                    <div class="field">
+                        <label for="fecha_nacimiento">Fecha de nacimiento</label>
+                        <input type="date" id="fecha_nacimiento" name="fecha_nacimiento">
+                    </div>
+                    <div class="field">
+                        <label for="telefono">Telefono</label>
+                        <input type="tel" id="telefono" name="telefono">
+                    </div>
+                </div>
+            </section>
+
+            <section class="surface-card">
+                <div class="section-heading">
+                    <div>
+                        <h3>Permisos y credenciales</h3>
+                        <p>Los campos criticos quedan agrupados para minimizar errores de configuracion inicial.</p>
+                    </div>
+                </div>
+
+                <div class="field-grid">
+                    <div class="field">
+                        <label for="rol_id">Rol <span class="required-mark">*</span></label>
+                        <select id="rol_id" name="rol_id" required>
+                            <option value="">Seleccione un rol</option>
+                            {% for rol in roles %}
+                            <option value="{{ rol.id }}">{{ rol.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="password">Contrasena <span class="required-mark">*</span></label>
+                        <input type="password" id="password" name="password" required minlength="8">
+                        <small>Usa minimo 8 caracteres.</small>
+                    </div>
+                    <div class="field">
+                        <label for="confirm_password">Confirmar contrasena <span class="required-mark">*</span></label>
+                        <input type="password" id="confirm_password" name="confirm_password" required>
+                    </div>
+                    <div class="field field--full">
+                        <label for="direccion">Direccion</label>
+                        <textarea id="direccion" name="direccion" rows="3"></textarea>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div class="action-row">
+            <button type="submit" class="btn-admin btn-admin--primary">
+                <i class="fas fa-save"></i>
+                Guardar usuario
+            </button>
+            <a href="{{ url_for('admin.gestion_usuarios') }}" class="btn-admin btn-admin--ghost">
+                <i class="fas fa-times"></i>
+                Cancelar
+            </a>
+        </div>
+    </form>
+</section>
 {% endblock %}
 
-{% block javascript %}
+{% block scripts %}
 <script>
-    // Previsualización de imagen
-    document.getElementById('fotografia').addEventListener('change', function (e) {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function (event) {
-                document.getElementById('profile-pic-preview').src = event.target.result;
-            };
-            reader.readAsDataURL(file);
-            document.querySelector('.custom-file-label').textContent = file.name;
+    document.addEventListener('DOMContentLoaded', function () {
+        const fileInput = document.getElementById('fotografia');
+        const preview = document.getElementById('profile-pic-preview');
+        const placeholder = document.getElementById('profile-placeholder');
+        const createForm = document.getElementById('user-create-form');
+
+        if (fileInput && preview) {
+            fileInput.addEventListener('change', function (event) {
+                const file = event.target.files && event.target.files[0];
+                if (!file) {
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function (loadEvent) {
+                    preview.src = loadEvent.target.result;
+                    preview.hidden = false;
+                    if (placeholder) {
+                        placeholder.hidden = true;
+                    }
+                };
+                reader.readAsDataURL(file);
+            });
         }
-    });
 
-    // Validación de contraseñas coincidentes
-    document.querySelector('form').addEventListener('submit', function (e) {
-        const password = document.getElementById('password').value;
-        const confirmPassword = document.getElementById('confirm_password').value;
+        if (createForm) {
+            createForm.addEventListener('submit', function (event) {
+                const password = document.getElementById('password').value;
+                const confirmPassword = document.getElementById('confirm_password').value;
 
-        if (password !== confirmPassword) {
-            e.preventDefault();
-            alert('Las contraseñas no coinciden');
-            document.getElementById('confirm_password').focus();
+                if (password !== confirmPassword) {
+                    event.preventDefault();
+                    alert('Las contrasenas no coinciden.');
+                    document.getElementById('confirm_password').focus();
+                }
+            });
         }
     });
 </script>

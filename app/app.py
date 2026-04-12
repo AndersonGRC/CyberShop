@@ -13,11 +13,10 @@ import logging
 # (e.g. "profile" vs "https://www.googleapis.com/auth/userinfo.profile")
 os.environ.setdefault('OAUTHLIB_RELAX_TOKEN_SCOPE', '1')
 from werkzeug.middleware.proxy_fix import ProxyFix
-from flask import Flask, request
+from flask import Flask, request, url_for as flask_url_for
 from flask_uploads import UploadSet, configure_uploads, IMAGES
 from flask_cors import CORS
 from flask_wtf.csrf import CSRFProtect
-from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config import Config, verificar_configuracion_payu
 from routes import register_blueprints
@@ -28,8 +27,39 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.config.from_object(Config)
 app.secret_key = app.config['SECRET_KEY']
 
+
+def versioned_url_for(endpoint, **values):
+    """Agrega cache-busting a assets estaticos usando su fecha de modificacion."""
+    if endpoint == 'static':
+        filename = values.get('filename')
+        if filename and 'v' not in values:
+            asset_path = os.path.join(app.static_folder, filename)
+            try:
+                values['v'] = int(os.path.getmtime(asset_path))
+            except OSError:
+                pass
+    return flask_url_for(endpoint, **values)
+
+
+@app.context_processor
+def inject_template_helpers():
+    return {'url_for': versioned_url_for}
+
 # --- CSRF Protection ---
 csrf = CSRFProtect(app)
+
+from flask_wtf.csrf import CSRFError
+
+@app.errorhandler(CSRFError)
+def handle_csrf_error(e):
+    """Devuelve JSON en peticiones AJAX cuando el token CSRF es invalido."""
+    if (request.is_json
+            or request.headers.get('Accept', '').startswith('application/json')
+            or request.headers.get('X-Requested-With') == 'XMLHttpRequest'):
+        from flask import jsonify as _jsonify
+        return _jsonify({'success': False, 'error': f'Token CSRF inválido: {e.description}'}), 400
+    from flask import abort
+    abort(400)
 
 # --- CORS (solo en sandbox) ---
 if app.config.get('PAYU_ENV') == 'sandbox':
@@ -67,8 +97,11 @@ os.makedirs(app.config['UPLOADED_USERIMAGES_DEST'], exist_ok=True)
 @app.context_processor
 def inject_config_global():
     from database import get_db_cursor
+    from tenant_features import get_active_module_codes, get_current_tenant_id
     config = {}
     brand  = {}
+    active_modules = set()
+    current_tenant_id = get_current_tenant_id()
     try:
         with get_db_cursor(dict_cursor=True) as cur:
             cur.execute('SELECT clave, valor FROM config_secciones')
@@ -88,9 +121,21 @@ def inject_config_global():
             'nombre': _s.get('username', ''),
             'email':  _s.get('email', ''),
             'rol_id': _s.get('rol_id'),
+            'tenant_id': _s.get('tenant_id'),
         }
-    return dict(config_global=config, brand_config=brand, now=datetime.now(),
-                session_usuario=session_usuario)
+    try:
+        active_modules = get_active_module_codes(current_tenant_id)
+    except Exception:
+        active_modules = set()
+
+    return dict(
+        config_global=config,
+        brand_config=brand,
+        now=datetime.now(),
+        session_usuario=session_usuario,
+        active_modules=active_modules,
+        current_tenant_id=current_tenant_id,
+    )
 
 # --- Security headers ---
 @app.after_request

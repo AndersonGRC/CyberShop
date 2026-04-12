@@ -1,76 +1,124 @@
 {% extends './plantillaapp.html' %}
 
-{% block titulo %}Gestión de Usuarios{% endblock %}
+{% block titulo %}Gestion de Usuarios{% endblock %}
 
 {% block LinkAdicional %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/gestion_usuario.css') }}">
 {% endblock %}
 
 {% block body %}
-<div class="container-fluid">
-    <h1 class="h3 mb-4 text-gray-800">Gestión de Usuarios</h1>
+{% set activos = usuarios | selectattr('estado', 'equalto', 'habilitado') | list | length %}
+{% set inactivos = (usuarios | length) - activos %}
 
-    <!-- Botón modificado para redirigir a la página de creación -->
-    <a href="{{ url_for('admin.crear_usuario') }}" class="btn btn-primary mb-4">
-        <i class="fas fa-plus"></i> Nuevo Usuario
-    </a>
-
-    <!-- Tabla de usuarios -->
-    <div class="card shadow mb-4">
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Nombre</th>
-                            <th>Email</th>
-                            <th>Rol</th>
-                            <th>Estado</th>
-                            <th>Última Conexión</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for usuario in usuarios %}
-                        <tr>
-                            <td>{{ usuario.id }}</td>
-                            <td>{{ usuario.nombre }}</td>
-                            <td>{{ usuario.email }}</td>
-                            <td>{{ usuario.rol_nombre }}</td>
-                            <td>
-                                <span
-                                    class="badge badge-{{ 'success' if usuario.estado == 'habilitado' else 'danger' }}">
-                                    {{ usuario.estado }}
-                                </span>
-                            </td>
-                            <td>{{ usuario.ultima_conexion.strftime('%Y-%m-%d %H:%M') if usuario.ultima_conexion else
-                                'Nunca' }}</td>
-                            <td>
-                                <a href="{{ url_for('admin.editar_usuario', id=usuario.id) }}"
-                                    class="btn btn-sm btn-primary">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+<section class="page-shell">
+    <div class="page-header">
+        <div class="page-header__intro">
+            <div class="page-header__icon">
+                <i class="fas fa-user-cog"></i>
+            </div>
+            <div>
+                <span class="page-header__eyebrow">Administracion interna</span>
+                <h1>Gestion de usuarios</h1>
+                <p>Consulta roles, estado de acceso y actividad reciente desde una sola vista priorizada para
+                    lectura rapida y accion inmediata.</p>
             </div>
         </div>
+        <div class="page-header__actions">
+            <a href="{{ url_for('admin.crear_usuario') }}" class="btn-admin btn-admin--primary">
+                <i class="fas fa-user-plus"></i>
+                Nuevo usuario
+            </a>
+        </div>
     </div>
-</div>
-{% endblock %}
 
-{% block javascript %}
-<!-- Scripts adicionales si los necesitas -->
-<script>
-    $(document).ready(function () {
-        $('#dataTable').DataTable({
-            "language": {
-                "url": "//cdn.datatables.net/plug-ins/1.10.20/i18n/Spanish.json"
-            }
-        });
-    });
-</script>
+    <section class="surface-card surface-card--compact user-overview">
+        <span class="pill-badge pill-badge--neutral">
+            <i class="fas fa-users"></i>
+            {{ usuarios | length }} usuarios registrados
+        </span>
+        <span class="pill-badge pill-badge--success">
+            <i class="fas fa-check-circle"></i>
+            {{ activos }} habilitados
+        </span>
+        <span class="pill-badge pill-badge--danger">
+            <i class="fas fa-user-slash"></i>
+            {{ inactivos }} inhabilitados
+        </span>
+    </section>
+
+    <section class="surface-card user-table-card">
+        <div class="section-heading">
+            <div>
+                <h3>Directorio de accesos</h3>
+                <p>El correo y el identificador se agrupan en una sola columna para reducir ruido visual sin perder
+                    contexto operativo.</p>
+            </div>
+        </div>
+
+        <div class="table-scroll">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Rol</th>
+                        <th>Estado</th>
+                        <th>Ultima conexion</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for usuario in usuarios %}
+                    <tr>
+                        <td data-label="Usuario">
+                            <div class="user-summary">
+                                <span class="user-summary__avatar">{{ (usuario.nombre or '?')[0] | upper }}</span>
+                                <div class="user-summary__copy">
+                                    <strong>{{ usuario.nombre }}</strong>
+                                    <span>{{ usuario.email }}</span>
+                                    <small>ID #{{ usuario.id }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td data-label="Rol">
+                            <span class="role-pill">{{ usuario.rol_nombre }}</span>
+                        </td>
+                        <td data-label="Estado">
+                            <span
+                                class="status-badge status-badge--{{ 'success' if usuario.estado == 'habilitado' else 'danger' }}">
+                                {{ usuario.estado | capitalize }}
+                            </span>
+                        </td>
+                        <td data-label="Ultima conexion">
+                            <span class="table-muted">
+                                {{ usuario.ultima_conexion.strftime('%Y-%m-%d %H:%M') if usuario.ultima_conexion else 'Nunca' }}
+                            </span>
+                        </td>
+                        <td data-label="Acciones">
+                            <div class="row-actions">
+                                <a href="{{ url_for('admin.editar_usuario', id=usuario.id) }}"
+                                    class="btn-admin btn-admin--ghost btn-admin--sm">
+                                    <i class="fas fa-pen"></i>
+                                    Editar
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" data-label="Estado">
+                            <div class="empty-state">
+                                <i class="fas fa-user-slash"></i>
+                                <div>
+                                    <strong>No hay usuarios registrados.</strong>
+                                    <p>Crea el primer usuario para empezar a administrar accesos.</p>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</section>
 {% endblock %}

@@ -1,81 +1,164 @@
 {% extends "plantillaapp.html" %}
+
 {% block LinkAdicional %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/DashboadAdmin.css') }}">
 {% endblock %}
 
+{% block titulo %}Panel Administrativo{% endblock %}
+
 {% block body %}
-<div class="card-container">
-    <!-- Tarjeta 1: Dashboard -->
-    <div class="card">
-        <div class="card-icon">📊</div>
-        <h3 class="card-title">Dashboard</h3>
-        <p class="card-description">Accede al panel de control principal.</p>
-        <a href="{{ url_for('admin.dashboard_admin') }}" class="card-button">Ir al Dashboard</a>
+<section class="page-shell">
+    <div class="page-header">
+        <div class="page-header__intro">
+            <div class="page-header__icon">
+                <i class="fas fa-border-all"></i>
+            </div>
+            <div>
+                <span class="page-header__eyebrow">Centro de operaciones</span>
+                <h1>Panel administrativo</h1>
+                <p>Centraliza las tareas mas frecuentes del negocio y mantiene a la vista catalogo, pedidos,
+                    usuarios y contenido desde una sola pantalla.</p>
+            </div>
+        </div>
+        <div class="page-header__actions">
+            <a href="{{ url_for('admin.gestion_pedidos') }}" class="btn-admin btn-admin--secondary">
+                <i class="fas fa-box-open"></i>
+                Ver pedidos
+            </a>
+            <a href="{{ url_for('admin.GestionProductos') }}" class="btn-admin btn-admin--primary">
+                <i class="fas fa-store"></i>
+                Gestionar productos
+            </a>
+        </div>
     </div>
 
-    <!-- Tarjeta 2: Productos -->
-    <div class="card">
-        <div class="card-icon">🛒</div>
-        <h3 class="card-title">Productos</h3>
-        <p class="card-description">Gestiona y agrega nuevos productos.</p>
-        <a href="{{ url_for('admin.GestionProductos') }}" class="card-button">Gestionar Productos</a>
-    </div>
+    <section class="surface-card dashboard-hero">
+        <div class="dashboard-hero__copy">
+            <span class="dashboard-hero__eyebrow">Flujo diario recomendado</span>
+            <h2>Empieza por operacion, luego contenido y finalmente configuracion.</h2>
+            <p>Este tablero agrupa accesos rapidos por prioridad para reducir desplazamiento visual y mantener una
+                jerarquia clara entre acciones de venta, administracion y mantenimiento del sitio.</p>
+        </div>
+        <div class="dashboard-hero__highlights">
+            <article class="dashboard-highlight">
+                <span>Operacion diaria</span>
+                <strong>Pedidos, POS y usuarios</strong>
+            </article>
+            <article class="dashboard-highlight">
+                <span>Catalogo</span>
+                <strong>Productos y servicios</strong>
+            </article>
+            <article class="dashboard-highlight">
+                <span>Contenido</span>
+                <strong>Publicaciones, carrusel y secciones</strong>
+            </article>
+        </div>
+    </section>
 
-    <!-- Tarjeta 3: Usuarios -->
-    <div class="card">
-        <div class="card-icon">👤</div>
-        <h3 class="card-title">Usuarios</h3>
-        <p class="card-description">Crea, edita o elimina usuarios.</p>
-        <a href="{{ url_for('admin.gestion_usuarios') }}" class="card-button">Ver Usuarios</a>
-    </div>
+    <section class="dashboard-grid" aria-label="Accesos rapidos del panel administrativo">
+        <article class="dashboard-card dashboard-card--primary">
+            <span class="dashboard-card__eyebrow">Vision general</span>
+            <div class="dashboard-card__icon">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <h3>Dashboard</h3>
+            <p>Consulta la vista principal del panel y toma contexto de la operacion antes de entrar a cada modulo.</p>
+            <a href="{{ url_for('admin.dashboard_admin') }}" class="dashboard-card__link">
+                Abrir dashboard
+                <i class="fas fa-arrow-right"></i>
+            </a>
+        </article>
 
-    <!-- Tarjeta 4: PEDIDOS -->
-    <div class="card">
-        <div class="card-icon">📦</div>
-        <h3 class="card-title">Pedidos</h3>
-        <p class="card-description">Revisa el estado de envíos y pagos.</p>
-        <a href="{{ url_for('admin.gestion_pedidos') }}" class="card-button">Ver Pedidos</a>
-    </div>
+        <article class="dashboard-card dashboard-card--catalog">
+            <span class="dashboard-card__eyebrow">Catalogo</span>
+            <div class="dashboard-card__icon">
+                <i class="fas fa-shopping-bag"></i>
+            </div>
+            <h3>Productos</h3>
+            <p>Crea, edita y organiza productos con un acceso directo al modulo principal del inventario comercial.</p>
+            <a href="{{ url_for('admin.GestionProductos') }}" class="dashboard-card__link">
+                Gestionar productos
+                <i class="fas fa-arrow-right"></i>
+            </a>
+        </article>
 
-    <!-- Tarjeta: Punto de Venta -->
-    <div class="card">
-        <div class="card-icon">💰</div>
-        <h3 class="card-title">Punto de Venta</h3>
-        <p class="card-description">Facturacion en tienda fisica.</p>
-        <a href="{{ url_for('admin.facturacion_pos') }}" class="card-button">Ir al POS</a>
-    </div>
+        <article class="dashboard-card dashboard-card--people">
+            <span class="dashboard-card__eyebrow">Administracion</span>
+            <div class="dashboard-card__icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <h3>Usuarios</h3>
+            <p>Controla accesos, roles y estado de cuenta del equipo interno desde una vista centralizada.</p>
+            <a href="{{ url_for('admin.gestion_usuarios') }}" class="dashboard-card__link">
+                Ver usuarios
+                <i class="fas fa-arrow-right"></i>
+            </a>
+        </article>
 
-    <!-- Tarjeta 5: Publicaciones Home -->
-    <div class="card">
-        <div class="card-icon">📰</div>
-        <h3 class="card-title">Publicaciones</h3>
-        <p class="card-description">Gestiona las publicaciones del home.</p>
-        <a href="{{ url_for('admin.gestion_publicaciones') }}" class="card-button">Ver Publicaciones</a>
-    </div>
+        <article class="dashboard-card dashboard-card--orders">
+            <span class="dashboard-card__eyebrow">Operacion</span>
+            <div class="dashboard-card__icon">
+                <i class="fas fa-boxes"></i>
+            </div>
+            <h3>Pedidos</h3>
+            <p>Revisa estados de envio, pago y atencion para mantener la operacion comercial al dia.</p>
+            <a href="{{ url_for('admin.gestion_pedidos') }}" class="dashboard-card__link">
+                Ver pedidos
+                <i class="fas fa-arrow-right"></i>
+            </a>
+        </article>
 
-    <!-- Tarjeta 6: Slides Carrusel -->
-    <div class="card">
-        <div class="card-icon">🖼️</div>
-        <h3 class="card-title">Carrusel</h3>
-        <p class="card-description">Gestiona los slides del carrusel.</p>
-        <a href="{{ url_for('admin.gestion_slides') }}" class="card-button">Ver Slides</a>
-    </div>
+        <article class="dashboard-card dashboard-card--pos">
+            <span class="dashboard-card__eyebrow">Venta directa</span>
+            <div class="dashboard-card__icon">
+                <i class="fas fa-cash-register"></i>
+            </div>
+            <h3>Punto de venta</h3>
+            <p>Accede al flujo de facturacion para tienda fisica con un CTA visualmente diferenciado.</p>
+            <a href="{{ url_for('admin.facturacion_pos') }}" class="dashboard-card__link">
+                Ir al POS
+                <i class="fas fa-arrow-right"></i>
+            </a>
+        </article>
 
-    <!-- Tarjeta 7: Servicios -->
-    <div class="card">
-        <div class="card-icon">🛠️</div>
-        <h3 class="card-title">Servicios</h3>
-        <p class="card-description">Gestiona los servicios del sitio.</p>
-        <a href="{{ url_for('admin.gestion_servicios') }}" class="card-button">Ver Servicios</a>
-    </div>
+        <article class="dashboard-card dashboard-card--content">
+            <span class="dashboard-card__eyebrow">Contenido</span>
+            <div class="dashboard-card__icon">
+                <i class="far fa-newspaper"></i>
+            </div>
+            <h3>Publicaciones</h3>
+            <p>Mantiene visible la administracion del home para noticias, novedades y mensajes comerciales.</p>
+            <a href="{{ url_for('admin.gestion_publicaciones') }}" class="dashboard-card__link">
+                Ver publicaciones
+                <i class="fas fa-arrow-right"></i>
+            </a>
+        </article>
 
-    <!-- Tarjeta 8: Config Secciones -->
-    <div class="card">
-        <div class="card-icon">⚙️</div>
-        <h3 class="card-title">Secciones</h3>
-        <p class="card-description">Activa/desactiva secciones del home.</p>
-        <a href="{{ url_for('admin.configuracion_cliente') }}#secciones" class="card-button">Configurar</a>
-    </div>
+        <article class="dashboard-card dashboard-card--media">
+            <span class="dashboard-card__eyebrow">Contenido visual</span>
+            <div class="dashboard-card__icon">
+                <i class="far fa-images"></i>
+            </div>
+            <h3>Carrusel</h3>
+            <p>Gestiona slides destacados del home con una tarjeta enfocada en piezas de alto impacto visual.</p>
+            <a href="{{ url_for('admin.gestion_slides') }}" class="dashboard-card__link">
+                Ver carrusel
+                <i class="fas fa-arrow-right"></i>
+            </a>
+        </article>
 
-</div>
+        <article class="dashboard-card dashboard-card--settings">
+            <span class="dashboard-card__eyebrow">Configuracion</span>
+            <div class="dashboard-card__icon">
+                <i class="fas fa-sliders-h"></i>
+            </div>
+            <h3>Secciones</h3>
+            <p>Activa o desactiva bloques del sitio sin navegar por multiples pantallas ni perder contexto.</p>
+            <a href="{{ url_for('admin.configuracion_cliente') }}#secciones" class="dashboard-card__link">
+                Configurar secciones
+                <i class="fas fa-arrow-right"></i>
+            </a>
+        </article>
+    </section>
+</section>
 {% endblock %}

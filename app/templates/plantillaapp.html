@@ -46,9 +46,9 @@
     <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
 </head>
 
-<body>
+<body class="{% block body_class %}admin-layout{% endblock %}">
     <!-- Menú lateral -->
-    <header>
+    <header id="app-sidebar">
         <div class="menu-logo">
             <img src="{{ url_for('static', filename='img/LogoP.PNG') }}" alt="Logo del menú">
         </div>
@@ -92,10 +92,13 @@
         <div class="header-logo">
             <img src="{{ url_for('static', filename='img/Logo.PNG') }}" alt="Logo del header">
         </div>
-        <button class="btn-menu">
+        <button class="btn-menu" type="button" aria-label="Mostrar u ocultar menú lateral" aria-expanded="true"
+            aria-controls="app-sidebar">
             <i class="fas fa-bars"></i>
         </button>
     </div>
+
+    <button class="layout-backdrop" type="button" hidden aria-label="Cerrar menú lateral"></button>
 
     <!-- Sección principal -->
     <main>
@@ -151,6 +154,7 @@
     {% endif %}
     {% endwith %}
     {% block scripts %}{% endblock %}
+    {% block javascript %}{% endblock %}
 
     <script>
     /* Auto-inyectar CSRF token en todos los formularios POST */

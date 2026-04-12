@@ -1,211 +1,116 @@
 @import url('variables.css');
 
+.user-overview {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
 
-h1 {
-    font-size: 2rem;
+.user-table-card {
+    display: grid;
+    gap: 20px;
+}
+
+.user-summary {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.user-summary__avatar {
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: 14px;
+    color: var(--color-primario);
+    font-size: 0.96rem;
+    font-weight: 800;
+    background: rgba(var(--color-marca-rgb), 0.1);
+}
+
+.user-summary__copy {
+    display: grid;
+    gap: 2px;
+}
+
+.user-summary__copy strong {
+    color: var(--color-primario-oscuro);
+    font-size: 0.96rem;
+}
+
+.user-summary__copy span,
+.user-summary__copy small {
+    color: var(--color-texto-claro);
+}
+
+.role-pill {
+    padding: 8px 12px;
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    color: var(--color-primario-oscuro);
+    font-size: 0.82rem;
     font-weight: 700;
-    margin-bottom: 1rem;
-    text-align: center;
+    background: rgba(var(--color-marca-rgb), 0.08);
 }
 
-a.btn-primary {
-    background-color: var(--color-primario);
-    border: none;
-    border-radius: 0.5rem;
-    font-weight: 500;
-    padding: 0.5rem 1rem;
-    transition: background-color 0.3s ease;
-    color: #fff;
-    text-decoration: none;
+.empty-state {
+    min-height: 170px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    color: var(--color-gris-texto);
+    text-align: left;
 }
 
-a.btn-primary:hover {
-    background-color: var(--color-primario-oscuro);
-    color: #fff;
+.empty-state i {
+    color: var(--color-primario);
+    font-size: 2rem;
 }
 
-
-.table {
-    border-radius: 0.2rem;
-    overflow: hidden;
+.empty-state strong {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--color-primario-oscuro);
 }
 
-.table thead th {
-    background-color: var(--color-primario);
-    font-weight: bold;
-    text-align: center;
-    color: var(--color-fondo);
-}
-
-.table td,
-.table th {
-    text-align: center;
-    vertical-align: middle !important;
-    padding: 0.75rem;
-    color: var(--color-negro);
-}
-
-.table tbody tr:hover {
-    background-color: var(--color-gris-claro);
-}
-
-.card {
-    border: none;
-    border-radius: 0.5rem;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
-    background-color: var(--color-blanco);
-    margin-top: 5%;
-}
-
-.badge-success {
-    background-color: var(--color-exito);
-    font-size: 0.95rem;
-    font-weight: bold;
-    padding: 0.4rem 0.8rem;
-    border-radius: 2rem;
-    color: var(--color-fondo);
-}
-
-.badge-danger {
-    background-color: var(--color-eliminar);
-    font-size: 0.95rem;
-    padding: 0.4rem 0.8rem;
-    border-radius: 2rem;
-    color: var(--color-fondo);
-    font-size: 0.95rem;
-    font-weight: bold;
-}
-
-a.btn-sm.btn-primary {
-    background-color: var(--color-primario);
-    border-radius: 0.4rem;
-    padding: 0.4rem 0.6rem;
-    color: white;
-    transition: background-color 0.3s ease;
-}
-
-a.btn-sm.btn-primary:hover {
-    background-color: var(--color-primario-oscuro);
-    color: white;
+.empty-state p {
+    margin: 0;
 }
 
 @media (max-width: 768px) {
-    .container-fluid {
-        padding: 0 15px;
+    .user-overview {
+        align-items: stretch;
     }
 
-    .h3.mb-4.text-gray-800 {
-        font-size: 1.5rem;
-        text-align: center;
-    }
-
-    .btn.btn-primary.mb-4 {
+    .user-overview .pill-badge {
         width: 100%;
-        margin-bottom: 1.5rem !important;
+        justify-content: center;
     }
 
-    /* Transformación de la tabla */
-    .table-responsive {
-        overflow: hidden;
+    .user-summary {
+        align-items: flex-start;
     }
 
-    #dataTable {
-        border: 0;
-        padding: 15px;
-    }
-
-    #dataTable thead {
-        display: none;
-    }
-
-    #dataTable tr {
-        display: block;
-        margin-bottom: 1.5rem;
-        border: 2px solid var(--color-primario);
-        border-radius: 0.35rem;
-    }
-
-    #dataTable td {
-        display: block;
+    .user-summary__copy {
         text-align: right;
-        padding-left: 50%;
-        position: relative;
-        border-bottom: 1px solid #e3e6f0;
-        word-break: break-all;
     }
 
-    #dataTable td:last-child {
-        border-bottom: 0;
+    .user-summary__copy strong,
+    .user-summary__copy span,
+    .user-summary__copy small {
+        width: 100%;
+    }
+
+    .empty-state {
+        min-height: 0;
+        flex-direction: column;
         text-align: center;
-        padding-left: 0;
-    }
-
-    /* Generación de labels dinámicos */
-    #dataTable td:nth-of-type(1):before {
-        content: "ID";
-    }
-
-    #dataTable td:nth-of-type(2):before {
-        content: "Nombre";
-    }
-
-    #dataTable td:nth-of-type(3):before {
-        content: "Email";
-    }
-
-    #dataTable td:nth-of-type(4):before {
-        content: "Rol";
-    }
-
-    #dataTable td:nth-of-type(5):before {
-        content: "Estado";
-    }
-
-    #dataTable td:nth-of-type(6):before {
-        content: "Última Conexión";
-    }
-
-    #dataTable td:nth-of-type(7):before {
-        content: "Acciones";
-    }
-
-    #dataTable td::before {
-        content: attr(data-label);
-        position: absolute;
-        left: 5px;
-        width: calc(60% - 20px);
-        padding-right: 10px;
-        font-weight: bold;
-        text-align: left;
-        white-space: nowrap;
-    }
-
-    /* Ajustes para DataTables */
-    .dataTables_wrapper .dataTables_info,
-    .dataTables_wrapper .dataTables_paginate {
-        float: none !important;
-        text-align: center;
-        margin-top: 10px;
-    }
-
-    /* Ajuste para badges */
-    .badge {
-        display: inline-block;
-        margin: 0 auto;
-    }
-}
-
-@media (max-width: 576px) {
-    #dataTable td {
-        padding-left: 40%;
-    }
-
-    #dataTable td::before {
-        width: calc(40% - 15px);
-    }
-
-    .btn-sm {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.875rem;
+        padding: 10px 0;
     }
 }
