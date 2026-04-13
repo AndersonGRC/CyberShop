@@ -297,7 +297,7 @@ def _serialize_consumption(item):
     }
 
 
-def get_product_catalog(tenant_id):
+def get_product_catalog():
     """Retorna productos disponibles para agregar a una mesa, con categoría."""
     try:
         with get_db_cursor(dict_cursor=True) as cur:
@@ -315,10 +315,9 @@ def get_product_catalog(tenant_id):
                         LIMIT 1
                     ) pi ON TRUE
                     LEFT JOIN generos g ON g.id = p.genero_id
-                    WHERE p.tenant_id = %s
-                      AND p.stock > 0
+                    WHERE p.stock > 0
                     ORDER BY g.nombre ASC, p.nombre ASC
-                """, (tenant_id,))
+                """)
             else:
                 cur.execute("""
                     SELECT p.id, p.nombre, p.precio, p.stock,
@@ -341,7 +340,7 @@ def get_product_catalog(tenant_id):
         return []
 
 
-def list_floor_tables(tenant_id, area=None):
+def list_floor_tables(area=None):
     """Carga mesas con su estado operativo y cuenta abierta actual."""
     status = _module_schema_status()
     if not status['ready']:
@@ -353,7 +352,7 @@ def list_floor_tables(tenant_id, area=None):
             'schema_message': status['message'],
         }
 
-    params = [tenant_id]
+    params = []
     area_sql = ""
     if area:
         area_sql = " AND t.area = %s"
@@ -379,7 +378,6 @@ def list_floor_tables(tenant_id, area=None):
             FROM restaurant_tables t
             LEFT JOIN restaurant_table_orders o
               ON o.table_id = t.id
-             AND o.tenant_id = t.tenant_id
              AND o.estado = 'abierta'
             LEFT JOIN LATERAL (
                 SELECT COUNT(*) FILTER (WHERE c.estado = 'pendiente') AS pending_count,
@@ -390,7 +388,7 @@ def list_floor_tables(tenant_id, area=None):
                 FROM restaurant_table_consumptions c
                 WHERE c.order_id = o.id
             ) stats ON TRUE
-            WHERE t.tenant_id = %s
+            WHERE 1 = 1
             {area_sql}
             ORDER BY t.area ASC, t.nombre ASC, t.id ASC
         """, tuple(params))
@@ -485,7 +483,7 @@ def list_floor_tables(tenant_id, area=None):
     }
 
 
-def list_restaurant_reports(tenant_id, filters=None):
+def list_restaurant_reports(filters=None):
     """Retorna reportes operativos y contables del módulo."""
     _ensure_module_schema()
     filters = filters or {}
@@ -507,10 +505,9 @@ def list_restaurant_reports(tenant_id, filters=None):
         raise ValueError('La fecha inicial no puede ser mayor a la fecha final.')
 
     where = [
-        "o.tenant_id = %s",
         "DATE(COALESCE(o.closed_at, o.cancelled_at, o.opened_at)) BETWEEN %s AND %s",
     ]
-    params = [tenant_id, date_from, date_to]
+    params = [date_from, date_to]
 
     if area:
         where.append("t.area = %s")
@@ -562,7 +559,6 @@ def list_restaurant_reports(tenant_id, filters=None):
             FROM restaurant_table_orders o
             JOIN restaurant_tables t
               ON t.id = o.table_id
-             AND t.tenant_id = o.tenant_id
             LEFT JOIN LATERAL (
                 SELECT COUNT(*) FILTER (WHERE c.estado = 'pendiente') AS pending_count,
                        COUNT(*) FILTER (WHERE c.estado = 'preparando') AS preparing_count,
@@ -638,20 +634,19 @@ def list_restaurant_reports(tenant_id, filters=None):
     }
 
 
-def _generate_next_table_code(cur, tenant_id):
+def _generate_next_table_code(cur):
     cur.execute("""
         SELECT COALESCE(
             MAX(NULLIF(REGEXP_REPLACE(codigo, '[^0-9]', '', 'g'), '')::INTEGER),
             0
         ) AS max_seq
         FROM restaurant_tables
-        WHERE tenant_id = %s
-    """, (tenant_id,))
+    """)
     total = int(cur.fetchone()['max_seq'] or 0)
     return f"M-{total + 1:02d}"
 
 
-def upsert_table_layout(tenant_id, user_id, payload):
+def upsert_table_layout(user_id, payload):
     """Crea o actualiza una mesa del plano."""
     _ensure_module_schema()
     table_id = _parse_int(payload.get('table_id'), default=None, minimum=1, field='mesa')
@@ -675,18 +670,17 @@ def upsert_table_layout(tenant_id, user_id, payload):
 
     with get_db_cursor(dict_cursor=True) as cur:
         if not codigo:
-            codigo = _generate_next_table_code(cur, tenant_id)
+            codigo = _generate_next_table_code(cur)
         if not nombre:
             nombre = f"Mesa {codigo}"
 
         cur.execute("""
             SELECT id
             FROM restaurant_tables
-            WHERE tenant_id = %s
-              AND codigo = %s
+            WHERE codigo = %s
               AND (%s IS NULL OR id <> %s)
             LIMIT 1
-        """, (tenant_id, codigo, table_id, table_id))
+        """, (codigo, table_id, table_id))
         if cur.fetchone():
             raise ValueError(f'Ya existe una mesa con el código {codigo}.')
 
@@ -706,21 +700,34 @@ def upsert_table_layout(tenant_id, user_id, payload):
                     rotacion = %s,
                     updated_at = NOW()
                 WHERE id = %s
-                  AND tenant_id = %s
                 RETURNING id
             """, (codigo, nombre, area, capacidad, forma, estado,
-                  pos_x, pos_y, ancho, alto, rotacion, table_id, tenant_id))
+                  pos_x, pos_y, ancho, alto, rotacion, table_id))
         else:
             try:
-                cur.execute("""
-                    INSERT INTO restaurant_tables (
-                        tenant_id, codigo, nombre, area, capacidad, forma,
-                        estado, pos_x, pos_y, ancho, alto, rotacion, creado_por
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    RETURNING id
-                """, (tenant_id, codigo, nombre, area, capacidad, forma,
-                      estado, pos_x, pos_y, ancho, alto, rotacion, user_id))
+                if _table_has_column('restaurant_tables', 'tenant_id'):
+                    cur.execute("""
+                        INSERT INTO restaurant_tables (
+                            tenant_id, codigo, nombre, area, capacidad, forma,
+                            estado, pos_x, pos_y, ancho, alto, rotacion, creado_por
+                        )
+                        VALUES (
+                            COALESCE((SELECT tenant_id FROM restaurant_tables ORDER BY id ASC LIMIT 1), 1),
+                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        )
+                        RETURNING id
+                    """, (codigo, nombre, area, capacidad, forma,
+                          estado, pos_x, pos_y, ancho, alto, rotacion, user_id))
+                else:
+                    cur.execute("""
+                        INSERT INTO restaurant_tables (
+                            codigo, nombre, area, capacidad, forma,
+                            estado, pos_x, pos_y, ancho, alto, rotacion, creado_por
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        RETURNING id
+                    """, (codigo, nombre, area, capacidad, forma,
+                          estado, pos_x, pos_y, ancho, alto, rotacion, user_id))
             except Exception as exc:
                 if 'not-null' in str(exc) and '"id"' in str(exc):
                     raise ValueError(
@@ -734,6 +741,55 @@ def upsert_table_layout(tenant_id, user_id, payload):
         if not row:
             raise ValueError('No fue posible guardar la mesa.')
         return row['id']
+
+
+def delete_table_layout(table_id):
+    """Elimina una mesa del plano si no tiene historial operativo."""
+    _ensure_module_schema()
+
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute("""
+            SELECT id, codigo, nombre
+            FROM restaurant_tables
+            WHERE id = %s
+            LIMIT 1
+        """, (table_id,))
+        table_row = cur.fetchone()
+        if not table_row:
+            raise ValueError('Mesa no encontrada.')
+
+        cur.execute("""
+            SELECT COUNT(*) AS total_orders,
+                   COUNT(*) FILTER (WHERE estado = 'abierta') AS open_orders
+            FROM restaurant_table_orders
+            WHERE table_id = %s
+        """, (table_id,))
+        usage = cur.fetchone() or {}
+        total_orders = int(usage.get('total_orders') or 0)
+        open_orders = int(usage.get('open_orders') or 0)
+
+        if open_orders > 0:
+            raise ValueError('No puedes eliminar una mesa con una cuenta abierta.')
+        if total_orders > 0:
+            raise ValueError(
+                'No puedes eliminar una mesa que ya tiene historial de órdenes. '
+                'Puedes renombrarla o dejarla fuera de uso.'
+            )
+
+        cur.execute("""
+            DELETE FROM restaurant_tables
+            WHERE id = %s
+            RETURNING id
+        """, (table_id,))
+        deleted = cur.fetchone()
+        if not deleted:
+            raise ValueError('No fue posible eliminar la mesa.')
+
+    return {
+        'table_id': table_row['id'],
+        'codigo': table_row['codigo'],
+        'nombre': table_row['nombre'],
+    }
 
 
 def _sync_open_order_context(cur, order_id, payload):
@@ -754,16 +810,15 @@ def _sync_open_order_context(cur, order_id, payload):
     """, (cliente_nombre, comensales, notas, order_id))
 
 
-def _ensure_open_order(cur, tenant_id, table_id, user_id, payload=None):
+def _ensure_open_order(cur, table_id, user_id, payload=None):
     payload = payload or {}
     cur.execute("""
         SELECT id
         FROM restaurant_table_orders
-        WHERE tenant_id = %s
-          AND table_id = %s
+        WHERE table_id = %s
           AND estado = 'abierta'
         LIMIT 1
-    """, (tenant_id, table_id))
+    """, (table_id,))
     row = cur.fetchone()
     if row:
         _sync_open_order_context(cur, row['id'], payload)
@@ -773,22 +828,34 @@ def _ensure_open_order(cur, tenant_id, table_id, user_id, payload=None):
     comensales = _parse_int(payload.get('comensales'), default=1, minimum=1, maximum=50, field='comensales')
     notas = (payload.get('order_notes') or payload.get('notas_orden') or '').strip() or None
 
-    cur.execute("""
-        INSERT INTO restaurant_table_orders (
-            tenant_id, table_id, estado, cliente_nombre,
-            comensales, notas, abierta_por
-        )
-        VALUES (%s, %s, 'abierta', %s, %s, %s, %s)
-        RETURNING id
-    """, (tenant_id, table_id, cliente_nombre, comensales, notas, user_id))
+    if _table_has_column('restaurant_table_orders', 'tenant_id'):
+        cur.execute("""
+            INSERT INTO restaurant_table_orders (
+                tenant_id, table_id, estado, cliente_nombre,
+                comensales, notas, abierta_por
+            )
+            VALUES (
+                COALESCE((SELECT tenant_id FROM restaurant_tables WHERE id = %s), 1),
+                %s, 'abierta', %s, %s, %s, %s
+            )
+            RETURNING id
+        """, (table_id, table_id, cliente_nombre, comensales, notas, user_id))
+    else:
+        cur.execute("""
+            INSERT INTO restaurant_table_orders (
+                table_id, estado, cliente_nombre,
+                comensales, notas, abierta_por
+            )
+            VALUES (%s, 'abierta', %s, %s, %s, %s)
+            RETURNING id
+        """, (table_id, cliente_nombre, comensales, notas, user_id))
     order_id = cur.fetchone()['id']
 
     cur.execute("""
         UPDATE restaurant_tables
         SET estado = 'ocupada', updated_at = NOW()
         WHERE id = %s
-          AND tenant_id = %s
-    """, (table_id, tenant_id))
+    """, (table_id,))
     return order_id
 
 
@@ -896,7 +963,7 @@ def _create_accounting_movement(cur, movement_type, category, description, amoun
     return {'status': 'sincronizada', 'movement_id': row['id'] if row else None}
 
 
-def add_consumption(tenant_id, user_id, table_id, payload):
+def add_consumption(user_id, table_id, payload):
     """Agrega un consumo a la cuenta abierta de una mesa."""
     _ensure_module_schema()
     product_id = payload.get('product_id')
@@ -909,33 +976,23 @@ def add_consumption(tenant_id, user_id, table_id, payload):
             SELECT id, codigo, nombre, estado
             FROM restaurant_tables
             WHERE id = %s
-              AND tenant_id = %s
-        """, (table_id, tenant_id))
+        """, (table_id,))
         table_row = cur.fetchone()
         if not table_row:
-            raise ValueError('Mesa no encontrada para este tenant.')
+            raise ValueError('Mesa no encontrada.')
 
-        order_id = _ensure_open_order(cur, tenant_id, table_id, user_id, payload)
+        order_id = _ensure_open_order(cur, table_id, user_id, payload)
 
         producto_id = None
         precio_unitario = _parse_float(payload.get('precio_unitario'), default=0, minimum=0, field='precio')
         if product_id:
             producto_id = _parse_int(product_id, minimum=1, field='producto')
-            if _table_has_column('productos', 'tenant_id'):
-                cur.execute("""
-                    SELECT id, nombre, precio, stock
-                    FROM productos
-                    WHERE id = %s
-                      AND tenant_id = %s
-                    FOR UPDATE
-                """, (producto_id, tenant_id))
-            else:
-                cur.execute("""
-                    SELECT id, nombre, precio, stock
-                    FROM productos
-                    WHERE id = %s
-                    FOR UPDATE
-                """, (producto_id,))
+            cur.execute("""
+                SELECT id, nombre, precio, stock
+                FROM productos
+                WHERE id = %s
+                FOR UPDATE
+            """, (producto_id,))
             product = cur.fetchone()
             if not product:
                 raise ValueError('Producto no encontrado.')
@@ -970,15 +1027,29 @@ def add_consumption(tenant_id, user_id, table_id, payload):
                 raise ValueError('El precio del consumo debe ser mayor a cero.')
             subtotal = round(precio_unitario * cantidad, 2)
 
-        cur.execute("""
-            INSERT INTO restaurant_table_consumptions (
-                tenant_id, order_id, table_id, producto_id, descripcion,
-                cantidad, precio_unitario, subtotal, estado, notas, creado_por
-            )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'pendiente', %s, %s)
-            RETURNING id
-        """, (tenant_id, order_id, table_id, producto_id, descripcion,
-              cantidad, precio_unitario, subtotal, notas, user_id))
+        if _table_has_column('restaurant_table_consumptions', 'tenant_id'):
+            cur.execute("""
+                INSERT INTO restaurant_table_consumptions (
+                    tenant_id, order_id, table_id, producto_id, descripcion,
+                    cantidad, precio_unitario, subtotal, estado, notas, creado_por
+                )
+                VALUES (
+                    COALESCE((SELECT tenant_id FROM restaurant_table_orders WHERE id = %s), 1),
+                    %s, %s, %s, %s, %s, %s, %s, 'pendiente', %s, %s
+                )
+                RETURNING id
+            """, (order_id, order_id, table_id, producto_id, descripcion,
+                  cantidad, precio_unitario, subtotal, notas, user_id))
+        else:
+            cur.execute("""
+                INSERT INTO restaurant_table_consumptions (
+                    order_id, table_id, producto_id, descripcion,
+                    cantidad, precio_unitario, subtotal, estado, notas, creado_por
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'pendiente', %s, %s)
+                RETURNING id
+            """, (order_id, table_id, producto_id, descripcion,
+                  cantidad, precio_unitario, subtotal, notas, user_id))
         consumption_id = cur.fetchone()['id']
         total = _refresh_order_total(cur, order_id)
 
@@ -986,8 +1057,7 @@ def add_consumption(tenant_id, user_id, table_id, payload):
             UPDATE restaurant_tables
             SET estado = 'ocupada', updated_at = NOW()
             WHERE id = %s
-              AND tenant_id = %s
-        """, (table_id, tenant_id))
+        """, (table_id,))
 
     return {
         'consumption_id': consumption_id,
@@ -996,7 +1066,7 @@ def add_consumption(tenant_id, user_id, table_id, payload):
     }
 
 
-def update_table_state(tenant_id, table_id, new_state):
+def update_table_state(table_id, new_state):
     """Actualiza el estado visual de una mesa."""
     _ensure_module_schema()
     if new_state not in TABLE_STATES:
@@ -1007,11 +1077,10 @@ def update_table_state(tenant_id, table_id, new_state):
             SELECT EXISTS(
                 SELECT 1
                 FROM restaurant_table_orders
-                WHERE tenant_id = %s
-                  AND table_id = %s
+                WHERE table_id = %s
                   AND estado = 'abierta'
             ) AS has_open_order
-        """, (tenant_id, table_id))
+        """, (table_id,))
         row = cur.fetchone()
         if row and row['has_open_order'] and new_state == 'disponible':
             raise ValueError('No puedes dejar la mesa disponible mientras tenga una cuenta abierta.')
@@ -1020,14 +1089,13 @@ def update_table_state(tenant_id, table_id, new_state):
             UPDATE restaurant_tables
             SET estado = %s, updated_at = NOW()
             WHERE id = %s
-              AND tenant_id = %s
             RETURNING id
-        """, (new_state, table_id, tenant_id))
+        """, (new_state, table_id))
         if not cur.fetchone():
             raise ValueError('Mesa no encontrada.')
 
 
-def update_consumption_state(tenant_id, consumption_id, new_state):
+def update_consumption_state(consumption_id, new_state):
     """Actualiza el estado operativo de un consumo."""
     _ensure_module_schema()
     if new_state not in CONSUMPTION_STATES:
@@ -1040,9 +1108,8 @@ def update_consumption_state(tenant_id, consumption_id, new_state):
                 served_at = CASE WHEN %s = 'servido' THEN NOW() ELSE served_at END,
                 updated_at = NOW()
             WHERE id = %s
-              AND tenant_id = %s
             RETURNING order_id
-        """, (new_state, new_state, consumption_id, tenant_id))
+        """, (new_state, new_state, consumption_id))
         row = cur.fetchone()
         if not row:
             raise ValueError('Consumo no encontrado.')
@@ -1051,7 +1118,7 @@ def update_consumption_state(tenant_id, consumption_id, new_state):
     return total
 
 
-def close_table_order(tenant_id, user_id, table_id, payload=None):
+def close_table_order(user_id, table_id, payload=None):
     """Cierra la cuenta abierta de una mesa y la libera."""
     _ensure_module_schema()
     payload = payload or {}
@@ -1072,7 +1139,6 @@ def close_table_order(tenant_id, user_id, table_id, payload=None):
             FROM restaurant_table_orders o
             JOIN restaurant_tables t
               ON t.id = o.table_id
-             AND t.tenant_id = o.tenant_id
             LEFT JOIN LATERAL (
                 SELECT COUNT(*) FILTER (WHERE c.estado = 'pendiente') AS pending_count,
                        COUNT(*) FILTER (WHERE c.estado = 'preparando') AS preparing_count,
@@ -1080,11 +1146,10 @@ def close_table_order(tenant_id, user_id, table_id, payload=None):
                 FROM restaurant_table_consumptions c
                 WHERE c.order_id = o.id
             ) stats ON TRUE
-            WHERE o.tenant_id = %s
-              AND o.table_id = %s
+            WHERE o.table_id = %s
               AND o.estado = 'abierta'
             LIMIT 1
-        """, (tenant_id, table_id))
+        """, (table_id,))
         order = cur.fetchone()
         if not order:
             raise ValueError('La mesa no tiene una cuenta abierta.')
@@ -1134,8 +1199,7 @@ def close_table_order(tenant_id, user_id, table_id, payload=None):
             UPDATE restaurant_tables
             SET estado = 'disponible', updated_at = NOW()
             WHERE id = %s
-              AND tenant_id = %s
-        """, (table_id, tenant_id))
+        """, (table_id,))
 
         return {
             'order_id': order['id'],
@@ -1147,7 +1211,7 @@ def close_table_order(tenant_id, user_id, table_id, payload=None):
         }
 
 
-def cancel_open_table_order(tenant_id, user_id, table_id, payload=None):
+def cancel_open_table_order(user_id, table_id, payload=None):
     """Cancela una cuenta abierta y revierte stock no servido."""
     _ensure_module_schema()
     payload = payload or {}
@@ -1165,17 +1229,15 @@ def cancel_open_table_order(tenant_id, user_id, table_id, payload=None):
             FROM restaurant_table_orders o
             JOIN restaurant_tables t
               ON t.id = o.table_id
-             AND t.tenant_id = o.tenant_id
             LEFT JOIN LATERAL (
                 SELECT COUNT(*) FILTER (WHERE c.estado = 'servido') AS served_count
                 FROM restaurant_table_consumptions c
                 WHERE c.order_id = o.id
             ) stats ON TRUE
-            WHERE o.tenant_id = %s
-              AND o.table_id = %s
+            WHERE o.table_id = %s
               AND o.estado = 'abierta'
             LIMIT 1
-        """, (tenant_id, table_id))
+        """, (table_id,))
         order = cur.fetchone()
         if not order:
             raise ValueError('La mesa no tiene una cuenta abierta para cancelar.')
@@ -1245,8 +1307,7 @@ def cancel_open_table_order(tenant_id, user_id, table_id, payload=None):
             UPDATE restaurant_tables
             SET estado = 'disponible', updated_at = NOW()
             WHERE id = %s
-              AND tenant_id = %s
-        """, (table_id, tenant_id))
+        """, (table_id,))
 
         return {
             'order_id': order['id'],
@@ -1257,7 +1318,7 @@ def cancel_open_table_order(tenant_id, user_id, table_id, payload=None):
         }
 
 
-def cancel_closed_order(tenant_id, user_id, order_id, payload=None):
+def cancel_closed_order(user_id, order_id, payload=None):
     """Anula una venta cerrada y registra la reversión contable."""
     _ensure_module_schema()
     payload = payload or {}
@@ -1276,14 +1337,12 @@ def cancel_closed_order(tenant_id, user_id, order_id, payload=None):
             FROM restaurant_table_orders o
             JOIN restaurant_tables t
               ON t.id = o.table_id
-             AND t.tenant_id = o.tenant_id
-            WHERE o.tenant_id = %s
-              AND o.id = %s
+            WHERE o.id = %s
             LIMIT 1
-        """, (tenant_id, order_id))
+        """, (order_id,))
         order = cur.fetchone()
         if not order:
-            raise ValueError('La venta de mesa no existe para este tenant.')
+            raise ValueError('La venta de mesa no existe.')
         if order['estado'] == 'cancelada':
             raise ValueError('La venta ya fue anulada.')
         if order['estado'] != 'cerrada':

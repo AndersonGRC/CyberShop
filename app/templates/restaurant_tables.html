@@ -192,6 +192,9 @@
                     <button id="rtSaveTableButton" class="rt-btn rt-btn-primary" type="button">
                         <i class="fas fa-save"></i> Guardar cambios
                     </button>
+                    <button id="rtDeleteTableButton" class="rt-btn rt-btn-danger" type="button">
+                        <i class="fas fa-trash-alt"></i> Eliminar mesa
+                    </button>
                     <button id="rtResetSelectionButton" class="rt-btn rt-btn-ghost" type="button">
                         <i class="fas fa-crosshairs"></i> Limpiar
                     </button>
@@ -562,6 +565,7 @@ window.RESTAURANT_PAGE = {
     endpoints: {
         data: {{ url_for('restaurant_tables.restaurant_tables_data') | tojson }},
         layout: {{ url_for('restaurant_tables.restaurant_tables_layout_save') | tojson }},
+        deleteTableBase: {{ url_for('restaurant_tables.restaurant_tables_layout_delete', table_id=0) | replace('/0', '/__TABLE_ID__') | tojson }},
         tableStateBase: {{ url_for('restaurant_tables.restaurant_table_state_change', table_id=0) | replace('/0/', '/__TABLE_ID__/') | tojson }},
         addConsumptionBase: {{ url_for('restaurant_tables.restaurant_table_add_consumption', table_id=0) | replace('/0/', '/__TABLE_ID__/') | tojson }},
         consumptionStateBase: {{ url_for('restaurant_tables.restaurant_consumption_state_change', consumption_id=0) | replace('/0/', '/__CONSUMPTION_ID__/') | tojson }},

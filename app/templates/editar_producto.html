@@ -180,12 +180,12 @@
 </div>
 
 <main>
-    <form action="{{ url_for('admin.editar_producto', id=producto[0]) }}" method="POST" class="form-container"
+    <form action="{{ url_for('admin.editar_producto', id=producto['id']) }}" method="POST" class="form-container"
           enctype="multipart/form-data">
 
         <div class="form-header">
             <i class="fas fa-pen-to-square form-header-icon"></i>
-            <h2>Editar Producto <span class="form-header-id">#{{ producto[0] }}</span></h2>
+            <h2>Editar Producto <span class="form-header-id">#{{ producto['id'] }}</span></h2>
         </div>
 
         <!-- ── Galería de imágenes actuales (carrusel) ── -->
@@ -252,22 +252,22 @@
 
         <div class="form-group">
             <label for="nombre"><i class="fas fa-tag"></i> Nombre</label>
-            <input type="text" id="nombre" name="nombre" value="{{ producto[2] }}" required>
+            <input type="text" id="nombre" name="nombre" value="{{ producto['nombre'] }}" required>
         </div>
 
         <div class="form-group">
             <label for="precio"><i class="fas fa-dollar-sign"></i> Precio</label>
-            <input type="number" id="precio" name="precio" value="{{ producto[3] }}" step="0.01" required>
+            <input type="number" id="precio" name="precio" value="{{ producto['precio'] }}" step="0.01" required>
         </div>
 
         <div class="form-group">
             <label for="stock"><i class="fas fa-cubes"></i> Stock</label>
-            <input type="number" id="stock" name="stock" value="{{ producto[7] }}" min="0" required>
+            <input type="number" id="stock" name="stock" value="{{ producto['stock'] }}" min="0" required>
         </div>
 
         <div class="form-group">
             <label for="referencia"><i class="fas fa-barcode"></i> Referencia</label>
-            <input type="text" id="referencia" name="referencia" value="{{ producto[4] }}" required>
+            <input type="text" id="referencia" name="referencia" value="{{ producto['referencia'] }}" required>
         </div>
 
         <div class="form-group">
@@ -275,14 +275,22 @@
             <select id="genero_id" name="genero_id" required>
                 <option value="" disabled>Seleccione un género</option>
                 {% for genero in generos %}
-                <option value="{{ genero[0] }}" {% if genero[0] == producto[5] %}selected{% endif %}>{{ genero[1] }}</option>
+                <option value="{{ genero[0] }}" {% if genero[0] == producto['genero_id'] %}selected{% endif %}>{{ genero[1] }}</option>
                 {% endfor %}
             </select>
         </div>
 
         <div class="form-group">
             <label for="descripcion"><i class="fas fa-align-left"></i> Descripción</label>
-            <textarea id="descripcion" name="descripcion" required>{{ producto[6] }}</textarea>
+            <textarea id="descripcion" name="descripcion" required>{{ producto['descripcion'] }}</textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="visible_en_ecommerce"><i class="fas fa-store"></i> Visibilidad online</label>
+            <select id="visible_en_ecommerce" name="visible_en_ecommerce" required>
+                <option value="si" {% if producto['visible_en_ecommerce'] %}selected{% endif %}>Mostrar en e-commerce</option>
+                <option value="no" {% if not producto['visible_en_ecommerce'] %}selected{% endif %}>Solo venta física / restaurante</option>
+            </select>
         </div>
 
         <div class="form-group">

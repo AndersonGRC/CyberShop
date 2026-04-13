@@ -396,6 +396,7 @@
                 <th>Fecha</th>
                 <th>Cliente</th>
                 <th>Metodo</th>
+                <th>FE</th>
                 <th>Total</th>
                 <th>Acciones</th>
             </tr>
@@ -407,6 +408,7 @@
                 <td data-label="Fecha">{{ v.fecha.strftime('%Y-%m-%d %H:%M') }}</td>
                 <td data-label="Cliente">{{ v.cliente_nombre or 'Consumidor Final' }}</td>
                 <td data-label="Metodo"><span class="badge-metodo {{ v.metodo_pago }}">{{ v.metodo_pago }}</span></td>
+                <td data-label="FE">{% if v.facturar_electronicamente %}<strong>Si</strong>{% else %}No{% endif %}</td>
                 <td data-label="Total"><strong>${{ "{:,.0f}".format(v.total) }}</strong></td>
                 <td data-label="Acciones">
                     <button class="btn-ver" onclick="verDetalle({{ v.id }})"><i class="fas fa-eye"></i> Ver</button>
@@ -450,7 +452,9 @@
             <button class="modal-close"
                 onclick="document.getElementById('modal-detalle').classList.remove('activo')">Cerrar</button>
             <button class="modal-print" onclick="window.print()"><i class="fas fa-print"></i> Imprimir</button>
+            {% if can_void_pos %}
             <button class="modal-anular" id="btn-anular" onclick="anularVenta()"><i class="fas fa-ban"></i> Anular Venta</button>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -484,10 +488,12 @@
 
                 // Mostrar u ocultar botón anular según estado
                 var btnAnular = document.getElementById('btn-anular');
-                if (data.estado === 'anulada') {
-                    btnAnular.style.display = 'none';
-                } else {
-                    btnAnular.style.display = '';
+                if (btnAnular) {
+                    if (data.estado === 'anulada') {
+                        btnAnular.style.display = 'none';
+                    } else {
+                        btnAnular.style.display = '';
+                    }
                 }
 
                 const tbody = document.getElementById('det-items');

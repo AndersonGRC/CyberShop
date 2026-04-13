@@ -34,6 +34,7 @@
         placeTableButton: document.getElementById('rtPlaceTableButton'),
         placementBadge: document.getElementById('rtPlacementBadge'),
         saveTableButton: document.getElementById('rtSaveTableButton'),
+        deleteTableButton: document.getElementById('rtDeleteTableButton'),
         resetSelectionButton: document.getElementById('rtResetSelectionButton'),
         closeAccountButton: document.getElementById('rtCloseAccountButton'),
         cancelAccountButton: document.getElementById('rtCancelAccountButton'),
@@ -213,6 +214,30 @@
                 'X-CSRFToken': csrfToken,
             },
             body: JSON.stringify(payload || {}),
+        });
+
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+            if (response.status === 401 || response.redirected) {
+                throw new Error('Sesión expirada. Recarga la página e inicia sesión.');
+            }
+            throw new Error('El servidor respondió con un formato inesperado. Recarga la página.');
+        }
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.success === false) {
+            throw new Error(data.error || 'Operación no disponible.');
+        }
+        return data;
+    }
+
+    async function deleteRequest(url) {
+        const response = await fetch(url, {
+            method: 'DELETE',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRFToken': csrfToken,
+            },
         });
 
         const contentType = response.headers.get('content-type') || '';
@@ -470,6 +495,9 @@
             elements.selectedStateBadge.className = `rt-state-badge${table ? ` ${table.estado}` : ''}`;
             elements.selectedStateBadge.textContent = table ? table.estado_label : 'Sin seleccionar';
         }
+        if (elements.deleteTableButton) {
+            elements.deleteTableButton.disabled = !table;
+        }
         fillFormFromTable(table);
         renderQueue();
 
@@ -627,6 +655,34 @@
             const result = await jsonRequest(endpoints.layout, buildTablePayload(payloadOverrides));
             await refreshData(result.table_id);
             toastNotify('Mesa añadida al plano ✓', 'success');
+        } catch (error) {
+            notify(error.message, 'error');
+        }
+    }
+
+    async function deleteSelectedTable() {
+        const table = getSelectedTable();
+        if (!table) {
+            notify('Selecciona una mesa para eliminar.', 'warning');
+            return;
+        }
+
+        const confirmation = await confirmAction(
+            `Se eliminará ${table.nombre} (${table.codigo}) del plano.`,
+            {
+                icon: 'warning',
+                confirmText: 'Eliminar mesa',
+            }
+        );
+        if (!confirmation.isConfirmed) {
+            return;
+        }
+
+        try {
+            await deleteRequest(endpointForTable(endpoints.deleteTableBase, table.id));
+            prepareNewTable();
+            await refreshData(null);
+            toastNotify('Mesa eliminada del plano.', 'success');
         } catch (error) {
             notify(error.message, 'error');
         }
@@ -1330,6 +1386,7 @@
     function bindEvents() {
         elements.refreshButton?.addEventListener('click', () => refreshData(state.selectedTableId));
         elements.saveTableButton?.addEventListener('click', () => saveTable());
+        elements.deleteTableButton?.addEventListener('click', deleteSelectedTable);
         elements.resetSelectionButton?.addEventListener('click', prepareNewTable);
         elements.addConsumptionButton?.addEventListener('click', addConsumptionToSelectedTable);
         elements.productSearch?.addEventListener('input', filterProducts);

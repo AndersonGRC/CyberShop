@@ -17,10 +17,153 @@ from psycopg2.extras import DictCursor
 
 from database import get_db_connection, get_db_cursor
 from helpers import get_data_app
-from security import rol_requerido, ADMIN_FULL, ADMIN_STAFF, ADMIN_CONTADOR, ROL_SUPER_ADMIN
+from security import (
+    rol_requerido,
+    ADMIN_FULL,
+    ADMIN_STAFF,
+    ADMIN_CONTADOR,
+    CATALOG_DELETE,
+    CATALOG_OPERATIONAL,
+    POS_OPERATIONAL,
+    POS_DELETE,
+    ROL_SUPER_ADMIN,
+)
 from tenant_features import get_module_settings, set_module_state
 
 admin_bp = Blueprint('admin', __name__)
+
+
+_PRODUCT_IMAGE_DEFAULTS_REPAIRED = False
+_COLUMN_EXISTS_CACHE = {}
+
+
+def _table_has_column(table_name, column_name):
+    cache_key = (table_name, column_name)
+    if cache_key in _COLUMN_EXISTS_CACHE:
+        return _COLUMN_EXISTS_CACHE[cache_key]
+
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("""
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = %s
+                  AND column_name = %s
+                LIMIT 1
+            """, (table_name, column_name))
+            exists = cur.fetchone() is not None
+    except Exception:
+        exists = False
+
+    _COLUMN_EXISTS_CACHE[cache_key] = exists
+    return exists
+
+
+def _get_product_schema_flags():
+    return {
+        'has_online_visibility': _table_has_column('productos', 'visible_en_ecommerce'),
+        'has_fe_flag_pos': _table_has_column('ventas_pos', 'facturar_electronicamente'),
+    }
+
+
+def _parse_visible_en_ecommerce(value, default=True):
+    if value is None:
+        return default
+    normalized = str(value).strip().lower()
+    if normalized in ('', 'none', 'null'):
+        return default
+    if normalized in ('1', 'true', 'si', 'sí', 'on', 'yes'):
+        return True
+    if normalized in ('0', 'false', 'no', 'off'):
+        return False
+    raise ValueError('Valor inválido para visibilidad online.')
+
+
+def _parse_excel_visible_value(value):
+    if value is None:
+        return True
+    if hasattr(value, 'item'):
+        value = value.item()
+    if isinstance(value, float):
+        try:
+            if value != value:
+                return True
+        except Exception:
+            pass
+
+    normalized = str(value).strip().lower()
+    if normalized == '':
+        return True
+    if normalized in ('si', 'sí'):
+        return True
+    if normalized == 'no':
+        return False
+    raise ValueError("usa solo 'SI' o 'NO'")
+
+
+def _parse_facturar_electronicamente(value, default=False):
+    if value is None:
+        return default
+    normalized = str(value).strip().lower()
+    if normalized in ('', 'none', 'null'):
+        return default
+    if normalized in ('1', 'true', 'si', 'sí', 'on', 'yes'):
+        return True
+    if normalized in ('0', 'false', 'no', 'off'):
+        return False
+    raise ValueError('Valor invalido para facturacion electronica.')
+
+
+def _build_product_insert_data(*, imagen, nombre, precio, referencia, genero_id, descripcion, stock,
+                               visible_en_ecommerce=True):
+    schema = _get_product_schema_flags()
+    columns = ['imagen', 'nombre', 'precio', 'referencia', 'genero_id', 'descripcion', 'stock']
+    values = [imagen, nombre, precio, referencia, genero_id, descripcion, stock]
+
+    if schema['has_online_visibility']:
+        columns.append('visible_en_ecommerce')
+        values.append(bool(visible_en_ecommerce))
+
+    return columns, values
+
+
+def _repair_producto_imagenes_defaults():
+    """Restaura la secuencia/default de producto_imagenes.id si falta."""
+    global _PRODUCT_IMAGE_DEFAULTS_REPAIRED
+    if _PRODUCT_IMAGE_DEFAULTS_REPAIRED:
+        return
+
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("""
+                SELECT column_default
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'producto_imagenes'
+                  AND column_name = 'id'
+            """)
+            row = cur.fetchone()
+            if row and not row['column_default']:
+                cur.execute("CREATE SEQUENCE IF NOT EXISTS producto_imagenes_id_seq")
+                cur.execute("""
+                    ALTER SEQUENCE producto_imagenes_id_seq
+                    OWNED BY producto_imagenes.id
+                """)
+                cur.execute("""
+                    ALTER TABLE producto_imagenes
+                    ALTER COLUMN id SET DEFAULT nextval('producto_imagenes_id_seq')
+                """)
+                cur.execute("""
+                    SELECT setval(
+                        'producto_imagenes_id_seq',
+                        COALESCE((SELECT MAX(id) FROM producto_imagenes), 0) + 1,
+                        false
+                    )
+                """)
+        _PRODUCT_IMAGE_DEFAULTS_REPAIRED = True
+    except Exception as exc:
+        current_app.logger.warning(f"No fue posible reparar defaults de producto_imagenes: {exc}")
 
 
 # --- Dashboard ---
@@ -36,7 +179,7 @@ def dashboard_admin():
 # --- Gestion de Productos ---
 
 @admin_bp.route('/agregar-producto', methods=['GET', 'POST'])
-@rol_requerido(ADMIN_STAFF)
+@rol_requerido(CATALOG_OPERATIONAL)
 def GestionProductos():
     """Formulario para agregar nuevos productos al catalogo."""
     from app import product_images
@@ -55,7 +198,10 @@ def GestionProductos():
         print("Error cargando géneros:", e)
 
     if request.method == 'POST':
+        conn = None
+        cur = None
         try:
+            _repair_producto_imagenes_defaults()
             archivos = request.files.getlist('imagenes')
             archivos = [f for f in archivos if f and f.filename != '']
             if not archivos:
@@ -68,6 +214,10 @@ def GestionProductos():
             genero_id = request.form.get('genero_id')
             descripcion = request.form.get('descripcion')
             stock = request.form.get('stock', 0)
+            visible_en_ecommerce = _parse_visible_en_ecommerce(
+                request.form.get('visible_en_ecommerce'),
+                default=True,
+            )
 
             # Guardar primera imagen como principal del producto
             primera = archivos[0]
@@ -76,9 +226,19 @@ def GestionProductos():
 
             conn = get_db_connection()
             cur = conn.cursor()
+            insert_columns, insert_values = _build_product_insert_data(
+                imagen=imagen_url_principal,
+                nombre=nombre,
+                precio=precio,
+                referencia=referencia,
+                genero_id=genero_id,
+                descripcion=descripcion,
+                stock=stock,
+                visible_en_ecommerce=visible_en_ecommerce,
+            )
             cur.execute(
-                'INSERT INTO productos (imagen, nombre, precio, referencia, genero_id, descripcion, stock) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id',
-                (imagen_url_principal, nombre, precio, referencia, genero_id, descripcion, stock)
+                f"INSERT INTO productos ({', '.join(insert_columns)}) VALUES ({', '.join(['%s'] * len(insert_columns))}) RETURNING id",
+                tuple(insert_values)
             )
             nuevo_id = cur.fetchone()[0]
 
@@ -102,11 +262,19 @@ def GestionProductos():
             return redirect(url_for('public.productos'))
 
         except Exception as e:
+            if conn:
+                conn.rollback()
+            if cur:
+                cur.close()
+            if conn:
+                conn.close()
             current_app.logger.error(f"Error al crear producto: {e}")
             error_msg = str(e)
 
             if "productos_referencia_key" in error_msg:
                 flash('Ya existe un producto registrado con esa Referencia. Por favor verifica.', 'warning')
+            elif 'producto_imagenes' in error_msg and '"id"' in error_msg:
+                flash('Se reparó la secuencia de imágenes. Intenta guardar el producto nuevamente.', 'warning')
             elif "value too long" in error_msg:
                 flash('Uno de los campos es demasiado largo para la base de datos.', 'warning')
             else:
@@ -115,14 +283,14 @@ def GestionProductos():
             return redirect(url_for('admin.GestionProductos'))
     return render_template('GestionProductos.html', datosApp=datosApp, generos=generos)
 @admin_bp.route('/descargar-plantilla-productos')
-@rol_requerido(ADMIN_STAFF)
+@rol_requerido(CATALOG_OPERATIONAL)
 def descargar_plantilla_productos():
     """Genera y descarga un archivo Excel plantilla para el cargue masivo de productos."""
     import pandas as pd
     import io
     
     # Definir las columnas exactas requeridas
-    columnas = ['Nombre del Producto', 'Referencia', 'Género', 'Descripción', 'Precio']
+    columnas = ['Nombre del Producto', 'Referencia', 'Género', 'Descripción', 'Precio', 'Visible en E-commerce']
     
     # Crear un DataFrame vacío con esas columnas
     df = pd.DataFrame(columns=columnas)
@@ -142,15 +310,10 @@ def descargar_plantilla_productos():
     )
 
 @admin_bp.route('/cargue-masivo-productos', methods=['POST'])
-@rol_requerido(ADMIN_STAFF)
+@rol_requerido(CATALOG_OPERATIONAL)
 def cargue_masivo_productos():
     """Procesa el cargue masivo de productos desde un archivo Excel."""
-    from app import product_images
     import pandas as pd
-    import requests
-    import os
-    import uuid
-    import time
     
     if 'archivo_excel' not in request.files:
         flash('No se seleccionó ningún archivo.', 'error')
@@ -183,21 +346,28 @@ def cargue_masivo_productos():
         cur.execute('SELECT id, nombre FROM generos')
         generos_rows = cur.fetchall()
         generos_map = {row[1].strip().lower(): row[0] for row in generos_rows}
-        
         productos_creados = 0
         errores = []
         
         for index, row in df.iterrows():
             try:
-                nombre = str(row['Nombre del Producto']).strip()
-                referencia = str(row['Referencia']).strip()
-                genero_nombre = str(row['Género']).strip().lower()
-                descripcion = str(row['Descripción']).strip()
-                precio = float(row['Precio'])
-                
                 # Validar campos vacíos esenciales
                 if pd.isna(row['Nombre del Producto']) or pd.isna(row['Referencia']) or pd.isna(row['Precio']):
                     errores.append(f"Fila {index+2}: Faltan datos obligatorios.")
+                    continue
+
+                nombre = str(row['Nombre del Producto']).strip()
+                referencia = str(row['Referencia']).strip()
+                genero_nombre = str(row['Género']).strip().lower()
+                descripcion = '' if pd.isna(row['Descripción']) else str(row['Descripción']).strip()
+                precio = float(row['Precio'])
+                visible_en_ecommerce = _parse_excel_visible_value(row.get('Visible en E-commerce'))
+
+                if not nombre or not referencia:
+                    errores.append(f"Fila {index+2}: El nombre y la referencia no pueden quedar vacíos.")
+                    continue
+                if precio < 0:
+                    errores.append(f"Fila {index+2}: El precio no puede ser negativo.")
                     continue
                     
                 # Verificar referencia duplicada en la bd
@@ -214,11 +384,21 @@ def cargue_masivo_productos():
                 
                 # Asignamos imagen por defecto
                 imagen_final_url = '/static/media/producto_default.png'
+                insert_columns, insert_values = _build_product_insert_data(
+                    imagen=imagen_final_url,
+                    nombre=nombre,
+                    precio=precio,
+                    referencia=referencia,
+                    genero_id=genero_id,
+                    descripcion=descripcion,
+                    stock=0,
+                    visible_en_ecommerce=visible_en_ecommerce,
+                )
                 
                 # Insertar en base de datos
                 cur.execute(
-                    'INSERT INTO productos (imagen, nombre, precio, referencia, genero_id, descripcion, stock) VALUES (%s, %s, %s, %s, %s, %s, %s)',
-                    (imagen_final_url, nombre, precio, referencia, genero_id, descripcion, 0)
+                    f"INSERT INTO productos ({', '.join(insert_columns)}) VALUES ({', '.join(['%s'] * len(insert_columns))})",
+                    tuple(insert_values)
                 )
                 productos_creados += 1
                 
@@ -248,24 +428,33 @@ def cargue_masivo_productos():
 
 
 @admin_bp.route('/editar-productos')
-@rol_requerido(ADMIN_STAFF)
+@rol_requerido(CATALOG_OPERATIONAL)
 def editar_productos():
     """Lista de productos disponibles para edicion."""
     datosApp = get_data_app()
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute('SELECT * FROM productos')
-        productos = cur.fetchall()
-        cur.close()
-        conn.close()
+        with get_db_cursor(dict_cursor=True) as cur:
+            if _table_has_column('productos', 'visible_en_ecommerce'):
+                cur.execute("""
+                    SELECT id, nombre, precio, stock,
+                           COALESCE(visible_en_ecommerce, TRUE) AS visible_en_ecommerce
+                    FROM productos
+                    ORDER BY id ASC
+                """)
+            else:
+                cur.execute("""
+                    SELECT id, nombre, precio, stock, TRUE AS visible_en_ecommerce
+                    FROM productos
+                    ORDER BY id ASC
+                """)
+            productos = cur.fetchall()
     except Exception:
         productos = []
     return render_template('editar_productos.html', datosApp=datosApp, productos=productos)
 
 
 @admin_bp.route('/editar-producto/<int:id>', methods=['GET', 'POST'])
-@rol_requerido(ADMIN_STAFF)
+@rol_requerido(CATALOG_OPERATIONAL)
 def editar_producto(id):
     """Formulario de edicion de un producto existente."""
     from app import product_images
@@ -274,8 +463,11 @@ def editar_producto(id):
     imagenes = []
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute('SELECT * FROM productos WHERE id = %s', (id,))
+        cur = conn.cursor(cursor_factory=DictCursor)
+        if _table_has_column('productos', 'visible_en_ecommerce'):
+            cur.execute('SELECT *, COALESCE(visible_en_ecommerce, TRUE) AS visible_en_ecommerce FROM productos WHERE id = %s', (id,))
+        else:
+            cur.execute('SELECT *, TRUE AS visible_en_ecommerce FROM productos WHERE id = %s', (id,))
         producto = cur.fetchone()
         cur.execute('SELECT * FROM generos')
         generos = cur.fetchall()
@@ -291,21 +483,32 @@ def editar_producto(id):
         generos = []
 
     if request.method == 'POST':
+        conn = None
+        cur = None
         nombre = request.form.get('nombre')
         precio = request.form.get('precio')
         referencia = request.form.get('referencia')
         genero_id = request.form.get('genero_id')
         stock = request.form.get('stock', 0)
         descripcion = request.form.get('descripcion')
+        visible_en_ecommerce = _parse_visible_en_ecommerce(
+            request.form.get('visible_en_ecommerce'),
+            default=True,
+        )
         archivos_nuevos = request.files.getlist('imagenes_nuevas')
         archivos_nuevos = [f for f in archivos_nuevos if f and f.filename != '']
         try:
+            _repair_producto_imagenes_defaults()
             conn = get_db_connection()
             cur = conn.cursor()
-            cur.execute(
-                'UPDATE productos SET nombre=%s, precio=%s, referencia=%s, genero_id=%s, descripcion=%s, stock=%s WHERE id=%s',
-                (nombre, precio, referencia, genero_id, descripcion, stock, id)
-            )
+            update_sql = 'UPDATE productos SET nombre=%s, precio=%s, referencia=%s, genero_id=%s, descripcion=%s, stock=%s'
+            update_params = [nombre, precio, referencia, genero_id, descripcion, stock]
+            if _table_has_column('productos', 'visible_en_ecommerce'):
+                update_sql += ', visible_en_ecommerce=%s'
+                update_params.append(visible_en_ecommerce)
+            update_sql += ' WHERE id=%s'
+            update_params.append(id)
+            cur.execute(update_sql, tuple(update_params))
             # Agregar nuevas imágenes
             if archivos_nuevos:
                 cur.execute('SELECT COALESCE(MAX(orden), -1) FROM producto_imagenes WHERE producto_id=%s', (id,))
@@ -323,12 +526,19 @@ def editar_producto(id):
             flash('Producto actualizado.', 'success')
             return redirect(url_for('admin.editar_producto', id=id))
         except Exception as e:
+            if conn:
+                conn.rollback()
+            if cur:
+                cur.close()
+            if conn:
+                conn.close()
+            current_app.logger.error(f"Error actualizando producto {id}: {e}")
             flash(f'Error actualizando: Revisa el log para más detalles.', 'error')
     return render_template('editar_producto.html', datosApp=datosApp, producto=producto, generos=generos, imagenes=imagenes)
 
 
 @admin_bp.route('/producto-imagen/eliminar/<int:imagen_id>', methods=['POST'])
-@rol_requerido(ADMIN_STAFF)
+@rol_requerido(CATALOG_OPERATIONAL)
 def eliminar_imagen_producto(imagen_id):
     """Elimina una imagen de producto (no permite eliminar la principal si es la única)."""
     try:
@@ -375,7 +585,7 @@ def eliminar_imagen_producto(imagen_id):
 
 
 @admin_bp.route('/producto-imagen/principal/<int:imagen_id>', methods=['POST'])
-@rol_requerido(ADMIN_STAFF)
+@rol_requerido(CATALOG_OPERATIONAL)
 def establecer_imagen_principal(imagen_id):
     """Establece una imagen como la principal del producto."""
     try:
@@ -402,7 +612,7 @@ def establecer_imagen_principal(imagen_id):
 
 
 @admin_bp.route('/eliminar-productos')
-@rol_requerido(ADMIN_STAFF)
+@rol_requerido(CATALOG_DELETE)
 def eliminar_productos():
     """Lista de productos disponibles para eliminacion."""
     datosApp = get_data_app()
@@ -419,7 +629,7 @@ def eliminar_productos():
 
 
 @admin_bp.route('/eliminar-producto/<int:id>', methods=['GET', 'POST'])
-@rol_requerido(ADMIN_STAFF)
+@rol_requerido(CATALOG_DELETE)
 def eliminar_producto(id):
     """Elimina un producto del catalogo por su ID."""
     try:
@@ -672,7 +882,7 @@ def gestion_pedidos():
 # --- Gestion de Inventario ---
 
 @admin_bp.route('/inventario')
-@rol_requerido(ADMIN_STAFF)
+@rol_requerido(CATALOG_OPERATIONAL)
 def gestion_inventario():
     """Lista de productos con su stock actual."""
     datosApp = get_data_app()
@@ -705,7 +915,7 @@ def gestion_inventario():
 
 
 @admin_bp.route('/inventario/exportar')
-@rol_requerido(ADMIN_STAFF)
+@rol_requerido(CATALOG_OPERATIONAL)
 def exportar_inventario():
     """Genera y descarga un CSV del inventario."""
     try:
@@ -732,7 +942,7 @@ def exportar_inventario():
 
 
 @admin_bp.route('/inventario/actualizar', methods=['POST'])
-@rol_requerido(ADMIN_STAFF)
+@rol_requerido(CATALOG_OPERATIONAL)
 def actualizar_stock():
     """Actualiza el stock de un producto (Sumar o Fijar) y registra el movimiento."""
     try:
@@ -807,7 +1017,7 @@ def actualizar_stock():
 
 
 @admin_bp.route('/inventario/historial/<int:id>')
-@rol_requerido(ADMIN_STAFF)
+@rol_requerido(CATALOG_OPERATIONAL)
 def historial_inventario(id):
     """Retorna el historial de movimientos de un producto."""
     movimientos = []
@@ -1218,7 +1428,7 @@ def config_secciones():
 # --- Punto de Venta (POS) ---
 
 @admin_bp.route('/admin/pos')
-@rol_requerido(ADMIN_STAFF)
+@rol_requerido(POS_OPERATIONAL)
 def facturacion_pos():
     """Interfaz de punto de venta para facturacion en fisico."""
     datosApp = get_data_app()
@@ -1233,7 +1443,7 @@ def facturacion_pos():
 
 
 @admin_bp.route('/admin/pos/procesar', methods=['POST'])
-@rol_requerido(ADMIN_STAFF)
+@rol_requerido(POS_OPERATIONAL)
 def procesar_venta_pos():
     """Procesa una venta POS: guarda, descuenta stock y registra en inventario_log."""
     from datetime import datetime
@@ -1248,7 +1458,12 @@ def procesar_venta_pos():
     cliente_telefono = data.get('cliente_telefono', '')
     metodo_pago = data.get('metodo_pago', 'EFECTIVO')
     notas = data.get('notas', '')
+    facturar_electronicamente = _parse_facturar_electronicamente(
+        data.get('facturar_electronicamente'),
+        default=False,
+    )
     usuario_id = session.get('user_id', 1)
+    schema = _get_product_schema_flags()
 
     try:
         conn = get_db_connection()
@@ -1308,10 +1523,22 @@ def procesar_venta_pos():
             detalles_para_insertar.append((producto_id, descripcion, cantidad, precio_unitario, subtotal_item))
 
         # Insertar venta
-        cur.execute("""
-            INSERT INTO ventas_pos (numero_venta, cliente_nombre, cliente_documento, cliente_telefono, metodo_pago, subtotal, total, notas, usuario_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
-        """, (numero_venta, cliente_nombre, cliente_documento, cliente_telefono, metodo_pago, total_venta, total_venta, notas, usuario_id))
+        sales_columns = [
+            'numero_venta', 'cliente_nombre', 'cliente_documento', 'cliente_telefono',
+            'metodo_pago', 'subtotal', 'total', 'notas', 'usuario_id'
+        ]
+        sales_values = [
+            numero_venta, cliente_nombre, cliente_documento, cliente_telefono,
+            metodo_pago, total_venta, total_venta, notas, usuario_id
+        ]
+        if schema['has_fe_flag_pos']:
+            sales_columns.append('facturar_electronicamente')
+            sales_values.append(facturar_electronicamente)
+
+        cur.execute(f"""
+            INSERT INTO ventas_pos ({", ".join(sales_columns)})
+            VALUES ({", ".join(["%s"] * len(sales_columns))}) RETURNING id
+        """, tuple(sales_values))
         venta_id = cur.fetchone()[0]
 
         # Registrar en contabilidad
@@ -1350,6 +1577,7 @@ def procesar_venta_pos():
             'items': [{'descripcion': d[1], 'cantidad': d[2], 'precio_unitario': d[3], 'subtotal': d[4]} for d in detalles_para_insertar],
             'cliente_nombre': cliente_nombre,
             'metodo_pago': metodo_pago,
+            'facturar_electronicamente': facturar_electronicamente,
             'stock_updates': [{'id': pid, 'stock': s} for pid, s in stock_cambios.items()]
         })
 
@@ -1358,25 +1586,37 @@ def procesar_venta_pos():
 
 
 @admin_bp.route('/admin/pos/historial')
-@rol_requerido(ADMIN_CONTADOR)
+@rol_requerido(POS_OPERATIONAL)
 def historial_pos():
     """Historial de ventas POS."""
     datosApp = get_data_app()
     ventas = []
     try:
         with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute('SELECT * FROM ventas_pos ORDER BY fecha DESC')
+            if _table_has_column('ventas_pos', 'facturar_electronicamente'):
+                cur.execute("""
+                    SELECT *, COALESCE(facturar_electronicamente, FALSE) AS facturar_electronicamente
+                    FROM ventas_pos
+                    ORDER BY fecha DESC
+                """)
+            else:
+                cur.execute("""
+                    SELECT *, FALSE AS facturar_electronicamente
+                    FROM ventas_pos
+                    ORDER BY fecha DESC
+                """)
             ventas = cur.fetchall()
     except Exception as e:
         flash(f'Error cargando historial: Revisa el log para más detalles.', 'error')
     ventas_activas = [v for v in ventas if v.get('estado', 'activa') != 'anulada']
     total_activas = sum(float(v['total']) for v in ventas_activas)
     return render_template('historial_pos.html', datosApp=datosApp, ventas=ventas,
+                           can_void_pos=session.get('rol_id') in POS_DELETE,
                            total_activas=total_activas, num_activas=len(ventas_activas))
 
 
 @admin_bp.route('/admin/pos/detalle/<int:id>')
-@rol_requerido(ADMIN_CONTADOR)
+@rol_requerido(POS_OPERATIONAL)
 def detalle_venta_pos(id):
     """Retorna detalle de una venta POS en JSON."""
     try:
@@ -1406,6 +1646,7 @@ def detalle_venta_pos(id):
             'total': float(venta['total']),
             'notas': venta['notas'] or '',
             'estado': venta.get('estado', 'activa'),
+            'facturar_electronicamente': bool(venta.get('facturar_electronicamente')),
             'factura_dian_id': str(venta['factura_dian_id']) if venta.get('factura_dian_id') else None,
             'nota_credito_numero': nota_credito_numero,
             'items': [{
@@ -1420,7 +1661,7 @@ def detalle_venta_pos(id):
 
 
 @admin_bp.route('/admin/pos/<int:venta_id>/anular', methods=['POST'])
-@rol_requerido(ADMIN_STAFF)
+@rol_requerido(POS_DELETE)
 def anular_venta_pos(venta_id):
     """Anula una venta POS creando una nota de crédito, restaurando stock y registrando egreso contable."""
     from datetime import datetime
@@ -1568,7 +1809,7 @@ def buscar_producto_barcode():
 # --- Gestion de Generos ---
 
 @admin_bp.route('/admin/generos')
-@rol_requerido(ADMIN_STAFF)
+@rol_requerido(CATALOG_OPERATIONAL)
 def gestion_generos():
     """Lista todos los géneros y muestra el formulario de gestión."""
     datosApp = get_data_app()
@@ -1589,7 +1830,7 @@ def gestion_generos():
 
 
 @admin_bp.route('/admin/generos/crear', methods=['POST'])
-@rol_requerido(ADMIN_STAFF)
+@rol_requerido(CATALOG_OPERATIONAL)
 def crear_genero():
     """Crea un nuevo género de producto."""
     nombre = request.form.get('nombre', '').strip()
@@ -1609,7 +1850,7 @@ def crear_genero():
 
 
 @admin_bp.route('/admin/generos/editar/<int:id>', methods=['POST'])
-@rol_requerido(ADMIN_STAFF)
+@rol_requerido(CATALOG_OPERATIONAL)
 def editar_genero(id):
     """Actualiza el nombre de un género existente."""
     nombre = request.form.get('nombre', '').strip()
@@ -1862,6 +2103,18 @@ def facturar_venta_pos(venta_id):
     from routes.factura_electronica import emitir_factura_pos, facturacion_habilitada
     if not facturacion_habilitada():
         return jsonify({'success': False, 'error': 'Módulo de facturación electrónica no contratado'}), 403
+    if _table_has_column('ventas_pos', 'facturar_electronicamente'):
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("""
+                SELECT COALESCE(facturar_electronicamente, FALSE) AS facturar_electronicamente
+                FROM ventas_pos
+                WHERE id = %s
+            """, (venta_id,))
+            row = cur.fetchone()
+        if not row:
+            return jsonify({'success': False, 'error': 'Venta no encontrada'}), 404
+        if not row['facturar_electronicamente']:
+            return jsonify({'success': False, 'error': 'La venta no fue marcada para facturacion electronica'}), 400
     resultado = emitir_factura_pos(venta_id)
     if 'error' in resultado:
         return jsonify({'success': False, 'error': resultado['error']}), 500

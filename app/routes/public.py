@@ -19,6 +19,30 @@ public_bp = Blueprint('public', __name__)
 
 # Paginación por defecto
 PRODUCTOS_POR_PAGINA = 24
+_PUBLIC_COLUMN_CACHE = {}
+
+
+def _productos_tienen_visibilidad_online():
+    cache_key = ('productos', 'visible_en_ecommerce')
+    if cache_key in _PUBLIC_COLUMN_CACHE:
+        return _PUBLIC_COLUMN_CACHE[cache_key]
+
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("""
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'productos'
+                  AND column_name = 'visible_en_ecommerce'
+                LIMIT 1
+            """)
+            exists = cur.fetchone() is not None
+    except Exception:
+        exists = False
+
+    _PUBLIC_COLUMN_CACHE[cache_key] = exists
+    return exists
 
 
 @public_bp.route('/')
@@ -79,6 +103,8 @@ def productos():
             # Construir WHERE dinámico
             condiciones = []
             params = []
+            if _productos_tienen_visibilidad_online():
+                condiciones.append("COALESCE(p.visible_en_ecommerce, TRUE) = TRUE")
             if q:
                 condiciones.append("(p.nombre ILIKE %s OR p.descripcion ILIKE %s)")
                 params += [f'%{q}%', f'%{q}%']
@@ -218,7 +244,7 @@ def detalle_producto(producto_id):
                 FROM productos p
                 JOIN generos g ON p.genero_id = g.id
                 WHERE p.id = %s
-            ''', (producto_id,))
+            ''' + (' AND COALESCE(p.visible_en_ecommerce, TRUE) = TRUE' if _productos_tienen_visibilidad_online() else ''), (producto_id,))
             producto = cur.fetchone()
             if not producto:
                 return render_template('404.html'), 404
@@ -240,6 +266,7 @@ def detalle_producto(producto_id):
                 SELECT p.id, p.nombre, p.precio, p.imagen
                 FROM productos p
                 WHERE p.genero_id = %s AND p.id != %s AND p.stock > 0
+            ''' + (' AND COALESCE(p.visible_en_ecommerce, TRUE) = TRUE' if _productos_tienen_visibilidad_online() else '') + '''
                 ORDER BY RANDOM() LIMIT 4
             ''', (producto['genero_id'], producto_id))
             relacionados = []

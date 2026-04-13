@@ -643,6 +643,12 @@
                 <label>Notas</label>
                 <textarea id="pos-notas" placeholder="Observaciones..."></textarea>
             </div>
+            <div class="pos-field">
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+                    <input type="checkbox" id="pos-facturar-electronicamente">
+                    <span>Facturar electronicamente</span>
+                </label>
+            </div>
         </div>
 
         <button type="button" class="btn-registrar" id="btn-registrar" onclick="registrarVenta()">
@@ -872,7 +878,8 @@ const VentasTabs = {
             items: [],
             cliente: { nombre: '', doc: '', tel: '' },
             metodoPago: 'EFECTIVO',
-            notas: ''
+            notas: '',
+            facturarElectronicamente: false
         };
     },
 
@@ -917,6 +924,7 @@ const VentasTabs = {
         venta.cliente.tel = document.getElementById('pos-cliente-tel').value;
         venta.metodoPago = document.getElementById('pos-metodo-pago').value;
         venta.notas = document.getElementById('pos-notas').value;
+        venta.facturarElectronicamente = document.getElementById('pos-facturar-electronicamente').checked;
 
         this.persistToStorage();
     },
@@ -966,6 +974,7 @@ const VentasTabs = {
         document.getElementById('pos-cliente-tel').value = venta.cliente.tel;
         document.getElementById('pos-metodo-pago').value = venta.metodoPago;
         document.getElementById('pos-notas').value = venta.notas;
+        document.getElementById('pos-facturar-electronicamente').checked = !!venta.facturarElectronicamente;
 
         calcularTotalPOS();
         StockTracker.rebuildFromDOM();
@@ -1036,6 +1045,7 @@ const VentasTabs = {
         document.getElementById('pos-cliente-tel').value = '';
         document.getElementById('pos-metodo-pago').value = 'EFECTIVO';
         document.getElementById('pos-notas').value = '';
+        document.getElementById('pos-facturar-electronicamente').checked = false;
         calcularTotalPOS();
         StockTracker.reset();
 
@@ -1045,6 +1055,7 @@ const VentasTabs = {
             venta.cliente = { nombre: '', doc: '', tel: '' };
             venta.metodoPago = 'EFECTIVO';
             venta.notas = '';
+            venta.facturarElectronicamente = false;
         }
         this.persistToStorage();
         this.renderTabs();
@@ -1451,7 +1462,8 @@ function registrarVenta() {
         cliente_documento: document.getElementById('pos-cliente-doc').value,
         cliente_telefono: document.getElementById('pos-cliente-tel').value,
         metodo_pago: document.getElementById('pos-metodo-pago').value,
-        notas: document.getElementById('pos-notas').value
+        notas: document.getElementById('pos-notas').value,
+        facturar_electronicamente: document.getElementById('pos-facturar-electronicamente').checked
     };
 
     const btn = document.getElementById('btn-registrar');
@@ -1542,8 +1554,10 @@ function mostrarComprobante(data) {
     ventaIdActual = data.venta_id || null;
     const btnFacturar = document.getElementById('btn-facturar-dian');
     if (btnFacturar) {
-        btnFacturar.disabled = false;
-        btnFacturar.innerHTML = '<i class="fas fa-file-invoice"></i> Facturar';
+        btnFacturar.disabled = !data.facturar_electronicamente;
+        btnFacturar.innerHTML = data.facturar_electronicamente
+            ? '<i class="fas fa-file-invoice"></i> Facturar'
+            : '<i class="fas fa-file-invoice"></i> FE no marcada';
     }
     document.getElementById('comp-numero').textContent = data.numero_venta;
     document.getElementById('comp-fecha').textContent = data.fecha;

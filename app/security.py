@@ -42,14 +42,26 @@ ADMIN_CONTADOR = [ROL_SUPER_ADMIN, ROL_PROPIETARIO, ROL_CONTADOR]
 ROLES_CLIENTE  = [ROL_CLIENTE]
 # Solo cliente final: portal de compras y soporte al cliente
 
+POS_OPERATIONAL = ADMIN_STAFF + [ROL_MESERO, ROL_CAJERO]
+# Quién puede usar y consultar el POS: staff, mesero y cajero
+
+POS_DELETE = ADMIN_FULL
+# Quién puede anular/eliminar registros sensibles del POS: solo super admin y propietario
+
+CATALOG_OPERATIONAL = ADMIN_STAFF + [ROL_MESERO, ROL_CAJERO]
+# Quién puede crear/editar productos y operar inventario sin eliminar catálogo
+
+CATALOG_DELETE = ADMIN_FULL
+# Quién puede eliminar productos del catálogo: solo super admin y propietario
+
 # ─────────────────────────────────────────────────────────
 # Restaurante: permisos operativos
 # ─────────────────────────────────────────────────────────
 RESTAURANT_OPERATIONAL = ADMIN_STAFF + [ROL_MESERO, ROL_CAJERO]
 # Quién puede entrar a "Atender Mesas" y agregar consumos: mesero, cajero, staff
 
-RESTAURANT_CHARGE      = ADMIN_FULL + [ROL_CAJERO]
-# Quién puede cobrar/cerrar la cuenta de una mesa: cajero y dueño/admin
+RESTAURANT_CHARGE      = ADMIN_FULL + [ROL_MESERO, ROL_CAJERO]
+# Quién puede cobrar/cerrar la cuenta de una mesa: mesero, cajero y dueño/admin
 
 RESTAURANT_CANCEL      = ADMIN_FULL + [ROL_CAJERO]
 # Quién puede anular consumos, cancelar mesas abiertas o anular ventas cerradas

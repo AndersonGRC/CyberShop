@@ -70,6 +70,22 @@ MUNICIPIO_MAP = {
 }
 
 
+def _table_has_column(table_name: str, column_name: str) -> bool:
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("""
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = %s
+                  AND column_name = %s
+                LIMIT 1
+            """, (table_name, column_name))
+            return cur.fetchone() is not None
+    except Exception:
+        return False
+
+
 def facturacion_habilitada() -> bool:
     """Retorna True si el módulo de Facturación Electrónica está activo."""
     return is_module_active(MODULE_FACTURACION_ELECTRONICA)

@@ -1,0 +1,44 @@
+{% extends "plantillaapp.html" %}
+
+{% block titulo %}{{ page_title }} | {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/restaurant_tables.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="page-shell page-shell--narrow">
+    <section class="page-header">
+        <div class="page-header__intro">
+            <i class="fas fa-utensils"></i>
+            <div>
+                <span class="page-header__eyebrow">Operación</span>
+                <h1>{{ page_title }}</h1>
+                <p>{{ page_description }}</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="surface-card">
+        <div class="rt-module-nav" aria-label="Acciones rápidas del restaurante">
+            <a href="{{ url_for('restaurant_tables.restaurant_tables_service') }}" class="rt-module-link is-active">
+                <i class="fas fa-concierge-bell"></i>
+                <span>Atender Mesas</span>
+                <small>Tomar pedidos y cobrar</small>
+            </a>
+            {% if can_view_reports %}
+            <a href="{{ url_for('restaurant_tables.restaurant_tables_reports') }}" class="rt-module-link">
+                <i class="fas fa-chart-bar"></i>
+                <span>Ventas</span>
+                <small>Resumen operativo</small>
+            </a>
+            {% endif %}
+            <a href="{{ url_for('auth.logout') }}" class="rt-module-link">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Cerrar Sesión</span>
+                <small>Salir del turno</small>
+            </a>
+        </div>
+    </section>
+</div>
+{% endblock %}

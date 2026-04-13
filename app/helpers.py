@@ -124,6 +124,43 @@ def get_data_cliente():
     }
 
 
+def get_data_restaurant_operator(can_view_reports=False):
+    """Menú reducido para roles operativos del restaurante."""
+    from database import get_db_cursor
+
+    nombre_empresa = 'CyberShop'
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT valor FROM cliente_config WHERE clave = 'empresa_nombre'")
+            row = cur.fetchone()
+            if row and row['valor']:
+                nombre_empresa = row['valor']
+    except Exception:
+        pass
+
+    menu = [
+        {"nombre": "Panel Restaurante", "url": "restaurant_tables.waiter_panel", "icono": "utensils"},
+        {"nombre": "Atender Mesas", "url": "restaurant_tables.restaurant_tables_service", "icono": "concierge-bell"},
+        {"nombre": "Punto de Venta", "url": "admin.facturacion_pos", "icono": "cash-register"},
+        {"nombre": "Historial POS", "url": "admin.historial_pos", "icono": "receipt"},
+        {"nombre": "Inventario", "url": "admin.gestion_inventario", "icono": "boxes"},
+        {"nombre": "Agregar Producto", "url": "admin.GestionProductos", "icono": "plus-circle"},
+        {"nombre": "Editar Productos", "url": "admin.editar_productos", "icono": "edit"},
+        {"nombre": "Géneros", "url": "admin.gestion_generos", "icono": "tags"},
+    ]
+
+    if can_view_reports:
+        menu.append({"nombre": "Ventas", "url": "restaurant_tables.restaurant_tables_reports", "icono": "chart-bar"})
+
+    menu.append({"nombre": "Cerrar Sesion", "url": "auth.logout", "icono": "sign-out-alt"})
+
+    return {
+        'titulo': nombre_empresa,
+        'MenuAppindex': menu,
+        'longMenuAppindex': len(menu),
+    }
+
+
 def get_data_app():
     """Retorna los datos comunes para el panel de administracion.
 
@@ -335,7 +372,7 @@ def get_data_app():
 
         # Mesero (6) y Cajero (7): solo ven Restaurante y Cerrar Sesión
         if rol_actual in (6, 7):
-            App = [item for item in App if item.get('nombre') in ('Restaurante', 'Cerrar Sesion')]
+            App = [item for item in App if item.get('nombre') in ('Restaurante', 'Ventas', 'Inventario', 'Cerrar Sesion')]
             if rol_actual == 6:
                 for grupo in App:
                     if grupo.get('nombre') == 'Restaurante':
@@ -343,7 +380,43 @@ def get_data_app():
                             sub for sub in grupo.get('submodulos', [])
                             if sub.get('url') == 'restaurant_tables.restaurant_tables_dashboard'
                         ]
+                    elif grupo.get('nombre') == 'Ventas':
+                        grupo['submodulos'] = [
+                            sub for sub in grupo.get('submodulos', [])
+                            if sub.get('url') in ('admin.facturacion_pos', 'admin.historial_pos')
+                        ]
+                    elif grupo.get('nombre') == 'Inventario':
+                        grupo['submodulos'] = [
+                            sub for sub in grupo.get('submodulos', [])
+                            if sub.get('url') in (
+                                'admin.gestion_inventario',
+                                'admin.GestionProductos',
+                                'admin.editar_productos',
+                                'admin.gestion_generos',
+                            )
+                        ]
                 App = [item for item in App if item.get('nombre') != 'Restaurante' or item.get('submodulos')]
+                App = [item for item in App if item.get('nombre') != 'Ventas' or item.get('submodulos')]
+                App = [item for item in App if item.get('nombre') != 'Inventario' or item.get('submodulos')]
+            elif rol_actual == 7:
+                for grupo in App:
+                    if grupo.get('nombre') == 'Ventas':
+                        grupo['submodulos'] = [
+                            sub for sub in grupo.get('submodulos', [])
+                            if sub.get('url') in ('admin.facturacion_pos', 'admin.historial_pos')
+                        ]
+                    elif grupo.get('nombre') == 'Inventario':
+                        grupo['submodulos'] = [
+                            sub for sub in grupo.get('submodulos', [])
+                            if sub.get('url') in (
+                                'admin.gestion_inventario',
+                                'admin.GestionProductos',
+                                'admin.editar_productos',
+                                'admin.gestion_generos',
+                            )
+                        ]
+                App = [item for item in App if item.get('nombre') != 'Restaurante' or item.get('submodulos')]
+                App = [item for item in App if item.get('nombre') != 'Inventario' or item.get('submodulos')]
     except Exception:
         pass
 

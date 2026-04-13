@@ -1,7 +1,7 @@
 -- =============================================================
 -- Migración: Roles operativos del módulo Restaurante
 -- =============================================================
--- Mesero (6): toma pedidos en mesas, no puede cobrar ni cancelar
+-- Mesero (6): toma pedidos en mesas y puede cobrar/cerrar cuentas
 -- Cajero (7): puede cobrar mesas, anular consumos y cerrar cuentas
 -- =============================================================
 

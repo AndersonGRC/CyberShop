@@ -29,25 +29,31 @@
                     <th><i class="fas fa-tag"></i> Nombre</th>
                     <th><i class="fas fa-dollar-sign"></i> Precio</th>
                     <th><i class="fas fa-cubes"></i> Stock</th>
+                    <th><i class="fas fa-store"></i> E-commerce</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
                 {% for producto in productos %}
                 <tr>
-                    <td>{{ producto[0] }}</td>
-                    <td>{{ producto[2] }}</td>
-                    <td>${{ "{:,.0f}".format(producto[3]) }}</td>
-                    <td>{{ producto[7] }}</td>
+                    <td>{{ producto.id }}</td>
+                    <td>{{ producto.nombre }}</td>
+                    <td>${{ "{:,.0f}".format(producto.precio) }}</td>
+                    <td>{{ producto.stock }}</td>
                     <td>
-                        <a href="{{ url_for('admin.editar_producto', id=producto[0]) }}" class="btn-edit">
+                        <span class="estado-online {{ 'estado-online-visible' if producto.visible_en_ecommerce else 'estado-online-oculto' }}">
+                            {{ 'Visible' if producto.visible_en_ecommerce else 'Solo tienda física' }}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('admin.editar_producto', id=producto.id) }}" class="btn-edit">
                             <i class="fas fa-pen"></i> Editar
                         </a>
                     </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="5" class="tabla-celda-vacia">
+                    <td colspan="6" class="tabla-celda-vacia">
                         <i class="fas fa-box-open tabla-icono-vacio"></i>
                         No hay productos registrados.
                     </td>

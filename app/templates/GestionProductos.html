@@ -212,6 +212,13 @@
                     placeholder="Describe el producto: material, características, tallas disponibles..." required></textarea>
             </div>
             <div class="form-group">
+                <label for="visible_en_ecommerce"><i class="fas fa-store"></i> Visibilidad online</label>
+                <select id="visible_en_ecommerce" name="visible_en_ecommerce" required>
+                    <option value="si" selected>Mostrar en e-commerce</option>
+                    <option value="no">Solo venta física / restaurante</option>
+                </select>
+            </div>
+            <div class="form-group">
                 <button type="submit"><i class="fas fa-check-circle"></i> Agregar Producto</button>
             </div>
         </form>
@@ -234,6 +241,7 @@
                     <li><strong>Género</strong> — nombre exacto de la categoría</li>
                     <li><strong>Descripción</strong></li>
                     <li><strong>Precio</strong> — número sin símbolos</li>
+                    <li><strong>Visible en E-commerce</strong> — opcional, usa <strong>SI</strong> o <strong>NO</strong></li>
                 </ul>
             </div>
 

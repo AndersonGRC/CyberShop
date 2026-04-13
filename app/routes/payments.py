@@ -21,6 +21,41 @@ from helpers import get_common_data, generar_reference_code
 payments_bp = Blueprint('payments', __name__)
 
 
+_COLUMN_EXISTS_CACHE = {}
+
+
+def _table_has_column(table_name, column_name):
+    cache_key = (table_name, column_name)
+    if cache_key in _COLUMN_EXISTS_CACHE:
+        return _COLUMN_EXISTS_CACHE[cache_key]
+
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("""
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = %s
+                  AND column_name = %s
+                LIMIT 1
+            """, (table_name, column_name))
+            exists = cur.fetchone() is not None
+    except Exception:
+        exists = False
+
+    _COLUMN_EXISTS_CACHE[cache_key] = exists
+    return exists
+
+
+def _parse_facturar_electronicamente(value, default=False):
+    if value is None:
+        return default
+    normalized = str(value).strip().lower()
+    if normalized in ('', 'none', 'null'):
+        return default
+    return normalized in ('1', 'true', 'si', 'sí', 'on', 'yes')
+
+
 def csrf_exempt(f):
     """Marca una vista como exenta de protección CSRF."""
     f.csrf_exempt = True
@@ -118,6 +153,10 @@ def crear_orden():
     telefono = request.form.get('buyerPhone')
     direccion = request.form.get('shippingAddress')
     ciudad = request.form.get('shippingCity')
+    facturar_electronicamente = _parse_facturar_electronicamente(
+        request.form.get('facturar_electronicamente'),
+        default=False,
+    )
 
     carrito = session.get('carritoPendiente', {})
     if not carrito or not carrito.get('items'):
@@ -193,15 +232,26 @@ def crear_orden():
 
         total_amount = total_calculado - descuento_total
 
-        cur.execute("""
-            INSERT INTO pedidos
-            (referencia_pedido, cliente_nombre, cliente_email,
-             cliente_tipo_documento, cliente_documento, cliente_telefono,
-             direccion_envio, ciudad, monto_total, estado_pago, estado_envio,
-             cupon_id, descuento_total)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'PENDIENTE', 'ESPERA_PAGO', %s, %s)
+        order_columns = [
+            'referencia_pedido', 'cliente_nombre', 'cliente_email',
+            'cliente_tipo_documento', 'cliente_documento', 'cliente_telefono',
+            'direccion_envio', 'ciudad', 'monto_total', 'estado_pago',
+            'estado_envio', 'cupon_id', 'descuento_total'
+        ]
+        order_values = [
+            referencia, nombre, email, tipo_doc, documento, telefono,
+            direccion, ciudad, total_amount, 'PENDIENTE', 'ESPERA_PAGO',
+            cupon_id, descuento_total
+        ]
+        if _table_has_column('pedidos', 'facturar_electronicamente'):
+            order_columns.append('facturar_electronicamente')
+            order_values.append(facturar_electronicamente)
+
+        cur.execute(f"""
+            INSERT INTO pedidos ({", ".join(order_columns)})
+            VALUES ({", ".join(["%s"] * len(order_columns))})
             RETURNING id
-        """, (referencia, nombre, email, tipo_doc, documento, telefono, direccion, ciudad, total_amount, cupon_id, descuento_total))
+        """, tuple(order_values))
 
         pedido_id_generado = cur.fetchone()[0]
 
@@ -387,14 +437,22 @@ def confirmacion_pago():
             try:
                 from routes.factura_electronica import emitir_factura_electronica, facturacion_habilitada
                 if facturacion_habilitada():
-                    with get_db_cursor() as _cur:
-                        _cur.execute(
-                            "SELECT id FROM pedidos WHERE referencia_pedido = %s",
-                            (reference_sale,)
-                        )
+                    with get_db_cursor(dict_cursor=True) as _cur:
+                        if _table_has_column('pedidos', 'facturar_electronicamente'):
+                            _cur.execute("""
+                                SELECT id, COALESCE(facturar_electronicamente, FALSE) AS facturar_electronicamente
+                                FROM pedidos
+                                WHERE referencia_pedido = %s
+                            """, (reference_sale,))
+                        else:
+                            _cur.execute("""
+                                SELECT id, FALSE AS facturar_electronicamente
+                                FROM pedidos
+                                WHERE referencia_pedido = %s
+                            """, (reference_sale,))
                         _row = _cur.fetchone()
-                    if _row:
-                        emitir_factura_electronica(_row[0])
+                    if _row and _row['facturar_electronicamente']:
+                        emitir_factura_electronica(_row['id'])
             except Exception as _fe:
                 app.logger.warning(f"Facturación electrónica confirmacion_pago: {_fe}")
 

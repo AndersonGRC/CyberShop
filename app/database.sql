@@ -213,6 +213,8 @@ INSERT INTO roles (id, nombre) VALUES (5, 'Contador')
     ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre;
 
 -- Roles operativos del módulo Restaurante
+-- Mesero: atiende mesas y puede cobrar/cerrar cuentas, sin acceso a reportes ni constructor.
+-- Cajero: cobra, cancela y anula ventas de restaurante.
 INSERT INTO roles (id, nombre) VALUES (6, 'Mesero')
     ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre;
 
@@ -221,6 +223,13 @@ INSERT INTO roles (id, nombre) VALUES (7, 'Cajero')
 
 -- Asegurar que el secuencial no choque con los IDs insertados manualmente
 SELECT setval('roles_id_seq', GREATEST((SELECT MAX(id) FROM roles), 7));
+
+-- =============================================================
+-- MIGRACIÓN: Visibilidad online por producto
+-- =============================================================
+
+ALTER TABLE productos
+    ADD COLUMN IF NOT EXISTS visible_en_ecommerce BOOLEAN NOT NULL DEFAULT TRUE;
 
 -- =============================================================
 -- MIGRACIÓN: Estado de cotizaciones y vinculación con contabilidad
@@ -287,6 +296,8 @@ CREATE INDEX IF NOT EXISTS idx_detalle_pedidos_pedido_id
 
 ALTER TABLE pedidos    ADD COLUMN IF NOT EXISTS factura_dian_id UUID;
 ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS factura_dian_id UUID;
+ALTER TABLE pedidos    ADD COLUMN IF NOT EXISTS facturar_electronicamente BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS facturar_electronicamente BOOLEAN NOT NULL DEFAULT FALSE;
 
 INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
 SELECT 'facturacion_electronica', 'false', 'boolean', 'modulos', 'Módulo de Facturación Electrónica DIAN', 160
