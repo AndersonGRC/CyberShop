@@ -44,6 +44,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
     <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <script src="{{ url_for('static', filename='js/sweetalert2.min.js') }}"></script>
 </head>
 
 <body class="{% block body_class %}admin-layout{% endblock %}">
@@ -115,8 +116,6 @@
     <!-- ============================================ -->
     <!-- INTEGRACIÓN DE SWEETALERT2 (POP-UPS)         -->
     <!-- ============================================ -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     <script>

@@ -743,7 +743,12 @@
     </tr>
 </template>
 
+{% endblock %}
+
+{% block scripts %}
 <script>
+const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
 /* ================================================================
    MOTOR DE ESCANER UNIVERSAL
    Funciona con cualquier pistola USB (emula teclado).
@@ -772,18 +777,10 @@ const ScannerEngine = {
         if (document.getElementById('comprobante-overlay').classList.contains('activo')) return;
         if (document.getElementById('shortcuts-modal').classList.contains('activo')) return;
 
-        // Enter en el campo de barcode = busqueda manual
-        if (e.key === 'Enter' && isBarcode) {
-            e.preventDefault();
-            const val = active.value.trim();
-            if (val.length >= this.MIN_LENGTH) {
-                this.processAndSearch(val);
-            }
-            active.value = '';
-            return;
-        }
+        // El campo barcode tiene sus propios listeners directos
+        if (isBarcode) return;
 
-        // Enter/Tab con buffer acumulado = fin de escaneo
+        // Enter/Tab con buffer acumulado = fin de escaneo en campo equivocado
         if ((e.key === 'Enter' || e.key === 'Tab') && this.buffer.length >= this.MIN_LENGTH) {
             e.preventDefault();
             e.stopPropagation();
@@ -798,29 +795,25 @@ const ScannerEngine = {
         const timeDiff = now - this.lastKeyTime;
         this.lastKeyTime = now;
 
-        // Si mucho tiempo paso y no estamos en barcode-input, resetear buffer
-        if (timeDiff > this.THRESHOLD_MS && this.buffer.length > 0 && !isBarcode) {
+        // Si mucho tiempo paso, resetear buffer
+        if (timeDiff > this.THRESHOLD_MS && this.buffer.length > 0) {
             this.buffer = '';
         }
 
-        // Capturar si: es entrada rapida (escaner) O estamos en el campo barcode
-        if (timeDiff <= this.THRESHOLD_MS || isBarcode || this.buffer.length === 0) {
-            // Si escaner empezo a tipear en otro campo, interceptar
-            if (this.buffer.length >= 1 && timeDiff <= this.THRESHOLD_MS && !isBarcode) {
+        // Capturar entrada rapida (escaner en campo equivocado)
+        if (timeDiff <= this.THRESHOLD_MS || this.buffer.length === 0) {
+            if (this.buffer.length >= 1 && timeDiff <= this.THRESHOLD_MS) {
                 e.preventDefault();
                 e.stopPropagation();
             }
             this.buffer += e.key;
         }
 
-        // Auto-submit despues de silencio (escaneres sin Enter)
+        // Auto-submit despues de silencio
         clearTimeout(this.debounceTimer);
         this.debounceTimer = setTimeout(() => {
             if (this.buffer.length >= this.MIN_LENGTH) {
-                // Solo auto-submit si fue entrada rapida (no escritura manual en barcode)
-                if (!isBarcode) {
-                    this.processAndSearch(this.buffer);
-                }
+                this.processAndSearch(this.buffer);
             }
             this.buffer = '';
         }, 200);
@@ -1231,20 +1224,19 @@ function highlightRow(row) {
    ================================================================ */
 function buscarYAgregarPorBarcode(barcode) {
     if (!barcode) return;
-
-    if (!navigator.onLine) {
-        playErrorBeep();
-        mostrarToast('Sin conexion a internet', 'error');
-        return;
-    }
+    console.log('[POS] Buscando barcode:', barcode);
 
     fetch("{{ url_for('admin.buscar_producto_barcode') }}", {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
         body: JSON.stringify({ barcode: barcode })
     })
-    .then(resp => resp.json())
+    .then(resp => {
+        console.log('[POS] Respuesta HTTP:', resp.status);
+        return resp.json();
+    })
     .then(data => {
+        console.log('[POS] Datos recibidos:', data);
         if (data.success) {
             agregarProductoAutomatico(data.producto);
             playBeep(1200, 0.15);
@@ -1255,8 +1247,9 @@ function buscarYAgregarPorBarcode(barcode) {
         }
     })
     .catch(err => {
+        console.error('[POS] Error fetch:', err);
         playErrorBeep();
-        mostrarToast('Error de conexion', 'error');
+        mostrarToast('Error de conexion: ' + err.message, 'error');
     });
 }
 
@@ -1471,7 +1464,7 @@ function registrarVenta() {
 
     fetch("{{ url_for('admin.procesar_venta_pos') }}", {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
         body: JSON.stringify(payload),
         signal: controller.signal
     })
@@ -1590,7 +1583,7 @@ function facturarDian() {
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
 
-    fetch('/admin/pos/' + ventaIdActual + '/facturar', { method: 'POST' })
+    fetch('/admin/pos/' + ventaIdActual + '/facturar', { method: 'POST', headers: { 'X-CSRFToken': CSRF_TOKEN } })
         .then(r => r.json())
         .then(data => {
             if (data.success) {
@@ -1678,17 +1671,69 @@ window.addEventListener('online', () => {
 /* ================================================================
    INICIALIZACION
    ================================================================ */
-document.addEventListener('DOMContentLoaded', function() {
-    ScannerEngine.init();
-    VentasTabs.init();
+ScannerEngine.init();
+VentasTabs.init();
 
-    // Verificar estado de conexion inicial
-    if (!navigator.onLine) {
-        document.getElementById('pos-offline-banner').style.display = 'block';
-    }
+if (!navigator.onLine) {
+    document.getElementById('pos-offline-banner').style.display = 'block';
+}
 
-    // Enfocar campo de barcode
-    document.getElementById('barcode-input').focus();
-});
+// --- Listeners directos para el campo de codigo de barras ---
+(function() {
+    const barcodeField = document.getElementById('barcode-input');
+    if (!barcodeField) { console.error('[POS] barcode-input no encontrado'); return; }
+
+    let barcodeDebounce;
+    let lastKeyTime = 0;
+    let scannerMode = false;
+
+    const submitBarcode = (source) => {
+        clearTimeout(barcodeDebounce);
+        const val = barcodeField.value.trim().replace(/[\x00-\x1F\x7F]/g, '');
+        if (val.length < 3) return;
+        console.log('[POS] Submit barcode (' + source + '):', val);
+        buscarYAgregarPorBarcode(val);
+        barcodeField.value = '';
+        scannerMode = false;
+        setTimeout(() => barcodeField.focus(), 50);
+    };
+
+    // Enter/Tab: fin de escaneo inmediato
+    barcodeField.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === 'Tab') {
+            e.preventDefault();
+            submitBarcode('enter');
+            return;
+        }
+        // Detectar entrada rapida = escaner (teclas a <30ms)
+        const now = Date.now();
+        if (lastKeyTime && (now - lastKeyTime) < 30) scannerMode = true;
+        lastKeyTime = now;
+    });
+
+    // Input: auto-submit cuando el escaner no envia Enter
+    barcodeField.addEventListener('input', function() {
+        clearTimeout(barcodeDebounce);
+        const val = this.value.trim();
+        if (val.length < 3) return;
+        // Si venimos de entrada rapida (escaner), disparar pronto tras silencio
+        const delay = scannerMode ? 80 : 350;
+        barcodeDebounce = setTimeout(() => {
+            if (barcodeField.value.trim().length >= 3) submitBarcode('debounce');
+        }, delay);
+    });
+
+    // Refoco persistente: mantener el campo activo para capturar escaneos
+    barcodeField.focus();
+    document.addEventListener('click', function(e) {
+        const tag = (e.target.tagName || '').toUpperCase();
+        const editable = ['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON', 'A'].includes(tag)
+            || e.target.isContentEditable
+            || e.target.closest('button, a, .modal, .popup, [contenteditable="true"]');
+        if (!editable) setTimeout(() => barcodeField.focus(), 0);
+    });
+
+    console.log('[POS] Listeners de barcode registrados OK');
+})();
 </script>
 {% endblock %}
