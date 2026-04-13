@@ -143,10 +143,9 @@ header .nav ul li a.is-active-parent i {
     margin-left: auto;
     font-size: 0.62rem;
     opacity: 0.50;
-    transition: transform 0.3s ease, opacity 0.2s ease;
+    transition: transform 0.38s ease, opacity 0.25s ease;
 }
 
-.nav ul li:hover > a .dropdown-icon,
 .nav ul li.active > a .dropdown-icon,
 .nav ul li.has-active-child > a .dropdown-icon {
     transform: rotate(180deg);
@@ -155,17 +154,22 @@ header .nav ul li a.is-active-parent i {
 
 /* Submenu */
 .nav ul li .submenu {
-    display: none;
     margin: 4px 0 6px 16px;
     padding-left: 14px;
     border-left: 2px solid rgba(255, 255, 255, 0.12);
     list-style: none;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    pointer-events: none;
+    transition: max-height 0.38s ease, opacity 0.28s ease;
 }
 
-.nav ul li:hover > .submenu,
 .nav ul li.active > .submenu,
 .nav ul li.has-active-child > .submenu {
-    display: block;
+    max-height: 520px;
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .nav ul li .submenu li {
@@ -661,12 +665,12 @@ header.hidden ~ .footer {
         top: auto;
         left: auto;
         width: 100%;
-        box-shadow: none;
-        background: transparent;
-        border-top: none;
         margin: 2px 0 4px 8px;
         padding-left: 12px;
         border-left: 2px solid rgba(255, 255, 255, 0.12);
+        box-shadow: none;
+        background: transparent;
+        border-top: none;
     }
 
     .nav ul li .submenu a {

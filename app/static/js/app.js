@@ -3,7 +3,7 @@
  *
  * Controla la apertura del sidebar en desktop/mobile, el backdrop en
  * pantallas pequenas, el marcado de enlace activo y los submenus
- * desplegables en navegacion movil.
+ * desplegables por clic en desktop y mobile.
  */
 
 (function () {
@@ -120,7 +120,25 @@
         });
     })();
 
-    // Submenus desplegables en mobile
+    function closeSiblingSubmenus(currentItem) {
+        submenuParents.forEach(function (otherItem) {
+            if (otherItem === currentItem) {
+                return;
+            }
+
+            if (otherItem.classList.contains('has-active-child')) {
+                return;
+            }
+
+            otherItem.classList.remove('active');
+            var otherTrigger = otherItem.querySelector(':scope > a');
+            if (otherTrigger) {
+                otherTrigger.setAttribute('aria-expanded', 'false');
+            }
+        });
+    }
+
+    // Submenus desplegables por clic
     submenuParents.forEach(function (item) {
         var submenu = item.querySelector(':scope > .submenu');
         var trigger = item.querySelector(':scope > a');
@@ -132,22 +150,10 @@
         trigger.setAttribute('aria-expanded', String(item.classList.contains('active')));
 
         trigger.addEventListener('click', function (event) {
-            if (!isMobile()) {
-                return;
-            }
-
             event.preventDefault();
 
             var willOpen = !item.classList.contains('active');
-            submenuParents.forEach(function (otherItem) {
-                if (otherItem !== item) {
-                    otherItem.classList.remove('active');
-                    var otherTrigger = otherItem.querySelector(':scope > a');
-                    if (otherTrigger) {
-                        otherTrigger.setAttribute('aria-expanded', 'false');
-                    }
-                }
-            });
+            closeSiblingSubmenus(item);
 
             item.classList.toggle('active', willOpen);
             trigger.setAttribute('aria-expanded', String(willOpen));
@@ -156,12 +162,12 @@
 
     // Click fuera del sidebar cierra submenus y sidebar en mobile
     document.addEventListener('click', function (event) {
-        if (!isMobile()) {
-            return;
-        }
-
         if (!event.target.closest('#app-sidebar') && !event.target.closest('header') && !event.target.closest('.btn-menu')) {
             submenuParents.forEach(function (item) {
+                if (item.classList.contains('has-active-child')) {
+                    return;
+                }
+
                 item.classList.remove('active');
                 var trigger = item.querySelector(':scope > a');
                 if (trigger) {
@@ -169,7 +175,9 @@
                 }
             });
 
-            closeSidebarOnMobile();
+            if (isMobile()) {
+                closeSidebarOnMobile();
+            }
         }
     });
 

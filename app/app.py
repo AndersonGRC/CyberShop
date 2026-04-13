@@ -18,6 +18,7 @@ from flask_uploads import UploadSet, configure_uploads, IMAGES
 from flask_cors import CORS
 from flask_wtf.csrf import CSRFProtect
 
+
 from config import Config, verificar_configuracion_payu
 from routes import register_blueprints
 
@@ -26,7 +27,7 @@ app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.config.from_object(Config)
 app.secret_key = app.config['SECRET_KEY']
-
+FLASK_SECRET_KEY='Omegafito7217*'
 
 def versioned_url_for(endpoint, **values):
     """Agrega cache-busting a assets estaticos usando su fecha de modificacion."""

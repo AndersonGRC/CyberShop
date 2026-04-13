@@ -57,8 +57,8 @@
                 {% if datosApp.longMenuAppindex > 0 %}
                 <ul>
                     {% for i in datosApp.MenuAppindex %}
-                    <li>
-                        <a href="{% if i.url == '#' %}#{% else %}{{ url_for(i.url) }}{% endif %}">
+                    <li{% if i.submodulos %} class="has-submenu"{% endif %}>
+                        <a href="{% if i.url == '#' %}#{% else %}{{ url_for(i.url) }}{% endif %}"{% if i.submodulos %} aria-expanded="false"{% endif %}>
                             <i class="fas fa-{{ i.icono }}"></i>
                             <span>{{ i.nombre }}</span>
                             {% if i.submodulos %}

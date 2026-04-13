@@ -131,10 +131,81 @@ def _module_schema_status():
     }
 
 
+_RESTAURANT_TABLES_DEFAULTS_REPAIRED = False
+
+
+def _repair_restaurant_tables_defaults():
+    """Restaura defaults faltantes en restaurant_tables si la tabla fue
+    creada en una versión previa sin SERIAL en `id` ni defaults en
+    `meta`, `created_at`, `updated_at`. Idempotente y se ejecuta solo
+    una vez por proceso."""
+    global _RESTAURANT_TABLES_DEFAULTS_REPAIRED
+    if _RESTAURANT_TABLES_DEFAULTS_REPAIRED:
+        return
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("""
+                SELECT column_name, column_default, is_nullable
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'restaurant_tables'
+            """)
+            cols = {row['column_name']: row for row in cur.fetchall()}
+
+            id_col = cols.get('id')
+            if id_col and not id_col['column_default']:
+                cur.execute("""
+                    CREATE SEQUENCE IF NOT EXISTS restaurant_tables_id_seq
+                """)
+                cur.execute("""
+                    ALTER SEQUENCE restaurant_tables_id_seq
+                    OWNED BY restaurant_tables.id
+                """)
+                cur.execute("""
+                    ALTER TABLE restaurant_tables
+                    ALTER COLUMN id SET DEFAULT nextval('restaurant_tables_id_seq')
+                """)
+                cur.execute("""
+                    SELECT setval(
+                        'restaurant_tables_id_seq',
+                        COALESCE((SELECT MAX(id) FROM restaurant_tables), 0) + 1,
+                        false
+                    )
+                """)
+
+            patches = {
+                'meta': "'{}'::jsonb",
+                'created_at': 'NOW()',
+                'updated_at': 'NOW()',
+                'area': "'Salon principal'",
+                'capacidad': '4',
+                'forma': "'square'",
+                'estado': "'disponible'",
+                'pos_x': '8',
+                'pos_y': '10',
+                'ancho': '16',
+                'alto': '16',
+                'rotacion': '0',
+            }
+            for col_name, default_expr in patches.items():
+                col = cols.get(col_name)
+                if col and not col['column_default']:
+                    cur.execute(
+                        f"ALTER TABLE restaurant_tables "
+                        f"ALTER COLUMN {col_name} SET DEFAULT {default_expr}"
+                    )
+        _RESTAURANT_TABLES_DEFAULTS_REPAIRED = True
+    except Exception:
+        # No bloquear el módulo si la reparación falla; el error original
+        # se reportará en el INSERT con un mensaje más claro.
+        pass
+
+
 def _ensure_module_schema():
     status = _module_schema_status()
     if not status['ready']:
         raise ValueError(status['message'])
+    _repair_restaurant_tables_defaults()
     return status
 
 
@@ -640,15 +711,24 @@ def upsert_table_layout(tenant_id, user_id, payload):
             """, (codigo, nombre, area, capacidad, forma, estado,
                   pos_x, pos_y, ancho, alto, rotacion, table_id, tenant_id))
         else:
-            cur.execute("""
-                INSERT INTO restaurant_tables (
-                    tenant_id, codigo, nombre, area, capacidad, forma,
-                    estado, pos_x, pos_y, ancho, alto, rotacion, creado_por
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id
-            """, (tenant_id, codigo, nombre, area, capacidad, forma,
-                  estado, pos_x, pos_y, ancho, alto, rotacion, user_id))
+            try:
+                cur.execute("""
+                    INSERT INTO restaurant_tables (
+                        tenant_id, codigo, nombre, area, capacidad, forma,
+                        estado, pos_x, pos_y, ancho, alto, rotacion, creado_por
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                """, (tenant_id, codigo, nombre, area, capacidad, forma,
+                      estado, pos_x, pos_y, ancho, alto, rotacion, user_id))
+            except Exception as exc:
+                if 'not-null' in str(exc) and '"id"' in str(exc):
+                    raise ValueError(
+                        'La secuencia de IDs de mesas no está configurada. '
+                        'Por favor ejecuta nuevamente la migración del módulo '
+                        'de mesas (migrate_restaurant_tables_module.sql).'
+                    ) from exc
+                raise
 
         row = cur.fetchone()
         if not row:
