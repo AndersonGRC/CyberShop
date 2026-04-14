@@ -93,6 +93,26 @@ table td:nth-child(4) {
     font-weight: 600;
 }
 
+.estado-online {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.estado-online-visible {
+    background: rgba(40, 167, 69, 0.14);
+    color: #1f7a34;
+}
+
+.estado-online-oculto {
+    background: rgba(255, 193, 7, 0.18);
+    color: #8c6800;
+}
+
 /* ── Botón editar ─────────────────────────────────────────────── */
 .btn-edit {
     text-decoration: none;

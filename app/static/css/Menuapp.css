@@ -482,12 +482,15 @@ header.hidden ~ .footer {
     width: 100%;
     max-width: 1240px;
     margin: 0 auto 24px;
+    display: flex;
+    justify-content: center;
 }
 
 .Submenunavegacion ul {
     list-style: none;
-    display: inline-flex;
+    display: flex;
     flex-wrap: wrap;
+    justify-content: center;
     gap: 6px;
     margin: 0;
     padding: 6px;
@@ -495,6 +498,8 @@ header.hidden ~ .footer {
     border: 1px solid rgba(var(--color-marca-rgb), 0.08);
     border-radius: 16px;
     box-shadow: var(--marca-sombra-sutil);
+    width: fit-content;
+    max-width: 100%;
 }
 
 .Submenunavegacion a {

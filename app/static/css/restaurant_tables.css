@@ -402,6 +402,8 @@
     border-radius: 24px;
     border: 1px solid var(--rt-line);
     box-shadow: 0 18px 40px var(--negro-alpha-008);
+    min-width: 0;
+    overflow: hidden;
 }
 
 .rt-floor-card {
@@ -418,7 +420,8 @@
     justify-content: space-between;
     gap: 14px;
     align-items: flex-start;
-    padding: 22px 22px 12px;
+    padding: 24px 24px 14px;
+    min-width: 0;
 }
 
 .rt-floor-header h2,
@@ -434,6 +437,12 @@
     color: var(--rt-muted);
     font-size: 0.88rem;
     line-height: 1.55;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.rt-helper-copy {
+    padding: 0 24px 6px;
 }
 
 .rt-panel-warning {
@@ -455,11 +464,13 @@
 .rt-builder-tools-panel {
     display: grid;
     gap: 12px;
-    padding: 0 18px 14px;
+    padding: 0 24px 16px;
+    min-width: 0;
 }
 
 .rt-builder-tools-panel .rt-btn {
     width: 100%;
+    max-width: 100%;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1144,13 +1155,20 @@
 .rt-inline-fields {
     display: grid;
     grid-template-columns: minmax(0, 1.4fr) minmax(100px, 0.7fr);
-    gap: 10px;
-    padding: 0 18px;
+    gap: 12px;
+    padding: 0 24px;
     margin-bottom: 10px;
+    min-width: 0;
 }
 
 .rt-inline-fields-builder {
     padding: 0;
+}
+
+.rt-inline-fields label,
+.rt-inline-fields input,
+.rt-inline-fields select {
+    min-width: 0;
 }
 
 /* Evita doble padding cuando rt-inline-fields o rt-field-stack están dentro de rt-consumption-form */
@@ -1227,8 +1245,8 @@
 .rt-preset-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-    padding: 0 18px 14px;
+    gap: 12px;
+    padding: 0 24px 16px;
 }
 
 .rt-preset-card {
@@ -1252,6 +1270,8 @@
 .rt-preset-card strong,
 .rt-preset-card span {
     display: block;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .rt-preset-card strong {
@@ -1479,7 +1499,8 @@
     .rt-report-filter-form,
     .rt-report-breakdown,
     .rt-report-kpi-grid,
-    .rt-table-queue {
+    .rt-table-queue,
+    .rt-helper-copy {
         padding-left: 14px;
         padding-right: 14px;
     }
