@@ -448,7 +448,9 @@ def editar_productos():
                     ORDER BY id ASC
                 """)
             productos = cur.fetchall()
-    except Exception:
+    except Exception as e:
+        current_app.logger.exception(f"Error cargando lista de productos: {e}")
+        flash('Error cargando productos. Revisa el log del servidor.', 'error')
         productos = []
     return render_template('editar_productos.html', datosApp=datosApp, productos=productos)
 
@@ -478,7 +480,9 @@ def editar_producto(id):
         imagenes = cur.fetchall()
         cur.close()
         conn.close()
-    except Exception:
+    except Exception as e:
+        current_app.logger.exception(f"Error cargando producto {id} para edición: {e}")
+        flash('Error cargando el producto. Revisa el log del servidor.', 'error')
         producto = None
         generos = []
 
@@ -501,14 +505,32 @@ def editar_producto(id):
             _repair_producto_imagenes_defaults()
             conn = get_db_connection()
             cur = conn.cursor()
+
+            # Obtener stock actual antes de actualizar
+            cur.execute("SELECT stock FROM productos WHERE id = %s", (id,))
+            res = cur.fetchone()
+            stock_anterior = res[0] if res else 0
+            stock_nuevo = int(stock) if stock else 0
+            cantidad_real = stock_nuevo - stock_anterior
+
             update_sql = 'UPDATE productos SET nombre=%s, precio=%s, referencia=%s, genero_id=%s, descripcion=%s, stock=%s'
-            update_params = [nombre, precio, referencia, genero_id, descripcion, stock]
+            update_params = [nombre, precio, referencia, genero_id, descripcion, stock_nuevo]
             if _table_has_column('productos', 'visible_en_ecommerce'):
                 update_sql += ', visible_en_ecommerce=%s'
                 update_params.append(visible_en_ecommerce)
             update_sql += ' WHERE id=%s'
             update_params.append(id)
             cur.execute(update_sql, tuple(update_params))
+
+            # Registrar en el historial si hubo cambios de stock
+            if cantidad_real != 0:
+                tipo_movimiento = 'ENTRADA' if cantidad_real > 0 else 'SALIDA'
+                motivo = 'Edición de producto'
+                usuario_id = session.get('usuario_id', 1)
+                cur.execute("""
+                    INSERT INTO inventario_log (producto_id, tipo, cantidad, stock_anterior, stock_nuevo, motivo, usuario_id)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (id, tipo_movimiento, abs(cantidad_real), stock_anterior, stock_nuevo, motivo, usuario_id))
             # Agregar nuevas imágenes
             if archivos_nuevos:
                 cur.execute('SELECT COALESCE(MAX(orden), -1) FROM producto_imagenes WHERE producto_id=%s', (id,))
