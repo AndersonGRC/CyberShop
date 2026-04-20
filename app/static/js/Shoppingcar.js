@@ -499,10 +499,17 @@ const procesarPago = async () => {
         }))
     };
 
+    // Obtener token CSRF del meta tag para que Flask-WTF acepte la peticion
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
     try {
         const resp = await fetch('/procesar-carrito', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
             body: JSON.stringify(data)
         });
         if (resp.ok) {
