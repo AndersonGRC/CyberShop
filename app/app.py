@@ -155,6 +155,10 @@ def set_security_headers(response):
 # --- Registrar blueprints ---
 register_blueprints(app)
 
+# --- Exentar webhook de PayU de la proteccion CSRF ---
+# PayU envia POST server-to-server sin token CSRF; la firma MD5 lo autentica.
+csrf.exempt(app.view_functions['payments.confirmacion_pago'])
+
 # --- Ejecutar ---
 if __name__ == '__main__':
     with app.app_context():
