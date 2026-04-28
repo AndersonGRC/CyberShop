@@ -11,9 +11,16 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask import current_app as app
 from helpers_gmail import enviar_email_gmail
 
-from database import get_db_connection, get_db_cursor
+from database import get_db_cursor
 from helpers import get_common_data, formatear_moneda
 from security import controlar_tasa_solicitudes
+from services.public_site_service import (
+    get_public_contact_destination_email,
+    get_home_services,
+    get_public_home_content,
+    get_public_site_payload,
+    is_public_section_enabled,
+)
 
 public_bp = Blueprint('public', __name__)
 
@@ -49,34 +56,22 @@ def _productos_tienen_visibilidad_online():
 def index():
     """Pagina principal de CyberShop."""
     datosApp = get_common_data()
-    slides = []
-    publicaciones = []
-    config = {}
-    try:
-        with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute('SELECT imagen, titulo, descripcion, orden FROM slides_home WHERE activo = TRUE ORDER BY orden ASC, id ASC')
-            slides = cur.fetchall()
-            cur.execute('SELECT titulo, descripcion, imagen FROM publicaciones_home WHERE activo = TRUE ORDER BY fecha_creacion DESC')
-            publicaciones = cur.fetchall()
-            cur.execute('SELECT clave, valor FROM config_secciones')
-            for row in cur.fetchall():
-                config[row['clave']] = row['valor'] == 'true'
-    except Exception as e:
-        app.logger.error(f"Error cargando página principal: {e}")
-    return render_template('index.html', datosApp=datosApp, slides=slides, publicaciones=publicaciones, config=config)
+    payload = get_public_site_payload()
+    return render_template(
+        'index.html',
+        datosApp=datosApp,
+        slides=payload['slides'],
+        publicaciones=payload['publications'],
+        config=payload['sections'],
+        public_content=payload['content'],
+    )
 
 
 @public_bp.route('/productos')
 def productos():
     """Catalogo de productos con filtros, busqueda y orden."""
-    try:
-        with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute("SELECT valor FROM config_secciones WHERE clave = 'mostrar_modulo_ventas'")
-            row = cur.fetchone()
-            if row and row['valor'] == 'false':
-                return redirect(url_for('public.index'))
-    except Exception as e:
-        app.logger.warning(f"Error verificando config ventas: {e}")
+    if not is_public_section_enabled('mostrar_modulo_ventas', True):
+        return redirect(url_for('public.index'))
 
     # Parámetros de filtro desde URL
     q          = request.args.get('q', '').strip()
@@ -202,14 +197,12 @@ def productos():
 def servicios():
     """Pagina de servicios."""
     datosApp = get_common_data()
-    servicios_lista = []
-    try:
-        with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute('SELECT titulo, descripcion, imagen, beneficios, orden FROM servicios_home WHERE activo = TRUE ORDER BY orden ASC, id ASC')
-            servicios_lista = cur.fetchall()
-    except Exception as e:
-        app.logger.error(f"Error cargando servicios: {e}")
-    return render_template('servicios.html', datosApp=datosApp, servicios_db=servicios_lista)
+    return render_template(
+        'servicios.html',
+        datosApp=datosApp,
+        servicios_db=get_home_services(),
+        public_content=get_public_home_content(),
+    )
 
 
 @public_bp.route('/quienes_somos')
@@ -227,14 +220,8 @@ def contactenos():
 @public_bp.route('/producto/<int:producto_id>')
 def detalle_producto(producto_id):
     """Página de detalle de un producto individual."""
-    try:
-        with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute("SELECT valor FROM config_secciones WHERE clave = 'mostrar_modulo_ventas'")
-            row = cur.fetchone()
-            if row and row['valor'] == 'false':
-                return redirect(url_for('public.index'))
-    except Exception:
-        pass
+    if not is_public_section_enabled('mostrar_modulo_ventas', True):
+        return redirect(url_for('public.index'))
     datosApp = get_common_data()
     producto = None
     try:
@@ -351,16 +338,9 @@ def comentar_producto(producto_id):
 @public_bp.route('/carrito')
 def ver_carrito():
     """Muestra la pagina del carrito de compras."""
-    # Si el carrito esta desactivado, redirigir al home
-    try:
-        with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute("SELECT valor FROM config_secciones WHERE clave = 'mostrar_modulo_ventas'")
-            row = cur.fetchone()
-            if row and row['valor'] == 'false':
-                flash('El carrito de compras no esta disponible en este momento.', 'warning')
-                return redirect(url_for('public.index'))
-    except Exception:
-        pass
+    if not is_public_section_enabled('mostrar_modulo_ventas', True):
+        flash('El carrito de compras no esta disponible en este momento.', 'warning')
+        return redirect(url_for('public.index'))
     datosApp = get_common_data()
     return render_template('carrito.html', datosApp=datosApp)
 
@@ -415,16 +395,7 @@ def enviar_mensaje():
             flash('Por favor completa todos los campos.', 'warning')
             return redirect(url_for('public.index'))
 
-        from database import get_db_cursor
-        email_destino = app.config.get('MAIL_DEFAULT_SENDER', '')
-        try:
-            with get_db_cursor(dict_cursor=True) as cur:
-                cur.execute("SELECT valor FROM cliente_config WHERE clave='contacto_email_destino'")
-                row = cur.fetchone()
-                if row and row['valor']:
-                    email_destino = row['valor']
-        except Exception:
-            pass
+        email_destino = get_public_contact_destination_email() or app.config.get('MAIL_DEFAULT_SENDER', '')
         html_body = f"""
         <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #e0e0e0;border-radius:12px;overflow:hidden;">
             <div style="background:linear-gradient(135deg,#122C94,#091C5A);padding:24px 30px;">
@@ -461,6 +432,24 @@ def enviar_mensaje():
             f"Mensaje de {name} ({email}):\n\n{message_text}",
             html=html_body
         )
+
+        # F1.1 — Capturar el contacto como lead en el CRM y registrar actividad
+        try:
+            from services.crm_service import upsert_contacto, registrar_actividad
+            contacto_id = upsert_contacto(
+                email=email, nombre=name, tipo='lead', origen='web',
+                notas_append=None, tags_add=['web'],
+            )
+            if contacto_id:
+                registrar_actividad(
+                    contacto_id=contacto_id,
+                    tipo='formulario_web',
+                    asunto=f"Mensaje desde /contactenos",
+                    descripcion=message_text,
+                )
+        except Exception as _e:
+            app.logger.warning(f"No se pudo capturar lead CRM desde /enviar-mensaje: {_e}")
+
         if enviado:
             flash('Mensaje enviado.', 'success')
         else:

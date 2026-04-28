@@ -8,7 +8,7 @@
 <div class="container">
     <!-- Columna de la imagen -->
     <div class="left-column">
-        <img src="{{ url_for('static', filename='img/Logo.png') }}" alt="Imagen de registro">
+        <img src="{{ brand_config.empresa_logo_url or url_for('static', filename='img/Logo.png') }}" alt="Imagen de registro">
     </div>
 
     <!-- Columna del formulario -->

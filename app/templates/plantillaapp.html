@@ -37,7 +37,7 @@
     <script>const BRAND_COLOR_BTN = "{{ brand_config.color_alerta_confirmar or '#122C94' }}";</script>
     {% endif %}
 
-    <link rel="shortcut icon" href="{{ url_for('static', filename='img/Logo.PNG') }}">
+    <link rel="shortcut icon" href="{{ brand_config.empresa_logo_url or url_for('static', filename='img/Logo.PNG') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/Menuapp.css') }}">
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css">
     <link href="https://fonts.googleapis.com/css?family=Dancing+Script|Raleway:500,600&display=swap" rel="stylesheet">
@@ -51,7 +51,7 @@
     <!-- Menú lateral -->
     <header id="app-sidebar">
         <div class="menu-logo">
-            <img src="{{ url_for('static', filename='img/LogoP.PNG') }}" alt="Logo del menú">
+            <img src="{{ brand_config.empresa_logo_url or url_for('static', filename='img/LogoP.PNG') }}" alt="Logo del menú">
         </div>
         <div class="nav">
             <nav>
@@ -91,7 +91,7 @@
     <!-- Header superior -->
     <div class="header">
         <div class="header-logo">
-            <img src="{{ url_for('static', filename='img/Logo.PNG') }}" alt="Logo del header">
+            <img src="{{ brand_config.empresa_logo_url or url_for('static', filename='img/Logo.PNG') }}" alt="Logo del header">
         </div>
         <button class="btn-menu" type="button" aria-label="Mostrar u ocultar menú lateral" aria-expanded="true"
             aria-controls="app-sidebar">
