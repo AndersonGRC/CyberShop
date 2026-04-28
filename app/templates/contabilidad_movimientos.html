@@ -343,8 +343,41 @@
                         <span title="Generado automáticamente" style="font-size:0.75em; color:#aaa; margin-left:4px;"><i class="fas fa-robot"></i></span>
                         {% endif %}
                         {% if m.referencia_tipo %}
+                        {% set ref_url = none %}
+                        {% set ref_label = m.referencia_tipo %}
+                        {% if m.referencia_id %}
+                            {% if m.referencia_tipo == 'cotizacion' %}
+                                {% set ref_url = url_for('quotes.editar_cotizacion', id=m.referencia_id) %}
+                                {% set ref_label = 'Cotización' %}
+                            {% elif m.referencia_tipo == 'cuenta_cobro' %}
+                                {% set ref_url = url_for('billing.editar_cuenta', id=m.referencia_id) %}
+                                {% set ref_label = 'Cuenta de cobro' %}
+                            {% elif m.referencia_tipo == 'pedido' %}
+                                {% set ref_url = url_for('admin.vista_detalle_pedido_admin', pedido_id=m.referencia_id) %}
+                                {% set ref_label = 'Pedido' %}
+                            {% elif m.referencia_tipo == 'venta_pos' %}
+                                {% set ref_url = url_for('admin.historial_pos') ~ '?venta=' ~ m.referencia_id %}
+                                {% set ref_label = 'Venta POS' %}
+                            {% elif m.referencia_tipo == 'nota_credito_pos' %}
+                                {% set ref_url = url_for('admin.historial_pos') ~ '?nota=' ~ m.referencia_id %}
+                                {% set ref_label = 'Nota crédito POS' %}
+                            {% elif m.referencia_tipo == 'plantilla' %}
+                                {% set ref_url = url_for('contabilidad.plantillas') %}
+                                {% set ref_label = 'Plantilla' %}
+                            {% endif %}
+                        {% endif %}
                         <span style="font-size:0.75em; color:#aaa; display:block;">
-                            Ref: {{ m.referencia_tipo }}{% if m.referencia_id %} #{{ m.referencia_id }}{% endif %}
+                            Ref:
+                            {% if ref_url %}
+                                <a href="{{ ref_url }}" onclick="event.stopPropagation()"
+                                   style="color: var(--color-primario, #122C94); text-decoration:none; font-weight:600;"
+                                   title="Abrir {{ ref_label }}{% if m.referencia_id %} #{{ m.referencia_id }}{% endif %}">
+                                    {{ ref_label }}{% if m.referencia_id %} #{{ m.referencia_id }}{% endif %}
+                                    <i class="fas fa-external-link-alt" style="font-size:0.85em; margin-left:2px;"></i>
+                                </a>
+                            {% else %}
+                                {{ ref_label }}{% if m.referencia_id %} #{{ m.referencia_id }}{% endif %}
+                            {% endif %}
                         </span>
                         {% endif %}
                     </td>

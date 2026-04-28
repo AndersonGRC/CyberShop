@@ -64,6 +64,66 @@ def registrar_movimiento(tipo, categoria, descripcion, monto,
             pass
 
 
+def sincronizar_movimiento_referencia(tipo, categoria, descripcion, monto,
+                                       fecha=None, referencia_tipo=None, referencia_id=None,
+                                       usuario_id=None, notas=None, auto_generado=True):
+    """Upsert: si ya existe un movimiento con (referencia_tipo, referencia_id)
+    lo ACTUALIZA (monto, descripcion, fecha). Si no existe, lo INSERTA.
+
+    Pensado para flujos que pueden re-generarse (edición de cuenta de cobro,
+    aprobación de cotización, re-confirmación de pedido) y donde NO queremos
+    duplicar ingresos cada vez que se repite la acción.
+
+    No toca retenciones ni usuario_id en updates para no alterar ajustes
+    hechos manualmente en contabilidad.
+    """
+    if referencia_tipo is None or referencia_id is None:
+        # Sin referencia no podemos hacer upsert; caemos al insert puro
+        return registrar_movimiento(tipo, categoria, descripcion, monto,
+                                     fecha=fecha, referencia_tipo=referencia_tipo,
+                                     referencia_id=referencia_id, usuario_id=usuario_id,
+                                     notas=notas, auto_generado=auto_generado)
+    if fecha is None:
+        fecha = date.today()
+    try:
+        monto = float(monto or 0)
+        if monto <= 0:
+            return
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("""
+                SELECT id FROM contabilidad_movimientos
+                WHERE referencia_tipo = %s AND referencia_id = %s
+                ORDER BY id DESC
+                LIMIT 1
+            """, (referencia_tipo, referencia_id))
+            existing = cur.fetchone()
+
+            if existing:
+                cur.execute("""
+                    UPDATE contabilidad_movimientos
+                       SET tipo         = %s,
+                           categoria    = %s,
+                           descripcion  = %s,
+                           monto        = %s,
+                           monto_bruto  = %s,
+                           fecha        = %s
+                     WHERE id = %s
+                """, (tipo, categoria, descripcion, monto, monto, fecha, existing['id']))
+            else:
+                cur.execute("""
+                    INSERT INTO contabilidad_movimientos
+                        (tipo, categoria, descripcion, monto, monto_bruto, fecha,
+                         referencia_tipo, referencia_id, notas, usuario_id, auto_generado)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                """, (tipo, categoria, descripcion, monto, monto, fecha,
+                      referencia_tipo, referencia_id, notas, usuario_id, auto_generado))
+    except Exception as e:
+        try:
+            app.logger.warning(f"sincronizar_movimiento_referencia falló: {e}")
+        except Exception:
+            pass
+
+
 # ─────────────────────────────────────────────────────────
 # CONSTANTES
 # ─────────────────────────────────────────────────────────
