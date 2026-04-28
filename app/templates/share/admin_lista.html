@@ -1,0 +1,128 @@
+{% extends './plantillaapp.html' %}
+{% block titulo %}Compartir Archivos | {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/share.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="main-container">
+<div class="share-wrapper">
+
+    <div class="share-header">
+        <h1 class="page-title">
+            <i class="fas fa-share-alt"></i> Compartir Archivos
+        </h1>
+        <a href="{{ url_for('share.crear_carpeta') }}" class="btn-share-primario">
+            <i class="fas fa-folder-plus"></i> Nueva Carpeta
+        </a>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }}">{{ msg }}</div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    {% if carpetas|length == 0 %}
+    <div class="share-empty">
+        <i class="fas fa-folder-open"></i>
+        <p>Aun no has creado carpetas para compartir.</p>
+        <a href="{{ url_for('share.crear_carpeta') }}" class="btn-share-primario">
+            <i class="fas fa-folder-plus"></i> Crear la primera
+        </a>
+    </div>
+    {% else %}
+
+    <div class="share-grid">
+        {% for c in carpetas %}
+        <div class="share-card {% if c.vencida %}share-card-vencida{% endif %}">
+            <div class="share-card-icon">
+                <i class="fas fa-folder"></i>
+                {% if c.clave_hash %}<span class="share-pill share-pill-lock"><i class="fas fa-lock"></i> Con clave</span>{% endif %}
+                {% if c.permitir_subida %}<span class="share-pill share-pill-up"><i class="fas fa-upload"></i> Cliente sube</span>{% endif %}
+                {% if c.vencida %}<span class="share-pill share-pill-venc"><i class="fas fa-clock"></i> Vencida</span>{% endif %}
+            </div>
+            <div class="share-card-body">
+                <h3>
+                    <a href="{{ url_for('share.ver_carpeta_admin', carpeta_id=c.id) }}">{{ c.nombre }}</a>
+                </h3>
+                {% if c.descripcion %}<p class="share-card-desc">{{ c.descripcion }}</p>{% endif %}
+                <div class="share-card-meta">
+                    <span><i class="fas fa-file"></i> {{ c.total_archivos }} archivos</span>
+                    <span><i class="fas fa-database"></i> {{ c.total_bytes_fmt }}</span>
+                    {% if c.fecha_vence %}
+                    <span><i class="fas fa-hourglass-half"></i> Vence {{ c.fecha_vence.strftime('%Y-%m-%d %H:%M') }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="share-card-link">
+                <input type="text" readonly value="{{ c.link_publico }}" id="link-{{ c.id }}" class="share-link-input">
+                <button type="button" class="btn-share-copiar" data-target="link-{{ c.id }}" title="Copiar link">
+                    <i class="fas fa-copy"></i>
+                </button>
+                <a href="{{ c.link_publico }}" target="_blank" class="btn-share-abrir" title="Abrir link">
+                    <i class="fas fa-external-link-alt"></i>
+                </a>
+            </div>
+            <div class="share-card-acciones">
+                <a href="{{ url_for('share.ver_carpeta_admin', carpeta_id=c.id) }}" class="btn-share-mini">
+                    <i class="fas fa-folder-open"></i> Abrir
+                </a>
+                <a href="{{ url_for('share.editar_carpeta', carpeta_id=c.id) }}" class="btn-share-mini">
+                    <i class="fas fa-edit"></i> Editar
+                </a>
+                <a href="{{ url_for('share.historial_accesos', carpeta_id=c.id) }}" class="btn-share-mini">
+                    <i class="fas fa-history"></i> Accesos
+                </a>
+                <form method="POST" action="{{ url_for('share.eliminar_carpeta', carpeta_id=c.id) }}"
+                      class="share-inline-form" data-confirm="Eliminar la carpeta y TODOS sus archivos?">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn-share-mini btn-share-danger">
+                        <i class="fas fa-trash"></i> Eliminar
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% endif %}
+
+</div>
+</div>
+
+<script>
+document.querySelectorAll('.btn-share-copiar').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const input = document.getElementById(btn.dataset.target);
+        if (!input) return;
+        navigator.clipboard.writeText(input.value).then(() => {
+            if (window.Swal) {
+                Swal.fire({
+                    icon: 'success', title: 'Link copiado',
+                    timer: 1500, showConfirmButton: false,
+                    confirmButtonColor: BRAND_COLOR_BTN
+                });
+            }
+            btn.classList.add('share-copiado');
+            setTimeout(() => btn.classList.remove('share-copiado'), 1200);
+        });
+    });
+});
+document.querySelectorAll('form[data-confirm]').forEach(form => {
+    form.addEventListener('submit', (ev) => {
+        ev.preventDefault();
+        if (!window.Swal) { form.submit(); return; }
+        Swal.fire({
+            title: 'Confirmar', text: form.dataset.confirm,
+            icon: 'warning', showCancelButton: true,
+            confirmButtonText: 'Si, eliminar', cancelButtonText: 'Cancelar',
+            confirmButtonColor: BRAND_COLOR_BTN
+        }).then(r => { if (r.isConfirmed) form.submit(); });
+    });
+});
+</script>
+{% endblock %}

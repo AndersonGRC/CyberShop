@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ carpeta_actual.nombre }} | {{ brand_config.empresa_nombre or datosApp.titulo or 'Documentos compartidos' }}</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <link rel="shortcut icon" href="{{ brand_config.empresa_logo_url or url_for('static', filename='img/Logo.PNG') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/variables.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/share_publico.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css?family=Raleway:500,600,700&display=swap" rel="stylesheet">
+    <script src="{{ url_for('static', filename='js/sweetalert2.min.js') }}"></script>
+
+    {% if brand_config %}
+    <style>
+    :root {
+      {% if brand_config.color_primario          %}--color-primario:          {{ brand_config.color_primario }};{% endif %}
+      {% if brand_config.color_primario_oscuro   %}--color-primario-oscuro:   {{ brand_config.color_primario_oscuro }};{% endif %}
+      {% if brand_config.color_secundario        %}--color-secundario:        {{ brand_config.color_secundario }};{% endif %}
+      {% if brand_config.color_acento            %}--color-accent:            {{ brand_config.color_acento }};{% endif %}
+      {% if brand_config.color_botones           %}--color-botones:           {{ brand_config.color_botones }};{% endif %}
+      {% if brand_config.color_acento_secundario %}--color-acento-secundario: {{ brand_config.color_acento_secundario }};{% endif %}
+    }
+    </style>
+    <script>const BRAND_COLOR_BTN = "{{ brand_config.color_primario or '#122C94' }}";</script>
+    {% else %}
+    <script>const BRAND_COLOR_BTN = "#122C94";</script>
+    {% endif %}
+</head>
+<body class="share-publico-body">
+
+<header class="share-publico-header">
+    <div class="share-publico-header-inner">
+        <img src="{{ brand_config.empresa_logo_url or url_for('static', filename='img/Logo.PNG') }}"
+             alt="Logo" class="share-publico-logo">
+        <div class="share-publico-marca">
+            <h1>{{ brand_config.empresa_nombre or 'Documentos compartidos' }}</h1>
+            <p>Carpeta compartida</p>
+        </div>
+    </div>
+</header>
+
+<main class="share-publico-main">
+
+    <section class="share-publico-hero">
+        <div>
+            <h2><i class="fas fa-folder-open"></i> {{ carpeta_actual.nombre }}</h2>
+            {% if es_raiz and carpeta_raiz.descripcion %}
+            <p class="share-publico-desc">{{ carpeta_raiz.descripcion }}</p>
+            {% endif %}
+            <nav class="share-publico-bc">
+                <a href="{{ url_for('share.publico_raiz', token=token) }}">
+                    <i class="fas fa-home"></i> Inicio
+                </a>
+                {% for crumb in breadcrumbs %}
+                <span class="share-publico-bc-sep">/</span>
+                {% if loop.last %}
+                <span class="share-publico-bc-actual">{{ crumb.nombre }}</span>
+                {% else %}
+                <a href="{{ url_for('share.publico_carpeta', token=token, carpeta_id=crumb.id) }}">{{ crumb.nombre }}</a>
+                {% endif %}
+                {% endfor %}
+            </nav>
+        </div>
+        {% if carpeta_raiz.fecha_vence %}
+        <div class="share-publico-vence">
+            <i class="fas fa-clock"></i>
+            Vence: {{ carpeta_raiz.fecha_vence.strftime('%Y-%m-%d %H:%M') }}
+        </div>
+        {% endif %}
+    </section>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for cat, msg in messages %}
+    <div class="share-publico-alert share-publico-alert-{{ cat }}">{{ msg }}</div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    {% if subcarpetas|length > 0 %}
+    <section class="share-publico-seccion">
+        <h3 class="share-publico-titulo"><i class="fas fa-folder"></i> Carpetas</h3>
+        <div class="share-publico-grid">
+            {% for s in subcarpetas %}
+            <a href="{{ url_for('share.publico_carpeta', token=token, carpeta_id=s.id) }}"
+               class="share-publico-folder">
+                <i class="fas fa-folder"></i>
+                <span>{{ s.nombre }}</span>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <section class="share-publico-seccion">
+        <h3 class="share-publico-titulo"><i class="fas fa-file"></i> Archivos</h3>
+        {% if archivos|length == 0 %}
+        <p class="share-publico-vacio">Esta carpeta esta vacia.</p>
+        {% else %}
+        <div class="share-publico-archivos">
+            {% for a in archivos %}
+            <div class="share-publico-archivo">
+                <i class="fas fa-{{ a.icono }} share-publico-archivo-icono"></i>
+                <div class="share-publico-archivo-info">
+                    <strong>{{ a.nombre_original }}</strong>
+                    <span>{{ a.tamano_fmt }} · {{ a.fecha_subida.strftime('%Y-%m-%d') }}</span>
+                </div>
+                <a href="{{ url_for('share.publico_descargar', token=token, archivo_id=a.id) }}"
+                   class="share-publico-btn-descargar">
+                    <i class="fas fa-download"></i> Descargar
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </section>
+
+    {% if permitir_subida %}
+    <section class="share-publico-seccion share-publico-subida">
+        <h3 class="share-publico-titulo"><i class="fas fa-upload"></i> Subir archivos</h3>
+        <p class="share-publico-help">Puedes enviar archivos a esta carpeta. Maximo 25 MB por archivo.</p>
+        <form method="POST" enctype="multipart/form-data"
+              action="{{ url_for('share.publico_subir', token=token, carpeta_id=carpeta_actual.id) }}"
+              class="share-publico-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="share-publico-form-row">
+                <input type="text" name="nombre_cliente" placeholder="Tu nombre (opcional)" maxlength="120">
+            </div>
+            <label class="share-publico-dropzone">
+                <input type="file" name="archivos" id="cli-archivos" multiple hidden>
+                <i class="fas fa-cloud-upload-alt"></i>
+                <strong>Click o arrastra archivos aqui</strong>
+                <span id="cli-cantidad">Ningun archivo seleccionado</span>
+            </label>
+            <button type="submit" class="share-publico-btn-primario">
+                <i class="fas fa-paper-plane"></i> Enviar archivos
+            </button>
+        </form>
+    </section>
+    {% endif %}
+
+</main>
+
+<footer class="share-publico-footer">
+    <p>&copy;{{ now.year if now else '2026' }} {{ brand_config.empresa_copyright or brand_config.empresa_nombre or 'Documentos compartidos' }}</p>
+</footer>
+
+<script>
+(function () {
+    const input = document.getElementById('cli-archivos');
+    const span  = document.getElementById('cli-cantidad');
+    if (!input || !span) return;
+    input.addEventListener('change', () => {
+        const n = input.files ? input.files.length : 0;
+        span.textContent = n === 0 ? 'Ningun archivo seleccionado'
+            : (n + ' archivo' + (n === 1 ? '' : 's') + ' seleccionado' + (n === 1 ? '' : 's'));
+    });
+    const drop = input.parentElement;
+    ['dragenter','dragover'].forEach(ev =>
+        drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('share-publico-drop-active'); }));
+    ['dragleave','drop'].forEach(ev =>
+        drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('share-publico-drop-active'); }));
+    drop.addEventListener('drop', e => {
+        if (e.dataTransfer.files && e.dataTransfer.files.length) {
+            input.files = e.dataTransfer.files;
+            input.dispatchEvent(new Event('change'));
+        }
+    });
+})();
+</script>
+
+</body>
+</html>

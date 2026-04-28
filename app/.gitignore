@@ -43,6 +43,7 @@ Thumbs.db
 # Para migrar a otro cliente: limpiar estas carpetas manualmente.
 static/cotizaciones/pdf/
 static/uploads/
+uploads/
 static/user/
 
 # ── Base de datos local ──────────────────────────────────

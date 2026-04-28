@@ -30,6 +30,7 @@ MODULE_SUPPORT = 'support'
 MODULE_VIDEO = 'video'
 MODULE_RESTAURANT_TABLES = 'restaurant_tables'
 MODULE_FACTURACION_ELECTRONICA = 'facturacion_electronica'
+MODULE_SHARE = 'share'
 
 MODULE_DEFINITIONS = {
     MODULE_ORDERS: {
@@ -174,6 +175,15 @@ MODULE_DEFINITIONS = {
         'config_key': 'facturacion_electronica',
         'default': False,
         'orden': 160,
+        'is_core': False,
+    },
+    MODULE_SHARE: {
+        'nombre': 'Compartir Archivos',
+        'descripcion': 'Carpetas y archivos compartidos con clientes mediante link publico.',
+        'categoria': 'clientes',
+        'config_key': 'share_habilitado',
+        'default': True,
+        'orden': 145,
         'is_core': False,
     },
 }

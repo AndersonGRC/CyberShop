@@ -141,6 +141,7 @@ def get_data_app():
         MODULE_POS,
         MODULE_QUOTES,
         MODULE_RESTAURANT_TABLES,
+        MODULE_SHARE,
         MODULE_SUPPORT,
         MODULE_USERS,
         MODULE_VIDEO,
@@ -252,6 +253,16 @@ def get_data_app():
             "submodulos": [
                 {"nombre": "Tickets clientes", "url": "soporte.admin_tickets",     "icono": "ticket-alt"},
                 {"nombre": "Configuración",     "url": "soporte.admin_soporte_config", "icono": "sliders-h"},
+            ]
+        },
+        {
+            "nombre": "Compartir Archivos",
+            "url": "#",
+            "icono": "share-alt",
+            "module_code": MODULE_SHARE,
+            "submodulos": [
+                {"nombre": "Carpetas",      "url": "share.gestion_carpetas", "icono": "folder-open"},
+                {"nombre": "Nueva Carpeta", "url": "share.crear_carpeta",    "icono": "folder-plus"},
             ]
         },
         {

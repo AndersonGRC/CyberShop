@@ -26,7 +26,7 @@ class Config:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     PERMANENT_SESSION_LIFETIME = 3600  # 1 hora
-    MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # 10 MB max upload
+    MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50 MB max upload
 
     # --- PayU Latam ---
     PAYU_API_KEY    = os.getenv('PAYU_API_KEY')

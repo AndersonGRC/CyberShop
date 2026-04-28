@@ -62,3 +62,7 @@ def register_blueprints(app):
     # Wishlist / Lista de deseos
     from routes.wishlist import wishlist_bp
     app.register_blueprint(wishlist_bp)
+
+    # Compartir Archivos (carpetas con link publico)
+    from routes.share import share_bp
+    app.register_blueprint(share_bp)
