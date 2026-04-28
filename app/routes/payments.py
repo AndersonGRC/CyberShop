@@ -459,6 +459,36 @@ def confirmacion_pago():
             except Exception as _ne:
                 app.logger.warning(f"Email confirmación pedido: {_ne}")
 
+            # F1.2 — upsert de contacto CRM (cliente) + actividad de compra
+            try:
+                from services.crm_service import upsert_contacto, registrar_actividad
+                with get_db_cursor(dict_cursor=True) as _cur:
+                    _cur.execute(
+                        "SELECT * FROM pedidos WHERE referencia_pedido = %s",
+                        (reference_sale,),
+                    )
+                    _pedido = _cur.fetchone()
+                if _pedido and _pedido.get('cliente_email'):
+                    _cid = upsert_contacto(
+                        email=_pedido.get('cliente_email'),
+                        nombre=_pedido.get('cliente_nombre'),
+                        telefono=_pedido.get('cliente_telefono'),
+                        ciudad=_pedido.get('ciudad'),
+                        direccion=_pedido.get('direccion_envio'),
+                        tipo='cliente',
+                        origen='compra_online',
+                        tags_add=['comprador'],
+                    )
+                    if _cid:
+                        registrar_actividad(
+                            contacto_id=_cid,
+                            tipo='compra',
+                            asunto=f"Pedido {reference_sale} — ${float(value or 0):,.0f}",
+                            descripcion=f"Pago aprobado vía PayU. Pedido id={_pedido.get('id')}",
+                        )
+            except Exception as _ce:
+                app.logger.warning(f"CRM upsert cliente desde pedido: {_ce}")
+
         # Facturación electrónica automática (solo si módulo activo)
         if estado_bd == 'APROBADO':
             try:

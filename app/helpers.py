@@ -27,37 +27,11 @@ def get_common_data():
     con las rutas visibles para visitantes no autenticados.
     Filtra "Productos" si el modulo de ventas esta desactivado.
     """
-    from database import get_db_cursor
+    from services.public_site_service import get_brand_config, get_public_menu_items
 
-    MenuApp = [
-        {"nombre": "Inicio", "url": "public.index"},
-        {"nombre": "Productos", "url": "public.productos"},
-        {"nombre": "Servicios", "url": "public.servicios"},
-        {"nombre": "¿Quienes Somos?", "url": "public.quienes_somos"},
-        {"nombre": "Contactanos", "url": "public.contactenos"},
-        {"nombre": "Ingresar", "url": "auth.login"}
-    ]
-
-    # Filtrar menu segun config de secciones
-    try:
-        with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute("SELECT valor FROM config_secciones WHERE clave = 'mostrar_modulo_ventas'")
-            row = cur.fetchone()
-            if row and row['valor'] == 'false':
-                MenuApp = [m for m in MenuApp if m['nombre'] != 'Productos']
-    except Exception:
-        pass
-
-    # Leer nombre de empresa desde cliente_config
-    nombre_empresa = 'CyberShop'
-    try:
-        with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute("SELECT valor FROM cliente_config WHERE clave = 'empresa_nombre'")
-            row = cur.fetchone()
-            if row and row['valor']:
-                nombre_empresa = row['valor']
-    except Exception:
-        pass
+    brand_config = get_brand_config()
+    MenuApp = get_public_menu_items(include_login=True)
+    nombre_empresa = brand_config.get('empresa_nombre') or 'CyberShop'
 
     # Si el usuario ya está logueado, quitar "Ingresar" del menú público
     try:
@@ -81,17 +55,9 @@ def get_data_cliente():
     Mi Cuenta, Mis Pedidos, Soporte, Tienda y Cerrar Sesión.
     No expone ninguna opción administrativa.
     """
-    from database import get_db_cursor
+    from services.public_site_service import get_brand_config
 
-    nombre_empresa = 'CyberShop'
-    try:
-        with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute("SELECT valor FROM cliente_config WHERE clave = 'empresa_nombre'")
-            row = cur.fetchone()
-            if row and row['valor']:
-                nombre_empresa = row['valor']
-    except Exception:
-        pass
+    nombre_empresa = get_brand_config().get('empresa_nombre') or 'CyberShop'
 
     from tenant_features import MODULE_SUPPORT, MODULE_VIDEO, MODULE_WISHLIST, is_module_active
 
@@ -126,17 +92,9 @@ def get_data_cliente():
 
 def get_data_restaurant_operator(can_view_reports=False):
     """Menú reducido para roles operativos del restaurante."""
-    from database import get_db_cursor
+    from services.public_site_service import get_brand_config
 
-    nombre_empresa = 'CyberShop'
-    try:
-        with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute("SELECT valor FROM cliente_config WHERE clave = 'empresa_nombre'")
-            row = cur.fetchone()
-            if row and row['valor']:
-                nombre_empresa = row['valor']
-    except Exception:
-        pass
+    nombre_empresa = get_brand_config().get('empresa_nombre') or 'CyberShop'
 
     menu = [
         {"nombre": "Panel Restaurante", "url": "restaurant_tables.waiter_panel", "icono": "utensils"},
@@ -169,7 +127,7 @@ def get_data_app():
     """
     from flask import session as _s
 
-    from security import ROL_SUPER_ADMIN
+    from security import ADMIN_STAFF, ROL_SUPER_ADMIN
     from tenant_features import (
         MODULE_ACCOUNTING,
         MODULE_BILLING,
@@ -232,9 +190,10 @@ def get_data_app():
             "icono": "newspaper",
             "module_code": MODULE_CONTENT,
             "submodulos": [
-                {"nombre": "Publicaciones", "url": "admin.gestion_publicaciones", "icono": "file-alt"},
-                {"nombre": "Slides Carrusel", "url": "admin.gestion_slides", "icono": "images"},
-                {"nombre": "Servicios", "url": "admin.gestion_servicios", "icono": "concierge-bell"},
+                {"nombre": "Publicaciones", "url": "admin.gestion_publicaciones", "icono": "newspaper", "roles": ADMIN_STAFF},
+                {"nombre": "Slides", "url": "admin.gestion_slides", "icono": "images", "roles": ADMIN_STAFF},
+                {"nombre": "Servicios", "url": "admin.gestion_servicios", "icono": "concierge-bell", "roles": ADMIN_STAFF},
+                {"nombre": "Sitio Público", "url": "admin.sitio_publico", "icono": "paint-brush", "roles": [ROL_SUPER_ADMIN]},
             ]
         },
         {
@@ -322,9 +281,9 @@ def get_data_app():
             "url": "#",
             "icono": "cog",
             "submodulos": [
-                {"nombre": "Config. Cliente",   "url": "admin.configuracion_cliente", "icono": "paint-brush"},
-                {"nombre": "Config. Secciones", "url": "admin.config_secciones",      "icono": "sliders-h"},
-                {"nombre": "Módulos SaaS",      "url": "restaurant_tables.saas_modules_admin", "icono": "toggle-on"},
+                {"nombre": "Config. Cliente",   "url": "admin.configuracion_cliente", "icono": "paint-brush", "roles": [ROL_SUPER_ADMIN]},
+                {"nombre": "Config. Secciones", "url": "admin.config_secciones",      "icono": "sliders-h", "roles": [ROL_SUPER_ADMIN]},
+                {"nombre": "Módulos SaaS",      "url": "restaurant_tables.saas_modules_admin", "icono": "toggle-on", "roles": [ROL_SUPER_ADMIN]},
             ]
         },
         {
@@ -335,16 +294,9 @@ def get_data_app():
         },
         {"nombre": "Cerrar Sesion", "url": "auth.logout", "icono": "sign-out-alt"}
     ]
-    # Leer nombre de empresa desde cliente_config
-    nombre_empresa = 'CyberShop'
-    try:
-        with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute("SELECT valor FROM cliente_config WHERE clave = 'empresa_nombre'")
-            row = cur.fetchone()
-            if row and row['valor']:
-                nombre_empresa = row['valor']
-    except Exception:
-        pass
+    from services.public_site_service import get_brand_config
+
+    nombre_empresa = get_brand_config().get('empresa_nombre') or 'CyberShop'
 
     try:
         filtered_app = []
@@ -352,7 +304,7 @@ def get_data_app():
             group_module = item.get('module_code')
             if group_module and group_module not in active_modules:
                 continue
-            if item.get('nombre') == 'Configuración' and rol_actual != ROL_SUPER_ADMIN:
+            if item.get('roles') and rol_actual not in item['roles']:
                 continue
 
             item_copy = dict(item)
@@ -361,7 +313,8 @@ def get_data_app():
                 item_copy['submodulos'] = [
                     dict(sub)
                     for sub in submodulos
-                    if not sub.get('module_code') or sub['module_code'] in active_modules
+                    if (not sub.get('module_code') or sub['module_code'] in active_modules)
+                    and (not sub.get('roles') or rol_actual in sub['roles'])
                 ]
                 if not item_copy['submodulos']:
                     continue
