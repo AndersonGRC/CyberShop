@@ -2,82 +2,327 @@
 
 {% block titulo %}Mis Cuentas de Cobro | {{ datosApp.titulo }}{% endblock %}
 
+{% block LinkAdicional %}
+<style>
+    /* ============================================================
+       MIS CUENTAS DE COBRO — responsive (tabla en desktop, cards en mobile)
+       ============================================================ */
+    .cc-list-wrap {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 18px 18px 32px;
+        box-sizing: border-box;
+        overflow-x: hidden;
+    }
+
+    .cc-list-wrap *,
+    .cc-list-wrap *::before,
+    .cc-list-wrap *::after {
+        box-sizing: border-box;
+    }
+
+    .cc-list-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 18px;
+        flex-wrap: wrap;
+    }
+
+    .cc-list-head .page-title {
+        font-size: 1.4rem;
+        margin: 0;
+        color: var(--color-secundario, #0e1b33);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .cc-list-head .page-title i {
+        color: var(--color-primario, #122C94);
+    }
+
+    .cc-btn-nueva {
+        background: #007bff;
+        color: #fff;
+        padding: 10px 18px;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .cc-btn-nueva:hover { filter: brightness(0.95); }
+
+    .cc-alert {
+        padding: 12px 16px;
+        border-radius: 10px;
+        margin-bottom: 14px;
+        font-size: 0.9rem;
+    }
+
+    .cc-alert.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .cc-alert.warning { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+    .cc-alert.danger  { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+    .cc-card {
+        background: #fff;
+        border-radius: 14px;
+        box-shadow: 0 2px 10px rgba(18, 44, 148, 0.06);
+        border: 1px solid rgba(18, 44, 148, 0.08);
+        padding: 18px;
+    }
+
+    .cc-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .cc-table thead tr {
+        background: #f4f6fa;
+        border-bottom: 2px solid #e3e6ec;
+    }
+
+    .cc-table th {
+        padding: 12px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: #444;
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    .cc-table td {
+        padding: 12px;
+        border-bottom: 1px solid #ececec;
+        font-size: 0.9rem;
+        color: #333;
+        vertical-align: middle;
+    }
+
+    .cc-table tbody tr:hover { background: #fafbff; }
+
+    .cc-table .acciones {
+        white-space: nowrap;
+    }
+
+    .cc-acciones-grid {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .cc-acciones-grid form { display: inline; margin: 0; }
+
+    .cc-icon-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-size: 1.1rem;
+        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .cc-icon-btn.pdf      { color: #28a745; }
+    .cc-icon-btn.editar   { color: #007bff; }
+    .cc-icon-btn.eliminar { color: #dc3545; }
+    .cc-icon-btn:hover    { background: rgba(0,0,0,0.05); }
+
+    .cc-empty {
+        text-align: center;
+        padding: 30px 16px;
+        color: #777;
+        font-size: 0.95rem;
+    }
+
+    /* ============================================================
+       MOBILE — tabla a tarjetas
+       ============================================================ */
+    @media (max-width: 768px) {
+        .cc-list-wrap {
+            padding: 12px 10px 28px;
+        }
+
+        .cc-list-head .page-title { font-size: 1.15rem; }
+
+        .cc-list-head {
+            align-items: stretch;
+        }
+
+        .cc-btn-nueva {
+            justify-content: center;
+            width: 100%;
+        }
+
+        .cc-card {
+            padding: 12px;
+            border-radius: 12px;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+        }
+
+        .cc-table thead { display: none; }
+
+        .cc-table,
+        .cc-table tbody,
+        .cc-table tr,
+        .cc-table td {
+            display: block;
+            width: 100%;
+        }
+
+        .cc-table tbody tr {
+            background: #fff;
+            border: 1px solid #e3e6ec;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            padding: 14px;
+            box-shadow: 0 2px 6px rgba(18, 44, 148, 0.04);
+        }
+
+        .cc-table tbody tr:hover { background: #fff; }
+
+        .cc-table tbody td {
+            padding: 6px 0;
+            border-bottom: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.88rem;
+        }
+
+        .cc-table tbody td::before {
+            content: attr(data-label);
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #777;
+            flex-shrink: 0;
+        }
+
+        .cc-table tbody td.cell-consec {
+            font-weight: 700;
+            color: var(--color-primario, #122C94);
+            border-bottom: 1px dashed #e3e6ec;
+            padding-bottom: 8px;
+            margin-bottom: 4px;
+        }
+
+        .cc-table tbody td.cell-acciones {
+            display: block;
+            border-top: 1px dashed #e3e6ec;
+            margin-top: 8px;
+            padding-top: 10px;
+        }
+
+        .cc-table tbody td.cell-acciones::before { display: none; }
+
+        .cc-acciones-grid {
+            display: flex;
+            justify-content: space-around;
+            gap: 6px;
+            width: 100%;
+        }
+
+        .cc-icon-btn {
+            font-size: 1.3rem;
+            padding: 8px 14px;
+        }
+
+        .cc-empty-row td {
+            justify-content: center;
+        }
+
+        .cc-empty-row td::before { display: none; }
+    }
+
+    @media (max-width: 480px) {
+        .cc-list-head .page-title { font-size: 1.05rem; }
+    }
+</style>
+{% endblock %}
+
 {% block body %}
-<div class="main-container">
-    <div class="content-wrapper" style="padding: 20px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h1 class="page-title"><i class="fas fa-file-invoice-dollar"></i> Historial de Cuentas de Cobro</h1>
-            <a href="{{ url_for('billing.crear_cuenta') }}" class="btn-action"
-                style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
-                <i class="fas fa-plus"></i> Nueva Cuenta
-            </a>
-        </div>
+<div class="cc-list-wrap">
+    <div class="cc-list-head">
+        <h1 class="page-title"><i class="fas fa-file-invoice-dollar"></i> Historial de Cuentas de Cobro</h1>
+        <a href="{{ url_for('billing.crear_cuenta') }}" class="cc-btn-nueva">
+            <i class="fas fa-plus"></i> Nueva Cuenta
+        </a>
+    </div>
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-        {% for category, message in messages %}
-        <div
-            style="padding: 10px; margin-bottom: 20px; border-radius: 5px; 
-                                {% if category=='success' %}background: #d4edda; color: #155724;{% elif category=='danger' %}background: #f8d7da; color: #721c24;{% else %}background: #fff3cd; color: #856404;{% endif %}">
-            {{ message }}
-        </div>
-        {% endfor %}
-        {% endif %}
-        {% endwith %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="cc-alert {{ 'success' if category == 'success' else ('danger' if category == 'danger' else 'warning') }}">
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
 
-        <div class="card"
-            style="padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-            <table class="table" style="width: 100%; border-collapse: collapse;">
-                <thead>
-                    <tr style="background: #f8f9fa; text-align: left;">
-                        <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Consecutivo</th>
-                        <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Fecha</th>
-                        <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Cliente</th>
-                        <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Total</th>
-                        <th style="padding: 12px; border-bottom: 2px solid #dee2e6;">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for c in cuentas %}
-                    <tr style="border-bottom: 1px solid #eee;">
-                        <td style="padding: 12px;">{{ c.consecutivo }}</td>
-                        <td style="padding: 12px;">{{ c.fecha }}</td>
-                        <td style="padding: 12px;">{{ c.cliente_nombre }}</td>
-                        <td style="padding: 12px;">{{ c.total | default(0) }}</td>
-                        <!-- Formatear moneda si es posible via filtro o JS -->
-                        <td style="padding: 12px;">
+    <div class="cc-card">
+        <table class="cc-table">
+            <thead>
+                <tr>
+                    <th>Consecutivo</th>
+                    <th>Fecha</th>
+                    <th>Cliente</th>
+                    <th>Total</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in cuentas %}
+                <tr>
+                    <td data-label="Consecutivo" class="cell-consec">{{ c.consecutivo }}</td>
+                    <td data-label="Fecha">{{ c.fecha }}</td>
+                    <td data-label="Cliente">{{ c.cliente_nombre }}</td>
+                    <td data-label="Total">{{ c.total | default(0) }}</td>
+                    <td data-label="Acciones" class="acciones cell-acciones">
+                        <div class="cc-acciones-grid">
                             {% if c.pdf_path %}
-                            <a href="{{ url_for('static', filename=c.pdf_path) }}" target="_blank" class="btn-sm"
-                                style="color: #28a745; margin-right: 10px;" title="Ver PDF">
-                                <i class="fas fa-file-pdf fa-lg"></i>
+                            <a href="{{ url_for('static', filename=c.pdf_path) }}" target="_blank"
+                                class="cc-icon-btn pdf" title="Ver PDF">
+                                <i class="fas fa-file-pdf"></i>
                             </a>
                             {% endif %}
 
-                            <a href="{{ url_for('billing.editar_cuenta', id=c.id) }}" class="btn-sm"
-                                style="color: #007bff; margin-right: 10px;" title="Editar">
-                                <i class="fas fa-edit fa-lg"></i>
+                            <a href="{{ url_for('billing.editar_cuenta', id=c.id) }}"
+                                class="cc-icon-btn editar" title="Editar">
+                                <i class="fas fa-edit"></i>
                             </a>
 
                             <form action="{{ url_for('billing.eliminar_cuenta', id=c.id) }}" method="POST"
-                                style="display: inline;"
                                 onsubmit="return confirm('¿Está seguro de eliminar esta cuenta?');">
-                                <button type="submit"
-                                    style="background: none; border: none; color: #dc3545; cursor: pointer;"
-                                    title="Eliminar">
-                                    <i class="fas fa-trash-alt fa-lg"></i>
+                                <button type="submit" class="cc-icon-btn eliminar" title="Eliminar">
+                                    <i class="fas fa-trash-alt"></i>
                                 </button>
                             </form>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="5" style="text-align: center; padding: 20px;">No hay cuentas de cobro generadas.
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr class="cc-empty-row">
+                    <td colspan="5" class="cc-empty">No hay cuentas de cobro generadas.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 {% endblock %}

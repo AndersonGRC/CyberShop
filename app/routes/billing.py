@@ -148,26 +148,26 @@ def guardar_generar_cuenta():
             if cuenta_id:
                 # Actualizar
                 cur.execute("""
-                    UPDATE cuentas_cobro SET 
-                        cliente_nombre=%s, cliente_nit=%s, cliente_direccion=%s, 
+                    UPDATE cuentas_cobro SET
+                        cliente_nombre=%s, cliente_nit=%s, cliente_direccion=%s,
                         cliente_telefono=%s, cliente_ciudad=%s,
-                        contractor_nombre=%s, contractor_id=%s, contractor_telefono=%s, 
+                        contractor_nombre=%s, contractor_id=%s, contractor_telefono=%s,
                         contractor_email=%s, texto_pago=%s, fecha=%s, total=%s
                     WHERE id=%s
                 """, (cliente_nombre, cliente_nit, cliente_direccion, cliente_telefono, cliente_ciudad,
                       contractor_nombre, contractor_id, contractor_telefono, contractor_email,
                       texto_pago, fecha_str, total, cuenta_id))
-                
+
                 # Borrar detalles viejos para insertar nuevos
                 cur.execute("DELETE FROM detalle_cuenta_cobro WHERE cuenta_id=%s", (cuenta_id,))
-                
+
             else:
                 # Insertar Nuevo
                 # Generar consecutivo simple (podria mejorarse)
                 cur.execute("SELECT COUNT(*) as count FROM cuentas_cobro")
                 count = cur.fetchone()['count'] + 1
                 consecutivo = f"CC-{str(count).zfill(4)}"
-                
+
                 cur.execute("""
                     INSERT INTO cuentas_cobro (
                         consecutivo, fecha, cliente_nombre, cliente_nit, cliente_direccion,
@@ -179,22 +179,6 @@ def guardar_generar_cuenta():
                       cliente_telefono, cliente_ciudad, contractor_nombre, contractor_id,
                       contractor_telefono, contractor_email, texto_pago, total))
                 cuenta_id = cur.fetchone()['id']
-                # Registrar en contabilidad
-                try:
-                    from routes.contabilidad import registrar_movimiento
-                    registrar_movimiento(
-                        tipo='ingreso',
-                        categoria='cuenta_cobro',
-                        descripcion=f"Cuenta de cobro #{cuenta_id} — {cliente_nombre}",
-                        monto=total,
-                        fecha=fecha_str,
-                        referencia_tipo='cuenta_cobro',
-                        referencia_id=cuenta_id,
-                        usuario_id=session.get('usuario_id'),
-                        auto_generado=True
-                    )
-                except Exception as _e:
-                    app.logger.warning(f"No se pudo registrar en contabilidad: {_e}")
 
             # Insertar Detalles
             for i in range(len(descripciones)):
@@ -213,7 +197,47 @@ def guardar_generar_cuenta():
                     'valor': val,
                     'valor_formatted': formatear_moneda(val)
                 })
-        
+
+        # F1.3 — vincular la cuenta de cobro con un contacto CRM
+        try:
+            from services.crm_service import upsert_contacto
+            crm_id = upsert_contacto(
+                nombre=cliente_nombre,
+                telefono=cliente_telefono,
+                ciudad=cliente_ciudad,
+                direccion=cliente_direccion,
+                tipo='cliente',
+                origen='cuenta_cobro',
+                tags_add=['facturado'],
+            )
+            if crm_id:
+                with get_db_cursor() as _cur:
+                    _cur.execute(
+                        "UPDATE cuentas_cobro SET crm_contacto_id = %s WHERE id = %s",
+                        (crm_id, cuenta_id),
+                    )
+        except Exception as _ce:
+            app.logger.warning(f"CRM sync cuenta cobro: {_ce}")
+
+        # Sincronizar contabilidad: upsert por (referencia_tipo, referencia_id)
+        # → create nuevo: inserta
+        # → edit existente: actualiza el mismo movimiento (no duplica)
+        try:
+            from routes.contabilidad import sincronizar_movimiento_referencia
+            sincronizar_movimiento_referencia(
+                tipo='ingreso',
+                categoria='cuenta_cobro',
+                descripcion=f"Cuenta de cobro #{cuenta_id} — {cliente_nombre}",
+                monto=total,
+                fecha=fecha_str,
+                referencia_tipo='cuenta_cobro',
+                referencia_id=cuenta_id,
+                usuario_id=session.get('usuario_id'),
+                auto_generado=True,
+            )
+        except Exception as _e:
+            app.logger.warning(f"No se pudo sincronizar contabilidad: {_e}")
+
         # 2. Generar PDF
         # Convertir total a texto
         try:

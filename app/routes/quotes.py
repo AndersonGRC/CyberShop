@@ -213,6 +213,35 @@ def generar_cotizacion():
             cur.execute("UPDATE cotizaciones SET total = %s WHERE id = %s",
                         (total_cotizacion, cotizacion_id))
 
+        # F1.3 + F2.3 — asociar cotización a contacto CRM y sincronizar oportunidad
+        try:
+            from services.crm_service import upsert_contacto, sync_oportunidad_cotizacion
+            crm_id = upsert_contacto(
+                nombre=cliente_nombre,
+                telefono=cliente_telefono,
+                ciudad=cliente_ciudad,
+                direccion=cliente_direccion,
+                tipo='cliente',
+                origen='cotizacion',
+                tags_add=['cotizado'],
+            )
+            if crm_id:
+                with get_db_cursor() as _cur:
+                    _cur.execute(
+                        "UPDATE cotizaciones SET crm_contacto_id = %s WHERE id = %s",
+                        (crm_id, cotizacion_id),
+                    )
+                sync_oportunidad_cotizacion(
+                    cotizacion_id=cotizacion_id,
+                    titulo=f"Cotización COT {str(cotizacion_id).zfill(10)} — {cliente_nombre}",
+                    monto=total_cotizacion,
+                    contacto_id=crm_id,
+                    etapa='propuesta',
+                    usuario_id=session.get('usuario_id'),
+                )
+        except Exception as _ce:
+            app.logger.warning(f"CRM sync cotización: {_ce}")
+
         # 4. Generar PDF
         meses = {
             1: "enero", 2: "febrero", 3: "marzo", 4: "abril",
@@ -362,9 +391,9 @@ def aprobar_cotizacion(id):
         with get_db_cursor() as cur:
             cur.execute("UPDATE cotizaciones SET estado='aprobada' WHERE id=%s", (id,))
 
-        # Registrar ingreso en contabilidad
-        from routes.contabilidad import registrar_movimiento
-        registrar_movimiento(
+        # Registrar ingreso en contabilidad (upsert — no duplica si se re-aprueba)
+        from routes.contabilidad import sincronizar_movimiento_referencia
+        sincronizar_movimiento_referencia(
             tipo='ingreso',
             categoria='cuenta_cobro',
             descripcion=f"Cotización aprobada COT {str(id).zfill(10)} — {cot['cliente_nombre']}",
@@ -374,6 +403,17 @@ def aprobar_cotizacion(id):
             usuario_id=session.get('usuario_id'),
             auto_generado=False,
         )
+
+        # F2.3 — mover oportunidad a ganada
+        try:
+            from services.crm_service import sync_oportunidad_cotizacion
+            sync_oportunidad_cotizacion(
+                cotizacion_id=id,
+                etapa='ganada',
+                monto=float(cot['total'] or 0),
+            )
+        except Exception as _oe:
+            app.logger.warning(f"Sync oportunidad ganada: {_oe}")
 
         flash(f"Cotización COT {str(id).zfill(10)} aprobada y registrada en contabilidad.", "success")
     except Exception as e:
@@ -387,9 +427,19 @@ def aprobar_cotizacion(id):
 @rol_requerido(ADMIN_STAFF)
 def rechazar_cotizacion(id):
     """Marca la cotización como rechazada."""
+    motivo = request.form.get('motivo', '').strip()[:160] or None
     try:
         with get_db_cursor() as cur:
             cur.execute("UPDATE cotizaciones SET estado='rechazada' WHERE id=%s", (id,))
+        # F2.3 — mover oportunidad a perdida
+        try:
+            from services.crm_service import sync_oportunidad_cotizacion
+            sync_oportunidad_cotizacion(
+                cotizacion_id=id, etapa='perdida',
+                motivo_perdida=motivo or 'Cotización rechazada',
+            )
+        except Exception as _oe:
+            app.logger.warning(f"Sync oportunidad perdida: {_oe}")
         flash("Cotización marcada como rechazada.", "warning")
     except Exception as e:
         app.logger.error(f"Error rechazando cotización {id}: {e}")
