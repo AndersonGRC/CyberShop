@@ -2,14 +2,21 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from database import get_db_cursor
 from nomina_engine import *
-from nomina_inteligente import calcular_nomina_periodo_inteligente
-from helpers import get_data_app
+from nomina_inteligente import (
+    calcular_nomina_periodo_inteligente,
+    obtener_referencia_normativa,
+    PARAMETROS_OFICIALES_NOMINA,
+)
+from helpers import get_data_app, formatear_moneda
 
 nomina_bp = Blueprint('nomina', __name__, url_prefix='/admin/nomina')
 
 @nomina_bp.context_processor
 def inject_common_data():
-    return dict(datosApp=get_data_app())
+    return dict(
+        datosApp=get_data_app(),
+        formatear_moneda=formatear_moneda,
+    )
 
 @nomina_bp.route('/')
 def nomina_dashboard():
@@ -17,40 +24,52 @@ def nomina_dashboard():
         # 1. Empleados Activos
         cur.execute("SELECT COUNT(*) as total FROM nomina_empleados WHERE activo = TRUE")
         active_employees = cur.fetchone()['total']
-        
+
         # 2. Total Nómina último periodo calculado
         cur.execute("""
-            SELECT SUM(neto_pagar) as total 
-            FROM nomina_detalle 
+            SELECT SUM(neto_pagar) as total
+            FROM nomina_detalle
             WHERE periodo_id = (
-                SELECT id FROM nomina_periodos 
-                WHERE estado = 'calculada' 
+                SELECT id FROM nomina_periodos
+                WHERE estado = 'calculada'
                 ORDER BY id DESC LIMIT 1
             )
         """)
         last_payroll_row = cur.fetchone()
         last_payroll_total = last_payroll_row['total'] if last_payroll_row and last_payroll_row['total'] else 0
-        
+
         # 3. Novedades del mes actual
         cur.execute("""
-            SELECT COUNT(*) as total 
-            FROM nomina_novedades 
+            SELECT COUNT(*) as total
+            FROM nomina_novedades
             WHERE EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM CURRENT_DATE)
             AND EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE)
         """)
         novedades_month = cur.fetchone()['total']
 
-    return render_template('nomina_dashboard.html', 
+    anio_actual = datetime.now().year
+    referencia_actual = obtener_referencia_normativa(anio_actual)
+
+    return render_template('nomina_dashboard.html',
                            active_employees=active_employees,
                            last_payroll_total=last_payroll_total,
-                           novedades_month=novedades_month)
+                           novedades_month=novedades_month,
+                           referencia=referencia_actual,
+                           anio_actual=anio_actual)
 
 @nomina_bp.route('/parametros')
 def parametros_lista():
     with get_db_cursor(dict_cursor=True) as cur:
         cur.execute("SELECT * FROM nomina_parametros ORDER BY anio DESC")
         params = cur.fetchall()
-    return render_template('nomina_parametros.html', params=params)
+
+    referencias = {
+        anio: obtener_referencia_normativa(anio)
+        for anio in PARAMETROS_OFICIALES_NOMINA
+    }
+    return render_template('nomina_parametros.html',
+                           params=params,
+                           referencias=referencias)
 
 @nomina_bp.route('/parametros/crear', methods=['GET', 'POST'])
 def parametros_crear():
@@ -59,25 +78,26 @@ def parametros_crear():
         salario = request.form.get('salario_minimo')
         auxilio = request.form.get('auxilio_transporte')
         uvt = request.form.get('uvt')
-        
-        # Guardar en DB
+
         try:
             with get_db_cursor() as cur:
-                # 1. Parametros Generales
                 cur.execute("""
                     INSERT INTO nomina_parametros (anio, salario_minimo, auxilio_transporte, uvt)
                     VALUES (%s, %s, %s, %s)
                 """, (anio, salario, auxilio, uvt))
-                
-                # 2. Insertar defaults para otras tablas si no existen (simplificado)
-                # En un caso real, el formulario deberia pedir todos los datos o copiar del año anterior
-                
+
             flash('Parámetros creados exitosamente.', 'success')
             return redirect(url_for('nomina.parametros_lista'))
         except Exception as e:
             flash(f'Error al crear parámetros: {str(e)}', 'danger')
-            
-    return render_template('nomina_parametros_form.html', modo='crear')
+
+    anio_sugerido = datetime.now().year
+    referencia = obtener_referencia_normativa(anio_sugerido)
+    return render_template('nomina_parametros_form.html',
+                           modo='crear',
+                           anio_sugerido=anio_sugerido,
+                           referencia=referencia,
+                           parametros_oficiales=PARAMETROS_OFICIALES_NOMINA)
 
 @nomina_bp.route('/parametros/editar/<int:anio>', methods=['GET', 'POST'])
 def parametros_editar(anio):
@@ -101,8 +121,13 @@ def parametros_editar(anio):
     with get_db_cursor(dict_cursor=True) as cur:
         cur.execute("SELECT * FROM nomina_parametros WHERE anio = %s", (anio,))
         param = cur.fetchone()
-        
-    return render_template('nomina_parametros_form.html', modo='editar', p=param)
+
+    referencia = obtener_referencia_normativa(anio)
+    return render_template('nomina_parametros_form.html',
+                           modo='editar',
+                           p=param,
+                           referencia=referencia,
+                           parametros_oficiales=PARAMETROS_OFICIALES_NOMINA)
 
 @nomina_bp.route('/empleados')
 def empleados_lista():
