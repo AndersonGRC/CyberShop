@@ -1,0 +1,105 @@
+{% extends "public/layout_admin.html" %}
+{% block content %}
+<div class="container py-4">
+    <h1 class="h4 mb-3">
+        <i class="fas fa-bullseye text-warning"></i>
+        {% if modo == 'crear' %}Nueva oportunidad{% else %}Editar oportunidad #{{ oportunidad.id }}{% endif %}
+    </h1>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card shadow mb-3"><div class="card-body">
+            <div class="form-row">
+                <div class="col-md-8 form-group">
+                    <label>Título <span class="text-danger">*</span></label>
+                    <input type="text" name="titulo" class="form-control" required maxlength="200"
+                           value="{{ oportunidad.titulo if oportunidad else '' }}">
+                </div>
+                <div class="col-md-4 form-group">
+                    <label>Etapa</label>
+                    <select name="etapa" class="form-control">
+                        {% for k, label in etapas %}
+                        <option value="{{ k }}" {% if oportunidad and oportunidad.etapa == k %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="col-md-6 form-group">
+                    <label>Contacto <span class="text-danger">*</span></label>
+                    <select name="contacto_id" class="form-control" required {% if oportunidad %}disabled{% endif %}>
+                        <option value="">— Seleccionar —</option>
+                        {% for c in contactos %}
+                        <option value="{{ c.id }}"
+                                {% if oportunidad and oportunidad.contacto_id == c.id %}selected{% endif %}
+                                {% if preselect_contacto and preselect_contacto.id == c.id %}selected{% endif %}>
+                            {{ c.nombre }}{% if c.empresa %} — {{ c.empresa }}{% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    {% if oportunidad %}<input type="hidden" name="contacto_id" value="{{ oportunidad.contacto_id }}">{% endif %}
+                </div>
+                <div class="col-md-3 form-group">
+                    <label>Monto estimado</label>
+                    <input type="number" name="monto_estimado" class="form-control" step="1000" min="0"
+                           value="{{ oportunidad.monto_estimado if oportunidad else 0 }}">
+                </div>
+                <div class="col-md-3 form-group">
+                    <label>Probabilidad (%)</label>
+                    <input type="number" name="probabilidad" class="form-control" min="0" max="100"
+                           value="{{ oportunidad.probabilidad if oportunidad else 50 }}">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="col-md-4 form-group">
+                    <label>Asignado a</label>
+                    <select name="asignado_a" class="form-control">
+                        <option value="">—</option>
+                        {% for u in usuarios %}
+                        <option value="{{ u.id }}" {% if oportunidad and oportunidad.asignado_a == u.id %}selected{% endif %}>{{ u.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 form-group">
+                    <label>Cierre estimado</label>
+                    <input type="date" name="fecha_cierre_est" class="form-control"
+                           value="{{ oportunidad.fecha_cierre_est.strftime('%Y-%m-%d') if oportunidad and oportunidad.fecha_cierre_est else '' }}">
+                </div>
+                <div class="col-md-4 form-group">
+                    <label>Fuente</label>
+                    <input type="text" name="fuente" class="form-control" maxlength="60"
+                           value="{{ oportunidad.fuente if oportunidad else '' }}"
+                           placeholder="cotizacion, llamada_fria, referido…">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Descripción</label>
+                <textarea name="descripcion" class="form-control" rows="3">{{ oportunidad.descripcion if oportunidad else '' }}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Motivo de pérdida <small class="text-muted">(solo si etapa = perdida)</small></label>
+                <input type="text" name="motivo_perdida" class="form-control" maxlength="160"
+                       value="{{ oportunidad.motivo_perdida if oportunidad else '' }}">
+            </div>
+        </div></div>
+
+        <div class="d-flex justify-content-between">
+            <a href="{{ url_for('crm.pipeline') }}" class="btn btn-light">← Volver al pipeline</a>
+            <div>
+                {% if oportunidad %}
+                <form action="{{ url_for('crm.oportunidad_eliminar', id=oportunidad.id) }}" method="POST" style="display:inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="contacto_id" value="{{ oportunidad.contacto_id }}">
+                    <button type="submit" class="btn btn-outline-danger" onclick="return confirm('¿Eliminar oportunidad?')"><i class="fas fa-trash"></i> Eliminar</button>
+                </form>
+                {% endif %}
+                <button type="submit" class="btn btn-warning"><i class="fas fa-save"></i> Guardar</button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,112 @@
+{% extends "public/layout_admin.html" %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/crm/crm_pipeline.css') }}">
+
+<div class="container-fluid py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+        <h1 class="h3 mb-0"><i class="fas fa-bullseye text-warning"></i> Pipeline de oportunidades</h1>
+        <div class="d-flex gap-2">
+            <form method="get" class="form-inline mr-2">
+                <select name="asignado" class="form-control form-control-sm mr-2" onchange="this.form.submit()">
+                    <option value="">Todos los vendedores</option>
+                    {% for u in usuarios %}
+                    <option value="{{ u.id }}" {% if filtro_asignado == u.id|string %}selected{% endif %}>{{ u.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+            <a href="{{ url_for('crm.oportunidad_crear') }}" class="btn btn-sm btn-warning">
+                <i class="fas fa-plus"></i> Nueva oportunidad
+            </a>
+        </div>
+    </div>
+
+    <div class="pipeline-board">
+        {% for etapa_key, etapa_label in etapas %}
+        {% set col = columnas[etapa_key] %}
+        <div class="pipeline-col" data-etapa="{{ etapa_key }}">
+            <div class="pipeline-col-header">
+                <span class="badge badge-{{ {'ganada':'success','perdida':'danger','propuesta':'info','negociacion':'primary','calificado':'secondary','prospecto':'light'}.get(etapa_key,'secondary') }}">{{ etapa_label }}</span>
+                <small class="text-muted">{{ col['items']|length }} · ${{ "{:,.0f}".format(col['total']) }}</small>
+            </div>
+            <div class="pipeline-col-body" data-etapa-drop="{{ etapa_key }}">
+                {% for o in col['items'] %}
+                <div class="pipeline-card" draggable="true" data-id="{{ o.id }}">
+                    <div class="pipeline-card-title">
+                        <a href="{{ url_for('crm.oportunidad_editar', id=o.id) }}">{{ o.titulo }}</a>
+                    </div>
+                    <div class="pipeline-card-contact">
+                        <i class="fas fa-user"></i>
+                        <a href="{{ url_for('crm.crm_contacto_ver', id=o.contacto_id) }}">{{ o.contacto_nombre }}</a>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                        <strong>${{ "{:,.0f}".format(o.monto_estimado) if o.monto_estimado else '—' }}</strong>
+                        <span class="badge badge-light">{{ o.probabilidad }}%</span>
+                    </div>
+                    {% if o.asignado_nombre %}
+                    <small class="text-muted d-block mt-1"><i class="fas fa-user-tie"></i> {{ o.asignado_nombre }}</small>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="pipeline-empty text-center text-muted small py-3">Vacío</div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+.pipeline-board { display: grid; grid-template-columns: repeat(6, minmax(200px, 1fr)); gap: 14px; overflow-x: auto; }
+.pipeline-col { background: #f5f7fb; border-radius: 12px; display: flex; flex-direction: column; min-height: 400px; }
+.pipeline-col-header { padding: 12px 14px; border-bottom: 1px solid #e3e6f0; display: flex; justify-content: space-between; align-items: center; }
+.pipeline-col-body { padding: 10px; flex: 1; min-height: 200px; }
+.pipeline-col-body.drop-target { background: #fff3cd; border-radius: 8px; }
+.pipeline-card { background: #fff; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px; margin-bottom: 8px; cursor: grab; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+.pipeline-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); transform: translateY(-1px); }
+.pipeline-card.dragging { opacity: 0.4; }
+.pipeline-card-title a { color: #14233f; font-weight: 700; text-decoration: none; }
+.pipeline-card-contact { font-size: 0.82rem; margin-top: 4px; }
+.pipeline-card-contact a { color: #5a5c69; }
+.pipeline-empty { opacity: 0.5; }
+</style>
+
+<script>
+(function(){
+    const CSRF = '{{ csrf_token() }}';
+    let dragged = null;
+    document.querySelectorAll('.pipeline-card').forEach(card => {
+        card.addEventListener('dragstart', e => {
+            dragged = card;
+            card.classList.add('dragging');
+            e.dataTransfer.setData('text/plain', card.dataset.id);
+        });
+        card.addEventListener('dragend', () => {
+            dragged && dragged.classList.remove('dragging');
+            dragged = null;
+        });
+    });
+    document.querySelectorAll('[data-etapa-drop]').forEach(col => {
+        col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('drop-target'); });
+        col.addEventListener('dragleave', () => col.classList.remove('drop-target'));
+        col.addEventListener('drop', async e => {
+            e.preventDefault();
+            col.classList.remove('drop-target');
+            if (!dragged) return;
+            const id = dragged.dataset.id;
+            const etapa = col.dataset.etapaDrop;
+            col.appendChild(dragged);
+            try {
+                const r = await fetch(`/admin/crm/oportunidades/${id}/etapa`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': CSRF},
+                    body: `etapa=${etapa}&csrf_token=${encodeURIComponent(CSRF)}`
+                });
+                if (!r.ok) alert('No se pudo mover la oportunidad.');
+            } catch (err) {
+                alert('Error de red.');
+            }
+        });
+    });
+})();
+</script>
+{% endblock %}
