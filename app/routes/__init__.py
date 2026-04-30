@@ -6,6 +6,8 @@ responsabilidad: autenticacion, paginas publicas, administracion
 y pagos. ``register_blueprints()`` los registra todos en la app.
 """
 
+import os
+
 from routes.auth import auth_bp
 from routes.public import public_bp
 from routes.admin import admin_bp
@@ -66,3 +68,12 @@ def register_blueprints(app):
     # Compartir Archivos (carpetas con link publico)
     from routes.share import share_bp
     app.register_blueprint(share_bp)
+
+    # API REST v1 (habilitada con CYBERSHOP_API_ENABLED=1)
+    if os.getenv('CYBERSHOP_API_ENABLED', '0') == '1':
+        from routes.api_auth import api_auth_bp
+        from routes.api_health import api_health_bp
+        app.register_blueprint(api_auth_bp)
+        app.register_blueprint(api_health_bp)
+        return (api_auth_bp, api_health_bp)
+    return ()

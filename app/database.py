@@ -17,31 +17,41 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent / '.cybershop.conf')
 
 
-def get_db_connection():
-    """Crea y retorna una conexion psycopg2 a la base de datos.
+def _current_db_name():
+    """Retorna el db_name del tenant activo o el default de env vars.
 
-    Lee las credenciales desde variables de entorno (.cybershop.conf).
+    Durante un request Flask usa g.current_tenant si está disponible.
+    Fuera de request context (scripts, tests) usa DB_NAME del entorno.
+    """
+    try:
+        from flask import g
+        if hasattr(g, 'current_tenant') and g.current_tenant.get('db_name'):
+            return g.current_tenant['db_name']
+    except RuntimeError:
+        pass  # Fuera de request context
+    return os.getenv('DB_NAME', 'cybershop')
+
+
+def get_db_connection():
+    """Crea y retorna una conexion psycopg2 a la base de datos del tenant activo.
+
+    En requests Flask usa g.current_tenant para resolver la DB correcta.
+    Fuera de contexto Flask usa DB_NAME del entorno (.cybershop.conf).
 
     Raises:
         psycopg2.OperationalError: Si no puede conectarse al servidor.
     """
-    conn = psycopg2.connect(
-        dbname=os.getenv('DB_NAME', 'cybershop'),
-        user=os.getenv('DB_USER', 'postgres'),
-        password=os.getenv('DB_PASSWORD', ''),
-        host=os.getenv('DB_HOST', 'localhost'),
-        port=os.getenv('DB_PORT', '5432'),
-    )
-    return conn
+    from services.db_layer import get_tenant_conn
+    return get_tenant_conn(_current_db_name())
 
 
 @contextmanager
 def get_db_cursor(dict_cursor=False):
     """Context manager que provee un cursor con commit/rollback automatico.
 
-    Abre una conexion, crea un cursor y al salir del bloque ``with``
-    ejecuta ``commit`` si no hubo errores o ``rollback`` si ocurrio
-    una excepcion. Siempre cierra cursor y conexion.
+    Abre una conexion al tenant activo, crea un cursor y al salir del
+    bloque ``with`` ejecuta ``commit`` si no hubo errores o ``rollback``
+    si ocurrio una excepcion. Siempre cierra cursor y conexion.
 
     Args:
         dict_cursor: Si es ``True``, usa ``DictCursor`` para obtener

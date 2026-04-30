@@ -143,12 +143,21 @@ def set_security_headers(response):
         response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
     return response
 
+# --- Resolver tenant activo en cada request ---
+from services.tenant_resolver import resolve_current_tenant
+app.before_request(resolve_current_tenant)
+
 # --- Registrar blueprints ---
-register_blueprints(app)
+api_blueprints = register_blueprints(app)
 
 # --- Exentar webhook de PayU de la proteccion CSRF ---
 # PayU envia POST server-to-server sin token CSRF; la firma MD5 lo autentica.
 csrf.exempt(app.view_functions['payments.confirmacion_pago'])
+
+# --- Exentar blueprints de la API REST del CSRF (usan Bearer JWT) ---
+if api_blueprints:
+    for bp in api_blueprints:
+        csrf.exempt(bp)
 
 # --- Ejecutar ---
 if __name__ == '__main__':
