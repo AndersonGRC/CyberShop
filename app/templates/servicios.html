@@ -13,7 +13,10 @@
 
     <!-- Contenido del título -->
     <div class="servicios-titulo-contenido">
-        <h2>Servicios</h2>
+        <h2>{{ public_content.services_hero_title or 'Servicios' }}</h2>
+        {% if public_content.services_hero_subtitle %}
+        <p>{{ public_content.services_hero_subtitle }}</p>
+        {% endif %}
     </div>
 </section>
 

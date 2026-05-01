@@ -1,0 +1,433 @@
+@import url('variables.css');
+
+/* ============================================================
+   share_publico.css — Vista del CLIENTE (link publico)
+   Solo variables de variables.css. Usa brand_config para colores.
+   ============================================================ */
+
+* { box-sizing: border-box; }
+
+.share-publico-body {
+    margin: 0;
+    font-family: 'Raleway', system-ui, -apple-system, Segoe UI, sans-serif;
+    background: var(--color-fondo);
+    color: var(--color-texto);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ─── Header ─── */
+
+.share-publico-header {
+    background: linear-gradient(135deg, var(--color-primario) 0%, var(--color-primario-oscuro) 100%);
+    color: var(--color-blanco);
+    padding: 24px 0;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.10);
+}
+
+.share-publico-header-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.share-publico-logo {
+    width: 64px;
+    height: 64px;
+    border-radius: 12px;
+    background: var(--color-blanco);
+    padding: 6px;
+    object-fit: contain;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.share-publico-marca h1 {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 700;
+}
+.share-publico-marca p {
+    margin: 2px 0 0;
+    opacity: 0.85;
+    font-size: 0.92rem;
+}
+
+/* ─── Main ─── */
+
+.share-publico-main {
+    flex: 1;
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 32px 24px;
+}
+
+.share-publico-hero {
+    background: var(--color-blanco);
+    border-radius: 16px;
+    padding: 24px 28px;
+    box-shadow: var(--marca-sombra-sutil);
+    margin-bottom: 28px;
+    border-left: 5px solid var(--color-primario);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+.share-publico-hero h2 {
+    margin: 0 0 8px;
+    color: var(--color-primario-oscuro);
+    font-size: 1.55rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.share-publico-hero h2 i { color: var(--color-primario); }
+.share-publico-desc {
+    margin: 0 0 14px;
+    color: var(--color-texto-secundario);
+}
+
+.share-publico-bc {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    font-size: 0.92rem;
+    margin-top: 6px;
+}
+.share-publico-bc a { color: var(--color-primario); text-decoration: none; }
+.share-publico-bc a:hover { text-decoration: underline; }
+.share-publico-bc-sep { color: var(--color-gris); }
+.share-publico-bc-actual { color: var(--color-texto); font-weight: 600; }
+
+.share-publico-vence {
+    background: rgba(220, 53, 69, 0.10);
+    color: var(--color-peligro);
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+/* ─── Secciones ─── */
+
+.share-publico-seccion {
+    background: var(--color-blanco);
+    border-radius: 16px;
+    padding: 24px 28px;
+    box-shadow: var(--marca-sombra-sutil);
+    margin-bottom: 24px;
+}
+
+.share-publico-titulo {
+    font-size: 1.1rem;
+    color: var(--color-primario-oscuro);
+    margin: 0 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 2px solid var(--marca-tinte-leve);
+    padding-bottom: 10px;
+}
+.share-publico-titulo i { color: var(--color-primario); }
+
+.share-publico-vacio {
+    color: var(--color-texto-claro);
+    text-align: center;
+    padding: 14px;
+    font-style: italic;
+    margin: 0;
+}
+
+/* ─── Grid de subcarpetas ─── */
+
+.share-publico-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 14px;
+}
+.share-publico-folder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 22px 14px;
+    background: var(--color-fondo-form);
+    border: 2px solid transparent;
+    border-radius: 12px;
+    text-decoration: none;
+    color: var(--color-texto);
+    transition: all 0.2s ease;
+}
+.share-publico-folder:hover {
+    border-color: var(--color-primario);
+    background: var(--marca-tinte-leve);
+    transform: translateY(-3px);
+    box-shadow: var(--marca-sombra-card);
+}
+.share-publico-folder i {
+    font-size: 2.6rem;
+    color: var(--color-primario);
+}
+.share-publico-folder span {
+    font-weight: 600;
+    text-align: center;
+    word-break: break-word;
+}
+
+/* ─── Lista de archivos ─── */
+
+.share-publico-archivos {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.share-publico-archivo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    background: var(--color-fondo-form);
+    border: 1px solid var(--color-borde-claro);
+    border-radius: 12px;
+    transition: all 0.18s ease;
+}
+.share-publico-archivo:hover {
+    border-color: var(--marca-tinte-medio);
+    background: var(--marca-tinte-leve);
+    transform: translateX(2px);
+}
+
+.share-publico-archivo-icono {
+    font-size: 1.8rem;
+    color: var(--color-primario);
+    flex-shrink: 0;
+    width: 40px;
+    text-align: center;
+}
+
+.share-publico-archivo-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.share-publico-archivo-info strong {
+    color: var(--color-texto);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.share-publico-archivo-info span {
+    font-size: 0.82rem;
+    color: var(--color-texto-claro);
+}
+
+.share-publico-btn-descargar {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 16px;
+    background: var(--color-primario);
+    color: var(--color-blanco);
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.18s ease;
+    flex-shrink: 0;
+}
+.share-publico-btn-descargar:hover {
+    background: var(--color-primario-oscuro);
+    transform: translateY(-1px);
+    box-shadow: var(--marca-sombra-boton);
+}
+
+/* ─── Subida (cliente) ─── */
+
+.share-publico-subida {
+    background: var(--marca-tinte-leve);
+    border: 1px dashed var(--color-primario);
+}
+.share-publico-help {
+    margin: 0 0 14px;
+    color: var(--color-texto-secundario);
+    font-size: 0.92rem;
+}
+
+.share-publico-form-row { margin-bottom: 12px; }
+.share-publico-form input[type="text"] {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--color-gris-borde);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    background: var(--color-blanco);
+    font-family: inherit;
+}
+.share-publico-form input[type="text"]:focus {
+    outline: none;
+    border-color: var(--color-primario);
+    box-shadow: var(--marca-focus-ring);
+}
+
+.share-publico-dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 28px 16px;
+    border: 2px dashed var(--color-primario);
+    border-radius: 12px;
+    background: var(--color-blanco);
+    cursor: pointer;
+    margin-bottom: 14px;
+    color: var(--color-texto-secundario);
+    transition: all 0.18s ease;
+}
+.share-publico-dropzone:hover,
+.share-publico-drop-active {
+    background: var(--marca-tinte-leve);
+    border-color: var(--color-primario-oscuro);
+}
+.share-publico-dropzone i {
+    font-size: 2.4rem;
+    color: var(--color-primario);
+}
+
+.share-publico-btn-primario {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 20px;
+    background: var(--color-primario);
+    color: var(--color-blanco);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: all 0.18s ease;
+    text-decoration: none;
+}
+.share-publico-btn-primario:hover {
+    background: var(--color-primario-oscuro);
+    transform: translateY(-1px);
+    box-shadow: var(--marca-sombra-boton);
+}
+
+/* ─── Alerts ─── */
+
+.share-publico-alert {
+    padding: 12px 16px;
+    border-radius: 10px;
+    margin-bottom: 16px;
+    font-weight: 500;
+}
+.share-publico-alert-success { background: rgba(40, 167, 69, 0.12); color: var(--color-exito); }
+.share-publico-alert-error,
+.share-publico-alert-danger  { background: rgba(220, 53, 69, 0.12); color: var(--color-peligro); }
+.share-publico-alert-warning { background: rgba(255, 193, 7, 0.18); color: var(--color-warning-hover); }
+.share-publico-alert-info    { background: rgba(23, 162, 184, 0.12); color: var(--color-info); }
+
+/* ─── Footer ─── */
+
+.share-publico-footer {
+    text-align: center;
+    padding: 20px;
+    color: var(--color-texto-claro);
+    font-size: 0.85rem;
+    background: var(--color-fondo-alt);
+    margin-top: auto;
+}
+.share-publico-footer p { margin: 0; }
+
+/* ─── Vista CLAVE / VENCIDO ─── */
+
+.share-publico-clave-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--color-primario) 0%, var(--color-primario-oscuro) 100%);
+}
+
+.share-clave-wrap {
+    width: 100%;
+    padding: 24px;
+}
+.share-clave-card {
+    max-width: 440px;
+    margin: 0 auto;
+    background: var(--color-blanco);
+    border-radius: 18px;
+    padding: 36px 32px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+.share-clave-logo {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+    margin-bottom: 14px;
+}
+.share-clave-card h1 {
+    margin: 0 0 6px;
+    color: var(--color-primario-oscuro);
+    font-size: 1.3rem;
+}
+.share-clave-sub {
+    color: var(--color-texto-secundario);
+    margin: 0 0 24px;
+    font-size: 0.95rem;
+}
+.share-clave-sub i { margin-right: 4px; color: var(--color-primario); }
+
+.share-clave-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    text-align: left;
+}
+.share-clave-form label {
+    font-weight: 600;
+    color: var(--color-texto);
+}
+.share-clave-form input[type="password"] {
+    padding: 12px 14px;
+    border: 1px solid var(--color-gris-borde);
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: inherit;
+}
+.share-clave-form input[type="password"]:focus {
+    outline: none;
+    border-color: var(--color-primario);
+    box-shadow: var(--marca-focus-ring);
+}
+.share-clave-form button {
+    margin-top: 8px;
+}
+
+.share-clave-foot {
+    margin: 24px 0 0;
+    font-size: 0.82rem;
+    color: var(--color-texto-claro);
+    border-top: 1px solid var(--color-borde-claro);
+    padding-top: 14px;
+}
+
+@media (max-width: 720px) {
+    .share-publico-archivo { flex-wrap: wrap; }
+    .share-publico-btn-descargar { width: 100%; justify-content: center; }
+    .share-publico-hero { flex-direction: column; }
+    .share-publico-main { padding: 20px 14px; }
+    .share-publico-seccion { padding: 18px 16px; }
+}

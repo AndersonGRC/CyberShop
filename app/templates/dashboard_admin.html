@@ -50,7 +50,7 @@
             </article>
             <article class="dashboard-highlight">
                 <span>Contenido</span>
-                <strong>Publicaciones, carrusel y secciones</strong>
+                <strong>Publicaciones, slides y servicios</strong>
             </article>
         </div>
     </section>
@@ -121,15 +121,16 @@
             </a>
         </article>
 
+        {% if session_usuario and session_usuario.rol_id in [1, 2] %}
         <article class="dashboard-card dashboard-card--content">
             <span class="dashboard-card__eyebrow">Contenido</span>
             <div class="dashboard-card__icon">
                 <i class="far fa-newspaper"></i>
             </div>
             <h3>Publicaciones</h3>
-            <p>Mantiene visible la administracion del home para noticias, novedades y mensajes comerciales.</p>
+            <p>Gestiona las novedades del home desde su módulo independiente, como estaba antes.</p>
             <a href="{{ url_for('admin.gestion_publicaciones') }}" class="dashboard-card__link">
-                Ver publicaciones
+                Abrir publicaciones
                 <i class="fas fa-arrow-right"></i>
             </a>
         </article>
@@ -139,10 +140,10 @@
             <div class="dashboard-card__icon">
                 <i class="far fa-images"></i>
             </div>
-            <h3>Carrusel</h3>
-            <p>Gestiona slides destacados del home con una tarjeta enfocada en piezas de alto impacto visual.</p>
+            <h3>Slides</h3>
+            <p>Administra el carrusel principal del sitio desde su vista separada.</p>
             <a href="{{ url_for('admin.gestion_slides') }}" class="dashboard-card__link">
-                Ver carrusel
+                Abrir slides
                 <i class="fas fa-arrow-right"></i>
             </a>
         </article>
@@ -150,15 +151,31 @@
         <article class="dashboard-card dashboard-card--settings">
             <span class="dashboard-card__eyebrow">Configuracion</span>
             <div class="dashboard-card__icon">
-                <i class="fas fa-sliders-h"></i>
+                <i class="fas fa-concierge-bell"></i>
             </div>
-            <h3>Secciones</h3>
-            <p>Activa o desactiva bloques del sitio sin navegar por multiples pantallas ni perder contexto.</p>
-            <a href="{{ url_for('admin.configuracion_cliente') }}#secciones" class="dashboard-card__link">
-                Configurar secciones
+            <h3>Servicios</h3>
+            <p>Mantén los servicios del sitio en su módulo propio, sin mezclar colores ni branding.</p>
+            <a href="{{ url_for('admin.gestion_servicios') }}" class="dashboard-card__link">
+                Abrir servicios
                 <i class="fas fa-arrow-right"></i>
             </a>
         </article>
+        {% endif %}
+
+        {% if session_usuario and session_usuario.rol_id == 1 %}
+        <article class="dashboard-card dashboard-card--settings">
+            <span class="dashboard-card__eyebrow">Super Admin</span>
+            <div class="dashboard-card__icon">
+                <i class="fas fa-palette"></i>
+            </div>
+            <h3>Sitio Público</h3>
+            <p>Configuración visual, branding, colores y visibilidad general del sitio. Solo visible para Super Admin.</p>
+            <a href="{{ url_for('admin.sitio_publico') }}" class="dashboard-card__link">
+                Abrir configuración visual
+                <i class="fas fa-arrow-right"></i>
+            </a>
+        </article>
+        {% endif %}
     </section>
 </section>
 {% endblock %}

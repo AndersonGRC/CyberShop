@@ -116,11 +116,33 @@ def metodos_pago():
 
     carrito = session.get('carritoPendiente', {'items': [], 'total': 0})
 
-    if 'total' not in carrito or carrito['total'] == 0:
-        try:
-            carrito['total'] = sum(float(item.get('precio', 0)) * int(item.get('cantidad', 1)) for item in carrito['items'])
-        except Exception:
-            carrito['total'] = 0
+    # El frontend (Shoppingcar.js) solo envia id/cantidad por seguridad; aqui
+    # enriquecemos cada item con el precio real desde BD para poder renderizar
+    # el resumen en metodos_pago.html sin confiar en datos del cliente.
+    try:
+        items = carrito.get('items', []) or []
+        ids_consultar = [int(i['id']) for i in items if i.get('id')]
+        precios_bd = {}
+        if ids_consultar:
+            with get_db_cursor(dict_cursor=True) as cur:
+                cur.execute(
+                    "SELECT id, precio FROM productos WHERE id = ANY(%s)",
+                    (ids_consultar,)
+                )
+                precios_bd = {row['id']: float(row['precio']) for row in cur.fetchall()}
+
+        total = 0
+        for item in items:
+            prod_id = item.get('id')
+            cantidad = int(item.get('cantidad', 1) or 1)
+            precio = precios_bd.get(int(prod_id), 0) if prod_id else float(item.get('precio', 0) or 0)
+            item['precio'] = precio
+            item['cantidad'] = cantidad
+            total += precio * cantidad
+        carrito['total'] = total
+    except Exception as _e:
+        app.logger.warning(f"Error enriqueciendo carrito en metodos_pago: {_e}")
+        carrito.setdefault('total', 0)
 
     # Cargar datos del usuario para pre-llenar el formulario
     usuario = None
@@ -236,13 +258,18 @@ def crear_orden():
             'referencia_pedido', 'cliente_nombre', 'cliente_email',
             'cliente_tipo_documento', 'cliente_documento', 'cliente_telefono',
             'direccion_envio', 'ciudad', 'monto_total', 'estado_pago',
-            'estado_envio', 'cupon_id', 'descuento_total'
+            'estado_envio'
         ]
         order_values = [
             referencia, nombre, email, tipo_doc, documento, telefono,
-            direccion, ciudad, total_amount, 'PENDIENTE', 'ESPERA_PAGO',
-            cupon_id, descuento_total
+            direccion, ciudad, total_amount, 'PENDIENTE', 'ESPERA_PAGO'
         ]
+        if _table_has_column('pedidos', 'cupon_id'):
+            order_columns.append('cupon_id')
+            order_values.append(cupon_id)
+        if _table_has_column('pedidos', 'descuento_total'):
+            order_columns.append('descuento_total')
+            order_values.append(descuento_total)
         if _table_has_column('pedidos', 'facturar_electronicamente'):
             order_columns.append('facturar_electronicamente')
             order_values.append(facturar_electronicamente)
@@ -431,6 +458,36 @@ def confirmacion_pago():
                         enviar_email_gmail(pedido_data['cliente_email'], asunto, texto, html=html)
             except Exception as _ne:
                 app.logger.warning(f"Email confirmación pedido: {_ne}")
+
+            # F1.2 — upsert de contacto CRM (cliente) + actividad de compra
+            try:
+                from services.crm_service import upsert_contacto, registrar_actividad
+                with get_db_cursor(dict_cursor=True) as _cur:
+                    _cur.execute(
+                        "SELECT * FROM pedidos WHERE referencia_pedido = %s",
+                        (reference_sale,),
+                    )
+                    _pedido = _cur.fetchone()
+                if _pedido and _pedido.get('cliente_email'):
+                    _cid = upsert_contacto(
+                        email=_pedido.get('cliente_email'),
+                        nombre=_pedido.get('cliente_nombre'),
+                        telefono=_pedido.get('cliente_telefono'),
+                        ciudad=_pedido.get('ciudad'),
+                        direccion=_pedido.get('direccion_envio'),
+                        tipo='cliente',
+                        origen='compra_online',
+                        tags_add=['comprador'],
+                    )
+                    if _cid:
+                        registrar_actividad(
+                            contacto_id=_cid,
+                            tipo='compra',
+                            asunto=f"Pedido {reference_sale} — ${float(value or 0):,.0f}",
+                            descripcion=f"Pago aprobado vía PayU. Pedido id={_pedido.get('id')}",
+                        )
+            except Exception as _ce:
+                app.logger.warning(f"CRM upsert cliente desde pedido: {_ce}")
 
         # Facturación electrónica automática (solo si módulo activo)
         if estado_bd == 'APROBADO':

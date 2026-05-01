@@ -10,7 +10,7 @@
     <meta property="og:description" content="{% block og_description %}Productos y servicios tecnológicos{% endblock %}">
     <meta property="og:type" content="website">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <link rel="shortcut icon" href="{{ url_for('static', filename='img/Logo.PNG') }}">
+    <link rel="shortcut icon" href="{{ brand_config.empresa_logo_url or url_for('static', filename='img/Logo.PNG') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css">
     <link href="https://fonts.googleapis.com/css?family=Dancing+Script|Raleway:500,600&display=swap" rel="stylesheet">
@@ -37,6 +37,8 @@
       {% if brand_config.color_carrito_hover     %}--color-carrito-hover:     {{ brand_config.color_carrito_hover }};{% endif %}
       {% if brand_config.color_producto_boton       %}--color-producto-boton:       {{ brand_config.color_producto_boton }};{% endif %}
       {% if brand_config.color_producto_popup       %}--color-producto-popup:       {{ brand_config.color_producto_popup }};{% endif %}
+      {% if brand_config.color_exito             %}--color-exito:             {{ brand_config.color_exito }};{% endif %}
+      {% if brand_config.color_exito_hover       %}--color-exito-hover:       {{ brand_config.color_exito_hover }};{% endif %}
       {% if brand_config.color_alerta_fondo      %}--color-alerta-fondo:      {{ brand_config.color_alerta_fondo }};{% endif %}
       {% if brand_config.color_alerta_texto      %}--color-alerta-texto:      {{ brand_config.color_alerta_texto }};{% endif %}
       {% if brand_config.color_alerta_confirmar  %}--color-alerta-confirmar:  {{ brand_config.color_alerta_confirmar }};{% endif %}
@@ -49,7 +51,7 @@
 </head>
 <header>
     <div class="logo logo_main">
-        <img id="logo" src="{{ url_for('static', filename='img/Logo.PNG') }}">
+        <img id="logo" src="{{ brand_config.empresa_logo_url or url_for('static', filename='img/Logo.PNG') }}">
     </div>
 
     <div class="nav">
@@ -148,7 +150,7 @@
     <footer class="footer">
         <div class="footer-content">
             <h3>{{ brand_config.empresa_copyright or datosApp.titulo }}</h3>
-            <p>Síguenos en nuestras redes sociales y compra nuestros planes especiales.</p>
+            <p>{{ brand_config.empresa_tagline or 'Síguenos en nuestras redes sociales y conoce nuestros servicios destacados.' }}</p>
             <ul class="socials">
                 {% if brand_config.empresa_facebook and brand_config.empresa_facebook != '#' %}
                 <li><a href="{{ brand_config.empresa_facebook }}"><i class="fa fa-facebook"></i></a></li>

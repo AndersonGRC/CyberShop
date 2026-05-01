@@ -2,123 +2,398 @@
 
 {% block titulo %}Mis Cotizaciones | {{ datosApp.titulo }}{% endblock %}
 
+{% block LinkAdicional %}
+<style>
+    /* ============================================================
+       MIS COTIZACIONES — responsive (tabla en desktop, tarjetas en mobile)
+       ============================================================ */
+    .mis-cot-wrap {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 18px 18px 32px;
+        box-sizing: border-box;
+        overflow-x: hidden;
+    }
+
+    .mis-cot-wrap *,
+    .mis-cot-wrap *::before,
+    .mis-cot-wrap *::after {
+        box-sizing: border-box;
+    }
+
+    .mis-cot-wrap .page-title {
+        font-size: 1.4rem;
+        margin: 0 0 18px;
+        color: var(--color-secundario, #0e1b33);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .mis-cot-wrap .page-title i {
+        color: var(--color-primario, #122C94);
+    }
+
+    .mis-cot-card {
+        background: #ffffff;
+        border-radius: 14px;
+        box-shadow: 0 2px 10px rgba(18, 44, 148, 0.06);
+        border: 1px solid rgba(18, 44, 148, 0.08);
+        padding: 18px;
+    }
+
+    .mis-cot-alert {
+        padding: 12px 16px;
+        border-radius: 10px;
+        margin-bottom: 14px;
+        font-size: 0.9rem;
+    }
+
+    .mis-cot-alert.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .mis-cot-alert.warning { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+    .mis-cot-alert.info    { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+    .mis-cot-alert.danger  { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+    /* ---- Tabla desktop ---- */
+    .mis-cot-table-wrap {
+        width: 100%;
+    }
+
+    .mis-cot-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .mis-cot-table thead tr {
+        background: #f4f6fa;
+        border-bottom: 2px solid #e3e6ec;
+    }
+
+    .mis-cot-table th {
+        padding: 12px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: #444;
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    .mis-cot-table th.center { text-align: center; }
+    .mis-cot-table th.right  { text-align: right; }
+
+    .mis-cot-table td {
+        padding: 12px;
+        border-bottom: 1px solid #ececec;
+        font-size: 0.9rem;
+        color: #333;
+        vertical-align: middle;
+    }
+
+    .mis-cot-table td.right  { text-align: right; font-weight: 600; }
+    .mis-cot-table td.center { text-align: center; }
+
+    .mis-cot-table tbody tr:hover {
+        background: #fafbff;
+    }
+
+    /* ---- Badges de estado ---- */
+    .estado-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .estado-badge.aprobada  { background: #d4edda; color: #155724; }
+    .estado-badge.rechazada { background: #f8d7da; color: #721c24; }
+    .estado-badge.pendiente { background: #fff3cd; color: #856404; }
+
+    /* ---- Acciones ---- */
+    .acciones-cell {
+        white-space: nowrap;
+    }
+
+    .acciones-grid {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        justify-content: center;
+    }
+
+    .acciones-grid form { display: inline; margin: 0; }
+
+    .btn-act {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 6px 11px;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        color: #fff;
+        white-space: nowrap;
+    }
+
+    .btn-act i { font-size: 0.85em; }
+
+    .btn-pdf      { background: #28a745; }
+    .btn-aprobar  { background: #17a2b8; }
+    .btn-rechazar { background: #6c757d; }
+    .btn-editar   { background: #007bff; }
+    .btn-eliminar { background: #dc3545; }
+    .btn-act:hover { filter: brightness(0.95); }
+
+    /* ---- Estado vacío ---- */
+    .empty-state {
+        text-align: center;
+        padding: 40px 16px;
+        color: #666;
+    }
+
+    .empty-state i {
+        font-size: 3em;
+        margin-bottom: 14px;
+        color: #ccc;
+    }
+
+    .empty-state .btn-create {
+        background: #28a745;
+        color: #fff;
+        padding: 11px 20px;
+        border-radius: 8px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 12px;
+        font-weight: 600;
+    }
+
+    /* ============================================================
+       MOBILE — tabla a tarjetas
+       ============================================================ */
+    @media (max-width: 768px) {
+        .mis-cot-wrap {
+            padding: 12px 10px 28px;
+        }
+
+        .mis-cot-wrap .page-title {
+            font-size: 1.15rem;
+        }
+
+        .mis-cot-card {
+            padding: 12px;
+            border-radius: 12px;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+        }
+
+        .mis-cot-table thead {
+            display: none;
+        }
+
+        .mis-cot-table,
+        .mis-cot-table tbody,
+        .mis-cot-table tr,
+        .mis-cot-table td {
+            display: block;
+            width: 100%;
+        }
+
+        .mis-cot-table tbody tr {
+            background: #ffffff;
+            border: 1px solid #e3e6ec;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            padding: 14px;
+            box-shadow: 0 2px 6px rgba(18, 44, 148, 0.04);
+        }
+
+        .mis-cot-table tbody tr:hover {
+            background: #ffffff;
+        }
+
+        .mis-cot-table tbody td {
+            padding: 6px 0;
+            border-bottom: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            text-align: left !important;
+            font-size: 0.88rem;
+        }
+
+        .mis-cot-table tbody td::before {
+            content: attr(data-label);
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #777;
+            flex-shrink: 0;
+        }
+
+        .mis-cot-table tbody td.cell-id {
+            font-weight: 700;
+            color: var(--color-primario, #122C94);
+            border-bottom: 1px dashed #e3e6ec;
+            padding-bottom: 8px;
+            margin-bottom: 4px;
+        }
+
+        .mis-cot-table tbody td.cell-acciones {
+            display: block;
+            border-top: 1px dashed #e3e6ec;
+            margin-top: 8px;
+            padding-top: 10px;
+        }
+
+        .mis-cot-table tbody td.cell-acciones::before {
+            display: none;
+        }
+
+        .acciones-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+            width: 100%;
+        }
+
+        .acciones-grid > * {
+            width: 100%;
+        }
+
+        .btn-act {
+            justify-content: center;
+            padding: 9px 10px;
+            font-size: 0.85rem;
+        }
+
+        .estado-badge {
+            font-size: 0.78rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .mis-cot-wrap .page-title {
+            font-size: 1.05rem;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block body %}
-<div class="main-container">
-    <div class="content-wrapper" style="padding: 20px;">
-        <h1 class="page-title"><i class="fas fa-history"></i> Mis Cotizaciones Generadas</h1>
+<div class="mis-cot-wrap">
+    <h1 class="page-title"><i class="fas fa-history"></i> Mis Cotizaciones Generadas</h1>
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% for category, message in messages %}
-            <div class="alert alert-{{ 'success' if category == 'success' else ('warning' if category == 'warning' else ('info' if category == 'info' else 'danger')) }}"
-                 style="padding: 12px 16px; border-radius: 6px; margin-bottom: 16px;
-                        background: {{ '#d4edda' if category == 'success' else ('#fff3cd' if category == 'warning' else ('#d1ecf1' if category == 'info' else '#f8d7da')) }};
-                        color: {{ '#155724' if category == 'success' else ('#856404' if category == 'warning' else ('#0c5460' if category == 'info' else '#721c24')) }};
-                        border: 1px solid {{ '#c3e6cb' if category == 'success' else ('#ffeeba' if category == 'warning' else ('#bee5eb' if category == 'info' else '#f5c6cb')) }};">
-                {{ message }}
-            </div>
-          {% endfor %}
-        {% endwith %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="mis-cot-alert {{ 'success' if category == 'success' else ('warning' if category == 'warning' else ('info' if category == 'info' else 'danger')) }}">
+            {{ message }}
+        </div>
+      {% endfor %}
+    {% endwith %}
 
-        <div class="card"
-            style="margin-top: 20px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-
-            {% if cotizaciones %}
-            <div class="table-responsive">
-                <table class="table table-striped" style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
-                            <th style="padding: 12px; text-align: left;">ID</th>
-                            <th style="padding: 12px; text-align: left;">Fecha</th>
-                            <th style="padding: 12px; text-align: left;">Cliente</th>
-                            <th style="padding: 12px; text-align: left;">Documento</th>
-                            <th style="padding: 12px; text-align: right;">Total</th>
-                            <th style="padding: 12px; text-align: center;">Estado</th>
-                            <th style="padding: 12px; text-align: center;">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for cot in cotizaciones %}
-                        <tr style="border-bottom: 1px solid #eee;">
-                            <td style="padding: 12px;">COT {{ '%010d' % cot.id }}</td>
-                            <td style="padding: 12px;">{{ cot.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
-                            <td style="padding: 12px;">{{ cot.cliente_nombre }}</td>
-                            <td style="padding: 12px;">{{ cot.cliente_documento }}</td>
-                            <td style="padding: 12px; text-align: right;">{{ cot.total }}</td>
-                            <td style="padding: 12px; text-align: center;">
-                                {% if cot.estado == 'aprobada' %}
-                                    <span style="background: #d4edda; color: #155724; padding: 4px 10px; border-radius: 12px; font-size: 0.82em; font-weight: 600;">
-                                        <i class="fas fa-check-circle"></i> Aprobada
-                                    </span>
-                                {% elif cot.estado == 'rechazada' %}
-                                    <span style="background: #f8d7da; color: #721c24; padding: 4px 10px; border-radius: 12px; font-size: 0.82em; font-weight: 600;">
-                                        <i class="fas fa-times-circle"></i> Rechazada
-                                    </span>
-                                {% else %}
-                                    <span style="background: #fff3cd; color: #856404; padding: 4px 10px; border-radius: 12px; font-size: 0.82em; font-weight: 600;">
-                                        <i class="fas fa-clock"></i> Pendiente
-                                    </span>
-                                {% endif %}
-                            </td>
-                            <td style="padding: 12px; text-align: center; white-space: nowrap;">
+    <div class="mis-cot-card">
+        {% if cotizaciones %}
+        <div class="mis-cot-table-wrap">
+            <table class="mis-cot-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Fecha</th>
+                        <th>Cliente</th>
+                        <th>Documento</th>
+                        <th class="right">Total</th>
+                        <th class="center">Estado</th>
+                        <th class="center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cot in cotizaciones %}
+                    <tr>
+                        <td data-label="ID" class="cell-id">COT {{ '%010d' % cot.id }}</td>
+                        <td data-label="Fecha">{{ cot.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td data-label="Cliente">{{ cot.cliente_nombre }}</td>
+                        <td data-label="Documento">{{ cot.cliente_documento }}</td>
+                        <td data-label="Total" class="right">{{ cot.total }}</td>
+                        <td data-label="Estado" class="center">
+                            {% if cot.estado == 'aprobada' %}
+                                <span class="estado-badge aprobada">
+                                    <i class="fas fa-check-circle"></i> Aprobada
+                                </span>
+                            {% elif cot.estado == 'rechazada' %}
+                                <span class="estado-badge rechazada">
+                                    <i class="fas fa-times-circle"></i> Rechazada
+                                </span>
+                            {% else %}
+                                <span class="estado-badge pendiente">
+                                    <i class="fas fa-clock"></i> Pendiente
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td data-label="Acciones" class="center cell-acciones acciones-cell">
+                            <div class="acciones-grid">
                                 {% if cot.pdf_path %}
                                 <a href="{{ url_for('static', filename=cot.pdf_path) }}" target="_blank"
-                                    class="btn-action"
-                                    style="background: #28a745; color: white; padding: 5px 10px; border-radius: 4px; text-decoration: none; margin-right: 4px; display: inline-block;">
+                                    class="btn-act btn-pdf">
                                     <i class="fas fa-file-pdf"></i> PDF
                                 </a>
                                 {% endif %}
 
                                 {% if cot.estado == 'pendiente' %}
                                 <form action="{{ url_for('quotes.aprobar_cotizacion', id=cot.id) }}" method="POST"
-                                    style="display: inline;"
                                     onsubmit="return confirm('¿Aprobar esta cotización y registrarla en contabilidad?');">
-                                    <button type="submit"
-                                        style="background: #17a2b8; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; margin-right: 4px;">
+                                    <button type="submit" class="btn-act btn-aprobar">
                                         <i class="fas fa-check"></i> Aprobar
                                     </button>
                                 </form>
                                 <form action="{{ url_for('quotes.rechazar_cotizacion', id=cot.id) }}" method="POST"
-                                    style="display: inline;"
                                     onsubmit="return confirm('¿Marcar esta cotización como rechazada?');">
-                                    <button type="submit"
-                                        style="background: #6c757d; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; margin-right: 4px;">
+                                    <button type="submit" class="btn-act btn-rechazar">
                                         <i class="fas fa-times"></i> Rechazar
                                     </button>
                                 </form>
                                 {% endif %}
 
                                 {% if cot.estado != 'aprobada' %}
-                                <a href="{{ url_for('quotes.editar_cotizacion', id=cot.id) }}" class="btn-action"
-                                    style="background: #007bff; color: white; padding: 5px 10px; border-radius: 4px; text-decoration: none; margin-right: 4px; display: inline-block;">
+                                <a href="{{ url_for('quotes.editar_cotizacion', id=cot.id) }}" class="btn-act btn-editar">
                                     <i class="fas fa-edit"></i> Editar
                                 </a>
                                 {% endif %}
 
                                 <form action="{{ url_for('quotes.eliminar_cotizacion', id=cot.id) }}" method="POST"
-                                    style="display: inline;"
                                     onsubmit="return confirm('¿Está seguro de eliminar esta cotización?');">
-                                    <button type="submit"
-                                        style="background: #dc3545; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer;">
+                                    <button type="submit" class="btn-act btn-eliminar">
                                         <i class="fas fa-trash"></i> Eliminar
                                     </button>
                                 </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <div style="text-align: center; padding: 40px; color: #666;">
-                <i class="fas fa-folder-open" style="font-size: 3em; margin-bottom: 15px; color: #ccc;"></i>
-                <p>No se han generado cotizaciones aún.</p>
-                <a href="{{ url_for('quotes.cotizar') }}"
-                    style="background: #28a745; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; display: inline-block; margin-top: 10px;">
-                    <i class="fas fa-plus"></i> Crear Nueva Cotización
-                </a>
-            </div>
-            {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-folder-open"></i>
+            <p>No se han generado cotizaciones aún.</p>
+            <a href="{{ url_for('quotes.cotizar') }}" class="btn-create">
+                <i class="fas fa-plus"></i> Crear Nueva Cotización
+            </a>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

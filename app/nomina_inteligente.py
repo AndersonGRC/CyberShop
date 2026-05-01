@@ -42,20 +42,99 @@ TABLA_RETENCION_ART_383 = [
     {"rango_desde": 2300, "rango_hasta": float("inf"), "tarifa_marginal": 39.0, "uvt_mas": 770, "uvt_base": 2300},
 ]
 
+# Parámetros legales anuales de la nómina colombiana.
+#
+# Cada entrada incluye:
+#   - salario_minimo:     SMMLV (Salario Mínimo Mensual Legal Vigente).
+#   - auxilio_transporte: subsidio de transporte mensual obligatorio para
+#                         empleados que devenguen hasta 2 SMMLV (Ley 15/1959).
+#   - uvt:                Unidad de Valor Tributario (Art. 868 ET) usada para
+#                         calcular retención en la fuente y topes tributarios.
+#   - estado:             "oficial" si ya hay decreto/resolución; "proyectado"
+#                         si es una estimación mientras se publica la norma.
+#   - fuente:             decretos y resoluciones que sustentan los valores.
 PARAMETROS_OFICIALES_NOMINA = {
     2025: {
         "salario_minimo": 1423500.0,
         "auxilio_transporte": 200000.0,
         "uvt": 49799.0,
+        "estado": "oficial",
         "fuente": "Decreto 1572 de 2024, Decreto 1573 de 2024 y Resolución DIAN 000193 de 2024",
     },
     2026: {
         "salario_minimo": 1750905.0,
         "auxilio_transporte": 249095.0,
         "uvt": 52374.0,
+        "estado": "oficial",
         "fuente": "Decreto 159 de 2026, Decreto 1470 de 2025 y Resolución DIAN 000238 de 2025",
     },
+    2027: {
+        # Valores proyectados con base en IPC esperado (~5,5%) hasta que el
+        # Gobierno expida los decretos de fin de 2026. Actualizar en cuanto
+        # se publiquen los decretos definitivos (típicamente diciembre 2026).
+        "salario_minimo": 1847205.0,
+        "auxilio_transporte": 262795.0,
+        "uvt": 55256.0,
+        "estado": "proyectado",
+        "fuente": "Proyección IPC 2026 (~5,5%). Pendiente decreto SMMLV 2027 y resolución UVT DIAN 2027.",
+    },
 }
+
+
+# Jornada máxima legal semanal — Ley 2101 de 2021 (reducción gradual).
+# A partir de 2026 quedó en 42 horas y se mantiene en los años siguientes.
+JORNADA_LEY_2101 = {
+    2023: 47,
+    2024: 46,
+    2025: 44,
+    2026: 42,
+    2027: 42,
+}
+
+
+# Porcentajes de aportes a Seguridad Social (Ley 100 de 1993 y normas reglamentarias).
+APORTES_SEGURIDAD_SOCIAL = {
+    "salud_empleado": 4.0,        # Art. 204 Ley 100
+    "salud_empleador": 8.5,       # Exonerado por Ley 1607/2012 si salario < 10 SMMLV
+    "pension_empleado": 4.0,      # Art. 20 Ley 100
+    "pension_empleador": 12.0,    # Art. 20 Ley 100
+    "arl_minimo": 0.522,          # Riesgo I (Decreto 1295/1994)
+    "arl_maximo": 6.96,           # Riesgo V (Decreto 1295/1994)
+}
+
+
+# Aportes parafiscales (Ley 21/1982, Ley 27/1974, Ley 89/1988).
+APORTES_PARAFISCALES = {
+    "caja_compensacion": 4.0,     # Siempre se paga
+    "icbf": 3.0,                  # Exonerado por Ley 1607/2012 si salario < 10 SMMLV
+    "sena": 2.0,                  # Exonerado por Ley 1607/2012 si salario < 10 SMMLV
+}
+
+
+# Provisiones de prestaciones sociales mensuales (CST).
+PROVISIONES_PRESTACIONES = {
+    "cesantias": 8.33,            # Art. 249 CST: 1 mes de salario por año
+    "intereses_cesantias": 12.0,  # Ley 52/1975: 12% anual sobre cesantías
+    "prima_servicios": 8.33,      # Art. 306 CST: 30 días al año (15 jun + 20 dic)
+    "vacaciones": 4.17,           # Art. 186 CST: 15 días hábiles por año
+}
+
+
+def obtener_referencia_normativa(anio: int) -> dict[str, Any] | None:
+    """
+    Retorna los parámetros oficiales (o proyectados) para un año dado.
+    Útil para mostrar valores de referencia en formularios.
+    """
+    if not anio:
+        return None
+    referencia = PARAMETROS_OFICIALES_NOMINA.get(int(anio))
+    if not referencia:
+        return None
+    return {
+        **referencia,
+        "anio": int(anio),
+        "jornada_semanal": JORNADA_LEY_2101.get(int(anio), 42),
+    }
 
 TIPOS_EXTRAS = {"HED", "HEN", "HEDF", "HENF", "RN", "RD"}
 TIPOS_LICENCIAS_REMUNERADAS = {"INCAPACIDAD_GEN", "INCAPACIDAD_LAB", "LICENCIA_MAT", "LICENCIA_PAT", "LICENCIA_LUTO"}

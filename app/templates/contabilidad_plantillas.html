@@ -3,49 +3,388 @@
 
 {% block LinkAdicional %}
 <style>
-@media (max-width:768px) {
-    #grid-plantilla-form { grid-template-columns:1fr !important; }
-    .plantilla-row-meta { flex-direction:column !important; gap:6px !important; }
-    .plantilla-row-meta .actions { flex-direction:row !important; }
-}
+    /* ============================================================
+       PLANTILLAS — responsive
+       ============================================================ */
+    .pl-wrap {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 22px 20px 36px;
+        box-sizing: border-box;
+        overflow-x: hidden;
+    }
+
+    .pl-wrap *,
+    .pl-wrap *::before,
+    .pl-wrap *::after { box-sizing: border-box; }
+
+    .pl-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 8px;
+    }
+
+    .pl-header .page-title { margin: 0; }
+
+    .pl-back {
+        color: #888;
+        font-size: 0.88em;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .pl-back:hover { color: var(--color-primario); }
+
+    .pl-intro {
+        color: #888;
+        font-size: 0.87em;
+        margin: 0 0 22px;
+        line-height: 1.5;
+    }
+
+    /* Banner generar */
+    .pl-banner {
+        background: linear-gradient(135deg, var(--color-primario), var(--color-primario-oscuro, #091C5A));
+        border-radius: 12px;
+        padding: 20px 22px;
+        margin-bottom: 22px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 14px;
+        color: #fff;
+    }
+
+    .pl-banner__info { min-width: 0; }
+    .pl-banner__title { font-weight: 700; font-size: 1em; margin-bottom: 3px; }
+    .pl-banner__sub { font-size: 0.83em; opacity: 0.85; }
+    .pl-banner__sub strong { font-weight: 700; }
+
+    .pl-banner__btn {
+        background: #fff;
+        color: var(--color-primario);
+        border: none;
+        border-radius: 8px;
+        padding: 10px 22px;
+        font-size: 0.9em;
+        font-weight: 700;
+        cursor: pointer;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .pl-banner__btn:hover { filter: brightness(0.95); }
+
+    /* Grid principal: lista + formulario */
+    .pl-grid {
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        gap: 22px;
+        align-items: start;
+    }
+
+    .pl-section-title {
+        font-size: 0.85em;
+        color: #666;
+        margin: 0 0 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* ---- Tarjetas de plantilla ---- */
+    .pl-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .pl-item {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+        padding: 14px 16px;
+        border-left: 4px solid #28a745;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .pl-item.egreso { border-left-color: #dc3545; }
+    .pl-item.inactiva { opacity: 0.55; }
+
+    .pl-item__main { flex: 1; min-width: 0; }
+
+    .pl-item__title {
+        font-weight: 600;
+        font-size: 0.95em;
+        margin-bottom: 4px;
+        word-wrap: break-word;
+    }
+
+    .pl-badge-inactiva {
+        background: #e9ecef;
+        color: #888;
+        font-size: 0.7em;
+        border-radius: 10px;
+        padding: 2px 8px;
+        margin-left: 6px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+    }
+
+    .pl-item__meta {
+        font-size: 0.8em;
+        color: #888;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        line-height: 1.5;
+    }
+
+    .pl-tipo {
+        padding: 2px 9px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.92em;
+    }
+
+    .pl-tipo.ingreso { background: #d4edda; color: #155724; }
+    .pl-tipo.egreso  { background: #f8d7da; color: #721c24; }
+
+    .pl-item__notas {
+        color: #aaa;
+        font-size: 0.95em;
+    }
+
+    .pl-item__side {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+    }
+
+    .pl-monto {
+        font-weight: 700;
+        font-size: 1.05em;
+        white-space: nowrap;
+    }
+    .pl-monto.ingreso { color: #28a745; }
+    .pl-monto.egreso  { color: #dc3545; }
+
+    .pl-icon-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 5px 7px;
+        border-radius: 6px;
+        font-size: 1em;
+        line-height: 1;
+        color: #aaa;
+        transition: background .15s, color .15s;
+    }
+    .pl-icon-btn:hover { background: rgba(0, 0, 0, 0.05); }
+    .pl-icon-btn.toggle-on { color: #28a745; }
+    .pl-icon-btn.danger    { color: #dc3545; }
+
+    /* ---- Estado vacío ---- */
+    .pl-empty {
+        text-align: center;
+        padding: 50px 20px;
+        color: #ccc;
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    }
+
+    .pl-empty i {
+        font-size: 2.5rem;
+        display: block;
+        margin-bottom: 12px;
+    }
+
+    .pl-empty p { margin: 0 0 4px; }
+    .pl-empty p.sm { font-size: 0.85em; }
+
+    /* ---- Formulario ---- */
+    .pl-form-card {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+        padding: 22px;
+        border-top: 4px solid var(--color-primario);
+        position: sticky;
+        top: 20px;
+    }
+
+    .pl-form-card h3 {
+        margin: 0 0 16px;
+        font-size: 0.88em;
+        color: #444;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+    }
+
+    .pl-form-card h3 i { color: var(--color-primario); }
+
+    .pl-field { margin-bottom: 12px; }
+
+    .pl-field label {
+        font-size: 0.78em;
+        color: #888;
+        display: block;
+        margin-bottom: 4px;
+        font-weight: 600;
+    }
+
+    .pl-field input,
+    .pl-field select,
+    .pl-field textarea {
+        width: 100%;
+        padding: 9px 11px;
+        border-radius: 8px;
+        border: 1px solid #d6d8dc;
+        font-size: 0.9em;
+        background: #fff;
+        font-family: inherit;
+        transition: border-color .15s, box-shadow .15s;
+    }
+
+    .pl-field textarea { resize: vertical; min-height: 60px; }
+
+    .pl-field input:focus,
+    .pl-field select:focus,
+    .pl-field textarea:focus {
+        outline: none;
+        border-color: var(--color-primario);
+        box-shadow: 0 0 0 3px rgba(18, 44, 148, 0.13);
+    }
+
+    .pl-form-card .pl-submit {
+        width: 100%;
+        background: var(--color-primario);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 11px;
+        font-size: 0.92em;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        transition: filter .15s;
+    }
+    .pl-form-card .pl-submit:hover { filter: brightness(0.92); }
+
+    /* ---- Info box ---- */
+    .pl-info {
+        background: #f0f4ff;
+        border-radius: 10px;
+        padding: 14px 18px;
+        margin-top: 22px;
+        font-size: 0.85em;
+        color: #444;
+        line-height: 1.55;
+    }
+
+    .pl-info i { color: var(--color-primario); }
+    .pl-info a { color: var(--color-primario); text-decoration: none; }
+    .pl-info a:hover { text-decoration: underline; }
+
+    /* ============================================================
+       MOBILE
+       ============================================================ */
+    @media (max-width: 900px) {
+        .pl-grid { grid-template-columns: 1fr; }
+        .pl-form-card { position: static; }
+    }
+
+    @media (max-width: 768px) {
+        .pl-wrap { padding: 14px 12px 32px; }
+
+        .pl-header { gap: 8px; }
+        .pl-banner {
+            flex-direction: column;
+            align-items: stretch;
+            padding: 18px;
+        }
+        .pl-banner__btn {
+            width: 100%;
+            justify-content: center;
+            padding: 12px 18px;
+        }
+
+        .pl-item {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .pl-item__side {
+            width: 100%;
+            justify-content: space-between;
+            border-top: 1px dashed #e3e6ec;
+            padding-top: 10px;
+            margin-top: 4px;
+            gap: 8px;
+        }
+        .pl-monto { font-size: 1.1em; }
+        .pl-icon-btn { padding: 8px 12px; font-size: 1.1em; }
+
+        .pl-form-card { padding: 18px; }
+    }
+
+    @media (max-width: 480px) {
+        .pl-item__title { font-size: 0.92em; }
+        .pl-item__meta { font-size: 0.78em; }
+    }
 </style>
 {% endblock %}
 
 {% block body %}
-<div class="main-container">
-<div class="content-wrapper" style="padding:28px 24px; max-width:960px;">
+<div class="pl-wrap">
 
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:12px;">
-        <h1 class="page-title" style="margin:0;"><i class="fas fa-clone"></i> Plantillas recurrentes</h1>
-        <a href="{{ url_for('contabilidad.dashboard') }}" style="color:#888; font-size:0.88em; text-decoration:none;">
+    <div class="pl-header">
+        <h1 class="page-title"><i class="fas fa-clone"></i> Plantillas recurrentes</h1>
+        <a href="{{ url_for('contabilidad.dashboard') }}" class="pl-back">
             <i class="fas fa-arrow-left"></i> Dashboard
         </a>
     </div>
-    <p style="color:#888; font-size:0.87em; margin:0 0 24px;">
+
+    <p class="pl-intro">
         Define tus gastos e ingresos fijos (arriendo, nómina, suscripciones…).
         Con un clic generas todos los movimientos del mes sin escribir nada.
     </p>
 
-    <!-- Botón generar -->
+    <!-- Banner generar -->
     {% if plantillas %}
     {% set activas = plantillas | selectattr('activo') | list %}
     {% if activas %}
-    <div style="background:linear-gradient(135deg,var(--color-primario),var(--color-primario-oscuro,#091C5A));
-                border-radius:12px; padding:20px 24px; margin-bottom:24px;
-                display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-        <div style="color:#fff;">
-            <div style="font-weight:700; font-size:1em; margin-bottom:3px;">
+    <div class="pl-banner">
+        <div class="pl-banner__info">
+            <div class="pl-banner__title">
                 <i class="fas fa-bolt"></i> {{ activas|length }} plantilla{{ 's' if activas|length != 1 else '' }} activa{{ 's' if activas|length != 1 else '' }}
             </div>
-            <div style="font-size:0.83em; opacity:0.85;">
+            <div class="pl-banner__sub">
                 Total mensual estimado:
                 <strong>${{ '{:,.0f}'.format(activas | sum(attribute='monto_bruto')) }}</strong>
             </div>
         </div>
-        <form action="{{ url_for('contabilidad.generar_desde_plantillas') }}" method="POST" style="display:inline;">
-            <button type="submit"
-                    style="background:#fff; color:var(--color-primario); border:none; border-radius:8px;
-                           padding:10px 24px; font-size:0.92em; font-weight:700; cursor:pointer; white-space:nowrap;">
+        <form action="{{ url_for('contabilidad.generar_desde_plantillas') }}" method="POST" style="margin:0;">
+            <button type="submit" class="pl-banner__btn">
                 <i class="fas fa-magic"></i> Generar este mes
             </button>
         </form>
@@ -53,124 +392,99 @@
     {% endif %}
     {% endif %}
 
-    <div style="display:grid; grid-template-columns:1fr 320px; gap:22px; align-items:start;">
+    <div class="pl-grid">
 
         <!-- Lista de plantillas -->
         <div>
-            <h3 style="font-size:0.88em; color:#666; margin:0 0 14px; font-weight:700; text-transform:uppercase; letter-spacing:.5px;">
-                Plantillas configuradas
-            </h3>
+            <h3 class="pl-section-title">Plantillas configuradas</h3>
 
             {% if plantillas %}
-            <div style="display:flex; flex-direction:column; gap:10px;">
+            <div class="pl-list">
                 {% for p in plantillas %}
-                <div style="background:#fff; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.07);
-                            padding:16px 18px;
-                            border-left:4px solid {{ '#28a745' if p.tipo=='ingreso' else '#dc3545' }};
-                            opacity:{{ '1' if p.activo else '0.55' }};">
-                    <div class="plantilla-row-meta" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
-                        <div style="flex:1; min-width:0;">
-                            <div style="font-weight:600; font-size:0.95em; margin-bottom:3px;">
-                                {{ p.descripcion }}
-                                {% if not p.activo %}
-                                <span style="background:#e9ecef; color:#888; font-size:0.73em; border-radius:10px; padding:2px 8px; margin-left:6px; font-weight:600;">
-                                    INACTIVA
-                                </span>
-                                {% endif %}
-                            </div>
-                            <div style="font-size:0.82em; color:#888;">
-                                <span style="background:{{ '#d4edda' if p.tipo=='ingreso' else '#f8d7da' }};
-                                             color:{{ '#155724' if p.tipo=='ingreso' else '#721c24' }};
-                                             padding:2px 8px; border-radius:10px; font-weight:600; font-size:0.9em;">
-                                    {{ 'Ingreso' if p.tipo=='ingreso' else 'Gasto' }}
-                                </span>
-                                &nbsp;{{ label_cat(p.categoria) }}
-                                {% if p.notas %}
-                                <span style="color:#aaa; margin-left:6px;">· {{ p.notas[:60] }}</span>
-                                {% endif %}
-                            </div>
+                <div class="pl-item {{ p.tipo }}{% if not p.activo %} inactiva{% endif %}">
+                    <div class="pl-item__main">
+                        <div class="pl-item__title">
+                            {{ p.descripcion }}
+                            {% if not p.activo %}
+                            <span class="pl-badge-inactiva">Inactiva</span>
+                            {% endif %}
                         </div>
-                        <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
-                            <span style="font-weight:700; font-size:1.05em;
-                                         color:{{ '#28a745' if p.tipo=='ingreso' else '#dc3545' }};">
-                                ${{ '{:,.0f}'.format(p.monto_bruto) }}
+                        <div class="pl-item__meta">
+                            <span class="pl-tipo {{ p.tipo }}">
+                                {{ 'Ingreso' if p.tipo=='ingreso' else 'Gasto' }}
                             </span>
-                            <!-- Toggle activo -->
-                            <form action="{{ url_for('contabilidad.toggle_plantilla', p_id=p.id) }}" method="POST" style="display:inline;">
-                                <button type="submit" title="{{ 'Desactivar' if p.activo else 'Activar' }}"
-                                        style="background:none; border:none; cursor:pointer; font-size:0.92em;
-                                               color:{{ '#28a745' if p.activo else '#aaa' }}; padding:2px 4px;">
-                                    <i class="fas fa-{{ 'toggle-on' if p.activo else 'toggle-off' }}"></i>
-                                </button>
-                            </form>
-                            <!-- Eliminar -->
-                            <form action="{{ url_for('contabilidad.eliminar_plantilla', p_id=p.id) }}" method="POST" style="display:inline;">
-                                <button type="submit"
-                                        onclick="return confirm('¿Eliminar esta plantilla? Los movimientos ya generados no se borran.')"
-                                        title="Eliminar plantilla"
-                                        style="background:none; border:none; cursor:pointer; font-size:0.88em; color:#dc3545; padding:2px 4px;">
-                                    <i class="fas fa-trash-alt"></i>
-                                </button>
-                            </form>
+                            <span>{{ label_cat(p.categoria) }}</span>
+                            {% if p.notas %}
+                            <span class="pl-item__notas">· {{ p.notas[:60] }}</span>
+                            {% endif %}
                         </div>
+                    </div>
+                    <div class="pl-item__side">
+                        <span class="pl-monto {{ p.tipo }}">
+                            ${{ '{:,.0f}'.format(p.monto_bruto) }}
+                        </span>
+                        <!-- Toggle activo -->
+                        <form action="{{ url_for('contabilidad.toggle_plantilla', p_id=p.id) }}" method="POST" style="display:inline; margin:0;">
+                            <button type="submit" title="{{ 'Desactivar' if p.activo else 'Activar' }}"
+                                    class="pl-icon-btn {% if p.activo %}toggle-on{% endif %}">
+                                <i class="fas fa-{{ 'toggle-on' if p.activo else 'toggle-off' }}"></i>
+                            </button>
+                        </form>
+                        <!-- Eliminar -->
+                        <form action="{{ url_for('contabilidad.eliminar_plantilla', p_id=p.id) }}" method="POST" style="display:inline; margin:0;">
+                            <button type="submit"
+                                    onclick="return confirm('¿Eliminar esta plantilla? Los movimientos ya generados no se borran.')"
+                                    title="Eliminar plantilla"
+                                    class="pl-icon-btn danger">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </form>
                     </div>
                 </div>
                 {% endfor %}
             </div>
-
             {% else %}
-            <div style="text-align:center; padding:50px 20px; color:#ccc; background:#fff; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.06);">
-                <i class="fas fa-clone" style="font-size:2.5rem; display:block; margin-bottom:12px;"></i>
-                <p style="margin:0 0 4px;">Aún no tienes plantillas configuradas.</p>
-                <p style="font-size:0.85em; margin:0;">Crea una usando el formulario de la derecha.</p>
+            <div class="pl-empty">
+                <i class="fas fa-clone"></i>
+                <p>Aún no tienes plantillas configuradas.</p>
+                <p class="sm">Crea una usando el formulario de la derecha.</p>
             </div>
             {% endif %}
         </div>
 
         <!-- Formulario nueva plantilla -->
-        <div style="background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.08);
-                    padding:22px; border-top:4px solid var(--color-primario); position:sticky; top:20px;">
-            <h3 style="margin:0 0 16px; font-size:0.88em; color:#444; font-weight:700; text-transform:uppercase; letter-spacing:.4px;">
-                <i class="fas fa-plus-circle" style="color:var(--color-primario);"></i> Nueva plantilla
-            </h3>
+        <div class="pl-form-card">
+            <h3><i class="fas fa-plus-circle"></i> Nueva plantilla</h3>
             <form action="{{ url_for('contabilidad.plantillas') }}" method="POST">
-                <div style="margin-bottom:10px;">
-                    <label style="font-size:0.8em; color:#888; display:block; margin-bottom:3px; font-weight:600;">Tipo</label>
-                    <select name="tipo" id="pTipo" onchange="actualizarCatPlantilla()" required
-                            style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid #ddd; font-size:0.88em;">
+                <div class="pl-field">
+                    <label>Tipo</label>
+                    <select name="tipo" id="pTipo" onchange="actualizarCatPlantilla()" required>
                         <option value="egreso">Gasto</option>
                         <option value="ingreso">Ingreso</option>
                     </select>
                 </div>
-                <div style="margin-bottom:10px;">
-                    <label style="font-size:0.8em; color:#888; display:block; margin-bottom:3px; font-weight:600;">Categoría</label>
-                    <select name="categoria" id="pCat" required
-                            style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid #ddd; font-size:0.88em;">
+                <div class="pl-field">
+                    <label>Categoría</label>
+                    <select name="categoria" id="pCat" required>
                         {% for v,l in categorias_egreso  %}<option value="{{ v }}" class="cat-egr">{{ l }}</option>{% endfor %}
                         {% for v,l in categorias_ingreso %}<option value="{{ v }}" class="cat-ing" style="display:none;">{{ l }}</option>{% endfor %}
                     </select>
                 </div>
-                <div style="margin-bottom:10px;">
-                    <label style="font-size:0.8em; color:#888; display:block; margin-bottom:3px; font-weight:600;">Descripción</label>
+                <div class="pl-field">
+                    <label>Descripción</label>
                     <input type="text" name="descripcion" required maxlength="200"
-                           placeholder="Ej: Arriendo local, Plan internet…"
-                           style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid #ddd; font-size:0.88em; box-sizing:border-box;">
+                           placeholder="Ej: Arriendo local, Plan internet…">
                 </div>
-                <div style="margin-bottom:10px;">
-                    <label style="font-size:0.8em; color:#888; display:block; margin-bottom:3px; font-weight:600;">Monto mensual (COP)</label>
-                    <input type="number" name="monto_bruto" required min="1" step="0.01"
-                           placeholder="0"
-                           style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid #ddd; font-size:0.88em; box-sizing:border-box;">
+                <div class="pl-field">
+                    <label>Monto mensual (COP)</label>
+                    <input type="number" name="monto_bruto" required min="1" step="0.01" placeholder="0">
                 </div>
-                <div style="margin-bottom:14px;">
-                    <label style="font-size:0.8em; color:#888; display:block; margin-bottom:3px; font-weight:600;">Notas (opcional)</label>
+                <div class="pl-field">
+                    <label>Notas (opcional)</label>
                     <textarea name="notas" rows="2" maxlength="300"
-                              placeholder="Contrato, proveedor, referencia…"
-                              style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid #ddd; font-size:0.88em; resize:none; box-sizing:border-box;"></textarea>
+                              placeholder="Contrato, proveedor, referencia…"></textarea>
                 </div>
-                <button type="submit"
-                        style="width:100%; background:var(--color-primario); color:#fff; border:none;
-                               border-radius:6px; padding:10px; font-size:0.92em; font-weight:600; cursor:pointer;">
+                <button type="submit" class="pl-submit">
                     <i class="fas fa-save"></i> Guardar plantilla
                 </button>
             </form>
@@ -179,16 +493,15 @@
     </div><!-- /grid -->
 
     <!-- Info box -->
-    <div style="background:#f0f4ff; border-radius:10px; padding:16px 20px; margin-top:22px; font-size:0.85em; color:#444;">
-        <i class="fas fa-info-circle" style="color:var(--color-primario);"></i>
+    <div class="pl-info">
+        <i class="fas fa-info-circle"></i>
         <strong>¿Cómo funciona?</strong>
         Define una vez cada gasto o ingreso fijo. Al inicio de cada mes haz clic en
         <strong>"Generar este mes"</strong> y todos los movimientos se crean automáticamente con la fecha de hoy.
         Si ya los generaste, no se duplican. Puedes editarlos desde
-        <a href="{{ url_for('contabilidad.movimientos') }}" style="color:var(--color-primario);">Movimientos</a>.
+        <a href="{{ url_for('contabilidad.movimientos') }}">Movimientos</a>.
     </div>
 
-</div>
 </div>
 
 <script>

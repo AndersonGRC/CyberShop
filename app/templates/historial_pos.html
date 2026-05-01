@@ -576,5 +576,14 @@
             fila.style.display = (coincideBuscar && coincideMetodo && coincideEstado) ? '' : 'none';
         });
     }
+
+    // Auto-abrir detalle cuando se llega desde contabilidad: /admin/pos/historial?venta=ID
+    document.addEventListener('DOMContentLoaded', function() {
+        const params = new URLSearchParams(window.location.search);
+        const ventaId = params.get('venta');
+        if (ventaId && /^\d+$/.test(ventaId)) {
+            verDetalle(parseInt(ventaId, 10));
+        }
+    });
 </script>
 {% endblock %}

@@ -291,12 +291,63 @@ def crm_contacto_ver(id):
         else:
             pedidos = []
 
+        # 5. Cotizaciones vinculadas
+        cur.execute("""
+            SELECT id, cliente_nombre, total, estado, fecha AS fecha_creacion, pdf_path
+              FROM cotizaciones
+             WHERE crm_contacto_id = %s
+             ORDER BY fecha DESC
+             LIMIT 30
+        """, (id,))
+        cotizaciones = cur.fetchall()
+
+        # 6. Cuentas de cobro vinculadas
+        cur.execute("""
+            SELECT id, consecutivo, total, fecha, pdf_path, created_at
+              FROM cuentas_cobro
+             WHERE crm_contacto_id = %s
+             ORDER BY COALESCE(fecha, created_at::date) DESC
+             LIMIT 30
+        """, (id,))
+        cuentas_cobro = cur.fetchall()
+
+        # 7. Oportunidades del contacto
+        cur.execute("""
+            SELECT o.*, u.nombre AS asignado_nombre
+              FROM crm_oportunidades o
+              LEFT JOIN usuarios u ON o.asignado_a = u.id
+             WHERE o.contacto_id = %s
+             ORDER BY
+                CASE o.etapa
+                    WHEN 'prospecto'   THEN 0
+                    WHEN 'calificado'  THEN 1
+                    WHEN 'propuesta'   THEN 2
+                    WHEN 'negociacion' THEN 3
+                    WHEN 'ganada'      THEN 4
+                    WHEN 'perdida'     THEN 5
+                END,
+                o.updated_at DESC
+        """, (id,))
+        oportunidades = cur.fetchall()
+
+        # Totales para resumen
+        total_comprado = sum(float(p['monto_total'] or 0) for p in pedidos
+                             if (p.get('estado_pago') or '').upper() == 'APROBADO')
+        total_cotizado = sum(float(c['total'] or 0) for c in cotizaciones)
+        total_facturado = sum(float(c['total'] or 0) for c in cuentas_cobro)
+
     return render_template(
         'crm_contacto_ver.html',
         contacto=contacto,
         actividades=actividades,
         tareas=tareas,
         pedidos=pedidos,
+        cotizaciones=cotizaciones,
+        cuentas_cobro=cuentas_cobro,
+        oportunidades=oportunidades,
+        total_comprado=total_comprado,
+        total_cotizado=total_cotizado,
+        total_facturado=total_facturado,
         hoy=date.today(),
     )
 
@@ -731,3 +782,374 @@ def crm_tarea_eliminar(id):
     if contacto_id:
         return redirect(url_for('crm.crm_contacto_ver', id=contacto_id))
     return redirect(url_for('crm.crm_tareas_lista'))
+
+
+# ==================================================================
+# F2 — PIPELINE DE OPORTUNIDADES
+# ==================================================================
+
+ETAPAS_OPORTUNIDAD = [
+    ('prospecto',   'Prospecto'),
+    ('calificado',  'Calificado'),
+    ('propuesta',   'Propuesta'),
+    ('negociacion', 'Negociación'),
+    ('ganada',      'Ganada'),
+    ('perdida',     'Perdida'),
+]
+
+
+@crm_bp.route('/pipeline')
+@rol_requerido(ADMIN_STAFF)
+def pipeline():
+    """Kanban del pipeline de oportunidades, agrupado por etapa."""
+    filtro_asignado = request.args.get('asignado', '')
+    with get_db_cursor(dict_cursor=True) as cur:
+        sql = """
+            SELECT o.*, c.nombre AS contacto_nombre, c.tipo AS contacto_tipo,
+                   u.nombre AS asignado_nombre
+              FROM crm_oportunidades o
+              JOIN crm_contactos c ON o.contacto_id = c.id
+              LEFT JOIN usuarios u ON o.asignado_a = u.id
+             WHERE 1=1
+        """
+        params = []
+        if filtro_asignado and filtro_asignado.isdigit():
+            sql += " AND o.asignado_a = %s"
+            params.append(int(filtro_asignado))
+        sql += " ORDER BY o.updated_at DESC"
+        cur.execute(sql, tuple(params))
+        oportunidades = cur.fetchall()
+
+        cur.execute("SELECT id, nombre FROM usuarios WHERE estado='habilitado' ORDER BY nombre")
+        usuarios = cur.fetchall()
+
+    columnas = {e[0]: {'label': e[1], 'items': [], 'total': 0} for e in ETAPAS_OPORTUNIDAD}
+    for o in oportunidades:
+        col = columnas.get(o['etapa'])
+        if col is not None:
+            col['items'].append(o)
+            col['total'] += float(o['monto_estimado'] or 0)
+
+    return render_template(
+        'crm_pipeline.html',
+        etapas=ETAPAS_OPORTUNIDAD,
+        columnas=columnas,
+        usuarios=usuarios,
+        filtro_asignado=filtro_asignado,
+    )
+
+
+@crm_bp.route('/oportunidades/crear', methods=['GET', 'POST'])
+@crm_bp.route('/contactos/<int:contacto_id>/oportunidades/crear', methods=['GET', 'POST'])
+@rol_requerido(ADMIN_STAFF)
+def oportunidad_crear(contacto_id=None):
+    if request.method == 'POST':
+        titulo = (request.form.get('titulo') or '').strip()[:200]
+        contacto_id_form = request.form.get('contacto_id')
+        try:
+            c_id = int(contacto_id_form) if contacto_id_form else contacto_id
+        except (TypeError, ValueError):
+            c_id = contacto_id
+        monto = float(request.form.get('monto_estimado') or 0)
+        prob = int(request.form.get('probabilidad') or 50)
+        etapa = request.form.get('etapa') or 'prospecto'
+        asignado_a = request.form.get('asignado_a') or None
+        fecha_cierre_est = request.form.get('fecha_cierre_est') or None
+        descripcion = (request.form.get('descripcion') or '').strip() or None
+        fuente = request.form.get('fuente') or None
+
+        if not titulo or not c_id:
+            flash('Título y contacto son obligatorios.', 'warning')
+            return redirect(url_for('crm.oportunidad_crear'))
+        try:
+            with get_db_cursor(dict_cursor=True) as cur:
+                cur.execute("""
+                    INSERT INTO crm_oportunidades
+                        (contacto_id, titulo, descripcion, monto_estimado, probabilidad,
+                         etapa, fuente, asignado_a, fecha_cierre_est)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    RETURNING id
+                """, (c_id, titulo, descripcion, monto, prob, etapa, fuente,
+                      asignado_a, fecha_cierre_est))
+                new_id = cur.fetchone()['id']
+            flash('Oportunidad creada.', 'success')
+            return redirect(url_for('crm.oportunidad_editar', id=new_id))
+        except Exception as e:
+            app.logger.error(f"Error creando oportunidad: {e}")
+            flash('Error al crear oportunidad.', 'danger')
+
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute("""
+            SELECT id, nombre, empresa FROM crm_contactos
+             WHERE activo = TRUE ORDER BY nombre
+        """)
+        contactos = cur.fetchall()
+        cur.execute("SELECT id, nombre FROM usuarios WHERE estado='habilitado' ORDER BY nombre")
+        usuarios = cur.fetchall()
+        preselect = None
+        if contacto_id:
+            cur.execute("SELECT id, nombre FROM crm_contactos WHERE id=%s", (contacto_id,))
+            preselect = cur.fetchone()
+
+    return render_template(
+        'crm_oportunidad_form.html', modo='crear', oportunidad=None,
+        contactos=contactos, usuarios=usuarios, etapas=ETAPAS_OPORTUNIDAD,
+        preselect_contacto=preselect,
+    )
+
+
+@crm_bp.route('/oportunidades/<int:id>/editar', methods=['GET', 'POST'])
+@rol_requerido(ADMIN_STAFF)
+def oportunidad_editar(id):
+    if request.method == 'POST':
+        titulo = (request.form.get('titulo') or '').strip()[:200]
+        monto = float(request.form.get('monto_estimado') or 0)
+        prob = int(request.form.get('probabilidad') or 50)
+        etapa = request.form.get('etapa') or 'prospecto'
+        asignado_a = request.form.get('asignado_a') or None
+        fecha_cierre_est = request.form.get('fecha_cierre_est') or None
+        descripcion = (request.form.get('descripcion') or '').strip() or None
+        motivo_perdida = (request.form.get('motivo_perdida') or '').strip()[:160] or None
+        fuente = request.form.get('fuente') or None
+        try:
+            with get_db_cursor() as cur:
+                sets = ['titulo=%s','descripcion=%s','monto_estimado=%s','probabilidad=%s',
+                        'etapa=%s','fuente=%s','asignado_a=%s','fecha_cierre_est=%s',
+                        'motivo_perdida=%s','updated_at=NOW()']
+                vals = [titulo, descripcion, monto, prob, etapa, fuente,
+                        asignado_a, fecha_cierre_est, motivo_perdida]
+                if etapa in ('ganada','perdida'):
+                    sets.append('fecha_cierre_real=COALESCE(fecha_cierre_real, CURRENT_DATE)')
+                vals.append(id)
+                cur.execute(
+                    f"UPDATE crm_oportunidades SET {', '.join(sets)} WHERE id=%s",
+                    tuple(vals),
+                )
+            flash('Oportunidad actualizada.', 'success')
+        except Exception as e:
+            app.logger.error(f"Error editando oportunidad {id}: {e}")
+            flash('Error al actualizar.', 'danger')
+        return redirect(url_for('crm.oportunidad_editar', id=id))
+
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute("""
+            SELECT o.*, c.nombre AS contacto_nombre
+              FROM crm_oportunidades o
+              JOIN crm_contactos c ON o.contacto_id = c.id
+             WHERE o.id = %s
+        """, (id,))
+        op = cur.fetchone()
+        if not op:
+            flash('Oportunidad no encontrada.', 'warning')
+            return redirect(url_for('crm.pipeline'))
+        cur.execute("""
+            SELECT id, nombre, empresa FROM crm_contactos
+             WHERE activo = TRUE ORDER BY nombre
+        """)
+        contactos = cur.fetchall()
+        cur.execute("SELECT id, nombre FROM usuarios WHERE estado='habilitado' ORDER BY nombre")
+        usuarios = cur.fetchall()
+
+    return render_template(
+        'crm_oportunidad_form.html', modo='editar', oportunidad=op,
+        contactos=contactos, usuarios=usuarios, etapas=ETAPAS_OPORTUNIDAD,
+        preselect_contacto=None,
+    )
+
+
+@crm_bp.route('/oportunidades/<int:id>/etapa', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+def oportunidad_cambiar_etapa(id):
+    """AJAX: drag&drop del Kanban."""
+    from flask import jsonify
+    nueva = request.json.get('etapa') if request.is_json else request.form.get('etapa')
+    validas = [e[0] for e in ETAPAS_OPORTUNIDAD]
+    if nueva not in validas:
+        return jsonify({'ok': False, 'error': 'etapa inválida'}), 400
+    try:
+        with get_db_cursor() as cur:
+            sets = 'etapa=%s, updated_at=NOW()'
+            params = [nueva]
+            if nueva in ('ganada','perdida'):
+                sets += ', fecha_cierre_real=COALESCE(fecha_cierre_real, CURRENT_DATE)'
+            if nueva == 'ganada':
+                sets += ', probabilidad=100'
+            if nueva == 'perdida':
+                sets += ', probabilidad=0'
+            params.append(id)
+            cur.execute(f"UPDATE crm_oportunidades SET {sets} WHERE id=%s", tuple(params))
+        return jsonify({'ok': True})
+    except Exception as e:
+        app.logger.warning(f"oportunidad_cambiar_etapa: {e}")
+        return jsonify({'ok': False, 'error': 'db error'}), 500
+
+
+@crm_bp.route('/oportunidades/<int:id>/eliminar', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+def oportunidad_eliminar(id):
+    contacto_id = request.form.get('contacto_id')
+    try:
+        with get_db_cursor() as cur:
+            cur.execute("DELETE FROM crm_oportunidades WHERE id=%s", (id,))
+        flash('Oportunidad eliminada.', 'success')
+    except Exception as e:
+        app.logger.error(f"Error eliminando oportunidad {id}: {e}")
+        flash('Error al eliminar.', 'danger')
+    if contacto_id:
+        return redirect(url_for('crm.crm_contacto_ver', id=contacto_id))
+    return redirect(url_for('crm.pipeline'))
+
+
+# ==================================================================
+# F4 — EXPORT / IMPORT CSV
+# ==================================================================
+
+@crm_bp.route('/contactos/exportar')
+@rol_requerido(ADMIN_STAFF)
+def contactos_exportar():
+    import csv, io
+    from flask import Response as _Response
+    tipo_filtro = request.args.get('tipo') or None
+    tag_filtro = request.args.get('tag') or None
+    with get_db_cursor(dict_cursor=True) as cur:
+        sql = "SELECT * FROM crm_contactos WHERE activo = TRUE"
+        params = []
+        if tipo_filtro:
+            sql += " AND tipo = %s"; params.append(tipo_filtro)
+        if tag_filtro:
+            sql += " AND %s = ANY(tags)"; params.append(tag_filtro)
+        sql += " ORDER BY nombre"
+        cur.execute(sql, tuple(params))
+        rows = cur.fetchall()
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(['tipo','nombre','empresa','cargo','email','telefono','whatsapp',
+                'ciudad','direccion','origen','tags','notas','created_at'])
+    for r in rows:
+        w.writerow([
+            r.get('tipo') or '', r.get('nombre') or '', r.get('empresa') or '',
+            r.get('cargo') or '', r.get('email') or '', r.get('telefono') or '',
+            r.get('whatsapp') or '', r.get('ciudad') or '', r.get('direccion') or '',
+            r.get('origen') or '', ';'.join(r.get('tags') or []),
+            (r.get('notas') or '').replace('\n',' '),
+            r.get('created_at').isoformat() if r.get('created_at') else '',
+        ])
+    return _Response(
+        buf.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=crm_contactos.csv'},
+    )
+
+
+@crm_bp.route('/contactos/importar', methods=['GET', 'POST'])
+@rol_requerido(ADMIN_STAFF)
+def contactos_importar():
+    if request.method == 'POST':
+        import csv, io
+        file = request.files.get('csv_file')
+        if not file or not file.filename:
+            flash('Selecciona un archivo CSV.', 'warning')
+            return redirect(url_for('crm.contactos_importar'))
+        try:
+            content = file.read().decode('utf-8-sig')
+            reader = csv.DictReader(io.StringIO(content))
+            from services.crm_service import upsert_contacto
+            ok = 0
+            for row in reader:
+                tags = [t.strip() for t in (row.get('tags') or '').split(';') if t.strip()]
+                upsert_contacto(
+                    email=row.get('email') or None,
+                    nombre=row.get('nombre') or None,
+                    telefono=row.get('telefono') or None,
+                    empresa=row.get('empresa') or None,
+                    ciudad=row.get('ciudad') or None,
+                    direccion=row.get('direccion') or None,
+                    tipo=(row.get('tipo') or 'lead').strip().lower() or 'lead',
+                    origen=(row.get('origen') or 'csv_import'),
+                    notas_append=row.get('notas') or None,
+                    tags_add=tags + ['importado'],
+                )
+                ok += 1
+            flash(f'Importación completada: {ok} filas procesadas.', 'success')
+            return redirect(url_for('crm.crm_contactos_lista'))
+        except Exception as e:
+            app.logger.error(f"Error importando CSV: {e}")
+            flash(f'Error procesando CSV: {e}', 'danger')
+    return render_template('crm_importar.html')
+
+
+# ==================================================================
+# F5 — EMAIL MASIVO
+# ==================================================================
+
+@crm_bp.route('/email-masivo', methods=['GET', 'POST'])
+@rol_requerido(ADMIN_STAFF)
+def email_masivo():
+    if request.method == 'POST':
+        ids_raw = request.form.get('contactos_ids', '').strip()
+        asunto = (request.form.get('asunto') or '').strip()[:200]
+        cuerpo = (request.form.get('cuerpo') or '').strip()
+        if not asunto or not cuerpo or not ids_raw:
+            flash('Faltan datos obligatorios.', 'warning')
+            return redirect(url_for('crm.email_masivo'))
+        try:
+            ids = [int(x) for x in ids_raw.split(',') if x.strip().isdigit()]
+        except ValueError:
+            ids = []
+        if not ids:
+            flash('No hay destinatarios.', 'warning')
+            return redirect(url_for('crm.email_masivo'))
+        enviados = 0
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute(
+                "SELECT id, nombre, email FROM crm_contactos WHERE id = ANY(%s) AND email IS NOT NULL AND email <> ''",
+                (ids,),
+            )
+            destinatarios = cur.fetchall()
+        from helpers_gmail import enviar_email_gmail
+        from services.crm_service import registrar_actividad
+        for d in destinatarios:
+            personalizado = cuerpo.replace('{nombre}', d['nombre'] or '')
+            html = f"<div style='font-family:sans-serif;max-width:600px;padding:20px;'>{personalizado.replace(chr(10),'<br>')}</div>"
+            if enviar_email_gmail(d['email'], asunto, personalizado, html=html):
+                enviados += 1
+                registrar_actividad(
+                    contacto_id=d['id'], tipo='email_masivo',
+                    asunto=asunto, descripcion=cuerpo[:1000],
+                    usuario_id=session.get('usuario_id'),
+                )
+        flash(f'Email enviado a {enviados} de {len(destinatarios)} contactos.', 'success')
+        return redirect(url_for('crm.crm_contactos_lista'))
+
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute("""
+            SELECT id, tipo, nombre, email, empresa, tags
+              FROM crm_contactos
+             WHERE activo=TRUE AND email IS NOT NULL AND email <> ''
+             ORDER BY nombre
+        """)
+        contactos = cur.fetchall()
+    return render_template('crm_email_masivo.html', contactos=contactos)
+
+
+# ==================================================================
+# F3.3 — REGISTRO RÁPIDO DE LLAMADA (AJAX)
+# ==================================================================
+
+@crm_bp.route('/contactos/<int:id>/llamada-rapida', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+def llamada_rapida(id):
+    from flask import jsonify
+    asunto = (request.form.get('asunto') or 'Llamada').strip()[:200]
+    duracion = (request.form.get('duracion') or '').strip()
+    descripcion = f"Duración: {duracion} min" if duracion else None
+    try:
+        from services.crm_service import registrar_actividad
+        registrar_actividad(
+            contacto_id=id, tipo='llamada', asunto=asunto,
+            descripcion=descripcion, usuario_id=session.get('usuario_id'),
+        )
+        return jsonify({'ok': True})
+    except Exception as e:
+        app.logger.warning(f"llamada_rapida: {e}")
+        return jsonify({'ok': False}), 500

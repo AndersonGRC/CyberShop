@@ -1,0 +1,90 @@
+{% extends './plantillaapp.html' %}
+{% block titulo %}{{ 'Nueva' if modo == 'crear' else 'Editar' }} Carpeta | {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/share.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="main-container">
+<div class="share-wrapper" style="max-width:700px;">
+
+    <div class="share-header">
+        <h1 class="page-title">
+            <i class="fas fa-{{ 'folder-plus' if modo == 'crear' else 'edit' }}"></i>
+            {{ 'Nueva Carpeta' if modo == 'crear' else 'Editar Carpeta' }}
+        </h1>
+        <a href="{{ url_for('share.gestion_carpetas') }}" class="btn-share-volver">
+            <i class="fas fa-arrow-left"></i> Volver
+        </a>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }}">{{ msg }}</div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    {% set es_raiz = (carpeta is none) or (carpeta and carpeta.parent_id is none) %}
+
+    <form method="POST" class="share-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="form-group">
+            <label for="nombre"><i class="fas fa-folder"></i> Nombre de la carpeta</label>
+            <input type="text" id="nombre" name="nombre" required maxlength="200"
+                   placeholder="Ej: Documentos Cliente Acme S.A."
+                   value="{{ carpeta.nombre if carpeta else '' }}">
+        </div>
+
+        <div class="form-group">
+            <label for="descripcion"><i class="fas fa-align-left"></i> Descripcion (opcional)</label>
+            <textarea id="descripcion" name="descripcion" rows="2"
+                      placeholder="Notas internas, contenido de la carpeta...">{{ carpeta.descripcion if carpeta and carpeta.descripcion else '' }}</textarea>
+        </div>
+
+        <div class="form-group share-toggle">
+            <label class="share-switch">
+                <input type="checkbox" name="permitir_subida" {% if carpeta and carpeta.permitir_subida %}checked{% endif %}>
+                <span class="share-switch-slider"></span>
+            </label>
+            <div>
+                <strong><i class="fas fa-upload"></i> Permitir que el cliente suba archivos</strong>
+                <p class="share-help">Util para recibir documentos firmados o materiales del cliente.</p>
+            </div>
+        </div>
+
+        {% if es_raiz %}
+        <div class="form-group">
+            <label for="clave"><i class="fas fa-lock"></i> Clave de acceso (opcional)</label>
+            <input type="text" id="clave" name="clave"
+                   placeholder="{% if modo == 'editar' and carpeta and carpeta.clave_hash %}Dejar vacio para mantener la clave actual{% else %}Sin clave (cualquiera con el link entra){% endif %}">
+            <p class="share-help">El cliente debera ingresar esta clave para ver la carpeta.</p>
+            {% if modo == 'editar' and carpeta and carpeta.clave_hash %}
+            <label class="share-check">
+                <input type="checkbox" name="quitar_clave"> Quitar la clave actual
+            </label>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="fecha_vence"><i class="fas fa-hourglass-half"></i> Fecha de vencimiento (opcional)</label>
+            <input type="datetime-local" id="fecha_vence" name="fecha_vence"
+                   value="{{ carpeta.fecha_vence.strftime('%Y-%m-%dT%H:%M') if carpeta and carpeta.fecha_vence else '' }}">
+            <p class="share-help">Despues de esta fecha el link dejara de funcionar.</p>
+        </div>
+        {% endif %}
+
+        <div class="form-actions">
+            <button type="submit" class="btn-share-primario">
+                <i class="fas fa-save"></i> {{ 'Crear Carpeta' if modo == 'crear' else 'Guardar Cambios' }}
+            </button>
+            <a href="{{ url_for('share.gestion_carpetas') }}" class="btn-share-cancelar">Cancelar</a>
+        </div>
+    </form>
+
+</div>
+</div>
+{% endblock %}

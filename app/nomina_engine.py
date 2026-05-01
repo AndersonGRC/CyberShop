@@ -2,42 +2,80 @@
 
 """
 Motor de cálculos de nómina colombiana.
-Funciones puras sin dependencia de Flask o base de datos.
+
+Contiene funciones puras (sin Flask ni base de datos) que aplican la
+normativa laboral y tributaria vigente:
+
+- Código Sustantivo del Trabajo (CST).
+- Ley 100 de 1993 (Seguridad Social).
+- Ley 1607 de 2012 (exoneración de aportes para salarios < 10 SMMLV).
+- Ley 50 de 1990 (cesantías y prima de servicios).
+- Ley 2101 de 2021 (reducción gradual de la jornada laboral).
+- Estatuto Tributario, Art. 383 (retención en la fuente laboral).
+
+Los porcentajes oficiales viven en `nomina_inteligente.py` para evitar
+duplicación. Aquí se reciben como parámetros para que el motor sea
+totalmente probable y reutilizable.
 """
 
 from datetime import date, timedelta
 
+
+# Base mensual de horas usada para calcular el valor hora ordinario.
+# Históricamente 240 (30 días × 8 h). La Ley 2101/2021 redujo la jornada
+# semanal pero mantuvo intacto el salario; en la práctica se sigue usando
+# 240 h/mes como base contable, salvo pacto distinto entre las partes.
+BASE_HORAS_MENSUAL = 240
+
+
+# Recargos y horas extras — Art. 168 a 179 CST.
+#   HED:  Hora Extra Diurna           (+25% sobre la hora ordinaria)
+#   HEN:  Hora Extra Nocturna         (+75%)
+#   HEDF: Hora Extra Diurna Festiva   (+100%)
+#   HENF: Hora Extra Nocturna Festiva (+150%)
+#   RN:   Recargo Nocturno            (+35% sobre la hora ordinaria)
+#   RD:   Recargo Dominical/Festivo   (+75%)
+FACTORES_HORAS_EXTRAS = {
+    'HED': 1.25,
+    'HEN': 1.75,
+    'HEDF': 2.00,
+    'HENF': 2.50,
+    'RN': 0.35,
+    'RD': 0.75,
+}
+
+
 def calcular_valor_hora(salario_base):
-    """Calcula el valor de la hora ordinaria (30 días * 8 horas = 240 horas)."""
-    return salario_base / 240
+    """
+    Valor de la hora ordinaria de trabajo.
+
+    Fórmula: salario mensual / 240 horas (base contable estándar).
+    """
+    return salario_base / BASE_HORAS_MENSUAL
+
 
 def calcular_horas_extras(valor_hora, tipo, cantidad):
     """
-    Calcula el valor de horas extras y recargos.
-    
-    Tipos:
-    - HED: Hora Extra Diurna (1.25)
-    - HEN: Hora Extra Nocturna (1.75)
-    - HEDF: Hora Extra Diurna Festiva (2.00)
-    - HENF: Hora Extra Nocturna Festiva (2.50)
-    - RN: Recargo Nocturno (0.35)
-    - RD: Recargo Dominical/Festivo (0.75)
+    Calcula el valor a pagar por horas extras o recargos.
+
+    Args:
+        valor_hora: valor de la hora ordinaria (ver `calcular_valor_hora`).
+        tipo: código del recargo (HED, HEN, HEDF, HENF, RN, RD).
+        cantidad: número de horas extra o de recargo.
+
+    Returns:
+        Valor en pesos a pagar por el concepto.
     """
-    factores = {
-        'HED': 1.25,
-        'HEN': 1.75,
-        'HEDF': 2.00,
-        'HENF': 2.50,
-        'RN': 0.35,
-        'RD': 0.75
-    }
-    factor = factores.get(tipo, 1.0)
+    factor = FACTORES_HORAS_EXTRAS.get(tipo, 1.0)
     return valor_hora * factor * cantidad
 
 def calcular_auxilio_transporte(salario_base, smmlv, valor_auxilio):
     """
-    Calcula auxilio de transporte.
-    Se paga si el salario base <= 2 SMMLV.
+    Auxilio de transporte (Ley 15 de 1959, Decreto 1258 de 1959).
+
+    Se reconoce a quienes devenguen hasta dos (2) SMMLV. No es factor
+    salarial pero sí entra en la base de prestaciones sociales (Art. 7
+    Ley 1ª/1963).
     """
     if salario_base <= (2 * smmlv):
         return valor_auxilio
@@ -45,7 +83,11 @@ def calcular_auxilio_transporte(salario_base, smmlv, valor_auxilio):
 
 def calcular_salud_pension(base_cotizacion, porcentaje_salud, porcentaje_pension):
     """
-    Calcula aportes a seguridad social (Empleado).
+    Aportes del empleado a salud y pensión (Ley 100 de 1993).
+
+    Por defecto los porcentajes son 4% y 4% sobre el IBC (Ingreso Base
+    de Cotización), pero se pasan como parámetro para permitir tarifas
+    especiales (servicio doméstico, regímenes excepcionales, etc.).
     """
     salud = base_cotizacion * (porcentaje_salud / 100)
     pension = base_cotizacion * (porcentaje_pension / 100)
@@ -53,16 +95,17 @@ def calcular_salud_pension(base_cotizacion, porcentaje_salud, porcentaje_pension
 
 def calcular_fondo_solidaridad(base_cotizacion, smmlv):
     """
-    Calcula Fondo de Solidaridad Pensional.
-    
-    Tablas:
-    - < 4 SMMLV: 0%
-    - 4 a < 16 SMMLV: 1%
-    - 16 a < 17 SMMLV: 1.2%
-    - 17 a < 18 SMMLV: 1.4%
-    - 18 a < 19 SMMLV: 1.6%
-    - 19 a < 20 SMMLV: 1.8%
-    - >= 20 SMMLV: 2%
+    Fondo de Solidaridad Pensional (Art. 27 Ley 100/1993, Art. 8 Ley 797/2003).
+
+    Aporte adicional a cargo del trabajador, calculado por tramos de SMMLV:
+
+      < 4 SMMLV:        0%
+      4 a < 16 SMMLV:   1.0%
+      16 a < 17 SMMLV:  1.2%
+      17 a < 18 SMMLV:  1.4%
+      18 a < 19 SMMLV:  1.6%
+      19 a < 20 SMMLV:  1.8%
+      >= 20 SMMLV:      2.0%
     """
     if smmlv == 0: return 0
     veces_smmlv = base_cotizacion / smmlv
@@ -84,15 +127,27 @@ def calcular_fondo_solidaridad(base_cotizacion, smmlv):
     return base_cotizacion * (porcentaje / 100)
 
 def calcular_arl(base_cotizacion, porcentaje_riesgo):
-    """Calcula aporte ARL (100% Empleador)."""
+    """
+    Aporte a Riesgos Laborales (Decreto 1295/1994).
+
+    El 100% lo asume el empleador. La tarifa depende del nivel de riesgo
+    de la actividad económica (I a V), entre 0.522% y 6.96%.
+    """
     return base_cotizacion * (porcentaje_riesgo / 100)
+
 
 def calcular_parafiscales(base_cotizacion, smmlv, porcentajes, es_exonerado):
     """
-    Calcula Parafiscales (Caja, ICBF, SENA).
-    Si es_exonerado (Ley 1607) y salario < 10 SMMLV:
-    - No paga Salud (8.5%), ICBF (3%), SENA (2%).
-    - Solo paga Caja (4%).
+    Aportes parafiscales — Caja de Compensación, ICBF y SENA.
+
+    Caja (Ley 21/1982):     4% — siempre se paga.
+    ICBF (Ley 89/1988):     3% — exonerado por Ley 1607/2012 si la empresa
+                                 es persona jurídica o natural empleadora
+                                 de 2+ trabajadores y el salario del
+                                 trabajador es inferior a 10 SMMLV.
+    SENA (Ley 119/1994):    2% — misma exoneración que ICBF.
+    Salud empleador (8.5%): se paga por fuera de esta función; aplica la
+                            misma exoneración del Art. 114-1 ET.
     """
     caja = base_cotizacion * (porcentajes['ccf'] / 100)
     
@@ -108,18 +163,33 @@ def calcular_parafiscales(base_cotizacion, smmlv, porcentajes, es_exonerado):
 
 def calcular_prestaciones(base_prestaciones, porcentajes):
     """
-    Calcula provisiones mensuales de prestaciones sociales.
+    Provisiones mensuales de prestaciones sociales (CST y Ley 50/1990).
+
+    Porcentajes mensuales típicos sobre la base prestacional:
+        cesantias:   8.33%  (Art. 249 CST — equivalente a 1 mes/año)
+        prima:       8.33%  (Art. 306 CST — 30 días/año, dos pagos)
+        vacaciones:  4.17%  (Art. 186 CST — 15 días hábiles/año)
+        intereses:   12% anual sobre las cesantías (Ley 52/1975).
     """
     cesantias = base_prestaciones * (porcentajes['cesantias'] / 100)
-    intereses = cesantias * (12 / 100) # 12% anual sobre el valor de cesantias
+    intereses = cesantias * (12 / 100)
     prima = base_prestaciones * (porcentajes['prima'] / 100)
     vacaciones = base_prestaciones * (porcentajes['vacaciones'] / 100)
-    
+
     return cesantias, intereses, prima, vacaciones
 
 def calcular_retencion_fuente(ingreso_laboral, salud_pension_fsp, uvt_valor, tabla_retencion):
     """
-    Calcula Retención en la Fuente (Procedimiento 1).
+    Retención en la fuente por ingresos laborales — Procedimiento 1
+    (Art. 383 y 388 del Estatuto Tributario).
+
+    Pasos del cálculo:
+      1. Base depurada = ingreso laboral - aportes obligatorios (salud,
+         pensión, fondo de solidaridad).
+      2. Renta exenta del 25% (Art. 206 num. 10 ET), con tope mensual
+         de 790 UVT/12.
+      3. Convertir base gravable a UVT y aplicar la tabla del Art. 383.
+      4. Multiplicar la retención en UVT por el valor del UVT vigente.
     """
     # 1. Ingreso Neto
     base_depurada = ingreso_laboral - salud_pension_fsp

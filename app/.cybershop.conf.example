@@ -1,17 +1,53 @@
-# ============================================================
-# .env.example — Plantilla de variables de entorno para CyberShop
-# Copia este archivo como .env y rellena los valores reales.
-# ============================================================
+# =============================================================
+# CyberShop — Plantilla de variables de entorno
+# Copiar como .cybershop.conf y completar con valores reales.
+# NUNCA versionar .cybershop.conf (está en .gitignore).
+# =============================================================
 
 # --- Flask ---
-FLASK_SECRET_KEY=cambia-esto-por-una-clave-aleatoria-segura
+FLASK_SECRET_KEY=cambia-esto-por-una-clave-aleatoria-larga
+FLASK_DEBUG=false
 
-# --- Base de Datos PostgreSQL ---
-DB_NAME=cybershop
+# --- Base de Datos PostgreSQL (tenant activo) ---
+DB_NAME=cyber_t001
 DB_USER=postgres
 DB_PASSWORD=tu_password_postgres
 DB_HOST=localhost
 DB_PORT=5432
+
+# --- Control Plane (saas_control_plane) ---
+# Si corre en el mismo Postgres se puede omitir; usa los valores de DB_* como fallback.
+CONTROL_PLANE_DB_NAME=saas_control_plane
+# CONTROL_PLANE_DB_USER=postgres       # opcional
+# CONTROL_PLANE_DB_PASSWORD=           # opcional
+# CONTROL_PLANE_DB_HOST=localhost      # opcional
+# CONTROL_PLANE_DB_PORT=5432           # opcional
+
+# --- Tenant por defecto (Fase 1: un solo tenant) ---
+DEFAULT_TENANT_ID=1
+DEFAULT_TENANT_SLUG=cyber-t001
+
+# --- JWT ---
+# Generar con: python tools/gen_jwt_keys.py
+JWT_PRIVATE_KEY_PATH=/ruta/absoluta/app/keys/jwt_private.pem
+JWT_PUBLIC_KEY_PATH=/ruta/absoluta/app/keys/jwt_public.pem
+JWT_ACCESS_TTL_SECONDS=900
+JWT_REFRESH_TTL_SECONDS=2592000
+
+# --- API ---
+CYBERSHOP_API_ENABLED=1
+APP_VERSION=1.0.0
+
+# --- Cifrado de contraseñas de BD de tenants (AES-256-GCM) ---
+# Generar: python -c "import secrets,base64; print(base64.b64encode(secrets.token_bytes(32)).decode())"
+KMS_KEY=
+
+# --- Redis (Flask-Limiter) ---
+REDIS_URL=redis://localhost:6379/0
+
+# --- Migración ---
+TENANT_SLUG=cyber-t001
+TENANT_NOMBRE=Nombre del Cliente
 
 # --- PayU Latam ---
 PAYU_API_KEY=tu_payu_api_key
@@ -19,21 +55,26 @@ PAYU_API_LOGIN=tu_payu_api_login
 PAYU_MERCHANT_ID=tu_merchant_id
 PAYU_ACCOUNT_ID=tu_account_id
 PAYU_ENV=sandbox
-PAYU_RESPONSE_URL=http://localhost:5001/respuesta-pago
-PAYU_CONFIRMATION_URL=http://localhost:5001/confirmacion-pago
+PAYU_RESPONSE_URL=https://app.cybershopcol.com/respuesta-pago
+PAYU_CONFIRMATION_URL=https://app.cybershopcol.com/confirmacion-pago
 
 # --- Gmail SMTP ---
-# Usar una "Contraseña de aplicación" de Google (no la contraseña principal)
 MAIL_USERNAME=tu_correo@gmail.com
 MAIL_PASSWORD=tu_app_password_sin_espacios
 MAIL_DEFAULT_SENDER=tu_correo@gmail.com
 
 # --- Google OAuth 2.0 ---
-# Crear en: https://console.cloud.google.com → APIs → Credenciales → OAuth 2.0
 GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-xxxxx
-GOOGLE_REDIRECT_URI=http://localhost:5001/admin/google/callback
-GOOGLE_LOGIN_REDIRECT_URI=http://localhost:5001/google/login/callback
+GOOGLE_REDIRECT_URI=https://app.cybershopcol.com/admin/google/callback
+GOOGLE_GMAIL_REDIRECT_URI=https://app.cybershopcol.com/admin/google/gmail/callback
+GOOGLE_LOGIN_REDIRECT_URI=https://app.cybershopcol.com/google/login/callback
+
+# --- reCAPTCHA ---
+RECAPTCHA_SECRET_KEY=
+
+# --- Seguridad de cookies ---
+SESSION_COOKIE_SECURE=true
 
 # --- Datos de Facturación (Cuentas de Cobro) ---
 BILLING_NOMBRE=Tu Nombre Completo

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso protegido | {{ brand_config.empresa_nombre or 'Documentos compartidos' }}</title>
+    <link rel="shortcut icon" href="{{ brand_config.empresa_logo_url or url_for('static', filename='img/Logo.PNG') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/variables.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/share_publico.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css?family=Raleway:500,600,700&display=swap" rel="stylesheet">
+
+    {% if brand_config %}
+    <style>
+    :root {
+      {% if brand_config.color_primario          %}--color-primario:          {{ brand_config.color_primario }};{% endif %}
+      {% if brand_config.color_primario_oscuro   %}--color-primario-oscuro:   {{ brand_config.color_primario_oscuro }};{% endif %}
+      {% if brand_config.color_secundario        %}--color-secundario:        {{ brand_config.color_secundario }};{% endif %}
+      {% if brand_config.color_acento            %}--color-accent:            {{ brand_config.color_acento }};{% endif %}
+      {% if brand_config.color_botones           %}--color-botones:           {{ brand_config.color_botones }};{% endif %}
+    }
+    </style>
+    {% endif %}
+</head>
+<body class="share-publico-body share-publico-clave-body">
+
+<main class="share-clave-wrap">
+    <div class="share-clave-card">
+        <img src="{{ brand_config.empresa_logo_url or url_for('static', filename='img/Logo.PNG') }}"
+             alt="Logo" class="share-clave-logo">
+        <h1>{{ carpeta_raiz.nombre }}</h1>
+        <p class="share-clave-sub"><i class="fas fa-lock"></i> Esta carpeta esta protegida</p>
+
+        {% if error %}
+        <div class="share-publico-alert share-publico-alert-error">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('share.publico_clave', token=token) }}" class="share-clave-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="next_id" value="{{ next_id }}">
+            <label for="clave">Ingresa la clave:</label>
+            <input type="password" id="clave" name="clave" required autofocus
+                   placeholder="Clave de acceso">
+            <button type="submit" class="share-publico-btn-primario">
+                <i class="fas fa-unlock-alt"></i> Acceder
+            </button>
+        </form>
+
+        <p class="share-clave-foot">
+            {{ brand_config.empresa_nombre or 'Documentos compartidos' }}
+        </p>
+    </div>
+</main>
+
+</body>
+</html>

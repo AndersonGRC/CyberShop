@@ -97,22 +97,13 @@ os.makedirs(app.config['UPLOADED_USERIMAGES_DEST'], exist_ok=True)
 # --- Context processor: inyecta config_secciones a todos los templates ---
 @app.context_processor
 def inject_config_global():
-    from database import get_db_cursor
     from tenant_features import get_active_module_codes, get_current_tenant_id
-    config = {}
-    brand  = {}
+    from services.public_site_service import get_brand_config, get_public_sections
+
+    config = get_public_sections()
+    brand = get_brand_config()
     active_modules = set()
     current_tenant_id = get_current_tenant_id()
-    try:
-        with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute('SELECT clave, valor FROM config_secciones')
-            for row in cur.fetchall():
-                config[row['clave']] = row['valor'] == 'true'
-            cur.execute('SELECT clave, valor FROM cliente_config')
-            for row in cur.fetchall():
-                brand[row['clave']] = row['valor']
-    except Exception:
-        pass
     from datetime import datetime
     from flask import session as _s
     session_usuario = None
@@ -152,8 +143,21 @@ def set_security_headers(response):
         response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
     return response
 
+# --- Resolver tenant activo en cada request ---
+from services.tenant_resolver import resolve_current_tenant
+app.before_request(resolve_current_tenant)
+
 # --- Registrar blueprints ---
-register_blueprints(app)
+api_blueprints = register_blueprints(app)
+
+# --- Exentar webhook de PayU de la proteccion CSRF ---
+# PayU envia POST server-to-server sin token CSRF; la firma MD5 lo autentica.
+csrf.exempt(app.view_functions['payments.confirmacion_pago'])
+
+# --- Exentar blueprints de la API REST del CSRF (usan Bearer JWT) ---
+if api_blueprints:
+    for bp in api_blueprints:
+        csrf.exempt(bp)
 
 # --- Ejecutar ---
 if __name__ == '__main__':

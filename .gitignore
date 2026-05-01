@@ -71,6 +71,7 @@ app/static/user/users/
 # Carpeta uploads general
 app/static/uploads/
 !app/static/uploads/.gitkeep
+app/uploads/
 
 # Fotos de contactos CRM
 app/static/crm/fotos/
@@ -113,6 +114,8 @@ bower_components/
 # Claude Code
 # =============================================================
 .claude/
+.codex
+
 
 # =============================================================
 # Archivos temporales

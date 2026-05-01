@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enlace no disponible | {{ brand_config.empresa_nombre or 'Documentos compartidos' }}</title>
+    <link rel="shortcut icon" href="{{ brand_config.empresa_logo_url or url_for('static', filename='img/Logo.PNG') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/variables.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/share_publico.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css?family=Raleway:500,600,700&display=swap" rel="stylesheet">
+
+    {% if brand_config %}
+    <style>
+    :root {
+      {% if brand_config.color_primario        %}--color-primario:          {{ brand_config.color_primario }};{% endif %}
+      {% if brand_config.color_primario_oscuro %}--color-primario-oscuro:   {{ brand_config.color_primario_oscuro }};{% endif %}
+      {% if brand_config.color_secundario      %}--color-secundario:        {{ brand_config.color_secundario }};{% endif %}
+    }
+    </style>
+    {% endif %}
+</head>
+<body class="share-publico-body share-publico-clave-body">
+
+<main class="share-clave-wrap">
+    <div class="share-clave-card">
+        <img src="{{ brand_config.empresa_logo_url or url_for('static', filename='img/Logo.PNG') }}"
+             alt="Logo" class="share-clave-logo">
+        <h1>
+            {% if motivo == 'vencida' %}
+            Este enlace ha vencido
+            {% else %}
+            Enlace no disponible
+            {% endif %}
+        </h1>
+        <p class="share-clave-sub">
+            <i class="fas fa-times-circle"></i>
+            {% if motivo == 'vencida' %}
+            La carpeta que intentas abrir ya no esta disponible. Solicita un nuevo enlace al administrador.
+            {% else %}
+            La carpeta no existe o el enlace fue regenerado.
+            {% endif %}
+        </p>
+        <p class="share-clave-foot">
+            {{ brand_config.empresa_nombre or 'Documentos compartidos' }}
+        </p>
+    </div>
+</main>
+
+</body>
+</html>

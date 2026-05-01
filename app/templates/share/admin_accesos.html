@@ -1,0 +1,55 @@
+{% extends './plantillaapp.html' %}
+{% block titulo %}Accesos | {{ carpeta.nombre }} | {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/share.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="main-container">
+<div class="share-wrapper">
+
+    <div class="share-header">
+        <h1 class="page-title">
+            <i class="fas fa-history"></i> Accesos a "{{ carpeta.nombre }}"
+        </h1>
+        <a href="{{ url_for('share.ver_carpeta_admin', carpeta_id=carpeta.id) }}" class="btn-share-volver">
+            <i class="fas fa-arrow-left"></i> Volver
+        </a>
+    </div>
+
+    {% if accesos|length == 0 %}
+    <p class="share-vacio">Sin accesos registrados todavia.</p>
+    {% else %}
+    <table class="share-tabla">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Accion</th>
+                <th>Archivo</th>
+                <th>IP</th>
+                <th>User-Agent</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for a in accesos %}
+            <tr>
+                <td>{{ a.fecha.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                <td>
+                    {% if a.accion == 'view' %}<span class="share-pill"><i class="fas fa-eye"></i> Vista</span>
+                    {% elif a.accion == 'download' %}<span class="share-pill share-pill-up"><i class="fas fa-download"></i> Descarga</span>
+                    {% elif a.accion == 'upload' %}<span class="share-pill share-pill-lock"><i class="fas fa-upload"></i> Subida</span>
+                    {% else %}{{ a.accion }}{% endif %}
+                </td>
+                <td>{{ a.archivo_nombre or '—' }}</td>
+                <td>{{ a.ip or '—' }}</td>
+                <td class="share-ua">{{ (a.user_agent or '')[:80] }}{% if a.user_agent and a.user_agent|length > 80 %}…{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+</div>
+</div>
+{% endblock %}

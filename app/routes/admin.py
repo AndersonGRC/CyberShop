@@ -29,6 +29,15 @@ from security import (
     ROL_SUPER_ADMIN,
 )
 from tenant_features import get_module_settings, set_module_state
+from services.public_site_service import (
+    PUBLIC_BRANDING_FIELDS,
+    PUBLIC_COLOR_FIELDS,
+    PUBLIC_LANDING_FIELDS,
+    get_public_site_admin_context,
+    save_public_logo,
+    save_public_site_sections,
+    save_public_site_settings,
+)
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -1088,8 +1097,8 @@ def gestion_publicaciones():
         with get_db_cursor(dict_cursor=True) as cur:
             cur.execute('SELECT * FROM publicaciones_home ORDER BY fecha_creacion DESC')
             publicaciones = cur.fetchall()
-    except Exception as e:
-        flash(f'Error cargando publicaciones: Revisa el log para más detalles.', 'error')
+    except Exception:
+        flash('Error cargando publicaciones: Revisa el log para más detalles.', 'error')
     return render_template('gestion_publicaciones.html', datosApp=datosApp, publicaciones=publicaciones)
 
 
@@ -1118,8 +1127,8 @@ def crear_publicacion():
                 )
             flash('Publicacion creada correctamente.', 'success')
             return redirect(url_for('admin.gestion_publicaciones'))
-        except Exception as e:
-            flash(f'Error creando publicacion: Revisa el log para más detalles.', 'error')
+        except Exception:
+            flash('Error creando publicacion: Revisa el log para más detalles.', 'error')
 
     return render_template('gestion_publicaciones.html', datosApp=datosApp, publicaciones=[], modo='crear')
 
@@ -1162,10 +1171,16 @@ def editar_publicacion(id):
                     )
             flash('Publicacion actualizada.', 'success')
             return redirect(url_for('admin.gestion_publicaciones'))
-        except Exception as e:
-            flash(f'Error actualizando: Revisa el log para más detalles.', 'error')
+        except Exception:
+            flash('Error actualizando: Revisa el log para más detalles.', 'error')
 
-    return render_template('gestion_publicaciones.html', datosApp=datosApp, publicaciones=[], modo='editar', publicacion=publicacion)
+    return render_template(
+        'gestion_publicaciones.html',
+        datosApp=datosApp,
+        publicaciones=[],
+        modo='editar',
+        publicacion=publicacion,
+    )
 
 
 @admin_bp.route('/admin/publicaciones/eliminar/<int:id>', methods=['POST'])
@@ -1206,8 +1221,8 @@ def gestion_slides():
         with get_db_cursor(dict_cursor=True) as cur:
             cur.execute('SELECT * FROM slides_home ORDER BY orden ASC, id ASC')
             slides = cur.fetchall()
-    except Exception as e:
-        flash(f'Error cargando slides: Revisa el log para más detalles.', 'error')
+    except Exception:
+        flash('Error cargando slides: Revisa el log para más detalles.', 'error')
     return render_template('gestion_slides.html', datosApp=datosApp, slides=slides)
 
 
@@ -1239,8 +1254,8 @@ def crear_slide():
                 )
             flash('Slide creado correctamente.', 'success')
             return redirect(url_for('admin.gestion_slides'))
-        except Exception as e:
-            flash(f'Error creando slide: Revisa el log para más detalles.', 'error')
+        except Exception:
+            flash('Error creando slide: Revisa el log para más detalles.', 'error')
 
     return render_template('gestion_slides.html', datosApp=datosApp, slides=[], modo='crear')
 
@@ -1284,8 +1299,8 @@ def editar_slide(id):
                     )
             flash('Slide actualizado.', 'success')
             return redirect(url_for('admin.gestion_slides'))
-        except Exception as e:
-            flash(f'Error actualizando slide: Revisa el log para más detalles.', 'error')
+        except Exception:
+            flash('Error actualizando slide: Revisa el log para más detalles.', 'error')
 
     return render_template('gestion_slides.html', datosApp=datosApp, slides=[], modo='editar', slide=slide)
 
@@ -1328,8 +1343,8 @@ def gestion_servicios():
         with get_db_cursor(dict_cursor=True) as cur:
             cur.execute('SELECT * FROM servicios_home ORDER BY orden ASC, id ASC')
             servicios = cur.fetchall()
-    except Exception as e:
-        flash(f'Error cargando servicios: Revisa el log para más detalles.', 'error')
+    except Exception:
+        flash('Error cargando servicios: Revisa el log para más detalles.', 'error')
     return render_template('gestion_servicios.html', datosApp=datosApp, servicios=servicios)
 
 
@@ -1360,8 +1375,8 @@ def crear_servicio():
                 )
             flash('Servicio creado correctamente.', 'success')
             return redirect(url_for('admin.gestion_servicios'))
-        except Exception as e:
-            flash(f'Error creando servicio: Revisa el log para más detalles.', 'error')
+        except Exception:
+            flash('Error creando servicio: Revisa el log para más detalles.', 'error')
 
     return render_template('gestion_servicios.html', datosApp=datosApp, servicios=[], modo='crear')
 
@@ -1406,10 +1421,16 @@ def editar_servicio(id):
                     )
             flash('Servicio actualizado.', 'success')
             return redirect(url_for('admin.gestion_servicios'))
-        except Exception as e:
-            flash(f'Error actualizando: Revisa el log para más detalles.', 'error')
+        except Exception:
+            flash('Error actualizando: Revisa el log para más detalles.', 'error')
 
-    return render_template('gestion_servicios.html', datosApp=datosApp, servicios=[], modo='editar', servicio=servicio)
+    return render_template(
+        'gestion_servicios.html',
+        datosApp=datosApp,
+        servicios=[],
+        modo='editar',
+        servicio=servicio,
+    )
 
 
 @admin_bp.route('/admin/servicios/eliminar/<int:id>', methods=['POST'])
@@ -1440,11 +1461,49 @@ def toggle_servicio(id):
 
 # --- Configuracion de Secciones del Home (redirige a configuración unificada) ---
 
+@admin_bp.route('/admin/sitio-publico', methods=['GET', 'POST'])
+@rol_requerido(ROL_SUPER_ADMIN)
+def sitio_publico():
+    """Panel de configuración visual del sitio público."""
+    if request.method == 'POST':
+        form_type = request.form.get('form_type')
+        try:
+            if form_type == 'branding':
+                save_public_site_settings(
+                    request.form,
+                    [
+                        field['key']
+                        for field in PUBLIC_BRANDING_FIELDS + PUBLIC_COLOR_FIELDS + PUBLIC_LANDING_FIELDS
+                        if field['key'] != 'empresa_logo_url'
+                    ],
+                )
+                save_public_logo(request.files.get('logo'), current_app.root_path)
+                flash('Branding y datos públicos actualizados.', 'success')
+                return redirect(url_for('admin.sitio_publico') + '#branding')
+
+            if form_type == 'sections':
+                save_public_site_sections(request.form)
+                flash('Visibilidad del sitio público actualizada.', 'success')
+                return redirect(url_for('admin.sitio_publico') + '#sections')
+
+            flash('No se reconoció el formulario enviado.', 'warning')
+        except Exception as exc:
+            current_app.logger.error(f'Error actualizando sitio publico: {exc}')
+            flash('No fue posible guardar la configuración del sitio público.', 'error')
+        return redirect(url_for('admin.sitio_publico'))
+
+    return render_template(
+        'sitio_publico_admin.html',
+        datosApp=get_data_app(),
+        **get_public_site_admin_context(),
+    )
+
+
 @admin_bp.route('/admin/config-secciones', methods=['GET', 'POST'])
 @rol_requerido(ROL_SUPER_ADMIN)
 def config_secciones():
-    """Redirige a la configuración unificada (solo Super Admin)."""
-    return redirect(url_for('admin.configuracion_cliente') + '#secciones')
+    """Redirige a la configuración pública unificada."""
+    return redirect(url_for('admin.sitio_publico') + '#sections')
 
 
 # --- Punto de Venta (POS) ---

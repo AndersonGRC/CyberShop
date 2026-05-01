@@ -1,0 +1,31 @@
+{% extends "public/layout_admin.html" %}
+{% block content %}
+<div class="container py-4" style="max-width: 720px;">
+    <h1 class="h4 mb-3"><i class="fas fa-file-import text-primary"></i> Importar contactos (CSV)</h1>
+
+    <div class="card shadow mb-3"><div class="card-body">
+        <p>Sube un CSV con las columnas: <code>tipo, nombre, empresa, cargo, email, telefono, whatsapp, ciudad, direccion, origen, tags, notas</code></p>
+        <ul>
+            <li>La fila de encabezados es obligatoria.</li>
+            <li><code>tags</code> separados por punto y coma: <code>vip;bogota</code></li>
+            <li>Se deduplica por email (case-insensitive) — las filas existentes se actualizan en lugar de duplicarse.</li>
+        </ul>
+        <form method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label>Archivo CSV</label>
+                <input type="file" name="csv_file" accept=".csv,text/csv" class="form-control-file" required>
+            </div>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-upload"></i> Importar</button>
+            <a href="{{ url_for('crm.crm_contactos_lista') }}" class="btn btn-light">Cancelar</a>
+        </form>
+    </div></div>
+
+    <div class="card"><div class="card-body">
+        <h6>¿Necesitas la plantilla?</h6>
+        <a href="{{ url_for('crm.contactos_exportar') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-download"></i> Descargar CSV actual como referencia
+        </a>
+    </div></div>
+</div>
+{% endblock %}

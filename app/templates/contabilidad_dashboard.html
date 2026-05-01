@@ -25,15 +25,138 @@
     width:100%; padding:8px 10px; border-radius:6px; border:1px solid #ddd;
     font-size:0.9em; box-sizing:border-box; }
 
+/* ---- Header del dashboard ---- */
+.dash-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.dash-header .page-title { margin: 0; }
+
+.dash-header__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Pill bar segmentado para periodos */
+.period-filter {
+    display: inline-flex;
+    background: #eef0f5;
+    border-radius: 999px;
+    padding: 4px;
+    gap: 2px;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+.period-filter::-webkit-scrollbar { display: none; }
+
+.period-pill {
+    padding: 7px 14px;
+    border-radius: 999px;
+    font-size: 0.8em;
+    font-weight: 600;
+    text-decoration: none;
+    color: #555;
+    white-space: nowrap;
+    transition: background .15s, color .15s, box-shadow .15s;
+}
+.period-pill:hover { color: var(--color-primario); background: rgba(255,255,255,.6); }
+.period-pill.active {
+    background: var(--color-primario);
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(18,44,148,0.22);
+}
+
+/* Enlaces de navegación */
+.dash-nav {
+    display: inline-flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.nav-pill {
+    padding: 7px 14px;
+    border-radius: 999px;
+    font-size: 0.8em;
+    font-weight: 600;
+    text-decoration: none;
+    background: #fff;
+    color: #555;
+    border: 1px solid #e3e6ec;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background .15s, color .15s, border-color .15s;
+}
+.nav-pill:hover {
+    border-color: var(--color-primario);
+    color: var(--color-primario);
+    background: rgba(18,44,148,0.04);
+}
+
+/* CTA registro rápido */
+.btn-quick-add {
+    padding: 8px 18px;
+    border-radius: 999px;
+    font-size: 0.82em;
+    font-weight: 700;
+    background: var(--color-primario);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 4px 12px rgba(18,44,148,0.22);
+    transition: filter .15s, transform .15s;
+}
+.btn-quick-add:hover { filter: brightness(1.08); transform: translateY(-1px); }
+
 @media (max-width:768px) {
     #grid-dash-main { grid-template-columns:1fr !important; }
     .kpi-cards { flex-direction:column !important; }
     .kpi-cards > div { min-width:unset !important; width:100%; box-sizing:border-box; }
-    .dash-actions { flex-direction:column !important; align-items:flex-start !important; }
-    .dash-actions a { width:100%; text-align:center; box-sizing:border-box; }
     #wrap-table-dash { overflow-x:auto; -webkit-overflow-scrolling:touch; }
     #wrap-table-dash table { min-width:500px; }
     .modal-box { margin:16px; }
+
+    /* Header del dashboard en mobile */
+    .dash-header { flex-direction: column; align-items: stretch; }
+    .dash-header__actions { flex-direction: column; align-items: stretch; gap: 10px; }
+
+    .period-filter {
+        display: flex;
+        width: 100%;
+        justify-content: space-between;
+    }
+    .period-pill {
+        flex: 1;
+        text-align: center;
+        padding: 9px 6px;
+        font-size: 0.78em;
+    }
+
+    .dash-nav { width: 100%; }
+    .nav-pill {
+        flex: 1;
+        justify-content: center;
+        padding: 10px 12px;
+        min-width: 0;
+    }
+
+    .btn-quick-add {
+        width: 100%;
+        justify-content: center;
+        padding: 12px 18px;
+        font-size: 0.88em;
+    }
 }
 </style>
 {% endblock %}
@@ -43,28 +166,31 @@
 <div class="content-wrapper" style="padding:28px 24px; max-width:1200px;">
 
     <!-- Encabezado -->
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
-        <h1 class="page-title" style="margin:0;"><i class="fas fa-chart-line"></i> Contabilidad</h1>
-        <div class="dash-actions" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-            {% for p, lbl in [('semana','Semana'),('mes','Este mes'),('mes_ant','Mes ant.'),('anio','Este año')] %}
-            <a href="{{ url_for('contabilidad.dashboard', periodo=p) }}"
-               style="padding:5px 14px; border-radius:20px; font-size:0.82em; font-weight:600; text-decoration:none;
-                      background:{{ 'var(--color-primario)' if periodo==p else '#e9ecef' }};
-                      color:{{ '#fff' if periodo==p else '#555' }};">{{ lbl }}</a>
-            {% endfor %}
-            <a href="{{ url_for('contabilidad.movimientos') }}"
-               style="padding:5px 14px; border-radius:20px; font-size:0.82em; font-weight:600; text-decoration:none; background:#e9ecef; color:#555;">
-                <i class="fas fa-list"></i> Movimientos
-            </a>
-            <a href="{{ url_for('contabilidad.cierres') }}"
-               style="padding:5px 14px; border-radius:20px; font-size:0.82em; font-weight:600; text-decoration:none; background:#e9ecef; color:#555;">
-                <i class="fas fa-flag-checkered"></i> Cierres
-            </a>
-            <!-- Botón registro rápido -->
-            <button onclick="abrirModal()" type="button"
-                    style="padding:7px 16px; border-radius:20px; font-size:0.82em; font-weight:700;
-                           background:var(--color-primario); color:#fff; border:none; cursor:pointer;
-                           display:flex; align-items:center; gap:6px;">
+    <div class="dash-header">
+        <h1 class="page-title"><i class="fas fa-chart-line"></i> Contabilidad</h1>
+        <div class="dash-header__actions">
+
+            <!-- Filtro de período (segmentado) -->
+            <div class="period-filter" role="tablist" aria-label="Filtro por período">
+                {% for p, lbl in [('semana','Semana'),('mes','Este mes'),('mes_ant','Mes ant.'),('anio','Este año')] %}
+                <a href="{{ url_for('contabilidad.dashboard', periodo=p) }}"
+                   class="period-pill {% if periodo==p %}active{% endif %}"
+                   role="tab" aria-selected="{{ 'true' if periodo==p else 'false' }}">{{ lbl }}</a>
+                {% endfor %}
+            </div>
+
+            <!-- Navegación interna -->
+            <div class="dash-nav">
+                <a href="{{ url_for('contabilidad.movimientos') }}" class="nav-pill">
+                    <i class="fas fa-list"></i> Movimientos
+                </a>
+                <a href="{{ url_for('contabilidad.cierres') }}" class="nav-pill">
+                    <i class="fas fa-flag-checkered"></i> Cierres
+                </a>
+            </div>
+
+            <!-- CTA registro rápido -->
+            <button onclick="abrirModal()" type="button" class="btn-quick-add">
                 <i class="fas fa-plus"></i> Registro rápido
             </button>
         </div>

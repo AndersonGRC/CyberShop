@@ -9,7 +9,43 @@
 
 {% block content %}
 <div class="container-fluid">
-    <h1 class="h3 mb-4 text-gray-800">{{ 'Editar' if modo == 'editar' else 'Crear' }} Parámetros Legales</h1>
+    <h1 class="h3 mb-2 text-gray-800">
+        {{ 'Editar' if modo == 'editar' else 'Crear' }} Parámetros Legales
+    </h1>
+    <p class="text-muted mb-4">
+        Cada año el Gobierno y la DIAN expiden tres valores clave para la
+        nómina: el <strong>SMMLV</strong>, el <strong>auxilio de transporte</strong>
+        y el <strong>UVT</strong>. Cárgalos aquí para que el motor calcule
+        correctamente aportes, retenciones, prestaciones e indemnizaciones.
+    </p>
+
+    {% if referencia %}
+    <div class="alert
+        {% if referencia.estado == 'oficial' %}alert-success{% else %}alert-warning{% endif %}
+        d-flex align-items-start" role="alert">
+        <i class="fas fa-info-circle mr-2 mt-1"></i>
+        <div>
+            <strong>
+                {% if referencia.estado == 'oficial' %}
+                Valores oficiales {{ referencia.anio }}:
+                {% else %}
+                Valores proyectados {{ referencia.anio }} (aún sin decreto):
+                {% endif %}
+            </strong>
+            SMMLV ${{ "{:,.0f}".format(referencia.salario_minimo) }} ·
+            Auxilio ${{ "{:,.0f}".format(referencia.auxilio_transporte) }} ·
+            UVT ${{ "{:,.0f}".format(referencia.uvt) }}
+            <br>
+            <small>{{ referencia.fuente }}</small>
+            {% if modo == 'crear' %}
+            <br>
+            <button type="button" id="btn-autocompletar" class="btn btn-sm btn-outline-primary mt-2">
+                <i class="fas fa-magic"></i> Usar estos valores
+            </button>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 
     <div class="card shadow mb-4">
         <div class="card-body">
@@ -18,34 +54,80 @@
                     <div class="form-group col-md-3">
                         <label for="anio">Año</label>
                         <input type="number" class="form-control" id="anio" name="anio"
-                            value="{{ p.anio if p else '' }}" {{ 'readonly' if modo=='editar' else 'required' }}>
+                            value="{{ p.anio if p else (anio_sugerido or '') }}"
+                            {{ 'readonly' if modo=='editar' else 'required' }}>
+                        <small class="form-text text-muted">
+                            Año al que aplican estos valores.
+                        </small>
                     </div>
                 </div>
 
                 <hr>
-                <h5 class="mb-3">Valores Base</h5>
+                <h5 class="mb-3">Valores anuales obligatorios</h5>
+
                 <div class="form-row">
                     <div class="form-group col-md-4">
-                        <label for="salario_minimo">Salario Mínimo (SMMLV)</label>
+                        <label for="salario_minimo">
+                            Salario Mínimo Mensual (SMMLV)
+                        </label>
                         <input type="number" step="0.01" class="form-control" id="salario_minimo" name="salario_minimo"
-                            value="{{ p.salario_minimo if p else '' }}" required>
+                            value="{{ p.salario_minimo if p else (referencia.salario_minimo if referencia else '') }}"
+                            data-ref="{{ referencia.salario_minimo if referencia else '' }}" required>
+                        <small class="form-text text-muted">
+                            Lo fija un decreto del Gobierno cada diciembre.
+                            Es la base de exoneraciones (Ley 1607), del fondo
+                            de solidaridad y del piso de cotización.
+                        </small>
                     </div>
+
                     <div class="form-group col-md-4">
-                        <label for="auxilio_transporte">Auxilio Transporte</label>
+                        <label for="auxilio_transporte">
+                            Auxilio de Transporte mensual
+                        </label>
                         <input type="number" step="0.01" class="form-control" id="auxilio_transporte"
-                            name="auxilio_transporte" value="{{ p.auxilio_transporte if p else '' }}" required>
+                            name="auxilio_transporte"
+                            value="{{ p.auxilio_transporte if p else (referencia.auxilio_transporte if referencia else '') }}"
+                            data-ref="{{ referencia.auxilio_transporte if referencia else '' }}" required>
+                        <small class="form-text text-muted">
+                            Decreto separado al del SMMLV. Se paga a quienes
+                            ganan hasta 2 SMMLV (Ley 15/1959). Entra a la base
+                            de prestaciones pero <strong>no</strong> a la de
+                            seguridad social.
+                        </small>
                     </div>
+
                     <div class="form-group col-md-4">
-                        <label for="uvt">UVT</label>
+                        <label for="uvt">
+                            UVT (Unidad de Valor Tributario)
+                        </label>
                         <input type="number" step="0.01" class="form-control" id="uvt" name="uvt"
-                            value="{{ p.uvt if p else '' }}" required>
+                            value="{{ p.uvt if p else (referencia.uvt if referencia else '') }}"
+                            data-ref="{{ referencia.uvt if referencia else '' }}" required>
+                        <small class="form-text text-muted">
+                            Lo fija una resolución de la DIAN cada noviembre.
+                            Se usa para liquidar la retención en la fuente
+                            (Art. 383 ET) y los topes tributarios.
+                        </small>
                     </div>
                 </div>
 
-                <button type="submit" class="btn btn-primary">Guardar</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Guardar
+                </button>
                 <a href="{{ url_for('nomina.parametros_lista') }}" class="btn btn-secondary">Cancelar</a>
             </form>
         </div>
     </div>
 </div>
+
+{% if modo == 'crear' and referencia %}
+<script>
+    document.getElementById('btn-autocompletar').addEventListener('click', function () {
+        ['salario_minimo', 'auxilio_transporte', 'uvt'].forEach(function (id) {
+            var input = document.getElementById(id);
+            if (input && input.dataset.ref) input.value = input.dataset.ref;
+        });
+    });
+</script>
+{% endif %}
 {% endblock %}

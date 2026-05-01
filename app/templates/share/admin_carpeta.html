@@ -1,0 +1,245 @@
+{% extends './plantillaapp.html' %}
+{% block titulo %}{{ carpeta.nombre }} | Compartir | {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/share.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="main-container">
+<div class="share-wrapper">
+
+    <nav class="share-breadcrumb">
+        <a href="{{ url_for('share.gestion_carpetas') }}"><i class="fas fa-share-alt"></i> Compartidos</a>
+        {% for crumb in breadcrumbs %}
+        <span class="share-bc-sep">/</span>
+        {% if loop.last %}
+        <span class="share-bc-actual">{{ crumb.nombre }}</span>
+        {% else %}
+        <a href="{{ url_for('share.ver_carpeta_admin', carpeta_id=crumb.id) }}">{{ crumb.nombre }}</a>
+        {% endif %}
+        {% endfor %}
+    </nav>
+
+    <div class="share-header">
+        <h1 class="page-title">
+            <i class="fas fa-folder-open"></i> {{ carpeta.nombre }}
+        </h1>
+        <div class="share-header-acciones">
+            <a href="{{ url_for('share.editar_carpeta', carpeta_id=carpeta.id) }}" class="btn-share-mini">
+                <i class="fas fa-edit"></i> Editar
+            </a>
+            {% if es_raiz %}
+            <a href="{{ url_for('share.historial_accesos', carpeta_id=carpeta.id) }}" class="btn-share-mini">
+                <i class="fas fa-history"></i> Accesos
+            </a>
+            {% endif %}
+            <form method="POST"
+                  action="{{ url_for('share.eliminar_carpeta', carpeta_id=carpeta.id) }}"
+                  class="share-inline-form"
+                  data-confirm="Eliminar la carpeta {{ carpeta.nombre }} y todo su contenido?">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn-share-mini btn-share-danger">
+                    <i class="fas fa-trash"></i> Eliminar
+                </button>
+            </form>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }}">{{ msg }}</div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    {% if es_raiz and link_publico %}
+    <div class="share-link-box">
+        <div class="share-link-titulo">
+            <i class="fas fa-link"></i> Link publico para tu cliente
+            {% if carpeta_raiz.clave_hash %}<span class="share-pill share-pill-lock"><i class="fas fa-lock"></i> Con clave</span>{% endif %}
+            {% if carpeta_raiz.fecha_vence %}<span class="share-pill share-pill-venc"><i class="fas fa-clock"></i> Vence {{ carpeta_raiz.fecha_vence.strftime('%Y-%m-%d %H:%M') }}</span>{% endif %}
+        </div>
+        <div class="share-link-row">
+            <input type="text" readonly value="{{ link_publico }}" id="link-publico" class="share-link-input">
+            <button type="button" class="btn-share-copiar" data-target="link-publico">
+                <i class="fas fa-copy"></i> Copiar
+            </button>
+            <a href="{{ link_publico }}" target="_blank" class="btn-share-mini">
+                <i class="fas fa-external-link-alt"></i> Abrir
+            </a>
+            <form method="POST" action="{{ url_for('share.regenerar_token', carpeta_id=carpeta.id) }}"
+                  class="share-inline-form" data-confirm="Regenerar el token? El link anterior dejara de funcionar.">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn-share-mini btn-share-warning">
+                    <i class="fas fa-sync"></i> Regenerar
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="share-zona-titulo">
+        <h2><i class="fas fa-folder"></i> Subcarpetas</h2>
+        <button type="button" class="btn-share-mini" onclick="document.getElementById('nueva-sub').classList.toggle('share-hidden')">
+            <i class="fas fa-plus"></i> Nueva subcarpeta
+        </button>
+    </div>
+
+    <form id="nueva-sub" method="POST" class="share-sub-form share-hidden"
+          action="{{ url_for('share.crear_subcarpeta', carpeta_id=carpeta.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="text" name="nombre" required placeholder="Nombre de la subcarpeta" maxlength="200">
+        <button type="submit" class="btn-share-primario">
+            <i class="fas fa-plus"></i> Crear
+        </button>
+    </form>
+
+    {% if subcarpetas|length == 0 %}
+    <p class="share-vacio">No hay subcarpetas.</p>
+    {% else %}
+    <div class="share-sub-grid">
+        {% for s in subcarpetas %}
+        <a href="{{ url_for('share.ver_carpeta_admin', carpeta_id=s.id) }}" class="share-sub-card">
+            <i class="fas fa-folder"></i>
+            <span>{{ s.nombre }}</span>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="share-zona-titulo">
+        <h2><i class="fas fa-file"></i> Archivos</h2>
+    </div>
+
+    <form method="POST" class="share-dropzone"
+          action="{{ url_for('share.subir_archivo_admin', carpeta_id=carpeta.id) }}"
+          enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="file" name="archivos" id="archivos-input" multiple hidden>
+        <label for="archivos-input" class="share-dropzone-label">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <strong>Click o arrastra archivos aqui</strong>
+            <span>Maximo 25 MB por archivo</span>
+        </label>
+        <div id="archivos-preview" class="share-dropzone-lista"></div>
+        <button type="submit" class="btn-share-primario" id="btn-subir" disabled>
+            <i class="fas fa-upload"></i> Subir archivos
+        </button>
+    </form>
+
+    {% if archivos|length == 0 %}
+    <p class="share-vacio">Aun no hay archivos en esta carpeta.</p>
+    {% else %}
+    <table class="share-tabla">
+        <thead>
+            <tr>
+                <th>Archivo</th>
+                <th>Tamano</th>
+                <th>Subido por</th>
+                <th>Fecha</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for a in archivos %}
+            <tr>
+                <td>
+                    <i class="fas fa-{{ a.icono }} share-tabla-icono"></i>
+                    {{ a.nombre_original }}
+                </td>
+                <td>{{ a.tamano_fmt }}</td>
+                <td>
+                    {% if a.subido_por_cliente %}
+                    <i class="fas fa-user"></i> {{ a.subido_por_cliente }}
+                    {% else %}
+                    <i class="fas fa-user-shield"></i> Admin
+                    {% endif %}
+                </td>
+                <td>{{ a.fecha_subida.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>
+                    <form method="POST" class="share-inline-form"
+                          action="{{ url_for('share.eliminar_archivo', archivo_id=a.id) }}"
+                          data-confirm="Eliminar el archivo {{ a.nombre_original }}?">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="volver" value="{{ url_for('share.ver_carpeta_admin', carpeta_id=carpeta.id) }}">
+                        <button type="submit" class="btn-share-mini btn-share-danger">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+</div>
+</div>
+
+<script>
+// Dropzone
+(function () {
+    const zona  = document.querySelector('.share-dropzone');
+    const input = document.getElementById('archivos-input');
+    const lista = document.getElementById('archivos-preview');
+    const btn   = document.getElementById('btn-subir');
+    if (!zona) return;
+
+    function renderLista() {
+        lista.innerHTML = '';
+        if (!input.files || input.files.length === 0) {
+            btn.disabled = true; return;
+        }
+        for (const f of input.files) {
+            const li = document.createElement('div');
+            li.className = 'share-preview-item';
+            li.innerHTML = '<i class="fas fa-file"></i> <span>' + f.name + '</span> <small>' + (f.size/1024/1024).toFixed(2) + ' MB</small>';
+            lista.appendChild(li);
+        }
+        btn.disabled = false;
+    }
+    input.addEventListener('change', renderLista);
+
+    ['dragenter','dragover'].forEach(ev =>
+        zona.addEventListener(ev, e => { e.preventDefault(); zona.classList.add('share-drag'); }));
+    ['dragleave','drop'].forEach(ev =>
+        zona.addEventListener(ev, e => { e.preventDefault(); zona.classList.remove('share-drag'); }));
+    zona.addEventListener('drop', e => {
+        if (e.dataTransfer.files && e.dataTransfer.files.length) {
+            input.files = e.dataTransfer.files;
+            renderLista();
+        }
+    });
+})();
+
+// Copiar link
+document.querySelectorAll('.btn-share-copiar').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const input = document.getElementById(btn.dataset.target);
+        if (!input) return;
+        navigator.clipboard.writeText(input.value).then(() => {
+            if (window.Swal) {
+                Swal.fire({ icon: 'success', title: 'Link copiado', timer: 1500,
+                            showConfirmButton: false, confirmButtonColor: BRAND_COLOR_BTN });
+            }
+        });
+    });
+});
+
+// Confirmacion de borrado
+document.querySelectorAll('form[data-confirm]').forEach(form => {
+    form.addEventListener('submit', (ev) => {
+        ev.preventDefault();
+        if (!window.Swal) { form.submit(); return; }
+        Swal.fire({
+            title: 'Confirmar', text: form.dataset.confirm,
+            icon: 'warning', showCancelButton: true,
+            confirmButtonText: 'Si, continuar', cancelButtonText: 'Cancelar',
+            confirmButtonColor: BRAND_COLOR_BTN
+        }).then(r => { if (r.isConfirmed) form.submit(); });
+    });
+});
+</script>
+{% endblock %}
