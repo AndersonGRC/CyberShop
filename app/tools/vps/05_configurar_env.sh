@@ -7,22 +7,31 @@
 # ============================================================
 set -euo pipefail
 
-# ── EDITAR ESTOS VALORES ANTES DE EJECUTAR ─────────────────
-FLASK_SECRET_KEY=""                # Generar: python3 -c "import secrets; print(secrets.token_hex(32))"
-DB_PASSWORD=""                     # El password generado por 03_setup_postgres.sh
-KMS_KEY=""                         # Generar: python3 -c "import secrets,base64; print(base64.b64encode(secrets.token_bytes(32)).decode())"
+# ── COMPLETAR ANTES DE EJECUTAR (copiar desde .cybershop.conf local) ──
+# Nunca subir este archivo al repo con valores reales.
+FLASK_SECRET_KEY=""                # copiar de .cybershop.conf → FLASK_SECRET_KEY
+DB_PASSWORD=""                     # ⚠ el password que genera 03_setup_postgres.sh
+KMS_KEY=""                         # copiar de .cybershop.conf → KMS_KEY
 PAYU_API_KEY=""
 PAYU_API_LOGIN=""
 PAYU_MERCHANT_ID=""
 PAYU_ACCOUNT_ID=""
 PAYU_ENV="production"
-MAIL_USERNAME="cybershop.digitalsales@gmail.com"
+MAIL_USERNAME=""
 MAIL_PASSWORD=""
 GOOGLE_CLIENT_ID=""
 GOOGLE_CLIENT_SECRET=""
 RECAPTCHA_SECRET_KEY=""
 TENANT_SLUG="cyber-t001"
-TENANT_NOMBRE="CyberShop Principal"
+TENANT_NOMBRE="CyberShop Demo"
+BILLING_NOMBRE=""
+BILLING_ID=""
+BILLING_TELEFONO=""
+BILLING_EMAIL=""
+DIAN_SERVICE_URL="http://127.0.0.1:5003/api/v1"
+DIAN_API_KEY=""
+DIAN_MASTER_KEY=""
+DIAN_UI_URL="https://portaltributario.cybershopcol.com/ui"
 # ───────────────────────────────────────────────────────────
 
 BOLD='\033[1m'; RED='\033[0;31m'; GREEN='\033[0;32m'; NC='\033[0m'
@@ -113,6 +122,18 @@ RECAPTCHA_SECRET_KEY=$RECAPTCHA_SECRET_KEY
 
 # Seguridad
 SESSION_COOKIE_SECURE=true
+
+# Billing (cuentas de cobro)
+BILLING_NOMBRE=$BILLING_NOMBRE
+BILLING_ID=$BILLING_ID
+BILLING_TELEFONO=$BILLING_TELEFONO
+BILLING_EMAIL=$BILLING_EMAIL
+
+# DIAN facturación electrónica
+DIAN_SERVICE_URL=$DIAN_SERVICE_URL
+DIAN_API_KEY=$DIAN_API_KEY
+DIAN_MASTER_KEY=$DIAN_MASTER_KEY
+DIAN_UI_URL=$DIAN_UI_URL
 EOF
 
 chmod 600 "$CONF"

@@ -281,14 +281,37 @@ REDIS_URL=redis://localhost:6379/0
 
 ---
 
-### 6.3 Semana 3 — Pendiente: Migración VPS
+### 6.3 Semana 3 — EN CURSO (bloqueada por VPS + DNS)
 
-- [ ] Configurar DNS `app.cybershopcol.com` → `38.134.148.47` (24 h antes)
-- [ ] Avisar al cliente la ventana de 30 min (72 h antes)
-- [ ] Ejecutar scripts VPS 00–08 en orden (ver sección 3)
-- [ ] Aplicar `0001_init.sql` al control plane del VPS
-- [ ] Ejecutar `migrate_prod_to_tenant.py` en VPS (migra `cybershop` → `cyber_t001`)
-- [ ] Desplegar con `CYBERSHOP_API_ENABLED=0` → verificar HTML → activar `=1`
+#### Bloqueos activos (resolver antes de continuar)
+
+| # | Bloqueo | Acción requerida |
+|---|---|---|
+| 1 | **VPS no responde SSH** — `38.134.148.47` timeout en puertos 22 y 2222 | Verificar que el VPS está encendido en el panel del proveedor. Compartir password root para continuar. |
+| 2 | **DNS no apunta al VPS** — `app.cybershopcol.com` resuelve a Cloudflare (`104.21.82.129`), no a `38.134.148.47` | En el panel DNS de `cybershopcol.com`, crear/editar registro A: `app` → `38.134.148.47` (TTL 300). Esperar propagación (~5 min). **Hacer esto ANTES de ejecutar `07_caddy.sh`** para que Let's Encrypt pueda emitir el certificado TLS. |
+
+#### Scripts preparados (listos para ejecutar cuando el VPS responda)
+
+- [x] `00_subir_codigo.sh` — reescrito para usar `git clone/pull` en vez de rsync (rsync no disponible en Windows Git Bash)
+- [x] `05_configurar_env.sh` — pre-llenado con PayU, Mail, Google OAuth, KMS, DIAN, Billing. **Solo falta `DB_PASSWORD`** que genera `03_setup_postgres.sh`.
+
+#### Checklist Semana 3 (ejecutar en orden)
+
+- [ ] **PRIMERO**: Encender VPS y verificar SSH: `ssh -p 2222 root@38.134.148.47`
+- [ ] **PRIMERO**: Configurar DNS A: `app.cybershopcol.com` → `38.134.148.47`
+- [ ] Desde Git Bash local: `bash app/tools/vps/00_subir_codigo.sh`
+- [ ] En el VPS: `bash /opt/cybershop/app/tools/vps/01_diagnostico.sh`
+- [ ] En el VPS: `bash /opt/cybershop/app/tools/vps/02_instalar_dependencias.sh`
+- [ ] En el VPS: `bash /opt/cybershop/app/tools/vps/03_setup_postgres.sh` → **anotar DB_PASSWORD generado**
+- [ ] En el VPS: `bash /opt/cybershop/app/tools/vps/04_deploy_app.sh`
+- [ ] En el VPS: completar `DB_PASSWORD` en `05_configurar_env.sh` y ejecutarlo
+- [ ] En el VPS: `bash /opt/cybershop/app/tools/vps/06_gunicorn_service.sh`
+- [ ] En el VPS: `bash /opt/cybershop/app/tools/vps/07_caddy.sh` ← requiere DNS ya propagado
+- [ ] En el VPS: `bash /opt/cybershop/app/tools/vps/08_firewall.sh`
+- [ ] En el VPS: `psql -d saas_control_plane -f /opt/cybershop/app/migrations/control_plane/0001_init.sql`
+- [ ] En el VPS: `python3 /opt/cybershop/app/tools/migrate_prod_to_tenant.py --dry-run` → revisar output
+- [ ] En el VPS: `python3 /opt/cybershop/app/tools/migrate_prod_to_tenant.py` → migrar `cybershop` → `cyber_t001`
+- [ ] En el VPS: `python3 /opt/cybershop/app/tools/seed_test_user.py --email admin@cybershop.com --password <password>`
 - [ ] Smoke test externo: `curl https://app.cybershopcol.com/api/v1/health`
 
 ---

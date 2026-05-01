@@ -1,47 +1,64 @@
 #!/bin/bash
 # ============================================================
-# 00_subir_codigo.sh — Sincroniza el código local → VPS
-# Ejecutar desde Windows en Git Bash / terminal con ssh.
+# 00_subir_codigo.sh — Despliega el código en el VPS via git
+# Ejecutar desde Windows (Git Bash) o cualquier terminal con ssh.
 #
 # Uso:
 #   bash tools/vps/00_subir_codigo.sh
 #
 # Lo que hace:
-#   rsync el directorio CyberShop/  → root@VPS:/opt/cybershop/
-#   Excluye: venv/, __pycache__, *.pyc, .git, .cybershop.conf,
-#            keys/*.pem (las claves se generan en el VPS)
+#   1. Verifica conectividad SSH al VPS
+#   2. Si /opt/cybershop no existe → git clone
+#      Si ya existe              → git pull (origin master)
+#   3. Crea /opt/cybershop/app/keys/ y /opt/cybershop/app/sql_logs/
+#
+# Requisito: el repo debe estar en GitHub (push antes de ejecutar)
 # ============================================================
 
 VPS_HOST="38.134.148.47"
 VPS_PORT="2222"
 VPS_USER="root"
-LOCAL_SRC="$(cd "$(dirname "$0")/../../../.." && pwd)/"   # raíz de CyberShop/
-REMOTE_DST="/opt/cybershop/"
+REPO_URL="https://github.com/AndersonGRC/CyberShop.git"
+REMOTE_DST="/opt/cybershop"
 
-echo "Subiendo código:"
-echo "  Local : $LOCAL_SRC"
-echo "  Remoto: $VPS_USER@$VPS_HOST:$REMOTE_DST (puerto $VPS_PORT)"
-echo ""
+BOLD='\033[1m'; GREEN='\033[0;32m'; RED='\033[0;31m'; NC='\033[0m'
+ok()  { echo -e "  ${GREEN}✓${NC} $*"; }
+err() { echo -e "  ${RED}✗${NC} $*"; exit 1; }
 
-rsync -avz --progress \
-    -e "ssh -p $VPS_PORT" \
-    --exclude 'venv/' \
-    --exclude '__pycache__/' \
-    --exclude '*.pyc' \
-    --exclude '*.pyo' \
-    --exclude '.git/' \
-    --exclude 'app/.cybershop.conf' \
-    --exclude 'app/keys/*.pem' \
-    --exclude 'app/static/cotizaciones/pdf/*' \
-    --exclude 'app/static/cuentas_cobro/pdf/*' \
-    --exclude 'app/static/media/media/*' \
-    --exclude 'app/static/user/users/*' \
-    --exclude '*.log' \
-    --exclude '*.sqlite3' \
-    --exclude '*.db' \
-    "$LOCAL_SRC" \
-    "$VPS_USER@$VPS_HOST:$REMOTE_DST"
+echo -e "${BOLD}── Verificando conectividad SSH ──${NC}"
+ssh -p "$VPS_PORT" -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new \
+    "$VPS_USER@$VPS_HOST" "echo OK" 2>/dev/null || err "No se puede conectar a $VPS_HOST:$VPS_PORT"
+ok "SSH OK"
 
 echo ""
-echo "Código sincronizado."
-echo "Próximo paso en el VPS: bash /opt/cybershop/app/tools/vps/01_diagnostico.sh"
+echo -e "${BOLD}── Desplegando código en VPS ──${NC}"
+ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" bash <<REMOTE
+set -e
+
+if [ ! -d "$REMOTE_DST/.git" ]; then
+    echo "Clonando repositorio..."
+    git clone "$REPO_URL" "$REMOTE_DST"
+else
+    echo "Actualizando repositorio..."
+    cd "$REMOTE_DST"
+    git fetch origin
+    git reset --hard origin/master
+fi
+
+# Crear directorios que no van al repo
+mkdir -p "$REMOTE_DST/app/keys"
+mkdir -p "$REMOTE_DST/app/sql_logs"
+mkdir -p "$REMOTE_DST/app/static/cotizaciones/pdf"
+mkdir -p "$REMOTE_DST/app/static/cuentas_cobro/pdf"
+mkdir -p "$REMOTE_DST/app/static/media/media"
+mkdir -p "$REMOTE_DST/app/static/user/users"
+
+echo "Listo. Commit en VPS:"
+cd "$REMOTE_DST" && git log --oneline -3
+REMOTE
+
+echo ""
+ok "Código desplegado en $VPS_HOST:$REMOTE_DST"
+echo -e "\nPróximo paso en el VPS:"
+echo "  ssh -p $VPS_PORT $VPS_USER@$VPS_HOST"
+echo "  bash $REMOTE_DST/app/tools/vps/01_diagnostico.sh"
