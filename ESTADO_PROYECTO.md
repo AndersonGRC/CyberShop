@@ -336,38 +336,59 @@ REDIS_URL=redis://localhost:6379/0
 
 ---
 
-### 6.3 Semana 3 — EN CURSO (bloqueada por VPS + DNS)
+### 6.3 Semana 3 — COMPLETADA ✅ (2026-04-30)
 
-#### Bloqueos activos (resolver antes de continuar)
+#### Realidad encontrada en el VPS (cambió el plan)
 
-| # | Bloqueo | Acción requerida |
-|---|---|---|
-| 1 | **VPS no responde SSH** — `38.134.148.47` timeout en puertos 22 y 2222 | Verificar que el VPS está encendido en el panel del proveedor. Compartir password root para continuar. |
-| 2 | **DNS no apunta al VPS** — `app.cybershopcol.com` resuelve a Cloudflare (`104.21.82.129`), no a `38.134.148.47` | En el panel DNS de `cybershopcol.com`, crear/editar registro A: `app` → `38.134.148.47` (TTL 300). Esperar propagación (~5 min). **Hacer esto ANTES de ejecutar `07_caddy.sh`** para que Let's Encrypt pueda emitir el certificado TLS. |
+El plan original asumía VPS limpio y dominio dedicado `app.cybershopcol.com`. La realidad:
 
-#### Scripts preparados (listos para ejecutar cuando el VPS responda)
+| Asunción del plan | Realidad |
+|---|---|
+| VPS limpio | Producción ya corriendo: `cybershop.service` activo, BD `cybershop` con 16 usuarios reales, 9 productos, 12 pedidos |
+| Caddy reverse proxy | **Nginx** + Let's Encrypt ya operativo |
+| Dominio `app.cybershopcol.com` | App ya servida en `cybershopcol.com` (raíz del dominio) |
+| 1 proyecto en VPS | **3 proyectos**: CyberShop, Achirasdemitierra, FacturacionDIAN |
+| Migrar `cybershop` → `cyber_t001` | Pospuesto — riesgo de downtime; el cliente actual queda como `cybershop` en `tenant_databases.db_name` |
 
-- [x] `00_subir_codigo.sh` — reescrito para usar `git clone/pull` en vez de rsync (rsync no disponible en Windows Git Bash)
-- [x] `05_configurar_env.sh` — pre-llenado con PayU, Mail, Google OAuth, KMS, DIAN, Billing. **Solo falta `DB_PASSWORD`** que genera `03_setup_postgres.sh`.
+#### Acciones ejecutadas (deploy no destructivo)
 
-#### Checklist Semana 3 (ejecutar en orden)
+- [x] SSH al VPS (Ubuntu 24.04, PostgreSQL 16.13, Redis 7.0.15, Python 3.12.3, Nginx)
+- [x] Detectado y preservado **hot-fixes en producción sin commit** (650 líneas modificadas en 4 archivos + nuevo `migrate_backup_db.sql` con sistema de backups DB para super admin)
+- [x] `git stash` + `git pull origin master` + `git stash pop` en `/var/www/CyberShop` (sin conflictos)
+- [x] Hot-fixes de prod recuperados al repo via patch SFTP → commit `e0a05c5`
+- [x] `pip install PyJWT[crypto] alembic Flask-Limiter redis` en venv del VPS
+- [x] Generadas claves JWT en `/var/www/CyberShop/app/keys/` (chmod 600)
+- [x] Creada DB `saas_control_plane` con schema (4 tablas)
+- [x] Generado `KMS_KEY` único de producción (32 bytes AES-256-GCM)
+- [x] Añadidas vars nuevas al `.cybershop.conf` del VPS (sin tocar las existentes — no invalidé sesiones activas)
+- [x] Tenant `cyber-t001` + `tenant_databases` (db_name='cybershop') seeded en control plane
+- [x] **6 admins de la BD `cybershop` migrados a `usuarios_globales`** (mismo hash bcrypt → mismas credenciales sirven para login API):
+  - `cybershop.digitalsales@gmail.com` (rol 1)
+  - `andersongermancavi@gmail.com` (rol 1)
+  - `andreita-2007@hotmail.com` (rol 1)
+  - `jnsi1770@gmail.com` (rol 1)
+  - `invitado@invitado.com` (rol 1)
+  - `sofiagutierrez12062018@gmail.com` (rol 2)
+- [x] Reiniciado `cybershop.service` con `CYBERSHOP_API_ENABLED=1` — gunicorn arrancó limpio con todos los blueprints (incluidos `api_auth`, `api_health`)
+- [x] **Recuperado Nginx que estaba caído** desde el último reboot del VPS (error `bind() to 10.200.0.1:8081 failed` — interface WireGuard no estaba lista al boot). NO fue causado por mi cambio. Iniciado manualmente.
 
-- [ ] **PRIMERO**: Encender VPS y verificar SSH: `ssh -p 2222 root@38.134.148.47`
-- [ ] **PRIMERO**: Configurar DNS A: `app.cybershopcol.com` → `38.134.148.47`
-- [ ] Desde Git Bash local: `bash app/tools/vps/00_subir_codigo.sh`
-- [ ] En el VPS: `bash /opt/cybershop/app/tools/vps/01_diagnostico.sh`
-- [ ] En el VPS: `bash /opt/cybershop/app/tools/vps/02_instalar_dependencias.sh`
-- [ ] En el VPS: `bash /opt/cybershop/app/tools/vps/03_setup_postgres.sh` → **anotar DB_PASSWORD generado**
-- [ ] En el VPS: `bash /opt/cybershop/app/tools/vps/04_deploy_app.sh`
-- [ ] En el VPS: completar `DB_PASSWORD` en `05_configurar_env.sh` y ejecutarlo
-- [ ] En el VPS: `bash /opt/cybershop/app/tools/vps/06_gunicorn_service.sh`
-- [ ] En el VPS: `bash /opt/cybershop/app/tools/vps/07_caddy.sh` ← requiere DNS ya propagado
-- [ ] En el VPS: `bash /opt/cybershop/app/tools/vps/08_firewall.sh`
-- [ ] En el VPS: `psql -d saas_control_plane -f /opt/cybershop/app/migrations/control_plane/0001_init.sql`
-- [ ] En el VPS: `python3 /opt/cybershop/app/tools/migrate_prod_to_tenant.py --dry-run` → revisar output
-- [ ] En el VPS: `python3 /opt/cybershop/app/tools/migrate_prod_to_tenant.py` → migrar `cybershop` → `cyber_t001`
-- [ ] En el VPS: `python3 /opt/cybershop/app/tools/seed_test_user.py --email admin@cybershop.com --password <password>`
-- [ ] Smoke test externo: `curl https://app.cybershopcol.com/api/v1/health`
+#### Smoke tests externos (todos ✅)
+
+```
+curl https://cybershopcol.com/                 → 200 (HTML legacy intacto)
+curl https://cybershopcol.com/login            → 200
+curl https://cybershopcol.com/productos        → 200
+curl https://cybershopcol.com/api/v1/health    → {"db":"ok","redis":"ok","status":"ok","version":"1.0.0"}
+curl POST /api/v1/auth/login wrong_pass        → 401 INVALID_CREDENTIALS
+```
+
+#### Estado al cierre de Semana 3
+
+- 🟢 **Producción operativa** en `https://cybershopcol.com` con API JWT activa
+- 🟢 16 usuarios reales pueden seguir usando la web HTML (sesión Flask intacta)
+- 🟢 6 admins pueden hacer login también via `/api/v1/auth/login` (mismas credenciales)
+- 🟡 **Nota operativa**: arreglar el orden de boot — `nginx.service` debe esperar a `wg-quick@wg0.service` (`After=` y `Requires=`). Documentar en una próxima Fase de "hardening del VPS".
+- 🟡 **Pendiente migrar `cybershop` → `cyber_t001`**: pospuesto (no urgente; afecta solo la convención de nombre)
 
 ---
 
