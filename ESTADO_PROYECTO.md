@@ -493,6 +493,80 @@ END $$ LANGUAGE plpgsql;
 
 ## 8. Fase 3 — Sync Worker + Endpoints VPS (6 semanas)
 
+### 8.0 Decisión arquitectónica — Bootstrap automático y schema check (refinamiento 2026-04-30)
+
+**Requisito del usuario:** la app de escritorio NO debe pedir intervención manual para inicializar la BD local. Al primer arranque (o tras un reset) descarga el snapshot del VPS y arma la SQLite. Cuando el VPS publica una nueva versión de schema, el desktop detecta automáticamente y muestra modal "Actualización disponible" → migra + re-sync.
+
+#### 8.0.1 Bootstrap automático (primer arranque)
+
+```
+1. Desktop arranca → detecta que no existe %APPDATA%/CyberShop/cybershop.db
+2. UI: "Bienvenido a CyberShop. Conectando con el servidor..."
+3. Login online obligatorio (POST /api/v1/auth/login)
+4. GET /api/v1/sync/schema-version
+   → { schema_version: "0007", min_compatible_version: "0001" }
+5. GET /api/v1/sync/snapshot/<tenant_slug>
+   → stream tarball.gz: DDL + COPY de las ~25 tablas replicadas
+6. Desktop:
+   - Crea SQLite en %APPDATA%/CyberShop/cybershop.db
+   - Aplica DDL (incluye sync_outbox, sync_cursors, audit_log, node_metadata)
+   - Carga datos via INSERT bulk
+   - Guarda schema_version en node_metadata
+   - Cifra con SQLCipher (Argon2id(password, salt=device_id))
+7. UI: "Listo. Bienvenido."
+```
+
+#### 8.0.2 Detección de cambios de schema (en arranques subsiguientes)
+
+```
+1. Desktop arranca → abre SQLite local con la clave derivada
+2. Lee schema_version local de node_metadata
+3. Si online → GET /api/v1/sync/schema-version
+4. Si vps_schema_version > local_schema_version:
+   - Si local < min_compatible_version → forzar update (modal sin "después")
+   - Sino → modal informativo: "Actualización disponible. La nueva versión incluye:
+                                 [changelog renderizado del JSON del VPS]
+                                 [Actualizar ahora]  [Recordar más tarde]"
+5. Al aceptar:
+   - GET /api/v1/sync/migrations?from=<local_v>&to=<vps_v>
+     → JSON: [{ version, sql_up, requires_restart }, ...]
+   - Backup automático cifrado de cybershop.db a backups/
+   - Aplicar SQL secuencialmente en transacción
+   - Actualizar schema_version en node_metadata
+   - Trigger sync push pendiente + pull
+   - UI: "Actualización completada. Reiniciando..."
+6. Si offline cuando hay update pendiente: app sigue funcionando con schema viejo;
+   reintenta al detectar online.
+```
+
+#### 8.0.3 Endpoints adicionales en VPS (Fase 3)
+
+```
+GET  /api/v1/sync/schema-version
+  → { schema_version: "0007", min_compatible_version: "0001",
+      released_at: "2026-05-12T14:00:00Z" }
+
+GET  /api/v1/sync/migrations?from=0001&to=0007
+  → { migrations: [
+        { version: "0002", sql_up: "...", changelog: "agrega tabla X",
+          requires_full_resync: false, requires_restart: false },
+        ...
+      ] }
+```
+
+**`saas_control_plane.tenant_databases.schema_version`** ya existe (Fase 1) — el VPS lee de ahí. Cada migración Alembic incrementa este valor al aplicarse.
+
+#### 8.0.4 Tabla nueva en SQLite local
+
+```sql
+-- Ya prevista en node_metadata (key/value), pero formalizada:
+INSERT INTO node_metadata (key, value) VALUES
+  ('schema_version',         '0001'),
+  ('last_schema_check_at',   '1970-01-01T00:00:00Z'),
+  ('pending_migration_to',   ''),         -- vacío si no hay update pendiente
+  ('last_bootstrap_at',      '2026-05-12T18:30:00Z');
+```
+
 ### 8.1 Nuevos endpoints en VPS
 
 ```
@@ -507,6 +581,9 @@ POST /api/sync/push
 
 GET  /api/sync/snapshot/<tenant_slug>?since=<ts>
   → tarball gzipped DDL + COPY de tablas replicadas (bootstrap inicial)
+
+GET  /api/v1/sync/schema-version       (refinamiento 8.0.2)
+GET  /api/v1/sync/migrations?from&to   (refinamiento 8.0.2)
 ```
 
 ### 8.2 Tablas SQLite exclusivas del cliente (crear en `migrations/sqlite/schema_v1.sql`)
@@ -648,14 +725,31 @@ inventario_log → cupones_uso → factura_electronica_documentos
 
 ### 9.2 Flujos de autenticación desktop
 
-**Primer login (online obligatorio):**
-1. VPS valida credenciales → devuelve JWT + refresh_token
-2. Desktop guarda `refresh_token` en keyring (DPAPI/Keychain)
-3. Deriva clave SQLCipher con Argon2id(password, salt=device_id)
-4. Descarga bootstrap snapshot del VPS
-5. Abre SQLCipher con la clave derivada
+**Primer login / Bootstrap automático (online obligatorio):**
+1. PyWebView arranca → detecta que `%APPDATA%/CyberShop/cybershop.db` no existe
+2. UI muestra pantalla de bienvenida con form de login (email + password)
+3. POST /api/v1/auth/login → JWT + refresh_token
+4. GET /api/v1/sync/schema-version → guardar versión actual del VPS
+5. GET /api/v1/sync/snapshot/<tenant_slug> → tarball.gz (DDL + COPY)
+6. Desktop:
+   - Crea SQLite vacía
+   - Aplica DDL del tarball (incluye tablas operativas + sync_outbox/cursors/audit_log/node_metadata)
+   - Bulk INSERT de datos
+   - Guarda `schema_version` en `node_metadata`
+   - Cifra con SQLCipher (clave = Argon2id(password, salt=device_id))
+7. Guarda `refresh_token` en keyring (DPAPI/Keychain)
+8. UI: dashboard listo
 
-**Logins offline:**
+**Arranques subsiguientes:**
+1. Usuario ingresa password → deriva clave Argon2id → abre SQLCipher
+2. Si online: GET /api/v1/sync/schema-version
+3. Si `vps_schema_version > local_schema_version`:
+   - Modal "Actualización disponible" con changelog
+   - Si `local < min_compatible_version` → modal sin opción "después" (forzado)
+   - Aceptar → backup cifrado de cybershop.db → GET /api/v1/sync/migrations → aplicar SQL en transacción → trigger sync push+pull → reiniciar app
+4. Si offline: app sigue operando con schema actual; reintenta en próximo online
+
+**Logins offline (sin internet):**
 1. `routes/auth.py::login()` detecta `CYBERSHOP_MODE=desktop`
 2. Verifica bcrypt contra `usuarios.contraseña` en SQLite local
 3. Sesión Flask normal (sin JWT — JWT solo para VPS)
@@ -665,16 +759,21 @@ inventario_log → cupones_uso → factura_electronica_documentos
 ### 9.3 Archivos a crear en Fase 4
 
 - `desktop/main.py` — entrypoint PyWebView (Flask en thread + ventana nativa)
+- `desktop/bootstrap.py` — primer arranque: snapshot pull + creación SQLite cifrada
+- `desktop/schema_check.py` — chequeo periódico de `schema-version` y orquestación de update
+- `desktop/migrator.py` — aplicación de migraciones recibidas del VPS sobre SQLite local
 - `desktop/installer/inno_setup.iss` — instalador Windows con WebView2 runtime
 - `desktop/installer/build_macos.sh` — empaque DMG + notarización Apple (futuro)
 - `services/db_layer_sqlite.py` — adaptador SQLite+SQLCipher
 - `services/db_layer_pg.py` — adaptador Postgres (refactor del actual)
 - `services/auth/sqlcipher_kdf.py` — derivación Argon2id
 - `services/auth/keyring_store.py` — abstracción keyring SO
+- `routes/api_sync_meta.py` — endpoints VPS: `/sync/schema-version`, `/sync/migrations`
 - `config_desktop.py` — configuración modo desktop
 - `config_vps.py` — configuración modo VPS
-- `migrations/sqlite/seed.sql` — datos iniciales SQLite
-- `tools/build_template_db.py` — genera SQLite seed para bootstrap
+- `templates/desktop_bootstrap.html` — pantalla de bienvenida + login + progreso de bootstrap
+- `templates/desktop_update_modal.html` — modal "Actualización disponible"
+- `tools/build_template_db.py` — genera SQLite seed para bootstrap (fallback offline si VPS caído)
 - `.cybershop.desktop.conf.example`
 
 ### 9.4 Modificaciones en Fase 4
