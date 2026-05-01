@@ -1,6 +1,6 @@
 # CyberShop — Estado Completo del Proyecto
 
-> **Última actualización:** 2026-04-30  
+> **Última actualización:** 2026-04-30 (Semana 2 completada)  
 > **Para retomar en otro equipo:** leer este archivo de principio a fin antes de escribir una sola línea.  
 > **Repositorio:** https://github.com/AndersonGRC/CyberShop.git  
 > **Working directory local:** `C:\Cybershop\CyberShop\` (raíz del repo) / `C:\Cybershop\CyberShop\app\` (código Flask)  
@@ -158,7 +158,7 @@ bash /opt/cybershop/app/tools/vps/08_firewall.sh              # UFW + fail2ban
 
 | Fase | Contenido | Semanas | Estado |
 |---|---|---|---|
-| **1** | API REST v1 + JWT RS256 + control plane base + VPS setup | 4 | 🟡 Semana 1 ✅ |
+| **1** | API REST v1 + JWT RS256 + control plane base + VPS setup | 4 | 🟡 Semanas 1–2 ✅ |
 | **2** | SERIAL → UUID v7 (dual-key) + columnas universales + triggers | 5 | ⬜ Pendiente |
 | **3** | Sync worker + `/api/sync/*` + UI conflictos + barra de estado | 6 | ⬜ Pendiente |
 | **4** | PyWebView + PyInstaller + SQLCipher + Argon2id + auto-update | 4 | ⬜ Pendiente |
@@ -233,18 +233,51 @@ Refresh token: raw 64 chars + hash SHA-256
 
 ---
 
-### 6.2 Semana 2 — Pendiente: Control plane local + primer login real
+### 6.2 Semana 2 — COMPLETADA ✅ (2026-04-30)
 
-- [ ] Crear `saas_control_plane` local: `createdb saas_control_plane`
-- [ ] Aplicar schema: `psql -d saas_control_plane -f app/migrations/control_plane/0001_init.sql`
-- [ ] Seed test user: `python app/tools/seed_test_user.py --email admin@test.com --password Test1234!`
-- [ ] Dry-run migración: `python app/tools/migrate_prod_to_tenant.py --dry-run`
-- [ ] Verificar refactor `database.py` con app corriendo: `python app/app.py`
-- [ ] Smoke test login: `curl -X POST http://localhost:5001/api/v1/auth/login -H "Content-Type: application/json" -d '{"email":"admin@test.com","password":"Test1234!"}'`
-- [ ] Smoke test `GET /me` con Bearer token retornado
-- [ ] Smoke test `POST /refresh` y `POST /logout`
-- [ ] Confirmar que `/login` HTML legacy sigue operativo
-- [ ] Smoke test `GET /api/v1/health`
+#### Qué se hizo
+- [x] Generado par de claves RSA 2048 → `app/keys/jwt_private.pem` + `jwt_public.pem` (chmod 600, NO en git)
+- [x] Generado `KMS_KEY` (32 bytes AES-256-GCM) y añadido a `.cybershop.conf`
+- [x] Creada BD `saas_control_plane` (PostgreSQL 18.2 local)
+- [x] Aplicado schema `migrations/control_plane/0001_init.sql` (4 tablas + citext + pgcrypto)
+- [x] Seeded tenant `cyber-t001` + `tenant_databases` (apunta a `cybershop` en dev)
+- [x] Seeded usuario admin: `admin@cybershop.com` / `Admin1234!` (rol_id=1, tenant_id=1)
+- [x] Instalado `PyJWT[crypto]==2.9.0` en venv (faltaba en requirements)
+- [x] **Bugfix**: `POST /logout` eliminó `@jwt_required` — ahora acepta solo `refresh_token` sin Bearer header (el access puede estar expirado al hacer logout)
+- [x] App arranca sin errores en puerto 5001
+
+#### Variables añadidas a `.cybershop.conf`
+```
+CONTROL_PLANE_DB_NAME=saas_control_plane
+CONTROL_PLANE_DB_USER/PASSWORD/HOST/PORT
+DEFAULT_TENANT_ID=1, DEFAULT_TENANT_SLUG=cyber-t001
+TENANT_SLUG=cyber-t001, TENANT_NOMBRE=CyberShop Demo
+JWT_PRIVATE_KEY_PATH / JWT_PUBLIC_KEY_PATH
+JWT_ACCESS_TTL_SECONDS=900, JWT_REFRESH_TTL_SECONDS=2592000
+KMS_KEY=<generado>
+CYBERSHOP_API_ENABLED=1
+REDIS_URL=redis://localhost:6379/0
+```
+
+#### Smoke tests (todos ✅)
+| Test | Resultado |
+|---|---|
+| `GET /api/v1/health` | `{"db":"ok","redis":"error","status":"ok","version":"1.0.0"}` — Redis no está instalado localmente (esperado) |
+| `POST /auth/login` | 200 + access_token RS256 + refresh_token |
+| `GET /auth/me` | 200 + datos usuario + tenant |
+| `POST /auth/refresh` | 200 + nuevo par de tokens; token viejo rotado |
+| `POST /auth/logout` | 200 `Sesión cerrada exitosamente.` |
+| Refresh con token revocado | 401 `TOKEN_REVOKED` |
+| Credenciales incorrectas | 401 `INVALID_CREDENTIALS` |
+| HTML legacy `/`, `/login`, `/admin`, `/productos` | 200/302 — sin regresiones |
+
+#### Nota sobre Redis
+`redis` aparece como `"error"` en health porque Redis no está instalado localmente. El limiter está configurado con `fail-open` (no bloquea logins si Redis no responde). Para instalar Redis en Windows usar WSL o el binario de Memurai.
+
+#### Commits
+| Hash | Descripción |
+|---|---|
+| `e8ee6db` | `fix(api)`: logout acepta refresh_token sin Bearer header |
 
 ---
 
