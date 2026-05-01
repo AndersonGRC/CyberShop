@@ -1,6 +1,6 @@
 # CyberShop — Estado Completo del Proyecto
 
-> **Última actualización:** 2026-04-30 (Semana 2 completada)  
+> **Última actualización:** 2026-04-30 — **PIVOT ARQUITECTÓNICO**  
 > **Para retomar en otro equipo:** leer este archivo de principio a fin antes de escribir una sola línea.  
 > **Repositorio:** https://github.com/AndersonGRC/CyberShop.git  
 > **Working directory local:** `C:\Cybershop\CyberShop\` (raíz del repo) / `C:\Cybershop\CyberShop\app\` (código Flask)  
@@ -9,11 +9,66 @@
 
 ---
 
+## 0. ⚠ PIVOT ARQUITECTÓNICO (decisión 2026-04-30)
+
+**El usuario aclaró el modelo real:**
+> "Lo que hago es duplicar mi entorno para dárselo a un nuevo cliente y llevarle actualizaciones cuando ya esté probado todo. Actualmente CyberShop es estable, no necesito que cambies cosas de lógica del app, solo quiero que se integre con una app de escritorio todo sobre la misma base de datos. Cuando implemente un nuevo cliente solo sea configurar una base de datos, replicar el proyecto y diseñarlo a su gusto."
+
+### Modelo real (simplificado)
+```
+┌────────────── PROYECTO TEMPLATE (GitHub master) ──────────────┐
+│  Código CyberShop estable + esquema BD + datos seed           │
+└─────────────────────┬─────────────────────────────────────────┘
+                      │  clone + branding por cliente
+                      ▼
+┌─── CLIENTE A ─────────────┐ ┌─── CLIENTE B ─────────────┐
+│ DB: cybershop_clienteA    │ │ DB: cybershop_clienteB    │
+│ Vhost: clienteA.dom.com   │ │ Vhost: clienteB.dom.com   │
+│ Logo/colores/nombre       │ │ Logo/colores/nombre       │
+│                           │ │                           │
+│ Web (Flask + Nginx)       │ │ Web (Flask + Nginx)       │
+│   ▲                       │ │   ▲                       │
+│   │ HTTPS                 │ │   │ HTTPS                 │
+│ Desktop PyWebView         │ │ Desktop PyWebView         │
+│ (cliente delgado, online) │ │ (cliente delgado, online) │
+└───────────────────────────┘ └───────────────────────────┘
+```
+
+### Lo que SÍ se hace
+1. **JWT API** (Fase 1) — para login del desktop. ✅ Semana 1-2 completas localmente.
+2. **Control plane** ligero (`saas_control_plane`) — solo para registro de clientes y autenticación. ✅
+3. **PyWebView desktop** — shell delgado que apunta a la web del cliente. Login local con JWT. (Fase nueva, simplificada)
+4. **Tool de onboarding** — script que toma un nombre de cliente y crea: BD copia del template + Nginx vhost + .cybershop.conf customizado + branding. (Fase nueva)
+5. **Flujo de actualizaciones** — `git pull` + migración SQL en cada cliente cuando hay release probado. (Fase nueva)
+
+### Lo que SE DESCARTA del plan original
+| Sección original | Estado |
+|---|---|
+| Fase 2: SERIAL → UUID v7 + columnas universales | ❌ DESCARTADO — no hay sync entre BDs |
+| Fase 3: Sync worker + outbox/cursors/conflictos | ❌ DESCARTADO — desktop es online-only |
+| Fase 4 (versión vieja): SQLCipher + Argon2id + bootstrap snapshot | ❌ DESCARTADO — desktop usa la misma BD del cliente vía HTTPS |
+| Caddy reemplazando Nginx | ❌ DESCARTADO — Nginx ya funciona bien |
+| Migración `cybershop` → `cyber_t001` | ⏸ POSPUESTO — el cliente actual sigue como `cybershop`; los nuevos clientes nacen ya como `cybershop_<slug>` |
+| pgbouncer Fase 5 | 🟡 OPCIONAL — solo si crece a 5+ clientes |
+| KMS real (Fase 6) | 🟡 OPCIONAL |
+| Cert pinning, anti-tamper, sync_health | ❌ DESCARTADO — sin sync no aplica |
+
+### Plan reducido (3 fases)
+| Fase | Contenido | Estado |
+|---|---|---|
+| **A. API + Control plane** | JWT login + tabla de clientes/tenants | ✅ Semana 1-2 local; pendiente desplegar al VPS |
+| **B. PyWebView desktop** | Shell ventana nativa + login JWT + apunta a `https://<cliente>.cybershopcol.com` | ⬜ Pendiente |
+| **C. Onboarding tool** | Script que clona DB + Nginx vhost + branding cliente nuevo | ⬜ Pendiente |
+
+> **Las secciones 7, 8, 9 abajo (Fase 2, 3, 4 originales) quedan COMO REFERENCIA HISTÓRICA. No ejecutar.**
+
+---
+
 ## 1. ¿Qué es CyberShop?
 
 Plataforma de gestión empresarial (POS, restaurante, inventario, contabilidad, facturación electrónica DIAN, nómina, CRM, cupones, pedidos web) construida en **Flask 3.1.2 + PostgreSQL**. Actualmente es una app web server-side rendering con Jinja2 + jQuery, 19 blueprints, 7 roles de usuario.
 
-**Objetivo final:** convertirla en una **app de escritorio Windows (y eventualmente macOS) offline-first multi-tenant** usando PyWebView + PyInstaller, que funcione 100 % sin internet en los módulos operativos críticos y se sincronice automáticamente al recuperar conexión.
+**Objetivo:** distribuirla a múltiples clientes mediante **duplicación de entorno** (1 DB + 1 vhost + 1 branding por cliente), con una app de escritorio (PyWebView) que funcione como cliente delgado conectándose a la misma BD del cliente vía HTTPS.
 
 ---
 
