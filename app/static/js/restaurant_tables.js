@@ -804,10 +804,11 @@
             notify('La mesa seleccionada no tiene una cuenta abierta.', 'warning');
             return;
         }
-        let paymentMethod = elements.closePaymentMethod?.value || 'EFECTIVO';
+        const paymentSelect = elements.closePaymentMethod || modal.payment;
+        let paymentMethod = paymentSelect?.value || 'EFECTIVO';
 
         if (window.Swal) {
-            const optionsHtml = Array.from(elements.closePaymentMethod?.options || [])
+            const optionsHtml = Array.from(paymentSelect?.options || [])
                 .map((option) => `<option value="${option.value}" ${option.value === paymentMethod ? 'selected' : ''}>${option.textContent}</option>`)
                 .join('');
             const result = await Swal.fire({
@@ -847,8 +848,8 @@
                 return;
             }
             paymentMethod = result.value || paymentMethod;
-            if (elements.closePaymentMethod) {
-                elements.closePaymentMethod.value = paymentMethod;
+            if (paymentSelect) {
+                paymentSelect.value = paymentMethod;
             }
         } else {
             const confirmed = await confirmAction(`Cobrar la cuenta abierta de ${table.nombre}?`);

@@ -132,6 +132,9 @@ def _module_schema_status():
 
 
 _RESTAURANT_TABLES_DEFAULTS_REPAIRED = False
+_RESTAURANT_ORDER_DEFAULTS_REPAIRED = False
+_RESTAURANT_CONSUMPTION_DEFAULTS_REPAIRED = False
+_ACCOUNTING_MOVEMENTS_DEFAULTS_REPAIRED = False
 
 
 def _repair_restaurant_tables_defaults():
@@ -201,11 +204,128 @@ def _repair_restaurant_tables_defaults():
         pass
 
 
+def _repair_restaurant_table_orders_defaults():
+    """Restaura defaults faltantes en restaurant_table_orders."""
+    global _RESTAURANT_ORDER_DEFAULTS_REPAIRED
+    if _RESTAURANT_ORDER_DEFAULTS_REPAIRED:
+        return
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("""
+                SELECT column_name, column_default
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'restaurant_table_orders'
+            """)
+            cols = {row['column_name']: row for row in cur.fetchall()}
+
+            id_col = cols.get('id')
+            if id_col and not id_col['column_default']:
+                cur.execute("""
+                    CREATE SEQUENCE IF NOT EXISTS restaurant_table_orders_id_seq
+                """)
+                cur.execute("""
+                    ALTER SEQUENCE restaurant_table_orders_id_seq
+                    OWNED BY restaurant_table_orders.id
+                """)
+                cur.execute("""
+                    ALTER TABLE restaurant_table_orders
+                    ALTER COLUMN id SET DEFAULT nextval('restaurant_table_orders_id_seq')
+                """)
+                cur.execute("""
+                    SELECT setval(
+                        'restaurant_table_orders_id_seq',
+                        COALESCE((SELECT MAX(id) FROM restaurant_table_orders), 0) + 1,
+                        false
+                    )
+                """)
+
+            patches = {
+                'estado': "'abierta'",
+                'comensales': '1',
+                'total_acumulado': '0',
+                'payment_method': "'EFECTIVO'",
+                'accounting_status': "'pendiente'",
+                'opened_at': 'NOW()',
+                'last_activity_at': 'NOW()',
+                'created_at': 'NOW()',
+                'updated_at': 'NOW()',
+            }
+            for col_name, default_expr in patches.items():
+                col = cols.get(col_name)
+                if col and not col['column_default']:
+                    cur.execute(
+                        f"ALTER TABLE restaurant_table_orders "
+                        f"ALTER COLUMN {col_name} SET DEFAULT {default_expr}"
+                    )
+        _RESTAURANT_ORDER_DEFAULTS_REPAIRED = True
+    except Exception:
+        pass
+
+
+def _repair_restaurant_table_consumptions_defaults():
+    """Restaura defaults faltantes en restaurant_table_consumptions."""
+    global _RESTAURANT_CONSUMPTION_DEFAULTS_REPAIRED
+    if _RESTAURANT_CONSUMPTION_DEFAULTS_REPAIRED:
+        return
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("""
+                SELECT column_name, column_default
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'restaurant_table_consumptions'
+            """)
+            cols = {row['column_name']: row for row in cur.fetchall()}
+
+            id_col = cols.get('id')
+            if id_col and not id_col['column_default']:
+                cur.execute("""
+                    CREATE SEQUENCE IF NOT EXISTS restaurant_table_consumptions_id_seq
+                """)
+                cur.execute("""
+                    ALTER SEQUENCE restaurant_table_consumptions_id_seq
+                    OWNED BY restaurant_table_consumptions.id
+                """)
+                cur.execute("""
+                    ALTER TABLE restaurant_table_consumptions
+                    ALTER COLUMN id SET DEFAULT nextval('restaurant_table_consumptions_id_seq')
+                """)
+                cur.execute("""
+                    SELECT setval(
+                        'restaurant_table_consumptions_id_seq',
+                        COALESCE((SELECT MAX(id) FROM restaurant_table_consumptions), 0) + 1,
+                        false
+                    )
+                """)
+
+            patches = {
+                'cantidad': '1',
+                'precio_unitario': '0',
+                'subtotal': '0',
+                'estado': "'pendiente'",
+                'ordered_at': 'NOW()',
+                'updated_at': 'NOW()',
+            }
+            for col_name, default_expr in patches.items():
+                col = cols.get(col_name)
+                if col and not col['column_default']:
+                    cur.execute(
+                        f"ALTER TABLE restaurant_table_consumptions "
+                        f"ALTER COLUMN {col_name} SET DEFAULT {default_expr}"
+                    )
+        _RESTAURANT_CONSUMPTION_DEFAULTS_REPAIRED = True
+    except Exception:
+        pass
+
+
 def _ensure_module_schema():
     status = _module_schema_status()
     if not status['ready']:
         raise ValueError(status['message'])
     _repair_restaurant_tables_defaults()
+    _repair_restaurant_table_orders_defaults()
+    _repair_restaurant_table_consumptions_defaults()
     return status
 
 
@@ -301,40 +421,16 @@ def get_product_catalog():
     """Retorna productos disponibles para agregar a una mesa, con categoría."""
     try:
         with get_db_cursor(dict_cursor=True) as cur:
-            if _table_has_column('productos', 'tenant_id'):
-                cur.execute("""
-                    SELECT p.id, p.nombre, p.precio, p.stock,
-                           COALESCE(pi.imagen_url, p.imagen) AS imagen,
-                           p.genero_id, COALESCE(g.nombre, 'Sin categoría') AS genero_nombre
-                    FROM productos p
-                    LEFT JOIN LATERAL (
-                        SELECT imagen_url
-                        FROM producto_imagenes
-                        WHERE producto_id = p.id
-                        ORDER BY es_principal DESC, orden ASC, id ASC
-                        LIMIT 1
-                    ) pi ON TRUE
-                    LEFT JOIN generos g ON g.id = p.genero_id
-                    WHERE p.stock > 0
-                    ORDER BY g.nombre ASC, p.nombre ASC
-                """)
-            else:
-                cur.execute("""
-                    SELECT p.id, p.nombre, p.precio, p.stock,
-                           COALESCE(pi.imagen_url, p.imagen) AS imagen,
-                           p.genero_id, COALESCE(g.nombre, 'Sin categoría') AS genero_nombre
-                    FROM productos p
-                    LEFT JOIN LATERAL (
-                        SELECT imagen_url
-                        FROM producto_imagenes
-                        WHERE producto_id = p.id
-                        ORDER BY es_principal DESC, orden ASC, id ASC
-                        LIMIT 1
-                    ) pi ON TRUE
-                    LEFT JOIN generos g ON g.id = p.genero_id
-                    WHERE p.stock > 0
-                    ORDER BY g.nombre ASC, p.nombre ASC
-                """)
+            cur.execute("""
+                SELECT p.id, p.nombre, p.precio, p.stock,
+                       p.imagen,
+                       p.genero_id,
+                       COALESCE(g.nombre, 'Sin categoría') AS genero_nombre
+                FROM productos p
+                LEFT JOIN generos g ON g.id = p.genero_id
+                WHERE p.stock > 0
+                ORDER BY g.nombre ASC, p.nombre ASC
+            """)
             return cur.fetchall()
     except Exception:
         return []
@@ -903,9 +999,73 @@ def _sync_accounting_fields(cur, order_id, status=None, income_movement_id=None,
     """, tuple(values + [order_id]))
 
 
+def _repair_accounting_movements_defaults(cur):
+    """Restaura secuencia/defaults faltantes en contabilidad_movimientos."""
+    global _ACCOUNTING_MOVEMENTS_DEFAULTS_REPAIRED
+    if _ACCOUNTING_MOVEMENTS_DEFAULTS_REPAIRED or not _table_exists('contabilidad_movimientos'):
+        return
+
+    cur.execute("""
+        SELECT column_name, column_default
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'contabilidad_movimientos'
+    """)
+    cols = {row['column_name']: row for row in cur.fetchall()}
+    if not cols:
+        return
+
+    id_col = cols.get('id')
+    if id_col and not id_col['column_default']:
+        cur.execute("""
+            CREATE SEQUENCE IF NOT EXISTS contabilidad_movimientos_id_seq
+        """)
+        cur.execute("""
+            ALTER SEQUENCE contabilidad_movimientos_id_seq
+            OWNED BY contabilidad_movimientos.id
+        """)
+        cur.execute("""
+            ALTER TABLE contabilidad_movimientos
+            ALTER COLUMN id SET DEFAULT nextval('contabilidad_movimientos_id_seq')
+        """)
+        cur.execute("""
+            SELECT setval(
+                'contabilidad_movimientos_id_seq',
+                COALESCE((SELECT MAX(id) FROM contabilidad_movimientos), 0) + 1,
+                false
+            )
+        """)
+
+    patches = {
+        'auto_generado': 'FALSE',
+        'created_at': 'NOW()',
+        'monto_bruto': '0',
+        'retefuente_pct': '0',
+        'retefuente_monto': '0',
+        'iva_pct': '0',
+        'iva_monto': '0',
+        'reteiva_pct': '0',
+        'reteiva_monto': '0',
+        'reteica_pct': '0',
+        'reteica_monto': '0',
+        'total_retenciones': '0',
+    }
+    for col_name, default_expr in patches.items():
+        col = cols.get(col_name)
+        if col and not col['column_default']:
+            cur.execute(
+                f"ALTER TABLE contabilidad_movimientos "
+                f"ALTER COLUMN {col_name} SET DEFAULT {default_expr}"
+            )
+
+    _ACCOUNTING_MOVEMENTS_DEFAULTS_REPAIRED = True
+
+
 def _create_accounting_movement(cur, movement_type, category, description, amount, reference_type, reference_id, user_id, notes=None):
     if not _table_exists('contabilidad_movimientos'):
         return {'status': 'sin_contabilidad', 'movement_id': None}
+
+    _repair_accounting_movements_defaults(cur)
 
     cur.execute("""
         SELECT id
@@ -1155,8 +1315,6 @@ def close_table_order(user_id, table_id, payload=None):
             raise ValueError('La mesa no tiene una cuenta abierta.')
         if int(order['total_items'] or 0) <= 0:
             raise ValueError('No puedes cerrar una cuenta sin consumos registrados.')
-        if int(order['pending_count'] or 0) > 0 or int(order['preparing_count'] or 0) > 0:
-            raise ValueError('No puedes cerrar la cuenta mientras existan consumos pendientes o en preparación.')
 
         total = _refresh_order_total(cur, order['id'])
 

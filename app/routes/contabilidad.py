@@ -34,6 +34,75 @@ from security import rol_requerido, ADMIN_CONTADOR, ROL_SUPER_ADMIN
 
 contabilidad_bp = Blueprint('contabilidad', __name__)
 
+_CONTABILIDAD_DEFAULTS_REPAIRED = False
+
+
+def _repair_contabilidad_movimientos_defaults():
+    """Restaura secuencia/defaults faltantes en contabilidad_movimientos."""
+    global _CONTABILIDAD_DEFAULTS_REPAIRED
+    if _CONTABILIDAD_DEFAULTS_REPAIRED:
+        return
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("""
+                SELECT column_name, column_default
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'contabilidad_movimientos'
+            """)
+            cols = {row['column_name']: row for row in cur.fetchall()}
+            if not cols:
+                return
+
+            id_col = cols.get('id')
+            if id_col and not id_col['column_default']:
+                cur.execute("""
+                    CREATE SEQUENCE IF NOT EXISTS contabilidad_movimientos_id_seq
+                """)
+                cur.execute("""
+                    ALTER SEQUENCE contabilidad_movimientos_id_seq
+                    OWNED BY contabilidad_movimientos.id
+                """)
+                cur.execute("""
+                    ALTER TABLE contabilidad_movimientos
+                    ALTER COLUMN id SET DEFAULT nextval('contabilidad_movimientos_id_seq')
+                """)
+                cur.execute("""
+                    SELECT setval(
+                        'contabilidad_movimientos_id_seq',
+                        COALESCE((SELECT MAX(id) FROM contabilidad_movimientos), 0) + 1,
+                        false
+                    )
+                """)
+
+            patches = {
+                'auto_generado': 'FALSE',
+                'created_at': 'NOW()',
+                'monto_bruto': '0',
+                'retefuente_pct': '0',
+                'retefuente_monto': '0',
+                'iva_pct': '0',
+                'iva_monto': '0',
+                'reteiva_pct': '0',
+                'reteiva_monto': '0',
+                'reteica_pct': '0',
+                'reteica_monto': '0',
+                'total_retenciones': '0',
+            }
+            for col_name, default_expr in patches.items():
+                col = cols.get(col_name)
+                if col and not col['column_default']:
+                    cur.execute(
+                        f"ALTER TABLE contabilidad_movimientos "
+                        f"ALTER COLUMN {col_name} SET DEFAULT {default_expr}"
+                    )
+        _CONTABILIDAD_DEFAULTS_REPAIRED = True
+    except Exception as e:
+        try:
+            app.logger.warning(f"repair contabilidad_movimientos falló: {e}")
+        except Exception:
+            pass
+
 
 # ─────────────────────────────────────────────────────────
 # HELPER PÚBLICO — llamado desde billing.py, admin.py, payments.py
@@ -46,6 +115,7 @@ def registrar_movimiento(tipo, categoria, descripcion, monto,
     if fecha is None:
         fecha = date.today()
     try:
+        _repair_contabilidad_movimientos_defaults()
         monto = float(monto or 0)
         if monto <= 0:
             return
