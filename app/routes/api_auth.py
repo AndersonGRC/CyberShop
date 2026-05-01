@@ -217,23 +217,25 @@ def refresh():
 # ──────────────────────────────────────────────
 
 @api_auth_bp.route('/logout', methods=['POST'])
-@jwt_required
 def logout():
     data        = request.get_json(silent=True) or {}
     raw_refresh = data.get('refresh_token') or ''
 
-    if raw_refresh:
-        token_hash = hash_token(raw_refresh)
-        try:
-            with control_plane_cursor() as cur:
-                cur.execute(
-                    'UPDATE refresh_tokens SET revoked_at = NOW() '
-                    'WHERE token_hash = %s AND user_id = %s',
-                    (token_hash, g.current_user_id),
-                )
-        except Exception as exc:
-            from flask import current_app
-            current_app.logger.error('Logout error: %s', exc)
+    if not raw_refresh:
+        return _err('MISSING_TOKEN', 'refresh_token es requerido.', 400)
+
+    token_hash = hash_token(raw_refresh)
+    try:
+        with control_plane_cursor() as cur:
+            cur.execute(
+                'UPDATE refresh_tokens SET revoked_at = NOW() '
+                'WHERE token_hash = %s AND revoked_at IS NULL',
+                (token_hash,),
+            )
+    except Exception as exc:
+        from flask import current_app
+        current_app.logger.error('Logout error: %s', exc)
+        return _err('SERVER_ERROR', 'Error del servidor.', 500)
 
     return jsonify({'message': 'Sesión cerrada exitosamente.'}), 200
 
