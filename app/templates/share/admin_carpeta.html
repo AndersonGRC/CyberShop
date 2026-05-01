@@ -129,6 +129,23 @@
         </button>
     </form>
 
+    <form method="POST" class="share-dropzone share-dropzone-folder"
+          action="{{ url_for('share.importar_carpeta_admin', carpeta_id=carpeta.id) }}"
+          enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="rutas_relativas_json" id="rutas-relativas-json">
+        <input type="file" name="carpeta_archivos" id="carpeta-input" webkitdirectory directory multiple hidden>
+        <label for="carpeta-input" class="share-dropzone-label">
+            <i class="fas fa-folder-plus"></i>
+            <strong>Selecciona una carpeta de tu equipo</strong>
+            <span>Se crearán subcarpetas y se importarán sus archivos dentro de esta carpeta share</span>
+        </label>
+        <div id="carpeta-preview" class="share-dropzone-lista"></div>
+        <button type="submit" class="btn-share-primario" id="btn-importar-carpeta" disabled>
+            <i class="fas fa-file-import"></i> Importar carpeta
+        </button>
+    </form>
+
     {% if archivos|length == 0 %}
     <p class="share-vacio">Aun no hay archivos en esta carpeta.</p>
     {% else %}
@@ -179,40 +196,87 @@
 </div>
 
 <script>
-// Dropzone
-(function () {
-    const zona  = document.querySelector('.share-dropzone');
-    const input = document.getElementById('archivos-input');
-    const lista = document.getElementById('archivos-preview');
-    const btn   = document.getElementById('btn-subir');
-    if (!zona) return;
-
-    function renderLista() {
-        lista.innerHTML = '';
-        if (!input.files || input.files.length === 0) {
-            btn.disabled = true; return;
-        }
-        for (const f of input.files) {
-            const li = document.createElement('div');
-            li.className = 'share-preview-item';
-            li.innerHTML = '<i class="fas fa-file"></i> <span>' + f.name + '</span> <small>' + (f.size/1024/1024).toFixed(2) + ' MB</small>';
-            lista.appendChild(li);
-        }
-        btn.disabled = false;
+function renderPickerList(input, listEl, buttonEl, options) {
+    listEl.innerHTML = '';
+    if (!input.files || input.files.length === 0) {
+        buttonEl.disabled = true;
+        if (options.pathsField) options.pathsField.value = '[]';
+        return;
     }
-    input.addEventListener('change', renderLista);
 
-    ['dragenter','dragover'].forEach(ev =>
-        zona.addEventListener(ev, e => { e.preventDefault(); zona.classList.add('share-drag'); }));
-    ['dragleave','drop'].forEach(ev =>
-        zona.addEventListener(ev, e => { e.preventDefault(); zona.classList.remove('share-drag'); }));
-    zona.addEventListener('drop', e => {
-        if (e.dataTransfer.files && e.dataTransfer.files.length) {
-            input.files = e.dataTransfer.files;
-            renderLista();
+    const paths = [];
+    const files = Array.from(input.files);
+
+    files.forEach((file, index) => {
+        const li = document.createElement('div');
+        li.className = 'share-preview-item';
+        const relativePath = file.webkitRelativePath || file.name;
+        paths.push(relativePath);
+
+        if (options.mode === 'folder') {
+            li.innerHTML = '<i class="fas fa-folder-open"></i> <span>' + relativePath + '</span> <small>' + (file.size/1024/1024).toFixed(2) + ' MB</small>';
+            if (index >= 10) return;
+        } else {
+            li.innerHTML = '<i class="fas fa-file"></i> <span>' + file.name + '</span> <small>' + (file.size/1024/1024).toFixed(2) + ' MB</small>';
         }
+        listEl.appendChild(li);
     });
-})();
+
+    if (options.mode === 'folder' && files.length > 10) {
+        const more = document.createElement('div');
+        more.className = 'share-preview-item';
+        more.innerHTML = '<i class="fas fa-ellipsis-h"></i> <span>Y ' + (files.length - 10) + ' archivo(s) más</span>';
+        listEl.appendChild(more);
+    }
+
+    if (options.pathsField) options.pathsField.value = JSON.stringify(paths);
+    buttonEl.disabled = false;
+}
+
+function bindPicker(config) {
+    const zona = document.querySelector(config.zoneSelector);
+    const input = document.getElementById(config.inputId);
+    const lista = document.getElementById(config.previewId);
+    const btn = document.getElementById(config.buttonId);
+    const pathsField = config.pathsFieldId ? document.getElementById(config.pathsFieldId) : null;
+    if (!zona || !input || !lista || !btn) return;
+
+    input.addEventListener('change', () => {
+        renderPickerList(input, lista, btn, { mode: config.mode, pathsField });
+    });
+
+    if (config.allowDrop) {
+        ['dragenter','dragover'].forEach(ev =>
+            zona.addEventListener(ev, e => { e.preventDefault(); zona.classList.add('share-drag'); }));
+        ['dragleave','drop'].forEach(ev =>
+            zona.addEventListener(ev, e => { e.preventDefault(); zona.classList.remove('share-drag'); }));
+        zona.addEventListener('drop', e => {
+            if (e.dataTransfer.files && e.dataTransfer.files.length) {
+                input.files = e.dataTransfer.files;
+                renderPickerList(input, lista, btn, { mode: config.mode, pathsField });
+            }
+        });
+    }
+}
+
+bindPicker({
+    zoneSelector: '.share-dropzone:not(.share-dropzone-folder)',
+    inputId: 'archivos-input',
+    previewId: 'archivos-preview',
+    buttonId: 'btn-subir',
+    mode: 'files',
+    allowDrop: true
+});
+
+bindPicker({
+    zoneSelector: '.share-dropzone-folder',
+    inputId: 'carpeta-input',
+    previewId: 'carpeta-preview',
+    buttonId: 'btn-importar-carpeta',
+    pathsFieldId: 'rutas-relativas-json',
+    mode: 'folder',
+    allowDrop: false
+});
 
 // Copiar link
 document.querySelectorAll('.btn-share-copiar').forEach(btn => {

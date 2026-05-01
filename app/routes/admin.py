@@ -9,10 +9,15 @@ import hashlib
 import hmac
 import os
 import time
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session, Response, current_app
+import subprocess
+import gzip
+import shutil
+from datetime import datetime
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session, Response, current_app, send_from_directory, abort
 import csv
 import io
-from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from psycopg2.extras import DictCursor
 
 from database import get_db_connection, get_db_cursor
@@ -2141,11 +2146,31 @@ def configuracion_cliente():
     except Exception:
         pass
 
+    # Backups de BD (super admin)
+    backups = []
+    backup_clave_configurada = False
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("""
+                SELECT id, nombre_descarga, tipo, comprimido, tamano_bytes, fecha_creacion
+                FROM backups_db
+                ORDER BY fecha_creacion DESC
+                LIMIT 50
+            """)
+            backups = cur.fetchall()
+            cur.execute("SELECT clave_hash FROM backup_config WHERE id = 1")
+            row = cur.fetchone()
+            backup_clave_configurada = bool(row and row['clave_hash'])
+    except Exception as e:
+        current_app.logger.error(f"Error cargando backups_db: {e}")
+
     return render_template('configuracion_cliente.html',
                            datosApp=get_data_app(), grupos=grupos,
                            secciones=secciones,
                            module_toggles=module_toggles,
-                           gmail_activo=gmail_activo, gmail_email=gmail_email)
+                           gmail_activo=gmail_activo, gmail_email=gmail_email,
+                           backups=backups,
+                           backup_clave_configurada=backup_clave_configurada)
 
 
 # ── Facturación DIAN ──────────────────────────────────────────────────────────
@@ -2200,3 +2225,291 @@ def facturar_venta_pos(venta_id):
     if 'error' in resultado:
         return jsonify({'success': False, 'error': resultado['error']}), 500
     return jsonify({'success': True, 'factura_id': resultado.get('id'), 'estado': resultado.get('estado')})
+
+
+# ── Backups de base de datos (Super Admin) ────────────────────────────────────
+
+def _backups_dir():
+    """Directorio fisico de backups (fuera de static/, igual que uploads/share/)."""
+    folder = os.path.join(current_app.root_path, 'uploads', 'backups')
+    os.makedirs(folder, exist_ok=True)
+    return folder
+
+
+def _safe_remove(path):
+    """Elimina un archivo si existe; ignora si ya no esta."""
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass
+    except OSError as e:
+        current_app.logger.warning(f"No se pudo eliminar {path}: {e}")
+
+
+def _find_pg_dump():
+    """Localiza pg_dump probando PATH extendido y rutas comunes.
+
+    El servicio systemd puede definir un PATH limitado al venv, asi que
+    no podemos confiar en shutil.which con el PATH heredado.
+    """
+    extended_path = os.pathsep.join([
+        os.environ.get('PATH', ''),
+        '/usr/bin',
+        '/usr/local/bin',
+        '/usr/lib/postgresql/16/bin',
+        '/usr/lib/postgresql/15/bin',
+        '/usr/lib/postgresql/14/bin',
+    ])
+    found = shutil.which('pg_dump', path=extended_path)
+    if found:
+        return found
+    for candidate in ('/usr/bin/pg_dump', '/usr/local/bin/pg_dump'):
+        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            return candidate
+    return None
+
+
+@admin_bp.route('/admin/backup-db/configurar-clave', methods=['POST'])
+@rol_requerido(ROL_SUPER_ADMIN)
+def backup_db_configurar_clave():
+    """Setea o cambia la clave bcrypt de la zona protegida de backups."""
+    clave = (request.form.get('clave') or '').strip()
+    if len(clave) < 6:
+        flash('La clave debe tener al menos 6 caracteres.', 'error')
+        return redirect(url_for('admin.configuracion_cliente') + '#backup-db')
+    try:
+        with get_db_cursor() as cur:
+            cur.execute(
+                """
+                UPDATE backup_config
+                SET clave_hash = %s,
+                    actualizado_por = %s,
+                    fecha_actualizacion = CURRENT_TIMESTAMP
+                WHERE id = 1
+                """,
+                (generate_password_hash(clave), session.get('user_id')),
+            )
+        flash('Contraseña de backups actualizada.', 'success')
+    except Exception as e:
+        current_app.logger.error(f"Error guardando clave de backup: {e}")
+        flash('No se pudo guardar la contraseña.', 'error')
+    return redirect(url_for('admin.configuracion_cliente') + '#backup-db')
+
+
+@admin_bp.route('/admin/backup-db/generar', methods=['POST'])
+@rol_requerido(ROL_SUPER_ADMIN)
+def backup_db_generar():
+    """Genera un backup (full o solo schema) usando pg_dump y lo registra."""
+    # 1. Validar clave configurada
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT clave_hash FROM backup_config WHERE id = 1")
+            row = cur.fetchone()
+            if not (row and row['clave_hash']):
+                flash('Configura primero la contraseña de backups.', 'error')
+                return redirect(url_for('admin.configuracion_cliente') + '#backup-db')
+    except Exception as e:
+        current_app.logger.error(f"Error verificando clave de backup: {e}")
+        flash('No se pudo verificar la configuración de backups.', 'error')
+        return redirect(url_for('admin.configuracion_cliente') + '#backup-db')
+
+    # 2. Validar parametros
+    tipo = request.form.get('tipo')
+    if tipo not in ('full', 'schema'):
+        flash('Tipo de backup inválido.', 'error')
+        return redirect(url_for('admin.configuracion_cliente') + '#backup-db')
+    comprimir = request.form.get('comprimir') == '1'
+
+    # 3. Preparar nombres y registro previo en BD
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    ext = '.sql.gz' if comprimir else '.sql'
+    nombre_descarga = f"backup_{tipo}_{timestamp}{ext}"
+    user_id = session.get('user_id')
+    backup_id = None
+    nombre_archivo = None
+    ruta_destino = None
+
+    try:
+        with get_db_cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO backups_db (nombre_archivo, nombre_descarga, tipo, comprimido, creado_por)
+                VALUES (%s, %s, %s, %s, %s)
+                RETURNING id
+                """,
+                ('pendiente', nombre_descarga, tipo, comprimir, user_id),
+            )
+            backup_id = cur.fetchone()[0]
+            nombre_archivo = secure_filename(f"{backup_id}__{nombre_descarga}")
+            cur.execute(
+                "UPDATE backups_db SET nombre_archivo = %s WHERE id = %s",
+                (nombre_archivo, backup_id),
+            )
+    except Exception as e:
+        current_app.logger.error(f"Error registrando backup en BD: {e}")
+        flash('No se pudo iniciar el backup.', 'error')
+        return redirect(url_for('admin.configuracion_cliente') + '#backup-db')
+
+    ruta_destino = os.path.join(_backups_dir(), nombre_archivo)
+
+    # 4. Localizar pg_dump (PATH del servicio systemd suele estar restringido al venv)
+    pg_dump_bin = _find_pg_dump()
+    if not pg_dump_bin:
+        try:
+            with get_db_cursor() as cur:
+                cur.execute("DELETE FROM backups_db WHERE id = %s", (backup_id,))
+        except Exception:
+            pass
+        flash('pg_dump no está instalado o no se encuentra en el PATH del servicio.', 'error')
+        return redirect(url_for('admin.configuracion_cliente') + '#backup-db')
+
+    # 5. Construir comando pg_dump (lista, no shell=True → seguro contra inyección)
+    cmd = [
+        pg_dump_bin,
+        '-h', os.getenv('DB_HOST', 'localhost'),
+        '-p', str(os.getenv('DB_PORT', '5432')),
+        '-U', os.getenv('DB_USER', 'postgres'),
+        '-d', os.getenv('DB_NAME', 'cybershop'),
+        '--no-owner',
+        '--no-acl',
+    ]
+    if tipo == 'schema':
+        cmd.append('-s')
+
+    env = {**os.environ, 'PGPASSWORD': os.getenv('DB_PASSWORD', '')}
+
+    # 6. Ejecutar pg_dump escribiendo a disco (no a memoria)
+    try:
+        if comprimir:
+            # Escribimos en streaming a gzip via Popen para no cargar todo a memoria
+            with gzip.open(ruta_destino, 'wb') as f_out:
+                proc = subprocess.Popen(
+                    cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env
+                )
+                # Stream stdout chunk a chunk
+                while True:
+                    chunk = proc.stdout.read(65536)
+                    if not chunk:
+                        break
+                    f_out.write(chunk)
+                stderr = proc.stderr.read()
+                returncode = proc.wait(timeout=600)
+                if returncode != 0:
+                    raise subprocess.CalledProcessError(returncode, cmd, stderr=stderr)
+        else:
+            with open(ruta_destino, 'wb') as f_out:
+                subprocess.run(
+                    cmd,
+                    stdout=f_out,
+                    stderr=subprocess.PIPE,
+                    env=env,
+                    timeout=600,
+                    check=True,
+                )
+
+        tamano = os.path.getsize(ruta_destino)
+        with get_db_cursor() as cur:
+            cur.execute(
+                "UPDATE backups_db SET tamano_bytes = %s WHERE id = %s",
+                (tamano, backup_id),
+            )
+        flash(f'Backup generado: {nombre_descarga}', 'success')
+
+    except subprocess.TimeoutExpired:
+        _safe_remove(ruta_destino)
+        try:
+            with get_db_cursor() as cur:
+                cur.execute("DELETE FROM backups_db WHERE id = %s", (backup_id,))
+        except Exception:
+            pass
+        flash('Timeout: el backup tardó más de 10 minutos.', 'error')
+
+    except subprocess.CalledProcessError as e:
+        _safe_remove(ruta_destino)
+        try:
+            with get_db_cursor() as cur:
+                cur.execute("DELETE FROM backups_db WHERE id = %s", (backup_id,))
+        except Exception:
+            pass
+        stderr_text = (e.stderr or b'').decode('utf-8', errors='ignore')[:300]
+        current_app.logger.error(f"pg_dump fallo: {stderr_text}")
+        flash(f'pg_dump falló: {stderr_text or "error desconocido"}', 'error')
+
+    except FileNotFoundError:
+        _safe_remove(ruta_destino)
+        try:
+            with get_db_cursor() as cur:
+                cur.execute("DELETE FROM backups_db WHERE id = %s", (backup_id,))
+        except Exception:
+            pass
+        flash('pg_dump no está instalado en el servidor.', 'error')
+
+    except OSError as e:
+        _safe_remove(ruta_destino)
+        try:
+            with get_db_cursor() as cur:
+                cur.execute("DELETE FROM backups_db WHERE id = %s", (backup_id,))
+        except Exception:
+            pass
+        current_app.logger.error(f"OSError generando backup: {e}")
+        flash(f'Error de E/S al generar backup: {e}', 'error')
+
+    return redirect(url_for('admin.configuracion_cliente') + '#backup-db')
+
+
+@admin_bp.route('/admin/backup-db/descargar/<int:archivo_id>')
+@rol_requerido(ROL_SUPER_ADMIN)
+def backup_db_descargar(archivo_id):
+    """Descarga un archivo de backup. Solo super admin."""
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute(
+                "SELECT nombre_archivo, nombre_descarga, comprimido FROM backups_db WHERE id = %s",
+                (archivo_id,),
+            )
+            row = cur.fetchone()
+    except Exception as e:
+        current_app.logger.error(f"Error consultando backup {archivo_id}: {e}")
+        abort(500)
+
+    if not row:
+        abort(404)
+
+    folder = _backups_dir()
+    ruta = os.path.join(folder, row['nombre_archivo'])
+    if not os.path.isfile(ruta):
+        flash('El archivo de backup ya no existe en disco.', 'error')
+        return redirect(url_for('admin.configuracion_cliente') + '#backup-db')
+
+    mimetype = 'application/gzip' if row['comprimido'] else 'application/sql'
+    return send_from_directory(
+        folder,
+        row['nombre_archivo'],
+        as_attachment=True,
+        download_name=row['nombre_descarga'],
+        mimetype=mimetype,
+    )
+
+
+@admin_bp.route('/admin/backup-db/eliminar/<int:archivo_id>', methods=['POST'])
+@rol_requerido(ROL_SUPER_ADMIN)
+def backup_db_eliminar(archivo_id):
+    """Elimina un backup (archivo fisico + registro)."""
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute(
+                "SELECT nombre_archivo FROM backups_db WHERE id = %s",
+                (archivo_id,),
+            )
+            row = cur.fetchone()
+            if not row:
+                flash('Backup no encontrado.', 'error')
+                return redirect(url_for('admin.configuracion_cliente') + '#backup-db')
+            ruta = os.path.join(_backups_dir(), row['nombre_archivo'])
+            _safe_remove(ruta)
+            cur.execute("DELETE FROM backups_db WHERE id = %s", (archivo_id,))
+        flash('Backup eliminado.', 'success')
+    except Exception as e:
+        current_app.logger.error(f"Error eliminando backup {archivo_id}: {e}")
+        flash('No se pudo eliminar el backup.', 'error')
+    return redirect(url_for('admin.configuracion_cliente') + '#backup-db')

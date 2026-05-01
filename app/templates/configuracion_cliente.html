@@ -1219,6 +1219,121 @@
         </div>
     </div>
     {% endif %}
+
+    <div class="config-card" id="backup-db" style="margin-top: 30px;">
+        <div class="config-card-header">
+            <i class="fas fa-database"></i> Copias de seguridad de la base de datos
+        </div>
+        <div class="config-card-body">
+            <p style="color:var(--color-gris-texto, #666); margin-bottom:20px; font-size:0.9rem;">
+                Genera respaldos completos o solo de la estructura de la base de datos. Los archivos se almacenan en una carpeta privada protegida y solo el Super Administrador puede descargarlos o eliminarlos.
+            </p>
+
+            <h4 style="margin-top:0; margin-bottom:12px; color:var(--color-primario, #122C94);">
+                <i class="fas fa-key"></i>
+                {% if backup_clave_configurada %}Cambiar contraseña de acceso{% else %}Configurar contraseña de acceso (requerida){% endif %}
+            </h4>
+            <form method="POST" action="{{ url_for('admin.backup_db_configurar_clave') }}" style="margin-bottom:24px;">
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <input type="password" name="clave" placeholder="Mínimo 6 caracteres" minlength="6" required
+                           style="flex:1; min-width:240px; padding:10px; border:1px solid #ccc; border-radius:6px;">
+                    <button type="submit" class="btn-guardar-config" style="max-width:220px; margin:0;">
+                        <i class="fas fa-save"></i> Guardar contraseña
+                    </button>
+                </div>
+                {% if backup_clave_configurada %}
+                <small style="color:var(--color-exito, #28a745); display:block; margin-top:8px;">
+                    <i class="fas fa-check-circle"></i> Contraseña configurada.
+                </small>
+                {% endif %}
+            </form>
+
+            {% if backup_clave_configurada %}
+            <h4 style="margin-bottom:12px; color:var(--color-primario, #122C94);">
+                <i class="fas fa-cloud-download-alt"></i> Generar nuevo backup
+            </h4>
+            <form method="POST" action="{{ url_for('admin.backup_db_generar') }}" style="margin-bottom:24px;">
+                <label style="display:flex; align-items:center; gap:8px; margin-bottom:14px; cursor:pointer;">
+                    <input type="checkbox" name="comprimir" value="1">
+                    <span>Comprimir con gzip (.sql.gz) — recomendado para reducir tamaño</span>
+                </label>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <button type="submit" name="tipo" value="full" class="btn-guardar-config" style="margin:0;"
+                            onclick="return confirm('¿Generar backup completo (estructura + datos)? Puede tardar varios minutos en bases grandes.');">
+                        <i class="fas fa-download"></i> Backup completo (estructura + datos)
+                    </button>
+                    <button type="submit" name="tipo" value="schema" class="btn-guardar-config" style="margin:0; background:var(--color-botones, #1F3A93);"
+                            onclick="return confirm('¿Generar backup de solo estructura (sin datos)?');">
+                        <i class="fas fa-sitemap"></i> Solo estructura (replicar a otros clientes)
+                    </button>
+                </div>
+            </form>
+
+            <h4 style="margin-bottom:12px; color:var(--color-primario, #122C94);">
+                <i class="fas fa-history"></i> Historial de backups
+            </h4>
+            {% if backups %}
+            <div style="overflow-x:auto;">
+                <table style="width:100%; border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:var(--color-fondo-claro, #f9f9f9); text-align:left;">
+                            <th style="padding:10px; border-bottom:2px solid #ddd;">Archivo</th>
+                            <th style="padding:10px; border-bottom:2px solid #ddd;">Tipo</th>
+                            <th style="padding:10px; border-bottom:2px solid #ddd;">Tamaño</th>
+                            <th style="padding:10px; border-bottom:2px solid #ddd;">Fecha</th>
+                            <th style="padding:10px; border-bottom:2px solid #ddd;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for b in backups %}
+                        <tr style="border-bottom:1px solid #eee;">
+                            <td style="padding:10px; font-family:monospace; font-size:0.85rem;">{{ b.nombre_descarga }}</td>
+                            <td style="padding:10px;">
+                                {% if b.tipo == 'full' %}
+                                    <span style="color:var(--color-exito, #28a745);"><i class="fas fa-database"></i> Completo</span>
+                                {% else %}
+                                    <span style="color:var(--color-botones, #1F3A93);"><i class="fas fa-sitemap"></i> Estructura</span>
+                                {% endif %}
+                                {% if b.comprimido %}<small>(.gz)</small>{% endif %}
+                            </td>
+                            <td style="padding:10px;">
+                                {% if b.tamano_bytes %}
+                                    {% if b.tamano_bytes >= 1048576 %}
+                                        {{ (b.tamano_bytes / 1048576) | round(2) }} MB
+                                    {% else %}
+                                        {{ (b.tamano_bytes / 1024) | round(1) }} KB
+                                    {% endif %}
+                                {% else %}—{% endif %}
+                            </td>
+                            <td style="padding:10px; white-space:nowrap;">{{ b.fecha_creacion.strftime('%Y-%m-%d %H:%M') if b.fecha_creacion else '' }}</td>
+                            <td style="padding:10px; white-space:nowrap;">
+                                <a href="{{ url_for('admin.backup_db_descargar', archivo_id=b.id) }}"
+                                   style="color:var(--color-primario, #122C94); margin-right:12px; text-decoration:none;">
+                                    <i class="fas fa-download"></i> Descargar
+                                </a>
+                                <form method="POST" action="{{ url_for('admin.backup_db_eliminar', archivo_id=b.id) }}"
+                                      style="display:inline;"
+                                      onsubmit="return confirm('¿Eliminar este backup permanentemente?');">
+                                    <button type="submit" style="background:none; border:none; color:var(--color-eliminar, #dc3545); cursor:pointer; padding:0; font-size:inherit;">
+                                        <i class="fas fa-trash"></i> Eliminar
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p style="color:var(--color-gris-texto, #888); font-style:italic;">Aún no se han generado backups.</p>
+            {% endif %}
+            {% else %}
+            <p style="color:var(--color-gris-texto, #888); font-style:italic;">
+                Configura primero una contraseña para habilitar la generación de backups.
+            </p>
+            {% endif %}
+        </div>
+    </div>
 </div>
 
 <script>

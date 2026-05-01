@@ -12,6 +12,7 @@ Rutas publicas: navegacion del cliente bajo /c/<token>.
 import os
 import secrets
 import shutil
+import json
 from datetime import datetime
 
 from flask import (
@@ -91,6 +92,32 @@ def _get_carpeta_por_token(token):
         return cur.fetchone()
 
 
+def _crear_subcarpeta_si_no_existe(parent_id, nombre):
+    nombre = (nombre or '').strip()[:200]
+    if not nombre:
+        return None, False
+
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute("""
+            SELECT id
+            FROM share_carpetas
+            WHERE parent_id = %s AND nombre = %s
+            ORDER BY id
+            LIMIT 1
+        """, (parent_id, nombre))
+        existente = cur.fetchone()
+        if existente:
+            return existente['id'], False
+
+        cur.execute("""
+            INSERT INTO share_carpetas (parent_id, nombre, creado_por)
+            VALUES (%s, %s, %s)
+            RETURNING id
+        """, (parent_id, nombre, session.get('usuario_id')))
+        creada = cur.fetchone()
+        return creada['id'], True
+
+
 def _carpeta_raiz_id(carpeta_id):
     """Sube por parent_id hasta llegar a la raiz. Devuelve el id de la raiz o None."""
     actual_id = carpeta_id
@@ -131,6 +158,35 @@ def _breadcrumbs(carpeta_id):
             actual_id = row['parent_id']
     crumbs.reverse()
     return crumbs
+
+
+def _parsear_ruta_importada(ruta_relativa, fallback_filename):
+    ruta = (ruta_relativa or '').replace('\\', '/').strip()
+    nombre_fallback = os.path.basename((fallback_filename or '').replace('\\', '/')).strip()
+
+    if not ruta:
+        return [], nombre_fallback
+
+    ruta = ruta.lstrip('/')
+    partes = [p.strip() for p in ruta.split('/') if p.strip()]
+    if not partes or any(p in {'.', '..'} for p in partes):
+        return None, None
+
+    nombre_archivo = partes[-1][:255]
+    subcarpetas = [p[:200] for p in partes[:-1]]
+    return subcarpetas, nombre_archivo
+
+
+def _resolver_carpeta_destino_importacion(carpeta_base_id, subcarpetas):
+    destino_id = carpeta_base_id
+    creadas = 0
+    for nombre in subcarpetas:
+        destino_id, fue_creada = _crear_subcarpeta_si_no_existe(destino_id, nombre)
+        if not destino_id:
+            return None, creadas
+        if fue_creada:
+            creadas += 1
+    return destino_id, creadas
 
 
 def _registrar_acceso(carpeta_raiz_id, archivo_id, accion):
@@ -511,9 +567,75 @@ def subir_archivo_admin(carpeta_id):
     return redirect(url_for('share.ver_carpeta_admin', carpeta_id=carpeta_id))
 
 
-def _guardar_archivo(file_storage, carpeta_id, raiz_id, subido_por_admin=None, subido_por_cliente=None):
+@share_bp.route('/admin/compartir/carpeta/<int:carpeta_id>/importar-carpeta', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SHARE)
+def importar_carpeta_admin(carpeta_id):
+    carpeta = _get_carpeta(carpeta_id)
+    if not carpeta:
+        flash('Carpeta destino no encontrada.', 'error')
+        return redirect(url_for('share.gestion_carpetas'))
+
+    raiz_id = _carpeta_raiz_id(carpeta_id)
+    if not raiz_id:
+        flash('Estructura de carpeta invalida.', 'error')
+        return redirect(url_for('share.gestion_carpetas'))
+
+    files = request.files.getlist('carpeta_archivos')
+    if not files or all(not f.filename for f in files):
+        flash('Selecciona una carpeta con archivos.', 'error')
+        return redirect(url_for('share.ver_carpeta_admin', carpeta_id=carpeta_id))
+
+    try:
+        rutas_relativas = json.loads(request.form.get('rutas_relativas_json') or '[]')
+    except ValueError:
+        rutas_relativas = []
+
+    subidos = 0
+    subcarpetas_creadas = 0
+
+    for index, archivo in enumerate(files):
+        if not archivo or not archivo.filename:
+            continue
+
+        ruta_relativa = rutas_relativas[index] if index < len(rutas_relativas) else ''
+        subcarpetas, nombre_original = _parsear_ruta_importada(ruta_relativa, archivo.filename)
+        if subcarpetas is None or not nombre_original:
+            flash(f'Archivo "{archivo.filename}" omitido (ruta no valida).', 'warning')
+            continue
+
+        if not _allowed_file(nombre_original):
+            flash(f'Archivo "{nombre_original}" omitido (extension no permitida).', 'warning')
+            continue
+
+        destino_id, creadas = _resolver_carpeta_destino_importacion(carpeta_id, subcarpetas)
+        if not destino_id:
+            flash(f'No se pudo preparar la ruta para "{nombre_original}".', 'error')
+            continue
+
+        resultado = _guardar_archivo(
+            archivo,
+            destino_id,
+            raiz_id,
+            subido_por_admin=session.get('usuario_id'),
+            nombre_original=nombre_original,
+        )
+        if resultado:
+            subidos += 1
+            subcarpetas_creadas += creadas
+
+    if subidos:
+        flash(f'Se importaron {subidos} archivo(s) y {subcarpetas_creadas} subcarpeta(s).', 'success')
+    else:
+        flash('No se pudo importar ningun archivo de la carpeta seleccionada.', 'warning')
+
+    return redirect(url_for('share.ver_carpeta_admin', carpeta_id=carpeta_id))
+
+
+def _guardar_archivo(file_storage, carpeta_id, raiz_id, subido_por_admin=None,
+                     subido_por_cliente=None, nombre_original=None):
     """Guarda fisicamente y registra en BD un archivo. Devuelve dict con info."""
-    nombre_original = file_storage.filename
+    nombre_original = (nombre_original or file_storage.filename or '').strip()
     base = secure_filename(nombre_original) or 'archivo'
 
     file_storage.stream.seek(0, os.SEEK_END)
