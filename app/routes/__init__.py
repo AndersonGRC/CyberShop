@@ -73,7 +73,9 @@ def register_blueprints(app):
     if os.getenv('CYBERSHOP_API_ENABLED', '0') == '1':
         from routes.api_auth import api_auth_bp
         from routes.api_health import api_health_bp
+        from routes.api_sync import api_sync_bp
         app.register_blueprint(api_auth_bp)
         app.register_blueprint(api_health_bp)
-        return (api_auth_bp, api_health_bp)
+        app.register_blueprint(api_sync_bp)
+        return (api_auth_bp, api_health_bp, api_sync_bp)
     return ()
