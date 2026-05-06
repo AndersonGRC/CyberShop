@@ -26,8 +26,10 @@ from services.db_layer import tenant_cursor
 
 api_sync_bp = Blueprint('api_sync', __name__, url_prefix='/api/v1/sync')
 
-VALID_ENTITIES = {'sale', 'inventory_movement'}
-VALID_ACTIONS = {'create'}
+VALID_ENTITIES = {'sale', 'inventory_movement', 'product', 'user'}
+VALID_ACTIONS = {'create', 'update', 'delete'}
+DEFAULT_GENERO_NAME = 'POS Desktop'
+DEFAULT_IMAGE = '/static/img/no-image.png'
 
 
 # ──────────────────────────────────────────────
@@ -104,59 +106,55 @@ def health():
 def products():
     """Devuelve productos del tenant modificados desde ?since=<iso>.
 
-    Si ?since esta ausente o invalida, devuelve todo el catalogo.
-    Cursor: timestamp del producto mas reciente para usar en la siguiente call.
+    Por defecto solo devuelve productos active=TRUE. Pasar
+    ?include_inactive=1 para que el desktop pueda refrescar tombstones.
+    Cursor: timestamp del producto mas reciente.
     """
     since = _parse_iso(request.args.get('since'))
     limit = min(int(request.args.get('limit', 1000)), 5000)
+    include_inactive = request.args.get('include_inactive') == '1'
 
+    where_parts = []
+    params = []
+    if since:
+        where_parts.append('p.updated_at > %s')
+        params.append(since)
+    if not include_inactive:
+        where_parts.append('p.active = TRUE')
+    where_sql = ('WHERE ' + ' AND '.join(where_parts)) if where_parts else ''
+
+    sql = f"""
+        SELECT p.id, p.referencia AS sku, p.barcode, p.nombre AS name, p.precio AS price,
+               p.stock, p.descripcion, p.genero_id, g.nombre AS category,
+               p.imagen, p.active, p.updated_at
+        FROM productos p
+        LEFT JOIN generos g ON g.id = p.genero_id
+        {where_sql}
+        ORDER BY p.updated_at ASC
+        LIMIT %s
+    """
+    params.append(limit)
     with tenant_cursor(db_name=g.sync_db_name, dict_cursor=True) as cur:
-        if since:
-            cur.execute(
-                """
-                SELECT p.id, p.referencia AS sku, p.nombre AS name, p.precio AS price,
-                       p.stock, p.descripcion, p.genero_id, g.nombre AS category,
-                       p.updated_at
-                FROM productos p
-                LEFT JOIN generos g ON g.id = p.genero_id
-                WHERE p.updated_at > %s
-                ORDER BY p.updated_at ASC
-                LIMIT %s
-                """,
-                (since, limit),
-            )
-        else:
-            cur.execute(
-                """
-                SELECT p.id, p.referencia AS sku, p.nombre AS name, p.precio AS price,
-                       p.stock, p.descripcion, p.genero_id, g.nombre AS category,
-                       p.updated_at
-                FROM productos p
-                LEFT JOIN generos g ON g.id = p.genero_id
-                ORDER BY p.updated_at ASC
-                LIMIT %s
-                """,
-                (limit,),
-            )
+        cur.execute(sql, tuple(params))
         rows = cur.fetchall()
 
     items = []
     cursor_iso = None
     for row in rows:
-        updated = row['updated_at']
-        if hasattr(updated, 'isoformat'):
-            updated_iso = updated.isoformat()
-        else:
-            updated_iso = str(updated) if updated else _now_iso()
+        updated_iso = _iso(row['updated_at'])
         cursor_iso = updated_iso
         items.append({
             'remote_id': int(row['id']),
             'sku': row['sku'],
+            'barcode': row['barcode'] or '',
             'name': row['name'],
             'price': float(row['price'] or 0),
             'stock': int(row['stock'] or 0),
             'category': row['category'] or 'General',
+            'genero_id': int(row['genero_id']) if row['genero_id'] else None,
             'description': row['descripcion'] or '',
+            'image': row['imagen'] or '',
+            'active': bool(row['active']),
             'updated_at': updated_iso,
         })
 
@@ -166,6 +164,14 @@ def products():
         'cursor': cursor_iso,
         'server_time': _now_iso(),
     })
+
+
+def _iso(value):
+    if value is None:
+        return _now_iso()
+    if hasattr(value, 'isoformat'):
+        return value.isoformat()
+    return str(value)
 
 
 # ──────────────────────────────────────────────
@@ -203,21 +209,30 @@ def outbox():
                 continue
 
             try:
-                if entity == 'sale':
+                if entity == 'sale' and action == 'create':
                     remote_id = _apply_sale(cur, payload)
-                elif entity == 'inventory_movement':
+                elif entity == 'inventory_movement' and action == 'create':
                     remote_id = _apply_inventory_movement(cur, payload)
+                elif entity == 'product':
+                    remote_id = _apply_product(cur, action, payload)
+                elif entity == 'user':
+                    remote_id = _apply_user(cur, action, payload)
                 else:
-                    raise ValueError('entity no soportada')
+                    raise ValueError(f'combinacion no soportada: {entity}/{action}')
                 results.append({
                     'local_id': local_id, 'status': 'applied',
                     'remote_id': remote_id, 'error': None,
                 })
             except _DuplicateError as dup:
-                # Idempotencia: si ya se aplico antes, devolver el remote_id existente
                 results.append({
                     'local_id': local_id, 'status': 'skipped',
                     'remote_id': dup.remote_id, 'error': 'duplicate',
+                })
+            except _StaleError as stale:
+                # LWW: el server ya tiene una version mas nueva; cliente debe pull
+                results.append({
+                    'local_id': local_id, 'status': 'stale',
+                    'remote_id': stale.remote_id, 'error': 'newer_on_server',
                 })
             except Exception as exc:  # noqa: BLE001
                 results.append({
@@ -235,6 +250,13 @@ def outbox():
 class _DuplicateError(Exception):
     def __init__(self, remote_id):
         super().__init__(f'duplicate remote_id={remote_id}')
+        self.remote_id = remote_id
+
+
+class _StaleError(Exception):
+    """LWW: el cliente envio una version mas vieja que la del server."""
+    def __init__(self, remote_id):
+        super().__init__(f'stale remote_id={remote_id}')
         self.remote_id = remote_id
 
 
@@ -338,3 +360,313 @@ def _apply_inventory_movement(cur, payload):
         (client_mov_id, product_id, sku or None, delta, reason, created_local),
     )
     return int(cur.fetchone()['id'])
+
+
+# ──────────────────────────────────────────────
+# Apply: producto (create/update/delete con LWW)
+# ──────────────────────────────────────────────
+
+def _apply_product(cur, action, payload):
+    """Aplica un producto del desktop al VPS con Last-Write-Wins.
+
+    payload obligatorio: sku. Opcional: barcode, name, price, stock, category,
+    genero_id, description, image, active, updated_at (cliente).
+    Match por referencia=sku. Si existe y server.updated_at > client.updated_at,
+    lanza _StaleError sin escribir. Si no existe y action != delete, crea.
+    """
+    sku = (payload.get('sku') or '').strip()
+    if not sku:
+        raise ValueError('sku es obligatorio')
+
+    client_updated = _parse_iso(payload.get('updated_at'))
+
+    cur.execute(
+        'SELECT id, updated_at, active FROM productos WHERE referencia = %s',
+        (sku,),
+    )
+    existing = cur.fetchone()
+
+    if action == 'delete':
+        if not existing:
+            return None  # nada que borrar
+        if client_updated and existing['updated_at'] and client_updated < existing['updated_at']:
+            raise _StaleError(int(existing['id']))
+        cur.execute('UPDATE productos SET active = FALSE WHERE id = %s', (existing['id'],))
+        return int(existing['id'])
+
+    # CREATE / UPDATE
+    name = (payload.get('name') or sku)[:100]
+    price = float(payload.get('price') or 0)
+    stock = int(payload.get('stock') or 0)
+    barcode = (payload.get('barcode') or '').strip() or None
+    description = (payload.get('description') or '')[:1000]
+    image = (payload.get('image') or '').strip() or DEFAULT_IMAGE
+    active = bool(payload.get('active', True))
+    genero_id = payload.get('genero_id')
+
+    if genero_id is None:
+        # Si no especificaron, usar/crear genero default "POS Desktop"
+        cur.execute('SELECT id FROM generos WHERE nombre = %s', (DEFAULT_GENERO_NAME,))
+        g_row = cur.fetchone()
+        if g_row:
+            genero_id = int(g_row['id'])
+        else:
+            cur.execute('INSERT INTO generos (nombre) VALUES (%s) RETURNING id', (DEFAULT_GENERO_NAME,))
+            genero_id = int(cur.fetchone()['id'])
+
+    if existing:
+        if client_updated and existing['updated_at'] and client_updated < existing['updated_at']:
+            raise _StaleError(int(existing['id']))
+        cur.execute(
+            """
+            UPDATE productos
+            SET nombre = %s, precio = %s, stock = %s, barcode = %s,
+                descripcion = %s, imagen = %s, active = %s, genero_id = %s
+            WHERE id = %s
+            """,
+            (name, price, stock, barcode, description, image, active, genero_id, existing['id']),
+        )
+        return int(existing['id'])
+
+    cur.execute(
+        """
+        INSERT INTO productos
+          (referencia, nombre, precio, stock, barcode, descripcion,
+           imagen, active, genero_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING id
+        """,
+        (sku, name, price, stock, barcode, description, image, active, genero_id),
+    )
+    return int(cur.fetchone()['id'])
+
+
+# ──────────────────────────────────────────────
+# Apply: usuario (solo perfil, sin password)
+# ──────────────────────────────────────────────
+
+def _apply_user(cur, action, payload):
+    """Sincroniza perfil de usuario (sin password).
+
+    payload: email, nombre, rol_nombre (string del rol), estado, updated_at.
+    Match por email. Para crear, password_hash queda con un valor random
+    invalido (el usuario debe resetearlo en el otro lado).
+    """
+    import secrets as _sec
+    email = (payload.get('email') or '').strip().lower()
+    if not email or '@' not in email:
+        raise ValueError('email invalido')
+
+    nombre = (payload.get('nombre') or payload.get('name') or email)[:100]
+    rol_nombre = (payload.get('rol_nombre') or payload.get('role') or 'Cajero').strip()
+    estado = (payload.get('estado') or 'habilitado').strip()
+    client_updated = _parse_iso(payload.get('updated_at'))
+
+    # Resolver rol_id por nombre
+    cur.execute('SELECT id FROM roles WHERE LOWER(nombre) = LOWER(%s)', (rol_nombre,))
+    r = cur.fetchone()
+    if not r:
+        # Fallback: rol "Cajero" o el primero disponible
+        cur.execute("SELECT id FROM roles WHERE LOWER(nombre) = 'cajero' LIMIT 1")
+        r = cur.fetchone()
+        if not r:
+            cur.execute('SELECT id FROM roles ORDER BY id LIMIT 1')
+            r = cur.fetchone()
+    if not r:
+        raise ValueError('No hay roles definidos en el VPS')
+    rol_id = int(r['id'])
+
+    cur.execute('SELECT id, updated_at FROM usuarios WHERE LOWER(email) = LOWER(%s)', (email,))
+    existing = cur.fetchone()
+
+    if action == 'delete':
+        if not existing:
+            return None
+        if client_updated and existing['updated_at'] and client_updated < existing['updated_at']:
+            raise _StaleError(int(existing['id']))
+        cur.execute("UPDATE usuarios SET estado = 'deshabilitado' WHERE id = %s", (existing['id'],))
+        return int(existing['id'])
+
+    if existing:
+        if client_updated and existing['updated_at'] and client_updated < existing['updated_at']:
+            raise _StaleError(int(existing['id']))
+        cur.execute(
+            """
+            UPDATE usuarios SET nombre = %s, rol_id = %s, estado = %s
+            WHERE id = %s
+            """,
+            (nombre, rol_id, estado, existing['id']),
+        )
+        return int(existing['id'])
+
+    # Crear con password placeholder (no usable hasta reset)
+    placeholder_hash = 'PLACEHOLDER_RESET_REQUIRED_' + _sec.token_hex(8)
+    cur.execute(
+        """
+        INSERT INTO usuarios (nombre, email, "contraseña", rol_id, estado)
+        VALUES (%s, %s, %s, %s, %s)
+        RETURNING id
+        """,
+        (nombre, email, placeholder_hash, rol_id, estado),
+    )
+    return int(cur.fetchone()['id'])
+
+
+# ──────────────────────────────────────────────
+# Endpoints GET pull-only (read from VPS to desktop)
+# ──────────────────────────────────────────────
+
+@api_sync_bp.route('/users', methods=['GET'])
+@require_sync_key
+def users():
+    since = _parse_iso(request.args.get('since'))
+    limit = min(int(request.args.get('limit', 1000)), 5000)
+
+    where = ['u.estado != %s'] if not request.args.get('include_disabled') else []
+    params = ['eliminado'] if not request.args.get('include_disabled') else []
+    if since:
+        where.append('u.updated_at > %s')
+        params.append(since)
+    where_sql = ('WHERE ' + ' AND '.join(where)) if where else ''
+    sql = f"""
+        SELECT u.id, u.email, u.nombre, u.estado, u.updated_at,
+               r.nombre AS rol_nombre, u.rol_id
+        FROM usuarios u
+        LEFT JOIN roles r ON r.id = u.rol_id
+        {where_sql}
+        ORDER BY u.updated_at ASC
+        LIMIT %s
+    """
+    params.append(limit)
+    with tenant_cursor(db_name=g.sync_db_name, dict_cursor=True) as cur:
+        cur.execute(sql, tuple(params))
+        rows = cur.fetchall()
+
+    items = []
+    cursor_iso = None
+    for row in rows:
+        cursor_iso = _iso(row['updated_at'])
+        items.append({
+            'remote_id': int(row['id']),
+            'email': row['email'],
+            'nombre': row['nombre'],
+            'rol_nombre': row['rol_nombre'] or 'Cajero',
+            'estado': row['estado'] or 'habilitado',
+            'updated_at': cursor_iso,
+        })
+    return jsonify({'items': items, 'count': len(items), 'cursor': cursor_iso, 'server_time': _now_iso()})
+
+
+@api_sync_bp.route('/generos', methods=['GET'])
+@require_sync_key
+def generos():
+    since = _parse_iso(request.args.get('since'))
+    limit = min(int(request.args.get('limit', 500)), 5000)
+    sql = "SELECT id, nombre, updated_at FROM generos"
+    params = []
+    if since:
+        sql += " WHERE updated_at > %s"
+        params.append(since)
+    sql += " ORDER BY updated_at ASC LIMIT %s"
+    params.append(limit)
+
+    with tenant_cursor(db_name=g.sync_db_name, dict_cursor=True) as cur:
+        cur.execute(sql, tuple(params))
+        rows = cur.fetchall()
+    items = []
+    cursor_iso = None
+    for row in rows:
+        cursor_iso = _iso(row['updated_at'])
+        items.append({
+            'remote_id': int(row['id']),
+            'nombre': row['nombre'],
+            'updated_at': cursor_iso,
+        })
+    return jsonify({'items': items, 'count': len(items), 'cursor': cursor_iso, 'server_time': _now_iso()})
+
+
+@api_sync_bp.route('/sales_web', methods=['GET'])
+@require_sync_key
+def sales_web():
+    """Pedidos del ecommerce web (PayU). Read-only para el desktop."""
+    since = _parse_iso(request.args.get('since'))
+    limit = min(int(request.args.get('limit', 200)), 1000)
+    sql = """
+        SELECT id, referencia_pedido, cliente_nombre, cliente_email,
+               estado_pago, estado_envio, monto_total, metodo_pago,
+               fecha_creacion, fecha_actualizacion
+        FROM pedidos
+    """
+    params = []
+    if since:
+        sql += " WHERE fecha_actualizacion > %s"
+        params.append(since)
+    sql += " ORDER BY fecha_actualizacion ASC LIMIT %s"
+    params.append(limit)
+    with tenant_cursor(db_name=g.sync_db_name, dict_cursor=True) as cur:
+        cur.execute(sql, tuple(params))
+        rows = cur.fetchall()
+    items = []
+    cursor_iso = None
+    for row in rows:
+        cursor_iso = _iso(row['fecha_actualizacion'])
+        items.append({
+            'remote_id': int(row['id']),
+            'reference': row['referencia_pedido'],
+            'customer_name': row['cliente_nombre'],
+            'customer_email': row['cliente_email'],
+            'status_payment': row['estado_pago'],
+            'status_shipping': row['estado_envio'],
+            'total': float(row['monto_total'] or 0),
+            'payment_method': row['metodo_pago'],
+            'created_at': _iso(row['fecha_creacion']),
+            'updated_at': cursor_iso,
+        })
+    return jsonify({'items': items, 'count': len(items), 'cursor': cursor_iso, 'server_time': _now_iso()})
+
+
+@api_sync_bp.route('/inventory_log', methods=['GET'])
+@require_sync_key
+def inventory_log():
+    since = _parse_iso(request.args.get('since'))
+    limit = min(int(request.args.get('limit', 500)), 2000)
+    # Verificar que la tabla exista. Si no, devolver vacio.
+    with tenant_cursor(db_name=g.sync_db_name, dict_cursor=True) as cur:
+        cur.execute("SELECT to_regclass('public.inventario_log') AS t")
+        if not cur.fetchone()['t']:
+            return jsonify({'items': [], 'count': 0, 'cursor': None, 'server_time': _now_iso()})
+        sql = """
+            SELECT il.id, il.producto_id, p.referencia AS sku, p.nombre AS product_name,
+                   il.tipo, il.cantidad, il.stock_anterior, il.stock_nuevo,
+                   il.motivo, il.fecha
+            FROM inventario_log il
+            LEFT JOIN productos p ON p.id = il.producto_id
+        """
+        params = []
+        if since:
+            sql += " WHERE il.fecha > %s"
+            params.append(since)
+        sql += " ORDER BY il.fecha ASC LIMIT %s"
+        params.append(limit)
+        cur.execute(sql, tuple(params))
+        rows = cur.fetchall()
+    items = []
+    cursor_iso = None
+    for row in rows:
+        cursor_iso = _iso(row['fecha'])
+        # Normalizar a quantity_delta firmado: salida -> negativo, entrada -> positivo
+        cantidad = int(row['cantidad'] or 0)
+        tipo = (row['tipo'] or '').lower()
+        delta = -cantidad if tipo in ('salida', 'venta', 'out') else cantidad
+        items.append({
+            'remote_id': int(row['id']),
+            'sku': row['sku'],
+            'product_name': row['product_name'],
+            'tipo': row['tipo'],
+            'quantity_delta': delta,
+            'stock_anterior': row['stock_anterior'],
+            'stock_nuevo': row['stock_nuevo'],
+            'reason': row['motivo'],
+            'created_at': cursor_iso,
+        })
+    return jsonify({'items': items, 'count': len(items), 'cursor': cursor_iso, 'server_time': _now_iso()})
