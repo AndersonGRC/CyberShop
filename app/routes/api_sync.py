@@ -292,12 +292,18 @@ def _apply_sale(cur, payload):
 
     for it in items:
         sku = (it.get('sku') or '').strip()
+        quantity = int(it.get('quantity') or 0)
         product_id = None
+        stock_before = None
+        stock_after = None
+
         if sku:
-            cur.execute('SELECT id FROM productos WHERE referencia = %s', (sku,))
+            cur.execute('SELECT id, stock FROM productos WHERE referencia = %s', (sku,))
             prod = cur.fetchone()
             if prod:
                 product_id = int(prod['id'])
+                stock_before = int(prod['stock'] or 0)
+
         cur.execute(
             """
             INSERT INTO pos_desktop_sale_items
@@ -309,11 +315,32 @@ def _apply_sale(cur, payload):
                 sale_id, product_id,
                 sku or None,
                 (it.get('name') or '')[:200],
-                int(it.get('quantity') or 0),
+                quantity,
                 float(it.get('unit_price') or 0),
                 float(it.get('line_total') or 0),
             ),
         )
+
+        # Descontar stock central + audit en inventario_log si el producto existe
+        if product_id and quantity > 0:
+            cur.execute(
+                'UPDATE productos SET stock = stock - %s WHERE id = %s',
+                (quantity, product_id),
+            )
+            stock_after = (stock_before or 0) - quantity
+            try:
+                cur.execute(
+                    """
+                    INSERT INTO inventario_log
+                      (producto_id, tipo, cantidad, stock_anterior, stock_nuevo, motivo, usuario_id)
+                    VALUES (%s, 'VENTA', %s, %s, %s, %s, NULL)
+                    """,
+                    (product_id, quantity, stock_before, stock_after,
+                     f'POS desktop {receipt}'),
+                )
+            except Exception:
+                # inventario_log es auditoria opcional; no fallar venta si schema cambia
+                pass
 
     return sale_id
 
