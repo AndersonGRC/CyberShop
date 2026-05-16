@@ -293,6 +293,7 @@ def get_data_app():
             "icono": "cog",
             "submodulos": [
                 {"nombre": "Config. Cliente",   "url": "admin.configuracion_cliente", "icono": "paint-brush", "roles": [ROL_SUPER_ADMIN]},
+                {"nombre": "Claves API Sync",   "url": "admin.sync_keys",             "icono": "key", "roles": [ROL_SUPER_ADMIN]},
                 {"nombre": "Config. Secciones", "url": "admin.config_secciones",      "icono": "sliders-h", "roles": [ROL_SUPER_ADMIN]},
                 {"nombre": "Módulos SaaS",      "url": "restaurant_tables.saas_modules_admin", "icono": "toggle-on", "roles": [ROL_SUPER_ADMIN]},
             ]

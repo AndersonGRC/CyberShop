@@ -5,63 +5,144 @@ Disenado para clientes POS que operan offline y necesitan:
   - PULL: bajar el catalogo de productos del tenant (cambios desde X fecha).
   - PUSH: subir ventas e inventario locales generados sin internet.
 
-Auth: header `X-Sync-Key: <api_key>` validado contra SYNC_API_KEY de env.
-Single-tenant en esta version: la key da acceso al DEFAULT_TENANT.
-Para multi-tenant, mover a tabla `sync_api_keys(key_hash, tenant_id)`.
+Auth: header `X-Sync-Key: <api_key>`.
+  - Multi-tenant: lookup en saas_control_plane.sync_api_keys → resuelve tenant_id/db_name.
+  - Backward-compat: si SYNC_API_KEY de env coincide, usa DEFAULT_TENANT.
 
 Endpoints:
   GET  /api/v1/sync/health     -> verifica key, devuelve tenant
   GET  /api/v1/sync/products   -> productos modificados desde ?since=<iso>
   POST /api/v1/sync/outbox     -> recibe lote {entity, action, payload}[]
+  GET  /api/v1/sync/branding   -> empresa + colores del tenant (cliente_config)
+  GET  /api/v1/sync/config     -> info pública del tenant (slug, nombre)
+  GET  /api/v1/sync/version    -> última versión disponible del desktop
 """
 
+import hashlib
+import json
 import os
 import secrets
 from datetime import datetime, timezone
 from functools import wraps
+from pathlib import Path
 
-from flask import Blueprint, g, jsonify, request
+from flask import Blueprint, current_app, g, jsonify, request
+from werkzeug.security import check_password_hash
 
-from services.db_layer import tenant_cursor
+from services.db_layer import control_plane_cursor, tenant_cursor
 
 api_sync_bp = Blueprint('api_sync', __name__, url_prefix='/api/v1/sync')
 
-VALID_ENTITIES = {'sale', 'inventory_movement', 'product', 'user'}
+VALID_ENTITIES = {'sale', 'inventory_movement', 'product', 'user', 'category', 'order'}
 VALID_ACTIONS = {'create', 'update', 'delete'}
 DEFAULT_GENERO_NAME = 'POS Desktop'
 DEFAULT_IMAGE = '/static/img/no-image.png'
 
+# Constantes para el branding sync (claves que no existen en cliente_config y se completan con default)
+_BRANDING_DESKTOP_DEFAULTS = {
+    'peligro':  '#b42318',
+    'fondo':    '#f8faff',
+}
+
+# Mapeo cliente_config.colores.<clave_web> -> branding.json.colores.<clave_desktop>
+# Las claves no listadas aquí pasan tal cual.
+_BRANDING_COLOR_MAP = {
+    'secundario': 'sidebar_inicio',
+    'botones':    'sidebar_fin',
+}
+
 
 # ──────────────────────────────────────────────
-# Auth helper
+# Auth helper (multi-tenant)
 # ──────────────────────────────────────────────
 
-def _get_expected_key():
-    return (os.getenv('SYNC_API_KEY') or '').strip()
+def _hash_key(raw_key):
+    """SHA-256 hex del api_key (mismo formato que se persiste en sync_api_keys.key_hash)."""
+    return hashlib.sha256(raw_key.encode('utf-8')).hexdigest()
 
 
-def _get_default_db_name():
-    return os.getenv('DB_NAME', 'cybershop')
+def _lookup_key_in_db(raw_key):
+    """Devuelve (tenant_id, db_name, slug, key_id) o None si la key no existe/está inactiva."""
+    key_hash = _hash_key(raw_key)
+    try:
+        with control_plane_cursor() as cur:
+            cur.execute("""
+                SELECT k.tenant_id, td.db_name, t.slug, k.id
+                FROM sync_api_keys k
+                JOIN tenant_databases td ON td.tenant_id = k.tenant_id
+                JOIN tenants t           ON t.id        = k.tenant_id
+                WHERE k.key_hash = %s AND k.active = TRUE
+            """, (key_hash,))
+            row = cur.fetchone()
+        if not row:
+            return None
+        # cur con DictCursor: indexar por nombre y por posición funciona; ser explícito.
+        return (row['tenant_id'], row['db_name'], row['slug'], row['id'])
+    except Exception as exc:  # noqa: BLE001
+        current_app.logger.warning('sync_api_keys lookup falló: %s (¿migración 0002 no aplicada?)', exc)
+        return None
+
+
+def _touch_key(key_id):
+    """Actualiza last_used_at de la key. Best-effort, no bloquea la request si falla."""
+    try:
+        with control_plane_cursor() as cur:
+            cur.execute(
+                'UPDATE sync_api_keys SET last_used_at = NOW() WHERE id = %s',
+                (key_id,),
+            )
+    except Exception:
+        pass
+
+
+def _legacy_env_key_matches(provided):
+    """Backward-compat: si SYNC_API_KEY de env coincide, devuelve True."""
+    expected = (os.getenv('SYNC_API_KEY') or '').strip()
+    if not expected:
+        return False
+    return secrets.compare_digest(provided, expected)
+
+
+def _default_tenant_info():
+    return {
+        'tenant_id': int(os.getenv('DEFAULT_TENANT_ID', '1')),
+        'db_name':   os.getenv('DB_NAME', 'cybershop'),
+        'slug':      os.getenv('DEFAULT_TENANT_SLUG', 'cyber-t001'),
+    }
 
 
 def require_sync_key(fn):
-    """Decorator que valida X-Sync-Key contra SYNC_API_KEY de env.
+    """Decorator que valida X-Sync-Key y resuelve el tenant.
 
-    Si pasa, setea g.sync_db_name al tenant default. Para multi-tenant
-    extender resolviendo la key a un tenant_id especifico.
+    Estrategia:
+      1. Lookup en sync_api_keys (multi-tenant).
+      2. Si no hay match, intenta la SYNC_API_KEY de env (legacy → DEFAULT_TENANT).
+
+    Setea: g.sync_tenant_id, g.sync_db_name, g.sync_tenant_slug.
     """
     @wraps(fn)
     def wrapper(*args, **kwargs):
-        expected = _get_expected_key()
-        if not expected:
-            return jsonify({'error': {'code': 'sync_disabled', 'message': 'SYNC_API_KEY no configurada en el servidor.'}}), 503
-
         provided = (request.headers.get('X-Sync-Key') or '').strip()
-        if not provided or not secrets.compare_digest(provided, expected):
-            return jsonify({'error': {'code': 'invalid_key', 'message': 'API key invalida o ausente.'}}), 401
+        if not provided:
+            return jsonify({'error': {'code': 'invalid_key', 'message': 'API key ausente.'}}), 401
 
-        g.sync_db_name = _get_default_db_name()
-        return fn(*args, **kwargs)
+        match = _lookup_key_in_db(provided)
+        if match:
+            tenant_id, db_name, slug, key_id = match
+            g.sync_tenant_id   = tenant_id
+            g.sync_db_name     = db_name
+            g.sync_tenant_slug = slug
+            _touch_key(key_id)
+            return fn(*args, **kwargs)
+
+        if _legacy_env_key_matches(provided):
+            info = _default_tenant_info()
+            g.sync_tenant_id   = info['tenant_id']
+            g.sync_db_name     = info['db_name']
+            g.sync_tenant_slug = info['slug']
+            return fn(*args, **kwargs)
+
+        return jsonify({'error': {'code': 'invalid_key', 'message': 'API key invalida o inactiva.'}}), 401
     return wrapper
 
 
@@ -217,6 +298,10 @@ def outbox():
                     remote_id = _apply_product(cur, action, payload)
                 elif entity == 'user':
                     remote_id = _apply_user(cur, action, payload)
+                elif entity == 'category':
+                    remote_id = _apply_category(cur, action, payload)
+                elif entity == 'order':
+                    remote_id = _apply_order(cur, action, payload)
                 else:
                     raise ValueError(f'combinacion no soportada: {entity}/{action}')
                 results.append({
@@ -341,6 +426,32 @@ def _apply_sale(cur, payload):
             except Exception:
                 # inventario_log es auditoria opcional; no fallar venta si schema cambia
                 pass
+
+    # Registrar en contabilidad como ingreso (idempotente por referencia)
+    # Nota: sincronizar_movimiento_referencia abre su propia conexion/cursor
+    # y commitea aparte. Si falla, no debe romper la sync de la venta.
+    try:
+        from routes.contabilidad import sincronizar_movimiento_referencia
+        from datetime import datetime as _dt
+        try:
+            fecha_mov = _dt.fromisoformat((created_local or '').replace('Z', '+00:00')).date()
+        except (TypeError, ValueError):
+            fecha_mov = None
+        sincronizar_movimiento_referencia(
+            tipo='ingreso',
+            categoria='venta_pos',
+            descripcion=f'Venta POS desktop {receipt}',
+            monto=total,
+            fecha=fecha_mov,
+            referencia_tipo='pos_desktop_sale',
+            referencia_id=sale_id,
+            usuario_id=None,
+            auto_generado=True,
+            notas=f'{len(items)} item(s)',
+        )
+    except Exception:
+        # Contabilidad es opcional aqui; el log lo captura el helper
+        pass
 
     return sale_id
 
@@ -540,6 +651,105 @@ def _apply_user(cur, action, payload):
 
 
 # ──────────────────────────────────────────────
+# Apply: category (CRUD sobre tabla generos)
+# ──────────────────────────────────────────────
+
+def _apply_category(cur, action, payload):
+    """Sincroniza categoría (tabla generos).
+
+    payload create/update: nombre (obligatorio), remote_id (opcional para update).
+    payload delete: remote_id (obligatorio).
+    Bloquea delete si la categoría tiene productos asociados.
+    """
+    if action == 'delete':
+        remote_id = payload.get('remote_id')
+        if not remote_id:
+            raise ValueError('remote_id obligatorio para delete')
+        cur.execute('SELECT COUNT(*) AS c FROM productos WHERE genero_id = %s', (int(remote_id),))
+        cnt = int(cur.fetchone()['c'] or 0)
+        if cnt > 0:
+            raise ValueError(f'has_products: {cnt} producto(s) usan esta categoría')
+        cur.execute('DELETE FROM generos WHERE id = %s', (int(remote_id),))
+        return int(remote_id)
+
+    nombre = (payload.get('nombre') or '').strip()
+    if not nombre:
+        raise ValueError('nombre obligatorio')
+    if len(nombre) > 100:
+        nombre = nombre[:100]
+
+    if action == 'update':
+        remote_id = payload.get('remote_id')
+        if not remote_id:
+            raise ValueError('remote_id obligatorio para update')
+        # Si el nombre nuevo colisiona con otra categoría, error
+        cur.execute(
+            'SELECT id FROM generos WHERE LOWER(nombre) = LOWER(%s) AND id != %s',
+            (nombre, int(remote_id)),
+        )
+        if cur.fetchone():
+            raise ValueError(f'duplicate_name: ya existe una categoría con nombre "{nombre}"')
+        cur.execute('UPDATE generos SET nombre = %s WHERE id = %s', (nombre, int(remote_id)))
+        return int(remote_id)
+
+    # CREATE — idempotente: si ya existe por nombre case-insensitive, devuelve el id (skipped vía duplicate).
+    cur.execute('SELECT id FROM generos WHERE LOWER(nombre) = LOWER(%s)', (nombre,))
+    row = cur.fetchone()
+    if row:
+        raise _DuplicateError(int(row['id']))
+    cur.execute('INSERT INTO generos (nombre) VALUES (%s) RETURNING id', (nombre,))
+    return int(cur.fetchone()['id'])
+
+
+# ──────────────────────────────────────────────
+# Apply: order (UPDATE de estado de pedidos web)
+# ──────────────────────────────────────────────
+
+def _apply_order(cur, action, payload):
+    """Actualiza estado_pago / estado_envio de un pedido del ecommerce.
+
+    Solo soporta action='update'. create/delete se rechazan (los pedidos los
+    crea PayU, no el desktop).
+
+    payload: remote_id, estado_pago, estado_envio, updated_at (cliente).
+    """
+    if action != 'update':
+        raise ValueError(f'order solo soporta action=update, recibido {action}')
+
+    remote_id = payload.get('remote_id')
+    if not remote_id:
+        raise ValueError('remote_id obligatorio')
+
+    cur.execute(
+        'SELECT id, fecha_actualizacion FROM pedidos WHERE id = %s',
+        (int(remote_id),),
+    )
+    existing = cur.fetchone()
+    if not existing:
+        raise ValueError(f'pedido {remote_id} no existe')
+
+    client_updated = _parse_iso(payload.get('updated_at'))
+    if client_updated and existing['fecha_actualizacion'] and client_updated < existing['fecha_actualizacion']:
+        raise _StaleError(int(existing['id']))
+
+    sets, params = [], []
+    if 'estado_pago' in payload and payload['estado_pago']:
+        sets.append('estado_pago = %s')
+        params.append(str(payload['estado_pago'])[:30])
+    if 'estado_envio' in payload and payload['estado_envio']:
+        sets.append('estado_envio = %s')
+        params.append(str(payload['estado_envio'])[:30])
+
+    if not sets:
+        return int(existing['id'])  # nada que cambiar
+
+    sets.append('fecha_actualizacion = CURRENT_TIMESTAMP')
+    params.append(int(existing['id']))
+    cur.execute(f"UPDATE pedidos SET {', '.join(sets)} WHERE id = %s", tuple(params))
+    return int(existing['id'])
+
+
+# ──────────────────────────────────────────────
 # Endpoints GET pull-only (read from VPS to desktop)
 # ──────────────────────────────────────────────
 
@@ -582,6 +792,88 @@ def users():
             'updated_at': cursor_iso,
         })
     return jsonify({'items': items, 'count': len(items), 'cursor': cursor_iso, 'server_time': _now_iso()})
+
+
+# ──────────────────────────────────────────────
+# POST /auth — Login remoto desde desktop
+# ──────────────────────────────────────────────
+# Roles que NO pueden loguearse al desktop POS. Vacío: cualquier rol válido en
+# `usuarios` puede autenticarse (clientes + staff). El endpoint sigue exigiendo
+# credenciales correctas y estado='habilitado'.
+DESKTOP_BLOCKED_ROLES: set[int] = set()
+
+
+@api_sync_bp.route('/auth', methods=['POST'])
+@require_sync_key
+def auth_login():
+    """Valida email/password contra la tabla `usuarios` del tenant.
+
+    Body: {"email": "user@x.com", "password": "..."}
+
+    Respuestas:
+      200 → {user: {remote_id, email, nombre, rol_id, rol_nombre, estado}}
+      400 → faltan campos
+      401 → credenciales inválidas
+      403 → cuenta inhabilitada o rol bloqueado para desktop
+      500 → error de servidor
+    """
+    data = request.get_json(silent=True) or {}
+    email = (data.get('email') or '').strip().lower()
+    password = data.get('password') or ''
+
+    if not email or not password:
+        return jsonify({'error': {'code': 'missing_fields',
+                                  'message': 'email y password son requeridos.'}}), 400
+
+    try:
+        with tenant_cursor(db_name=g.sync_db_name, dict_cursor=True) as cur:
+            cur.execute(
+                """
+                SELECT u.id, u.email, u.nombre, u.contraseña, u.estado, u.rol_id,
+                       r.nombre AS rol_nombre
+                FROM usuarios u
+                LEFT JOIN roles r ON r.id = u.rol_id
+                WHERE LOWER(u.email) = %s
+                """,
+                (email,),
+            )
+            user = cur.fetchone()
+    except Exception as exc:
+        current_app.logger.error('Sync auth DB error: %s', exc)
+        return jsonify({'error': {'code': 'server_error',
+                                  'message': 'Error del servidor.'}}), 500
+
+    if not user or not check_password_hash(user['contraseña'], password):
+        return jsonify({'error': {'code': 'invalid_credentials',
+                                  'message': 'Correo o contraseña incorrectos.'}}), 401
+
+    if (user['estado'] or '').strip().lower() != 'habilitado':
+        return jsonify({'error': {'code': 'account_disabled',
+                                  'message': 'Cuenta inhabilitada.'}}), 403
+
+    if user['rol_id'] in DESKTOP_BLOCKED_ROLES:
+        return jsonify({'error': {'code': 'role_not_allowed',
+                                  'message': 'Tu rol no tiene acceso al desktop.'}}), 403
+
+    try:
+        with tenant_cursor(db_name=g.sync_db_name) as cur:
+            cur.execute(
+                'UPDATE usuarios SET ultima_conexion = NOW() WHERE id = %s',
+                (user['id'],),
+            )
+    except Exception:
+        pass  # last_login es informativo, no bloquear el login si falla
+
+    return jsonify({
+        'user': {
+            'remote_id': int(user['id']),
+            'email': user['email'],
+            'nombre': user['nombre'] or '',
+            'rol_id': int(user['rol_id']) if user['rol_id'] is not None else None,
+            'rol_nombre': user['rol_nombre'] or 'Cajero',
+            'estado': user['estado'],
+        }
+    }), 200
 
 
 @api_sync_bp.route('/generos', methods=['GET'])
@@ -697,3 +989,270 @@ def inventory_log():
             'created_at': cursor_iso,
         })
     return jsonify({'items': items, 'count': len(items), 'cursor': cursor_iso, 'server_time': _now_iso()})
+
+
+# ──────────────────────────────────────────────
+# GET /branding — empresa + colores del tenant
+# ──────────────────────────────────────────────
+
+@api_sync_bp.route('/branding', methods=['GET'])
+@require_sync_key
+def branding():
+    """Devuelve cliente_config (empresa + colores) en formato compatible con
+    branding.json del desktop. También provee URL absoluta del logo del tenant."""
+    empresa, colores_web = {}, {}
+    try:
+        with tenant_cursor(db_name=g.sync_db_name, dict_cursor=True) as cur:
+            cur.execute("""
+                SELECT clave, valor, grupo
+                FROM cliente_config
+                WHERE grupo IN ('empresa', 'colores')
+            """)
+            for row in cur.fetchall():
+                bucket = empresa if row['grupo'] == 'empresa' else colores_web
+                bucket[row['clave']] = (row['valor'] or '').strip()
+    except Exception as exc:  # noqa: BLE001
+        current_app.logger.warning('No se pudo leer cliente_config para tenant %s: %s', g.sync_tenant_slug, exc)
+
+    # Mapeo a las claves que espera el desktop
+    colores_desktop = dict(_BRANDING_DESKTOP_DEFAULTS)  # peligro, fondo
+    for clave_web, valor in colores_web.items():
+        clave_desktop = _BRANDING_COLOR_MAP.get(clave_web, clave_web)
+        if valor:
+            colores_desktop[clave_desktop] = valor
+
+    return jsonify({
+        'empresa':   empresa,
+        'colores':   colores_desktop,
+        'logo_url':  request.url_root.rstrip('/') + '/static/img/Logo.png',
+        'updated_at': _now_iso(),
+    })
+
+
+# ──────────────────────────────────────────────
+# GET /config — info pública del tenant (sin secretos)
+# ──────────────────────────────────────────────
+
+@api_sync_bp.route('/config', methods=['GET'])
+@require_sync_key
+def config():
+    """Información pública del tenant para mostrar en F7 del desktop."""
+    nombre = ''
+    try:
+        with control_plane_cursor() as cur:
+            cur.execute(
+                'SELECT nombre, plan, estado FROM tenants WHERE id = %s',
+                (g.sync_tenant_id,),
+            )
+            row = cur.fetchone()
+            if row:
+                nombre = row['nombre'] or ''
+                plan = row['plan'] or 'standard'
+                estado = row['estado'] or 'activo'
+            else:
+                plan, estado = 'standard', 'activo'
+    except Exception:
+        plan, estado = 'standard', 'activo'
+
+    return jsonify({
+        'tenant_slug':   g.sync_tenant_slug,
+        'tenant_nombre': nombre,
+        'plan':          plan,
+        'estado':        estado,
+        'server_time':   _now_iso(),
+    })
+
+
+# ──────────────────────────────────────────────
+# GET /version — versión disponible del desktop
+# ──────────────────────────────────────────────
+
+# Lectura cacheada del version.json para evitar I/O en cada request.
+_VERSION_CACHE = {'data': None, 'mtime': 0.0}
+
+
+def _read_version_manifest():
+    """Lee static/installers/version.json. Cacheado por mtime."""
+    base = Path(current_app.root_path) / 'static' / 'installers' / 'version.json'
+    if not base.exists():
+        return None
+    try:
+        mtime = base.stat().st_mtime
+    except OSError:
+        return None
+    if _VERSION_CACHE['data'] is not None and _VERSION_CACHE['mtime'] == mtime:
+        return _VERSION_CACHE['data']
+    try:
+        data = json.loads(base.read_text(encoding='utf-8'))
+    except (OSError, json.JSONDecodeError):
+        return None
+    _VERSION_CACHE['data'] = data
+    _VERSION_CACHE['mtime'] = mtime
+    return data
+
+
+@api_sync_bp.route('/version', methods=['GET'])
+def version():
+    """Endpoint PÚBLICO (sin auth) que devuelve la versión más reciente del desktop.
+
+    No requiere X-Sync-Key porque el desktop puede chequear updates antes de
+    que la key sea válida (ej. instalación nueva, key revocada).
+    """
+    manifest = _read_version_manifest()
+    if not manifest:
+        return jsonify({
+            'latest':         '0.0.0',
+            'min_required':   '0.0.0',
+            'download_url':   '',
+            'release_notes':  'No hay versión publicada.',
+            'server_time':    _now_iso(),
+        }), 200
+
+    download_url = manifest.get('download_url', '')
+    if download_url and not download_url.startswith(('http://', 'https://')):
+        download_url = request.url_root.rstrip('/') + '/' + download_url.lstrip('/')
+
+    return jsonify({
+        'latest':          manifest.get('latest', '0.0.0'),
+        'min_required':    manifest.get('min_required', '0.0.0'),
+        'download_url':    download_url,
+        'checksum_sha256': manifest.get('checksum_sha256', ''),
+        'release_notes':   manifest.get('release_notes', ''),
+        'server_time':     _now_iso(),
+    })
+
+
+# ──────────────────────────────────────────────
+# GET /stats — agregados del tenant (dashboard del desktop)
+# ──────────────────────────────────────────────
+
+# Cache simple por tenant_db. Clave: db_name → (epoch_seg, payload).
+_STATS_CACHE: dict = {}
+_STATS_TTL_SEC = 30
+
+
+def _safe_int(row, key, default=0):
+    if not row:
+        return default
+    try:
+        return int(row[key] or 0)
+    except (KeyError, ValueError, TypeError):
+        return default
+
+
+def _safe_float(row, key, default=0.0):
+    if not row:
+        return default
+    try:
+        return float(row[key] or 0)
+    except (KeyError, ValueError, TypeError):
+        return default
+
+
+@api_sync_bp.route('/stats', methods=['GET'])
+@require_sync_key
+def stats():
+    """Métricas agregadas del tenant para el dashboard del desktop.
+
+    Campos:
+      ventas_web_hoy:     {count, total}      (pedidos con estado_pago=APROBADO de hoy)
+      ventas_web_semana:  {count, total}      (últimos 7 días)
+      pedidos_pendientes: int                 (APROBADO + envío POR_DESPACHAR)
+      productos_total:    int                 (active=TRUE si la columna existe)
+      productos_stock_bajo: int               (stock <= 5 hardcoded threshold)
+      categorias_total:   int
+      server_time:        iso
+
+    Cacheado por tenant_db por 30 segundos.
+    """
+    import time
+    now_epoch = time.time()
+    cached = _STATS_CACHE.get(g.sync_db_name)
+    if cached and (now_epoch - cached[0]) < _STATS_TTL_SEC:
+        return jsonify(cached[1])
+
+    payload = {
+        'ventas_web_hoy':       {'count': 0, 'total': 0.0},
+        'ventas_web_semana':    {'count': 0, 'total': 0.0},
+        'pedidos_pendientes':   0,
+        'productos_total':      0,
+        'productos_stock_bajo': 0,
+        'categorias_total':     0,
+        'server_time':          _now_iso(),
+    }
+
+    with tenant_cursor(db_name=g.sync_db_name, dict_cursor=True) as cur:
+        # Ventas web hoy (pedidos APROBADO con fecha_creacion en hoy)
+        try:
+            cur.execute("""
+                SELECT COUNT(*) AS c, COALESCE(SUM(monto_total),0) AS t
+                FROM pedidos
+                WHERE UPPER(estado_pago) = 'APROBADO'
+                  AND fecha_creacion::date = CURRENT_DATE
+            """)
+            row = cur.fetchone()
+            payload['ventas_web_hoy'] = {
+                'count': _safe_int(row, 'c'),
+                'total': _safe_float(row, 't'),
+            }
+        except Exception as exc:
+            current_app.logger.warning('stats ventas_web_hoy: %s', exc)
+
+        # Ventas web semana (últimos 7 días)
+        try:
+            cur.execute("""
+                SELECT COUNT(*) AS c, COALESCE(SUM(monto_total),0) AS t
+                FROM pedidos
+                WHERE UPPER(estado_pago) = 'APROBADO'
+                  AND fecha_creacion >= NOW() - INTERVAL '7 days'
+            """)
+            row = cur.fetchone()
+            payload['ventas_web_semana'] = {
+                'count': _safe_int(row, 'c'),
+                'total': _safe_float(row, 't'),
+            }
+        except Exception as exc:
+            current_app.logger.warning('stats ventas_web_semana: %s', exc)
+
+        # Pedidos pendientes de despacho
+        try:
+            cur.execute("""
+                SELECT COUNT(*) AS c
+                FROM pedidos
+                WHERE UPPER(estado_pago) = 'APROBADO'
+                  AND UPPER(estado_envio) IN ('POR_DESPACHAR', 'PENDIENTE')
+            """)
+            payload['pedidos_pendientes'] = _safe_int(cur.fetchone(), 'c')
+        except Exception as exc:
+            current_app.logger.warning('stats pedidos_pendientes: %s', exc)
+
+        # Productos totales (sin filtro active si la columna no existe)
+        try:
+            cur.execute("""
+                SELECT COUNT(*) AS c FROM productos
+                WHERE COALESCE(active, TRUE) = TRUE
+            """)
+            payload['productos_total'] = _safe_int(cur.fetchone(), 'c')
+        except Exception:
+            try:
+                cur.execute("SELECT COUNT(*) AS c FROM productos")
+                payload['productos_total'] = _safe_int(cur.fetchone(), 'c')
+            except Exception as exc:
+                current_app.logger.warning('stats productos_total: %s', exc)
+
+        # Productos con stock bajo (umbral fijo de 5; ajustable cuando exista columna stock_minimo)
+        try:
+            cur.execute("SELECT COUNT(*) AS c FROM productos WHERE stock IS NOT NULL AND stock <= 5")
+            payload['productos_stock_bajo'] = _safe_int(cur.fetchone(), 'c')
+        except Exception as exc:
+            current_app.logger.warning('stats productos_stock_bajo: %s', exc)
+
+        # Categorías totales
+        try:
+            cur.execute('SELECT COUNT(*) AS c FROM generos')
+            payload['categorias_total'] = _safe_int(cur.fetchone(), 'c')
+        except Exception as exc:
+            current_app.logger.warning('stats categorias_total: %s', exc)
+
+    _STATS_CACHE[g.sync_db_name] = (now_epoch, payload)
+    return jsonify(payload)

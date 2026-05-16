@@ -34,6 +34,7 @@ from security import (
     ROL_SUPER_ADMIN,
 )
 from tenant_features import get_module_settings, set_module_state
+from services.db_layer import control_plane_cursor
 from services.public_site_service import (
     PUBLIC_BRANDING_FIELDS,
     PUBLIC_COLOR_FIELDS,
@@ -2267,6 +2268,150 @@ def _find_pg_dump():
         if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
             return candidate
     return None
+
+
+# =============================================================
+# Claves API de Sincronización (desktop POS ↔ web)
+# =============================================================
+
+_SYNC_KEY_PREFIX = 'cyb_live_'
+_SYNC_CLIENT_PREFIX = 'CYB'
+_SYNC_CLIENT_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'
+
+
+def _generate_sync_api_key() -> str:
+    import secrets
+    raw = secrets.token_urlsafe(24).replace('-', '').replace('_', '')[:32]
+    return _SYNC_KEY_PREFIX + raw
+
+
+def _generate_sync_client_code() -> str:
+    import secrets
+    code = ''.join(secrets.choice(_SYNC_CLIENT_ALPHABET) for _ in range(8))
+    return f'{_SYNC_CLIENT_PREFIX}-{code}'
+
+
+def _hash_sync_key(raw_key: str) -> str:
+    return hashlib.sha256(raw_key.encode('utf-8')).hexdigest()
+
+
+@admin_bp.route('/admin/sync-keys', methods=['GET', 'POST'])
+@rol_requerido(ROL_SUPER_ADMIN)
+def sync_keys():
+    """Gestión de claves API para sincronización con el desktop POS."""
+    import secrets as _sec
+
+    tenant_id = session.get('tenant_id')
+    if not tenant_id:
+        flash('No se pudo determinar el tenant activo. Cierra sesión y vuelve a entrar.', 'error')
+        return redirect(url_for('admin.dashboard_admin'))
+
+    new_full_key = None  # la key generada en esta misma request, mostrada una sola vez
+
+    if request.method == 'POST':
+        form_type = request.form.get('form_type', '')
+
+        if form_type == 'generate':
+            label = (request.form.get('label') or '').strip() or None
+            api_key = ''
+            client_code = ''
+            try:
+                with control_plane_cursor() as cur:
+                    for _ in range(5):
+                        api_key = _generate_sync_api_key()
+                        client_code = _generate_sync_client_code()
+                        try:
+                            cur.execute(
+                                """
+                                INSERT INTO sync_api_keys
+                                  (tenant_id, key_hash, key_prefix, client_code, label)
+                                VALUES (%s, %s, %s, %s, %s)
+                                """,
+                                (tenant_id, _hash_sync_key(api_key), api_key[:12], client_code, label),
+                            )
+                            break
+                        except Exception as exc:
+                            msg = str(exc).lower()
+                            if 'unique' in msg or 'duplicate' in msg:
+                                cur.connection.rollback()
+                                continue
+                            raise
+                    else:
+                        flash('No se pudo generar la clave (colisiones repetidas). Intenta de nuevo.', 'error')
+                        return redirect(url_for('admin.sync_keys'))
+                new_full_key = {'api_key': api_key, 'client_code': client_code, 'label': label or ''}
+                flash('Clave API generada. Cópiala ahora — no se volverá a mostrar.', 'success')
+            except Exception as exc:
+                current_app.logger.error('Error generando sync key: %s', exc)
+                flash('Error al generar la clave. Revisa los logs.', 'error')
+
+        elif form_type == 'revoke':
+            try:
+                key_id = int(request.form.get('key_id', '0'))
+            except (TypeError, ValueError):
+                key_id = 0
+            if key_id:
+                try:
+                    with control_plane_cursor() as cur:
+                        cur.execute(
+                            'UPDATE sync_api_keys SET active = FALSE WHERE id = %s AND tenant_id = %s',
+                            (key_id, tenant_id),
+                        )
+                        affected = cur.rowcount
+                    if affected:
+                        flash('Clave revocada. El desktop dejará de poder usarla.', 'success')
+                    else:
+                        flash('Clave no encontrada o ya estaba revocada.', 'warning')
+                except Exception as exc:
+                    current_app.logger.error('Error revocando sync key %s: %s', key_id, exc)
+                    flash('Error al revocar la clave.', 'error')
+            else:
+                flash('ID de clave inválido.', 'error')
+
+        elif form_type == 'activate':
+            try:
+                key_id = int(request.form.get('key_id', '0'))
+            except (TypeError, ValueError):
+                key_id = 0
+            if key_id:
+                try:
+                    with control_plane_cursor() as cur:
+                        cur.execute(
+                            'UPDATE sync_api_keys SET active = TRUE WHERE id = %s AND tenant_id = %s',
+                            (key_id, tenant_id),
+                        )
+                    flash('Clave reactivada.', 'success')
+                except Exception as exc:
+                    current_app.logger.error('Error reactivando sync key %s: %s', key_id, exc)
+                    flash('Error al reactivar la clave.', 'error')
+
+        # Para revoke/activate redirigimos; para generate caemos al GET con la key en memoria.
+        if form_type != 'generate':
+            return redirect(url_for('admin.sync_keys'))
+
+    keys = []
+    try:
+        with control_plane_cursor(dict_cursor=True) as cur:
+            cur.execute(
+                """
+                SELECT id, label, key_prefix, client_code, active, created_at, last_used_at
+                FROM sync_api_keys
+                WHERE tenant_id = %s
+                ORDER BY active DESC, created_at DESC
+                """,
+                (tenant_id,),
+            )
+            keys = cur.fetchall() or []
+    except Exception as exc:
+        current_app.logger.error('Error listando sync keys: %s', exc)
+        flash('No se pudieron cargar las claves existentes.', 'error')
+
+    return render_template(
+        'sync_keys.html',
+        datosApp=get_data_app(),
+        keys=keys,
+        new_full_key=new_full_key,
+    )
 
 
 @admin_bp.route('/admin/backup-db/configurar-clave', methods=['POST'])

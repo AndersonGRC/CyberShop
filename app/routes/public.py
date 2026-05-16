@@ -459,6 +459,59 @@ def enviar_mensaje():
     return redirect(url_for('public.index'))
 
 
+@public_bp.route('/descargar', methods=['GET', 'POST'])
+def descargar():
+    """Portal público de descarga del POS Desktop.
+
+    GET  → muestra form pidiendo client_code
+    POST → valida code en sync_api_keys, arma ZIP personalizado y lo retorna
+    """
+    from flask import abort, send_file
+    from io import BytesIO
+
+    from services.installer_packager import (
+        build_personalized_zip,
+        ClientCodeNotFoundError,
+        InstallerNotBuiltError,
+        resolve_client_code,
+    )
+
+    datosApp = get_common_data()
+
+    if request.method == 'POST':
+        ip = request.remote_addr or 'unknown'
+        if not controlar_tasa_solicitudes(ip, max_requests=5, interval=600):
+            flash('Demasiados intentos. Espera 10 minutos antes de reintentar.', 'error')
+            return render_template('descargar.html', datosApp=datosApp), 429
+
+        client_code = (request.form.get('client_code') or '').strip().upper()
+        if not client_code:
+            flash('Ingresa tu código de cliente.', 'error')
+            return render_template('descargar.html', datosApp=datosApp)
+
+        try:
+            tenant_info = resolve_client_code(client_code)
+        except ClientCodeNotFoundError:
+            flash('Código de cliente inválido o inactivo. Verifica con tu proveedor.', 'error')
+            return render_template('descargar.html', datosApp=datosApp)
+
+        try:
+            server_url = request.url_root.rstrip('/')
+            filename, zip_bytes = build_personalized_zip(tenant_info, server_url)
+        except InstallerNotBuiltError as exc:
+            flash(f'El instalador no está disponible aún. Contacta al administrador. ({exc})', 'error')
+            return render_template('descargar.html', datosApp=datosApp)
+
+        return send_file(
+            BytesIO(zip_bytes),
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=filename,
+        )
+
+    return render_template('descargar.html', datosApp=datosApp)
+
+
 @public_bp.app_errorhandler(404)
 def pagina_no_encontrada(error):
     """Pagina de error 404 personalizada."""
