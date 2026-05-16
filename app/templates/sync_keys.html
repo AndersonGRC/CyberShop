@@ -1,0 +1,235 @@
+{% extends './plantillaapp.html' %}
+{% block titulo %}Claves API de Sincronización — {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+    .sk-wrapper { max-width: 1000px; margin: 0 auto; padding: 0 16px 40px; }
+    .sk-header {
+        display: flex; align-items: center; gap: 14px;
+        margin-bottom: 24px; padding-bottom: 16px;
+        border-bottom: 2px solid var(--color-gris-borde, #e3e6f0);
+    }
+    .sk-header .icon-circle {
+        width: 48px; height: 48px; border-radius: 12px;
+        background: var(--marca-tinte, rgba(18,44,148,.08));
+        display: flex; align-items: center; justify-content: center;
+        color: var(--color-primario); font-size: 1.3rem;
+    }
+    .sk-header h2 { margin: 0; font-size: 1.25rem; color: var(--color-primario-oscuro); font-weight: 700; }
+    .sk-header p { margin: 2px 0 0; font-size: .85rem; color: var(--color-gris-texto, #5a5c69); }
+
+    .sk-card {
+        background: #fff; border-radius: 12px;
+        border: 1px solid var(--color-gris-borde, #e3e6f0);
+        box-shadow: var(--marca-sombra-card, 0 4px 24px rgba(18,44,148,.08));
+        margin-bottom: 24px; overflow: hidden;
+    }
+    .sk-card-header {
+        background: linear-gradient(135deg, var(--color-primario) 0%, var(--color-primario-oscuro) 100%);
+        padding: 14px 22px; display: flex; align-items: center; gap: 10px;
+        color: #fff; font-weight: 700; font-size: .92rem;
+    }
+    .sk-card-body { padding: 20px 22px; }
+
+    .sk-reveal {
+        background: linear-gradient(135deg, #fff8dc 0%, #fffbe6 100%);
+        border: 2px dashed #d4a017; border-radius: 10px;
+        padding: 18px 20px; margin-bottom: 22px;
+    }
+    .sk-reveal h3 { margin: 0 0 8px; color: #8a6d1c; font-size: 1rem; }
+    .sk-reveal .sk-warn { font-size: .85rem; color: #8a6d1c; margin: 0 0 12px; }
+    .sk-reveal .sk-kv { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+    .sk-reveal .sk-kv label { width: 110px; font-weight: 600; color: #555; font-size: .85rem; }
+    .sk-reveal .sk-kv input {
+        flex: 1; padding: 8px 10px; font-family: 'Consolas', monospace;
+        border: 1px solid var(--color-gris-borde, #ccc); border-radius: 6px; background: #fff;
+    }
+    .sk-reveal .sk-copy-btn {
+        background: var(--color-primario); color: #fff; border: 0;
+        border-radius: 6px; padding: 8px 14px; cursor: pointer; font-size: .85rem;
+    }
+    .sk-reveal .sk-copy-btn:hover { background: var(--color-primario-oscuro); }
+
+    .sk-form-row { display: flex; gap: 10px; align-items: flex-end; }
+    .sk-form-row .sk-input-wrap { flex: 1; }
+    .sk-form-row label { display: block; font-size: .85rem; color: #555; margin-bottom: 4px; font-weight: 600; }
+    .sk-form-row input[type=text] {
+        width: 100%; padding: 9px 12px; border: 1px solid var(--color-gris-borde, #ccc);
+        border-radius: 6px; font-size: .9rem;
+    }
+    .sk-btn-primary {
+        background: var(--color-primario); color: #fff; border: 0;
+        padding: 10px 22px; border-radius: 6px; font-weight: 600;
+        cursor: pointer; font-size: .9rem;
+    }
+    .sk-btn-primary:hover { background: var(--color-primario-oscuro); }
+
+    table.sk-table { width: 100%; border-collapse: collapse; }
+    table.sk-table th, table.sk-table td {
+        padding: 10px 12px; text-align: left;
+        border-bottom: 1px solid var(--color-gris-borde, #e3e6f0); font-size: .88rem;
+    }
+    table.sk-table th { background: #f8f9fc; color: #555; font-weight: 600; }
+    table.sk-table td.mono { font-family: 'Consolas', monospace; color: #333; }
+    .sk-pill {
+        display: inline-block; padding: 3px 10px; border-radius: 999px;
+        font-size: .75rem; font-weight: 600;
+    }
+    .sk-pill.ok { background: #d4edda; color: #155724; }
+    .sk-pill.off { background: #f8d7da; color: #721c24; }
+    .sk-btn-danger {
+        background: #fff; color: #b42318; border: 1px solid #b42318;
+        padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: .82rem;
+    }
+    .sk-btn-danger:hover { background: #b42318; color: #fff; }
+    .sk-btn-secondary {
+        background: #fff; color: #155724; border: 1px solid #155724;
+        padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: .82rem;
+    }
+    .sk-btn-secondary:hover { background: #155724; color: #fff; }
+    .sk-empty { color: #888; text-align: center; padding: 28px 0; font-style: italic; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="sk-wrapper">
+
+    <div class="sk-header">
+        <div class="icon-circle"><i class="fas fa-key"></i></div>
+        <div>
+            <h2>Claves API de Sincronización</h2>
+            <p>Emite y administra las claves que usa el desktop POS para conectarse con este servidor.</p>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for cat, msg in messages %}
+                <div class="sk-card" style="border-left: 4px solid
+                    {% if cat == 'success' %}#28a745{% elif cat == 'error' %}#b42318{% elif cat == 'warning' %}#d4a017{% else %}#888{% endif %};">
+                    <div class="sk-card-body" style="padding: 12px 18px;">{{ msg }}</div>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    {% if new_full_key %}
+    <div class="sk-reveal">
+        <h3><i class="fas fa-exclamation-triangle"></i> Guarda esta clave AHORA</h3>
+        <p class="sk-warn">No volverá a mostrarse. Si la pierdes, deberás generar una nueva y revocar ésta.</p>
+        <div class="sk-kv">
+            <label>API key:</label>
+            <input id="new-api-key" type="text" readonly value="{{ new_full_key.api_key }}">
+            <button type="button" class="sk-copy-btn" onclick="skCopy('new-api-key')">Copiar</button>
+        </div>
+        <div class="sk-kv">
+            <label>Client code:</label>
+            <input id="new-client-code" type="text" readonly value="{{ new_full_key.client_code }}">
+            <button type="button" class="sk-copy-btn" onclick="skCopy('new-client-code')">Copiar</button>
+        </div>
+        {% if new_full_key.label %}
+        <div class="sk-kv"><label>Etiqueta:</label><span>{{ new_full_key.label }}</span></div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="sk-card">
+        <div class="sk-card-header"><i class="fas fa-plus-circle"></i> Generar nueva clave</div>
+        <div class="sk-card-body">
+            <form method="post" action="{{ url_for('admin.sync_keys') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="form_type" value="generate">
+                <div class="sk-form-row">
+                    <div class="sk-input-wrap">
+                        <label for="label">Etiqueta descriptiva (opcional)</label>
+                        <input id="label" name="label" type="text" maxlength="120" placeholder="Ej: POS Tienda Centro">
+                    </div>
+                    <button type="submit" class="sk-btn-primary"><i class="fas fa-bolt"></i> Generar</button>
+                </div>
+                <p style="margin-top: 12px; font-size: .82rem; color: #777;">
+                    La clave se mostrará una sola vez tras generarla. Cópiala y pégala en el desktop (F7 → API key) o entrégala al cliente vía el portal <code>/descargar</code> usando el <em>client code</em>.
+                </p>
+            </form>
+        </div>
+    </div>
+
+    <div class="sk-card">
+        <div class="sk-card-header"><i class="fas fa-list"></i> Claves emitidas</div>
+        <div class="sk-card-body" style="padding: 0;">
+            {% if keys %}
+            <table class="sk-table">
+                <thead>
+                    <tr>
+                        <th>Etiqueta</th>
+                        <th>Prefijo</th>
+                        <th>Client code</th>
+                        <th>Estado</th>
+                        <th>Creada</th>
+                        <th>Último uso</th>
+                        <th style="text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for k in keys %}
+                    <tr>
+                        <td>{{ k.label or '—' }}</td>
+                        <td class="mono">{{ k.key_prefix }}…</td>
+                        <td class="mono">{{ k.client_code }}</td>
+                        <td>
+                            {% if k.active %}
+                                <span class="sk-pill ok">Activa</span>
+                            {% else %}
+                                <span class="sk-pill off">Revocada</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ k.created_at.strftime('%Y-%m-%d %H:%M') if k.created_at else '—' }}</td>
+                        <td>{{ k.last_used_at.strftime('%Y-%m-%d %H:%M') if k.last_used_at else 'Nunca' }}</td>
+                        <td style="text-align: right;">
+                            {% if k.active %}
+                            <form method="post" action="{{ url_for('admin.sync_keys') }}" style="display:inline;"
+                                  onsubmit="return confirm('¿Revocar esta clave? El desktop que la use dejará de sincronizar inmediatamente.');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="form_type" value="revoke">
+                                <input type="hidden" name="key_id" value="{{ k.id }}">
+                                <button type="submit" class="sk-btn-danger"><i class="fas fa-ban"></i> Revocar</button>
+                            </form>
+                            {% else %}
+                            <form method="post" action="{{ url_for('admin.sync_keys') }}" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="form_type" value="activate">
+                                <input type="hidden" name="key_id" value="{{ k.id }}">
+                                <button type="submit" class="sk-btn-secondary"><i class="fas fa-check"></i> Reactivar</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="sk-empty">Todavía no hay claves emitidas. Genera la primera arriba.</div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+
+<script>
+function skCopy(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.select();
+    el.setSelectionRange(0, 9999);
+    try {
+        navigator.clipboard.writeText(el.value).then(() => {
+            const btn = event.target;
+            const orig = btn.textContent;
+            btn.textContent = '✓ Copiado';
+            setTimeout(() => { btn.textContent = orig; }, 1500);
+        });
+    } catch (e) {
+        document.execCommand('copy');
+    }
+}
+</script>
+{% endblock %}

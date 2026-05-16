@@ -1,0 +1,143 @@
+{% extends "plantillaindex.html" %}
+
+{% block titulo %}Descargar POS Desktop{% endblock %}
+{% block meta_description %}Descarga el POS Desktop personalizado para tu tienda.{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+  .descarga-wrap {
+    max-width: 720px;
+    margin: 60px auto;
+    padding: 40px 32px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: var(--marca-sombra-card, 0 4px 24px rgba(0,0,0,0.08));
+  }
+  .descarga-wrap h1 {
+    color: var(--color-primario, #122C94);
+    margin-bottom: 8px;
+    font-weight: 700;
+  }
+  .descarga-wrap .subtitulo {
+    color: #666;
+    margin-bottom: 32px;
+  }
+  .descarga-form label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #333;
+  }
+  .descarga-form input[type="text"] {
+    width: 100%;
+    padding: 14px 16px;
+    font-size: 1.1rem;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border: 2px solid var(--color-gris-borde, #ddd);
+    border-radius: 8px;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .descarga-form input[type="text"]:focus {
+    outline: none;
+    border-color: var(--color-primario, #122C94);
+    box-shadow: var(--marca-focus-ring, 0 0 0 3px rgba(18,44,148,0.15));
+  }
+  .descarga-form .ayuda {
+    font-size: 0.9rem;
+    color: #888;
+    margin-top: 6px;
+  }
+  .descarga-form button {
+    margin-top: 24px;
+    width: 100%;
+    padding: 14px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #fff;
+    background: var(--color-primario, #122C94);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background .2s, transform .1s;
+  }
+  .descarga-form button:hover {
+    background: var(--color-primario-oscuro, #091C5A);
+  }
+  .descarga-form button:active { transform: scale(0.98); }
+  .descarga-pasos {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid var(--color-gris-borde, #eee);
+    font-size: 0.95rem;
+    color: #555;
+  }
+  .descarga-pasos h3 {
+    color: var(--color-primario, #122C94);
+    font-size: 1.05rem;
+    margin-bottom: 12px;
+  }
+  .descarga-pasos ol { padding-left: 20px; }
+  .descarga-pasos li { margin-bottom: 6px; }
+  .flash-msg {
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-weight: 500;
+  }
+  .flash-msg.error {
+    background: #fee;
+    color: #b42318;
+    border-left: 4px solid #b42318;
+  }
+  .flash-msg.success {
+    background: #efe;
+    color: #117a36;
+    border-left: 4px solid #117a36;
+  }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="descarga-wrap">
+  <h1><i class="fa fa-download" style="margin-right:10px;"></i>Descargar POS Desktop</h1>
+  <p class="subtitulo">
+    Ingresa el código que recibiste de tu proveedor para descargar el instalador
+    preconfigurado para tu negocio.
+  </p>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, msg in messages %}
+      <div class="flash-msg {{ category }}">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <form method="POST" action="{{ url_for('public.descargar') }}" class="descarga-form" autocomplete="off">
+    <label for="client_code">Código de cliente</label>
+    <input type="text"
+           id="client_code"
+           name="client_code"
+           placeholder="CYB-XXXXXXXX"
+           maxlength="20"
+           required
+           autofocus
+           pattern="[A-Z0-9\-]+">
+    <div class="ayuda">Formato: <strong>CYB-</strong> seguido de 8 caracteres. No se distingue mayúsculas/minúsculas.</div>
+    <button type="submit"><i class="fa fa-cloud-download" style="margin-right:8px;"></i>Descargar instalador</button>
+  </form>
+
+  <div class="descarga-pasos">
+    <h3>Después de descargar:</h3>
+    <ol>
+      <li>Extrae el archivo ZIP en una carpeta temporal.</li>
+      <li>Ejecuta <code>CyberShopSetup.exe</code> (mantén <code>bootstrap.json</code> al lado).</li>
+      <li>Sigue el asistente de instalación. Los datos del servidor ya vienen pre-llenos.</li>
+      <li>Al finalizar, abre la app desde el menú inicio y comienza a operar.</li>
+    </ol>
+    <p style="margin-top:14px;font-size:0.85rem;color:#999;">
+      ¿No tienes un código? Contacta a tu proveedor para obtener tu código de cliente.
+    </p>
+  </div>
+</div>
+{% endblock %}
