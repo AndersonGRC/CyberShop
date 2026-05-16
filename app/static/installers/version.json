@@ -1,0 +1,7 @@
+{
+  "latest": "1.0.0",
+  "min_required": "1.0.0",
+  "download_url": "/static/installers/CyberShopSetup_base.exe",
+  "checksum_sha256": "",
+  "release_notes": "Versión inicial del CyberShop POS Desktop con sincronización de branding, instalador asistido y multi-tenant."
+}

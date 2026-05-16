@@ -49,3 +49,10 @@ static/user/
 # ── Base de datos local ──────────────────────────────────
 *.sqlite3
 *.db
+
+# ── Instaladores binarios (se distribuyen por separado) ──
+static/installers/*.exe
+static/installers/*.msi
+
+# ── SQL de migración por tenant (no es parte del framework) ──
+sql_logs/
