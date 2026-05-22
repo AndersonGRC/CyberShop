@@ -27,17 +27,67 @@ CyberShop is a Flask-based e-commerce platform (Spanish language) with PostgreSQ
 - **security.py** — `@rol_requerido(role_id)` decorator, `autenticar_usuario()`, `actualizar_ultima_conexion()`, basic rate limiting
 - **validators.py** — PSE bank transfer payment validation
 
+### Multi-Tenant SaaS Architecture
+
+CyberShop opera en modelo **control plane + 1 base de datos por cliente**:
+
+- **Control plane** (`saas_control_plane`): metadatos globales — `tenants`, `tenant_databases` (credenciales cifradas con KMS), `usuarios_globales`, `refresh_tokens`, `sync_api_keys`. Acceso vía `services/db_layer.py::control_plane_cursor()`.
+- **DB por tenant** (`cyber_t001`, `cyber_t002`, …): todos los datos operativos (usuarios, productos, pedidos, contabilidad, CRM, nómina). Acceso vía `services/db_layer.py::tenant_cursor(db_name=...)` o `get_db_cursor()` (que resuelve el tenant actual).
+- **Resolución de tenant por request**: `app.before_request(resolve_current_tenant)` (`services/tenant_resolver.py`) puebla `g.current_tenant` desde (1) JWT Bearer (API), (2) sesión Flask (HTML legacy), o (3) defaults de entorno (`DEFAULT_TENANT_ID`/`DB_NAME`, rutas públicas/pre-login).
+- Módulos opcionales por tenant: `tenant_features.py` (`is_module_active()`, `get_active_module_codes()`).
+
+> Mapa completo "para qué sirve cada archivo": [docs/MAPA_ARCHIVOS.md](docs/MAPA_ARCHIVOS.md).
+> Integración con el POS de escritorio: [docs/INTEGRACION_WEB_DESKTOP.md](docs/INTEGRACION_WEB_DESKTOP.md).
+
 ### Routes (Flask Blueprints)
 
-Routes are organized in the `routes/` package with four blueprints:
+`routes/__init__.py::register_blueprints(app)` registra **16 blueprints siempre** y **3 de la API REST solo si `CYBERSHOP_API_ENABLED=1`** (19 en total). `routes/factura_electronica.py` **no es un blueprint** — es un módulo de funciones (`emitir_factura_electronica`, `facturacion_habilitada`, `emitir_factura_pos`) que importa `admin.py`.
 
-- **routes/__init__.py** — `register_blueprints(app)` registers all blueprints
-- **routes/auth.py** (`auth_bp`) — `/registrar-cliente`, `/login`, `/logout`, `/cliente`
-- **routes/public.py** (`public_bp`) — `/`, `/productos`, `/servicios`, `/quienes_somos`, `/contactenos`, `/carrito`, `/enviar-mensaje`, 404 handler
-- **routes/admin.py** (`admin_bp`) — `/admin`, `/agregar-producto`, `/editar-productos`, `/editar-producto/<id>`, `/eliminar-productos`, `/eliminar-producto/<id>`, `/gestion-usuarios`, `/crear-usuario`, `/editar-usuario/<id>`, `/cambiar-password/<id>`, `/gestion-pedidos`
-- **routes/payments.py** (`payments_bp`) — `/metodos-pago`, `/crear-orden`, `/confirmacion-pago`, `/respuesta-pago`, `/procesar-carrito`, `/debug-session`
+| Blueprint (archivo) | Prefijo URL | Responsabilidad |
+|---|---|---|
+| `auth.py` (`auth`) | `/` | Registro cliente, login, logout, dashboard cliente, Google OAuth staff |
+| `public.py` (`public`) | `/` | Home, catálogo, servicios, quiénes somos, contacto, carrito, `/descargar` (portal POS), 404 |
+| `admin.py` (`admin`) | `/admin` | Dashboard admin, CRUD productos/usuarios, pedidos, POS, inventario, config módulos, branding |
+| `payments.py` (`payments`) | `/` | Flujo de pago PayU: métodos, crear-orden, confirmación (webhook), respuesta-pago, procesar-carrito |
+| `quotes.py` (`quotes`) | `/admin/cotizar` | Cotizaciones en PDF |
+| `restaurant_tables.py` (`restaurant_tables`) | `/admin/salon` | Mesas de restaurante, ocupación, pedidos por mesa |
+| `nomina.py` (`nomina`) | `/admin/nomina` | Nómina (planilla, períodos, novedades) — usa `nomina_inteligente.py` |
+| `billing.py` (`billing`) | `/admin/cuenta_cobro` | Cuentas de cobro en PDF |
+| `crm.py` (`crm`) | `/admin/crm` | Contactos, oportunidades, actividades, tareas, email masivo, import/export |
+| `google_calendar.py` (`google`) | `/admin/google` | OAuth Google + sync bidireccional de Calendar (CRM) |
+| `soporte.py` (`soporte`) | `/admin/soporte` | Tickets de soporte cliente↔vendedor |
+| `contabilidad.py` (`contabilidad`) | `/admin/contabilidad` | Ingresos/egresos, retenciones, cierres de período |
+| `video.py` (`video`) | `/admin/video` | Salas de videollamada (Jitsi) |
+| `cupones.py` (`cupones`) | `/` | CRUD cupones de descuento + validación AJAX en carrito |
+| `wishlist.py` (`wishlist`) | `/admin/deseos` | Listas de deseos de clientes |
+| `share.py` (`share`) | `/` | Compartir archivos: carpetas + link público `/c/<token>` |
+| `api_auth.py` (`api_auth`) † | `/api/v1/auth` | JWT: `/login`, `/refresh`, `/logout`, `/me` (RS256 prod / HS256 dev) |
+| `api_health.py` (`api_health`) † | `/api/v1` | `/health` público (estado DB/servicios) |
+| `api_sync.py` (`api_sync`) † | `/api/v1/sync` | API del POS de escritorio (12 endpoints — ver abajo) |
+
+† Solo registrados con `CYBERSHOP_API_ENABLED=1`.
 
 **Important:** Templates use blueprint-prefixed endpoints in `url_for()` calls (e.g., `url_for('auth.login')`, `url_for('public.productos')`, `url_for('admin.dashboard_admin')`, `url_for('payments.crear_orden')`).
+
+### REST API `/api/v1/` (POS de escritorio + integraciones)
+
+- **`api_auth`** — JWT: emite access + refresh, refresca, revoca (blacklist por hash), `/me`. `services/auth/jwt_handler.py` y `services/auth/decorators.py` (`@jwt_required`, `@jwt_role_required`).
+- **`api_health`** — chequeo público sin auth.
+- **`api_sync`** — sincronización del POS de escritorio. Auth por header `X-Sync-Key`: primero busca el SHA-256 de la key en `sync_api_keys` (multi-tenant); si no, *fallback legacy* contra `SYNC_API_KEY` de entorno → `DEFAULT_TENANT`. 12 endpoints: `health`, `auth` (login contra `usuarios`), `products`, `users`, `generos`, `sales_web`, `inventory_log`, `outbox` (push), `branding`, `config`, `version`, `stats`. Detalle en [docs/INTEGRACION_WEB_DESKTOP.md](docs/INTEGRACION_WEB_DESKTOP.md).
+
+### services/ — capa de servicios
+
+| Módulo | Rol |
+|---|---|
+| `db_layer.py` | Conexiones: `control_plane_cursor()` (SaaS) y `tenant_cursor(db_name)` (por tenant) |
+| `tenant_resolver.py` | `resolve_current_tenant()` en `before_request` → `g.current_tenant` (JWT/sesión/env) |
+| `crypto_utils.py` | `sha256_hex()`, `aes_gcm_encrypt/decrypt()` (cifra passwords de DB con `KMS_KEY`) |
+| `public_site_service.py` | Config del sitio público (`public_site_settings/blocks/items`) + compat `cliente_config` |
+| `crm_service.py` | Upsert de contactos compartido (formularios/cotizaciones/billing) |
+| `installer_packager.py` | Empaqueta el ZIP del instalador POS (base .exe + `bootstrap.json`) |
+| `restaurant_tables_service.py` | API interna de estado de mesas/cocina |
+| `auth/jwt_handler.py` | Creación/validación/revocación de JWT (RS256 prod, HS256 dev) |
+| `auth/decorators.py` | `@jwt_required()`, `@jwt_role_required([...])` |
 
 ### Frontend Structure
 
@@ -50,15 +100,31 @@ Routes are organized in the `routes/` package with four blueprints:
 
 ### Database Tables
 
-- **usuarios** — Users with bcrypt-hashed passwords, linked to `roles` via `rol_id`
-- **roles** — Three roles: Admin (1), Staff (2), Customer (3)
+Las tablas viven en la **DB del tenant** (no en el control plane):
+
+- **usuarios** — Users con password hasheado (werkzeug), linked to `roles` via `rol_id`
+- **roles** — **7 roles** (ver abajo)
 - **productos** — Product catalog linked to `generos` (categories)
 - **pedidos** — Orders with PayU transaction tracking, payment/shipping status
 - **detalle_pedidos** — Order line items
 
+(El control plane `saas_control_plane` tiene su propio esquema: `tenants`, `tenant_databases`, `usuarios_globales`, `refresh_tokens`, `sync_api_keys` — ver `migrations/control_plane/`.)
+
 ### Authentication & Authorization
 
-Session-based auth using Flask sessions. Passwords hashed with werkzeug. Role access controlled by `@rol_requerido(role_id)` decorator in `security.py` — Admin=1, Staff=2, Customer=3.
+Auth basada en sesión Flask (HTML) o JWT (API). Passwords con werkzeug. Control de acceso vía `@rol_requerido(rol_id_o_lista)` en `security.py`. **7 roles** (corrige el modelo viejo de 3):
+
+| ID | Constante | Rol |
+|---|---|---|
+| 1 | `ROL_SUPER_ADMIN` | Administrador del sitio (desarrollador, control total) |
+| 2 | `ROL_PROPIETARIO` | Dueño del negocio / cliente del software |
+| 3 | `ROL_CLIENTE` | Cliente final (comprador en la tienda) |
+| 4 | `ROL_EMPLEADO` | Empleado del negocio (ventas, productos, CRM) |
+| 5 | `ROL_CONTADOR` | Contador (solo contabilidad y facturación) |
+| 6 | `ROL_MESERO` | Mesero del restaurante (toma pedidos en mesas) |
+| 7 | `ROL_CAJERO` | Cajero del restaurante (cobra y anula) |
+
+`security.py` agrupa estos roles en conjuntos de permisos reutilizables: `ADMIN_FULL`, `ADMIN_STAFF`, `ADMIN_CONTADOR`, `POS_OPERATIONAL`, `POS_DELETE`, `CATALOG_OPERATIONAL`, `RESTAURANT_OPERATIONAL`, `RESTAURANT_CHARGE`, `RESTAURANT_CANCEL`, etc.
 
 ### Shopping Cart → Payment Flow
 
