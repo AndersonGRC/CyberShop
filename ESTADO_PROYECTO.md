@@ -9,6 +9,25 @@
 
 ---
 
+## ⏱ Nota de estado — 2026-05-19
+
+Lo planificado en 2026-04-30 ya está **implementado y en producción** (supera
+el plan reducido de 3 fases descrito más abajo):
+
+- **API multi-tenant** (`sync_api_keys` + `services/db_layer.py` +
+  `services/tenant_resolver.py`) operativa; `/api/v1/sync/*` con 12 endpoints.
+- **POS de escritorio offline** (`CyberShopDesktop`, PyQt6 + SQLite + outbox)
+  funcionando con sync bidireccional y login compartido con la web.
+- Documentación nueva: [app/docs/MAPA_ARCHIVOS.md](app/docs/MAPA_ARCHIVOS.md)
+  (qué hace cada archivo) y
+  [app/docs/INTEGRACION_WEB_DESKTOP.md](app/docs/INTEGRACION_WEB_DESKTOP.md)
+  (cadena de sync web↔escritorio).
+
+Las secciones siguientes se conservan como **referencia histórica** de la
+decisión de pivote; no reescritas.
+
+---
+
 ## 0. ⚠ PIVOT ARQUITECTÓNICO (decisión 2026-04-30)
 
 **El usuario aclaró el modelo real:**
