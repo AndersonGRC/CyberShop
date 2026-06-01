@@ -11,7 +11,7 @@
     <meta property="og:type" content="website">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <!-- Meta Pixel Code -->
+    <!-- Meta Pixel Code (con dedup vs Conversions API por eventID) -->
     <script>
     !function(f,b,e,v,n,t,s)
     {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -22,7 +22,13 @@
     s.parentNode.insertBefore(t,s)}(window, document,'script',
     'https://connect.facebook.net/en_US/fbevents.js');
     fbq('init', '4412332785657284');
-    fbq('track', 'PageView');
+    var FB_PV_ID = "{{ fb_pageview_event_id or '' }}";
+    if (FB_PV_ID) {
+        fbq('track', 'PageView', {}, { eventID: FB_PV_ID });
+        window.FB_PAGEVIEW_EVENT_ID = FB_PV_ID;
+    } else {
+        fbq('track', 'PageView');
+    }
     </script>
     <noscript><img height="1" width="1" style="display:none"
     src="https://www.facebook.com/tr?id=4412332785657284&ev=PageView&noscript=1"

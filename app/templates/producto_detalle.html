@@ -349,6 +349,25 @@
         <p>Procesando...</p>
     </div>
 </div>
+
+<!-- Meta Pixel: ViewContent (dedup vs CAPI por eventID) -->
+<script>
+    if (typeof fbq === 'function') {
+        var FB_VC_ID = "{{ fb_view_content_event_id or '' }}";
+        var FB_VC_DATA = {
+            content_ids:  ['{{ producto.id }}'],
+            content_name: {{ producto.nombre|tojson }},
+            content_type: 'product',
+            value:        {{ producto.precio|float }},
+            currency:     'COP'
+        };
+        if (FB_VC_ID) {
+            fbq('track', 'ViewContent', FB_VC_DATA, { eventID: FB_VC_ID });
+        } else {
+            fbq('track', 'ViewContent', FB_VC_DATA);
+        }
+    }
+</script>
 {% endblock %}
 
 {% block script %}

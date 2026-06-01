@@ -597,7 +597,59 @@ def respuesta_pago():
         except Exception as _e:
             app.logger.warning(f"Contabilidad respuesta_pago: {_e}")
 
-    return render_template('respuesta_pago.html', datosApp=datosApp, datos=datos_comprobante)
+    # --- Meta CAPI Purchase (server-side, complementa al pixel del browser) ---
+    # Idempotente: solo dispara cuando el estado transiciona a APROBADO en esta request,
+    # nunca se re-emite si el usuario refresca la pagina.
+    purchase_event_id = None
+    if estado_bd == 'APROBADO':
+        import uuid as _uuid
+        from services import meta_capi as _meta_capi
+        purchase_event_id = f"purchase-{referencia}"  # determinista por orden = dedup natural
+        try:
+            # Datos del cliente para mejor match en Meta
+            cust_email = None
+            cust_phone = None
+            cust_nombre = None
+            try:
+                with get_db_cursor(dict_cursor=True) as _cur:
+                    _cur.execute(
+                        """SELECT u.email, u.telefono, u.nombre
+                           FROM pedidos p
+                           LEFT JOIN usuarios u ON u.id = p.usuario_id
+                           WHERE p.referencia_pedido = %s LIMIT 1""",
+                        (referencia,)
+                    )
+                    _row = _cur.fetchone()
+                    if _row:
+                        cust_email  = _row.get('email')
+                        cust_phone  = _row.get('telefono')
+                        cust_nombre = _row.get('nombre')
+            except Exception:
+                pass
+
+            _meta_capi.send_event_async(
+                event_name='Purchase',
+                event_id=purchase_event_id,
+                user_data=_meta_capi.build_user_data(
+                    request,
+                    email=cust_email,
+                    phone=cust_phone,
+                    first_name=(cust_nombre or '').split(' ')[0] if cust_nombre else None,
+                    external_id=str(session['usuario_id']) if session.get('usuario_id') else None,
+                ),
+                custom_data={
+                    'currency': (moneda or 'COP'),
+                    'value':    float(valor or 0),
+                    'order_id': referencia,
+                },
+                event_source_url=request.url,
+            )
+        except Exception as _exc:
+            app.logger.warning(f"CAPI Purchase: {_exc}")
+
+    return render_template('respuesta_pago.html', datosApp=datosApp,
+                           datos=datos_comprobante,
+                           fb_purchase_event_id=purchase_event_id)
 
 
 @payments_bp.route('/procesar-carrito', methods=['POST'])

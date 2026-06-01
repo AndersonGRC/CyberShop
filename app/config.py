@@ -28,6 +28,16 @@ class Config:
     PERMANENT_SESSION_LIFETIME = 3600  # 1 hora
     MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50 MB max upload
 
+    # --- Meta Pixel + Conversions API ---
+    # Pixel ID — visible en el código del pixel del template
+    META_PIXEL_ID = os.getenv('META_PIXEL_ID', '4412332785657284')
+    # Access token de System User con permiso `ads_management` sobre el pixel.
+    # Generar en: Events Manager → Configurar → Conversions API → Generar token
+    META_CAPI_ACCESS_TOKEN = os.getenv('META_CAPI_ACCESS_TOKEN', '')
+    # Test code: pegarlo mientras validás; quitarlo cuando el server envíe a producción.
+    # Eventos con test_event_code aparecen en "Test Events" sin contar como reales.
+    META_CAPI_TEST_EVENT_CODE = os.getenv('META_CAPI_TEST_EVENT_CODE', '')
+
     # --- PayU Latam ---
     PAYU_API_KEY    = os.getenv('PAYU_API_KEY')
     PAYU_API_LOGIN  = os.getenv('PAYU_API_LOGIN')

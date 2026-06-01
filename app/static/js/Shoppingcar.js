@@ -390,6 +390,35 @@ const agregarAlCarrito = (producto, imagenElemento) => {
         actualizarCarrito();
     }, 800);
 
+    // --- Meta Pixel + CAPI AddToCart (dedup por eventID) ---
+    try {
+        var FB_AC_ID = (window.crypto && window.crypto.randomUUID)
+            ? window.crypto.randomUUID()
+            : 'ac-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+        var FB_AC_DATA = {
+            content_ids:  [String(producto.id)],
+            content_name: producto.nombre,
+            content_type: 'product',
+            value:        precio,
+            currency:     'COP'
+        };
+        if (typeof fbq === 'function') {
+            fbq('track', 'AddToCart', FB_AC_DATA, { eventID: FB_AC_ID });
+        }
+        // Envio al server para CAPI (no bloquea — fire and forget)
+        fetch('/api/track/add-to-cart', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                event_id:     FB_AC_ID,
+                product_id:   producto.id,
+                product_name: producto.nombre,
+                price:        precio,
+                quantity:     1
+            })
+        }).catch(function () { /* silent */ });
+    } catch (_e) { /* tracking nunca debe romper la UX */ }
+
     // Feedback visual opcional
     // mostrarNotificacion(`${producto.nombre} agregado`, 'success');
 };

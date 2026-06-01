@@ -7,9 +7,15 @@ Rutas: /, /productos, /servicios, /quienes_somos, /contactenos,
 
 import re
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from flask import current_app as app
 from helpers_gmail import enviar_email_gmail
+
+
+def _csrf_exempt(view):
+    """Marca una vista como exenta de CSRF (mismo patron que routes/payments.py)."""
+    view.csrf_exempt = True
+    return view
 
 from database import get_db_cursor
 from helpers import get_common_data, formatear_moneda
@@ -289,9 +295,35 @@ def detalle_producto(producto_id):
         app.logger.error(f"Error cargando detalle producto {producto_id}: {e}")
         return render_template('404.html'), 404
 
+    # --- Meta CAPI ViewContent (dedup vs pixel por mismo event_id) ---
+    import uuid as _uuid
+    from services import meta_capi as _meta_capi
+    view_content_event_id = str(_uuid.uuid4())
+    try:
+        _meta_capi.send_event_async(
+            event_name='ViewContent',
+            event_id=view_content_event_id,
+            user_data=_meta_capi.build_user_data(
+                request,
+                email=session.get('email'),
+                external_id=str(session['usuario_id']) if session.get('usuario_id') else None,
+            ),
+            custom_data={
+                'content_ids':  [str(producto['id'])],
+                'content_name': producto.get('nombre', ''),
+                'content_type': 'product',
+                'currency':     'COP',
+                'value':        float(producto.get('precio') or 0),
+            },
+            event_source_url=request.url,
+        )
+    except Exception as _exc:
+        app.logger.warning(f"CAPI ViewContent: {_exc}")
+
     return render_template('producto_detalle.html', datosApp=datosApp,
                            producto=producto, relacionados=relacionados,
-                           comentarios=comentarios, stats_rating=stats_rating)
+                           comentarios=comentarios, stats_rating=stats_rating,
+                           fb_view_content_event_id=view_content_event_id)
 
 
 @public_bp.route('/producto/<int:producto_id>/comentar', methods=['POST'])
@@ -510,6 +542,53 @@ def descargar():
         )
 
     return render_template('descargar.html', datosApp=datosApp)
+
+
+@public_bp.route('/api/track/add-to-cart', methods=['POST'])
+@_csrf_exempt
+def track_add_to_cart():
+    """Endpoint para mandar AddToCart a Meta CAPI desde el browser.
+
+    El JS hace fbq('track', 'AddToCart', ..., {eventID}) y simultaneamente
+    POST aqui con el mismo event_id — Meta deduplica los dos en su servidor.
+
+    Body JSON: {event_id, product_id, product_name, price, quantity}
+    Tolerante a errores: nunca devuelve 5xx (CAPI no debe romper el frontend).
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        event_id  = (data.get('event_id') or '').strip()
+        prod_id   = data.get('product_id')
+        prod_name = data.get('product_name') or ''
+        price     = float(data.get('price') or 0)
+        qty       = int(data.get('quantity') or 1)
+
+        if not event_id or not prod_id:
+            return jsonify({'ok': False, 'reason': 'missing event_id or product_id'}), 200
+
+        from services import meta_capi as _meta_capi
+        _meta_capi.send_event_async(
+            event_name='AddToCart',
+            event_id=event_id,
+            user_data=_meta_capi.build_user_data(
+                request,
+                email=session.get('email'),
+                external_id=str(session['usuario_id']) if session.get('usuario_id') else None,
+            ),
+            custom_data={
+                'content_ids':  [str(prod_id)],
+                'content_name': prod_name,
+                'content_type': 'product',
+                'currency':     'COP',
+                'value':        price * qty,
+                'contents':     [{'id': str(prod_id), 'quantity': qty, 'item_price': price}],
+            },
+            event_source_url=request.headers.get('Referer'),
+        )
+        return jsonify({'ok': True}), 200
+    except Exception as exc:
+        app.logger.warning(f"track_add_to_cart error: {exc}")
+        return jsonify({'ok': False}), 200
 
 
 @public_bp.app_errorhandler(404)

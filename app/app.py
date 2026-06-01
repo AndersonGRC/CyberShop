@@ -147,6 +147,46 @@ def set_security_headers(response):
 from services.tenant_resolver import resolve_current_tenant
 app.before_request(resolve_current_tenant)
 
+# --- Meta CAPI: PageView automatico con dedup vs el Pixel ---
+import uuid as _uuid
+from flask import g as _g
+from services import meta_capi as _meta_capi
+
+
+@app.before_request
+def _meta_capi_assign_event_id():
+    """Si la request es un page-view candidato, genera un event_id que
+    el pixel del template usara como `eventID` y CAPI usara como `event_id`."""
+    if _meta_capi.should_track_pageview(request):
+        _g.fb_pageview_event_id = str(_uuid.uuid4())
+
+
+@app.context_processor
+def _meta_capi_inject_event_id():
+    """Expone el event_id de PageView al template para que el pixel lo use."""
+    return {'fb_pageview_event_id': getattr(_g, 'fb_pageview_event_id', None)}
+
+
+@app.after_request
+def _meta_capi_send_pageview(response):
+    """Despacha PageView a CAPI con el mismo event_id que uso el pixel.
+    Solo si la response es HTML 200 (no errores, no redirects, no JSON)."""
+    event_id = getattr(_g, 'fb_pageview_event_id', None)
+    if not event_id or response.status_code != 200:
+        return response
+    if not (response.content_type or '').startswith('text/html'):
+        return response
+    try:
+        _meta_capi.send_event_async(
+            event_name='PageView',
+            event_id=event_id,
+            user_data=_meta_capi.build_user_data(request),
+            event_source_url=request.url,
+        )
+    except Exception as exc:
+        app.logger.warning(f"CAPI PageView dispatch error: {exc}")
+    return response
+
 # --- Registrar blueprints ---
 api_blueprints = register_blueprints(app)
 
