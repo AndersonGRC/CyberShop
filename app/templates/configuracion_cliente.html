@@ -1186,6 +1186,44 @@
     </div>
     {% endif %}
 
+    <!-- ===== Módulo de tienda online + acceso a Planes de Software ===== -->
+    <div class="config-card" id="ventas-web" style="margin-top: 30px;">
+        <div class="config-card-header">
+            <i class="fas fa-store"></i> Tienda online y Planes de Software
+        </div>
+        <div class="config-card-body">
+            <form method="POST" action="{{ url_for('admin.configuracion_cliente') }}">
+                <input type="hidden" name="form_type" value="ventas_web">
+                <div class="config-item">
+                    <div class="config-info">
+                        <span class="config-label">Módulo de ventas (tienda online)</span>
+                        <span class="config-desc">Activa o desactiva los productos, el detalle de producto, el carrito y los accesos de compra en toda la web pública.</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="mostrar_modulo_ventas" value="true"
+                               {% if ventas_web_activo %}checked{% endif %}>
+                        <span class="slider-toggle"></span>
+                    </label>
+                </div>
+                <div style="text-align:right; margin-top:16px;">
+                    <button type="submit" class="btn-guardar-config" style="max-width:240px; margin:0 0 0 auto;">
+                        <i class="fas fa-save"></i> Guardar tienda online
+                    </button>
+                </div>
+            </form>
+
+            <div style="margin-top:22px; padding-top:20px; border-top:1px dashed var(--color-gris-borde, #e3e8f2); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
+                <div class="config-info">
+                    <span class="config-label">Planes de Software (página /software)</span>
+                    <span class="config-desc">Agrega, edita, oculta o elimina planes y todo lo que incluye cada uno (precios, características, destacado, compra por PayU).</span>
+                </div>
+                <a href="{{ url_for('admin.software_planes') }}" class="btn-guardar-config" style="max-width:260px; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; gap:8px;">
+                    <i class="fas fa-layer-group"></i> Gestionar planes
+                </a>
+            </div>
+        </div>
+    </div>
+
     {% if secciones %}
     <div class="config-card" id="secciones" style="margin-top: 30px;">
         <div class="config-card-header">
