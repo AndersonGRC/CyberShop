@@ -46,8 +46,8 @@ CyberShop opera en modelo **control plane + 1 base de datos por cliente**:
 | Blueprint (archivo) | Prefijo URL | Responsabilidad |
 |---|---|---|
 | `auth.py` (`auth`) | `/` | Registro cliente, login, logout, dashboard cliente, Google OAuth staff |
-| `public.py` (`public`) | `/` | Home, catálogo, servicios, quiénes somos, contacto, carrito, `/descargar` (portal POS), 404 |
-| `admin.py` (`admin`) | `/admin` | Dashboard admin, CRUD productos/usuarios, pedidos, POS, inventario, config módulos, branding |
+| `public.py` (`public`) | `/` | Home, catálogo, servicios, quiénes somos, contacto, carrito, `/descargar` (portal POS), `/software` (landing comercial + planes), `/comprar-plan/<key>` (checkout PayU de planes), `/robots.txt`, `/sitemap.xml`, 404 |
+| `admin.py` (`admin`) | `/admin` | Dashboard admin, CRUD productos/usuarios, pedidos, POS, inventario, config módulos, branding, `/admin/software-planes` (gestor de planes de `/software`) |
 | `payments.py` (`payments`) | `/` | Flujo de pago PayU: métodos, crear-orden, confirmación (webhook), respuesta-pago, procesar-carrito |
 | `quotes.py` (`quotes`) | `/admin/cotizar` | Cotizaciones en PDF |
 | `restaurant_tables.py` (`restaurant_tables`) | `/admin/salon` | Mesas de restaurante, ocupación, pedidos por mesa |
@@ -63,7 +63,7 @@ CyberShop opera en modelo **control plane + 1 base de datos por cliente**:
 | `share.py` (`share`) | `/` | Compartir archivos: carpetas + link público `/c/<token>` |
 | `api_auth.py` (`api_auth`) † | `/api/v1/auth` | JWT: `/login`, `/refresh`, `/logout`, `/me` (RS256 prod / HS256 dev) |
 | `api_health.py` (`api_health`) † | `/api/v1` | `/health` público (estado DB/servicios) |
-| `api_sync.py` (`api_sync`) † | `/api/v1/sync` | API del POS de escritorio (12 endpoints — ver abajo) |
+| `api_sync.py` (`api_sync`) † | `/api/v1/sync` | API del POS de escritorio (14 endpoints — ver abajo) |
 
 † Solo registrados con `CYBERSHOP_API_ENABLED=1`.
 
@@ -73,7 +73,7 @@ CyberShop opera en modelo **control plane + 1 base de datos por cliente**:
 
 - **`api_auth`** — JWT: emite access + refresh, refresca, revoca (blacklist por hash), `/me`. `services/auth/jwt_handler.py` y `services/auth/decorators.py` (`@jwt_required`, `@jwt_role_required`).
 - **`api_health`** — chequeo público sin auth.
-- **`api_sync`** — sincronización del POS de escritorio. Auth por header `X-Sync-Key`: primero busca el SHA-256 de la key en `sync_api_keys` (multi-tenant); si no, *fallback legacy* contra `SYNC_API_KEY` de entorno → `DEFAULT_TENANT`. 12 endpoints: `health`, `auth` (login contra `usuarios`), `products`, `users`, `generos`, `sales_web`, `inventory_log`, `outbox` (push), `branding`, `config`, `version`, `stats`. Detalle en [docs/INTEGRACION_WEB_DESKTOP.md](docs/INTEGRACION_WEB_DESKTOP.md).
+- **`api_sync`** — sincronización del POS de escritorio. Auth por header `X-Sync-Key`: primero busca el SHA-256 de la key en `sync_api_keys` (multi-tenant); si no, *fallback legacy* contra `SYNC_API_KEY` de entorno → `DEFAULT_TENANT`. 14 endpoints: `health`, `auth` (login contra `usuarios`), `products`, `users`, `generos`, `sales_web`, `inventory_log`, `outbox` (push), `branding`, `config`, `version`, `stats`, `restaurant/snapshot` y `contabilidad/snapshot`. El `outbox` acepta además las entidades `restaurant_op` y `contabilidad_op` (offline-first del Restaurante y la Contabilidad del escritorio, idempotentes por `client_op_uuid`). Detalle en [docs/INTEGRACION_WEB_DESKTOP.md](docs/INTEGRACION_WEB_DESKTOP.md).
 
 ### services/ — capa de servicios
 
@@ -82,12 +82,22 @@ CyberShop opera en modelo **control plane + 1 base de datos por cliente**:
 | `db_layer.py` | Conexiones: `control_plane_cursor()` (SaaS) y `tenant_cursor(db_name)` (por tenant) |
 | `tenant_resolver.py` | `resolve_current_tenant()` en `before_request` → `g.current_tenant` (JWT/sesión/env) |
 | `crypto_utils.py` | `sha256_hex()`, `aes_gcm_encrypt/decrypt()` (cifra passwords de DB con `KMS_KEY`) |
-| `public_site_service.py` | Config del sitio público (`public_site_settings/blocks/items`) + compat `cliente_config` |
+| `public_site_service.py` | Config del sitio público (`public_site_settings/blocks/items`) + compat `cliente_config`. Incluye grupo de colores `descarga` (landing/software) y `set_public_section()` (toggle de tienda online, autoritativo) |
+| `software_planes_service.py` | Planes de la landing `/software` en la tabla `software_planes` (auto-crea + siembra defaults, CRUD, fallback robusto). Fuente única para landing, JSON-LD y checkout PayU |
 | `crm_service.py` | Upsert de contactos compartido (formularios/cotizaciones/billing) |
 | `installer_packager.py` | Empaqueta el ZIP del instalador POS (base .exe + `bootstrap.json`) |
 | `restaurant_tables_service.py` | API interna de estado de mesas/cocina |
 | `auth/jwt_handler.py` | Creación/validación/revocación de JWT (RS256 prod, HS256 dev) |
 | `auth/decorators.py` | `@jwt_required()`, `@jwt_role_required([...])` |
+
+### Landing comercial `/software` y planes (administrable)
+
+Página pública de marketing del software (POS + Web), optimizada para SEO y con compra de planes por PayU.
+
+- **Público** (`routes/public.py`): `/software` (canónica; alias `/planes` y `/software-pos` → 301), `/comprar-plan/<plan_key>` (checkout PayU del plan — requiere sesión, valida precio server-side, crea `pedidos`+`detalle_pedidos` sin tocar inventario y redirige vía `payments.construir_redireccion_payu()`), `/descargar` (portal del instalador con colores de marca), `/robots.txt` y `/sitemap.xml` dinámicos.
+- **Plantillas**: `software.html` (hero, características, galería de planes con scroll-snap, FAQ, JSON-LD/OG/Twitter/canonical), `descargar.html`, `comprar_plan.html`. Colores propios (no heredan los de marca) configurables desde el grupo `descarga` en `/admin/sitio-publico`.
+- **Planes administrables**: tabla `software_planes` (DB del tenant) vía `services/software_planes_service.py`. Gestor en `/admin/software-planes` (`routes/admin.py::software_planes`, ROL_SUPER_ADMIN) → CRUD de planes (precio, periodo, características por línea, destacado, comprable, incluye-app, orden, visible). Las plantillas usan `plan.plan_key` (no el id numérico) para el checkout.
+- **Toggle de tienda online**: `mostrar_modulo_ventas` se activa/desactiva desde `/admin/configuracion-cliente` (form_type `ventas_web`) mediante `public_site_service.set_public_section()` (escribe en `public_site_settings` + `config_secciones`).
 
 ### Frontend Structure
 

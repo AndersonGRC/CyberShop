@@ -37,8 +37,8 @@ carpetas grandes (`templates/`, `static/`) se describen por convención.
 | Archivo (`bp`) | Prefijo | Responsabilidad |
 |---|---|---|
 | `auth.py` (`auth`) | `/` | Registro cliente, login/logout, dashboard cliente, OAuth Google staff |
-| `public.py` (`public`) | `/` | Home, catálogo, servicios, contacto, carrito, portal `/descargar`, 404 |
-| `admin.py` (`admin`) | `/admin` | Dashboard admin, CRUD productos/usuarios, pedidos, POS, inventario, branding, config módulos |
+| `public.py` (`public`) | `/` | Home, catálogo, servicios, contacto, carrito, portal `/descargar`, `/software` (landing + planes), `/comprar-plan/<key>` (checkout PayU), `/robots.txt`, `/sitemap.xml`, 404 |
+| `admin.py` (`admin`) | `/admin` | Dashboard admin, CRUD productos/usuarios, pedidos, POS, inventario, branding, config módulos, `/admin/software-planes` (gestor de planes) |
 | `payments.py` (`payments`) | `/` | Flujo PayU: métodos, crear-orden, confirmación (webhook), respuesta-pago |
 | `quotes.py` (`quotes`) | `/admin/cotizar` | Cotizaciones en PDF (xhtml2pdf) |
 | `restaurant_tables.py` (`restaurant_tables`) | `/admin/salon` | Mesas, ocupación, pedidos por mesa |
@@ -54,7 +54,7 @@ carpetas grandes (`templates/`, `static/`) se describen por convención.
 | `share.py` (`share`) | `/` | Compartir archivos: carpetas + link público `/c/<token>` |
 | `api_auth.py` (`api_auth`) † | `/api/v1/auth` | JWT: login/refresh/logout/me |
 | `api_health.py` (`api_health`) † | `/api/v1` | `/health` público |
-| `api_sync.py` (`api_sync`) † | `/api/v1/sync` | API POS escritorio (12 endpoints — ver INTEGRACION_WEB_DESKTOP.md) |
+| `api_sync.py` (`api_sync`) † | `/api/v1/sync` | API POS escritorio (14 endpoints, incl. `restaurant/snapshot` y `contabilidad/snapshot` + outbox `restaurant_op`/`contabilidad_op` — ver INTEGRACION_WEB_DESKTOP.md) |
 | `factura_electronica.py` (módulo) | — | **No blueprint**: funciones `emitir_factura_electronica`, `facturacion_habilitada`, `emitir_factura_pos` (puente DIAN); las usa `admin.py` |
 
 † Solo con `CYBERSHOP_API_ENABLED=1`.
@@ -66,7 +66,8 @@ carpetas grandes (`templates/`, `static/`) se describen por convención.
 | `db_layer.py` | `control_plane_cursor()` (SaaS) y `get_tenant_conn()`/`tenant_cursor(db_name)` (por tenant) |
 | `tenant_resolver.py` | `resolve_current_tenant()` en `before_request` → `g.current_tenant` (JWT/sesión/env) |
 | `crypto_utils.py` | `sha256_hex()`, `aes_gcm_encrypt/decrypt()` (cifra passwords de DB con `KMS_KEY`) |
-| `public_site_service.py` | Lee/escribe config del sitio público; compat con `cliente_config`/`config_secciones` |
+| `public_site_service.py` | Lee/escribe config del sitio público; compat con `cliente_config`/`config_secciones`; grupo de colores `descarga` y `set_public_section()` (toggle tienda online) |
+| `software_planes_service.py` | Planes de la landing `/software` (tabla `software_planes`): auto-crea + siembra defaults, CRUD, fallback robusto |
 | `crm_service.py` | Upsert de contactos compartido (formularios, cotizaciones, billing, pagos) |
 | `installer_packager.py` | Empaqueta el ZIP del POS (base `.exe` + `bootstrap.json`); tokens de descarga |
 | `restaurant_tables_service.py` | API interna de estado de mesas/cocina (desacoplada del blueprint) |
