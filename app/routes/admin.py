@@ -2068,6 +2068,16 @@ def configuracion_cliente():
                 flash(f'Error actualizando secciones: Revisa el log para más detalles.', 'error')
             return redirect(url_for('admin.configuracion_cliente') + '#secciones')
 
+        if form_type == 'ventas_web':
+            try:
+                from services.public_site_service import set_public_section
+                set_public_section('mostrar_modulo_ventas', bool(request.form.get('mostrar_modulo_ventas')))
+                flash('Módulo de tienda online actualizado.', 'success')
+            except Exception as e:
+                current_app.logger.error(f"Error actualizando módulo de ventas: {e}")
+                flash('No fue posible actualizar el módulo de ventas.', 'error')
+            return redirect(url_for('admin.configuracion_cliente') + '#ventas-web')
+
         if form_type == 'modulos':
             try:
                 for module in get_module_settings():
@@ -2165,13 +2175,77 @@ def configuracion_cliente():
     except Exception as e:
         current_app.logger.error(f"Error cargando backups_db: {e}")
 
+    # Estado del módulo de ventas / tienda online (autoritativo: get_public_sections)
+    try:
+        from services.public_site_service import is_public_section_enabled
+        ventas_web_activo = is_public_section_enabled('mostrar_modulo_ventas', True)
+    except Exception:
+        ventas_web_activo = True
+
     return render_template('configuracion_cliente.html',
                            datosApp=get_data_app(), grupos=grupos,
                            secciones=secciones,
                            module_toggles=module_toggles,
                            gmail_activo=gmail_activo, gmail_email=gmail_email,
                            backups=backups,
+                           ventas_web_activo=ventas_web_activo,
                            backup_clave_configurada=backup_clave_configurada)
+
+
+def _parse_precio(raw):
+    """Convierte '$150.000', '150.000', '150000' → 150000 (entero)."""
+    import re
+    digits = re.sub(r'[^\d]', '', str(raw or ''))
+    return int(digits) if digits else 0
+
+
+@admin_bp.route('/admin/software-planes', methods=['GET', 'POST'])
+@rol_requerido(ROL_SUPER_ADMIN)
+def software_planes():
+    """Gestión completa de los planes del Software CyberShop (/software)."""
+    from services import software_planes_service as sp
+
+    if request.method == 'POST':
+        accion = request.form.get('accion')
+        try:
+            if accion == 'eliminar':
+                sp.eliminar_plan(int(request.form['plan_id']))
+                flash('Plan eliminado.', 'success')
+            elif accion == 'toggle':
+                sp.toggle_activo(int(request.form['plan_id']))
+                flash('Visibilidad del plan actualizada.', 'success')
+            else:  # crear / editar
+                data = {
+                    'nombre': (request.form.get('nombre') or '').strip(),
+                    'precio': _parse_precio(request.form.get('precio')),
+                    'periodo': (request.form.get('periodo') or 'mes').strip().lower(),
+                    'ideal': (request.form.get('ideal') or '').strip(),
+                    'incluye': (request.form.get('incluye') or '').replace('\r\n', '\n').strip(),
+                    'destacado': bool(request.form.get('destacado')),
+                    'comprable': bool(request.form.get('comprable')),
+                    'tiene_app': bool(request.form.get('tiene_app')),
+                    'sort_order': request.form.get('sort_order') or 0,
+                    'activo': bool(request.form.get('activo')),
+                    'plan_key': (request.form.get('plan_key') or '').strip(),
+                }
+                if not data['nombre']:
+                    flash('El nombre del plan es obligatorio.', 'warning')
+                    return redirect(url_for('admin.software_planes') + '#form')
+                plan_id = request.form.get('plan_id')
+                if plan_id:
+                    sp.actualizar_plan(int(plan_id), data)
+                    flash('Plan actualizado.', 'success')
+                else:
+                    sp.crear_plan(data)
+                    flash('Plan creado.', 'success')
+        except Exception as e:
+            current_app.logger.error(f"Error gestionando plan de software: {e}")
+            flash('No fue posible guardar el plan. Revisa los datos.', 'error')
+        return redirect(url_for('admin.software_planes'))
+
+    planes = sp.get_planes(include_inactive=True)
+    return render_template('software_planes_admin.html',
+                           datosApp=get_data_app(), planes=planes)
 
 
 # ── Facturación DIAN ──────────────────────────────────────────────────────────

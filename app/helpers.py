@@ -195,6 +195,7 @@ def get_data_app():
                 {"nombre": "Slides", "url": "admin.gestion_slides", "icono": "images", "roles": ADMIN_STAFF},
                 {"nombre": "Servicios", "url": "admin.gestion_servicios", "icono": "concierge-bell", "roles": ADMIN_STAFF},
                 {"nombre": "Sitio Público", "url": "admin.sitio_publico", "icono": "paint-brush", "roles": [ROL_SUPER_ADMIN]},
+                {"nombre": "Planes de Software", "url": "admin.software_planes", "icono": "layer-group", "roles": [ROL_SUPER_ADMIN]},
             ]
         },
         {
