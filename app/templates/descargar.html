@@ -99,6 +99,19 @@
   .dl-flash.error { background: #fdeaea; color: #b42318; border-left: 4px solid #b42318; }
   .dl-flash.success { background: #e7f7ee; color: #117a36; border-left: 4px solid #117a36; }
 
+  /* Aviso SmartScreen */
+  .dl-smartscreen { max-width: 1040px; margin: 22px auto 0; background: #fff; border: 1px solid #e9edf6;
+    border-left: 5px solid var(--dl-acento); border-radius: 16px; padding: 24px 26px; box-shadow: 0 10px 34px rgba(18,44,148,.08); }
+  .dl-ss-head { display: flex; align-items: center; gap: 12px; font-size: 1.12rem; font-weight: 800; color: var(--dl-oscuro); margin-bottom: 10px; }
+  .dl-ss-head i { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; background: linear-gradient(135deg, var(--dl-primario), #2a4fc8); color: #fff; font-size: 1.1rem; }
+  .dl-smartscreen > p { color: #4b5568; font-size: .96rem; line-height: 1.55; margin: 0 0 14px; }
+  .dl-ss-steps { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin: 0; }
+  @media (max-width: 720px) { .dl-ss-steps { grid-template-columns: 1fr; } }
+  .dl-ss-step { background: #f6f8fc; border: 1px solid #e7ecf6; border-radius: 12px; padding: 14px 16px; font-size: .92rem; color: #344; position: relative; padding-left: 46px; }
+  .dl-ss-step b { display: block; color: var(--dl-oscuro); margin-bottom: 2px; }
+  .dl-ss-step .n { position: absolute; left: 14px; top: 13px; width: 24px; height: 24px; background: var(--dl-primario); color: #fff; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: .8rem; }
+  .dl-ss-foot { margin: 14px 0 0; font-size: .86rem; color: #7a8499; }
+
   @media (max-width: 860px) {
     .dl-wrap { grid-template-columns: 1fr; }
     .dl-hero { order: 2; }
@@ -167,6 +180,18 @@
       </div>
     </section>
 
+  </div>
+
+  <!-- Instructivo: advertencia de Windows SmartScreen -->
+  <div class="dl-smartscreen">
+    <div class="dl-ss-head"><i class="fas fa-shield-alt"></i> ¿Windows muestra “Windows protegió tu PC”?</div>
+    <p>Es una advertencia <strong>normal</strong> para programas nuevos que aún no acumulan muchas descargas. <strong>No significa que sea peligroso.</strong> Para instalar, sigue estos 3 pasos:</p>
+    <div class="dl-ss-steps">
+      <div class="dl-ss-step"><span class="n">1</span><b>“Más información”</b>En la ventana azul, haz clic en el enlace <strong>Más información</strong>.</div>
+      <div class="dl-ss-step"><span class="n">2</span><b>“Ejecutar de todas formas”</b>Aparecerá ese botón abajo. Haz clic en él.</div>
+      <div class="dl-ss-step"><span class="n">3</span><b>Continúa</b>Sigue el asistente de instalación con normalidad.</div>
+    </div>
+    <p class="dl-ss-foot"><i class="fas fa-info-circle"></i> Si tu antivirus lo bloquea, restáuralo o permítelo: es un falso positivo. Ante cualquier duda, contacta a tu proveedor.</p>
   </div>
 </div>
 {% endblock %}
