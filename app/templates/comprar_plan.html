@@ -1,0 +1,134 @@
+{% extends "plantillaindex.html" %}
+
+{% block titulo %}Comprar {{ plan.nombre }} | {{ datosApp.titulo or 'CyberShop' }}{% endblock %}
+{% block meta_description %}Adquiere el plan {{ plan.nombre }} de CyberShop de forma segura con PayU.{% endblock %}
+
+{% block LinkAdicional %}
+<meta name="robots" content="noindex, follow">
+<style>
+  /* Estabiliza el header global: limpia el float del nav (contenido debajo,
+     no detrás) y fija la barra centrada (sin desplazamiento lateral). */
+  header::after { content: ""; display: table; clear: both; }
+  header .nav .wrap { left: 0 !important; }
+  body.nav_fixed .nav .wrap { left: 0 !important; }
+
+  .cp-page {
+    --cp-primario: {{ sw_color_primario }};
+    --cp-oscuro: {{ sw_color_oscuro }};
+    --cp-acento: {{ sw_color_acento }};
+    --cp-acento-txt: {{ sw_color_acento_txt }};
+    color: #1c2433;
+    background: linear-gradient(180deg, #f5f7fb 0%, #eef2fa 100%);
+    min-height: 70vh; padding: 50px 18px 70px;
+  }
+  .cp-wrap { max-width: 980px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1.05fr; gap: 28px; align-items: start; }
+
+  /* Resumen del plan */
+  .cp-summary {
+    background: linear-gradient(160deg, var(--cp-primario), var(--cp-oscuro)); color: #fff;
+    border-radius: 20px; padding: 32px 30px; position: relative; overflow: hidden;
+    box-shadow: 0 24px 56px rgba(18,44,148,.28); position: sticky; top: 90px;
+  }
+  .cp-summary::before { content: ""; position: absolute; width: 240px; height: 240px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(166,196,56,.22), transparent 70%); top: -80px; right: -60px; }
+  .cp-summary .tag { display: inline-flex; align-items: center; gap: 7px; background: rgba(255,255,255,.14);
+    border: 1px solid rgba(255,255,255,.25); padding: 6px 14px; border-radius: 999px; font-size: .8rem; font-weight: 700; margin-bottom: 16px; position: relative; }
+  .cp-summary h1 { font-size: 1.6rem; font-weight: 800; margin: 0 0 6px; position: relative; }
+  .cp-summary .ideal { opacity: .85; font-size: .96rem; margin: 0 0 18px; position: relative; }
+  .cp-price { position: relative; display: flex; align-items: baseline; gap: 6px; margin-bottom: 20px; }
+  .cp-price b { font-size: 2.6rem; font-weight: 800; letter-spacing: -1px; }
+  .cp-price span { opacity: .8; font-weight: 600; }
+  .cp-summary ul { list-style: none; padding: 0; margin: 0; position: relative; }
+  .cp-summary ul li { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; font-size: .94rem; }
+  .cp-summary ul li i { color: var(--cp-acento); margin-top: 3px; flex-shrink: 0; }
+
+  /* Formulario comprador */
+  .cp-form-card { background: #fff; border-radius: 20px; padding: 34px 30px; box-shadow: 0 18px 50px rgba(18,44,148,.1); border: 1px solid #e9edf6; }
+  .cp-form-card h2 { color: var(--cp-oscuro); font-size: 1.35rem; font-weight: 800; margin: 0 0 4px; }
+  .cp-form-card .sub { color: #5b6577; font-size: .94rem; margin-bottom: 22px; }
+  .cp-field { margin-bottom: 16px; }
+  .cp-field.row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .cp-field label { display: block; font-weight: 700; font-size: .88rem; color: #1f2a44; margin-bottom: 6px; }
+  .cp-field input, .cp-field select {
+    width: 100%; padding: 12px 14px; font-size: 1rem; border: 2px solid #d8deec; border-radius: 10px;
+    background: #fbfcff; color: #1f2a44; transition: border-color .2s, box-shadow .2s;
+  }
+  .cp-field input:focus, .cp-field select:focus { outline: none; border-color: var(--cp-primario); box-shadow: 0 0 0 4px rgba(18,44,148,.13); background: #fff; }
+  .cp-pay-btn {
+    margin-top: 10px; width: 100%; padding: 16px; font-size: 1.06rem; font-weight: 800;
+    color: var(--cp-acento-txt); background: var(--cp-acento); border: none; border-radius: 12px; cursor: pointer;
+    box-shadow: 0 12px 28px rgba(166,196,56,.4); transition: transform .12s, box-shadow .2s;
+    display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  }
+  .cp-pay-btn:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(166,196,56,.5); }
+  .cp-secure { margin-top: 16px; font-size: .84rem; color: #7a8499; text-align: center; }
+  .cp-secure i { color: #1aa251; }
+  .cp-back { display: inline-block; margin-bottom: 14px; color: var(--cp-primario); text-decoration: none; font-weight: 700; font-size: .9rem; }
+
+  @media (max-width: 820px) { .cp-wrap { grid-template-columns: 1fr; } .cp-summary { position: static; order: 1; } .cp-form-card { order: 2; } }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="cp-page">
+  <div class="cp-wrap">
+
+    <aside class="cp-summary">
+      <span class="tag"><i class="fas fa-box-open"></i> Resumen de tu plan</span>
+      <h1>{{ plan.nombre }}</h1>
+      <p class="ideal">{{ plan.ideal }}</p>
+      <div class="cp-price"><b>{{ plan.precio_fmt }}</b><span>{{ plan.periodo_label }}</span></div>
+      <ul>
+        {% for item in plan.incluye %}
+        <li><i class="fas fa-check-circle"></i> <span>{{ item }}</span></li>
+        {% endfor %}
+      </ul>
+    </aside>
+
+    <section class="cp-form-card">
+      <a href="{{ url_for('public.software') }}#planes" class="cp-back"><i class="fas fa-arrow-left"></i> Cambiar de plan</a>
+      <h2>Datos de facturación</h2>
+      <p class="sub">Completa tus datos para continuar al pago seguro con <strong>PayU</strong>.</p>
+
+      <form method="POST" action="{{ url_for('public.comprar_plan', plan_id=plan.plan_key) }}">
+        <div class="cp-field">
+          <label for="buyerFullName">Nombre completo</label>
+          <input type="text" id="buyerFullName" name="buyerFullName" required
+                 value="{{ usuario.nombre if usuario else '' }}" placeholder="Tu nombre">
+        </div>
+        <div class="cp-field">
+          <label for="buyerEmail">Correo electrónico</label>
+          <input type="email" id="buyerEmail" name="buyerEmail" required
+                 value="{{ usuario.email if usuario else '' }}" placeholder="correo@ejemplo.com">
+        </div>
+        <div class="cp-field row">
+          <div>
+            <label for="payerDocumentType">Tipo doc.</label>
+            <select id="payerDocumentType" name="payerDocumentType">
+              <option value="CC">Cédula (CC)</option>
+              <option value="CE">Cédula extranjería (CE)</option>
+              <option value="NIT">NIT</option>
+              <option value="PP">Pasaporte</option>
+            </select>
+          </div>
+          <div>
+            <label for="payerDocument">Documento</label>
+            <input type="text" id="payerDocument" name="payerDocument" placeholder="Número">
+          </div>
+        </div>
+        <div class="cp-field">
+          <label for="buyerPhone">Teléfono</label>
+          <input type="text" id="buyerPhone" name="buyerPhone"
+                 value="{{ usuario.telefono if usuario else '' }}" placeholder="Celular de contacto">
+        </div>
+
+        <button type="submit" class="cp-pay-btn">
+          <i class="fas fa-lock"></i> Pagar {{ plan.precio_fmt }} con PayU
+        </button>
+        <p class="cp-secure"><i class="fas fa-shield-alt"></i> Pago seguro procesado por PayU. No almacenamos los datos de tu tarjeta.</p>
+      </form>
+    </section>
+
+  </div>
+</div>
+{% endblock %}

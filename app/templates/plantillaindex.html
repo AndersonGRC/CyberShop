@@ -91,6 +91,8 @@
                             i.nombre }}</a></li>
                     {% endfor %}
 
+                    <li><a href="{{ url_for('public.software') }}" class="nav-software-link"><i class="fas fa-store" style="margin-right:6px;"></i>Software POS</a></li>
+
                     {% if config_global.get('mostrar_modulo_ventas', true) %}
                     <li>
                         <a href="{{ url_for('public.ver_carrito') }}" id="menu-carrito-icon"

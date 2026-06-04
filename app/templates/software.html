@@ -1,0 +1,496 @@
+{% extends "plantillaindex.html" %}
+
+{# ============================ SEO ============================ #}
+{% block titulo %}Software Punto de Venta (POS) y Páginas Web | {{ empresa_nombre }}{% endblock %}
+{% block meta_description %}Software CyberShop: página web propia con E-commerce, punto de venta (POS) web y app de escritorio que funciona sin internet, inventario, restaurante, contabilidad, CRM y pagos PayU. Planes desde $150.000/mes. Descarga la app e impulsa tu negocio.{% endblock %}
+{% block og_title %}Software POS y Web para tu negocio | {{ empresa_nombre }}{% endblock %}
+{% block og_description %}POS web + app de escritorio offline, inventario, restaurante, contabilidad y reportes. Planes web e-commerce y corporativa. Descarga e impulsa tu negocio.{% endblock %}
+
+{% block LinkAdicional %}
+<meta name="keywords" content="software punto de venta, POS Colombia, software POS, sistema de facturación, punto de venta para restaurantes, inventario en tiempo real, software contable, POS offline, app de escritorio punto de venta, software para negocios, página web e-commerce, web corporativa, tienda en línea, {{ empresa_nombre }}, CyberShop POS">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta name="author" content="{{ empresa_nombre }}">
+<link rel="canonical" href="{{ canonical_url }}">
+
+<!-- Open Graph extendido -->
+<meta property="og:url" content="{{ canonical_url }}">
+<meta property="og:site_name" content="{{ empresa_nombre }}">
+<meta property="og:locale" content="es_CO">
+<meta property="og:image" content="{{ empresa_logo }}">
+
+<!-- Twitter Cards -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Software POS y Web | {{ empresa_nombre }}">
+<meta name="twitter:description" content="POS web + app de escritorio offline, inventario, restaurante, contabilidad y reportes. Descarga e impulsa tu negocio.">
+<meta name="twitter:image" content="{{ empresa_logo }}">
+<meta name="theme-color" content="#122C94">
+
+<!-- ===== Datos estructurados JSON-LD (SEO de posicionamiento) ===== -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "{{ empresa_nombre }}",
+  "url": "{{ empresa_website }}",
+  "logo": "{{ empresa_logo }}",
+  {% if empresa_telefono %}"telephone": "{{ empresa_telefono }}",{% endif %}
+  {% if empresa_email %}"email": "{{ empresa_email }}",{% endif %}
+  "description": "Software de punto de venta (POS) y páginas web para negocios: tiendas, restaurantes y comercios."
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Software CyberShop POS",
+  "operatingSystem": "Windows, Web",
+  "applicationCategory": "BusinessApplication",
+  "offers": {
+    "@type": "Offer",
+    "price": "150000",
+    "priceCurrency": "COP",
+    "priceSpecification": {
+      "@type": "UnitPriceSpecification",
+      "price": "150000",
+      "priceCurrency": "COP",
+      "unitText": "MES"
+    }
+  },
+  "featureList": [
+    "Página web propia con E-commerce independiente",
+    "Pasarela de pagos PayU",
+    "Inicio de sesión con Google",
+    "Integración con CRM",
+    "Punto de venta web y de escritorio",
+    "Funciona sin internet (offline)",
+    "Inventario en tiempo real",
+    "Módulo de restaurante y mesas",
+    "Contabilidad con retenciones",
+    "Reportes y estadísticas",
+    "Roles y permisos por usuario",
+    "Sincronización en la nube"
+  ],
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "4.9",
+    "reviewCount": "120"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "itemListElement": [
+    {% for plan in planes %}
+    {
+      "@type": "ListItem",
+      "position": {{ loop.index }},
+      "item": {
+        "@type": "Product",
+        "name": "{{ plan.nombre }} - {{ empresa_nombre }}",
+        "description": "{{ plan.ideal }}",
+        "offers": {
+          "@type": "Offer",
+          "price": "{{ plan.precio }}",
+          "priceCurrency": "COP",
+          "availability": "https://schema.org/InStock"
+        }
+      }
+    }{{ "," if not loop.last }}
+    {% endfor %}
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {% for f in faqs %}
+    {
+      "@type": "Question",
+      "name": "{{ f.q }}",
+      "acceptedAnswer": { "@type": "Answer", "text": "{{ f.a }}" }
+    }{{ "," if not loop.last }}
+    {% endfor %}
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "Inicio", "item": "{{ empresa_website }}" },
+    { "@type": "ListItem", "position": 2, "name": "Software y Planes", "item": "{{ canonical_url }}" }
+  ]
+}
+</script>
+
+<style>
+  /* Paleta autocontenida de la landing (driven por la ruta para que sea
+     configurable y NO herede valores de marca mal definidos en blanco). */
+  /* --- Estabiliza el header global en esta página ---
+     1) Limpia el float del .nav para que el header contenga la barra y el
+        contenido empiece DEBAJO (no detrás) → evita que el contenido solo
+        aparezca al hacer scroll.
+     2) Fija la barra en su posición final (sin el desplazamiento lateral de
+        -150px) → la barra queda centrada y no "separa" el contenido. */
+  header::after { content: ""; display: table; clear: both; }
+  header .nav .wrap { left: 0 !important; }
+  body.nav_fixed .nav .wrap { left: 0 !important; }
+
+  .sw-page {
+    --sw-primario: {{ sw_color_primario }};
+    --sw-oscuro: {{ sw_color_oscuro }};
+    --sw-acento: {{ sw_color_acento }};
+    --sw-acento-txt: {{ sw_color_acento_txt }};
+    color: #1c2433; overflow-x: hidden;
+  }
+  .sw-page section[id] { scroll-margin-top: 80px; }
+  .sw-container { max-width: 1180px; margin: 0 auto; padding: 0 22px; }
+
+  /* ===== HERO ===== */
+  .sw-hero {
+    position: relative;
+    background:
+      radial-gradient(1200px 500px at 80% -10%, rgba(166,196,56,.18), transparent 60%),
+      linear-gradient(135deg, var(--sw-oscuro) 0%, var(--sw-primario) 60%, #1b3fb8 100%);
+    color: #fff;
+    padding: 84px 0 96px;
+    overflow: hidden;
+  }
+  .sw-hero::after {
+    content: ""; position: absolute; inset: 0;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cpath d='M0 30h60M30 0v60' stroke='%23ffffff' stroke-opacity='0.04' stroke-width='1'/%3E%3C/svg%3E");
+    pointer-events: none;
+  }
+  .sw-hero-grid {
+    position: relative; z-index: 2;
+    display: grid; grid-template-columns: 1.1fr .9fr; gap: 48px; align-items: center;
+  }
+  .sw-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22);
+    padding: 7px 16px; border-radius: 999px; font-size: .85rem; font-weight: 600;
+    backdrop-filter: blur(6px); margin-bottom: 20px;
+  }
+  .sw-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--sw-acento); box-shadow: 0 0 0 4px rgba(166,196,56,.25); }
+  .sw-hero h1 { font-size: clamp(2.1rem, 4.4vw, 3.4rem); line-height: 1.08; font-weight: 800; margin: 0 0 18px; letter-spacing: -.5px; }
+  .sw-hero h1 .hl { color: var(--sw-acento); }
+  .sw-hero p.lead { font-size: 1.18rem; line-height: 1.6; color: rgba(255,255,255,.9); margin: 0 0 30px; max-width: 560px; }
+  .sw-cta-row { display: flex; flex-wrap: wrap; gap: 14px; }
+  .sw-btn {
+    display: inline-flex; align-items: center; gap: 10px; cursor: pointer;
+    padding: 15px 28px; border-radius: 12px; font-size: 1.02rem; font-weight: 700;
+    text-decoration: none; transition: transform .15s, box-shadow .2s, background .2s; border: none;
+  }
+  .sw-btn-primary { background: var(--sw-acento); color: var(--sw-acento-txt); box-shadow: 0 10px 28px rgba(166,196,56,.4); }
+  .sw-btn-primary:hover { transform: translateY(-3px); box-shadow: 0 16px 36px rgba(166,196,56,.5); }
+  .sw-btn-ghost { background: rgba(255,255,255,.1); color: #fff; border: 1px solid rgba(255,255,255,.3); }
+  .sw-btn-ghost:hover { background: rgba(255,255,255,.2); transform: translateY(-3px); }
+  .sw-hero-stats { display: flex; gap: 30px; margin-top: 38px; flex-wrap: wrap; }
+  .sw-hero-stats .st b { display: block; font-size: 1.7rem; font-weight: 800; color: #fff; }
+  .sw-hero-stats .st span { font-size: .85rem; color: rgba(255,255,255,.75); }
+
+  /* Mockup card */
+  .sw-mockup {
+    position: relative; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18);
+    border-radius: 20px; padding: 22px; backdrop-filter: blur(10px);
+    box-shadow: 0 30px 70px rgba(0,0,0,.35);
+  }
+  .sw-mockup .bar { display: flex; gap: 7px; margin-bottom: 16px; }
+  .sw-mockup .bar i { width: 11px; height: 11px; border-radius: 50%; background: rgba(255,255,255,.4); }
+  .sw-mockup .row { display: flex; align-items: center; gap: 12px; padding: 13px 14px; background: rgba(255,255,255,.95); border-radius: 12px; margin-bottom: 10px; color: #1c2433; }
+  .sw-mockup .row .ic { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; color: #fff; background: var(--sw-primario); font-size: 1rem; }
+  .sw-mockup .row .tx b { display: block; font-size: .92rem; }
+  .sw-mockup .row .tx span { font-size: .78rem; color: #6b7280; }
+  .sw-mockup .row .amt { margin-left: auto; font-weight: 800; color: var(--sw-primario); }
+
+  /* ===== SECTION TITLE ===== */
+  .sw-section { padding: 78px 0; }
+  .sw-section.alt { background: #f5f7fb; }
+  .sw-eyebrow { text-align: center; color: var(--sw-primario); font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; font-size: .82rem; margin-bottom: 10px; }
+  .sw-h2 { text-align: center; font-size: clamp(1.7rem, 3.2vw, 2.4rem); font-weight: 800; color: #0e1830; margin: 0 0 14px; letter-spacing: -.5px; }
+  .sw-sub { text-align: center; max-width: 640px; margin: 0 auto 50px; color: #5b6577; font-size: 1.06rem; line-height: 1.6; }
+
+  /* ===== FEATURES GRID ===== */
+  .sw-feat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; }
+  .sw-feat {
+    background: #fff; border: 1px solid #eef1f7; border-radius: 16px; padding: 28px 22px;
+    transition: transform .2s, box-shadow .2s, border-color .2s;
+  }
+  .sw-feat:hover { transform: translateY(-6px); box-shadow: 0 18px 40px rgba(18,44,148,.12); border-color: transparent; }
+  .sw-feat .ic { width: 54px; height: 54px; border-radius: 14px; display: grid; place-items: center; font-size: 1.4rem; color: #fff; background: linear-gradient(135deg, var(--sw-primario), #2a4fc8); margin-bottom: 18px; box-shadow: 0 8px 20px rgba(18,44,148,.25); }
+  .sw-feat h3 { font-size: 1.08rem; font-weight: 700; margin: 0 0 8px; color: #142048; }
+  .sw-feat p { font-size: .94rem; line-height: 1.55; color: #5b6577; margin: 0; }
+
+  /* ===== PLANES (galería horizontal escalable) ===== */
+  .sw-container--wide { max-width: 1340px; }
+  .sw-plans {
+    display: flex; gap: 22px; align-items: stretch;
+    overflow-x: auto; scroll-snap-type: x proximity;
+    padding: 26px 12px 30px;            /* aire arriba para la tarjeta elevada + badge */
+    justify-content: center;             /* fallback */
+    justify-content: safe center;        /* centradas si caben, scroll si no */
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin; scrollbar-color: rgba(18,44,148,.3) transparent;
+  }
+  .sw-plans::-webkit-scrollbar { height: 9px; }
+  .sw-plans::-webkit-scrollbar-track { background: transparent; }
+  .sw-plans::-webkit-scrollbar-thumb { background: rgba(18,44,148,.25); border-radius: 999px; }
+  .sw-plans::-webkit-scrollbar-thumb:hover { background: rgba(18,44,148,.4); }
+  .sw-plan {
+    flex: 0 0 308px; scroll-snap-align: center;
+    position: relative; background: #fff; border: 1.5px solid #e7ebf3; border-radius: 20px;
+    padding: 36px 30px; display: flex; flex-direction: column;
+    transition: transform .2s, box-shadow .2s;
+  }
+  .sw-plan:hover { transform: translateY(-6px); box-shadow: 0 22px 50px rgba(18,44,148,.14); }
+  .sw-plan.featured {
+    border: none; color: #fff;
+    background: linear-gradient(160deg, var(--sw-primario), var(--sw-oscuro));
+    box-shadow: 0 26px 60px rgba(18,44,148,.35); transform: translateY(-10px);
+  }
+  .sw-plan.featured:hover { transform: translateY(-16px); }
+  .sw-plan-tag {
+    position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+    background: var(--sw-acento); color: var(--sw-acento-txt); font-weight: 800; font-size: .76rem;
+    padding: 6px 16px; border-radius: 999px; letter-spacing: .5px; box-shadow: 0 6px 16px rgba(166,196,56,.45);
+  }
+  .sw-plan h3 { font-size: 1.18rem; font-weight: 800; margin: 6px 0 4px; }
+  .sw-plan .plan-ideal { font-size: .9rem; opacity: .8; margin: 0 0 18px; min-height: 40px; }
+  .sw-plan .plan-price { font-size: 2.5rem; font-weight: 800; line-height: 1; letter-spacing: -1px; }
+  .sw-plan .plan-period { font-size: .95rem; opacity: .75; font-weight: 600; }
+  .sw-plan ul { list-style: none; padding: 0; margin: 22px 0 26px; flex: 1; }
+  .sw-plan ul li { display: flex; align-items: flex-start; gap: 10px; font-size: .95rem; line-height: 1.45; padding: 7px 0; }
+  .sw-plan ul li i { color: var(--sw-acento); margin-top: 3px; flex-shrink: 0; }
+  .sw-plan.featured ul li i { color: var(--sw-acento); }
+  .sw-plan:not(.featured) ul li i { color: #1aa251; }
+  .sw-plan .plan-btn {
+    display: block; text-align: center; padding: 14px; border-radius: 12px; font-weight: 700;
+    text-decoration: none; transition: transform .15s, box-shadow .2s, background .2s;
+  }
+  .sw-plan:not(.featured) .plan-btn { background: var(--sw-primario); color: #fff; }
+  .sw-plan:not(.featured) .plan-btn:hover { background: var(--sw-oscuro); transform: translateY(-2px); }
+  .sw-plan.featured .plan-btn { background: var(--sw-acento); color: var(--sw-acento-txt); box-shadow: 0 10px 24px rgba(166,196,56,.4); }
+  .sw-plan.featured .plan-btn:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(166,196,56,.5); }
+  .plan-btn-secondary { display: block; text-align: center; padding: 12px; margin-top: 10px; border-radius: 12px; font-weight: 700; font-size: .92rem; text-decoration: none; transition: background .2s; }
+  .sw-plan:not(.featured) .plan-btn-secondary { background: transparent; color: var(--sw-primario); border: 1.5px solid var(--sw-primario); }
+  .sw-plan:not(.featured) .plan-btn-secondary:hover { background: rgba(18,44,148,.06); }
+  .sw-plan.featured .plan-btn-secondary { background: rgba(255,255,255,.12); color: #fff; border: 1px solid rgba(255,255,255,.3); }
+  .sw-plan.featured .plan-btn-secondary:hover { background: rgba(255,255,255,.22); }
+
+  /* ===== DOWNLOAD BANNER ===== */
+  .sw-download {
+    background: linear-gradient(135deg, #0c1838, var(--sw-primario));
+    border-radius: 24px; padding: 52px 48px; color: #fff; position: relative; overflow: hidden;
+    display: grid; grid-template-columns: 1.3fr .7fr; gap: 36px; align-items: center;
+  }
+  .sw-download::before { content: ""; position: absolute; width: 300px; height: 300px; border-radius: 50%; background: radial-gradient(circle, rgba(166,196,56,.25), transparent 70%); top: -100px; right: -60px; }
+  .sw-download h2 { font-size: clamp(1.6rem, 3vw, 2.2rem); font-weight: 800; margin: 0 0 14px; position: relative; }
+  .sw-download p { font-size: 1.05rem; line-height: 1.6; color: rgba(255,255,255,.88); margin: 0 0 24px; position: relative; }
+  .sw-download .dl-icon { position: relative; text-align: center; }
+  .sw-download .dl-icon i { font-size: 7rem; color: rgba(255,255,255,.9); filter: drop-shadow(0 12px 24px rgba(0,0,0,.3)); }
+  .sw-download ul.dl-points { list-style: none; padding: 0; margin: 0 0 24px; position: relative; }
+  .sw-download ul.dl-points li { display: flex; gap: 9px; align-items: center; padding: 5px 0; font-size: .98rem; }
+  .sw-download ul.dl-points li i { color: var(--sw-acento); }
+
+  /* ===== FAQ ===== */
+  .sw-faq { max-width: 820px; margin: 0 auto; }
+  .sw-faq-item { background: #fff; border: 1px solid #e7ebf3; border-radius: 14px; margin-bottom: 14px; overflow: hidden; transition: box-shadow .2s; }
+  .sw-faq-item:hover { box-shadow: 0 10px 28px rgba(18,44,148,.08); }
+  .sw-faq-q { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 20px 24px; cursor: pointer; font-weight: 700; color: #142048; font-size: 1.04rem; }
+  .sw-faq-q i { transition: transform .25s; color: var(--sw-primario); flex-shrink: 0; }
+  .sw-faq-item.open .sw-faq-q i { transform: rotate(180deg); }
+  .sw-faq-a { max-height: 0; overflow: hidden; transition: max-height .3s ease, padding .3s; padding: 0 24px; color: #5b6577; line-height: 1.6; }
+  .sw-faq-item.open .sw-faq-a { max-height: 320px; padding: 0 24px 22px; }
+
+  /* ===== FINAL CTA ===== */
+  .sw-final { text-align: center; background: linear-gradient(135deg, var(--sw-oscuro), var(--sw-primario)); color: #fff; padding: 72px 0; }
+  .sw-final h2 { font-size: clamp(1.8rem, 3.4vw, 2.6rem); font-weight: 800; margin: 0 0 16px; }
+  .sw-final p { font-size: 1.1rem; color: rgba(255,255,255,.9); margin: 0 0 30px; }
+  .sw-final .sw-cta-row { justify-content: center; }
+
+  @media (max-width: 1150px) {
+    .sw-plan.featured { transform: none; }
+    .sw-plan.featured:hover { transform: translateY(-6px); }
+  }
+  @media (max-width: 900px) {
+    .sw-hero-grid { grid-template-columns: 1fr; }
+    .sw-mockup { max-width: 440px; }
+    .sw-feat-grid { grid-template-columns: repeat(2, 1fr); }
+    .sw-download { grid-template-columns: 1fr; text-align: center; }
+    .sw-download .dl-icon { display: none; }
+    .sw-download ul.dl-points li { justify-content: center; }
+  }
+  @media (max-width: 620px) {
+    .sw-feat-grid { grid-template-columns: 1fr; }
+    .sw-plan { flex-basis: 84vw; }
+  }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="sw-page">
+
+  <!-- ================= HERO ================= -->
+  <section class="sw-hero">
+    <div class="sw-container sw-hero-grid">
+      <div>
+        <span class="sw-badge"><span class="dot"></span> Software 100% colombiano · POS + Web</span>
+        <h1>Impulsa tu negocio con el <span class="hl">Software CyberShop</span></h1>
+        <p class="lead">
+          Punto de venta web y <strong>app de escritorio que funciona sin internet</strong>,
+          inventario en tiempo real, restaurante, contabilidad y reportes. Todo lo que tu negocio
+          necesita en un solo lugar.
+        </p>
+        <div class="sw-cta-row">
+          <a href="{{ url_for('public.descargar') }}" class="sw-btn sw-btn-primary">
+            <i class="fas fa-download"></i> Descargar la App
+          </a>
+          <a href="#planes" class="sw-btn sw-btn-ghost">
+            <i class="fas fa-tags"></i> Ver planes
+          </a>
+        </div>
+        <div class="sw-hero-stats">
+          <div class="st"><b>+100%</b><span>ventas más ágiles</span></div>
+          <div class="st"><b>24/7</b><span>acceso a tu negocio</span></div>
+          <div class="st"><b>Offline</b><span>vende sin internet</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="sw-mockup">
+          <div class="bar"><i></i><i></i><i></i></div>
+          <div class="row">
+            <div class="ic"><i class="fas fa-cash-register"></i></div>
+            <div class="tx"><b>Venta POS #1042</b><span>Pagado · Efectivo</span></div>
+            <div class="amt">$48.900</div>
+          </div>
+          <div class="row">
+            <div class="ic" style="background:#1aa251;"><i class="fas fa-boxes"></i></div>
+            <div class="tx"><b>Inventario</b><span>Stock actualizado</span></div>
+            <div class="amt" style="color:#1aa251;">−3</div>
+          </div>
+          <div class="row">
+            <div class="ic" style="background:#e08a00;"><i class="fas fa-utensils"></i></div>
+            <div class="tx"><b>Mesa 5</b><span>Pedido servido</span></div>
+            <div class="amt" style="color:#e08a00;">$72.000</div>
+          </div>
+          <div class="row">
+            <div class="ic" style="background:#7b3fe4;"><i class="fas fa-chart-line"></i></div>
+            <div class="tx"><b>Reporte del día</b><span>+18% vs ayer</span></div>
+            <div class="amt" style="color:#7b3fe4;">↑</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CARACTERÍSTICAS ================= -->
+  <section class="sw-section">
+    <div class="sw-container">
+      <p class="sw-eyebrow">La evolución de tu punto de venta</p>
+      <h2 class="sw-h2">Todo lo que incluye el software</h2>
+      <p class="sw-sub">Integra el módulo POS de CyberShop para transformar tu operación comercial en un motor de eficiencia y crecimiento.</p>
+      <div class="sw-feat-grid">
+        {% for c in caracteristicas %}
+        <div class="sw-feat">
+          <div class="ic"><i class="fas {{ c.icono }}"></i></div>
+          <h3>{{ c.titulo }}</h3>
+          <p>{{ c.desc }}</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= PLANES ================= -->
+  <section class="sw-section alt" id="planes">
+    <div class="sw-container sw-container--wide">
+      <p class="sw-eyebrow">Impulsa tu negocio con nosotros</p>
+      <h2 class="sw-h2">Elige tu plan</h2>
+      <p class="sw-sub">Cada plan incluye <strong>todo lo necesario</strong> para vender más y administrar tu negocio con facilidad. Sin letras pequeñas.</p>
+      <div class="sw-plans">
+        {% for plan in planes %}
+        <div class="sw-plan {% if plan.destacado %}featured{% endif %}">
+          {% if plan.destacado %}<span class="sw-plan-tag"><i class="fas fa-star"></i> Más completo</span>{% endif %}
+          <h3>{{ plan.nombre }}</h3>
+          <p class="plan-ideal">{{ plan.ideal }}</p>
+          <div>
+            <span class="plan-price">{{ plan.precio_fmt }}</span>
+            <span class="plan-period">{{ plan.periodo_label }}</span>
+          </div>
+          <ul>
+            {% for item in plan.incluye %}
+            <li><i class="fas fa-check-circle"></i> <span>{{ item }}</span></li>
+            {% endfor %}
+          </ul>
+          {% if plan.comprable %}
+          <a href="{{ url_for('public.comprar_plan', plan_id=plan.plan_key) }}" class="plan-btn"><i class="fas fa-lock"></i> Comprar con PayU</a>
+          {% if plan.tiene_app %}
+          <a href="{{ url_for('public.descargar') }}" class="plan-btn-secondary"><i class="fas fa-download"></i> Descargar la App</a>
+          {% endif %}
+          {% else %}
+          <a href="{{ url_for('public.index') }}#contactenos" class="plan-btn">Cotiza aquí</a>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= DESCARGA ================= -->
+  <section class="sw-section">
+    <div class="sw-container">
+      <div class="sw-download">
+        <div>
+          <h2>Descarga la App de Escritorio</h2>
+          <p>Lleva tu punto de venta a tu computador y <strong>sigue vendiendo aunque se vaya el internet</strong>. Se sincroniza solo cuando vuelve la conexión.</p>
+          <ul class="dl-points">
+            <li><i class="fas fa-check"></i> Funciona offline y sincroniza en la nube</li>
+            <li><i class="fas fa-check"></i> Instalador preconfigurado para tu negocio</li>
+            <li><i class="fas fa-check"></i> POS, inventario, restaurante y contabilidad</li>
+          </ul>
+          <a href="{{ url_for('public.descargar') }}" class="sw-btn sw-btn-primary">
+            <i class="fas fa-cloud-download-alt"></i> Ir a la descarga
+          </a>
+        </div>
+        <div class="dl-icon"><i class="fas fa-laptop-code"></i></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FAQ ================= -->
+  <section class="sw-section alt">
+    <div class="sw-container">
+      <p class="sw-eyebrow">Resolvemos tus dudas</p>
+      <h2 class="sw-h2">Preguntas frecuentes</h2>
+      <div class="sw-faq" style="margin-top:40px;">
+        {% for f in faqs %}
+        <div class="sw-faq-item">
+          <div class="sw-faq-q" onclick="this.parentElement.classList.toggle('open')">
+            <span>{{ f.q }}</span> <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="sw-faq-a"><p style="padding-top:0;margin-top:0;">{{ f.a }}</p></div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CTA FINAL ================= -->
+  <section class="sw-final">
+    <div class="sw-container">
+      <h2>¿Listo para vender más y mejor?</h2>
+      <p>Empieza hoy con el Software CyberShop. Tecnología fácil para todos.</p>
+      <div class="sw-cta-row">
+        <a href="{{ url_for('public.descargar') }}" class="sw-btn sw-btn-primary"><i class="fas fa-download"></i> Descargar la App</a>
+        <a href="https://wa.me/{{ (empresa_telefono | replace('+','') | replace(' ','')) or '573027974969' }}" target="_blank" class="sw-btn sw-btn-ghost"><i class="fab fa-whatsapp"></i> Hablar con un asesor</a>
+      </div>
+    </div>
+  </section>
+
+</div>
+{% endblock %}

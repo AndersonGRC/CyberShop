@@ -30,11 +30,26 @@ if (btnMenu) {
 
 var elementTop = $('.nav').offset() ? $('.nav').offset().top : 0;
 
+// Al pasar el nav a `position: fixed` sale del flujo y el contenido salta
+// hacia arriba el alto del nav (y el nav fijo tapa contenido). Para evitarlo
+// reservamos ese alto en el <header> mientras el nav está fijo. Se mide el
+// alto real del nav (no hardcodeado) justo antes de fijarlo.
+var _navEl = document.querySelector('.nav');
+var _headerEl = document.querySelector('header');
+
 $(window).scroll(function () {
     if ($(window).scrollTop() >= elementTop) {
-        $('body').addClass('nav_fixed');
+        if (!document.body.classList.contains('nav_fixed')) {
+            if (_navEl && _headerEl) {
+                _headerEl.style.paddingBottom = _navEl.offsetHeight + 'px';
+            }
+            $('body').addClass('nav_fixed');
+        }
     } else {
-        $('body').removeClass('nav_fixed');
+        if (document.body.classList.contains('nav_fixed')) {
+            $('body').removeClass('nav_fixed');
+            if (_headerEl) _headerEl.style.paddingBottom = '';
+        }
     }
 });
 

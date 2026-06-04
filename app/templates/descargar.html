@@ -1,143 +1,172 @@
 {% extends "plantillaindex.html" %}
 
-{% block titulo %}Descargar POS Desktop{% endblock %}
-{% block meta_description %}Descarga el POS Desktop personalizado para tu tienda.{% endblock %}
+{% block titulo %}Descargar POS Desktop | {{ datosApp.titulo or 'CyberShop' }}{% endblock %}
+{% block meta_description %}Descarga el POS Desktop de CyberShop personalizado para tu negocio. Punto de venta que funciona sin internet, inventario, restaurante y contabilidad.{% endblock %}
 
 {% block LinkAdicional %}
+<meta name="robots" content="noindex, follow">
 <style>
-  .descarga-wrap {
-    max-width: 720px;
-    margin: 60px auto;
-    padding: 40px 32px;
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: var(--marca-sombra-card, 0 4px 24px rgba(0,0,0,0.08));
+  /* Estabiliza el header global: limpia el float del nav (contenido debajo,
+     no detrás) y fija la barra centrada (sin desplazamiento lateral). */
+  header::after { content: ""; display: table; clear: both; }
+  header .nav .wrap { left: 0 !important; }
+  body.nav_fixed .nav .wrap { left: 0 !important; }
+
+  .dl-page {
+    --dl-primario: {{ sw_color_primario }};
+    --dl-oscuro: {{ sw_color_oscuro }};
+    --dl-acento: {{ sw_color_acento }};
+    --dl-acento-txt: {{ sw_color_acento_txt }};
+    color: #1c2433;
+    background:
+      radial-gradient(900px 420px at 100% -10%, rgba(166,196,56,.10), transparent 60%),
+      linear-gradient(180deg, #f5f7fb 0%, #eef2fa 100%);
+    min-height: 70vh;
+    padding: 56px 18px 72px;
   }
-  .descarga-wrap h1 {
-    color: var(--color-primario, #122C94);
-    margin-bottom: 8px;
-    font-weight: 700;
+  .dl-wrap {
+    max-width: 1040px; margin: 0 auto;
+    display: grid; grid-template-columns: 1.05fr .95fr; gap: 30px; align-items: stretch;
   }
-  .descarga-wrap .subtitulo {
-    color: #666;
-    margin-bottom: 32px;
+
+  /* Panel izquierdo: marca / argumentos */
+  .dl-hero {
+    background: linear-gradient(160deg, var(--dl-primario), var(--dl-oscuro));
+    color: #fff; border-radius: 22px; padding: 40px 36px; position: relative; overflow: hidden;
+    box-shadow: 0 26px 60px rgba(18,44,148,.28);
   }
-  .descarga-form label {
-    display: block;
-    font-weight: 600;
-    margin-bottom: 8px;
-    color: #333;
+  .dl-hero::before { content: ""; position: absolute; width: 280px; height: 280px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(166,196,56,.22), transparent 70%); top: -90px; right: -70px; }
+  .dl-hero .badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,.14);
+    border: 1px solid rgba(255,255,255,.25); padding: 7px 15px; border-radius: 999px; font-size: .82rem; font-weight: 600; margin-bottom: 20px; }
+  .dl-hero h1 { font-size: clamp(1.7rem, 3.4vw, 2.3rem); font-weight: 800; line-height: 1.12; margin: 0 0 16px; letter-spacing: -.4px; position: relative; }
+  .dl-hero p { font-size: 1.04rem; line-height: 1.6; color: rgba(255,255,255,.9); margin: 0 0 24px; position: relative; }
+  .dl-hero ul { list-style: none; padding: 0; margin: 0 0 26px; position: relative; }
+  .dl-hero ul li { display: flex; gap: 11px; align-items: flex-start; padding: 8px 0; font-size: .98rem; }
+  .dl-hero ul li i { color: var(--dl-acento); margin-top: 3px; font-size: 1.05rem; flex-shrink: 0; }
+  .dl-hero .dl-back { display: inline-flex; align-items: center; gap: 8px; color: #fff; text-decoration: none;
+    font-weight: 600; font-size: .95rem; opacity: .85; transition: opacity .2s; position: relative; }
+  .dl-hero .dl-back:hover { opacity: 1; }
+
+  /* Panel derecho: formulario */
+  .dl-card {
+    background: #fff; border-radius: 22px; padding: 38px 34px;
+    box-shadow: 0 18px 50px rgba(18,44,148,.12); border: 1px solid #e9edf6;
+    display: flex; flex-direction: column; justify-content: center;
   }
-  .descarga-form input[type="text"] {
-    width: 100%;
-    padding: 14px 16px;
-    font-size: 1.1rem;
-    font-family: 'Courier New', monospace;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    border: 2px solid var(--color-gris-borde, #ddd);
-    border-radius: 8px;
-    transition: border-color .2s, box-shadow .2s;
+  .dl-card .dl-ic { width: 60px; height: 60px; border-radius: 16px; display: grid; place-items: center;
+    font-size: 1.6rem; color: #fff; background: linear-gradient(135deg, var(--dl-primario), #2a4fc8);
+    box-shadow: 0 10px 24px rgba(18,44,148,.3); margin-bottom: 18px; }
+  .dl-card h2 { color: var(--dl-oscuro); font-size: 1.5rem; font-weight: 800; margin: 0 0 8px; letter-spacing: -.3px; }
+  .dl-card .sub { color: #5b6577; font-size: .98rem; line-height: 1.55; margin-bottom: 26px; }
+
+  .dl-form label { display: block; font-weight: 700; margin-bottom: 9px; color: #1f2a44; font-size: .95rem; }
+  .dl-form input[type="text"] {
+    width: 100%; padding: 15px 16px; font-size: 1.15rem; font-family: 'Courier New', monospace;
+    letter-spacing: 2px; text-transform: uppercase; color: var(--dl-oscuro);
+    border: 2px solid #d8deec; border-radius: 12px; transition: border-color .2s, box-shadow .2s; background: #fbfcff;
   }
-  .descarga-form input[type="text"]:focus {
-    outline: none;
-    border-color: var(--color-primario, #122C94);
-    box-shadow: var(--marca-focus-ring, 0 0 0 3px rgba(18,44,148,0.15));
+  .dl-form input[type="text"]:focus { outline: none; border-color: var(--dl-primario);
+    box-shadow: 0 0 0 4px rgba(18,44,148,.14); background: #fff; }
+  .dl-form .ayuda { font-size: .87rem; color: #7a8499; margin-top: 8px; }
+  .dl-form button {
+    margin-top: 22px; width: 100%; padding: 16px; font-size: 1.06rem; font-weight: 800;
+    color: var(--dl-acento-txt); background: var(--dl-acento); border: none; border-radius: 12px; cursor: pointer;
+    box-shadow: 0 12px 28px rgba(166,196,56,.4); transition: transform .12s, box-shadow .2s; letter-spacing: .2px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 9px;
   }
-  .descarga-form .ayuda {
-    font-size: 0.9rem;
-    color: #888;
-    margin-top: 6px;
-  }
-  .descarga-form button {
-    margin-top: 24px;
-    width: 100%;
-    padding: 14px;
-    font-size: 1.05rem;
-    font-weight: 600;
-    color: #fff;
-    background: var(--color-primario, #122C94);
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background .2s, transform .1s;
-  }
-  .descarga-form button:hover {
-    background: var(--color-primario-oscuro, #091C5A);
-  }
-  .descarga-form button:active { transform: scale(0.98); }
-  .descarga-pasos {
-    margin-top: 32px;
-    padding-top: 24px;
-    border-top: 1px solid var(--color-gris-borde, #eee);
-    font-size: 0.95rem;
-    color: #555;
-  }
-  .descarga-pasos h3 {
-    color: var(--color-primario, #122C94);
-    font-size: 1.05rem;
-    margin-bottom: 12px;
-  }
-  .descarga-pasos ol { padding-left: 20px; }
-  .descarga-pasos li { margin-bottom: 6px; }
-  .flash-msg {
-    padding: 12px 16px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    font-weight: 500;
-  }
-  .flash-msg.error {
-    background: #fee;
-    color: #b42318;
-    border-left: 4px solid #b42318;
-  }
-  .flash-msg.success {
-    background: #efe;
-    color: #117a36;
-    border-left: 4px solid #117a36;
+  .dl-form button:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(166,196,56,.5); }
+  .dl-form button:active { transform: scale(.99); }
+
+  .dl-pasos { margin-top: 28px; padding-top: 24px; border-top: 1px dashed #d8deec; }
+  .dl-pasos h3 { color: var(--dl-oscuro); font-size: 1.02rem; font-weight: 700; margin: 0 0 14px; }
+  .dl-pasos ol { padding-left: 0; list-style: none; counter-reset: paso; margin: 0; }
+  .dl-pasos li { counter-increment: paso; position: relative; padding: 0 0 14px 40px; color: #4b5568; font-size: .93rem; line-height: 1.5; }
+  .dl-pasos li::before { content: counter(paso); position: absolute; left: 0; top: -2px; width: 26px; height: 26px;
+    background: var(--dl-primario); color: #fff; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: .82rem; }
+  .dl-pasos li code { background: #eef2fa; color: var(--dl-oscuro); padding: 1px 7px; border-radius: 6px; font-size: .86rem; }
+  .dl-nocode-box { margin-top: 18px; display: flex; gap: 12px; align-items: flex-start;
+    background: linear-gradient(135deg, rgba(18,44,148,.05), rgba(166,196,56,.06));
+    border: 1px solid #dfe5f2; border-left: 4px solid var(--dl-primario); border-radius: 12px; padding: 16px 18px; }
+  .dl-nocode-box > i { color: var(--dl-primario); font-size: 1.3rem; margin-top: 2px; flex-shrink: 0; }
+  .dl-nocode-box strong { color: var(--dl-oscuro); font-size: .98rem; }
+  .dl-nocode-box p { margin: 6px 0 12px; font-size: .9rem; color: #5b6577; line-height: 1.5; }
+  .dl-nocode-btn { display: inline-flex; align-items: center; gap: 8px; background: var(--dl-primario); color: #fff;
+    padding: 10px 18px; border-radius: 10px; font-weight: 700; font-size: .9rem; text-decoration: none; transition: background .2s, transform .12s; }
+  .dl-nocode-btn:hover { background: var(--dl-oscuro); transform: translateY(-1px); }
+
+  .dl-flash { padding: 13px 16px; border-radius: 12px; margin-bottom: 18px; font-weight: 600; font-size: .95rem; display: flex; gap: 10px; align-items: center; }
+  .dl-flash.error { background: #fdeaea; color: #b42318; border-left: 4px solid #b42318; }
+  .dl-flash.success { background: #e7f7ee; color: #117a36; border-left: 4px solid #117a36; }
+
+  @media (max-width: 860px) {
+    .dl-wrap { grid-template-columns: 1fr; }
+    .dl-hero { order: 2; }
+    .dl-card { order: 1; }
   }
 </style>
 {% endblock %}
 
 {% block body %}
-<div class="descarga-wrap">
-  <h1><i class="fa fa-download" style="margin-right:10px;"></i>Descargar POS Desktop</h1>
-  <p class="subtitulo">
-    Ingresa el código que recibiste de tu proveedor para descargar el instalador
-    preconfigurado para tu negocio.
-  </p>
+<div class="dl-page">
+  <div class="dl-wrap">
 
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% for category, msg in messages %}
-      <div class="flash-msg {{ category }}">{{ msg }}</div>
-    {% endfor %}
-  {% endwith %}
+    <!-- Argumentos de marca -->
+    <aside class="dl-hero">
+      <span class="badge"><i class="fas fa-laptop-code"></i> App de Escritorio CyberShop</span>
+      <h1>Tu punto de venta, también sin internet</h1>
+      <p>Instala el POS de escritorio preconfigurado para tu negocio y sigue vendiendo aunque se caiga la conexión. Se sincroniza solo cuando vuelve.</p>
+      <ul>
+        <li><i class="fas fa-wifi"></i> Funciona offline y sincroniza en la nube</li>
+        <li><i class="fas fa-cubes"></i> POS, inventario, restaurante y contabilidad</li>
+        <li><i class="fas fa-shield-alt"></i> Datos del servidor ya configurados</li>
+        <li><i class="fas fa-bolt"></i> Ventas más rápidas, sin errores de cálculo</li>
+      </ul>
+      <a href="{{ url_for('public.software') }}" class="dl-back"><i class="fas fa-arrow-left"></i> Ver planes y beneficios</a>
+    </aside>
 
-  <form method="POST" action="{{ url_for('public.descargar') }}" class="descarga-form" autocomplete="off">
-    <label for="client_code">Código de cliente</label>
-    <input type="text"
-           id="client_code"
-           name="client_code"
-           placeholder="CYB-XXXXXXXX"
-           maxlength="20"
-           required
-           autofocus
-           pattern="[A-Z0-9\-]+">
-    <div class="ayuda">Formato: <strong>CYB-</strong> seguido de 8 caracteres. No se distingue mayúsculas/minúsculas.</div>
-    <button type="submit"><i class="fa fa-cloud-download" style="margin-right:8px;"></i>Descargar instalador</button>
-  </form>
+    <!-- Formulario de descarga -->
+    <section class="dl-card">
+      <div class="dl-ic"><i class="fas fa-download"></i></div>
+      <h2>Descargar instalador</h2>
+      <p class="sub">Ingresa el <strong>código de cliente</strong> que recibiste de tu proveedor para descargar el instalador personalizado de tu negocio.</p>
 
-  <div class="descarga-pasos">
-    <h3>Después de descargar:</h3>
-    <ol>
-      <li>Extrae el archivo ZIP en una carpeta temporal.</li>
-      <li>Ejecuta <code>CyberShopSetup.exe</code> (mantén <code>bootstrap.json</code> al lado).</li>
-      <li>Sigue el asistente de instalación. Los datos del servidor ya vienen pre-llenos.</li>
-      <li>Al finalizar, abre la app desde el menú inicio y comienza a operar.</li>
-    </ol>
-    <p style="margin-top:14px;font-size:0.85rem;color:#999;">
-      ¿No tienes un código? Contacta a tu proveedor para obtener tu código de cliente.
-    </p>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, msg in messages %}
+          <div class="dl-flash {{ category }}">
+            <i class="fas {{ 'fa-exclamation-circle' if category == 'error' else 'fa-check-circle' }}"></i>
+            <span>{{ msg }}</span>
+          </div>
+        {% endfor %}
+      {% endwith %}
+
+      <form method="POST" action="{{ url_for('public.descargar') }}" class="dl-form" autocomplete="off">
+        <label for="client_code">Código de cliente</label>
+        <input type="text" id="client_code" name="client_code" placeholder="CYB-XXXXXXXX"
+               maxlength="20" required autofocus pattern="[A-Z0-9\-]+">
+        <div class="ayuda">Formato: <strong>CYB-</strong> seguido de 8 caracteres. No distingue mayúsculas/minúsculas.</div>
+        <button type="submit"><i class="fas fa-cloud-download-alt"></i> Descargar instalador</button>
+      </form>
+
+      <div class="dl-pasos">
+        <h3>Después de descargar:</h3>
+        <ol>
+          <li>Extrae el archivo ZIP en una carpeta.</li>
+          <li>Ejecuta <code>CyberShopSetup.exe</code> (mantén <code>bootstrap.json</code> al lado).</li>
+          <li>Sigue el asistente: los datos del servidor ya vienen pre-llenos.</li>
+          <li>Abre la app desde el menú inicio y comienza a operar.</li>
+        </ol>
+        <div class="dl-nocode-box">
+          <i class="fas fa-info-circle"></i>
+          <div>
+            <strong>¿No tienes un código?</strong>
+            <p>El código de cliente se entrega al adquirir un <strong>plan de Software CyberShop</strong>. Necesitas un plan activo para poder instalar y usar la app de escritorio.</p>
+            <a href="{{ url_for('public.software') }}#planes" class="dl-nocode-btn"><i class="fas fa-tags"></i> Ver planes y comprar</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
   </div>
 </div>
 {% endblock %}
