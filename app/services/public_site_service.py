@@ -287,6 +287,11 @@ _PUBLIC_COLOR_FIELDS = [
     ('color_alerta_texto',      'Texto de alertas',          '#333333', 'Color del texto principal dentro de los diálogos de alerta.',      'alertas'),
     ('color_alerta_confirmar',  'Botón confirmar',           '#122C94', 'Botón de acción positiva (Sí, Aceptar) en los diálogos.',          'alertas'),
     ('color_alerta_cancelar',   'Botón cancelar',            '#dc3545', 'Botón de cancelación o rechazo en los diálogos.',                  'alertas'),
+    # Landing de software y página de descarga (/software y /descargar)
+    ('color_software_primario',     'Software · Principal',     '#122C94', 'Color principal de la landing /software y la página de descarga (hero, botones, títulos).', 'descarga'),
+    ('color_software_oscuro',       'Software · Principal oscuro', '#091C5A', 'Tono oscuro del degradado del hero y secciones destacadas de la landing de software.',     'descarga'),
+    ('color_software_acento',       'Software · Acento',        '#a6c438', 'Color de acento (botón de descarga, checks, badges) en /software y /descargar.',            'descarga'),
+    ('color_software_acento_texto', 'Software · Texto sobre acento', '#14260a', 'Color del texto que va encima del botón/acento de descarga (debe contrastar con el acento).', 'descarga'),
 ]
 
 PUBLIC_COLOR_FIELDS = [
@@ -1244,6 +1249,27 @@ def get_public_sections():
 
 def is_public_section_enabled(section_key, default=True):
     return get_public_sections().get(section_key, default)
+
+
+def set_public_section(section_key, enabled):
+    """Activa/desactiva una sección pública de forma AUTORITATIVA.
+
+    Escribe tanto en `public_site_settings` (estructurado, que `get_public_sections`
+    lee primero) como en `config_secciones` (legacy), para que el cambio surta
+    efecto sin importar de dónde se lea, y limpia la caché.
+    """
+    if section_key not in PUBLIC_SECTION_BY_KEY:
+        return False
+    try:
+        _upsert_public_site_setting(section_key, _bool_text(enabled))
+    except Exception:
+        pass
+    try:
+        _upsert_config_seccion(section_key, enabled)
+    except Exception:
+        pass
+    clear_public_site_cache()
+    return True
 
 
 def get_public_menu_items(*, include_login=True):

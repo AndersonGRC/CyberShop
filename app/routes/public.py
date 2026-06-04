@@ -30,6 +30,39 @@ from services.public_site_service import (
 
 public_bp = Blueprint('public', __name__)
 
+
+# Planes del Software CyberShop — administrables desde /admin/software-planes.
+# La fuente de verdad es la tabla `software_planes` (services/software_planes_service);
+# si la BD falla, el servicio cae a sus defaults para no dejar la página vacía.
+def _get_planes():
+    from services import software_planes_service
+    return software_planes_service.get_planes(include_inactive=False)
+
+
+def _get_plan(plan_id):
+    """Devuelve el plan por su clave (slug) desde la BD, o None."""
+    from services import software_planes_service
+    return software_planes_service.get_plan(plan_id, include_inactive=False)
+
+
+def _software_colors(brand):
+    """Paleta de la landing /software y la página /descargar.
+
+    Configurable desde /admin/sitio-publico (grupo "Software y Descarga").
+    Usa defaults de marca azul para que NUNCA dependa de los colores
+    generales del tenant (que pueden quedar mal definidos en blanco).
+    """
+    def pick(key, fallback):
+        val = (brand.get(key) or '').strip() if brand else ''
+        return val if val else fallback
+
+    return {
+        'sw_color_primario': pick('color_software_primario', '#122C94'),
+        'sw_color_oscuro': pick('color_software_oscuro', '#091C5A'),
+        'sw_color_acento': pick('color_software_acento', '#a6c438'),
+        'sw_color_acento_txt': pick('color_software_acento_texto', '#14260a'),
+    }
+
 # Paginación por defecto
 PRODUCTOS_POR_PAGINA = 24
 _PUBLIC_COLUMN_CACHE = {}
@@ -491,6 +524,96 @@ def enviar_mensaje():
     return redirect(url_for('public.index'))
 
 
+@public_bp.route('/software-pos')
+@public_bp.route('/planes')
+def software_alias():
+    """Alias SEO-friendly → 301 a la URL canónica /software (evita contenido
+    duplicado y consolida la autoridad de la página en una sola URL)."""
+    return redirect(url_for('public.software'), code=301)
+
+
+@public_bp.route('/software')
+def software():
+    """Landing de marketing del Software CyberShop (POS + Web) con planes y
+    descarga del POS de escritorio. Optimizada para SEO."""
+    datosApp = get_common_data()
+
+    # Datos de marca para JSON-LD / contacto (con fallbacks seguros)
+    try:
+        from services.public_site_service import get_brand_config
+        brand = get_brand_config() or {}
+    except Exception:
+        brand = {}
+
+    empresa_nombre = brand.get('empresa_nombre') or datosApp.get('titulo') or 'CyberShop'
+    empresa_website = brand.get('empresa_website') or request.url_root.rstrip('/')
+    empresa_logo = brand.get('empresa_logo_url') or url_for('static', filename='img/Logo.PNG', _external=True)
+    empresa_telefono = brand.get('empresa_telefono') or '+57 302 7974969'
+    empresa_email = brand.get('empresa_email') or ''
+
+    sw_colors = _software_colors(brand)
+
+    # Planes administrables desde /admin/software-planes (HTML + JSON-LD + checkout)
+    planes = _get_planes()
+
+    # Características destacadas del software (para la sección de beneficios)
+    caracteristicas = [
+        {'icono': 'fa-globe', 'titulo': 'Página web propia + E-commerce',
+         'desc': 'Tu propia tienda online con tu marca, tus colores y tu dominio independiente.'},
+        {'icono': 'fa-credit-card', 'titulo': 'Pagos en línea con PayU',
+         'desc': 'Cobra con tarjetas y PSE mediante la pasarela de pagos PayU integrada.'},
+        {'icono': 'fa-sign-in-alt', 'titulo': 'Inicio de sesión con Google',
+         'desc': 'Tus clientes entran con un clic usando su cuenta de Google.'},
+        {'icono': 'fa-address-book', 'titulo': 'CRM integrado',
+         'desc': 'Gestiona clientes, oportunidades y seguimiento desde el mismo sistema.'},
+        {'icono': 'fa-bolt', 'titulo': 'Ventas 100% más ágiles',
+         'desc': 'Procesa transacciones en segundos y elimina errores de cálculo manual.'},
+        {'icono': 'fa-boxes', 'titulo': 'Inventario en tiempo real',
+         'desc': 'Cada venta descuenta tu stock automáticamente, sin descuadres.'},
+        {'icono': 'fa-mobile-alt', 'titulo': 'Movilidad total',
+         'desc': 'Vende desde computador, tablet o móvil en cualquier rincón de tu local.'},
+        {'icono': 'fa-chart-line', 'titulo': 'Reportes estratégicos',
+         'desc': 'Accede a estadísticas de productos estrella y horas pico para decidir mejor.'},
+        {'icono': 'fa-wifi', 'titulo': 'Funciona sin internet',
+         'desc': 'La app de escritorio opera offline y sincroniza al recuperar conexión.'},
+        {'icono': 'fa-utensils', 'titulo': 'Módulo de restaurante',
+         'desc': 'Atención de mesas, comandas y cobro con flujo pensado para restaurantes.'},
+        {'icono': 'fa-calculator', 'titulo': 'Contabilidad integrada',
+         'desc': 'Ingresos, egresos, retenciones y cierres de período en un solo lugar.'},
+        {'icono': 'fa-user-shield', 'titulo': 'Roles y permisos',
+         'desc': 'Cada usuario ve solo lo que le corresponde: cajero, mesero, contador o admin.'},
+    ]
+
+    # Preguntas frecuentes (también alimentan el JSON-LD FAQPage para SEO)
+    faqs = [
+        {'q': '¿El software funciona sin internet?',
+         'a': 'Sí. La app de escritorio de CyberShop funciona offline y sincroniza automáticamente con la nube cuando recuperas la conexión, para que nunca dejes de vender.'},
+        {'q': '¿Sirve para restaurantes y tiendas?',
+         'a': 'Sí. CyberShop incluye punto de venta para tiendas y un módulo de restaurante con atención de mesas, comandas y cobro, además de inventario y contabilidad.'},
+        {'q': '¿Cómo descargo la aplicación de escritorio?',
+         'a': 'Con tu código de cliente puedes descargar el instalador personalizado desde la sección de descarga. El servidor ya viene preconfigurado para tu negocio.'},
+        {'q': '¿Incluye facturación e inventario?',
+         'a': 'Sí. El plan de Software CyberShop incluye punto de venta, inventario en tiempo real, reportes, contabilidad y gestión de productos.'},
+        {'q': '¿Puedo tener también una página web?',
+         'a': 'Sí. El plan Software CyberShop ($150.000/mes) incluye tu propia página web con tus colores y un E-commerce con tu dominio. Si además quieres cobrar en línea con PayU, inicio de sesión con Google e integración con CRM, el plan Ultra ($200.000/mes) lo incluye todo.'},
+    ]
+
+    return render_template(
+        'software.html',
+        datosApp=datosApp,
+        planes=planes,
+        caracteristicas=caracteristicas,
+        faqs=faqs,
+        empresa_nombre=empresa_nombre,
+        empresa_website=empresa_website,
+        empresa_logo=empresa_logo,
+        empresa_telefono=empresa_telefono,
+        empresa_email=empresa_email,
+        canonical_url=request.base_url,
+        **sw_colors,
+    )
+
+
 @public_bp.route('/descargar', methods=['GET', 'POST'])
 def descargar():
     """Portal público de descarga del POS Desktop.
@@ -509,30 +632,35 @@ def descargar():
     )
 
     datosApp = get_common_data()
+    try:
+        from services.public_site_service import get_brand_config
+        sw_colors = _software_colors(get_brand_config() or {})
+    except Exception:
+        sw_colors = _software_colors({})
 
     if request.method == 'POST':
         ip = request.remote_addr or 'unknown'
         if not controlar_tasa_solicitudes(ip, max_requests=5, interval=600):
             flash('Demasiados intentos. Espera 10 minutos antes de reintentar.', 'error')
-            return render_template('descargar.html', datosApp=datosApp), 429
+            return render_template('descargar.html', datosApp=datosApp, **sw_colors), 429
 
         client_code = (request.form.get('client_code') or '').strip().upper()
         if not client_code:
             flash('Ingresa tu código de cliente.', 'error')
-            return render_template('descargar.html', datosApp=datosApp)
+            return render_template('descargar.html', datosApp=datosApp, **sw_colors)
 
         try:
             tenant_info = resolve_client_code(client_code)
         except ClientCodeNotFoundError:
             flash('Código de cliente inválido o inactivo. Verifica con tu proveedor.', 'error')
-            return render_template('descargar.html', datosApp=datosApp)
+            return render_template('descargar.html', datosApp=datosApp, **sw_colors)
 
         try:
             server_url = request.url_root.rstrip('/')
             filename, zip_bytes = build_personalized_zip(tenant_info, server_url)
         except InstallerNotBuiltError as exc:
             flash(f'El instalador no está disponible aún. Contacta al administrador. ({exc})', 'error')
-            return render_template('descargar.html', datosApp=datosApp)
+            return render_template('descargar.html', datosApp=datosApp, **sw_colors)
 
         return send_file(
             BytesIO(zip_bytes),
@@ -541,7 +669,180 @@ def descargar():
             download_name=filename,
         )
 
-    return render_template('descargar.html', datosApp=datosApp)
+    return render_template('descargar.html', datosApp=datosApp, **sw_colors)
+
+
+@public_bp.route('/comprar-plan/<plan_id>', methods=['GET', 'POST'])
+def comprar_plan(plan_id):
+    """Checkout de un plan de software vía PayU.
+
+    GET  → muestra resumen del plan + formulario del comprador (pre-llenado
+           si hay sesión).
+    POST → valida el plan (precio server-side), crea el pedido y redirige a PayU.
+    No toca inventario ni el carrito de productos: el plan no es stock.
+    """
+    plan = _get_plan(plan_id)
+    if not plan or not plan.get('comprable'):
+        flash('El plan solicitado no está disponible.', 'error')
+        return redirect(url_for('public.software') + '#planes')
+
+    datosApp = get_common_data()
+    try:
+        from services.public_site_service import get_brand_config
+        sw_colors = _software_colors(get_brand_config() or {})
+    except Exception:
+        sw_colors = _software_colors({})
+
+    # Requerir sesión para tener datos del comprador y trazabilidad
+    if not session.get('usuario_id'):
+        session['login_next'] = url_for('public.comprar_plan', plan_id=plan_id)
+        flash('Inicia sesión o regístrate para adquirir tu plan.', 'info')
+        return redirect(url_for('auth.login'))
+
+    # Datos del usuario para pre-llenar
+    usuario = None
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute(
+                'SELECT nombre, email, telefono, direccion FROM usuarios WHERE id = %s',
+                (session['usuario_id'],),
+            )
+            usuario = cur.fetchone()
+    except Exception:
+        pass
+
+    if request.method == 'POST':
+        if not controlar_tasa_solicitudes(request.remote_addr or 'unknown', max_requests=8, interval=300):
+            flash('Demasiados intentos. Espera unos minutos.', 'error')
+            return redirect(url_for('public.comprar_plan', plan_id=plan_id))
+
+        nombre = (request.form.get('buyerFullName') or '').strip()[:200]
+        email = (request.form.get('buyerEmail') or '').strip()[:200]
+        tipo_doc = (request.form.get('payerDocumentType') or 'CC').strip()[:10]
+        documento = (request.form.get('payerDocument') or '').strip()[:30]
+        telefono = (request.form.get('buyerPhone') or '').strip()[:30]
+
+        if not nombre or not email:
+            flash('Por favor completa tu nombre y correo.', 'warning')
+            return render_template('comprar_plan.html', datosApp=datosApp,
+                                   plan=plan, usuario=usuario, **sw_colors)
+
+        # Precio SIEMPRE desde el server (nunca del cliente)
+        from helpers import generar_reference_code
+        referencia = generar_reference_code()
+        monto = float(plan['precio'])
+        descripcion = f"Plan {plan['nombre']} ({plan['periodo']})"
+
+        try:
+            with get_db_cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO pedidos
+                        (referencia_pedido, cliente_nombre, cliente_email,
+                         cliente_tipo_documento, cliente_documento, cliente_telefono,
+                         monto_total, estado_pago, estado_envio)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, 'PENDIENTE', 'ESPERA_PAGO')
+                    RETURNING id
+                    """,
+                    (referencia, nombre, email, tipo_doc, documento, telefono, monto),
+                )
+                pedido_id = cur.fetchone()[0]
+                cur.execute(
+                    """
+                    INSERT INTO detalle_pedidos
+                        (pedido_id, producto_nombre, cantidad, precio_unitario, subtotal)
+                    VALUES (%s, %s, 1, %s, %s)
+                    """,
+                    (pedido_id, f"Plan: {plan['nombre']}", monto, monto),
+                )
+        except Exception as e:
+            app.logger.error(f"Error creando pedido de plan {plan_id}: {e}")
+            flash('No se pudo iniciar el pago. Intenta de nuevo.', 'error')
+            return render_template('comprar_plan.html', datosApp=datosApp,
+                                   plan=plan, usuario=usuario, **sw_colors)
+
+        from routes.payments import construir_redireccion_payu
+        return construir_redireccion_payu(referencia, nombre, email, monto, descripcion)
+
+    return render_template('comprar_plan.html', datosApp=datosApp,
+                           plan=plan, usuario=usuario, **sw_colors)
+
+
+@public_bp.route('/robots.txt')
+def robots_txt():
+    """robots.txt para buscadores: permite el contenido público, bloquea
+    rutas privadas/transaccionales y apunta al sitemap (SEO)."""
+    from flask import Response
+
+    root = request.url_root  # incluye el dominio del tenant actual + '/'
+    contenido = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Disallow: /admin/\n"
+        "Disallow: /api/\n"
+        "Disallow: /carrito\n"
+        "Disallow: /metodos-pago\n"
+        "Disallow: /respuesta-pago\n"
+        "Disallow: /login\n"
+        f"\nSitemap: {root}sitemap.xml\n"
+    )
+    return Response(contenido, mimetype='text/plain')
+
+
+@public_bp.route('/sitemap.xml')
+def sitemap_xml():
+    """Sitemap XML dinámico con las páginas públicas indexables (SEO).
+
+    Incluye productos visibles para que el catálogo se indexe. Tolerante a
+    errores: si la BD falla, devuelve al menos las páginas estáticas.
+    """
+    from datetime import date
+    from flask import Response
+    from xml.sax.saxutils import escape
+
+    hoy = date.today().isoformat()
+    urls = []
+
+    def add(loc, changefreq, priority, lastmod=None):
+        urls.append({
+            'loc': loc, 'changefreq': changefreq,
+            'priority': priority, 'lastmod': lastmod or hoy,
+        })
+
+    # Páginas estáticas principales
+    add(url_for('public.index', _external=True), 'weekly', '1.0')
+    add(url_for('public.software', _external=True), 'weekly', '0.9')
+    if is_public_section_enabled('mostrar_modulo_ventas', True):
+        add(url_for('public.productos', _external=True), 'daily', '0.8')
+    add(url_for('public.servicios', _external=True), 'monthly', '0.6')
+    add(url_for('public.descargar', _external=True), 'monthly', '0.7')
+
+    # Productos individuales (si el módulo de ventas está activo)
+    if is_public_section_enabled('mostrar_modulo_ventas', True):
+        try:
+            with get_db_cursor(dict_cursor=True) as cur:
+                visible = (' WHERE COALESCE(visible_en_ecommerce, TRUE) = TRUE'
+                           if _productos_tienen_visibilidad_online() else '')
+                cur.execute(f'SELECT id FROM productos{visible} ORDER BY id DESC LIMIT 5000')
+                for row in cur.fetchall():
+                    add(url_for('public.detalle_producto', producto_id=row['id'], _external=True),
+                        'weekly', '0.6')
+        except Exception as e:
+            app.logger.warning(f"sitemap: no se pudieron listar productos: {e}")
+
+    partes = ['<?xml version="1.0" encoding="UTF-8"?>',
+              '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    for u in urls:
+        partes.append(
+            '<url>'
+            f'<loc>{escape(u["loc"])}</loc>'
+            f'<lastmod>{u["lastmod"]}</lastmod>'
+            f'<changefreq>{u["changefreq"]}</changefreq>'
+            f'<priority>{u["priority"]}</priority>'
+            '</url>'
+        )
+    partes.append('</urlset>')
+    return Response('\n'.join(partes), mimetype='application/xml')
 
 
 @public_bp.route('/api/track/add-to-cart', methods=['POST'])

@@ -105,6 +105,46 @@ def consultar_estado_real_payu(referencia):
     return '7'
 
 
+def construir_redireccion_payu(referencia, nombre, email, amount_value, description=None):
+    """Construye y renderiza el formulario de redirección automática a PayU.
+
+    Reutilizable por el checkout del carrito y por la compra de planes de
+    software. Calcula la firma MD5 con el monto ya validado server-side.
+    """
+    merchant_id = app.config.get('PAYU_MERCHANT_ID')
+    account_id = app.config.get('PAYU_ACCOUNT_ID', merchant_id)
+    api_key = app.config.get('PAYU_API_KEY')
+    payu_env = app.config.get('PAYU_ENV', 'sandbox')
+
+    amount_dec = Decimal(str(amount_value)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    amount_str = f"{amount_dec:.2f}"
+    currency = 'COP'
+
+    signature_raw = f"{api_key}~{merchant_id}~{referencia}~{amount_str}~{currency}"
+    payu_signature = hashlib.md5(signature_raw.encode('utf-8')).hexdigest()
+
+    payu_url = ("https://sandbox.checkout.payulatam.com/ppp-web-gateway-payu/"
+                if payu_env == "sandbox"
+                else "https://checkout.payulatam.com/ppp-web-gateway-payu/")
+
+    return render_template(
+        'redireccion_payu.html',
+        merchantId=merchant_id,
+        accountId=account_id,
+        description=description or f"Compra {referencia}",
+        referenceCode=referencia,
+        amount=amount_str,
+        currency=currency,
+        signature=payu_signature,
+        test="1" if payu_env == "sandbox" else "0",
+        buyerEmail=email,
+        buyerFullName=nombre,
+        payu_url=payu_url,
+        responseUrl=url_for('payments.respuesta_pago', _external=True),
+        confirmationUrl=url_for('payments.confirmacion_pago', _external=True),
+    )
+
+
 @payments_bp.route('/metodos-pago')
 def metodos_pago():
     """Muestra los metodos de pago disponibles con el resumen del carrito."""
