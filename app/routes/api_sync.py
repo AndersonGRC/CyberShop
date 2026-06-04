@@ -33,7 +33,7 @@ from services.db_layer import control_plane_cursor, tenant_cursor
 
 api_sync_bp = Blueprint('api_sync', __name__, url_prefix='/api/v1/sync')
 
-VALID_ENTITIES = {'sale', 'inventory_movement', 'product', 'user', 'category', 'order'}
+VALID_ENTITIES = {'sale', 'inventory_movement', 'product', 'user', 'category', 'order', 'restaurant_op', 'contabilidad_op'}
 VALID_ACTIONS = {'create', 'update', 'delete'}
 DEFAULT_GENERO_NAME = 'POS Desktop'
 DEFAULT_IMAGE = '/static/img/no-image.png'
@@ -302,6 +302,10 @@ def outbox():
                     remote_id = _apply_category(cur, action, payload)
                 elif entity == 'order':
                     remote_id = _apply_order(cur, action, payload)
+                elif entity == 'restaurant_op':
+                    remote_id = _apply_restaurant_op(cur, payload)
+                elif entity == 'contabilidad_op':
+                    remote_id = _apply_contabilidad_op(cur, payload)
                 else:
                     raise ValueError(f'combinacion no soportada: {entity}/{action}')
                 results.append({
@@ -1256,3 +1260,696 @@ def stats():
 
     _STATS_CACHE[g.sync_db_name] = (now_epoch, payload)
     return jsonify(payload)
+
+
+# ──────────────────────────────────────────────
+# GET /restaurant/snapshot  (modulo de mesas — desktop)
+# ──────────────────────────────────────────────
+
+RESTAURANT_TABLE_STATES = {'disponible', 'ocupada', 'reservada', 'cuenta_solicitada'}
+RESTAURANT_CONSUMPTION_STATES = {'pendiente', 'preparando', 'servido'}
+RESTAURANT_PAYMENT_METHODS = {'EFECTIVO', 'TARJETA', 'TRANSFERENCIA', 'MIXTO'}
+
+
+@api_sync_bp.route('/restaurant/snapshot', methods=['GET'])
+@require_sync_key
+def restaurant_snapshot():
+    """Estado completo del modulo de mesas del tenant (snapshot, no incremental).
+
+    Devuelve: mesas, ordenes abiertas, consumos de esas ordenes y el catalogo
+    de productos para el selector. El volumen es bajo, asi que un snapshot
+    completo evita estados parciales inconsistentes en el desktop.
+    """
+    out = {
+        'tables': [], 'open_orders': [], 'consumptions': [], 'products': [],
+        'server_time': _now_iso(), 'version': int(datetime.now(timezone.utc).timestamp()),
+    }
+    with tenant_cursor(db_name=g.sync_db_name, dict_cursor=True) as cur:
+        if not _regclass(cur, 'restaurant_tables'):
+            return jsonify(out)  # modulo no instalado en este tenant
+
+        cur.execute("""
+            SELECT id, codigo, nombre, area, capacidad, forma, estado,
+                   pos_x, pos_y, ancho, alto, rotacion, updated_at
+            FROM restaurant_tables
+            ORDER BY area, nombre
+        """)
+        for r in cur.fetchall():
+            out['tables'].append({
+                'id': int(r['id']), 'codigo': r['codigo'], 'nombre': r['nombre'],
+                'area': r['area'], 'capacidad': int(r['capacidad'] or 0),
+                'forma': r['forma'], 'estado': r['estado'],
+                'pos_x': float(r['pos_x'] or 0), 'pos_y': float(r['pos_y'] or 0),
+                'ancho': float(r['ancho'] or 0), 'alto': float(r['alto'] or 0),
+                'rotacion': int(r['rotacion'] or 0), 'updated_at': _iso(r['updated_at']),
+            })
+
+        cur.execute("""
+            SELECT id, table_id, estado, cliente_nombre, comensales, notas,
+                   total_acumulado, opened_at, last_activity_at, updated_at
+            FROM restaurant_table_orders
+            WHERE estado = 'abierta'
+            ORDER BY id
+        """)
+        open_order_ids = []
+        for r in cur.fetchall():
+            open_order_ids.append(int(r['id']))
+            out['open_orders'].append({
+                'id': int(r['id']), 'table_id': int(r['table_id']), 'estado': r['estado'],
+                'cliente_nombre': r['cliente_nombre'], 'comensales': int(r['comensales'] or 1),
+                'notas': r['notas'], 'total_acumulado': float(r['total_acumulado'] or 0),
+                'opened_at': _iso(r['opened_at']), 'last_activity_at': _iso(r['last_activity_at']),
+                'updated_at': _iso(r['updated_at']),
+            })
+
+        if open_order_ids:
+            cur.execute("""
+                SELECT id, order_id, table_id, producto_id, descripcion, cantidad,
+                       precio_unitario, subtotal, estado, notas, ordered_at, served_at, updated_at
+                FROM restaurant_table_consumptions
+                WHERE order_id = ANY(%s)
+                ORDER BY ordered_at
+            """, (open_order_ids,))
+            for r in cur.fetchall():
+                out['consumptions'].append({
+                    'id': int(r['id']), 'order_id': int(r['order_id']), 'table_id': int(r['table_id']),
+                    'producto_id': int(r['producto_id']) if r['producto_id'] is not None else None,
+                    'descripcion': r['descripcion'], 'cantidad': int(r['cantidad'] or 1),
+                    'precio_unitario': float(r['precio_unitario'] or 0), 'subtotal': float(r['subtotal'] or 0),
+                    'estado': r['estado'], 'notas': r['notas'],
+                    'ordered_at': _iso(r['ordered_at']), 'served_at': _iso(r['served_at']) if r['served_at'] else None,
+                    'updated_at': _iso(r['updated_at']),
+                })
+
+        # Catalogo de productos para el selector (activos con stock relevante)
+        try:
+            cur.execute("""
+                SELECT id, nombre, precio, stock, referencia
+                FROM productos
+                ORDER BY nombre
+            """)
+            for r in cur.fetchall():
+                out['products'].append({
+                    'id': int(r['id']), 'nombre': r['nombre'],
+                    'precio': float(r['precio'] or 0), 'stock': int(r['stock'] or 0),
+                    'referencia': r.get('referencia'),
+                })
+        except Exception as exc:
+            current_app.logger.warning('restaurant_snapshot productos: %s', exc)
+
+    return jsonify(out)
+
+
+# ──────────────────────────────────────────────
+# Apply: restaurant_op  (operaciones del modulo de mesas via outbox)
+# ──────────────────────────────────────────────
+
+def _regclass(cur, table_name):
+    cur.execute("SELECT to_regclass(%s) AS rc", (f'public.{table_name}',))
+    row = cur.fetchone()
+    return bool(row and row['rc'])
+
+
+def _resolve_usuario_id(cur, payload):
+    """Resuelve el id de usuarios a partir del payload (remote id o email)."""
+    uid = payload.get('user_remote_id')
+    if uid:
+        try:
+            cur.execute('SELECT id FROM usuarios WHERE id = %s', (int(uid),))
+            row = cur.fetchone()
+            if row:
+                return int(row['id'])
+        except (TypeError, ValueError):
+            pass
+    email = (payload.get('user_email') or '').strip()
+    if email:
+        cur.execute('SELECT id FROM usuarios WHERE LOWER(email) = LOWER(%s)', (email,))
+        row = cur.fetchone()
+        if row:
+            return int(row['id'])
+    return None
+
+
+def _ensure_restaurant_ledger(cur):
+    """Tabla de idempotencia para ops no-idempotentes (add_consumption).
+    Aditiva (CREATE TABLE IF NOT EXISTS) — no destructiva."""
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS sync_restaurant_applied_ops (
+            client_op_uuid TEXT PRIMARY KEY,
+            remote_id      INTEGER,
+            applied_at     TIMESTAMP NOT NULL DEFAULT NOW()
+        )
+    """)
+
+
+def _restaurant_open_order_id(cur, table_id):
+    cur.execute("""
+        SELECT id FROM restaurant_table_orders
+        WHERE table_id = %s AND estado = 'abierta'
+        ORDER BY id DESC LIMIT 1
+    """, (table_id,))
+    row = cur.fetchone()
+    return int(row['id']) if row else None
+
+
+def _restaurant_ensure_open_order(cur, table_id, payload):
+    """Devuelve el id de la orden abierta de la mesa; la crea si no existe."""
+    order_id = _restaurant_open_order_id(cur, table_id)
+    if order_id:
+        return order_id
+    cur.execute('SELECT tenant_id FROM restaurant_tables WHERE id = %s', (table_id,))
+    trow = cur.fetchone()
+    if not trow:
+        raise ValueError('Mesa no encontrada.')
+    tenant_id = int(trow['tenant_id'])
+    user_id = _resolve_usuario_id(cur, payload)
+    cliente = (payload.get('cliente_nombre') or '').strip() or None
+    comensales = int(payload.get('comensales') or 1)
+    notas = (payload.get('notas') or '').strip() or None
+    cur.execute("""
+        INSERT INTO restaurant_table_orders
+            (tenant_id, table_id, estado, cliente_nombre, comensales, notas, abierta_por)
+        VALUES (%s, %s, 'abierta', %s, %s, %s, %s)
+        RETURNING id
+    """, (tenant_id, table_id, cliente, comensales, notas, user_id))
+    order_id = int(cur.fetchone()['id'])
+    cur.execute("UPDATE restaurant_tables SET estado = 'ocupada', updated_at = NOW() WHERE id = %s", (table_id,))
+    return order_id
+
+
+def _restaurant_refresh_total(cur, order_id):
+    cur.execute("""
+        UPDATE restaurant_table_orders o
+        SET total_acumulado = COALESCE((
+                SELECT SUM(subtotal) FROM restaurant_table_consumptions WHERE order_id = %s
+            ), 0),
+            last_activity_at = NOW(), updated_at = NOW()
+        WHERE o.id = %s
+        RETURNING total_acumulado
+    """, (order_id, order_id))
+    row = cur.fetchone()
+    return float(row['total_acumulado'] or 0) if row else 0.0
+
+
+def _restaurant_create_accounting(cur, order, user_id, payment_method):
+    """Crea el movimiento contable de ingreso por venta de restaurante.
+    Idempotente por (referencia_tipo, referencia_id). Espejo de
+    services.restaurant_tables_service._create_accounting_movement."""
+    if not _regclass(cur, 'contabilidad_movimientos'):
+        return 'sin_contabilidad'
+    ref_type, ref_id = 'restaurant_order', int(order['id'])
+    cur.execute("""
+        SELECT id FROM contabilidad_movimientos
+        WHERE referencia_tipo = %s AND referencia_id = %s
+        ORDER BY id DESC LIMIT 1
+    """, (ref_type, ref_id))
+    if cur.fetchone():
+        return 'sincronizada'
+    cur.execute("""
+        SELECT column_name FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'contabilidad_movimientos'
+    """)
+    columns = {r['column_name'] for r in cur.fetchall()}
+    total = float(order['total_acumulado'] or 0)
+    values = {
+        'tipo': 'ingreso', 'categoria': 'venta_restaurante',
+        'descripcion': f"Venta restaurante mesa {order['codigo']} — {order.get('cliente_nombre') or 'Cliente'}",
+        'monto': total, 'monto_bruto': total,
+        'retefuente_pct': 0, 'retefuente_monto': 0, 'iva_pct': 0, 'iva_monto': 0,
+        'reteiva_pct': 0, 'reteiva_monto': 0, 'reteica_pct': 0, 'reteica_monto': 0,
+        'total_retenciones': 0, 'fecha': datetime.now(timezone.utc).date(),
+        'referencia_tipo': ref_type, 'referencia_id': ref_id,
+        'notas': f"Mesa {order['nombre']} / pago {payment_method}",
+        'usuario_id': user_id, 'auto_generado': True,
+    }
+    order_cols = ['tipo', 'categoria', 'descripcion', 'monto_bruto', 'monto',
+                  'retefuente_pct', 'retefuente_monto', 'iva_pct', 'iva_monto',
+                  'reteiva_pct', 'reteiva_monto', 'reteica_pct', 'reteica_monto',
+                  'total_retenciones', 'fecha', 'referencia_tipo', 'referencia_id',
+                  'notas', 'usuario_id', 'auto_generado']
+    selected = [c for c in order_cols if c in columns]
+    placeholders = ', '.join(['%s'] * len(selected))
+    cur.execute(
+        f"INSERT INTO contabilidad_movimientos ({', '.join(selected)}) VALUES ({placeholders})",
+        tuple(values[c] for c in selected),
+    )
+    return 'sincronizada'
+
+
+def _apply_restaurant_op(cur, payload):
+    """Aplica una operacion del modulo de mesas sobre el cursor del batch.
+
+    payload: {op, table_id, ..., client_op_uuid, user_remote_id|user_email}
+    Reglas de idempotencia:
+      - open_table / set_table_state / set_consumption_state / close_table /
+        cancel_order son idempotentes por naturaleza (clave por table_id/estado).
+      - add_consumption usa el ledger sync_restaurant_applied_ops por uuid.
+    """
+    op = (payload.get('op') or '').strip()
+    if not _regclass(cur, 'restaurant_tables'):
+        raise ValueError('Modulo de restaurante no instalado en el servidor.')
+
+    if op == 'open_table':
+        table_id = int(payload['table_id'])
+        return _restaurant_ensure_open_order(cur, table_id, payload)
+
+    if op == 'add_consumption':
+        uuid = (payload.get('client_op_uuid') or '').strip()
+        if uuid:
+            _ensure_restaurant_ledger(cur)
+            cur.execute('SELECT remote_id FROM sync_restaurant_applied_ops WHERE client_op_uuid = %s', (uuid,))
+            prev = cur.fetchone()
+            if prev:
+                raise _DuplicateError(int(prev['remote_id']) if prev['remote_id'] is not None else 0)
+        table_id = int(payload['table_id'])
+        cur.execute('SELECT id, codigo, tenant_id FROM restaurant_tables WHERE id = %s', (table_id,))
+        table_row = cur.fetchone()
+        if not table_row:
+            raise ValueError('Mesa no encontrada.')
+        tenant_id = int(table_row['tenant_id'])
+        order_id = _restaurant_ensure_open_order(cur, table_id, payload)
+        user_id = _resolve_usuario_id(cur, payload)
+        cantidad = max(1, int(payload.get('cantidad') or 1))
+        notas = (payload.get('notas') or '').strip() or None
+        producto_id = payload.get('producto_id')
+        descripcion = (payload.get('descripcion') or '').strip()
+        precio_unitario = float(payload.get('precio_unitario') or 0)
+        if producto_id:
+            producto_id = int(producto_id)
+            cur.execute('SELECT id, nombre, precio, stock FROM productos WHERE id = %s FOR UPDATE', (producto_id,))
+            product = cur.fetchone()
+            if not product:
+                raise ValueError('Producto no encontrado.')
+            stock_actual = int(product['stock'] or 0)
+            if stock_actual < cantidad:
+                raise ValueError(f"Stock insuficiente para '{product['nombre']}'. Disponible: {stock_actual}.")
+            descripcion = product['nombre']
+            precio_unitario = float(product['precio'] or 0)
+            stock_nuevo = stock_actual - cantidad
+            cur.execute('UPDATE productos SET stock = %s WHERE id = %s', (stock_nuevo, producto_id))
+            try:
+                cur.execute("""
+                    INSERT INTO inventario_log
+                        (producto_id, tipo, cantidad, stock_anterior, stock_nuevo, motivo, usuario_id)
+                    VALUES (%s, 'SALIDA', %s, %s, %s, %s, %s)
+                """, (producto_id, cantidad, stock_actual, stock_nuevo,
+                      f"Consumo mesa {table_row['codigo']} / orden {order_id}", user_id))
+            except Exception:
+                pass
+        else:
+            if not descripcion:
+                raise ValueError('Debes indicar un producto o una descripcion libre.')
+            if precio_unitario <= 0:
+                raise ValueError('El precio del consumo debe ser mayor a cero.')
+            producto_id = None
+        subtotal = round(precio_unitario * cantidad, 2)
+        cur.execute("""
+            INSERT INTO restaurant_table_consumptions
+                (tenant_id, order_id, table_id, producto_id, descripcion, cantidad,
+                 precio_unitario, subtotal, estado, notas, creado_por)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'pendiente', %s, %s)
+            RETURNING id
+        """, (tenant_id, order_id, table_id, producto_id, descripcion[:220], cantidad,
+              precio_unitario, subtotal, notas, user_id))
+        consumption_id = int(cur.fetchone()['id'])
+        _restaurant_refresh_total(cur, order_id)
+        cur.execute("UPDATE restaurant_tables SET estado = 'ocupada', updated_at = NOW() WHERE id = %s", (table_id,))
+        if uuid:
+            cur.execute("""
+                INSERT INTO sync_restaurant_applied_ops (client_op_uuid, remote_id)
+                VALUES (%s, %s) ON CONFLICT (client_op_uuid) DO NOTHING
+            """, (uuid, consumption_id))
+        return consumption_id
+
+    if op == 'set_consumption_state':
+        consumption_id = int(payload['consumption_id'])
+        new_state = (payload.get('estado') or '').strip()
+        if new_state not in RESTAURANT_CONSUMPTION_STATES:
+            raise ValueError('Estado de consumo invalido.')
+        served = 'NOW()' if new_state == 'servido' else 'served_at'
+        cur.execute(f"""
+            UPDATE restaurant_table_consumptions
+            SET estado = %s, served_at = {served}, updated_at = NOW()
+            WHERE id = %s
+            RETURNING id
+        """, (new_state, consumption_id))
+        row = cur.fetchone()
+        if not row:
+            raise ValueError('Consumo no encontrado.')
+        return int(row['id'])
+
+    if op == 'set_table_state':
+        table_id = int(payload['table_id'])
+        new_state = (payload.get('estado') or '').strip()
+        if new_state not in RESTAURANT_TABLE_STATES:
+            raise ValueError('Estado de mesa invalido.')
+        cur.execute("""
+            UPDATE restaurant_tables SET estado = %s, updated_at = NOW()
+            WHERE id = %s RETURNING id
+        """, (new_state, table_id))
+        row = cur.fetchone()
+        if not row:
+            raise ValueError('Mesa no encontrada.')
+        return int(row['id'])
+
+    if op == 'close_table':
+        table_id = int(payload['table_id'])
+        payment_method = (payload.get('payment_method') or 'EFECTIVO').strip().upper()
+        if payment_method not in RESTAURANT_PAYMENT_METHODS:
+            raise ValueError('Metodo de pago invalido.')
+        cur.execute("""
+            SELECT o.id, o.total_acumulado, o.cliente_nombre, t.codigo, t.nombre,
+                   (SELECT COUNT(*) FROM restaurant_table_consumptions c WHERE c.order_id = o.id) AS total_items
+            FROM restaurant_table_orders o
+            JOIN restaurant_tables t ON t.id = o.table_id
+            WHERE o.table_id = %s AND o.estado = 'abierta'
+            LIMIT 1
+        """, (table_id,))
+        order = cur.fetchone()
+        if not order:
+            raise _DuplicateError(0)  # ya cerrada / sin cuenta abierta → idempotente
+        if int(order['total_items'] or 0) <= 0:
+            raise ValueError('No puedes cerrar una cuenta sin consumos registrados.')
+        total = _restaurant_refresh_total(cur, order['id'])
+        order = dict(order)
+        order['total_acumulado'] = total
+        user_id = _resolve_usuario_id(cur, payload)
+        cur.execute("""
+            UPDATE restaurant_table_orders
+            SET estado = 'cerrada', cerrada_por = %s, closed_at = NOW(),
+                payment_method = %s, total_acumulado = %s, updated_at = NOW()
+            WHERE id = %s
+        """, (user_id, payment_method, total, order['id']))
+        _restaurant_create_accounting(cur, order, user_id, payment_method)
+        cur.execute("UPDATE restaurant_tables SET estado = 'disponible', updated_at = NOW() WHERE id = %s", (table_id,))
+        return int(order['id'])
+
+    if op == 'cancel_order':
+        table_id = int(payload['table_id'])
+        reason = (payload.get('cancel_reason') or '').strip() or None
+        user_id = _resolve_usuario_id(cur, payload)
+        cur.execute("""
+            SELECT id FROM restaurant_table_orders
+            WHERE table_id = %s AND estado = 'abierta' LIMIT 1
+        """, (table_id,))
+        order = cur.fetchone()
+        if not order:
+            raise _DuplicateError(0)  # ya no hay cuenta abierta → idempotente
+        cur.execute("""
+            UPDATE restaurant_table_orders
+            SET estado = 'cancelada', cancel_reason = %s, cancelled_at = NOW(),
+                cancelled_by = %s, updated_at = NOW()
+            WHERE id = %s
+        """, (reason, user_id, order['id']))
+        cur.execute("UPDATE restaurant_tables SET estado = 'disponible', updated_at = NOW() WHERE id = %s", (table_id,))
+        return int(order['id'])
+
+    raise ValueError(f'op de restaurante no soportada: {op}')
+
+
+# ──────────────────────────────────────────────
+# GET /contabilidad/snapshot  (modulo de contabilidad — desktop)
+# ──────────────────────────────────────────────
+
+CONTAB_MOV_LIMIT = 1000
+
+
+@api_sync_bp.route('/contabilidad/snapshot', methods=['GET'])
+@require_sync_key
+def contabilidad_snapshot():
+    """Estado del modulo de contabilidad del tenant: movimientos recientes,
+    plantillas, cierres y categorias usadas."""
+    out = {
+        'movimientos': [], 'plantillas': [], 'cierres': [], 'categorias': [],
+        'server_time': _now_iso(),
+    }
+    with tenant_cursor(db_name=g.sync_db_name, dict_cursor=True) as cur:
+        if not _regclass(cur, 'contabilidad_movimientos'):
+            return jsonify(out)
+
+        cur.execute("""
+            SELECT m.id, m.tipo, m.categoria, m.descripcion, m.monto_bruto, m.monto,
+                   m.retefuente_pct, m.retefuente_monto, m.iva_pct, m.iva_monto,
+                   m.reteiva_pct, m.reteiva_monto, m.reteica_pct, m.reteica_monto,
+                   m.total_retenciones, m.fecha, m.referencia_tipo, m.referencia_id,
+                   m.notas, m.usuario_id, m.auto_generado, m.created_at,
+                   u.nombre AS usuario_nombre
+            FROM contabilidad_movimientos m
+            LEFT JOIN usuarios u ON u.id = m.usuario_id
+            ORDER BY m.fecha DESC, m.created_at DESC
+            LIMIT %s
+        """, (CONTAB_MOV_LIMIT,))
+        for r in cur.fetchall():
+            out['movimientos'].append({
+                'id': int(r['id']), 'tipo': r['tipo'], 'categoria': r['categoria'],
+                'descripcion': r['descripcion'],
+                'monto_bruto': float(r['monto_bruto'] or 0), 'monto': float(r['monto'] or 0),
+                'retefuente_pct': float(r['retefuente_pct'] or 0), 'retefuente_monto': float(r['retefuente_monto'] or 0),
+                'iva_pct': float(r['iva_pct'] or 0), 'iva_monto': float(r['iva_monto'] or 0),
+                'reteiva_pct': float(r['reteiva_pct'] or 0), 'reteiva_monto': float(r['reteiva_monto'] or 0),
+                'reteica_pct': float(r['reteica_pct'] or 0), 'reteica_monto': float(r['reteica_monto'] or 0),
+                'total_retenciones': float(r['total_retenciones'] or 0),
+                'fecha': r['fecha'].isoformat() if r['fecha'] else None,
+                'referencia_tipo': r['referencia_tipo'], 'referencia_id': r['referencia_id'],
+                'notas': r['notas'], 'usuario_id': r['usuario_id'],
+                'usuario_nombre': r['usuario_nombre'],
+                'auto_generado': bool(r['auto_generado']),
+                'created_at': _iso(r['created_at']),
+            })
+
+        if _regclass(cur, 'contabilidad_plantillas'):
+            cur.execute("""
+                SELECT id, tipo, categoria, descripcion, monto_bruto, notas, activo, created_at
+                FROM contabilidad_plantillas ORDER BY id
+            """)
+            for r in cur.fetchall():
+                out['plantillas'].append({
+                    'id': int(r['id']), 'tipo': r['tipo'], 'categoria': r['categoria'],
+                    'descripcion': r['descripcion'], 'monto_bruto': float(r['monto_bruto'] or 0),
+                    'notas': r['notas'], 'activo': bool(r['activo']), 'created_at': _iso(r['created_at']),
+                })
+
+        if _regclass(cur, 'contabilidad_cierres'):
+            cur.execute("""
+                SELECT c.id, c.nombre, c.fecha_inicio, c.fecha_fin, c.total_ingresos,
+                       c.total_egresos, c.total_retenciones, c.saldo, c.notas, c.usuario_id,
+                       c.created_at, u.nombre AS usuario_nombre
+                FROM contabilidad_cierres c
+                LEFT JOIN usuarios u ON u.id = c.usuario_id
+                ORDER BY c.fecha_fin DESC
+            """)
+            for r in cur.fetchall():
+                out['cierres'].append({
+                    'id': int(r['id']), 'nombre': r['nombre'],
+                    'fecha_inicio': r['fecha_inicio'].isoformat() if r['fecha_inicio'] else None,
+                    'fecha_fin': r['fecha_fin'].isoformat() if r['fecha_fin'] else None,
+                    'total_ingresos': float(r['total_ingresos'] or 0),
+                    'total_egresos': float(r['total_egresos'] or 0),
+                    'total_retenciones': float(r['total_retenciones'] or 0),
+                    'saldo': float(r['saldo'] or 0), 'notas': r['notas'],
+                    'usuario_id': r['usuario_id'], 'usuario_nombre': r['usuario_nombre'],
+                    'created_at': _iso(r['created_at']),
+                })
+
+        try:
+            cur.execute("SELECT DISTINCT categoria FROM contabilidad_movimientos WHERE categoria IS NOT NULL ORDER BY categoria")
+            out['categorias'] = [r['categoria'] for r in cur.fetchall() if r['categoria']]
+        except Exception:
+            pass
+
+    return jsonify(out)
+
+
+# ──────────────────────────────────────────────
+# Apply: contabilidad_op
+# ──────────────────────────────────────────────
+
+def _ensure_ops_ledger(cur):
+    """Ledger generico de idempotencia para ops no-idempotentes. Aditivo."""
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS sync_applied_ops (
+            client_op_uuid TEXT PRIMARY KEY,
+            remote_id      INTEGER,
+            applied_at     TIMESTAMP NOT NULL DEFAULT NOW()
+        )
+    """)
+
+
+def _contab_calc_impuestos(bruto, rtefte_pct, iva_pct, reteiva_pct, rteica_pct):
+    """Replica de routes.contabilidad._calcular_impuestos."""
+    def pct(v):
+        try:
+            return float(v or 0)
+        except (TypeError, ValueError):
+            return 0.0
+    bruto = float(bruto or 0)
+    rtefte = round(bruto * pct(rtefte_pct) / 100, 2)
+    iva = round(bruto * pct(iva_pct) / 100, 2)
+    reteiva = round(iva * pct(reteiva_pct) / 100, 2)
+    rteica = round(bruto * pct(rteica_pct) / 100, 2)
+    total_ret = rtefte + reteiva + rteica
+    neto = round(bruto - total_ret, 2)
+    return {
+        'retefuente_monto': rtefte, 'iva_monto': iva, 'reteiva_monto': reteiva,
+        'reteica_monto': rteica, 'total_retenciones': total_ret, 'monto_neto': neto,
+    }
+
+
+def _contab_mes_rango(cur):
+    """Primer y ultimo dia del mes actual (en el server)."""
+    cur.execute("SELECT DATE_TRUNC('month', CURRENT_DATE)::date AS ini, (DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month - 1 day')::date AS fin")
+    r = cur.fetchone()
+    return r['ini'], r['fin']
+
+
+def _apply_contabilidad_op(cur, payload):
+    """Aplica una operacion de contabilidad sobre el cursor del batch.
+    Espejo de routes/contabilidad.py. Idempotencia por client_op_uuid donde aplica."""
+    op = (payload.get('op') or '').strip()
+    if not _regclass(cur, 'contabilidad_movimientos'):
+        raise ValueError('Modulo de contabilidad no instalado en el servidor.')
+    user_id = _resolve_usuario_id(cur, payload)
+
+    if op == 'create_movimiento':
+        op_uuid = (payload.get('client_op_uuid') or '').strip()
+        if op_uuid:
+            _ensure_ops_ledger(cur)
+            cur.execute('SELECT remote_id FROM sync_applied_ops WHERE client_op_uuid = %s', (op_uuid,))
+            prev = cur.fetchone()
+            if prev:
+                raise _DuplicateError(int(prev['remote_id']) if prev['remote_id'] is not None else 0)
+        tipo = (payload.get('tipo') or '').strip()
+        if tipo not in ('ingreso', 'egreso'):
+            raise ValueError('Tipo invalido.')
+        descripcion = (payload.get('descripcion') or '').strip()
+        if not descripcion:
+            raise ValueError('La descripcion es obligatoria.')
+        bruto = float(payload.get('monto_bruto') or 0)
+        if bruto <= 0:
+            raise ValueError('El monto debe ser mayor a cero.')
+        categoria = (payload.get('categoria') or 'otro').strip() or 'otro'
+        fecha = payload.get('fecha') or None
+        notas = (payload.get('notas') or '').strip() or None
+        if tipo == 'ingreso':
+            rtefte = payload.get('retefuente_pct') or 0
+            iva = payload.get('iva_pct') or 0
+            reteiva = payload.get('reteiva_pct') or 0
+            rteica = payload.get('reteica_pct') or 0
+        else:
+            rtefte = iva = reteiva = rteica = 0
+        calc = _contab_calc_impuestos(bruto, rtefte, iva, reteiva, rteica)
+        neto = calc['monto_neto'] if tipo == 'ingreso' else bruto
+        cur.execute("""
+            INSERT INTO contabilidad_movimientos
+                (tipo, categoria, descripcion, monto_bruto, monto,
+                 retefuente_pct, retefuente_monto, iva_pct, iva_monto,
+                 reteiva_pct, reteiva_monto, reteica_pct, reteica_monto,
+                 total_retenciones, fecha, notas, usuario_id, auto_generado)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,COALESCE(%s, CURRENT_DATE),%s,%s,FALSE)
+            RETURNING id
+        """, (tipo, categoria, descripcion, bruto, neto,
+              float(rtefte or 0), calc['retefuente_monto'], float(iva or 0), calc['iva_monto'],
+              float(reteiva or 0), calc['reteiva_monto'], float(rteica or 0), calc['reteica_monto'],
+              calc['total_retenciones'], fecha, notas, user_id))
+        mid = int(cur.fetchone()['id'])
+        if op_uuid:
+            cur.execute("INSERT INTO sync_applied_ops (client_op_uuid, remote_id) VALUES (%s,%s) ON CONFLICT (client_op_uuid) DO NOTHING", (op_uuid, mid))
+        return mid
+
+    if op == 'delete_movimiento':
+        mid = int(payload['movimiento_id'])
+        cur.execute('SELECT auto_generado FROM contabilidad_movimientos WHERE id = %s', (mid,))
+        row = cur.fetchone()
+        if not row:
+            raise _DuplicateError(0)
+        if row['auto_generado']:
+            raise ValueError('Los movimientos automaticos (POS/PayU/restaurante) no se pueden eliminar.')
+        cur.execute('DELETE FROM contabilidad_movimientos WHERE id = %s', (mid,))
+        return mid
+
+    if op == 'create_plantilla':
+        if not _regclass(cur, 'contabilidad_plantillas'):
+            raise ValueError('Tabla de plantillas no disponible.')
+        tipo = (payload.get('tipo') or '').strip()
+        if tipo not in ('ingreso', 'egreso'):
+            raise ValueError('Tipo invalido.')
+        bruto = float(payload.get('monto_bruto') or 0)
+        if bruto <= 0:
+            raise ValueError('El monto debe ser mayor a cero.')
+        cur.execute("""
+            INSERT INTO contabilidad_plantillas (tipo, categoria, descripcion, monto_bruto, notas, activo)
+            VALUES (%s,%s,%s,%s,%s,TRUE) RETURNING id
+        """, (tipo, (payload.get('categoria') or 'otro').strip() or 'otro',
+              (payload.get('descripcion') or '').strip(), bruto,
+              (payload.get('notas') or '').strip() or None))
+        return int(cur.fetchone()['id'])
+
+    if op == 'toggle_plantilla':
+        pid = int(payload['plantilla_id'])
+        cur.execute("UPDATE contabilidad_plantillas SET activo = NOT activo WHERE id = %s RETURNING id", (pid,))
+        row = cur.fetchone()
+        if not row:
+            raise ValueError('Plantilla no encontrada.')
+        return int(row['id'])
+
+    if op == 'delete_plantilla':
+        pid = int(payload['plantilla_id'])
+        cur.execute('DELETE FROM contabilidad_plantillas WHERE id = %s', (pid,))
+        return pid
+
+    if op == 'generar_plantillas':
+        if not _regclass(cur, 'contabilidad_plantillas'):
+            raise ValueError('Tabla de plantillas no disponible.')
+        mes_ini, mes_fin = _contab_mes_rango(cur)
+        cur.execute("SELECT * FROM contabilidad_plantillas WHERE activo = TRUE")
+        activas = cur.fetchall()
+        generados = 0
+        for p in activas:
+            cur.execute("""
+                SELECT id FROM contabilidad_movimientos
+                WHERE referencia_tipo = 'plantilla' AND referencia_id = %s
+                  AND fecha BETWEEN %s AND %s LIMIT 1
+            """, (p['id'], mes_ini, mes_fin))
+            if cur.fetchone():
+                continue
+            cur.execute("""
+                INSERT INTO contabilidad_movimientos
+                    (tipo, categoria, descripcion, monto_bruto, monto, fecha,
+                     notas, referencia_tipo, referencia_id, usuario_id, auto_generado)
+                VALUES (%s,%s,%s,%s,%s,CURRENT_DATE,%s,'plantilla',%s,%s,FALSE)
+            """, (p['tipo'], p['categoria'], p['descripcion'], p['monto_bruto'],
+                  p['monto_bruto'], p['notas'], p['id'], user_id))
+            generados += 1
+        return generados
+
+    if op == 'create_cierre':
+        if not _regclass(cur, 'contabilidad_cierres'):
+            raise ValueError('Tabla de cierres no disponible.')
+        nombre = (payload.get('nombre') or '').strip()
+        fi = payload.get('fecha_inicio')
+        ff = payload.get('fecha_fin')
+        if not nombre or not fi or not ff:
+            raise ValueError('Nombre y rango de fechas son obligatorios.')
+        cur.execute("""
+            SELECT COALESCE(SUM(CASE WHEN tipo='ingreso' THEN monto ELSE 0 END),0) AS ing,
+                   COALESCE(SUM(CASE WHEN tipo='egreso' THEN monto ELSE 0 END),0) AS egr,
+                   COALESCE(SUM(CASE WHEN tipo='ingreso' THEN total_retenciones ELSE 0 END),0) AS ret
+            FROM contabilidad_movimientos WHERE fecha BETWEEN %s AND %s
+        """, (fi, ff))
+        row = cur.fetchone()
+        ing, egr, ret = float(row['ing']), float(row['egr']), float(row['ret'])
+        cur.execute("""
+            INSERT INTO contabilidad_cierres
+                (nombre, fecha_inicio, fecha_fin, total_ingresos, total_egresos,
+                 total_retenciones, saldo, notas, usuario_id)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
+        """, (nombre, fi, ff, ing, egr, ret, ing - egr,
+              (payload.get('notas') or '').strip() or None, user_id))
+        return int(cur.fetchone()['id'])
+
+    if op == 'delete_cierre':
+        cid = int(payload['cierre_id'])
+        cur.execute('DELETE FROM contabilidad_cierres WHERE id = %s', (cid,))
+        return cid
+
+    raise ValueError(f'op de contabilidad no soportada: {op}')
