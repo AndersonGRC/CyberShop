@@ -7,155 +7,190 @@
 {% endblock%}
 
 {%block body%}
-{% if slides|length > 0 %}
+
+{# ================= HERO / SLIDER (administrable: Contenido Web → Slides) ================= #}
 <div class="slider">
-  {% for slide in slides %}
-  <div class="slide {% if loop.first %}active{% endif %}">
-    <img src="{{ slide.imagen }}" alt="{{ slide.titulo or 'Imagen de presentación' }}">
-    {% if slide.titulo %}
-    <div class="info">
-      <br>
-      <h2>{{ slide.titulo }}</h2>
-      <br>
-      {% if slide.descripcion %}<p>{{ slide.descripcion }}</p>{% endif %}
+  {% if slides|length > 0 %}
+    {% for slide in slides %}
+    <div class="slide {% if loop.first %}active{% endif %}">
+      <img src="{{ slide.imagen }}" alt="{{ slide.titulo or 'Imagen de presentación' }}">
+      <div class="hero-overlay"></div>
+      <div class="info">
+        <span class="hero-eyebrow"><span class="hero-dot"></span>{{ brand_config.empresa_nombre or datosApp.titulo }}</span>
+        {% if slide.titulo %}<h2>{{ slide.titulo }}</h2>{% endif %}
+        {% if slide.descripcion %}<p>{{ slide.descripcion }}</p>{% endif %}
+        <div class="hero-ctas">
+          {% if config_global.get('mostrar_modulo_ventas', true) %}
+          <a href="{{ url_for('public.productos') }}" class="hero-btn hero-btn-primary"><i class="fas fa-store"></i> Ver productos</a>
+          {% endif %}
+          {% if config.get('mostrar_contacto', true) %}
+          <a href="#contactenos" class="hero-btn hero-btn-ghost"><i class="fas fa-comments"></i> Contáctanos</a>
+          {% endif %}
+        </div>
+      </div>
     </div>
-    {% endif %}
-  </div>
-  {% endfor %}
+    {% endfor %}
+  {% else %}
+    <div class="slide active">
+      <img src="{{url_for('static',filename='img/Slider-Decuento.png')}}" alt="{{ datosApp.titulo }}">
+      <div class="hero-overlay"></div>
+      <div class="info">
+        <span class="hero-eyebrow"><span class="hero-dot"></span>{{ brand_config.empresa_nombre or datosApp.titulo }}</span>
+        <h2>Tecnología fácil para todos</h2>
+        <p>Descubre nuestros productos y servicios.</p>
+        <div class="hero-ctas">
+          {% if config_global.get('mostrar_modulo_ventas', true) %}
+          <a href="{{ url_for('public.productos') }}" class="hero-btn hero-btn-primary"><i class="fas fa-store"></i> Ver productos</a>
+          {% endif %}
+          <a href="#contactenos" class="hero-btn hero-btn-ghost"><i class="fas fa-comments"></i> Contáctanos</a>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
   <div class="navigation">
     <i class="fas fa-chevron-left prev-btn"></i>
     <i class="fas fa-chevron-right next-btn"></i>
   </div>
   <div class="navigation-visibility">
-    {% for slide in slides %}
-    <div class="slide-icon {% if loop.first %}active{% endif %}" {% if loop.first %}id="quienes_somos" {% endif %}>
-    </div>
+    {% for slide in (slides if slides|length > 0 else [1]) %}
+    <div class="slide-icon {% if loop.first %}active{% endif %}" {% if loop.first %}id="quienes_somos"{% endif %}></div>
     {% endfor %}
   </div>
 </div>
-{% else %}
-<div class="slider">
-  <div class="slide active">
-    <img src="{{url_for('static',filename='img/Slider-Decuento.png')}}" alt="Descuentos en Tecnología y Reparación">
-    <div class="info">
-      <br>
-      <h2>Descuentos en Tecnologia y Reparacion</h2>
-      <br>
-      <p>Descuento exclusivo en componentes de computadora y servicios de reparacion.</p>
-    </div>
-  </div>
-  <div class="navigation">
-    <i class="fas fa-chevron-left prev-btn"></i>
-    <i class="fas fa-chevron-right next-btn"></i>
-  </div>
-  <div class="navigation-visibility">
-    <div class="slide-icon active" id="quienes_somos"></div>
-  </div>
-</div>
-{% endif %}
+
+{# ================= QUIÉNES SOMOS (administrable: Sitio Público → textos) ================= #}
 {% if config.get('mostrar_about', true) %}
-<div class="about-us">
+<section class="about-us">
   <div class="about-us-content scroll-reveal reveal-up">
+    <span class="section-eyebrow">Quiénes somos</span>
     <h2>{{ public_content.about_title or brand_config.empresa_nombre or datosApp.titulo }}</h2>
-    <p>
-      {{ public_content.about_intro }}
-    </p>
-    <p>
-      {{ public_content.about_body }}
-    </p>
+    <div class="title-accent"></div>
+    {% if public_content.about_intro %}<p class="about-lead">{{ public_content.about_intro }}</p>{% endif %}
+    {% if public_content.about_body %}<p>{{ public_content.about_body }}</p>{% endif %}
   </div>
-</div>
-{% endif %}
-{% if config.get('mostrar_mision_vision', true) %}
-<!-- Sección de Misión y Visión -->
-<div class="mission-vision">
-  <div class="mission scroll-reveal reveal-left">
-    <h2>{{ public_content.mission_title }}</h2>
-    <p>
-      {{ public_content.mission_text }}
-    </p>
-  </div>
-  <div class="vision scroll-reveal reveal-right">
-    <h2>{{ public_content.vision_title }}</h2>
-    <p>
-      {{ public_content.vision_text }}
-    </p>
-  </div>
-</div>
+</section>
 {% endif %}
 
-<!-- Publicaciones del Home -->
+{# ================= MISIÓN / VISIÓN ================= #}
+{% if config.get('mostrar_mision_vision', true) %}
+<section class="mission-vision">
+  <div class="mv-card mission scroll-reveal reveal-left">
+    <div class="mv-icon"><i class="fas fa-bullseye"></i></div>
+    <h2>{{ public_content.mission_title }}</h2>
+    <p>{{ public_content.mission_text }}</p>
+  </div>
+  <div class="mv-card vision scroll-reveal reveal-right">
+    <div class="mv-icon"><i class="far fa-eye"></i></div>
+    <h2>{{ public_content.vision_title }}</h2>
+    <p>{{ public_content.vision_text }}</p>
+  </div>
+</section>
+{% endif %}
+
+{# ================= SERVICIOS DESTACADOS (administrable: Contenido Web → Servicios) ================= #}
+{% if config.get('mostrar_nav_servicios', true) and servicios and servicios|length > 0 %}
+<section class="home-servicios">
+  <div class="hs-inner">
+    <span class="section-eyebrow scroll-reveal reveal-up">Lo que hacemos</span>
+    <h2 class="hs-titulo scroll-reveal reveal-up">Nuestros servicios</h2>
+    <div class="hs-grid">
+      {% for srv in servicios[:6] %}
+      <article class="hs-card scroll-reveal reveal-up">
+        {% if srv.imagen %}
+        <div class="hs-img"><img src="{{ srv.imagen }}" alt="{{ srv.titulo }}" loading="lazy"></div>
+        {% endif %}
+        <div class="hs-body">
+          <h3>{{ srv.titulo }}</h3>
+          <p>{{ srv.descripcion }}</p>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    <div class="hs-more scroll-reveal reveal-up">
+      <a href="{{ url_for('public.servicios') }}" class="hero-btn hero-btn-outline">Ver todos los servicios <i class="fas fa-arrow-right"></i></a>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{# ================= PUBLICACIONES (administrable: Contenido Web → Publicaciones) ================= #}
 {% if config.get('mostrar_publicaciones', true) and publicaciones and publicaciones|length > 0 %}
-<div class="publicaciones-section">
-  <h2 class="publicaciones-titulo">{{ public_content.publications_title }}</h2>
+<section class="publicaciones-section">
+  <span class="section-eyebrow scroll-reveal reveal-up">Novedades</span>
+  <h2 class="publicaciones-titulo scroll-reveal reveal-up">{{ public_content.publications_title }}</h2>
   <div class="publicaciones-grid">
     {% for pub in publicaciones %}
-    <div class="publicacion-card">
+    <article class="publicacion-card scroll-reveal reveal-up">
       {% if pub.imagen %}
-      <div class="publicacion-img">
-        <img src="{{ pub.imagen }}" alt="{{ pub.titulo }}">
-      </div>
+      <div class="publicacion-img"><img src="{{ pub.imagen }}" alt="{{ pub.titulo }}" loading="lazy"></div>
       {% endif %}
       <div class="publicacion-content">
         <h3>{{ pub.titulo }}</h3>
         <p>{{ pub.descripcion }}</p>
       </div>
-    </div>
+    </article>
     {% endfor %}
   </div>
-</div>
+</section>
 {% endif %}
 
+{# ================= MAPA + CONTACTO ================= #}
 {% if config.get('mostrar_mapa', true) or config.get('mostrar_contacto', true) %}
-<div class="contact-container">
-  {% if config.get('mostrar_mapa', true) %}
-  <div class="map-container">
-    <iframe
-      src="{{ brand_config.empresa_maps_embed or 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3976.1438661161997!2d-74.12405722491505!3d4.7450433952301445!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8e3f8481ac8fae15%3A0xd086f2615f6ea83!2sCra.%20151%20%23136a11%2C%20Suba%2C%20Bogot%C3%A1!5e0!3m2!1ses!2sco!4v1737344695200!5m2!1ses!2sco' }}"
-      width="100%" height="700" class="mapa-iframe" allowfullscreen="" loading="lazy"
-      referrerpolicy="no-referrer-when-downgrade"></iframe>
+<section class="contact-wrap">
+  <div class="contact-head scroll-reveal reveal-up">
+    <span class="section-eyebrow">Hablemos</span>
+    <h2>{{ public_content.contact_title or 'Contáctanos' }}</h2>
+    {% if public_content.contact_intro %}<p class="contact-lead">{{ public_content.contact_intro }}</p>{% endif %}
   </div>
-  {% endif %}
 
-  {% if config.get('mostrar_contacto', true) %}
-  <div id="contactenos" class="contact-form">
-    <h2>{{ public_content.contact_title }}</h2>
-    {% if public_content.contact_intro %}
-    <p style="margin: 0 0 18px; color: #555; line-height: 1.5;">{{ public_content.contact_intro }}</p>
+  <div class="contact-container">
+    {% if config.get('mostrar_mapa', true) %}
+    <div class="map-container scroll-reveal reveal-left">
+      <iframe
+        src="{{ brand_config.empresa_maps_embed or 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3976.1438661161997!2d-74.12405722491505!3d4.7450433952301445!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8e3f8481ac8fae15%3A0xd086f2615f6ea83!2sCra.%20151%20%23136a11%2C%20Suba%2C%20Bogot%C3%A1!5e0!3m2!1ses!2sco!4v1737344695200!5m2!1ses!2sco' }}"
+        width="100%" height="100%" class="mapa-iframe" allowfullscreen="" loading="lazy"
+        referrerpolicy="no-referrer-when-downgrade"></iframe>
+    </div>
     {% endif %}
-    <form action="{{ url_for('public.enviar_mensaje') }}" method="POST" onsubmit="return validarRecaptchaContacto(this);">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="form-group">
-        <label for="name">Nombre</label>
-        <input type="text" id="name" name="name" required>
-      </div>
 
-      <div class="form-group">
-        <label for="email">Correo Electrónico</label>
-        <input type="email" id="email" name="email" required>
-      </div>
+    {% if config.get('mostrar_contacto', true) %}
+    <div id="contactenos" class="contact-form scroll-reveal reveal-right">
+      <form action="{{ url_for('public.enviar_mensaje') }}" method="POST" onsubmit="return validarRecaptchaContacto(this);">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+          <label for="name">Nombre</label>
+          <input type="text" id="name" name="name" placeholder="Tu nombre" required>
+        </div>
 
-      <div class="form-group">
-        <label for="phone">Numero de celular</label>
-        <input type="number" id="phone" name="phone" required>
-      </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="email">Correo electrónico</label>
+            <input type="email" id="email" name="email" placeholder="correo@ejemplo.com" required>
+          </div>
+          <div class="form-group">
+            <label for="phone">Celular</label>
+            <input type="number" id="phone" name="phone" placeholder="300 000 0000" required>
+          </div>
+        </div>
 
-      <div class="form-group">
-        <label for="message">Mensaje</label>
-        <textarea id="message" name="message" rows="4" required></textarea>
-      </div>
+        <div class="form-group">
+          <label for="message">Mensaje</label>
+          <textarea id="message" name="message" rows="4" placeholder="¿En qué podemos ayudarte?" required></textarea>
+        </div>
 
-      <!-- Campo honeypot oculto para atrapar bots -->
-      <input type="text" name="website" style="display:none" tabindex="-1" autocomplete="off">
+        <!-- Campo honeypot oculto para atrapar bots -->
+        <input type="text" name="website" style="display:none" tabindex="-1" autocomplete="off">
 
-      <!-- Google reCAPTCHA -->
-      <div class="g-recaptcha" data-sitekey="6LcgDbsrAAAAAEii5NGsPJLCj1aKqc9vej9G7Y76"></div>
+        <!-- Google reCAPTCHA -->
+        <div class="g-recaptcha" data-sitekey="6LcgDbsrAAAAAEii5NGsPJLCj1aKqc9vej9G7Y76"></div>
 
-      <button type="submit">Enviar</button>
-    </form>
+        <button type="submit"><i class="fas fa-paper-plane"></i> Enviar mensaje</button>
+      </form>
+    </div>
+    {% endif %}
   </div>
-  {% endif %}
-</div>
+</section>
 {% endif %}
 
 {% endblock %}
