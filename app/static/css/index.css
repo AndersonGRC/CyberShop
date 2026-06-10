@@ -626,18 +626,119 @@
    ============================================================ */
 @media (max-width: 900px) {
     .contact-container { grid-template-columns: 1fr; }
-    .map-container { min-height: 320px; }
-    .mapa-iframe { min-height: 320px; }
+    .map-container { min-height: 300px; }
+    .mapa-iframe { min-height: 300px; }
 }
+
+/* ---------- MÓVIL (≤768px): experiencia pulida ---------- */
 @media (max-width: 768px) {
-    .slider { height: clamp(420px, 78vh, 560px); }
+    body { overflow-x: hidden; }
+
+    /* HERO compacto y centrado */
+    .slider { height: 540px; }
     .slider .slide .info {
-        left: 18px;
-        right: 18px;
-        bottom: 58px;
+        left: 20px;
+        right: 20px;
+        bottom: 64px;
+        max-width: none;
+        text-align: center;
     }
-    .navigation { opacity: 1; }   /* en táctil siempre visibles */
-    .prev-btn, .next-btn { width: 42px; height: 42px; font-size: .95rem; }
-    .form-row { grid-template-columns: 1fr; }
-    .contact-form { padding: 28px 22px; }
+    .hero-eyebrow {
+        font-size: .72rem;
+        padding: 6px 13px;
+        margin-bottom: 12px;
+    }
+    .slider .slide .info h2 {
+        font-size: 1.65rem;
+        line-height: 1.18;
+        margin-bottom: 10px;
+    }
+    .slider .slide .info p {
+        font-size: .95rem;
+        line-height: 1.5;
+        margin: 0 auto 18px;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .hero-ctas {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        max-width: 300px;
+        margin: 0 auto;
+    }
+    .hero-btn { justify-content: center; padding: 13px 20px; font-size: .95rem; }
+
+    /* Flechas discretas, centradas verticalmente */
+    .navigation { opacity: 1; padding: 0 8px; }
+    .prev-btn, .next-btn {
+        width: 38px;
+        height: 38px;
+        font-size: .85rem;
+        background: rgba(8, 14, 36, .35);
+        border-color: rgba(255, 255, 255, .2);
+    }
+    .navigation-visibility { bottom: 16px; }
+    .navigation-visibility .slide-icon { height: 5px; width: 18px; }
+    .navigation-visibility .slide-icon.active { width: 36px; }
+
+    /* Secciones: respiración y tipografía móvil */
+    .about-us { padding: 52px 20px; }
+    .about-us-content h2 { font-size: 1.55rem; }
+    .title-accent { margin-bottom: 20px; }
+    .about-lead { font-size: 1.02rem !important; }
+    .about-us-content p { font-size: .96rem; line-height: 1.7; }
+
+    .mission-vision { gap: 16px; padding: 0 20px 52px; grid-template-columns: 1fr; }
+    .mv-card { padding: 26px 22px 24px; border-radius: 16px; }
+    .mv-icon { width: 50px; height: 50px; font-size: 1.2rem; border-radius: 13px; margin-bottom: 14px; }
+    .mv-card h2 { font-size: 1.22rem; }
+    .mv-card p { font-size: .94rem; line-height: 1.65; }
+
+    /* Banda del software */
+    .sw-band { padding: 50px 20px; }
+    .sw-band-inner { grid-template-columns: 1fr; gap: 0; }
+    .sw-band-text { text-align: center; }
+    .sw-band-text h2 { font-size: 1.45rem; }
+    .sw-band-text p { font-size: .96rem; margin-left: auto; margin-right: auto; }
+    .sw-band-feats {
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 20px;
+    }
+    .sw-band-feats li { font-size: .9rem; }
+    .sw-band .hero-ctas { max-width: 300px; }
+
+    /* Publicaciones */
+    .publicaciones-section { padding: 52px 20px; }
+    .publicaciones-titulo { font-size: 1.55rem; margin-bottom: 26px; }
+    .publicaciones-grid { grid-template-columns: 1fr; gap: 18px; }
+    .publicacion-img { height: 175px; }
+    .publicacion-content { padding: 18px 20px 22px; }
+    .publicacion-content h3 { font-size: 1.08rem; }
+    .publicacion-content p { font-size: .92rem; }
+
+    /* Contacto */
+    .contact-wrap { padding: 52px 18px; }
+    .contact-head { margin-bottom: 26px; }
+    .contact-head h2 { font-size: 1.55rem; }
+    .contact-lead { font-size: .96rem; }
+    .contact-container { gap: 18px; }
+    .contact-form { padding: 26px 20px; border-radius: 16px; }
+    .contact-form input, .contact-form textarea { padding: 12px 13px; font-size: .95rem; }
+    .map-container { min-height: 260px; border-radius: 16px; }
+    .mapa-iframe { min-height: 260px; }
+    .section-eyebrow { font-size: .74rem; }
+}
+
+/* Pantallas muy angostas: reCAPTCHA no desborda */
+@media (max-width: 380px) {
+    .contact-form .g-recaptcha {
+        transform: scale(.86);
+        transform-origin: 0 0;
+    }
+    .slider .slide .info h2 { font-size: 1.45rem; }
 }
