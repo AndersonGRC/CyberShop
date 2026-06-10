@@ -57,7 +57,7 @@ decorador `require_sync_key` en `routes/api_sync.py` resuelve el tenant así:
 
 ## 3. Endpoints `/api/v1/sync/*`
 
-12 endpoints (`routes/api_sync.py`), todos bajo `require_sync_key`:
+14 endpoints (`routes/api_sync.py`), todos bajo `require_sync_key`:
 
 | Endpoint | Método | Quién/cuándo lo llama |
 |---|---|---|
@@ -73,6 +73,8 @@ decorador `require_sync_key` en `routes/api_sync.py` resuelve el tenant así:
 | `/config` | GET | Info pública del tenant (slug, nombre, plan) |
 | `/version` | GET | ~1500 ms tras login (auto-update) |
 | `/stats` | GET | Métricas agregadas (reservado para dashboard) |
+| `/restaurant/snapshot` | GET | Estado completo del módulo de mesas (tables + open_orders + consumptions + products) — snapshot, no incremental |
+| `/contabilidad/snapshot` | GET | Movimientos (≤1000) + plantillas + cierres + categorías — snapshot, no incremental |
 
 ## 4. Mismo usuario y contraseña (web ↔ escritorio)
 
@@ -104,8 +106,18 @@ el usuario hace su primer login online o cambia la contraseña.
   por `remote_id`; `sales_web`/`inventory_log` → cachés de solo lectura.
 - **Push (escritorio → servidor)**: `LocalStore.pending_outbox()` →
   `POST /api/v1/sync/outbox` `{items:[{entity,entity_id,action,payload}]}`
-  (sale, inventory_movement, product, user, category, order). Éxito →
-  `mark_outbox_synced()`; fallo → reintento en el próximo ciclo.
+  (sale, inventory_movement, product, user, category, order, **restaurant_op**,
+  **contabilidad_op**). Éxito → `mark_outbox_synced()`; fallo → reintento en el
+  próximo ciclo.
+- **Operaciones offline-first** (`restaurant_op` / `contabilidad_op`): el
+  payload lleva `op` (p.ej. `open_table`, `add_consumption`, `close_table`,
+  `create_movimiento`, `create_cierre`) y un `client_op_uuid`; el servidor las
+  aplica con `_apply_restaurant_op`/`_apply_contabilidad_op` de forma
+  **idempotente** (ledger `sync_applied_ops`). `close_table` crea el movimiento
+  contable `venta_restaurante`; cierres y generar-plantillas se calculan
+  **server-side** (el espejo local puede estar incompleto). El resultado baja
+  en el siguiente pull de snapshot (`mark_*_pushed()` → el pull adopta la
+  verdad del servidor sin duplicar).
 - **Conflictos**: LWW (last-write-wins) por SKU/email usando `updated_at`.
 - **Branding** (`/branding`): `apply_remote_branding()` mapea
   `cliente_config.colores.*` → `branding.json` (`secundario→sidebar_inicio`,

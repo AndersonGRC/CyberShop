@@ -1,0 +1,87 @@
+# Ecosistema CyberShop — Visión general
+
+> Mapa de TODA la plataforma: qué proyectos existen, dónde viven, cómo se
+> conectan y cómo se actualizan. Punto de entrada recomendado para cualquier
+> persona nueva en el proyecto.
+
+## 1. Los tres proyectos (3 repos)
+
+| Proyecto | Repo GitHub | Qué es | Quién lo usa |
+|---|---|---|---|
+| **CyberShop** (web) | `AndersonGRC/CyberShop` | Tienda pública + panel `/admin` por cliente. Flask + PostgreSQL, server-side rendering | El cliente final (tienda) y el dueño del negocio (`/admin`) |
+| **CyberShopAdmin** (maestro) | `AndersonGRC/Cybershop_innovation` | Panel SaaS central: crea/administra/suspende/destruye clientes, asigna módulos por plan, configura integraciones (PayU/Google/Mail) por cliente | Solo el operador técnico de CyberShop (PIN + allow-list de IP) |
+| **CyberShopDesktop** (POS) | `AndersonGRC/Cybreshop-DesktopAPP` | Punto de venta de escritorio **offline-first** (PyQt6 + SQLite) con módulos POS, inventario, restaurante y contabilidad; sincroniza contra la web | Cajeros/meseros/admin del negocio en el local |
+
+## 2. Topología de producción (un servidor, multi-cliente)
+
+```
+                              INTERNET
+   cybershopcol.com   admin.cybershopcol.com   <cliente>.cybershopcol.com / dominio propio
+          │                    │                         │
+   ┌──────▼────────────────────▼─────────────────────────▼──────┐
+   │                     NGINX (80/443, SSL)                    │  + allow-list IP en admin
+   └──────┬────────────────────┬─────────────────────────┬──────┘
+     127.0.0.1:5001       127.0.0.1:5002            127.0.0.1:81xx
+   ┌──────▼──────┐      ┌──────▼───────┐          ┌──────▼───────┐
+   │  cybershop  │      │cybershop-admin│          │ cybershop@<slug>│  ← 1 instancia por cliente
+   │ (app ppal)  │      │  (maestro)    │          │ (código COMPARTIDO /var/www/CyberShop
+   └──────┬──────┘      └──────┬───────┘          │  + EnvironmentFile /etc/cybershop/<slug>.env)
+          │                    │                   └──────┬───────┘
+   ┌──────▼────────────────────▼──────────────────────────▼──────┐
+   │ PostgreSQL (localhost): cybershop · cyber_tNNN (1 BD/cliente)│
+   │                · saas_control_plane (registro central)       │
+   └───────────────────────────────────────────────────────────────┘
+```
+
+- **Servidor**: `38.134.148.47` (SSH puerto 2222). Código en `/var/www/CyberShop`
+  y `/var/www/CyberShopAdmin`.
+- **Control plane** (`saas_control_plane`): `tenants`, `tenant_databases`
+  (credenciales cifradas AES-GCM con `KMS_KEY`), `tenant_runtime`
+  (puerto/subdominio/dominio por cliente), `sync_api_keys`, `admin_users`.
+- **Aislamiento**: cada cliente tiene su **BD propia** (`cyber_tNNN`) y su
+  **instancia propia** (puerto distinto). El código es uno solo: actualizar a
+  todos = `git pull` + reiniciar instancias.
+- **Backups**: cron diario 3:30am (`/usr/local/bin/cybershop-backup.sh`) de
+  todas las BDs a `/var/backups/cybershop/` con rotación de 7 días.
+- **Seguridad**: ufw deny-by-default, fail2ban, HSTS, panel maestro con PIN +
+  allow-list de IP, SSL Let's Encrypt con renovación automática.
+
+## 3. Cómo se conectan entre sí
+
+- **Web ↔ Escritorio**: API `/api/v1/sync/*` (14 endpoints) con header
+  `X-Sync-Key`. El escritorio hace pull incremental (productos/usuarios/
+  categorías) + snapshots (restaurante/contabilidad) y push de su `outbox`
+  (ventas, operaciones de mesa, contabilidad) de forma idempotente.
+  → Detalle: [INTEGRACION_WEB_DESKTOP.md](INTEGRACION_WEB_DESKTOP.md)
+- **Maestro → Clientes**: el maestro crea la BD del cliente (schema real +
+  seed de roles/admin/colores), aprovisiona instancia (puerto + systemd) y
+  dominio (vhost nginx), y administra su configuración escribiendo en las
+  MISMAS tablas que el app lee (`cliente_config`, `config_secciones`) y en el
+  `EnvironmentFile` de su instancia (integraciones PayU/Google/Mail).
+  → Detalle: repo del maestro, `docs/PLAN_MASTER.md` y `DEPLOY.md`.
+- **Onboarding de un cliente al POS**: el maestro emite `client_code` →
+  el cliente lo pega en `cybershopcol.com/descargar` → recibe un ZIP con el
+  instalador + `bootstrap.json` preconfigurado.
+
+## 4. Flujos de actualización (DEV → GitHub → PROD)
+
+Regla de oro: **desarrollar y probar en local primero**, luego `git push`, y
+en el servidor `git pull` (+ restart). Nunca editar directo en producción.
+
+| Qué cambias | Cómo se actualiza producción |
+|---|---|
+| App web (CyberShop) | `cd /var/www/CyberShop && git pull` → `systemctl restart cybershop` (y `cybershop@*` si hay instancias de clientes) |
+| Maestro | `cd /var/www/CyberShopAdmin && sudo -u www-data git pull` → `systemctl restart cybershop-admin` |
+| Esquema de BD de clientes | Migración **aditiva** en `CyberShopAdmin/migrations/tenant/` → `tools/migrate_tenants.py` (idempotente, no toca datos) |
+| Escritorio | `build_installer.bat` → subir `CyberShopSetup_base.exe` a `static/installers/` del servidor (NO viaja por git) + bump de `version.json` para el auto-update |
+
+## 5. Documentación por proyecto
+
+| Documento | Contenido |
+|---|---|
+| `CyberShop/app/CLAUDE.md` | Arquitectura de la web: blueprints, servicios, BD, theming, convenciones |
+| `CyberShop/app/docs/MAPA_ARCHIVOS.md` | Para qué sirve cada archivo (web + herramientas) |
+| `CyberShop/app/docs/INTEGRACION_WEB_DESKTOP.md` | API de sync, auth X-Sync-Key, outbox, onboarding del POS |
+| `CyberShopDesktop/README.md` | El POS: módulos F1–F10, esquema SQLite, RBAC, build del instalador |
+| `CyberShopAdmin/README.md` + `DEPLOY.md` | El maestro: qué hace y cómo se monta el entorno multi-cliente completo (nginx, systemd templado, sudoers, actualizaciones) |
+| `CyberShopAdmin/docs/PLAN_MASTER.md` | Diseño/decisiones del maestro multi-cliente |

@@ -36,6 +36,7 @@ CyberShop opera en modelo **control plane + 1 base de datos por cliente**:
 - **Resolución de tenant por request**: `app.before_request(resolve_current_tenant)` (`services/tenant_resolver.py`) puebla `g.current_tenant` desde (1) JWT Bearer (API), (2) sesión Flask (HTML legacy), o (3) defaults de entorno (`DEFAULT_TENANT_ID`/`DB_NAME`, rutas públicas/pre-login).
 - Módulos opcionales por tenant: `tenant_features.py` (`is_module_active()`, `get_active_module_codes()`).
 
+> **Visión general de TODA la plataforma** (3 repos, maestro, topología prod, flujos de update): [docs/ECOSISTEMA.md](docs/ECOSISTEMA.md).
 > Mapa completo "para qué sirve cada archivo": [docs/MAPA_ARCHIVOS.md](docs/MAPA_ARCHIVOS.md).
 > Integración con el POS de escritorio: [docs/INTEGRACION_WEB_DESKTOP.md](docs/INTEGRACION_WEB_DESKTOP.md).
 
