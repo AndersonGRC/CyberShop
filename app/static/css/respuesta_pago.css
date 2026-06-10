@@ -124,3 +124,91 @@
     background-color: var(--color-secundario) !important;
     text-decoration: none;
 }
+/* ============================================================
+   RESPUESTA DE PAGO — pulido UX (pasos, acciones, animación)
+   ============================================================ */
+.chk-steps {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    list-style: none;
+    margin: 0 0 22px;
+    padding: 0;
+    flex-wrap: wrap;
+}
+.chk-step {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: .82rem;
+    font-weight: 600;
+    color: #93a0b4;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: #f4f7fc;
+}
+.chk-step.activo { color: #fff; background: var(--color-primario, #122C94); box-shadow: 0 6px 16px rgba(18,44,148,.25); }
+.chk-step.hecho { color: #1aa251; background: #e9f7ef; }
+.chk-num {
+    width: 19px; height: 19px; border-radius: 50%;
+    display: inline-grid; place-items: center;
+    font-size: .68rem; font-weight: 800;
+    background: rgba(255,255,255,.25);
+}
+.chk-step.hecho .chk-num { background: #1aa251; color: #fff; }
+.chk-step:not(.activo):not(.hecho) .chk-num { background: #e2e8f3; color: #7c8aa0; }
+
+/* Icono del ticket con entrada animada (éxito se siente) */
+@keyframes ticketPop {
+    0% { transform: scale(.4); opacity: 0; }
+    70% { transform: scale(1.12); }
+    100% { transform: scale(1); opacity: 1; }
+}
+.ticket-icon { animation: ticketPop .55s cubic-bezier(.22,.9,.35,1.2) both .15s; display: inline-block; }
+
+/* Acciones según estado */
+.ticket-acciones {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: stretch;
+    padding: 0 6px;
+}
+.btn-cyber {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    font-weight: 700;
+    border-radius: 12px;
+    transition: transform .14s ease, box-shadow .2s ease, background .2s ease;
+}
+.btn-cyber:hover { transform: translateY(-2px); }
+.btn-cyber-sec {
+    background: #fff !important;
+    color: var(--color-primario, #122C94) !important;
+    border: 1.5px solid var(--color-primario, #122C94) !important;
+    box-shadow: none !important;
+}
+.btn-cyber-sec:hover { background: rgba(18, 44, 148, .06) !important; }
+.ticket-volver {
+    text-align: center;
+    color: #8a93a6;
+    font-size: .88rem;
+    text-decoration: none;
+    margin-top: 4px;
+}
+.ticket-volver:hover { color: var(--color-primario, #122C94); }
+.ticket-hint {
+    margin: 14px auto 0;
+    max-width: 420px;
+    text-align: center;
+    font-size: .85rem;
+    color: #7c8aa0;
+    line-height: 1.5;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    justify-content: center;
+}
+.ticket-hint i { color: var(--color-primario, #122C94); margin-top: 2px; }

@@ -3,43 +3,82 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Procesando pago...</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conectando con PayU…</title>
     <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: sans-serif;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            background:
+                radial-gradient(700px 360px at 80% 10%, rgba(41, 169, 226, .16), transparent 60%),
+                linear-gradient(135deg, #091C5A 0%, #122C94 100%);
+            color: #fff;
+        }
+        .pay-card {
+            width: min(440px, 94vw);
+            background: rgba(255, 255, 255, .08);
+            border: 1px solid rgba(255, 255, 255, .18);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 22px;
+            padding: 42px 34px;
             text-align: center;
-            padding-top: 100px;
-            background-color: #f4f4f4;
+            box-shadow: 0 30px 70px rgba(0, 0, 0, .35);
         }
-
+        .pay-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, .12);
+            border: 1px solid rgba(255, 255, 255, .22);
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: .8rem;
+            font-weight: 600;
+            letter-spacing: .04em;
+            margin-bottom: 22px;
+        }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: #29A9E2; box-shadow: 0 0 0 4px rgba(41,169,226,.3); }
+        h2 { font-size: 1.45rem; font-weight: 800; letter-spacing: -.3px; margin-bottom: 10px; }
+        p  { font-size: .96rem; line-height: 1.6; color: rgba(255, 255, 255, .85); }
         .loader {
-            border: 5px solid #f3f3f3;
-            border-top: 5px solid #a6c438;
-            /* Tu color verde */
+            width: 56px;
+            height: 56px;
+            margin: 26px auto 22px;
             border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
+            border: 5px solid rgba(255, 255, 255, .18);
+            border-top-color: #29A9E2;
+            animation: spin .9s linear infinite;
         }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .seguro {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 8px;
+            font-size: .84rem;
+            color: rgba(255, 255, 255, .7);
         }
+        .candado { font-size: 1rem; }
+        .nota { margin-top: 18px; font-size: .8rem; color: rgba(255, 255, 255, .55); }
     </style>
 </head>
 
 <body onload="document.getElementById('payuForm').submit()">
 
-    <h2>Conectando con PayU...</h2>
-    <p>Por favor espera un momento, estamos transfiriendo tu pago de forma segura.</p>
-    <div class="loader"></div>
+    <div class="pay-card">
+        <span class="pay-badge"><span class="dot"></span> Pago seguro</span>
+        <h2>Conectando con PayU…</h2>
+        <p>Estamos transfiriendo tu pago de forma segura.<br>No cierres esta ventana.</p>
+        <div class="loader" role="status" aria-label="Cargando"></div>
+        <div class="seguro"><span class="candado">🔒</span> Conexión cifrada — procesado por PayU Latam</div>
+        <p class="nota">Serás redirigido automáticamente en unos segundos.</p>
+    </div>
 
     <form id="payuForm" method="post" action="{{ payu_url }}">
         <input name="merchantId" type="hidden" value="{{ merchantId }}">
