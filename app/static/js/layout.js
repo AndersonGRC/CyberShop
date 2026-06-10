@@ -32,15 +32,20 @@ var elementTop = $('.nav').offset() ? $('.nav').offset().top : 0;
 
 // Al pasar el nav a `position: fixed` sale del flujo y el contenido salta
 // hacia arriba el alto del nav (y el nav fijo tapa contenido). Para evitarlo
-// reservamos ese alto en el <header> mientras el nav está fijo. Se mide el
-// alto real del nav (no hardcodeado) justo antes de fijarlo.
+// reservamos ese alto en el <header> mientras el nav está fijo.
+// SOLO en escritorio: en móvil el nav es un panel lateral fixed de 100vh
+// (fuera del flujo siempre), y reservar su alto crearía un hueco gigante.
 var _navEl = document.querySelector('.nav');
 var _headerEl = document.querySelector('header');
+
+function _navEnFlujoDesktop() {
+    return window.matchMedia('(min-width: 769px)').matches;
+}
 
 $(window).scroll(function () {
     if ($(window).scrollTop() >= elementTop) {
         if (!document.body.classList.contains('nav_fixed')) {
-            if (_navEl && _headerEl) {
+            if (_navEl && _headerEl && _navEnFlujoDesktop()) {
                 _headerEl.style.paddingBottom = _navEl.offsetHeight + 'px';
             }
             $('body').addClass('nav_fixed');
@@ -50,6 +55,16 @@ $(window).scroll(function () {
             $('body').removeClass('nav_fixed');
             if (_headerEl) _headerEl.style.paddingBottom = '';
         }
+    }
+});
+
+// Si se rota el teléfono o cambia el tamaño, limpiar/recalcular la reserva.
+window.addEventListener('resize', function () {
+    if (!_headerEl) return;
+    if (!_navEnFlujoDesktop()) {
+        _headerEl.style.paddingBottom = '';
+    } else if (document.body.classList.contains('nav_fixed') && _navEl) {
+        _headerEl.style.paddingBottom = _navEl.offsetHeight + 'px';
     }
 });
 
