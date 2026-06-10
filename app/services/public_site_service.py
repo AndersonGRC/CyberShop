@@ -82,9 +82,15 @@ PUBLIC_SECTION_FIELDS = [
         'default': True,
     },
     {
+        'key': 'mostrar_modulo_software',
+        'label': 'Módulo Software POS',
+        'description': 'Habilita la venta del Software CyberShop en este sitio: pestaña del menú, landing /software, /descargar y checkout de planes. Apagado por defecto (solo para sitios que comercializan el software).',
+        'default': False,
+    },
+    {
         'key': 'mostrar_software_banner',
         'label': 'Banda del Software',
-        'description': 'Muestra la franja del Software CyberShop (CTA a /software) en el inicio.',
+        'description': 'Muestra la franja del Software CyberShop (CTA a /software) en el inicio (requiere el Módulo Software POS).',
         'default': True,
     },
     {

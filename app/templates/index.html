@@ -89,7 +89,7 @@
 {% endif %}
 
 {# ================= SOFTWARE (banda CTA hacia /software; ocultable en Secciones) ================= #}
-{% if config.get('mostrar_software_banner', true) %}
+{% if config_global.get('mostrar_modulo_software', false) and config.get('mostrar_software_banner', true) %}
 <section class="sw-band">
   <div class="sw-band-inner">
     <div class="sw-band-text scroll-reveal reveal-left">

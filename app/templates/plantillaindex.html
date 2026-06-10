@@ -91,7 +91,9 @@
                             i.nombre }}</a></li>
                     {% endfor %}
 
+                    {% if config_global.get('mostrar_modulo_software', false) %}
                     <li><a href="{{ url_for('public.software') }}" class="nav-software-link"><i class="fas fa-store" style="margin-right:6px;"></i>Software POS</a></li>
+                    {% endif %}
 
                     {% if config_global.get('mostrar_modulo_ventas', true) %}
                     <li>

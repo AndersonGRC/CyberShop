@@ -536,6 +536,11 @@ def software_alias():
 def software():
     """Landing de marketing del Software CyberShop (POS + Web) con planes y
     descarga del POS de escritorio. Optimizada para SEO."""
+    # Módulo Software POS: apagado por defecto; solo sitios que comercializan
+    # el software lo activan (sección 'mostrar_modulo_software').
+    from services.public_site_service import is_public_section_enabled
+    if not is_public_section_enabled('mostrar_modulo_software', False):
+        return redirect(url_for('public.index'))
     datosApp = get_common_data()
 
     # Datos de marca para JSON-LD / contacto (con fallbacks seguros)
@@ -621,6 +626,11 @@ def descargar():
     GET  → muestra form pidiendo client_code
     POST → valida code en sync_api_keys, arma ZIP personalizado y lo retorna
     """
+    # Módulo Software POS: apagado por defecto; solo sitios que comercializan
+    # el software lo activan (sección 'mostrar_modulo_software').
+    from services.public_site_service import is_public_section_enabled
+    if not is_public_section_enabled('mostrar_modulo_software', False):
+        return redirect(url_for('public.index'))
     from flask import abort, send_file
     from io import BytesIO
 
@@ -681,6 +691,11 @@ def comprar_plan(plan_id):
     POST → valida el plan (precio server-side), crea el pedido y redirige a PayU.
     No toca inventario ni el carrito de productos: el plan no es stock.
     """
+    # Módulo Software POS: apagado por defecto; solo sitios que comercializan
+    # el software lo activan (sección 'mostrar_modulo_software').
+    from services.public_site_service import is_public_section_enabled
+    if not is_public_section_enabled('mostrar_modulo_software', False):
+        return redirect(url_for('public.index'))
     plan = _get_plan(plan_id)
     if not plan or not plan.get('comprable'):
         flash('El plan solicitado no está disponible.', 'error')

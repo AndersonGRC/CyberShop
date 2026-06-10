@@ -119,6 +119,16 @@ def get_data_restaurant_operator(can_view_reports=False):
     }
 
 
+def _modulo_software_on():
+    """El gestor de Planes de Software solo aparece si el sitio tiene activo
+    el modulo Software POS (apagado por defecto)."""
+    try:
+        from services.public_site_service import is_public_section_enabled
+        return is_public_section_enabled('mostrar_modulo_software', False)
+    except Exception:
+        return False
+
+
 def get_data_app():
     """Retorna los datos comunes para el panel de administracion.
 
@@ -195,8 +205,9 @@ def get_data_app():
                 {"nombre": "Slides", "url": "admin.gestion_slides", "icono": "images", "roles": ADMIN_STAFF},
                 {"nombre": "Servicios", "url": "admin.gestion_servicios", "icono": "concierge-bell", "roles": ADMIN_STAFF},
                 {"nombre": "Sitio Público", "url": "admin.sitio_publico", "icono": "paint-brush", "roles": [ROL_SUPER_ADMIN]},
+            ] + ([
                 {"nombre": "Planes de Software", "url": "admin.software_planes", "icono": "layer-group", "roles": [ROL_SUPER_ADMIN]},
-            ]
+            ] if _modulo_software_on() else [])
         },
         {
             "nombre": "Usuarios",
