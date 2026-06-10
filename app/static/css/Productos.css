@@ -927,3 +927,12 @@
     .cat-sort-select { display: none; }
     .cat-resultados-bar { padding: 6px 14px; }
 }
+
+/* UX: feedback táctil del botón Añadir y CTA más sólida */
+.añadir-carrito {
+    transition: transform .12s ease, box-shadow .2s ease, background .2s ease;
+}
+.añadir-carrito:hover { transform: translateY(-2px); box-shadow: var(--sombra-exito-hover, 0 8px 20px rgba(40,167,69,.35)); }
+.añadir-carrito:active { transform: scale(.96); }
+.ver-descripcion { transition: transform .12s ease, background .2s ease; }
+.ver-descripcion:hover { transform: translateY(-2px); }

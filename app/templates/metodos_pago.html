@@ -9,8 +9,12 @@
 
 {% block body %}
 <div class="container">
-    <h2 style="text-align: center; margin-top: 30px; margin-bottom: 20px; font-weight: 700; color: #333;">Finalizar
-        Compra</h2>
+    <h2 style="text-align: center; margin-top: 30px; margin-bottom: 10px; font-weight: 800; color: var(--color-secundario, #0e1b33);">Finalizar Compra</h2>
+    <ol class="chk-steps chk-steps-center" aria-label="Pasos de la compra">
+        <li class="chk-step hecho"><span class="chk-num"><i class="fas fa-check"></i></span> Carrito</li>
+        <li class="chk-step activo"><span class="chk-num">2</span> Datos y pago</li>
+        <li class="chk-step"><span class="chk-num">3</span> Confirmación</li>
+    </ol>
 
     <div class="contenedor-pago">
 
@@ -24,27 +28,27 @@
                 <img src="{{ item.imagen }}" alt="{{ item.nombre }}">
                 <div style="flex: 1;">
                     <div style="font-weight: bold; font-size: 0.9em;">{{ item.nombre }}</div>
-                    <div style="color: #777; font-size: 0.85em;">{{ item.cantidad }} x {{ item.precio }}</div>
+                    <div style="color: #777; font-size: 0.85em;">{{ item.cantidad }} x ${{ '{:,.0f}'.format(item.precio).replace(',', '.') }}</div>
                 </div>
                 <div style="font-weight: bold;">
-                    {{ item.precio * item.cantidad }}
+                    ${{ '{:,.0f}'.format(item.precio * item.cantidad).replace(',', '.') }}
                 </div>
             </div>
             {% endfor %}
             <div class="total-resumen">
-                Total: {{ '%.2f' % carrito.total }} COP
+                Total: <strong>${{ '{:,.0f}'.format(carrito.total).replace(',', '.') }} COP</strong>
             </div>
             {% else %}
             <p>Tu carrito está vacío.</p>
-            <a href="{{ url_for('public.productos') }}" style="color: #a6c438;">Volver a la tienda</a>
+            <a href="{{ url_for('public.productos') }}" style="color: var(--color-primario, #122C94); font-weight:700;">Volver a la tienda</a>
             {% endif %}
         </div>
 
         <div class="seccion-formulario">
 
             {% if usuario %}
-            <div style="background: #f0f7e6; border-left: 4px solid #a6c438; padding: 10px 16px; border-radius: 6px; margin-bottom: 18px; font-size: 0.92em; color: #444;">
-                <i class="fas fa-user-circle" style="color: #a6c438; margin-right: 6px;"></i>
+            <div style="background: #eef4ff; border-left: 4px solid var(--color-primario, #122C94); padding: 10px 16px; border-radius: 6px; margin-bottom: 18px; font-size: 0.92em; color: #444;">
+                <i class="fas fa-user-circle" style="color: var(--color-primario, #122C94); margin-right: 6px;"></i>
                 Comprando como <strong>{{ usuario.nombre }}</strong> — <a href="{{ url_for('auth.logout') }}" style="color: #888; font-size: 0.9em;">No soy yo</a>
             </div>
             {% endif %}
@@ -143,6 +147,7 @@
                         <button type="submit" class="btn-pagar">
                             Pagar ahora de forma segura <i class="fas fa-lock" style="margin-left: 5px;"></i>
                         </button>
+                        <p class="chk-confianza"><i class="fas fa-shield-alt"></i> Pago procesado por PayU. No almacenamos los datos de tu tarjeta.</p>
                     </div>
                 </form>
             </div>

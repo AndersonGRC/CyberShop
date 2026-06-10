@@ -569,3 +569,98 @@
 .paso-oculto {
     display: none;
 }
+/* ============================================================
+   CHECKOUT — pulido UX (pasos, confianza, marca)
+   ============================================================ */
+.chk-steps {
+    display: flex;
+    gap: 6px;
+    list-style: none;
+    margin: 0 0 26px;
+    padding: 0;
+    flex-wrap: wrap;
+}
+.chk-steps-center { justify-content: center; }
+.chk-step {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: .82rem;
+    font-weight: 600;
+    color: #93a0b4;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: #f4f7fc;
+}
+.chk-step.activo {
+    color: #fff;
+    background: var(--color-primario, #122C94);
+    box-shadow: 0 6px 16px rgba(18, 44, 148, .25);
+}
+.chk-step.hecho { color: #1aa251; background: #e9f7ef; }
+.chk-num {
+    width: 19px;
+    height: 19px;
+    border-radius: 50%;
+    display: inline-grid;
+    place-items: center;
+    font-size: .7rem;
+    font-weight: 800;
+    background: rgba(255, 255, 255, .25);
+}
+.chk-step:not(.activo):not(.hecho) .chk-num { background: #e2e8f3; color: #7c8aa0; }
+.chk-step.hecho .chk-num { background: #1aa251; color: #fff; }
+
+/* Tarjeta PayU más clara e invitante */
+.opcion-payu-card {
+    border: 2px solid #e2e9f6 !important;
+    border-radius: 16px !important;
+    transition: border-color .2s ease, box-shadow .2s ease, transform .15s ease !important;
+    cursor: pointer;
+}
+.opcion-payu-card:hover {
+    border-color: var(--color-primario, #122C94) !important;
+    box-shadow: 0 14px 34px rgba(18, 44, 148, .14) !important;
+    transform: translateY(-3px);
+}
+
+/* Botón pagar con marca + confianza */
+.btn-pagar {
+    background: var(--color-primario, #122C94) !important;
+    border-radius: 12px !important;
+    font-weight: 800 !important;
+    box-shadow: 0 10px 26px rgba(18, 44, 148, .28) !important;
+    transition: background .2s ease, transform .14s ease !important;
+}
+.btn-pagar:hover {
+    background: var(--color-primario-oscuro, #091C5A) !important;
+    transform: translateY(-2px);
+}
+.chk-confianza {
+    margin: 12px 0 0;
+    text-align: center;
+    font-size: .85rem;
+    color: #7c8aa0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+}
+.chk-confianza i { color: #1aa251; }
+
+/* Inputs con foco de marca */
+.form-control:focus {
+    border-color: var(--color-primario, #122C94) !important;
+    box-shadow: 0 0 0 3px rgba(18, 44, 148, .13) !important;
+}
+
+/* Resumen lateral: items con respiración */
+.item-resumen img { border-radius: 10px; }
+.total-resumen {
+    font-size: 1.12rem;
+    color: var(--color-secundario, #0e1b33);
+}
+
+@media (max-width: 768px) {
+    .chk-step { font-size: .75rem; padding: 5px 10px; }
+}

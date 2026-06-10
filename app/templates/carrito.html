@@ -11,6 +11,15 @@
 <div class="container">
     <div class="carrito-container">
 
+        {# ── Encabezado + indicador de pasos del proceso de compra ── #}
+        <div class="carrito-head">
+            <h2 class="carrito-titulo"><i class="fas fa-shopping-cart"></i> Tu carrito</h2>
+            <ol class="chk-steps" aria-label="Pasos de la compra">
+                <li class="chk-step activo"><span class="chk-num">1</span> Carrito</li>
+                <li class="chk-step"><span class="chk-num">2</span> Datos y pago</li>
+                <li class="chk-step"><span class="chk-num">3</span> Confirmación</li>
+            </ol>
+        </div>
 
         <table class="tabla-carrito">
             <thead>
@@ -27,20 +36,31 @@
         </table>
 
         <div id="mensaje-vacio" class="carrito-mensaje-vacio-wrap">
+            <i class="fas fa-shopping-basket carrito-vacio-icon"></i>
             <p class="carrito-mensaje-vacio">Tu carrito está vacío.</p>
-            <br><br><br>
-            <a href="{{ url_for('public.productos') }}" class="btn-carrito btn-pagar btn-ir-tienda">Ir a la
-                Tienda</a>
+            <p class="carrito-vacio-sub">Explora nuestros productos y agrega tus favoritos.</p>
+            <a href="{{ url_for('public.productos') }}" class="btn-carrito btn-pagar btn-ir-tienda">
+                <i class="fas fa-store"></i> Ir a la Tienda
+            </a>
         </div>
 
         <div class="total-container">
-            <p class="total-texto">Total a Pagar: <span id="total-pagina">$0.00</span></p>
+            <div class="total-box">
+                <p class="total-texto">Total a Pagar: <span id="total-pagina">$0.00</span></p>
+                <p class="total-nota"><i class="fas fa-lock"></i> Pago seguro con PayU — tarjetas, PSE y efectivo</p>
+            </div>
         </div>
 
         <div class="acciones-carrito" id="controles-finales">
-            <a href="{{ url_for('public.productos') }}" class="btn-carrito btn-seguir">Seguir Comprando</a>
-            <button id="vaciar-carrito-btn" class="btn-carrito btn-vaciar">Vaciar Carrito</button>
-            <button id="procesar-pedido-btn" class="btn-carrito btn-pagar">Ir a Pagar</button>
+            <a href="{{ url_for('public.productos') }}" class="btn-carrito btn-seguir">
+                <i class="fas fa-arrow-left"></i> Seguir Comprando
+            </a>
+            <button id="vaciar-carrito-btn" class="btn-carrito btn-vaciar">
+                <i class="fas fa-trash-alt"></i> Vaciar Carrito
+            </button>
+            <button id="procesar-pedido-btn" class="btn-carrito btn-pagar">
+                Ir a Pagar <i class="fas fa-arrow-right"></i>
+            </button>
         </div>
     </div>
 </div>
