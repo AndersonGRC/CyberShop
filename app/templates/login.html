@@ -18,6 +18,7 @@
         <button type="submit">Ingresar</button>
     </form>
 
+    {% if integraciones.google %}
     <div class="separador-google">o</div>
 
     <div class="google-wrapper">
@@ -26,6 +27,7 @@
             Continuar con Google
         </a>
     </div>
+    {% endif %}
 
     <p>¿No tienes una cuenta? <a href="{{ url_for('auth.registrar_cliente') }}">Regístrate aquí</a>.</p>
 

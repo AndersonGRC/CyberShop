@@ -120,6 +120,17 @@ def inject_config_global():
     except Exception:
         active_modules = set()
 
+    # Degradación elegante por integraciones: cada flag indica si la
+    # integración tiene credenciales en el entorno de ESTA instancia.
+    # Si falta, las plantillas ocultan esa pieza (el sitio sigue funcionando).
+    integraciones = {
+        'payu':   bool(Config.PAYU_MERCHANT_ID and Config.PAYU_ACCOUNT_ID
+                       and Config.PAYU_API_KEY and Config.PAYU_API_LOGIN),
+        'google': bool(Config.GOOGLE_CLIENT_ID and Config.GOOGLE_CLIENT_SECRET),
+        'mail':   bool(Config.MAIL_USERNAME and Config.MAIL_PASSWORD),
+        'whatsapp': bool(brand.get('empresa_whatsapp')),
+    }
+
     return dict(
         config_global=config,
         brand_config=brand,
@@ -127,6 +138,7 @@ def inject_config_global():
         session_usuario=session_usuario,
         active_modules=active_modules,
         current_tenant_id=current_tenant_id,
+        integraciones=integraciones,
     )
 
 # --- Security headers ---

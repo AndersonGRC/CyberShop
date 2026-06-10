@@ -56,12 +56,20 @@
             <div id="paso-1" class="paso-activo">
                 <h3 style="text-align: center; margin-bottom: 25px;">Selecciona tu método de pago</h3>
 
+                {% if integraciones.payu %}
                 <div class="metodo-opciones">
                     <div class="opcion-payu-card" id="seleccionar-pse">
                         <img src="{{ url_for('static', filename='img/PayU.png') }}" alt="Logo PayU Latam">
                         <p>Pagar en línea (Tarjetas, PSE, Efectivo)</p>
                     </div>
                 </div>
+                {% else %}
+                <div style="background:#fff7e6; border-left:4px solid #f5a623; border-radius:10px; padding:14px 18px; margin-bottom:14px; color:#6b5316; font-size:.94rem;">
+                    <i class="fas fa-info-circle"></i>
+                    El pago en línea aún no está habilitado en esta tienda.
+                    {% if integraciones.whatsapp %}Puedes completar tu compra por WhatsApp.{% else %}Contáctanos para completar tu compra.{% endif %}
+                </div>
+                {% endif %}
 
                 <div class="whatsapp-option">
                     <h3 style="font-size: 1.1em; color: #555;">¿Prefieres pagar en efectivo o transferir?</h3>
@@ -163,13 +171,13 @@
         const btnPse = document.getElementById("seleccionar-pse");
         const btnVolver = document.querySelector(".btn-volver");
 
-        btnPse.addEventListener("click", function () {
+        if (btnPse) btnPse.addEventListener("click", function () {
             paso1.style.display = "none";
             paso2.style.display = "block";
             window.scrollTo({ top: 150, behavior: 'smooth' });
         });
 
-        btnVolver.addEventListener("click", function () {
+        if (btnVolver) btnVolver.addEventListener("click", function () {
             paso2.style.display = "none";
             paso1.style.display = "block";
         });
