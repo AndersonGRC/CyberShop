@@ -1,14 +1,15 @@
+import os
 # database.py
 import psycopg2
 
 def get_db_connection():
     try:
         conn = psycopg2.connect(
-            dbname="achirasdemitierra",
-            user="postgres",
-            password="Omegafito7217*",
-            host="localhost",
-            port="5432"
+            dbname=os.getenv('DB_NAME', 'achirasdemitierra'),
+            user=os.getenv('DB_USER', 'postgres'),
+            password=os.getenv('DB_PASSWORD', ''),
+            host=os.getenv('DB_HOST', 'localhost'),
+            port=os.getenv('DB_PORT', '5432')
         )
         print("Conexión exitosa a la base de datos 'achirasdemitierra'")  # Depuración
         return conn

@@ -1,0 +1,12 @@
+# Entorno / secretos (las credenciales viven en /etc/cybershop/achirasdemitierra.env)
+.env
+*.env
+env/
+venv/
+
+# Runtime
+__pycache__/
+*.pyc
+logs/
+nohup.out
+*.log
