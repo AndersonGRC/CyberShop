@@ -82,6 +82,12 @@ PUBLIC_SECTION_FIELDS = [
         'default': True,
     },
     {
+        'key': 'mostrar_software_banner',
+        'label': 'Banda del Software',
+        'description': 'Muestra la franja del Software CyberShop (CTA a /software) en el inicio.',
+        'default': True,
+    },
+    {
         'key': 'mostrar_mapa',
         'label': 'Mapa de ubicacion',
         'description': 'Activa el mapa embebido en la seccion de contacto.',

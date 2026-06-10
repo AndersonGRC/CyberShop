@@ -765,3 +765,7 @@ html {
         /* Ajuste vertical para que se vea centrado */
     }
 }
+/* El boton de menu movil JAMAS se muestra en escritorio (fix definitivo) */
+@media screen and (min-width: 769px) {
+    .btn-menu { display: none !important; }
+}

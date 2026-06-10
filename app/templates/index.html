@@ -88,27 +88,28 @@
 </section>
 {% endif %}
 
-{# ================= SERVICIOS DESTACADOS (administrable: Contenido Web → Servicios) ================= #}
-{% if config.get('mostrar_nav_servicios', true) and servicios and servicios|length > 0 %}
-<section class="home-servicios">
-  <div class="hs-inner">
-    <span class="section-eyebrow scroll-reveal reveal-up">Lo que hacemos</span>
-    <h2 class="hs-titulo scroll-reveal reveal-up">Nuestros servicios</h2>
-    <div class="hs-grid">
-      {% for srv in servicios[:6] %}
-      <article class="hs-card scroll-reveal reveal-up">
-        {% if srv.imagen %}
-        <div class="hs-img"><img src="{{ srv.imagen }}" alt="{{ srv.titulo }}" loading="lazy"></div>
-        {% endif %}
-        <div class="hs-body">
-          <h3>{{ srv.titulo }}</h3>
-          <p>{{ srv.descripcion }}</p>
-        </div>
-      </article>
-      {% endfor %}
+{# ================= SOFTWARE (banda CTA hacia /software; ocultable en Secciones) ================= #}
+{% if config.get('mostrar_software_banner', true) %}
+<section class="sw-band">
+  <div class="sw-band-inner">
+    <div class="sw-band-text scroll-reveal reveal-left">
+      <span class="sw-band-eyebrow">Nuestro software</span>
+      <h2>Administra tu negocio con el Software CyberShop</h2>
+      <p>Punto de venta, inventario y contabilidad en un solo lugar — con app de escritorio que funciona sin internet.</p>
+      <ul class="sw-band-feats">
+        <li><i class="fas fa-cash-register"></i> POS web y de escritorio</li>
+        <li><i class="fas fa-boxes"></i> Inventario en tiempo real</li>
+        <li><i class="fas fa-wifi"></i> Funciona sin internet</li>
+      </ul>
+      <div class="hero-ctas">
+        <a href="{{ url_for('public.software') }}" class="hero-btn sw-band-btn"><i class="fas fa-rocket"></i> Conocer el software</a>
+        <a href="{{ url_for('public.descargar') }}" class="hero-btn hero-btn-ghost"><i class="fas fa-download"></i> Descargar la app</a>
+      </div>
     </div>
-    <div class="hs-more scroll-reveal reveal-up">
-      <a href="{{ url_for('public.servicios') }}" class="hero-btn hero-btn-outline">Ver todos los servicios <i class="fas fa-arrow-right"></i></a>
+    <div class="sw-band-visual scroll-reveal reveal-right" aria-hidden="true">
+      <div class="sw-chip"><i class="fas fa-cash-register"></i><span>Venta #1042<br><b>$48.900</b></span></div>
+      <div class="sw-chip"><i class="fas fa-boxes"></i><span>Stock actualizado<br><b>−3 unidades</b></span></div>
+      <div class="sw-chip"><i class="fas fa-chart-line"></i><span>Hoy<br><b>+18% ventas</b></span></div>
     </div>
   </div>
 </section>
