@@ -130,8 +130,8 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: var(--color-acento-secundario, #fb8500);
-    box-shadow: 0 0 0 4px rgba(251, 133, 0, .25);
+    background: var(--color-acento-secundario, #29A9E2);
+    box-shadow: 0 0 0 4px rgba(41, 169, 226, .3);
 }
 
 .slider .slide .info h2 {
@@ -251,7 +251,7 @@
 }
 .navigation-visibility .slide-icon.active {
     width: 44px;
-    background: var(--color-acento-secundario, #fb8500);
+    background: var(--color-acento-secundario, #29A9E2);
 }
 
 /* ============================================================
@@ -281,7 +281,7 @@
     height: 5px;
     border-radius: 999px;
     margin: 0 auto 26px;
-    background: linear-gradient(90deg, var(--color-primario, #122C94), var(--color-acento-secundario, #fb8500));
+    background: linear-gradient(90deg, var(--color-primario, #122C94), var(--color-acento-secundario, #29A9E2));
 }
 .about-lead {
     font-size: 1.15rem !important;
@@ -326,7 +326,7 @@
     position: absolute;
     top: 0; left: 0; right: 0;
     height: 5px;
-    background: linear-gradient(90deg, var(--color-primario, #122C94), var(--color-acento-secundario, #fb8500));
+    background: linear-gradient(90deg, var(--color-primario, #122C94), var(--color-acento-secundario, #29A9E2));
 }
 .mv-icon {
     width: 60px;
@@ -358,7 +358,7 @@
    ============================================================ */
 .sw-band {
     background:
-        radial-gradient(700px 320px at 86% 18%, rgba(251, 133, 0, .16), transparent 60%),
+        radial-gradient(700px 320px at 86% 18%, rgba(41, 169, 226, .16), transparent 60%),
         linear-gradient(120deg, var(--color-primario-oscuro, #091C5A), var(--color-primario, #122C94));
     color: #fff;
     padding: clamp(56px, 7vw, 88px) 22px;
@@ -373,7 +373,7 @@
 }
 .sw-band-eyebrow {
     display: inline-block;
-    color: var(--color-acento-secundario, #fb8500);
+    color: var(--color-acento-secundario, #29A9E2);
     font-size: .82rem;
     font-weight: 700;
     letter-spacing: .18em;
@@ -410,13 +410,13 @@
     font-weight: 600;
     color: rgba(255, 255, 255, .92);
 }
-.sw-band-feats li i { color: var(--color-acento-secundario, #fb8500); }
+.sw-band-feats li i { color: var(--color-acento-secundario, #29A9E2); }
 .sw-band-btn {
-    background: var(--color-acento-secundario, #fb8500);
-    color: #1a1206;
-    box-shadow: 0 12px 30px rgba(251, 133, 0, .35);
+    background: var(--color-acento-secundario, #29A9E2);
+    color: #06263f;
+    box-shadow: 0 12px 30px rgba(41, 169, 226, .35);
 }
-.sw-band-btn:hover { transform: translateY(-3px); box-shadow: 0 18px 38px rgba(251, 133, 0, .45); }
+.sw-band-btn:hover { transform: translateY(-3px); box-shadow: 0 18px 38px rgba(41, 169, 226, .45); }
 
 /* Chips visuales (lado derecho) */
 .sw-band-visual {
@@ -442,7 +442,7 @@
 .sw-chip:nth-child(2) { margin-right: 36px; }
 .sw-chip i {
     font-size: 1.25rem;
-    color: var(--color-acento-secundario, #fb8500);
+    color: var(--color-acento-secundario, #29A9E2);
 }
 .sw-chip span { font-size: .82rem; line-height: 1.35; color: rgba(255,255,255,.85); }
 .sw-chip b { font-size: 1rem; color: #fff; }

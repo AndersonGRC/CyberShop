@@ -296,8 +296,8 @@ _PUBLIC_COLOR_FIELDS = [
     # Landing de software y página de descarga (/software y /descargar)
     ('color_software_primario',     'Software · Principal',     '#122C94', 'Color principal de la landing /software y la página de descarga (hero, botones, títulos).', 'descarga'),
     ('color_software_oscuro',       'Software · Principal oscuro', '#091C5A', 'Tono oscuro del degradado del hero y secciones destacadas de la landing de software.',     'descarga'),
-    ('color_software_acento',       'Software · Acento',        '#a6c438', 'Color de acento (botón de descarga, checks, badges) en /software y /descargar.',            'descarga'),
-    ('color_software_acento_texto', 'Software · Texto sobre acento', '#14260a', 'Color del texto que va encima del botón/acento de descarga (debe contrastar con el acento).', 'descarga'),
+    ('color_software_acento',       'Software · Acento',        '#29A9E2', 'Color de acento (botón de descarga, checks, badges) en /software y /descargar.',            'descarga'),
+    ('color_software_acento_texto', 'Software · Texto sobre acento', '#06263f', 'Color del texto que va encima del botón/acento de descarga (debe contrastar con el acento).', 'descarga'),
 ]
 
 PUBLIC_COLOR_FIELDS = [

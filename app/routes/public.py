@@ -59,8 +59,8 @@ def _software_colors(brand):
     return {
         'sw_color_primario': pick('color_software_primario', '#122C94'),
         'sw_color_oscuro': pick('color_software_oscuro', '#091C5A'),
-        'sw_color_acento': pick('color_software_acento', '#a6c438'),
-        'sw_color_acento_txt': pick('color_software_acento_texto', '#14260a'),
+        'sw_color_acento': pick('color_software_acento', '#29A9E2'),
+        'sw_color_acento_txt': pick('color_software_acento_texto', '#06263f'),
     }
 
 # Paginación por defecto
