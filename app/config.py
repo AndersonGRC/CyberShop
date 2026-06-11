@@ -95,7 +95,9 @@ class Config:
     AI_BASE_URL = os.getenv('AI_BASE_URL', '')          # ej. http://10.200.0.2:11434
     AI_MODEL    = os.getenv('AI_MODEL', 'qwen2.5:7b')
     AI_API_KEY  = os.getenv('AI_API_KEY', '')           # vacío para Ollama
-    AI_TIMEOUT  = int(os.getenv('AI_TIMEOUT', '60'))
+    # read timeout amplio: el cold-start del modelo (carga a VRAM) puede tardar.
+    # El connect timeout es corto (fast-fail si la GPU está apagada) — ver ai_service.
+    AI_TIMEOUT  = int(os.getenv('AI_TIMEOUT', '120'))
 
     GOOGLE_CLIENT_ID     = os.getenv('GOOGLE_CLIENT_ID')
     GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')

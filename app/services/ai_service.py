@@ -145,7 +145,7 @@ def _chat(system, user, max_tokens=400, temperature=0.7):
     base = (current_app.config.get('AI_BASE_URL') or '').strip().rstrip('/')
     model = current_app.config.get('AI_MODEL') or 'qwen2.5:7b'
     key = (current_app.config.get('AI_API_KEY') or '').strip()
-    timeout = int(current_app.config.get('AI_TIMEOUT') or 60)
+    read_timeout = int(current_app.config.get('AI_TIMEOUT') or 120)
     headers = {'Content-Type': 'application/json'}
     if key:
         headers['Authorization'] = f'Bearer {key}'
@@ -160,8 +160,12 @@ def _chat(system, user, max_tokens=400, temperature=0.7):
         'stream': False,
     }
     try:
+        # (connect, read): falla en 5s si el servidor de IA está apagado, pero
+        # da margen amplio a la generación (cold-start del modelo puede tardar).
         r = requests.post(f'{base}/v1/chat/completions', json=payload,
-                          headers=headers, timeout=timeout)
+                          headers=headers, timeout=(5, read_timeout))
+    except requests.ConnectTimeout:
+        return None, 'El servidor de IA no responde (¿tu equipo está apagado o desconectado?).'
     except requests.Timeout:
         return None, 'La IA tardó demasiado en responder. Intenta de nuevo.'
     except requests.RequestException as exc:
