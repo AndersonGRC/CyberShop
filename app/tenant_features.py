@@ -31,6 +31,7 @@ MODULE_VIDEO = 'video'
 MODULE_RESTAURANT_TABLES = 'restaurant_tables'
 MODULE_FACTURACION_ELECTRONICA = 'facturacion_electronica'
 MODULE_SHARE = 'share'
+MODULE_AI = 'ai_assistant'
 
 MODULE_DEFINITIONS = {
     MODULE_ORDERS: {
@@ -184,6 +185,15 @@ MODULE_DEFINITIONS = {
         'config_key': 'share_habilitado',
         'default': True,
         'orden': 145,
+        'is_core': False,
+    },
+    MODULE_AI: {
+        'nombre': 'Asistente IA',
+        'descripcion': 'IA para crear descripciones de producto, SEO y auto-respuestas. Cada cliente con su propio agente, aislado a su base de datos.',
+        'categoria': 'inteligencia',
+        'config_key': 'ia_habilitado',
+        'default': False,
+        'orden': 170,
         'is_core': False,
     },
 }

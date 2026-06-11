@@ -1,0 +1,407 @@
+{% extends "plantillaapp.html" %}
+
+{% block titulo %}Asistente IA | {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+/* ── IA Panel ──────────────────────────────────────────────── */
+.ia-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+@media (max-width: 860px) {
+    .ia-grid { grid-template-columns: 1fr; }
+}
+
+/* Estado badge */
+.ia-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 16px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+}
+.ia-badge--online {
+    background: rgba(40, 167, 69, 0.12);
+    color: var(--color-exito);
+    border: 1px solid rgba(40, 167, 69, 0.22);
+}
+.ia-badge--offline {
+    background: rgba(220, 53, 69, 0.10);
+    color: var(--color-peligro);
+    border: 1px solid rgba(220, 53, 69, 0.20);
+}
+.ia-badge .ia-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.ia-badge--online .ia-dot { background: var(--color-exito); }
+.ia-badge--offline .ia-dot { background: var(--color-peligro); }
+
+.ia-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(var(--color-marca-rgb), 0.08);
+}
+
+.ia-card-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-primario-oscuro);
+    margin: 0;
+}
+
+.ia-card-title i {
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(var(--color-marca-rgb), 0.08);
+    color: var(--color-primario);
+    border-radius: 10px;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+}
+
+.ia-modelo {
+    font-size: 0.80rem;
+    color: var(--color-texto-claro);
+    margin-top: 8px;
+}
+.ia-modelo code {
+    background: rgba(var(--color-marca-rgb), 0.07);
+    color: var(--color-primario);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.ia-motivo {
+    margin-top: 8px;
+    font-size: 0.83rem;
+    color: var(--color-texto-secundario);
+    background: rgba(220, 53, 69, 0.06);
+    border-left: 3px solid var(--color-peligro);
+    padding: 7px 12px;
+    border-radius: 0 8px 8px 0;
+}
+
+/* Contador de productos */
+.ia-faltan-count {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin: 12px 0 16px;
+}
+.ia-faltan-num {
+    font-size: 2.4rem;
+    font-weight: 800;
+    color: var(--color-primario);
+    line-height: 1;
+}
+.ia-faltan-label {
+    font-size: 0.88rem;
+    color: var(--color-texto-claro);
+}
+
+/* Barra de progreso */
+.ia-progress-wrap {
+    display: none;
+    margin-top: 16px;
+}
+.ia-progress-label {
+    font-size: 0.80rem;
+    color: var(--color-texto-secundario);
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+}
+.ia-progress-bar-bg {
+    width: 100%;
+    height: 10px;
+    background: var(--color-gris-borde);
+    border-radius: 999px;
+    overflow: hidden;
+}
+.ia-progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-primario), var(--color-botones));
+    border-radius: 999px;
+    transition: width 0.4s ease;
+    width: 0%;
+}
+
+/* Mensaje de estado (errores / info inline) */
+.ia-msg {
+    display: none;
+    margin-top: 12px;
+    font-size: 0.83rem;
+    padding: 9px 14px;
+    border-radius: 8px;
+}
+.ia-msg--error {
+    background: rgba(220, 53, 69, 0.08);
+    color: var(--color-peligro);
+    border: 1px solid rgba(220, 53, 69, 0.18);
+}
+.ia-msg--success {
+    background: rgba(40, 167, 69, 0.08);
+    color: var(--color-exito);
+    border: 1px solid rgba(40, 167, 69, 0.18);
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<section class="page-shell">
+
+    <!-- ── Encabezado ───────────────────────────────────────────── -->
+    <div class="page-header">
+        <div class="page-header__intro">
+            <div class="page-header__icon">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div>
+                <span class="page-header__eyebrow">Inteligencia Artificial</span>
+                <h1>Asistente IA</h1>
+                <p>Genera y mejora automáticamente las descripciones de tus productos usando inteligencia artificial.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Grid de tarjetas ─────────────────────────────────────── -->
+    <div class="ia-grid">
+
+        <!-- Tarjeta: Estado del servicio -->
+        <div class="surface-card">
+            <div class="ia-card-header">
+                <h2 class="ia-card-title">
+                    <i class="fas fa-signal"></i>
+                    Estado del servicio
+                </h2>
+                <button type="button" id="btn-actualizar-estado" class="btn-admin btn-admin--ghost">
+                    <i class="fas fa-sync-alt"></i> Actualizar
+                </button>
+            </div>
+
+            <div id="ia-estado-contenido">
+                {% if estado.online %}
+                <span class="ia-badge ia-badge--online">
+                    <span class="ia-dot"></span>
+                    IA en línea
+                </span>
+                <p class="ia-modelo">Modelo activo: <code id="ia-modelo-text">{{ estado.modelo }}</code></p>
+                {% else %}
+                <span class="ia-badge ia-badge--offline">
+                    <span class="ia-dot"></span>
+                    IA fuera de línea
+                </span>
+                {% if estado.motivo %}
+                <p class="ia-motivo" id="ia-motivo-text">{{ estado.motivo }}</p>
+                {% endif %}
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Tarjeta: Descripciones masivas -->
+        <div class="surface-card">
+            <div class="ia-card-header">
+                <h2 class="ia-card-title">
+                    <i class="fas fa-layer-group"></i>
+                    Descripciones masivas
+                </h2>
+            </div>
+
+            <div class="ia-faltan-count">
+                <span class="ia-faltan-num" id="ia-faltan-num">{{ faltan }}</span>
+                <span class="ia-faltan-label">productos sin descripción</span>
+            </div>
+
+            {% if faltan > 0 %}
+            <button type="button" id="btn-generar-masivo" class="btn-admin btn-admin--primary">
+                <i class="fas fa-magic"></i> Generar descripciones faltantes
+            </button>
+            {% else %}
+            <p style="font-size:0.88rem; color:var(--color-exito); margin:0;">
+                <i class="fas fa-check-circle"></i> Todos los productos tienen descripción.
+            </p>
+            {% endif %}
+
+            <!-- Barra de progreso -->
+            <div class="ia-progress-wrap" id="ia-progress-wrap">
+                <div class="ia-progress-label">
+                    <span id="ia-progress-label-txt">Procesando...</span>
+                    <span id="ia-progress-pct">0%</span>
+                </div>
+                <div class="ia-progress-bar-bg">
+                    <div class="ia-progress-bar-fill" id="ia-progress-bar"></div>
+                </div>
+            </div>
+
+            <!-- Mensaje de resultado/error -->
+            <div class="ia-msg" id="ia-masivo-msg"></div>
+        </div>
+
+    </div><!-- /ia-grid -->
+
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')
+        ? document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        : '';
+
+    /* ── Actualizar estado ─────────────────────────────────────── */
+    const btnActualizar = document.getElementById('btn-actualizar-estado');
+    const estadoContenido = document.getElementById('ia-estado-contenido');
+
+    if (btnActualizar) {
+        btnActualizar.addEventListener('click', function () {
+            const icon = this.querySelector('i');
+            icon.classList.add('fa-spin');
+            this.disabled = true;
+
+            fetch('/admin/ia/estado', {
+                method: 'GET',
+                headers: { 'X-CSRFToken': csrfToken }
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                let html = '';
+                if (data.online) {
+                    html = '<span class="ia-badge ia-badge--online"><span class="ia-dot"></span>IA en línea</span>';
+                    if (data.modelo) {
+                        html += '<p class="ia-modelo">Modelo activo: <code id="ia-modelo-text">' + escHtml(data.modelo) + '</code></p>';
+                    }
+                } else {
+                    html = '<span class="ia-badge ia-badge--offline"><span class="ia-dot"></span>IA fuera de línea</span>';
+                    if (data.motivo) {
+                        html += '<p class="ia-motivo" id="ia-motivo-text">' + escHtml(data.motivo) + '</p>';
+                    }
+                }
+                estadoContenido.innerHTML = html;
+            })
+            .catch(function () {
+                estadoContenido.innerHTML = '<span class="ia-badge ia-badge--offline"><span class="ia-dot"></span>Error al consultar</span>';
+            })
+            .finally(function () {
+                icon.classList.remove('fa-spin');
+                btnActualizar.disabled = false;
+            });
+        });
+    }
+
+    /* ── Descripciones masivas ─────────────────────────────────── */
+    const btnMasivo     = document.getElementById('btn-generar-masivo');
+    const progressWrap  = document.getElementById('ia-progress-wrap');
+    const progressBar   = document.getElementById('ia-progress-bar');
+    const progressPct   = document.getElementById('ia-progress-pct');
+    const progressLabel = document.getElementById('ia-progress-label-txt');
+    const masivoMsg     = document.getElementById('ia-masivo-msg');
+    const faltanNum     = document.getElementById('ia-faltan-num');
+
+    if (btnMasivo) {
+        let totalInicial = parseInt(faltanNum ? faltanNum.textContent : '0', 10) || 0;
+        let procesadosAcum = 0;
+
+        btnMasivo.addEventListener('click', function () {
+            if (totalInicial <= 0) return;
+            procesadosAcum = 0;
+            btnMasivo.disabled = true;
+            btnMasivo.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+            progressWrap.style.display = 'block';
+            ocultarMsg();
+            ejecutarLote();
+        });
+
+        function ejecutarLote() {
+            fetch('/admin/ia/descripciones-masivas', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data.ok) {
+                    mostrarMsg('error', 'Error: ' + escHtml(data.error || 'Error desconocido'));
+                    resetBtn();
+                    return;
+                }
+
+                procesadosAcum += (data.procesados || 0);
+                const restantes = data.restantes || 0;
+
+                if (faltanNum) faltanNum.textContent = restantes;
+
+                const total = procesadosAcum + restantes;
+                const pct = total > 0 ? Math.round((procesadosAcum / total) * 100) : 100;
+                progressBar.style.width = pct + '%';
+                progressPct.textContent = pct + '%';
+                progressLabel.textContent = 'Procesados: ' + procesadosAcum + ' / ' + (total);
+
+                if (restantes > 0) {
+                    setTimeout(ejecutarLote, 200);
+                } else {
+                    mostrarMsg('success', '¡Listo! Se generaron ' + procesadosAcum + ' descripción(es).');
+                    resetBtn(true);
+                }
+            })
+            .catch(function (err) {
+                mostrarMsg('error', 'Error de red al procesar. Intenta nuevamente.');
+                resetBtn();
+            });
+        }
+
+        function resetBtn(completado) {
+            btnMasivo.disabled = false;
+            if (completado) {
+                btnMasivo.innerHTML = '<i class="fas fa-check-circle"></i> Generación completada';
+            } else {
+                btnMasivo.innerHTML = '<i class="fas fa-magic"></i> Generar descripciones faltantes';
+            }
+        }
+
+        function mostrarMsg(tipo, texto) {
+            masivoMsg.style.display = 'block';
+            masivoMsg.className = 'ia-msg ia-msg--' + tipo;
+            masivoMsg.textContent = texto;
+        }
+
+        function ocultarMsg() {
+            masivoMsg.style.display = 'none';
+            masivoMsg.textContent = '';
+        }
+    }
+
+    /* ── Utilidad: escape HTML ─────────────────────────────────── */
+    function escHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+})();
+</script>
+{% endblock %}

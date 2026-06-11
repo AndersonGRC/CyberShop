@@ -69,6 +69,10 @@ def register_blueprints(app):
     from routes.share import share_bp
     app.register_blueprint(share_bp)
 
+    # Asistente IA (modulo ai_assistant; aislado por tenant)
+    from routes.ia import ia_bp
+    app.register_blueprint(ia_bp)
+
     # API REST v1 (habilitada con CYBERSHOP_API_ENABLED=1)
     if os.getenv('CYBERSHOP_API_ENABLED', '0') == '1':
         from routes.api_auth import api_auth_bp

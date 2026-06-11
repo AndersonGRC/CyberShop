@@ -88,6 +88,15 @@ class Config:
     # Suspensión automática por no-pago: días de gracia tras vencer (0 = solo notificar)
     AUTO_SUSPENDER_DIAS = int(os.getenv('AUTO_SUSPENDER_DIAS', '0'))
 
+    # --- Asistente IA (módulo ai_assistant, plan ultra) ---
+    # Endpoint compatible con OpenAI (Ollama lo expone en /v1). El módulo habla
+    # SOLO con la BD del tenant actual; la máquina Ollama puede ser compartida
+    # porque cada request es stateless y solo lleva datos del cliente actual.
+    AI_BASE_URL = os.getenv('AI_BASE_URL', '')          # ej. http://10.200.0.2:11434
+    AI_MODEL    = os.getenv('AI_MODEL', 'qwen2.5:7b')
+    AI_API_KEY  = os.getenv('AI_API_KEY', '')           # vacío para Ollama
+    AI_TIMEOUT  = int(os.getenv('AI_TIMEOUT', '60'))
+
     GOOGLE_CLIENT_ID     = os.getenv('GOOGLE_CLIENT_ID')
     GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
     GOOGLE_REDIRECT_URI  = os.getenv('GOOGLE_REDIRECT_URI', 'http://localhost:5001/admin/google/callback')

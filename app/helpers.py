@@ -156,6 +156,7 @@ def get_data_app():
         MODULE_USERS,
         MODULE_VIDEO,
         MODULE_WISHLIST,
+        MODULE_AI,
         get_active_module_codes,
     )
 
@@ -276,6 +277,12 @@ def get_data_app():
                 {"nombre": "Carpetas",      "url": "share.gestion_carpetas", "icono": "folder-open"},
                 {"nombre": "Nueva Carpeta", "url": "share.crear_carpeta",    "icono": "folder-plus"},
             ]
+        },
+        {
+            "nombre": "Asistente IA",
+            "url": "ia.panel",
+            "icono": "robot",
+            "module_code": MODULE_AI,
         },
         {
             "nombre": "Videollamadas",

@@ -283,6 +283,21 @@
         <div class="form-group">
             <label for="descripcion"><i class="fas fa-align-left"></i> Descripción</label>
             <textarea id="descripcion" name="descripcion" required>{{ producto['descripcion'] }}</textarea>
+            {% if 'ai_assistant' in active_modules %}
+            <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; align-items:center;">
+                <button type="button" id="btn-ia-generar"
+                        class="btn-admin btn-admin--secondary"
+                        style="font-size:0.82rem; padding:8px 16px;">
+                    <i class="fas fa-magic"></i> Generar con IA
+                </button>
+                <button type="button" id="btn-ia-mejorar"
+                        class="btn-admin btn-admin--ghost"
+                        style="font-size:0.82rem; padding:8px 16px;">
+                    <i class="fas fa-wand-magic-sparkles"></i> Mejorar texto
+                </button>
+                <span id="ia-form-status" style="font-size:0.80rem; color:var(--color-texto-claro); display:none;"></span>
+            </div>
+            {% endif %}
         </div>
 
         <div class="form-group">
@@ -302,6 +317,98 @@
 
 {% block scripts %}
 <script>
+/* ── Botones IA en formulario de producto (editar) ───────── */
+(function () {
+    const btnGenerar  = document.getElementById('btn-ia-generar');
+    const btnMejorar  = document.getElementById('btn-ia-mejorar');
+    const statusEl    = document.getElementById('ia-form-status');
+    if (!btnGenerar && !btnMejorar) return;
+
+    const csrfToken = (document.querySelector('meta[name="csrf-token"]') || {}).getAttribute
+        ? document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        : '';
+
+    function setStatus(msg, tipo) {
+        if (!statusEl) return;
+        statusEl.textContent = msg;
+        statusEl.style.color = tipo === 'error' ? 'var(--color-peligro)' : 'var(--color-texto-claro)';
+        statusEl.style.display = msg ? 'inline' : 'none';
+    }
+
+    function setBusy(el, busy) {
+        if (!el) return;
+        el.disabled = busy;
+        if (busy) {
+            el.dataset.orig = el.innerHTML;
+            el.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+        } else {
+            el.innerHTML = el.dataset.orig || el.innerHTML;
+        }
+    }
+
+    if (btnGenerar) {
+        btnGenerar.addEventListener('click', function () {
+            const nombreEl  = document.getElementById('nombre');
+            const generoEl  = document.getElementById('genero_id');
+            const descripEl = document.getElementById('descripcion');
+            const nombre    = nombreEl ? nombreEl.value.trim() : '';
+            const categoria = generoEl && generoEl.selectedIndex >= 0
+                ? generoEl.options[generoEl.selectedIndex].text
+                : '';
+
+            if (!nombre) { setStatus('El nombre del producto está vacío.', 'error'); return; }
+
+            setBusy(btnGenerar, true);
+            setStatus('Generando...', '');
+
+            fetch('/admin/ia/descripcion', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ nombre: nombre, categoria: categoria, keywords: '' })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.ok) {
+                    if (descripEl) descripEl.value = data.descripcion;
+                    setStatus('Descripción generada.', '');
+                } else {
+                    setStatus('Error: ' + (data.error || 'No se pudo generar.'), 'error');
+                }
+            })
+            .catch(function () { setStatus('Error de red.', 'error'); })
+            .finally(function () { setBusy(btnGenerar, false); });
+        });
+    }
+
+    if (btnMejorar) {
+        btnMejorar.addEventListener('click', function () {
+            const descripEl = document.getElementById('descripcion');
+            const texto     = descripEl ? descripEl.value.trim() : '';
+            if (!texto) { setStatus('Escribe o genera una descripción primero.', 'error'); return; }
+
+            setBusy(btnMejorar, true);
+            setStatus('Mejorando...', '');
+
+            fetch('/admin/ia/reescribir', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ texto: texto })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.ok) {
+                    if (descripEl) descripEl.value = data.texto;
+                    setStatus('Texto mejorado.', '');
+                } else {
+                    setStatus('Error: ' + (data.error || 'No se pudo mejorar.'), 'error');
+                }
+            })
+            .catch(function () { setStatus('Error de red.', 'error'); })
+            .finally(function () { setBusy(btnMejorar, false); });
+        });
+    }
+})();
+
 (function () {
     /* ── Carrusel de imágenes EXISTENTES ─────────────────────── */
     const raw = document.getElementById('imagenes-data');

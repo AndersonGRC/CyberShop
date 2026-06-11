@@ -66,6 +66,7 @@ DEFAULT_PLANES = [
         'ideal': 'La experiencia completa: vende en línea, automatiza y conecta todo tu negocio.',
         'incluye': [
             'Todo lo incluido en el plan Software CyberShop',
+            'Asistente IA: descripciones de producto, SEO y auto-respuestas',
             'Pasarela de pagos PayU — cobra en línea (PSE y tarjetas)',
             'Inicio de sesión y conexión con Google',
             'Integración CRM completa (clientes, oportunidades, tareas)',
