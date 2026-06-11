@@ -259,3 +259,169 @@ def generar_email_estado_envio(pedido, nuevo_estado):
     asunto = f"Tu pedido {ref} - {estado_display}"
 
     return asunto, texto, html
+
+
+# ════════════════════════════════════════════════════════════════
+# VENTA AUTOMÁTICA DE PLANES (activación, bienvenida, renovaciones)
+# ════════════════════════════════════════════════════════════════
+
+def generar_email_activacion_plan(compra, plan, activacion_url):
+    """'Tu pago fue aprobado — activa tu tienda' con botón al link único."""
+    empresa = _get_empresa_info()
+    colores = _get_colores()
+    nombre = compra.get('buyer_nombre') or 'Hola'
+    contenido = f"""
+    <h2 style="margin:0 0 14px;color:{colores['primario']};">¡Tu pago fue aprobado! 🎉</h2>
+    <p style="font-size:15px;line-height:1.6;color:#333;">Hola <strong>{nombre}</strong>,</p>
+    <p style="font-size:15px;line-height:1.6;color:#333;">
+      Tu compra del plan <strong>{plan.get('nombre')}</strong> está confirmada
+      (referencia <code>{compra.get('referencia_pedido')}</code>).
+      Solo falta un paso: <strong>activa tu tienda</strong> eligiendo el nombre
+      de tu negocio y la dirección web que tendrá.
+    </p>
+    <p style="text-align:center;margin:28px 0;">
+      <a href="{activacion_url}" style="background:{colores['primario']};color:#fff;
+         padding:14px 34px;border-radius:8px;text-decoration:none;font-weight:bold;
+         font-size:16px;display:inline-block;">Activar mi tienda ahora</a>
+    </p>
+    <p style="font-size:13px;color:#777;line-height:1.5;">
+      El proceso toma 2-3 minutos y al finalizar recibirás otro correo con tus
+      accesos. Si el botón no funciona, copia este enlace:<br>
+      <a href="{activacion_url}" style="color:{colores['primario']};word-break:break-all;">{activacion_url}</a>
+    </p>
+    """
+    asunto = f"Activa tu tienda — pago aprobado ({plan.get('nombre')})"
+    texto = (f"Hola {nombre}, tu pago del plan {plan.get('nombre')} fue aprobado. "
+             f"Activa tu tienda aquí: {activacion_url}")
+    return asunto, texto, _base_html(contenido, empresa)
+
+
+def generar_email_bienvenida_tienda(compra, plan, resultado):
+    """Bienvenida con los accesos de la tienda recién creada.
+    `resultado` es la respuesta del maestro (domain, admin_email,
+    admin_password, client_code)."""
+    empresa = _get_empresa_info()
+    colores = _get_colores()
+    nombre = compra.get('buyer_nombre') or 'Hola'
+    dominio = resultado.get('domain') or compra.get('dominio') or ''
+    url_tienda = f"https://{dominio}"
+    url_admin = f"https://{dominio}/admin"
+    filas = f"""
+      <tr><td style="padding:8px 12px;color:#555;">🌐 Tu tienda</td>
+          <td style="padding:8px 12px;"><a href="{url_tienda}" style="color:{colores['primario']};font-weight:bold;">{url_tienda}</a></td></tr>
+      <tr style="background:#f8f9fc;"><td style="padding:8px 12px;color:#555;">⚙️ Panel de administración</td>
+          <td style="padding:8px 12px;"><a href="{url_admin}" style="color:{colores['primario']};font-weight:bold;">{url_admin}</a></td></tr>
+      <tr><td style="padding:8px 12px;color:#555;">👤 Usuario</td>
+          <td style="padding:8px 12px;"><strong>{resultado.get('admin_email','')}</strong></td></tr>
+      <tr style="background:#f8f9fc;"><td style="padding:8px 12px;color:#555;">🔑 Contraseña temporal</td>
+          <td style="padding:8px 12px;"><code style="background:#eef2fa;padding:3px 8px;border-radius:4px;">{resultado.get('admin_password','')}</code></td></tr>
+    """
+    pos_html = ''
+    if plan.get('tiene_app') and resultado.get('client_code'):
+        url_desc = f"{empresa.get('website') or 'https://cybershopcol.com'}/descargar"
+        pos_html = f"""
+        <h3 style="color:{colores['primario']};margin:24px 0 8px;">🖥️ Tu punto de venta de escritorio</h3>
+        <p style="font-size:14px;color:#333;line-height:1.6;">
+          Descarga la app que funciona <strong>sin internet</strong> en
+          <a href="{url_desc}" style="color:{colores['primario']};">{url_desc}</a>
+          usando tu código de cliente:
+          <code style="background:#eef2fa;padding:3px 8px;border-radius:4px;font-size:15px;">{resultado.get('client_code')}</code>
+        </p>"""
+    contenido = f"""
+    <h2 style="margin:0 0 14px;color:{colores['primario']};">¡Tu tienda está lista! 🚀</h2>
+    <p style="font-size:15px;line-height:1.6;color:#333;">Hola <strong>{nombre}</strong>,
+      creamos tu tienda del plan <strong>{plan.get('nombre')}</strong>. Estos son tus accesos:</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e8edf6;border-radius:8px;overflow:hidden;font-size:14px;margin:14px 0;">
+      {filas}
+    </table>
+    <p style="font-size:13px;color:#b45309;background:#fff7e6;border-radius:6px;padding:10px 14px;">
+      ⚠️ Por seguridad, <strong>cambia la contraseña</strong> en tu primer ingreso
+      (Panel → tu usuario).
+    </p>
+    {pos_html}
+    <p style="font-size:14px;color:#333;line-height:1.6;margin-top:18px;">
+      ¿Necesitas ayuda? Escríbenos por WhatsApp: <strong>{empresa.get('whatsapp') or empresa.get('telefono','')}</strong>
+    </p>
+    """
+    asunto = f"🚀 Tu tienda está lista — {dominio}"
+    texto = (f"Hola {nombre}, tu tienda está lista en {url_tienda}. "
+             f"Admin: {url_admin} | Usuario: {resultado.get('admin_email')} | "
+             f"Contraseña temporal: {resultado.get('admin_password')} (cámbiala al entrar).")
+    return asunto, texto, _base_html(contenido, empresa)
+
+
+def generar_email_plan_anual(compra, plan):
+    """Planes web anuales: confirmación + 'te contactaremos' (manejo manual)."""
+    empresa = _get_empresa_info()
+    colores = _get_colores()
+    nombre = compra.get('buyer_nombre') or 'Hola'
+    contenido = f"""
+    <h2 style="margin:0 0 14px;color:{colores['primario']};">¡Gracias por tu compra! ✅</h2>
+    <p style="font-size:15px;line-height:1.6;color:#333;">Hola <strong>{nombre}</strong>,</p>
+    <p style="font-size:15px;line-height:1.6;color:#333;">
+      Recibimos tu pago del plan <strong>{plan.get('nombre')}</strong>
+      (referencia <code>{compra.get('referencia_pedido')}</code>).
+      Un asesor te contactará en máximo <strong>1 día hábil</strong> para
+      iniciar el diseño de tu proyecto web a la medida.
+    </p>
+    <p style="font-size:14px;color:#333;">¿Prefieres adelantarte? Escríbenos por
+      WhatsApp: <strong>{empresa.get('whatsapp') or empresa.get('telefono','')}</strong></p>
+    """
+    asunto = f"Compra confirmada — {plan.get('nombre')}"
+    texto = (f"Hola {nombre}, recibimos tu pago del plan {plan.get('nombre')}. "
+             f"Te contactaremos en máximo 1 día hábil.")
+    return asunto, texto, _base_html(contenido, empresa)
+
+
+def generar_email_aviso_operador(titulo, lineas):
+    """Aviso interno al operador (ventas, renovaciones, vencidos).
+    `lineas` es una lista de strings clave: valor."""
+    empresa = _get_empresa_info()
+    colores = _get_colores()
+    items = ''.join(f'<li style="padding:3px 0;font-size:14px;color:#333;">{l}</li>' for l in lineas)
+    contenido = f"""
+    <h2 style="margin:0 0 14px;color:{colores['primario']};">{titulo}</h2>
+    <ul style="padding-left:18px;margin:0;">{items}</ul>
+    <p style="font-size:13px;color:#777;margin-top:18px;">
+      Panel maestro: <a href="https://admin.cybershopcol.com" style="color:{colores['primario']};">admin.cybershopcol.com</a>
+    </p>
+    """
+    texto = titulo + "\n" + "\n".join(lineas)
+    return titulo, texto, _base_html(contenido, empresa)
+
+
+def generar_email_recordatorio_pago(compra, plan, renovacion_url, etapa, dias=0):
+    """Recordatorios de cobro: etapa 'previo' (5 dias antes), 'dia0' o 'vencido'."""
+    empresa = _get_empresa_info()
+    colores = _get_colores()
+    nombre = compra.get('buyer_nombre') or 'Hola'
+    fecha = compra.get('proximo_pago')
+    fecha_txt = fecha.strftime('%d/%m/%Y') if fecha else ''
+    if etapa == 'previo':
+        titulo, urgencia = f"Tu plan vence el {fecha_txt}", ''
+        asunto = f"Recordatorio: tu plan {plan.get('nombre')} vence el {fecha_txt}"
+    elif etapa == 'dia0':
+        titulo, urgencia = "Tu plan vence HOY", ''
+        asunto = f"Tu plan {plan.get('nombre')} vence hoy"
+    else:
+        titulo = f"Tu plan está vencido hace {dias} días"
+        urgencia = ('<p style="font-size:13px;color:#b42318;background:#fdeaea;'
+                    'border-radius:6px;padding:10px 14px;">⚠️ Para evitar la '
+                    'suspensión del servicio, renueva lo antes posible.</p>')
+        asunto = "⚠️ Plan vencido — renueva para mantener tu tienda activa"
+    contenido = f"""
+    <h2 style="margin:0 0 14px;color:{colores['primario']};">{titulo}</h2>
+    <p style="font-size:15px;line-height:1.6;color:#333;">Hola <strong>{nombre}</strong>,
+      tu tienda <strong>{compra.get('dominio') or ''}</strong> tiene el plan
+      <strong>{plan.get('nombre')}</strong> con próximo pago el <strong>{fecha_txt}</strong>.</p>
+    {urgencia}
+    <p style="text-align:center;margin:26px 0;">
+      <a href="{renovacion_url}" style="background:{colores['primario']};color:#fff;
+         padding:14px 34px;border-radius:8px;text-decoration:none;font-weight:bold;
+         font-size:16px;display:inline-block;">Renovar mi plan</a>
+    </p>
+    <p style="font-size:13px;color:#777;">Si el botón no funciona:
+      <a href="{renovacion_url}" style="color:{colores['primario']};word-break:break-all;">{renovacion_url}</a></p>
+    """
+    texto = f"Hola {nombre}, {titulo.lower()}. Renueva aquí: {renovacion_url}"
+    return asunto, texto, _base_html(contenido, empresa)

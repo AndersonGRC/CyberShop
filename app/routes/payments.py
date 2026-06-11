@@ -473,6 +473,16 @@ def confirmacion_pago():
             except Exception as _e:
                 app.logger.warning(f"Contabilidad confirmacion_pago: {_e}")
 
+        # Venta automática de planes: si este pedido es la compra de un plan,
+        # dispara la activación (email con link) o la renovación. Idempotente
+        # y no-op para pedidos de productos.
+        if estado_bd == 'APROBADO':
+            try:
+                from services.venta_automatica_service import procesar_compra_plan
+                procesar_compra_plan(reference_sale, base_url=request.url_root)
+            except Exception as _e:
+                app.logger.error(f"Venta automática (webhook) {reference_sale}: {_e}")
+
         # Notificación por email al cliente (solo si pago aprobado)
         if estado_bd == 'APROBADO':
             try:
@@ -636,6 +646,14 @@ def respuesta_pago():
             )
         except Exception as _e:
             app.logger.warning(f"Contabilidad respuesta_pago: {_e}")
+
+    # Venta automática de planes (respaldo por si el webhook llega tarde).
+    if estado_bd == 'APROBADO':
+        try:
+            from services.venta_automatica_service import procesar_compra_plan
+            procesar_compra_plan(referencia, base_url=request.url_root)
+        except Exception as _e:
+            app.logger.error(f"Venta automática (respuesta) {referencia}: {_e}")
 
     # --- Meta CAPI Purchase (server-side, complementa al pixel del browser) ---
     # Idempotente: solo dispara cuando el estado transiciona a APROBADO en esta request,

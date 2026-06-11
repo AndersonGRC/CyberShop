@@ -1,0 +1,160 @@
+{% extends "plantillaindex.html" %}
+
+{% block titulo %}Activa tu tienda | {{ datosApp.titulo or 'CyberShop' }}{% endblock %}
+{% block meta_description %}Activa tu tienda CyberShop: elige el nombre de tu negocio y tu dirección web.{% endblock %}
+
+{% block LinkAdicional %}
+<meta name="robots" content="noindex, nofollow">
+<style>
+  header::after { content: ""; display: table; clear: both; }
+  header .nav .wrap { left: 0 !important; }
+  body.nav_fixed .nav .wrap { left: 0 !important; }
+
+  .ac-page {
+    --ac-primario: {{ sw_color_primario }};
+    --ac-oscuro: {{ sw_color_oscuro }};
+    --ac-acento: {{ sw_color_acento }};
+    color: #1c2433;
+    background:
+      radial-gradient(900px 420px at 100% -10%, rgba(41,169,226,.10), transparent 60%),
+      linear-gradient(180deg, #f5f7fb 0%, #eef2fa 100%);
+    min-height: 72vh; padding: 56px 18px 72px;
+  }
+  .ac-card {
+    max-width: 620px; margin: 0 auto; background: #fff; border-radius: 22px;
+    padding: 40px 36px; border: 1px solid #e9edf6;
+    box-shadow: 0 18px 50px rgba(18,44,148,.12);
+  }
+  .ac-badge { display: inline-flex; align-items: center; gap: 8px; background: #eef6ff;
+    color: var(--ac-oscuro); padding: 7px 15px; border-radius: 999px; font-size: .82rem;
+    font-weight: 700; margin-bottom: 16px; }
+  .ac-card h1 { font-size: 1.6rem; font-weight: 800; color: var(--ac-oscuro); margin: 0 0 8px; letter-spacing: -.3px; }
+  .ac-card .sub { color: #5b6577; font-size: .97rem; line-height: 1.6; margin-bottom: 24px; }
+  .ac-field { margin-bottom: 18px; }
+  .ac-field label { display: block; font-weight: 700; font-size: .92rem; color: #1f2a44; margin-bottom: 7px; }
+  .ac-field input {
+    width: 100%; padding: 13px 15px; font-size: 1rem; border: 2px solid #d8deec;
+    border-radius: 11px; background: #fbfcff; color: #1f2a44; box-sizing: border-box;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .ac-field input:focus { outline: none; border-color: var(--ac-primario);
+    box-shadow: 0 0 0 4px rgba(18,44,148,.13); background: #fff; }
+  .ac-preview { margin-top: 7px; font-size: .88rem; color: #5b6577; }
+  .ac-preview b { color: var(--ac-primario); }
+  .ac-error { background: #fdeaea; color: #b42318; border-left: 4px solid #b42318;
+    border-radius: 10px; padding: 12px 16px; font-size: .92rem; margin-bottom: 16px; }
+  .ac-btn {
+    margin-top: 8px; width: 100%; padding: 16px; font-size: 1.05rem; font-weight: 800;
+    color: #fff; background: var(--ac-primario); border: none; border-radius: 12px;
+    cursor: pointer; box-shadow: 0 12px 28px rgba(18,44,148,.3);
+    transition: transform .12s, background .2s;
+  }
+  .ac-btn:hover { background: var(--ac-oscuro); transform: translateY(-2px); }
+  .ac-status { text-align: center; padding: 14px 0 4px; }
+  .ac-status .ic { font-size: 3rem; margin-bottom: 14px; display: block; }
+  .ac-spinner { width: 52px; height: 52px; margin: 6px auto 20px; border-radius: 50%;
+    border: 5px solid #e2e9f6; border-top-color: var(--ac-acento);
+    animation: acspin .9s linear infinite; }
+  @keyframes acspin { to { transform: rotate(360deg); } }
+  .ac-dominio { font-size: 1.15rem; font-weight: 800; color: var(--ac-primario);
+    background: #eef6ff; border-radius: 10px; padding: 12px 18px; display: inline-block; margin: 10px 0 16px; }
+  .ac-nota { font-size: .88rem; color: #7a8499; line-height: 1.55; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="ac-page">
+  <div class="ac-card">
+    <span class="ac-badge"><i class="fas fa-rocket"></i> Plan {{ plan.nombre }}</span>
+
+    {% if compra.estado in ('PAGADO', 'ERROR') %}
+    <h1>¡Último paso! Activa tu tienda</h1>
+    <p class="sub">Tu pago está confirmado. Elige el nombre de tu negocio y la
+      dirección web donde vivirá tu tienda. <strong>Esto no se puede cambiar
+      después fácilmente</strong>, elígelo con calma.</p>
+
+    {% if error %}<div class="ac-error"><i class="fas fa-exclamation-circle"></i> {{ error }}</div>{% endif %}
+    {% if compra.estado == 'ERROR' and compra.error %}
+    <div class="ac-error"><i class="fas fa-exclamation-circle"></i> El intento anterior falló: {{ compra.error }}<br>Corrige y vuelve a intentar.</div>
+    {% endif %}
+
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="ac-field">
+        <label for="nombre_negocio">Nombre de tu negocio</label>
+        <input type="text" id="nombre_negocio" name="nombre_negocio" required minlength="3"
+               maxlength="100" placeholder="Ej: Panadería Roma"
+               value="{{ request.form.get('nombre_negocio', '') }}">
+      </div>
+      <div class="ac-field">
+        <label for="subdominio">Dirección web (subdominio)</label>
+        <input type="text" id="subdominio" name="subdominio" required minlength="3"
+               maxlength="40" placeholder="panaderia-roma"
+               pattern="[a-z0-9]+(-[a-z0-9]+)*"
+               value="{{ request.form.get('subdominio', '') }}">
+        <p class="ac-preview">Tu tienda quedará en:
+          <b>https://<span id="prev-slug">tu-negocio</span>.{{ base_domain }}</b></p>
+      </div>
+      <button type="submit" class="ac-btn"><i class="fas fa-magic"></i> Crear mi tienda</button>
+      <p class="ac-nota" style="margin-top:14px;"><i class="fas fa-info-circle"></i>
+        La creación toma 2-3 minutos. Al terminar te enviaremos un correo a
+        <strong>{{ compra.buyer_email }}</strong> con tus accesos.</p>
+    </form>
+
+    {% elif compra.estado == 'ACTIVANDO' %}
+    <div class="ac-status">
+      <div class="ac-spinner"></div>
+      <h1>Creando tu tienda…</h1>
+      <p class="sub">Estamos montando tu base de datos, tu sitio y tu certificado
+        de seguridad. Esto toma <strong>2-3 minutos</strong>.</p>
+      <p class="ac-nota">Te enviaremos un correo a <strong>{{ compra.buyer_email }}</strong>
+        con tus accesos. Puedes recargar esta página para ver el estado.</p>
+    </div>
+
+    {% elif compra.estado == 'ACTIVADA' %}
+    <div class="ac-status">
+      <span class="ic">🎉</span>
+      <h1>¡Tu tienda está lista!</h1>
+      <span class="ac-dominio">https://{{ compra.dominio }}</span>
+      <p class="sub">Revisa tu correo (<strong>{{ compra.buyer_email }}</strong>):
+        te enviamos el usuario, la contraseña temporal y el código para
+        descargar el punto de venta de escritorio.</p>
+      <a href="https://{{ compra.dominio }}" class="ac-btn" style="display:inline-block;text-decoration:none;text-align:center;box-sizing:border-box;">
+        <i class="fas fa-external-link-alt"></i> Ir a mi tienda</a>
+    </div>
+
+    {% else %}
+    <div class="ac-status">
+      <span class="ic">🤔</span>
+      <h1>Este enlace no está disponible</h1>
+      <p class="sub">El estado de tu compra es: {{ compra.estado }}. Si crees que
+        es un error, contáctanos por WhatsApp.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+(function () {
+  var nombre = document.getElementById('nombre_negocio');
+  var slug = document.getElementById('subdominio');
+  var prev = document.getElementById('prev-slug');
+  if (!nombre || !slug || !prev) return;
+  function slugify(t) {
+    return t.toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+  }
+  var manual = false;
+  nombre.addEventListener('input', function () {
+    if (!manual) { slug.value = slugify(nombre.value); prev.textContent = slug.value || 'tu-negocio'; }
+  });
+  slug.addEventListener('input', function () {
+    manual = true;
+    slug.value = slugify(slug.value);
+    prev.textContent = slug.value || 'tu-negocio';
+  });
+  if (slug.value) prev.textContent = slug.value;
+})();
+</script>
+{% endblock %}

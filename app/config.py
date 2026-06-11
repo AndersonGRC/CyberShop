@@ -82,6 +82,12 @@ class Config:
     }
 
     # --- Google Calendar OAuth 2.0 ---
+    # Venta automática: secreto compartido con el maestro (API interna localhost)
+    INTERNAL_API_KEY    = os.getenv('INTERNAL_API_KEY', '')
+    MASTER_INTERNAL_URL = os.getenv('MASTER_INTERNAL_URL', 'http://127.0.0.1:5002')
+    # Suspensión automática por no-pago: días de gracia tras vencer (0 = solo notificar)
+    AUTO_SUSPENDER_DIAS = int(os.getenv('AUTO_SUSPENDER_DIAS', '0'))
+
     GOOGLE_CLIENT_ID     = os.getenv('GOOGLE_CLIENT_ID')
     GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
     GOOGLE_REDIRECT_URI  = os.getenv('GOOGLE_REDIRECT_URI', 'http://localhost:5001/admin/google/callback')

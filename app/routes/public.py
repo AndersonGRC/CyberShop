@@ -770,6 +770,11 @@ def comprar_plan(plan_id):
                     """,
                     (pedido_id, f"Plan: {plan['nombre']}", monto, monto),
                 )
+            # Venta automática: registrar la compra del plan para que el
+            # webhook de PayU dispare la activación al aprobarse el pago.
+            from services.plan_compras_service import crear_compra
+            crear_compra(pedido_id, referencia, plan['plan_key'],
+                         nombre, email, periodo=plan.get('periodo') or 'mes')
         except Exception as e:
             app.logger.error(f"Error creando pedido de plan {plan_id}: {e}")
             flash('No se pudo iniciar el pago. Intenta de nuevo.', 'error')
@@ -781,6 +786,118 @@ def comprar_plan(plan_id):
 
     return render_template('comprar_plan.html', datosApp=datosApp,
                            plan=plan, usuario=usuario, **sw_colors)
+
+
+# ════════════════════════════════════════════════════════════════
+# VENTA AUTOMÁTICA: activación de tienda y renovación de planes
+# ════════════════════════════════════════════════════════════════
+
+@public_bp.route('/activar-tienda/<token>', methods=['GET', 'POST'])
+def activar_tienda(token):
+    """Página de activación post-pago: el cliente elige nombre del negocio y
+    subdominio; la creación corre en segundo plano (ver venta_automatica)."""
+    from services import plan_compras_service as pcs
+    from services.venta_automatica_service import validar_slug, activar_tienda_async
+    from services.software_planes_service import get_plan
+
+    datosApp = get_common_data()
+    try:
+        from services.public_site_service import get_brand_config
+        brand = get_brand_config() or {}
+    except Exception:
+        brand = {}
+    sw_colors = _software_colors(brand)
+
+    compra = pcs.get_por_token(token)
+    if not compra:
+        flash('El enlace de activación no es válido o ya expiró.', 'error')
+        return redirect(url_for('public.index'))
+    plan = get_plan(compra['plan_key']) or {'nombre': compra['plan_key']}
+
+    error = None
+    if request.method == 'POST' and compra['estado'] in ('PAGADO', 'ERROR'):
+        nombre_negocio = (request.form.get('nombre_negocio') or '').strip()
+        slug, error = validar_slug(request.form.get('subdominio'))
+        if not nombre_negocio or len(nombre_negocio) < 3:
+            error = 'Escribe el nombre de tu negocio (mínimo 3 caracteres).'
+        if not error:
+            if pcs.marcar_activando(compra['id'], slug):
+                from flask import current_app
+                activar_tienda_async(current_app._get_current_object(),
+                                     compra['id'], slug, nombre_negocio)
+            compra = pcs.get_por_token(token)
+
+    return render_template('activar_tienda.html', datosApp=datosApp,
+                           compra=compra, plan=plan, error=error,
+                           base_domain='cybershopcol.com', **sw_colors)
+
+
+@public_bp.route('/renovar/<token>', methods=['GET', 'POST'])
+def renovar_plan(token):
+    """Renovación de un plan activo: muestra el plan y paga por PayU.
+    El webhook extiende proximo_pago (y reactiva la tienda si estaba
+    suspendida por no-pago)."""
+    from services import plan_compras_service as pcs
+    from services.software_planes_service import get_plan
+    from helpers import generar_reference_code
+
+    datosApp = get_common_data()
+    try:
+        from services.public_site_service import get_brand_config
+        brand = get_brand_config() or {}
+    except Exception:
+        brand = {}
+    sw_colors = _software_colors(brand)
+
+    compra = pcs.get_por_token_renovacion(token)
+    if not compra or compra['estado'] != 'ACTIVADA':
+        flash('El enlace de renovación no es válido.', 'error')
+        return redirect(url_for('public.index'))
+    plan = get_plan(compra['plan_key'])
+    if not plan:
+        flash('El plan ya no está disponible; contáctanos.', 'error')
+        return redirect(url_for('public.index'))
+
+    if request.method == 'POST':
+        referencia = generar_reference_code()
+        monto = float(plan['precio'])
+        try:
+            with get_db_cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO pedidos
+                        (referencia_pedido, cliente_nombre, cliente_email,
+                         monto_total, estado_pago, estado_envio)
+                    VALUES (%s, %s, %s, %s, 'PENDIENTE', 'ESPERA_PAGO')
+                    RETURNING id
+                    """,
+                    (referencia, compra['buyer_nombre'], compra['buyer_email'], monto),
+                )
+                pedido_id = cur.fetchone()[0]
+                cur.execute(
+                    """
+                    INSERT INTO detalle_pedidos
+                        (pedido_id, producto_nombre, cantidad, precio_unitario, subtotal)
+                    VALUES (%s, %s, 1, %s, %s)
+                    """,
+                    (pedido_id, f"Renovación plan: {plan['nombre']}", monto, monto),
+                )
+            pcs.crear_compra(pedido_id, referencia, compra['plan_key'],
+                             compra['buyer_nombre'], compra['buyer_email'],
+                             periodo=compra.get('periodo') or 'mes',
+                             renovacion_de=compra['id'])
+        except Exception as e:
+            app.logger.error(f"Error creando renovación {token}: {e}")
+            flash('No se pudo iniciar el pago. Intenta de nuevo.', 'error')
+            return render_template('renovar_plan.html', datosApp=datosApp,
+                                   compra=compra, plan=plan, **sw_colors)
+        from routes.payments import construir_redireccion_payu
+        return construir_redireccion_payu(
+            referencia, compra['buyer_nombre'], compra['buyer_email'], monto,
+            f"Renovación plan {plan['nombre']} ({compra.get('periodo')})")
+
+    return render_template('renovar_plan.html', datosApp=datosApp,
+                           compra=compra, plan=plan, **sw_colors)
 
 
 @public_bp.route('/robots.txt')
