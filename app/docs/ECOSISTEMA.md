@@ -62,6 +62,36 @@
 - **Onboarding de un cliente al POS**: el maestro emite `client_code` →
   el cliente lo pega en `cybershopcol.com/descargar` → recibe un ZIP con el
   instalador + `bootstrap.json` preconfigurado.
+- **Venta automática (app → maestro)**: API interna `POST /internal/api/v1/
+  tenants/{create|<id>/suspend|<id>/reactivate}` en el maestro (solo
+  `127.0.0.1`, header `X-Internal-Key` = `INTERNAL_API_KEY` compartida). El app
+  la llama cuando un pago de plan se aprueba. → Detalle: [VENTA_AUTOMATICA.md](VENTA_AUTOMATICA.md).
+
+## 3b. Venta automática de planes (SaaS self-service)
+
+Un pago de plan mensual crea la tienda y notifica, sin intervención:
+
+```
+/software → checkout PayU → pedido + fila en plan_compras (PENDIENTE_PAGO)
+  webhook PayU APROBADO → procesar_compra_plan (idempotente):
+     plan mensual → token → email "Activa tu tienda"  | plan anual → email "te contactamos"
+     siempre → email de aviso al operador
+  /activar-tienda/<token> → cliente elige negocio+subdominio → hilo:
+     API interna del maestro → create_tenant + apply_plan (BD+seed+instancia+dominio+SSL)
+     → email de bienvenida (URL, /admin, credenciales, client_code del POS)
+  cron diario notificar_renovaciones.py (8am):
+     recordatorios -5d/día0/+3d · AUTO_SUSPENDER_DIAS (0=solo notificar)
+  /renovar/<token> → PayU → extiende proximo_pago (+ reactiva si estaba suspendida)
+```
+
+- Solo crean tienda los planes **mensuales** (`software-cybershop`→módulos
+  `estandar`, `ultra`→`ultra`); los anuales se manejan manualmente.
+- Tabla `plan_compras` (app, BD del tenant principal) = ledger de estados y
+  fechas de cobro. Idempotente: el hook solo actúa sobre `PENDIENTE_PAGO` y
+  es no-op para compras de productos.
+- **Requisito de infra**: wildcard DNS `*.cybershopcol.com → 38.134.148.47`
+  (Cloudflare, DNS-only) para que los subdominios de clientes nuevos resuelvan
+  y certbot emita su SSL.
 
 ## 4. Flujos de actualización (DEV → GitHub → PROD)
 
