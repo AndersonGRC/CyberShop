@@ -293,15 +293,31 @@
 
     function setStatus(msg, tipo, shimmer) {
         if (!statusEl) return;
-        statusEl.textContent = msg;
+        statusEl.classList.remove('ia-shimmer', 'ia-status-ok', 'ia-status-error');
         if (shimmer) {
+            statusEl.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> ' + msg;
             statusEl.classList.add('ia-shimmer');
             statusEl.style.color = '';
-        } else {
-            statusEl.classList.remove('ia-shimmer');
-            statusEl.style.color = tipo === 'error' ? 'var(--color-peligro)' : 'var(--color-texto-claro)';
+        } else if (tipo === 'error') {
+            statusEl.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + msg;
+            statusEl.classList.add('ia-status-error');
+            statusEl.style.color = '';
+        } else if (msg) {
+            statusEl.innerHTML = '<i class="fas fa-check-circle"></i> ' + msg;
+            statusEl.classList.add('ia-status-ok');
+            statusEl.style.color = '';
         }
-        statusEl.style.display = msg ? 'inline' : 'none';
+        statusEl.style.display = msg ? 'inline-flex' : 'none';
+    }
+
+    // Resalta el textarea con glow Gemini cuando la IA escribe en él
+    function flashField(el) {
+        if (!el) return;
+        el.classList.remove('ia-field-flash');
+        void el.offsetWidth;               // reinicia la animación
+        el.classList.add('ia-field-flash');
+        try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+        setTimeout(function () { el.classList.remove('ia-field-flash'); }, 2000);
     }
 
     function setBusy(el, busy, textoOrig) {
@@ -338,10 +354,10 @@
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 if (data.ok) {
-                    if (descripEl) descripEl.value = data.descripcion;
-                    setStatus('Descripción generada.', '');
+                    if (descripEl) { descripEl.value = data.descripcion; flashField(descripEl); }
+                    setStatus('¡Descripción generada con IA! Revísala y guarda el producto.', '');
                 } else {
-                    setStatus('Error: ' + (data.error || 'No se pudo generar.'), 'error');
+                    setStatus(data.error || 'No se pudo generar.', 'error');
                 }
             })
             .catch(function () { setStatus('Error de red.', 'error'); })
@@ -366,10 +382,10 @@
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 if (data.ok) {
-                    if (descripEl) descripEl.value = data.texto;
-                    setStatus('Texto mejorado.', '');
+                    if (descripEl) { descripEl.value = data.texto; flashField(descripEl); }
+                    setStatus('¡Texto mejorado con IA! Revísalo y guarda.', '');
                 } else {
-                    setStatus('Error: ' + (data.error || 'No se pudo mejorar.'), 'error');
+                    setStatus(data.error || 'No se pudo mejorar.', 'error');
                 }
             })
             .catch(function () { setStatus('Error de red.', 'error'); })

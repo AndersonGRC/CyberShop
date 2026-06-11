@@ -618,3 +618,41 @@
     border-radius: 999px;
     overflow: hidden;
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   FEEDBACK al insertar texto con IA (destello del campo + estado)
+   ══════════════════════════════════════════════════════════════════ */
+@keyframes gem-field-flash {
+    0%   { box-shadow: 0 0 0 0 rgba(155,114,203,0); border-color: transparent; }
+    20%  { box-shadow: 0 0 0 4px rgba(155,114,203,.35), 0 0 26px rgba(66,133,244,.30); }
+    100% { box-shadow: 0 0 0 0 rgba(155,114,203,0); }
+}
+.ia-field-flash {
+    animation: gem-field-flash 1.6s ease-out;
+    border-radius: 10px;
+}
+
+/* Estado del asistente junto a los botones */
+.ia-status-ok,
+.ia-status-error {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: .9rem;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 999px;
+    animation: gem-fade-up .35s ease both;
+}
+.ia-status-ok {
+    color: #1a7f4b;
+    background: linear-gradient(90deg, rgba(66,133,244,.10), rgba(155,114,203,.10));
+}
+.ia-status-ok i { 
+    background: linear-gradient(74deg, #4285f4, #9b72cb, #d96570);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.ia-status-error {
+    color: #b42318;
+    background: rgba(180,35,24,.08);
+}
