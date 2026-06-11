@@ -4,6 +4,9 @@
 
 {% block LinkAdicional %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/editar_producto.css') }}">
+{% if 'ai_assistant' in active_modules %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ia_gemini.css') }}">
+{% endif %}
 <style>
 /* ── Carrusel admin (editar) ─────────────────────────────────── */
 .adm-carrusel {
@@ -284,18 +287,14 @@
             <label for="descripcion"><i class="fas fa-align-left"></i> Descripción</label>
             <textarea id="descripcion" name="descripcion" required>{{ producto['descripcion'] }}</textarea>
             {% if 'ai_assistant' in active_modules %}
-            <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; align-items:center;">
-                <button type="button" id="btn-ia-generar"
-                        class="btn-admin btn-admin--secondary"
-                        style="font-size:0.82rem; padding:8px 16px;">
-                    <i class="fas fa-magic"></i> Generar con IA
+            <div class="gem-btn-row">
+                <button type="button" id="btn-ia-generar" class="gem-btn-primary">
+                    ✦ Generar con IA
                 </button>
-                <button type="button" id="btn-ia-mejorar"
-                        class="btn-admin btn-admin--ghost"
-                        style="font-size:0.82rem; padding:8px 16px;">
-                    <i class="fas fa-wand-magic-sparkles"></i> Mejorar texto
+                <button type="button" id="btn-ia-mejorar" class="gem-btn-secondary">
+                    <span class="gem-btn-label">✨ Mejorar texto</span>
                 </button>
-                <span id="ia-form-status" style="font-size:0.80rem; color:var(--color-texto-claro); display:none;"></span>
+                <span id="ia-form-status" style="display:none;"></span>
             </div>
             {% endif %}
         </div>
@@ -328,10 +327,16 @@
         ? document.querySelector('meta[name="csrf-token"]').getAttribute('content')
         : '';
 
-    function setStatus(msg, tipo) {
+    function setStatus(msg, tipo, shimmer) {
         if (!statusEl) return;
         statusEl.textContent = msg;
-        statusEl.style.color = tipo === 'error' ? 'var(--color-peligro)' : 'var(--color-texto-claro)';
+        if (shimmer) {
+            statusEl.classList.add('ia-shimmer');
+            statusEl.style.color = '';
+        } else {
+            statusEl.classList.remove('ia-shimmer');
+            statusEl.style.color = tipo === 'error' ? 'var(--color-peligro)' : 'var(--color-texto-claro)';
+        }
         statusEl.style.display = msg ? 'inline' : 'none';
     }
 
@@ -359,7 +364,7 @@
             if (!nombre) { setStatus('El nombre del producto está vacío.', 'error'); return; }
 
             setBusy(btnGenerar, true);
-            setStatus('Generando...', '');
+            setStatus('Generando...', '', true);
 
             fetch('/admin/ia/descripcion', {
                 method: 'POST',
@@ -387,7 +392,7 @@
             if (!texto) { setStatus('Escribe o genera una descripción primero.', 'error'); return; }
 
             setBusy(btnMejorar, true);
-            setStatus('Mejorando...', '');
+            setStatus('Mejorando...', '', true);
 
             fetch('/admin/ia/reescribir', {
                 method: 'POST',

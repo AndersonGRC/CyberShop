@@ -3,185 +3,24 @@
 {% block titulo %}Asistente IA | {{ datosApp.titulo }}{% endblock %}
 
 {% block LinkAdicional %}
-<style>
-/* ── IA Panel ──────────────────────────────────────────────── */
-.ia-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 24px;
-}
-@media (max-width: 860px) {
-    .ia-grid { grid-template-columns: 1fr; }
-}
-
-/* Estado badge */
-.ia-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 6px 16px;
-    border-radius: 999px;
-    font-size: 0.82rem;
-    font-weight: 700;
-    letter-spacing: 0.03em;
-}
-.ia-badge--online {
-    background: rgba(40, 167, 69, 0.12);
-    color: var(--color-exito);
-    border: 1px solid rgba(40, 167, 69, 0.22);
-}
-.ia-badge--offline {
-    background: rgba(220, 53, 69, 0.10);
-    color: var(--color-peligro);
-    border: 1px solid rgba(220, 53, 69, 0.20);
-}
-.ia-badge .ia-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-.ia-badge--online .ia-dot { background: var(--color-exito); }
-.ia-badge--offline .ia-dot { background: var(--color-peligro); }
-
-.ia-card-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 18px;
-    padding-bottom: 14px;
-    border-bottom: 1px solid rgba(var(--color-marca-rgb), 0.08);
-}
-
-.ia-card-title {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--color-primario-oscuro);
-    margin: 0;
-}
-
-.ia-card-title i {
-    width: 34px;
-    height: 34px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(var(--color-marca-rgb), 0.08);
-    color: var(--color-primario);
-    border-radius: 10px;
-    font-size: 0.95rem;
-    flex-shrink: 0;
-}
-
-.ia-modelo {
-    font-size: 0.80rem;
-    color: var(--color-texto-claro);
-    margin-top: 8px;
-}
-.ia-modelo code {
-    background: rgba(var(--color-marca-rgb), 0.07);
-    color: var(--color-primario);
-    padding: 2px 8px;
-    border-radius: 6px;
-    font-size: 0.82rem;
-    font-weight: 600;
-}
-
-.ia-motivo {
-    margin-top: 8px;
-    font-size: 0.83rem;
-    color: var(--color-texto-secundario);
-    background: rgba(220, 53, 69, 0.06);
-    border-left: 3px solid var(--color-peligro);
-    padding: 7px 12px;
-    border-radius: 0 8px 8px 0;
-}
-
-/* Contador de productos */
-.ia-faltan-count {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    margin: 12px 0 16px;
-}
-.ia-faltan-num {
-    font-size: 2.4rem;
-    font-weight: 800;
-    color: var(--color-primario);
-    line-height: 1;
-}
-.ia-faltan-label {
-    font-size: 0.88rem;
-    color: var(--color-texto-claro);
-}
-
-/* Barra de progreso */
-.ia-progress-wrap {
-    display: none;
-    margin-top: 16px;
-}
-.ia-progress-label {
-    font-size: 0.80rem;
-    color: var(--color-texto-secundario);
-    margin-bottom: 6px;
-    display: flex;
-    justify-content: space-between;
-}
-.ia-progress-bar-bg {
-    width: 100%;
-    height: 10px;
-    background: var(--color-gris-borde);
-    border-radius: 999px;
-    overflow: hidden;
-}
-.ia-progress-bar-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--color-primario), var(--color-botones));
-    border-radius: 999px;
-    transition: width 0.4s ease;
-    width: 0%;
-}
-
-/* Mensaje de estado (errores / info inline) */
-.ia-msg {
-    display: none;
-    margin-top: 12px;
-    font-size: 0.83rem;
-    padding: 9px 14px;
-    border-radius: 8px;
-}
-.ia-msg--error {
-    background: rgba(220, 53, 69, 0.08);
-    color: var(--color-peligro);
-    border: 1px solid rgba(220, 53, 69, 0.18);
-}
-.ia-msg--success {
-    background: rgba(40, 167, 69, 0.08);
-    color: var(--color-exito);
-    border: 1px solid rgba(40, 167, 69, 0.18);
-}
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ia_gemini.css') }}">
 {% endblock %}
 
 {% block body %}
 <section class="page-shell">
 
-    <!-- ── Encabezado ───────────────────────────────────────────── -->
-    <div class="page-header">
-        <div class="page-header__intro">
-            <div class="page-header__icon">
-                <i class="fas fa-robot"></i>
-            </div>
-            <div>
-                <span class="page-header__eyebrow">Inteligencia Artificial</span>
-                <h1>Asistente IA</h1>
-                <p>Genera y mejora automáticamente las descripciones de tus productos usando inteligencia artificial.</p>
-            </div>
+    <!-- ── Hero Gemini ─────────────────────────────────────────── -->
+    <div class="gem-hero">
+        <!-- Auras de fondo animadas -->
+        <div class="gem-hero__aura-1"></div>
+        <div class="gem-hero__aura-2"></div>
+        <div class="gem-hero__aura-3"></div>
+
+        <div class="gem-hero__inner">
+            <div class="gem-sparkle">✦</div>
+            <h1 class="gem-title">Asistente IA</h1>
+            <p class="gem-subtitle">Crea descripciones, SEO y respuestas con inteligencia artificial</p>
+            <span class="gem-badge-nuevo">✦ NUEVO</span>
         </div>
     </div>
 
@@ -189,56 +28,56 @@
     <div class="ia-grid">
 
         <!-- Tarjeta: Estado del servicio -->
-        <div class="surface-card">
-            <div class="ia-card-header">
-                <h2 class="ia-card-title">
-                    <i class="fas fa-signal"></i>
+        <div class="gem-card">
+            <div class="gem-card-header">
+                <h2 class="gem-card-title">
+                    <span class="gem-sparkle-sm">✦</span>
                     Estado del servicio
                 </h2>
-                <button type="button" id="btn-actualizar-estado" class="btn-admin btn-admin--ghost">
+                <button type="button" id="btn-actualizar-estado" class="gem-btn-ghost">
                     <i class="fas fa-sync-alt"></i> Actualizar
                 </button>
             </div>
 
             <div id="ia-estado-contenido">
                 {% if estado.online %}
-                <span class="ia-badge ia-badge--online">
-                    <span class="ia-dot"></span>
+                <span class="gem-badge-online">
+                    <span class="gem-dot-online"></span>
                     IA en línea
                 </span>
-                <p class="ia-modelo">Modelo activo: <code id="ia-modelo-text">{{ estado.modelo }}</code></p>
+                <p class="gem-modelo">Modelo activo: <code id="ia-modelo-text">{{ estado.modelo }}</code></p>
                 {% else %}
-                <span class="ia-badge ia-badge--offline">
-                    <span class="ia-dot"></span>
+                <span class="gem-badge-offline">
+                    <span class="gem-dot-offline"></span>
                     IA fuera de línea
                 </span>
                 {% if estado.motivo %}
-                <p class="ia-motivo" id="ia-motivo-text">{{ estado.motivo }}</p>
+                <p class="gem-motivo" id="ia-motivo-text">{{ estado.motivo }}</p>
                 {% endif %}
                 {% endif %}
             </div>
         </div>
 
         <!-- Tarjeta: Descripciones masivas -->
-        <div class="surface-card">
-            <div class="ia-card-header">
-                <h2 class="ia-card-title">
-                    <i class="fas fa-layer-group"></i>
+        <div class="gem-card">
+            <div class="gem-card-header">
+                <h2 class="gem-card-title">
+                    <span class="gem-sparkle-sm">✦</span>
                     Descripciones masivas
                 </h2>
             </div>
 
-            <div class="ia-faltan-count">
-                <span class="ia-faltan-num" id="ia-faltan-num">{{ faltan }}</span>
-                <span class="ia-faltan-label">productos sin descripción</span>
+            <div class="gem-faltan-row">
+                <span class="gem-count-num" id="ia-faltan-num">{{ faltan }}</span>
+                <span class="gem-faltan-label">productos sin descripción</span>
             </div>
 
             {% if faltan > 0 %}
-            <button type="button" id="btn-generar-masivo" class="btn-admin btn-admin--primary">
+            <button type="button" id="btn-generar-masivo" class="gem-btn-primary">
                 <i class="fas fa-magic"></i> Generar descripciones faltantes
             </button>
             {% else %}
-            <p style="font-size:0.88rem; color:var(--color-exito); margin:0;">
+            <p class="gem-completado">
                 <i class="fas fa-check-circle"></i> Todos los productos tienen descripción.
             </p>
             {% endif %}
@@ -250,12 +89,12 @@
                     <span id="ia-progress-pct">0%</span>
                 </div>
                 <div class="ia-progress-bar-bg">
-                    <div class="ia-progress-bar-fill" id="ia-progress-bar"></div>
+                    <div class="gem-progress-fill" id="ia-progress-bar"></div>
                 </div>
             </div>
 
             <!-- Mensaje de resultado/error -->
-            <div class="ia-msg" id="ia-masivo-msg"></div>
+            <div class="gem-msg" id="ia-masivo-msg"></div>
         </div>
 
     </div><!-- /ia-grid -->
@@ -288,20 +127,20 @@
             .then(function (data) {
                 let html = '';
                 if (data.online) {
-                    html = '<span class="ia-badge ia-badge--online"><span class="ia-dot"></span>IA en línea</span>';
+                    html = '<span class="gem-badge-online"><span class="gem-dot-online"></span>IA en línea</span>';
                     if (data.modelo) {
-                        html += '<p class="ia-modelo">Modelo activo: <code id="ia-modelo-text">' + escHtml(data.modelo) + '</code></p>';
+                        html += '<p class="gem-modelo">Modelo activo: <code id="ia-modelo-text">' + escHtml(data.modelo) + '</code></p>';
                     }
                 } else {
-                    html = '<span class="ia-badge ia-badge--offline"><span class="ia-dot"></span>IA fuera de línea</span>';
+                    html = '<span class="gem-badge-offline"><span class="gem-dot-offline"></span>IA fuera de línea</span>';
                     if (data.motivo) {
-                        html += '<p class="ia-motivo" id="ia-motivo-text">' + escHtml(data.motivo) + '</p>';
+                        html += '<p class="gem-motivo" id="ia-motivo-text">' + escHtml(data.motivo) + '</p>';
                     }
                 }
                 estadoContenido.innerHTML = html;
             })
             .catch(function () {
-                estadoContenido.innerHTML = '<span class="ia-badge ia-badge--offline"><span class="ia-dot"></span>Error al consultar</span>';
+                estadoContenido.innerHTML = '<span class="gem-badge-offline"><span class="gem-dot-offline"></span>Error al consultar</span>';
             })
             .finally(function () {
                 icon.classList.remove('fa-spin');
@@ -367,7 +206,7 @@
                     resetBtn(true);
                 }
             })
-            .catch(function (err) {
+            .catch(function () {
                 mostrarMsg('error', 'Error de red al procesar. Intenta nuevamente.');
                 resetBtn();
             });
@@ -384,7 +223,7 @@
 
         function mostrarMsg(tipo, texto) {
             masivoMsg.style.display = 'block';
-            masivoMsg.className = 'ia-msg ia-msg--' + tipo;
+            masivoMsg.className = 'gem-msg gem-msg--' + tipo;
             masivoMsg.textContent = texto;
         }
 
