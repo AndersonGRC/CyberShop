@@ -131,6 +131,11 @@ def top_productos(periodo='todo', limite=5, **_):
         cur.execute("SELECT nombre, SUM(cant) unidades FROM (" + " UNION ALL ".join(partes) +
                     ") x WHERE nombre IS NOT NULL GROUP BY nombre ORDER BY unidades DESC LIMIT %s", (lim,))
         filas = cur.fetchall()
+    # Si el período pedido no tiene ventas, cae al histórico (más útil que "vacío").
+    if not filas and p != 'todo':
+        res = top_productos('todo', limite)
+        res['nota'] = f"No hubo ventas {_label_periodo(p)}; muestro el histórico."
+        return res
     return {'periodo': _label_periodo(p),
             'productos': [{'nombre': r['nombre'], 'unidades': int(r['unidades'])} for r in filas]}
 
@@ -278,8 +283,9 @@ def ejecutar(code, params):
         return None
     fn, _desc, permitidos = TOOLS[code]
     safe = {}
-    if 'periodo' in permitidos:
-        safe['periodo'] = _periodo((params or {}).get('periodo', 'hoy'))
+    # Solo pasa 'periodo' si la IA lo indicó; si no, la función usa su default.
+    if 'periodo' in permitidos and (params or {}).get('periodo'):
+        safe['periodo'] = _periodo(params['periodo'])
     if 'limite' in permitidos:
         try: safe['limite'] = int((params or {}).get('limite', 5))
         except Exception: safe['limite'] = 5
