@@ -34,27 +34,78 @@ def _label_periodo(p):
     return {'hoy': 'hoy', 'semana': 'esta semana', 'mes': 'este mes', 'todo': 'en total'}[_periodo(p)]
 
 
-# ── Ventas ─────────────────────────────────────────────────────
+# Pedidos web que cuentan como venta REAL (pago confirmado)
+_PEDIDO_PAGADO = "estado_pago IN ('APROBADO','PAGADO','aprobado','pagado')"
+
+
+def _existe(cur, tabla):
+    """True si la tabla existe (algunos tenants no tienen todas las tablas)."""
+    cur.execute("SELECT to_regclass(%s)", (f'public.{tabla}',))
+    return cur.fetchone()[0] is not None
+
+
+def _suma(cur, sql, cero=(0, 0)):
+    """Ejecuta una suma; devuelve (n, total) o ceros si algo falla."""
+    try:
+        cur.execute(sql)
+        r = cur.fetchone()
+        return r['n'], float(r['t'])
+    except Exception:
+        return cero
+
+
+def _ventas_en(cur, where_web, where_pos, where_desk):
+    """Suma ventas de las 3 fuentes (web pagados + POS web + POS escritorio)
+    bajo los filtros de fecha dados, tolerando tablas ausentes."""
+    web_n, web_t = _suma(cur, f"SELECT COUNT(*) n, COALESCE(SUM(monto_total),0) t "
+                              f"FROM pedidos WHERE {_PEDIDO_PAGADO} AND {where_web}")
+    pos_n, pos_t = _suma(cur, f"SELECT COUNT(*) n, COALESCE(SUM(total),0) t FROM ventas_pos "
+                              f"WHERE COALESCE(estado,'completada') <> 'anulada' AND {where_pos}") \
+        if _existe(cur, 'ventas_pos') else (0, 0.0)
+    desk_n, desk_t = _suma(cur, f"SELECT COUNT(*) n, COALESCE(SUM(total),0) t "
+                                f"FROM pos_desktop_sales WHERE {where_desk}") \
+        if _existe(cur, 'pos_desktop_sales') else (0, 0.0)
+    web = {'n': web_n, 't': web_t}; pos = {'n': pos_n, 't': pos_t}; desk = {'n': desk_n, 't': desk_t}
+    n = web['n'] + pos['n'] + desk['n']
+    total = float(web['t']) + float(pos['t']) + float(desk['t'])
+    desglose = {
+        'web': {'n': web['n'], 'monto': formatear_moneda(float(web['t']))},
+        'pos_mostrador': {'n': pos['n'], 'monto': formatear_moneda(float(pos['t']))},
+        'pos_escritorio': {'n': desk['n'], 'monto': formatear_moneda(float(desk['t']))},
+    }
+    return n, total, desglose
+
+
 def ventas_periodo(periodo='hoy', **_):
-    """Total e importe de ventas (web + POS) del período."""
+    """Ventas del período (web pagados + POS mostrador + POS escritorio).
+    Incluye SIEMPRE el total histórico para no confundir cuando el período
+    pedido da 0 (p. ej. preguntan 'este mes' pero las ventas fueron antes)."""
     p = _periodo(periodo)
     fweb = _PERIODO_SQL[p].format(col='fecha_creacion')
     fpos = _PERIODO_SQL[p].format(col='fecha')
+    fdesk = _PERIODO_SQL[p].format(col='created_at_local')
     with get_db_cursor(dict_cursor=True) as cur:
-        cur.execute(f"SELECT COUNT(*) n, COALESCE(SUM(monto_total),0) t "
-                    f"FROM pedidos WHERE estado_pago='APROBADO' AND {fweb}")
-        web = cur.fetchone()
-        cur.execute(f"SELECT COUNT(*) n, COALESCE(SUM(total),0) t "
-                    f"FROM ventas_pos WHERE COALESCE(estado,'completada') <> 'anulada' AND {fpos}")
-        pos = cur.fetchone()
-    total = float(web['t']) + float(pos['t'])
-    n = web['n'] + pos['n']
+        n, total, desglose = _ventas_en(cur, fweb, fpos, fdesk)
+        # total histórico (todas las fechas)
+        hn, htotal, _ = _ventas_en(cur, 'TRUE', 'TRUE', 'TRUE')
+        # fecha de la última venta (de las fuentes que existan)
+        partes = [f"SELECT MAX(fecha_creacion) f FROM pedidos WHERE {_PEDIDO_PAGADO}"]
+        if _existe(cur, 'ventas_pos'):
+            partes.append("SELECT MAX(fecha) FROM ventas_pos WHERE COALESCE(estado,'')<>'anulada'")
+        if _existe(cur, 'pos_desktop_sales'):
+            partes.append("SELECT MAX(created_at_local) FROM pos_desktop_sales")
+        cur.execute("SELECT MAX(f)::date u FROM (" + " UNION ALL ".join(partes) + ") x")
+        ultima = cur.fetchone()['u']
     return {
         'periodo': _label_periodo(p),
-        'num_ventas': n,
-        'total': formatear_moneda(total),
-        'ventas_web': web['n'], 'monto_web': formatear_moneda(float(web['t'])),
-        'ventas_pos': pos['n'], 'monto_pos': formatear_moneda(float(pos['t'])),
+        'ventas_en_periodo': n,
+        'total_en_periodo': formatear_moneda(total),
+        'desglose_periodo': desglose,
+        'ventas_historico_total': hn,
+        'monto_historico_total': formatear_moneda(htotal),
+        'ultima_venta': ultima.isoformat() if ultima else None,
+        'nota': ('No hubo ventas en el período pedido, pero el negocio SÍ tiene '
+                 'ventas en total (ver histórico).') if n == 0 and hn > 0 else None,
     }
 
 
@@ -64,17 +115,21 @@ def top_productos(periodo='mes', limite=5, **_):
     lim = max(1, min(int(limite or 5), 20))
     fweb = _PERIODO_SQL[p].format(col='p.fecha_creacion')
     fpos = _PERIODO_SQL[p].format(col='v.fecha')
+    fdesk = _PERIODO_SQL[p].format(col='s.created_at_local')
     with get_db_cursor(dict_cursor=True) as cur:
-        cur.execute(f"""
-            SELECT nombre, SUM(cant) unidades FROM (
-                SELECT d.producto_nombre nombre, d.cantidad cant
-                FROM detalle_pedidos d JOIN pedidos p ON p.id=d.pedido_id
-                WHERE p.estado_pago='APROBADO' AND {fweb}
-                UNION ALL
-                SELECT dv.descripcion nombre, dv.cantidad cant
+        partes = [f"""SELECT d.producto_nombre nombre, d.cantidad cant
+                      FROM detalle_pedidos d JOIN pedidos p ON p.id=d.pedido_id
+                      WHERE {_PEDIDO_PAGADO} AND {fweb}"""]
+        if _existe(cur, 'detalle_venta_pos') and _existe(cur, 'ventas_pos'):
+            partes.append(f"""SELECT dv.descripcion nombre, dv.cantidad cant
                 FROM detalle_venta_pos dv JOIN ventas_pos v ON v.id=dv.venta_id
-                WHERE COALESCE(v.estado,'completada') <> 'anulada' AND {fpos}
-            ) x GROUP BY nombre ORDER BY unidades DESC LIMIT %s""", (lim,))
+                WHERE COALESCE(v.estado,'completada') <> 'anulada' AND {fpos}""")
+        if _existe(cur, 'pos_desktop_sale_items') and _existe(cur, 'pos_desktop_sales'):
+            partes.append(f"""SELECT di.name_snapshot nombre, di.quantity cant
+                FROM pos_desktop_sale_items di JOIN pos_desktop_sales s ON s.id=di.sale_id
+                WHERE {fdesk}""")
+        cur.execute("SELECT nombre, SUM(cant) unidades FROM (" + " UNION ALL ".join(partes) +
+                    ") x WHERE nombre IS NOT NULL GROUP BY nombre ORDER BY unidades DESC LIMIT %s", (lim,))
         filas = cur.fetchall()
     return {'periodo': _label_periodo(p),
             'productos': [{'nombre': r['nombre'], 'unidades': int(r['unidades'])} for r in filas]}
@@ -84,16 +139,14 @@ def top_clientes(limite=5, **_):
     """Clientes que más han comprado (web + POS) por importe."""
     lim = max(1, min(int(limite or 5), 20))
     with get_db_cursor(dict_cursor=True) as cur:
-        cur.execute("""
-            SELECT nombre, SUM(monto) total, SUM(compras) compras FROM (
-                SELECT COALESCE(NULLIF(TRIM(cliente_nombre),''),'Sin nombre') nombre,
-                       monto_total monto, 1 compras
-                FROM pedidos WHERE estado_pago='APROBADO'
-                UNION ALL
-                SELECT COALESCE(NULLIF(TRIM(cliente_nombre),''),'Mostrador') nombre,
-                       total monto, 1 compras
-                FROM ventas_pos WHERE COALESCE(estado,'completada') <> 'anulada'
-            ) x GROUP BY nombre ORDER BY total DESC LIMIT %s""", (lim,))
+        partes = [f"""SELECT COALESCE(NULLIF(TRIM(cliente_nombre),''),'Sin nombre') nombre,
+                      monto_total monto, 1 compras FROM pedidos WHERE {_PEDIDO_PAGADO}"""]
+        if _existe(cur, 'ventas_pos'):
+            partes.append("""SELECT COALESCE(NULLIF(TRIM(cliente_nombre),''),'Mostrador') nombre,
+                total monto, 1 compras FROM ventas_pos WHERE COALESCE(estado,'completada') <> 'anulada'""")
+        cur.execute("SELECT nombre, SUM(monto) total, SUM(compras) compras FROM (" +
+                    " UNION ALL ".join(partes) +
+                    ") x GROUP BY nombre ORDER BY total DESC LIMIT %s", (lim,))
         filas = cur.fetchall()
     return {'clientes': [{'nombre': r['nombre'], 'total': formatear_moneda(float(r['total'])),
                           'compras': int(r['compras'])} for r in filas]}
@@ -147,10 +200,17 @@ def conteo_general(**_):
         cur.execute("SELECT COUNT(*) FROM productos"); prod = cur.fetchone()['count']
         cur.execute("SELECT COUNT(*) FROM generos"); cat = cur.fetchone()['count']
         cur.execute("SELECT COUNT(*) FROM usuarios WHERE rol_id=3"); cli = cur.fetchone()['count']
-        cur.execute("SELECT COUNT(*) FROM pedidos WHERE estado_pago='APROBADO'"); ped = cur.fetchone()['count']
-        cur.execute("SELECT COUNT(*) FROM ventas_pos WHERE COALESCE(estado,'completada')<>'anulada'"); vpos = cur.fetchone()['count']
+        cur.execute(f"SELECT COUNT(*) FROM pedidos WHERE {_PEDIDO_PAGADO}"); ped = cur.fetchone()['count']
+        vpos = 0
+        if _existe(cur, 'ventas_pos'):
+            cur.execute("SELECT COUNT(*) FROM ventas_pos WHERE COALESCE(estado,'completada')<>'anulada'"); vpos = cur.fetchone()['count']
+        vdesk = 0
+        if _existe(cur, 'pos_desktop_sales'):
+            cur.execute("SELECT COUNT(*) FROM pos_desktop_sales"); vdesk = cur.fetchone()['count']
     return {'productos': prod, 'categorias': cat, 'clientes_registrados': cli,
-            'pedidos_web_aprobados': ped, 'ventas_pos': vpos}
+            'pedidos_web_pagados': ped, 'ventas_pos_mostrador': vpos,
+            'ventas_pos_escritorio': vdesk,
+            'ventas_totales': ped + vpos + vdesk}
 
 
 def pedidos_por_despachar(**_):
@@ -184,6 +244,32 @@ TOOLS = {
 def catalogo_para_prompt():
     """Texto del catálogo de herramientas para el prompt de selección."""
     return "\n".join(f"- {code}: {desc}" for code, (_fn, desc, _p) in TOOLS.items())
+
+
+# ── Diccionario de datos del negocio (contexto SIEMPRE presente) ──
+# Documenta, en lenguaje claro, QUÉ información maneja la tienda, qué se PUEDE
+# consultar (vía las herramientas) y qué es SENSIBLE y NUNCA se entrega.
+# Por seguridad la IA no ejecuta SQL: solo elige herramientas; aun así este
+# contexto la orienta y le marca límites explícitos.
+CONTEXTO_DATOS = """MAPA DE DATOS DEL NEGOCIO (lo que puedes saber de esta tienda):
+- Catálogo: productos (nombre, precio, stock, categoría, descripción) y categorías.
+- Ventas por 3 canales: tienda web (pedidos pagados), POS de mostrador (web) y
+  POS de escritorio (app). Cuando hables de "ventas" considera los 3 canales.
+- Clientes registrados, pedidos y su estado de envío, inventario y su valor.
+
+QUÉ PUEDES CONSULTAR: solo a través de tus herramientas (ventas por período,
+productos más vendidos, clientes top, stock bajo, estado del catálogo, inventario,
+conteos, pedidos por despachar). Si no hay una herramienta para algo, dilo con
+honestidad; NO inventes datos ni cifras.
+
+DATOS SENSIBLES — NUNCA los entregues ni intentes consultarlos: contraseñas o
+hashes, datos de tarjetas o medios de pago, tokens/credenciales/llaves API,
+documentos de identidad completos, ni datos personales privados de un cliente.
+Si te los piden, niégate amablemente y ofrece lo que sí puedes mostrar.
+
+REGLA DE PERÍODOS: 'hoy', 'esta semana' y 'este mes' son rangos del calendario
+actual. Si un período da 0 ventas pero el negocio tiene ventas históricas,
+acláralo (no afirmes que "nunca ha vendido")."""
 
 
 def ejecutar(code, params):

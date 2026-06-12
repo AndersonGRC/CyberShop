@@ -257,12 +257,13 @@ def responder_chat(pregunta):
 
     # Paso 1: selección de herramienta (la IA NO escribe SQL, solo elige nombre+params)
     sel_system = (
+        tools.CONTEXTO_DATOS + "\n\n"
         "Eres un enrutador. Dada la pregunta de un dueño de tienda, elige UNA "
         "herramienta de esta lista para responderla:\n" + tools.catalogo_para_prompt() +
         "\nResponde SOLO un JSON válido: {\"tool\":\"<code>\",\"params\":{...}}. "
         "params puede incluir 'periodo' (hoy|semana|mes), 'limite' (número) o "
-        "'umbral' (número) según aplique. Si ninguna herramienta sirve, usa "
-        "{\"tool\":\"ninguna\"}. No expliques, solo el JSON."
+        "'umbral' (número) según aplique. Si piden datos sensibles o algo sin "
+        "herramienta, usa {\"tool\":\"ninguna\"}. No expliques, solo el JSON."
     )
     raw, err = _chat(sel_system, pregunta, max_tokens=120, temperature=0)
     if err:
@@ -277,13 +278,15 @@ def responder_chat(pregunta):
         code = None
 
     if not code or code == 'ninguna' or code not in tools.TOOLS:
-        # Pregunta fuera del alcance de los datos: responde con honestidad.
+        # Pregunta fuera del alcance de los datos (o dato sensible): responde
+        # con honestidad y recuerda los límites del contexto.
         resp, err2 = _chat(
-            _contexto_tenant() + " Eres un asistente del panel de administración.",
-            f"El dueño preguntó: «{pregunta}». No tienes datos para responder eso "
-            "con cifras. Responde breve y amable, e indícale qué SÍ puedes consultar "
+            _contexto_tenant() + "\n" + tools.CONTEXTO_DATOS,
+            f"El dueño preguntó: «{pregunta}». No tienes una herramienta ni permiso "
+            "para responder eso con datos. Responde breve y amable; si es un dato "
+            "sensible niégate, y en todo caso indícale qué SÍ puedes consultar "
             "(ventas, productos más vendidos, stock bajo, inventario, clientes, "
-            "pedidos por despachar, estado del catálogo).", max_tokens=200)
+            "pedidos por despachar, estado del catálogo).", max_tokens=220)
         if err2:
             return None, err2
         return {'respuesta': resp, 'datos': None, 'herramienta': None}, None
