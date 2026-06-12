@@ -285,6 +285,7 @@
 
 {% block scripts %}
 <script>
+{% if 'ai_assistant' in active_modules %}
 /* ── Botones IA en formulario de producto (crear) ────────── */
 (function () {
     const btnGenerar  = document.getElementById('btn-ia-generar');
@@ -429,6 +430,7 @@
         });
     }
 })();
+{% endif %}
 
 (function () {
     const input      = document.getElementById('imagenes');

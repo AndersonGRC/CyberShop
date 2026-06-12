@@ -321,6 +321,7 @@
 
 {% block scripts %}
 <script>
+{% if 'ai_assistant' in active_modules %}
 /* ── Botones IA en formulario de producto (editar) ───────── */
 (function () {
     const btnGenerar  = document.getElementById('btn-ia-generar');
@@ -464,6 +465,7 @@
         });
     }
 })();
+{% endif %}
 
 (function () {
     /* ── Carrusel de imágenes EXISTENTES ─────────────────────── */

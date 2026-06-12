@@ -1,14 +1,15 @@
 /* ══════════════════════════════════════════════════════════════════
-   ia_gemini.css — Sistema visual "Google Gemini" para el Asistente IA
-   Gradientes animados: azul→morado→rosa→naranja
+   ia_gemini.css — Sistema visual del Asistente IA (coherente con la marca)
+   Gradientes animados con la paleta INSTITUCIONAL CyberShop:
+   azul marino #122C94 → azul #1C3FAE → azul medio #1F6FCB → celeste #29A9E2
    ══════════════════════════════════════════════════════════════════ */
 
 /* ── Tokens del gradiente Gemini ──────────────────────────────── */
 :root {
-    --gem-g: linear-gradient(74deg, #4285f4 0%, #9b72cb 35%, #d96570 65%, #f49c46 100%);
-    --gem-glow: rgba(155, 114, 203, 0.40);
-    --gem-glow-blue: rgba(66, 133, 244, 0.18);
-    --gem-glow-pink: rgba(217, 101, 112, 0.14);
+    --gem-g: linear-gradient(74deg, #122C94 0%, #1C3FAE 38%, #1F6FCB 68%, #29A9E2 100%);
+    --gem-glow: rgba(41, 169, 226, 0.40);
+    --gem-glow-blue: rgba(18, 44, 148, 0.18);
+    --gem-glow-pink: rgba(28, 63, 174, 0.14);
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -50,8 +51,8 @@
 
 /* Pulso del dot online */
 @keyframes gem-pulse-dot {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(66, 133, 244, 0.5); }
-    50%       { box-shadow: 0 0 0 6px rgba(66, 133, 244, 0); }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(18, 44, 148, 0.5); }
+    50%       { box-shadow: 0 0 0 6px rgba(18, 44, 148, 0); }
 }
 
 /* Entrada del hero */
@@ -86,7 +87,7 @@
 .gem-hero__aura-1 {
     width: 380px;
     height: 380px;
-    background: radial-gradient(circle, rgba(66, 133, 244, 0.22) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(18, 44, 148, 0.22) 0%, transparent 70%);
     top: -80px;
     left: -60px;
     animation: gem-aura-1 12s ease-in-out infinite;
@@ -95,7 +96,7 @@
 .gem-hero__aura-2 {
     width: 320px;
     height: 320px;
-    background: radial-gradient(circle, rgba(155, 114, 203, 0.20) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(41, 169, 226, 0.20) 0%, transparent 70%);
     top: -40px;
     right: -40px;
     animation: gem-aura-2 14s ease-in-out infinite;
@@ -104,7 +105,7 @@
 .gem-hero__aura-3 {
     width: 260px;
     height: 260px;
-    background: radial-gradient(circle, rgba(217, 101, 112, 0.14) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(28, 63, 174, 0.14) 0%, transparent 70%);
     bottom: -40px;
     left: 50%;
     transform: translateX(-50%);
@@ -121,19 +122,19 @@
 .gem-sparkle {
     font-size: 3.2rem;
     display: inline-block;
-    background: linear-gradient(74deg, #4285f4 0%, #9b72cb 35%, #d96570 65%, #f49c46 100%);
+    background: linear-gradient(74deg, #122C94 0%, #1C3FAE 38%, #1F6FCB 68%, #29A9E2 100%);
     background-size: 200% 200%;
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
-    filter: drop-shadow(0 4px 18px rgba(155, 114, 203, 0.45));
+    filter: drop-shadow(0 4px 18px rgba(41, 169, 226, 0.45));
     animation: gem-twinkle 3.5s ease-in-out infinite, gem-flow 6s ease-in-out infinite;
     margin-bottom: 8px;
     line-height: 1;
 }
 /* Sparkle pequeño de los títulos de tarjeta también con gradiente */
 .gem-sparkle-sm {
-    background: linear-gradient(74deg, #4285f4 0%, #9b72cb 35%, #d96570 65%, #f49c46 100%);
+    background: linear-gradient(74deg, #122C94 0%, #1C3FAE 38%, #1F6FCB 68%, #29A9E2 100%);
     background-size: 200% 200%;
     -webkit-background-clip: text;
     background-clip: text;
@@ -146,7 +147,7 @@
     font-size: clamp(1.8rem, 4vw, 2.6rem);
     font-weight: 800;
     letter-spacing: -0.02em;
-    background: linear-gradient(74deg, #4285f4 0%, #9b72cb 35%, #d96570 65%, #f49c46 100%);
+    background: linear-gradient(74deg, #122C94 0%, #1C3FAE 38%, #1F6FCB 68%, #29A9E2 100%);
     background-size: 200% 200%;
     -webkit-background-clip: text;
     background-clip: text;
@@ -176,7 +177,7 @@
     font-weight: 800;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    background: linear-gradient(74deg, #4285f4 0%, #9b72cb 35%, #d96570 65%, #f49c46 100%);
+    background: linear-gradient(74deg, #122C94 0%, #1C3FAE 38%, #1F6FCB 68%, #29A9E2 100%);
     background-size: 200% 200%;
     color: #fff;
     animation: gem-flow 6s ease-in-out infinite;
@@ -194,18 +195,18 @@
     /* Técnica borde gradiente */
     border: 2px solid transparent;
     background-image: linear-gradient(white, white),
-                      linear-gradient(74deg, #4285f4 0%, #9b72cb 35%, #d96570 65%, #f49c46 100%);
+                      linear-gradient(74deg, #122C94 0%, #1C3FAE 38%, #1F6FCB 68%, #29A9E2 100%);
     background-origin: border-box;
     background-clip: padding-box, border-box;
     background-size: auto, 200% 200%;
     animation: gem-card-border 6s ease-in-out infinite;
-    box-shadow: 0 2px 20px rgba(155, 114, 203, 0.10),
+    box-shadow: 0 2px 20px rgba(41, 169, 226, 0.10),
                 0 1px 4px rgba(0, 0, 0, 0.05);
     transition: box-shadow 0.3s ease, transform 0.25s ease;
 }
 
 .gem-card:hover {
-    box-shadow: 0 6px 32px rgba(155, 114, 203, 0.22),
+    box-shadow: 0 6px 32px rgba(41, 169, 226, 0.22),
                 0 2px 8px rgba(0, 0, 0, 0.06);
     transform: translateY(-2px);
 }
@@ -246,7 +247,7 @@
     font-weight: 700;
     letter-spacing: 0.03em;
     /* Gradiente azul→verde suave */
-    background: linear-gradient(90deg, rgba(66, 133, 244, 0.10) 0%, rgba(52, 168, 83, 0.12) 100%);
+    background: linear-gradient(90deg, rgba(18, 44, 148, 0.10) 0%, rgba(52, 168, 83, 0.12) 100%);
     color: #1a7a3f;
     border: 1px solid rgba(52, 168, 83, 0.28);
 }
@@ -290,7 +291,7 @@
     font-size: 2.6rem;
     font-weight: 800;
     line-height: 1;
-    background: linear-gradient(74deg, #4285f4 0%, #9b72cb 50%, #d96570 100%);
+    background: linear-gradient(74deg, #122C94 0%, #1C3FAE 50%, #29A9E2 100%);
     background-size: 200% 200%;
     -webkit-background-clip: text;
     background-clip: text;
@@ -304,7 +305,7 @@
 
 .gem-progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #4285f4 0%, #9b72cb 35%, #d96570 65%, #f49c46 100%);
+    background: linear-gradient(90deg, #122C94 0%, #1C3FAE 38%, #1F6FCB 68%, #29A9E2 100%);
     background-size: 200% 100%;
     border-radius: 999px;
     transition: width 0.4s ease;
@@ -328,7 +329,7 @@
     color: #fff;
     border: none;
     cursor: pointer;
-    background: linear-gradient(74deg, #4285f4 0%, #9b72cb 35%, #d96570 65%, #f49c46 100%);
+    background: linear-gradient(74deg, #122C94 0%, #1C3FAE 38%, #1F6FCB 68%, #29A9E2 100%);
     background-size: 200% 200%;
     animation: gem-flow 4s ease-in-out infinite;
     box-shadow: 0 4px 24px var(--gem-glow);
@@ -371,7 +372,7 @@
     border: 2px solid transparent;
     /* Borde gradiente con fondo blanco */
     background-image: linear-gradient(white, white),
-                      linear-gradient(74deg, #4285f4 0%, #9b72cb 35%, #d96570 65%, #f49c46 100%);
+                      linear-gradient(74deg, #122C94 0%, #1C3FAE 38%, #1F6FCB 68%, #29A9E2 100%);
     background-origin: border-box;
     background-clip: padding-box, border-box;
     background-size: auto, 200% 200%;
@@ -383,12 +384,12 @@
     /* Fallback: usar un span interno para el texto degradado */
     line-height: 1.2;
     text-decoration: none;
-    box-shadow: 0 2px 10px rgba(155, 114, 203, 0.15);
+    box-shadow: 0 2px 10px rgba(41, 169, 226, 0.15);
 }
 
 /* El texto del botón secundario necesita un elemento interno para el gradiente */
 .gem-btn-secondary .gem-btn-label {
-    background: linear-gradient(74deg, #4285f4 0%, #9b72cb 35%, #d96570 65%, #f49c46 100%);
+    background: linear-gradient(74deg, #122C94 0%, #1C3FAE 38%, #1F6FCB 68%, #29A9E2 100%);
     background-size: 200% 200%;
     -webkit-background-clip: text;
     background-clip: text;
@@ -398,7 +399,7 @@
 
 .gem-btn-secondary:hover:not(:disabled) {
     transform: translateY(-2px) scale(1.02);
-    box-shadow: 0 6px 20px rgba(155, 114, 203, 0.22);
+    box-shadow: 0 6px 20px rgba(41, 169, 226, 0.22);
     animation-duration: 2s;
 }
 
@@ -419,11 +420,11 @@
     font-weight: 600;
     background: linear-gradient(
         90deg,
-        rgba(66, 133, 244, 0.15) 0%,
-        rgba(155, 114, 203, 0.30) 25%,
-        rgba(217, 101, 112, 0.25) 50%,
+        rgba(18, 44, 148, 0.15) 0%,
+        rgba(41, 169, 226, 0.30) 25%,
+        rgba(28, 63, 174, 0.25) 50%,
         rgba(244, 156, 70, 0.20) 75%,
-        rgba(66, 133, 244, 0.15) 100%
+        rgba(18, 44, 148, 0.15) 100%
     );
     background-size: 200% 100%;
     animation: gem-shimmer 1.2s linear infinite;
@@ -461,8 +462,8 @@
 }
 
 .gem-modelo code {
-    background: linear-gradient(74deg, rgba(66,133,244,0.08) 0%, rgba(155,114,203,0.10) 100%);
-    border: 1px solid rgba(155, 114, 203, 0.20);
+    background: linear-gradient(74deg, rgba(18, 44, 148,0.08) 0%, rgba(41, 169, 226,0.10) 100%);
+    border: 1px solid rgba(41, 169, 226, 0.20);
     color: #7c4dbd;
     padding: 2px 10px;
     border-radius: 6px;
@@ -497,15 +498,15 @@
 }
 
 .gem-msg--success {
-    background: linear-gradient(90deg, rgba(52, 168, 83, 0.09) 0%, rgba(66, 133, 244, 0.06) 100%);
+    background: linear-gradient(90deg, rgba(52, 168, 83, 0.09) 0%, rgba(18, 44, 148, 0.06) 100%);
     color: #1a7a3f;
     border: 1px solid rgba(52, 168, 83, 0.22);
 }
 
 .gem-msg--error {
-    background: rgba(217, 101, 112, 0.08);
+    background: rgba(28, 63, 174, 0.08);
     color: #b5304a;
-    border: 1px solid rgba(217, 101, 112, 0.22);
+    border: 1px solid rgba(28, 63, 174, 0.22);
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -514,7 +515,7 @@
 
 .gem-completado {
     font-size: 0.88rem;
-    background: linear-gradient(74deg, #4285f4 0%, #34a853 100%);
+    background: linear-gradient(74deg, #1aa251 0%, #29A9E2 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -534,7 +535,7 @@
     gap: 12px;
     margin-bottom: 18px;
     padding-bottom: 14px;
-    border-bottom: 1px solid rgba(155, 114, 203, 0.12);
+    border-bottom: 1px solid rgba(41, 169, 226, 0.12);
 }
 
 /* Botón ghost pequeño para "Actualizar" */
@@ -548,14 +549,14 @@
     font-weight: 600;
     cursor: pointer;
     background: transparent;
-    border: 1.5px solid rgba(155, 114, 203, 0.30);
+    border: 1.5px solid rgba(41, 169, 226, 0.30);
     color: #7c4dbd;
     transition: background 0.2s, border-color 0.2s, transform 0.15s;
 }
 
 .gem-btn-ghost:hover:not(:disabled) {
-    background: rgba(155, 114, 203, 0.08);
-    border-color: rgba(155, 114, 203, 0.50);
+    background: rgba(41, 169, 226, 0.08);
+    border-color: rgba(41, 169, 226, 0.50);
     transform: translateY(-1px);
 }
 
@@ -614,7 +615,7 @@
 .ia-progress-bar-bg {
     width: 100%;
     height: 10px;
-    background: rgba(155, 114, 203, 0.10);
+    background: rgba(41, 169, 226, 0.10);
     border-radius: 999px;
     overflow: hidden;
 }
@@ -623,9 +624,9 @@
    FEEDBACK al insertar texto con IA (destello del campo + estado)
    ══════════════════════════════════════════════════════════════════ */
 @keyframes gem-field-flash {
-    0%   { box-shadow: 0 0 0 0 rgba(155,114,203,0); border-color: transparent; }
-    20%  { box-shadow: 0 0 0 4px rgba(155,114,203,.35), 0 0 26px rgba(66,133,244,.30); }
-    100% { box-shadow: 0 0 0 0 rgba(155,114,203,0); }
+    0%   { box-shadow: 0 0 0 0 rgba(41, 169, 226,0); border-color: transparent; }
+    20%  { box-shadow: 0 0 0 4px rgba(41, 169, 226,.35), 0 0 26px rgba(18, 44, 148,.30); }
+    100% { box-shadow: 0 0 0 0 rgba(41, 169, 226,0); }
 }
 .ia-field-flash {
     animation: gem-field-flash 1.6s ease-out;
@@ -646,10 +647,10 @@
 }
 .ia-status-ok {
     color: #1a7f4b;
-    background: linear-gradient(90deg, rgba(66,133,244,.10), rgba(155,114,203,.10));
+    background: linear-gradient(90deg, rgba(18, 44, 148,.10), rgba(41, 169, 226,.10));
 }
 .ia-status-ok i { 
-    background: linear-gradient(74deg, #4285f4, #9b72cb, #d96570);
+    background: linear-gradient(74deg, #122C94, #1C3FAE, #29A9E2);
     -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .ia-status-error {
@@ -674,14 +675,14 @@
 .gem-chat-ava {
     flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%;
     display: grid; place-items: center; font-size: 1rem;
-    background: linear-gradient(135deg, rgba(66,133,244,.14), rgba(155,114,203,.16));
+    background: linear-gradient(135deg, rgba(18, 44, 148,.10), rgba(41, 169, 226,.14));
     background-clip: padding-box;
 }
 .gem-chat-ava {
     color: transparent;
-    background-image: linear-gradient(74deg,#4285f4,#9b72cb,#d96570,#f49c46);
+    background-image: linear-gradient(74deg,#122C94, #1C3FAE, #29A9E2);
     -webkit-background-clip: text; background-clip: text;
-    border: 1px solid rgba(155,114,203,.25);
+    border: 1px solid rgba(41, 169, 226,.25);
 }
 .gem-chat-bubble {
     padding: 11px 15px; border-radius: 16px; font-size: .95rem; line-height: 1.5;
@@ -693,13 +694,13 @@
 }
 .gem-chat-msg--user .gem-chat-bubble {
     color: #fff; border-top-right-radius: 4px;
-    background: linear-gradient(74deg, #4285f4, #9b72cb);
+    background: linear-gradient(74deg, #122C94, #29A9E2);
 }
 /* "pensando" (tres puntos) */
 .gem-chat-thinking { display: inline-flex; gap: 5px; align-items: center; }
 .gem-chat-thinking span {
     width: 7px; height: 7px; border-radius: 50%;
-    background: linear-gradient(74deg,#4285f4,#9b72cb,#d96570);
+    background: linear-gradient(74deg,#122C94, #1C3FAE, #29A9E2);
     animation: gem-think 1.2s ease-in-out infinite;
 }
 .gem-chat-thinking span:nth-child(2) { animation-delay: .2s; }
@@ -713,11 +714,11 @@
 .gem-chip {
     border: 1.5px solid transparent; border-radius: 999px; padding: 7px 14px;
     font-size: .85rem; font-weight: 600; cursor: pointer; color: #4a5568;
-    background-image: linear-gradient(#fff,#fff), linear-gradient(74deg,#4285f4,#9b72cb,#d96570,#f49c46);
+    background-image: linear-gradient(#fff,#fff), linear-gradient(74deg,#122C94, #1C3FAE, #29A9E2);
     background-origin: border-box; background-clip: padding-box, border-box;
     transition: transform .15s ease, box-shadow .2s ease;
 }
-.gem-chip:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(155,114,203,.22); }
+.gem-chip:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(41, 169, 226,.22); }
 /* input + enviar */
 .gem-chat-form { display: flex; gap: 10px; align-items: center; }
 .gem-chat-input {
@@ -726,11 +727,38 @@
     transition: border-color .2s, box-shadow .2s;
 }
 .gem-chat-input:focus {
-    outline: none; border-color: #9b72cb;
-    box-shadow: 0 0 0 4px rgba(155,114,203,.14);
+    outline: none; border-color: #29A9E2;
+    box-shadow: 0 0 0 4px rgba(41, 169, 226,.14);
 }
 .gem-chat-send {
     width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0;
     display: grid; place-items: center; padding: 0; font-size: 1rem;
 }
 .gem-chat-send:disabled { opacity: .6; cursor: default; }
+
+/* ══════════════════════════════════════════════════════════════════
+   RESPONSIVE MÓVIL — coherente en PC y celular
+   ══════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+    .gem-hero { padding: 32px 16px 26px; }
+    .gem-sparkle { font-size: 2.4rem; }
+    .gem-title { font-size: 1.7rem; }
+    .gem-subtitle { font-size: .92rem; }
+    .gem-card { padding: 18px 16px; }
+
+    /* Chat */
+    .gem-chat-log { max-height: 300px; }
+    .gem-chat-bubble { max-width: 88%; font-size: .92rem; }
+    .gem-chat-form { gap: 8px; }
+    .gem-chat-input { padding: 11px 14px; font-size: .92rem; }
+    .gem-chat-send { width: 44px; height: 44px; }
+    .gem-chip { font-size: .8rem; padding: 6px 12px; }
+
+    /* Botones IA integrados (producto): a lo ancho y apilados */
+    .gem-btn-row { gap: 8px; }
+    .gem-btn-row .gem-btn-primary,
+    .gem-btn-row .gem-btn-secondary { flex: 1 1 100%; justify-content: center; }
+
+    /* Estado del servicio: encabezado apila el botón Actualizar */
+    .gem-card-header { flex-wrap: wrap; gap: 8px; }
+}

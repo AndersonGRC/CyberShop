@@ -27,7 +27,12 @@ def _guard():
 @ia_bp.route('/')
 @rol_requerido(ADMIN_STAFF)
 def panel():
-    """Página de estado del Asistente IA + acciones masivas."""
+    """Página del Asistente IA. Solo si el cliente tiene el módulo (plan con IA)."""
+    from tenant_features import is_module_active, MODULE_AI
+    if not is_module_active(MODULE_AI):
+        from flask import redirect, url_for, flash
+        flash('El Asistente IA no está incluido en tu plan.', 'warning')
+        return redirect(url_for('admin.dashboard_admin'))
     datosApp = get_data_app()
     estado = ai.ping()
     faltan = 0
