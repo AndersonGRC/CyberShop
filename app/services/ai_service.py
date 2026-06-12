@@ -11,6 +11,7 @@ AISLAMIENTO POR CLIENTE (requisito de seguridad):
 """
 
 import hashlib
+import re
 import time
 
 import requests
@@ -239,6 +240,105 @@ def generar_seo(nombre, descripcion=''):
         elif l.upper().startswith('DESCRIPCION:'):
             meta_desc = l.split(':', 1)[1].strip()[:155]
     return {'meta_title': meta_title, 'meta_description': meta_desc}, None
+
+
+def responder_chat(pregunta):
+    """Asistente conversacional del negocio. Flujo seguro en 2 pasos:
+      1) La IA elige UNA herramienta de solo-lectura del catálogo (JSON estricto).
+      2) Ejecutamos esa herramienta (consulta REAL a la BD del tenant).
+      3) La IA redacta la respuesta con esos datos reales (no inventa cifras).
+    Devuelve (dict {respuesta, datos, herramienta}, None) o (None, mensaje_error)."""
+    import json
+    import services.ai_tools as tools
+
+    pregunta = (pregunta or '').strip()
+    if not pregunta:
+        return None, 'Escribe una pregunta.'
+
+    # Paso 1: selección de herramienta (la IA NO escribe SQL, solo elige nombre+params)
+    sel_system = (
+        "Eres un enrutador. Dada la pregunta de un dueño de tienda, elige UNA "
+        "herramienta de esta lista para responderla:\n" + tools.catalogo_para_prompt() +
+        "\nResponde SOLO un JSON válido: {\"tool\":\"<code>\",\"params\":{...}}. "
+        "params puede incluir 'periodo' (hoy|semana|mes), 'limite' (número) o "
+        "'umbral' (número) según aplique. Si ninguna herramienta sirve, usa "
+        "{\"tool\":\"ninguna\"}. No expliques, solo el JSON."
+    )
+    raw, err = _chat(sel_system, pregunta, max_tokens=120, temperature=0)
+    if err:
+        return None, err
+    code, params = None, {}
+    try:
+        m = re.search(r'\{.*\}', raw, re.S)
+        data = json.loads(m.group(0)) if m else {}
+        code = data.get('tool')
+        params = data.get('params') or {}
+    except Exception:
+        code = None
+
+    if not code or code == 'ninguna' or code not in tools.TOOLS:
+        # Pregunta fuera del alcance de los datos: responde con honestidad.
+        resp, err2 = _chat(
+            _contexto_tenant() + " Eres un asistente del panel de administración.",
+            f"El dueño preguntó: «{pregunta}». No tienes datos para responder eso "
+            "con cifras. Responde breve y amable, e indícale qué SÍ puedes consultar "
+            "(ventas, productos más vendidos, stock bajo, inventario, clientes, "
+            "pedidos por despachar, estado del catálogo).", max_tokens=200)
+        if err2:
+            return None, err2
+        return {'respuesta': resp, 'datos': None, 'herramienta': None}, None
+
+    # Paso 2: ejecutar la herramienta (consulta real, tenant-scoped)
+    try:
+        datos = tools.ejecutar(code, params)
+    except Exception as exc:  # noqa: BLE001
+        try:
+            current_app.logger.warning(f'IA tool {code} falló: {exc}')
+        except Exception:
+            pass
+        return None, 'No pude consultar esos datos en este momento.'
+
+    # Paso 3: redacción con los datos reales
+    red_system = (_contexto_tenant() +
+                  " Responde la pregunta del dueño usando ÚNICAMENTE los datos que "
+                  "te doy (son reales, de su tienda). Sé claro y breve, en español, "
+                  "con las cifras exactas. No inventes nada que no esté en los datos.")
+    red_user = (f"Pregunta: «{pregunta}»\nDatos reales de su tienda (JSON):\n"
+                f"{json.dumps(datos, ensure_ascii=False)}\n\nRedacta la respuesta.")
+    resp, err3 = _chat(red_system, red_user, max_tokens=350)
+    if err3:
+        return None, err3
+    return {'respuesta': resp, 'datos': datos, 'herramienta': code}, None
+
+
+def sugerir_nombre(descripcion, categoria=''):
+    descripcion = (descripcion or '').strip()
+    if not descripcion:
+        return None, 'Escribe primero una descripción o detalles del producto.'
+    user = (f"A partir de estos detalles{(' (categoría ' + categoria + ')') if categoria else ''}:"
+            f" «{descripcion[:400]}», propón un NOMBRE comercial corto y atractivo "
+            "para el producto (máx 8 palabras). Solo el nombre, sin comillas.")
+    return _chat(_contexto_tenant(), user, max_tokens=40, temperature=0.8)
+
+
+def generar_tags(nombre, descripcion=''):
+    nombre = (nombre or '').strip()
+    if not nombre:
+        return None, 'Falta el nombre del producto.'
+    user = (f"Genera entre 5 y 8 etiquetas (keywords) de búsqueda para el producto "
+            f"«{nombre}»{(' — ' + descripcion[:200]) if descripcion else ''}. "
+            "Devuélvelas separadas por comas, en minúsculas, sin numerar.")
+    return _chat(_contexto_tenant(), user, max_tokens=80, temperature=0.5)
+
+
+def traducir_texto(texto, idioma='inglés'):
+    texto = (texto or '').strip()
+    if not texto:
+        return None, 'No hay texto para traducir.'
+    idioma = (idioma or 'inglés').strip()
+    system = ("Eres un traductor profesional de e-commerce. Traduce con naturalidad, "
+              "conservando el tono de venta. Devuelve SOLO la traducción.")
+    return _chat(system, f"Traduce al {idioma} este texto:\n\n{texto[:1200]}", max_tokens=500)
 
 
 def sugerir_respuesta(mensaje_cliente, asunto=''):

@@ -102,6 +102,59 @@ def respuesta_sugerida():
     return jsonify({'ok': True, 'respuesta': texto})
 
 
+@ia_bp.route('/chat', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+def chat():
+    """Asistente conversacional: responde con datos reales del tenant actual."""
+    g = _guard()
+    if g:
+        return g
+    d = request.get_json(silent=True) or {}
+    res, err = ai.responder_chat(d.get('pregunta', ''))
+    if err:
+        return jsonify({'ok': False, 'error': err}), 400
+    return jsonify({'ok': True, **res})
+
+
+@ia_bp.route('/nombre', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+def nombre():
+    g = _guard()
+    if g:
+        return g
+    d = request.get_json(silent=True) or {}
+    texto, err = ai.sugerir_nombre(d.get('descripcion', ''), d.get('categoria', ''))
+    if err:
+        return jsonify({'ok': False, 'error': err}), 400
+    return jsonify({'ok': True, 'nombre': texto})
+
+
+@ia_bp.route('/tags', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+def tags():
+    g = _guard()
+    if g:
+        return g
+    d = request.get_json(silent=True) or {}
+    texto, err = ai.generar_tags(d.get('nombre', ''), d.get('descripcion', ''))
+    if err:
+        return jsonify({'ok': False, 'error': err}), 400
+    return jsonify({'ok': True, 'tags': texto})
+
+
+@ia_bp.route('/traducir', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+def traducir():
+    g = _guard()
+    if g:
+        return g
+    d = request.get_json(silent=True) or {}
+    texto, err = ai.traducir_texto(d.get('texto', ''), d.get('idioma', 'inglés'))
+    if err:
+        return jsonify({'ok': False, 'error': err}), 400
+    return jsonify({'ok': True, 'texto': texto})
+
+
 @ia_bp.route('/descripciones-masivas', methods=['POST'])
 @rol_requerido(ADMIN_STAFF)
 def descripciones_masivas():

@@ -24,6 +24,40 @@
         </div>
     </div>
 
+    <!-- ── Chat conversacional del negocio ──────────────────────── -->
+    <div class="gem-card gem-chat-card">
+        <div class="gem-card-header">
+            <h2 class="gem-card-title">
+                <span class="gem-sparkle-sm">✦</span>
+                Pregúntale a tu negocio
+            </h2>
+        </div>
+        <p class="gem-chat-hint">Tu agente conoce solo TU tienda. Pregúntale en español:
+            ventas, productos más vendidos, stock bajo, inventario, clientes…</p>
+
+        <div id="gem-chat-log" class="gem-chat-log">
+            <div class="gem-chat-msg gem-chat-msg--ia">
+                <span class="gem-chat-ava">✦</span>
+                <div class="gem-chat-bubble">¡Hola! Soy tu asistente. ¿Qué quieres saber de tu tienda?</div>
+            </div>
+        </div>
+
+        <div class="gem-chat-sugerencias" id="gem-chat-sug">
+            <button class="gem-chip" type="button">¿Cuánto vendí este mes?</button>
+            <button class="gem-chip" type="button">¿Qué productos tienen poco stock?</button>
+            <button class="gem-chip" type="button">¿Qué le falta a mi catálogo?</button>
+            <button class="gem-chip" type="button">¿Cuál es mi mejor producto?</button>
+        </div>
+
+        <form id="gem-chat-form" class="gem-chat-form">
+            <input type="text" id="gem-chat-input" class="gem-chat-input" autocomplete="off"
+                   placeholder="Escribe tu pregunta…" maxlength="300">
+            <button type="submit" id="gem-chat-send" class="gem-btn-primary gem-chat-send">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </form>
+    </div>
+
     <!-- ── Grid de tarjetas ─────────────────────────────────────── -->
     <div class="ia-grid">
 
@@ -240,6 +274,86 @@
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;');
+    }
+
+    /* ── Chat conversacional del negocio ───────────────────────── */
+    const chatForm  = document.getElementById('gem-chat-form');
+    const chatInput = document.getElementById('gem-chat-input');
+    const chatLog   = document.getElementById('gem-chat-log');
+    const chatSend  = document.getElementById('gem-chat-send');
+    const chatSug   = document.getElementById('gem-chat-sug');
+    let chatBusy = false;
+
+    function addMsg(texto, quien) {
+        const wrap = document.createElement('div');
+        wrap.className = 'gem-chat-msg gem-chat-msg--' + quien;
+        if (quien === 'ia') {
+            wrap.innerHTML = '<span class="gem-chat-ava">✦</span><div class="gem-chat-bubble"></div>';
+            wrap.querySelector('.gem-chat-bubble').textContent = texto;
+        } else {
+            wrap.innerHTML = '<div class="gem-chat-bubble"></div>';
+            wrap.querySelector('.gem-chat-bubble').textContent = texto;
+        }
+        chatLog.appendChild(wrap);
+        chatLog.scrollTop = chatLog.scrollHeight;
+        return wrap;
+    }
+
+    function addThinking() {
+        const wrap = document.createElement('div');
+        wrap.className = 'gem-chat-msg gem-chat-msg--ia';
+        wrap.innerHTML = '<span class="gem-chat-ava">✦</span>' +
+            '<div class="gem-chat-bubble gem-chat-thinking"><span></span><span></span><span></span></div>';
+        chatLog.appendChild(wrap);
+        chatLog.scrollTop = chatLog.scrollHeight;
+        return wrap;
+    }
+
+    function preguntar(texto) {
+        texto = (texto || '').trim();
+        if (!texto || chatBusy) return;
+        chatBusy = true;
+        chatInput.value = '';
+        if (chatSug) chatSug.style.display = 'none';
+        addMsg(texto, 'user');
+        const thinking = addThinking();
+        chatSend.disabled = true;
+
+        fetch('/admin/ia/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ pregunta: texto })
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            thinking.remove();
+            if (data.ok) {
+                addMsg(data.respuesta, 'ia');
+            } else {
+                addMsg(data.error || 'No pude responder eso ahora.', 'ia');
+            }
+        })
+        .catch(function () {
+            thinking.remove();
+            addMsg('Error de conexión. Intenta de nuevo.', 'ia');
+        })
+        .finally(function () {
+            chatBusy = false;
+            chatSend.disabled = false;
+            chatInput.focus();
+        });
+    }
+
+    if (chatForm) {
+        chatForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            preguntar(chatInput.value);
+        });
+    }
+    if (chatSug) {
+        chatSug.querySelectorAll('.gem-chip').forEach(function (chip) {
+            chip.addEventListener('click', function () { preguntar(chip.textContent); });
+        });
     }
 })();
 </script>
