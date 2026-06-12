@@ -256,6 +256,11 @@
         <div class="form-group">
             <label for="nombre"><i class="fas fa-tag"></i> Nombre</label>
             <input type="text" id="nombre" name="nombre" value="{{ producto['nombre'] }}" required>
+            {% if 'ai_assistant' in active_modules %}
+            <button type="button" id="btn-ia-nombre" class="gem-btn-secondary" style="margin-top:8px;">
+                <span class="gem-btn-label">✦ Sugerir nombre con IA</span>
+            </button>
+            {% endif %}
         </div>
 
         <div class="form-group">
@@ -425,6 +430,37 @@
             })
             .catch(function () { setStatus('Error de red.', 'error'); })
             .finally(function () { setBusy(btnMejorar, false); });
+        });
+    }
+
+    const btnNombre = document.getElementById('btn-ia-nombre');
+    if (btnNombre) {
+        btnNombre.addEventListener('click', function () {
+            const descripEl = document.getElementById('descripcion');
+            const desc      = descripEl ? descripEl.value.trim() : '';
+            const generoEl  = document.getElementById('genero_id');
+            const cat       = generoEl && generoEl.selectedIndex >= 0
+                ? generoEl.options[generoEl.selectedIndex].text : '';
+            if (!desc) { setStatus('Escribe o genera una descripción para sugerir un nombre.', 'error'); return; }
+            setBusy(btnNombre, true);
+            setStatus('Pensando un nombre...', '', true);
+            fetch('/admin/ia/nombre', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ descripcion: desc, categoria: cat })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.ok) {
+                    const nombreEl = document.getElementById('nombre');
+                    if (nombreEl) { nombreEl.value = (data.nombre || '').replace(/^["']+|["']+$/g, ''); flashField(nombreEl); }
+                    setStatus('¡Nombre sugerido con IA! Ajústalo si quieres.', '');
+                } else {
+                    setStatus(data.error || 'No se pudo sugerir.', 'error');
+                }
+            })
+            .catch(function () { setStatus('Error de red.', 'error'); })
+            .finally(function () { setBusy(btnNombre, false); });
         });
     }
 })();
