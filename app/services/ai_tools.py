@@ -109,8 +109,8 @@ def ventas_periodo(periodo='hoy', **_):
     }
 
 
-def top_productos(periodo='mes', limite=5, **_):
-    """Productos más vendidos (web + POS) por unidades en el período."""
+def top_productos(periodo='todo', limite=5, **_):
+    """Productos más vendidos (web + POS) por unidades. Por defecto histórico."""
     p = _periodo(periodo)
     lim = max(1, min(int(limite or 5), 20))
     fweb = _PERIODO_SQL[p].format(col='p.fecha_creacion')

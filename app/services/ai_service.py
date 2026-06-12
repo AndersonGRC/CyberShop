@@ -261,9 +261,10 @@ def responder_chat(pregunta):
         "Eres un enrutador. Dada la pregunta de un dueño de tienda, elige UNA "
         "herramienta de esta lista para responderla:\n" + tools.catalogo_para_prompt() +
         "\nResponde SOLO un JSON válido: {\"tool\":\"<code>\",\"params\":{...}}. "
-        "params puede incluir 'periodo' (hoy|semana|mes), 'limite' (número) o "
-        "'umbral' (número) según aplique. Si piden datos sensibles o algo sin "
-        "herramienta, usa {\"tool\":\"ninguna\"}. No expliques, solo el JSON."
+        "params puede incluir 'periodo' (hoy|semana|mes|todo), 'limite' (número) o "
+        "'umbral' (número) según aplique. Si el usuario NO menciona un período "
+        "concreto (hoy/semana/mes), usa 'todo' (histórico). Si piden datos "
+        "sensibles o algo sin herramienta, usa {\"tool\":\"ninguna\"}. Solo el JSON."
     )
     raw, err = _chat(sel_system, pregunta, max_tokens=120, temperature=0)
     if err:
