@@ -20,7 +20,7 @@
         {% if slide.titulo %}<h2>{{ slide.titulo }}</h2>{% endif %}
         {% if slide.descripcion %}<p>{{ slide.descripcion }}</p>{% endif %}
         <div class="hero-ctas">
-          {% if config_global.get('mostrar_modulo_ventas', true) %}
+          {% if config_global.get('mostrar_modulo_ventas', true) and config_global.get('mostrar_nav_productos', true) %}
           <a href="{{ url_for('public.productos') }}" class="hero-btn hero-btn-primary"><i class="fas fa-store"></i> Ver productos</a>
           {% endif %}
           {% if config.get('mostrar_contacto', true) %}
@@ -39,7 +39,7 @@
         <h2>Tecnología fácil para todos</h2>
         <p>Descubre nuestros productos y servicios.</p>
         <div class="hero-ctas">
-          {% if config_global.get('mostrar_modulo_ventas', true) %}
+          {% if config_global.get('mostrar_modulo_ventas', true) and config_global.get('mostrar_nav_productos', true) %}
           <a href="{{ url_for('public.productos') }}" class="hero-btn hero-btn-primary"><i class="fas fa-store"></i> Ver productos</a>
           {% endif %}
           <a href="#contactenos" class="hero-btn hero-btn-ghost"><i class="fas fa-comments"></i> Contáctanos</a>

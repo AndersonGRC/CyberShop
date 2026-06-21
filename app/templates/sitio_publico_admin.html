@@ -729,49 +729,9 @@
                 </form>
             </div>
 
-            <!-- ── Formulario de visibilidad ── -->
-            <div class="pa-card" id="sections">
-                <div class="pa-card-header">
-                    <h2>Visibilidad del sitio y menú</h2>
-                    <p>Decide qué bloques y accesos aparecen en el sitio público. Los cambios se previsual­izan de inmediato en los tabs de la preview.</p>
-                </div>
-                <form method="POST" action="{{ url_for('admin.sitio_publico') }}" class="pa-card-body">
-                    <input type="hidden" name="form_type" value="sections">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                    {% set section_targets = {
-                        'mostrar_about':           'preview-about-section',
-                        'mostrar_mision_vision':   'preview-mission-vision-section',
-                        'mostrar_publicaciones':   'preview-publications-section',
-                        'mostrar_mapa':            'preview-map-section',
-                        'mostrar_contacto':        'preview-contact-section',
-                        'mostrar_nav_productos':   'preview-nav-products',
-                        'mostrar_nav_servicios':   'preview-nav-services',
-                        'mostrar_nav_quienes_somos':'preview-nav-about',
-                        'mostrar_nav_contacto':    'preview-nav-contact',
-                        'mostrar_modulo_ventas':   'preview-nav-products,preview-nav-cart,preview-store-live',
-                    } %}
-
-                    <div class="pa-sections-grid">
-                        {% for field in section_fields %}
-                        <label class="pa-toggle" for="{{ field.key }}">
-                            <div>
-                                <h3>{{ field.label }}</h3>
-                                <p>{{ field.description }}</p>
-                            </div>
-                            <input id="{{ field.key }}" name="{{ field.key }}" type="checkbox" value="true"
-                                   data-preview-visibility-target="{{ section_targets.get(field.key, '') }}"
-                                   data-initial-checked="{{ 'true' if public_site_sections.get(field.key, field.default) else 'false' }}"
-                                   {% if public_site_sections.get(field.key, field.default) %}checked{% endif %}>
-                        </label>
-                        {% endfor %}
-                    </div>
-
-                    <div class="pa-actions">
-                        <button type="submit" class="pa-btn"><i class="fas fa-save"></i> Guardar visibilidad</button>
-                    </div>
-                </form>
-            </div>
+            <!-- Visibilidad de secciones/menús: se administra de forma centralizada
+                 desde el panel maestro (admin.cybershopcol.com → cliente → Secciones).
+                 La preview de la derecha refleja el estado actual. -->
 
         </div><!-- /pa-stack -->
 

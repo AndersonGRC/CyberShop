@@ -185,6 +185,7 @@
 <main>
     <form action="{{ url_for('admin.editar_producto', id=producto['id']) }}" method="POST" class="form-container"
           enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
         <div class="form-header">
             <i class="fas fa-pen-to-square form-header-icon"></i>
@@ -307,8 +308,8 @@
         <div class="form-group">
             <label for="visible_en_ecommerce"><i class="fas fa-store"></i> Visibilidad online</label>
             <select id="visible_en_ecommerce" name="visible_en_ecommerce" required>
-                <option value="si" {% if producto['visible_en_ecommerce'] %}selected{% endif %}>Mostrar en e-commerce</option>
-                <option value="no" {% if not producto['visible_en_ecommerce'] %}selected{% endif %}>Solo venta física / restaurante</option>
+                <option value="si" {% if producto['visible_en_ecommerce'] %}selected{% endif %}>E-commerce + venta física{% if 'restaurant_tables' in active_modules %} / restaurante{% endif %} (ambas)</option>
+                <option value="no" {% if not producto['visible_en_ecommerce'] %}selected{% endif %}>Solo venta física{% if 'restaurant_tables' in active_modules %} / restaurante{% endif %}</option>
             </select>
         </div>
 
@@ -483,6 +484,15 @@
     const btnNext   = document.getElementById('next-actual');
     let idx = 0;
 
+    const CSRF_TOKEN = "{{ csrf_token() }}";
+    const addCsrf = (form) => {
+        const t = document.createElement('input');
+        t.type = 'hidden';
+        t.name = 'csrf_token';
+        t.value = CSRF_TOKEN;
+        form.appendChild(t);
+    };
+
     const renderAcciones = () => {
         const img = imgs[idx];
         accionesEl.innerHTML = '';
@@ -501,6 +511,7 @@
             bStar.className = 'btn-img-estrella';
             bStar.innerHTML = '<i class="fas fa-star"></i> Hacer principal';
             fStar.appendChild(bStar);
+            addCsrf(fStar);
             accionesEl.appendChild(fStar);
         }
         // Botón "Eliminar"
@@ -513,6 +524,7 @@
         bDel.className = 'btn-img-borrar';
         bDel.innerHTML = '<i class="fas fa-trash"></i> Eliminar';
         fDel.appendChild(bDel);
+        addCsrf(fDel);
         accionesEl.appendChild(fDel);
     };
 

@@ -237,6 +237,9 @@
         }
     }
 </style>
+{% if 'ai_assistant' in active_modules %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ia_gemini.css') }}">
+{% endif %}
 {% endblock %}
 
 {% block body %}
@@ -277,10 +280,23 @@
             <div class="form-group">
                 <label for="descripcion">Descripcion</label>
                 <textarea id="descripcion" name="descripcion" required></textarea>
+                {% if 'ai_assistant' in active_modules %}
+                <div class="gem-btn-row" style="margin-top:8px;">
+                    <button type="button" class="gem-btn-primary ia-content-btn" data-ia-accion="generar" data-ia-tipo="un servicio" data-ia-titulo="titulo" data-ia-target="descripcion">✦ Generar con IA</button>
+                    <button type="button" class="gem-btn-secondary ia-content-btn" data-ia-accion="mejorar" data-ia-target="descripcion"><span class="gem-btn-label">✨ Mejorar texto</span></button>
+                    <span class="ia-content-status" style="display:none;"></span>
+                </div>
+                {% endif %}
             </div>
             <div class="form-group">
                 <label for="beneficios">Beneficios</label>
                 <textarea id="beneficios" name="beneficios" rows="5"></textarea>
+                {% if 'ai_assistant' in active_modules %}
+                <div class="gem-btn-row" style="margin-top:8px;">
+                    <button type="button" class="gem-btn-secondary ia-content-btn" data-ia-accion="mejorar" data-ia-target="beneficios"><span class="gem-btn-label">✨ Mejorar beneficios</span></button>
+                    <span class="ia-content-status" style="display:none;"></span>
+                </div>
+                {% endif %}
                 <p class="form-hint">Escribe un beneficio por linea. Se mostraran como lista al hacer clic en el
                     servicio.</p>
             </div>
@@ -313,10 +329,23 @@
             <div class="form-group">
                 <label for="descripcion">Descripcion</label>
                 <textarea id="descripcion" name="descripcion" required>{{ servicio.descripcion }}</textarea>
+                {% if 'ai_assistant' in active_modules %}
+                <div class="gem-btn-row" style="margin-top:8px;">
+                    <button type="button" class="gem-btn-primary ia-content-btn" data-ia-accion="generar" data-ia-tipo="un servicio" data-ia-titulo="titulo" data-ia-target="descripcion">✦ Generar con IA</button>
+                    <button type="button" class="gem-btn-secondary ia-content-btn" data-ia-accion="mejorar" data-ia-target="descripcion"><span class="gem-btn-label">✨ Mejorar texto</span></button>
+                    <span class="ia-content-status" style="display:none;"></span>
+                </div>
+                {% endif %}
             </div>
             <div class="form-group">
                 <label for="beneficios">Beneficios</label>
                 <textarea id="beneficios" name="beneficios" rows="5">{{ servicio.beneficios or '' }}</textarea>
+                {% if 'ai_assistant' in active_modules %}
+                <div class="gem-btn-row" style="margin-top:8px;">
+                    <button type="button" class="gem-btn-secondary ia-content-btn" data-ia-accion="mejorar" data-ia-target="beneficios"><span class="gem-btn-label">✨ Mejorar beneficios</span></button>
+                    <span class="ia-content-status" style="display:none;"></span>
+                </div>
+                {% endif %}
                 <p class="form-hint">Un beneficio por linea.</p>
             </div>
             <div class="form-group">
@@ -391,4 +420,10 @@
     {% endif %}
     {% endif %}
 </div>
+{% endblock %}
+
+{% block javascript %}
+{% if 'ai_assistant' in active_modules %}
+<script src="{{ url_for('static', filename='js/ia_contenido.js') }}"></script>
+{% endif %}
 {% endblock %}

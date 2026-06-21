@@ -55,9 +55,76 @@
     .mis-cot-alert.info    { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
     .mis-cot-alert.danger  { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 
+    /* ---- Barra de acción en bloque ---- */
+    .bulk-bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 14px;
+        padding: 10px 12px;
+        background: #f4f6fa;
+        border: 1px solid #e3e6ec;
+        border-radius: 10px;
+    }
+
+    .bulk-bar label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #444;
+    }
+
+    .bulk-bar select {
+        padding: 7px 10px;
+        border: 1px solid #cdd3df;
+        border-radius: 7px;
+        font-size: 0.88rem;
+        background: #fff;
+        color: #333;
+    }
+
+    .bulk-bar .bulk-apply {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border: none;
+        border-radius: 7px;
+        background: var(--color-primario, #122C94);
+        color: #fff;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .bulk-bar .bulk-apply:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .bulk-bar .bulk-count {
+        font-size: 0.82rem;
+        color: #666;
+        font-weight: 600;
+    }
+
+    .scroll-hint {
+        display: none;
+        font-size: 0.78rem;
+        color: #888;
+        text-align: center;
+        margin-bottom: 8px;
+    }
+
+    /* ---- Checkbox de selección ---- */
+    .col-check { width: 36px; text-align: center; }
+    .cot-check, #check-all { width: 17px; height: 17px; cursor: pointer; }
+
     /* ---- Tabla desktop ---- */
     .mis-cot-table-wrap {
         width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
     .mis-cot-table {
@@ -178,7 +245,7 @@
     }
 
     /* ============================================================
-       MOBILE — tabla a tarjetas
+       MOBILE — tabla con SCROLL HORIZONTAL (desliza izq/der)
        ============================================================ */
     @media (max-width: 768px) {
         .mis-cot-wrap {
@@ -191,96 +258,36 @@
 
         .mis-cot-card {
             padding: 12px;
-            border-radius: 12px;
-            background: transparent;
-            border: none;
-            box-shadow: none;
         }
 
-        .mis-cot-table thead {
-            display: none;
+        /* La tabla mantiene su forma tabular y desborda -> el wrap se desliza */
+        .mis-cot-table {
+            min-width: 820px;
         }
 
-        .mis-cot-table,
-        .mis-cot-table tbody,
-        .mis-cot-table tr,
+        /* Pista de desplazamiento solo en móvil */
+        .scroll-hint {
+            display: block;
+        }
+
+        .mis-cot-table th,
         .mis-cot-table td {
-            display: block;
-            width: 100%;
-        }
-
-        .mis-cot-table tbody tr {
-            background: #ffffff;
-            border: 1px solid #e3e6ec;
-            border-radius: 12px;
-            margin-bottom: 12px;
-            padding: 14px;
-            box-shadow: 0 2px 6px rgba(18, 44, 148, 0.04);
-        }
-
-        .mis-cot-table tbody tr:hover {
-            background: #ffffff;
-        }
-
-        .mis-cot-table tbody td {
-            padding: 6px 0;
-            border-bottom: none;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-            text-align: left !important;
-            font-size: 0.88rem;
-        }
-
-        .mis-cot-table tbody td::before {
-            content: attr(data-label);
-            font-size: 0.7rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-            color: #777;
-            flex-shrink: 0;
-        }
-
-        .mis-cot-table tbody td.cell-id {
-            font-weight: 700;
-            color: var(--color-primario, #122C94);
-            border-bottom: 1px dashed #e3e6ec;
-            padding-bottom: 8px;
-            margin-bottom: 4px;
-        }
-
-        .mis-cot-table tbody td.cell-acciones {
-            display: block;
-            border-top: 1px dashed #e3e6ec;
-            margin-top: 8px;
-            padding-top: 10px;
-        }
-
-        .mis-cot-table tbody td.cell-acciones::before {
-            display: none;
-        }
-
-        .acciones-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 6px;
-            width: 100%;
-        }
-
-        .acciones-grid > * {
-            width: 100%;
-        }
-
-        .btn-act {
-            justify-content: center;
-            padding: 9px 10px;
+            white-space: nowrap;
+            padding: 10px;
             font-size: 0.85rem;
         }
 
-        .estado-badge {
+        .btn-act {
+            padding: 7px 9px;
             font-size: 0.78rem;
+        }
+
+        .acciones-grid {
+            flex-wrap: nowrap;
+        }
+
+        .bulk-bar {
+            gap: 8px;
         }
     }
 
@@ -306,10 +313,31 @@
 
     <div class="mis-cot-card">
         {% if cotizaciones %}
+        <!-- Barra de acción en bloque -->
+        <div class="bulk-bar">
+            <label for="bulk-accion"><i class="fas fa-layer-group"></i> Acción en bloque:</label>
+            <select id="bulk-accion">
+                <option value="aprobar">Aprobar seleccionadas</option>
+                <option value="rechazar">Rechazar seleccionadas</option>
+            </select>
+            <button type="button" id="bulk-apply" class="bulk-apply" disabled>
+                <i class="fas fa-check-double"></i> Aplicar
+            </button>
+            <span class="bulk-count" id="bulk-count">0 seleccionadas</span>
+        </div>
+        <!-- Form oculto que envía la acción en bloque (CSRF lo inyecta el JS global) -->
+        <form id="bulk-form" method="POST" action="{{ url_for('quotes.bulk_accion') }}" style="display:none;">
+            <input type="hidden" name="accion" id="bulk-accion-field" value="aprobar">
+            <div id="bulk-ids-container"></div>
+        </form>
+
+        <p class="scroll-hint"><i class="fas fa-arrows-alt-h"></i> Desliza la tabla para ver todo</p>
+
         <div class="mis-cot-table-wrap">
             <table class="mis-cot-table">
                 <thead>
                     <tr>
+                        <th class="col-check"><input type="checkbox" id="check-all" title="Seleccionar todas las pendientes"></th>
                         <th>ID</th>
                         <th>Fecha</th>
                         <th>Cliente</th>
@@ -322,6 +350,11 @@
                 <tbody>
                     {% for cot in cotizaciones %}
                     <tr>
+                        <td class="col-check center">
+                            {% if cot.estado == 'pendiente' %}
+                            <input type="checkbox" class="cot-check" value="{{ cot.id }}">
+                            {% endif %}
+                        </td>
                         <td data-label="ID" class="cell-id">COT {{ '%010d' % cot.id }}</td>
                         <td data-label="Fecha">{{ cot.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
                         <td data-label="Cliente">{{ cot.cliente_nombre }}</td>
@@ -396,4 +429,68 @@
         {% endif %}
     </div>
 </div>
+
+<script>
+/* ── Selección múltiple + acción en bloque (Mis Cotizaciones) ──────── */
+(function () {
+    var checkAll  = document.getElementById('check-all');
+    var applyBtn  = document.getElementById('bulk-apply');
+    var accionSel = document.getElementById('bulk-accion');
+    var countEl   = document.getElementById('bulk-count');
+    var bulkForm  = document.getElementById('bulk-form');
+    if (!applyBtn || !bulkForm) return;  // no hay cotizaciones
+
+    function checks() {
+        return Array.prototype.slice.call(document.querySelectorAll('.cot-check'));
+    }
+    function seleccionados() {
+        return checks().filter(function (c) { return c.checked; });
+    }
+    function actualizar() {
+        var n = seleccionados().length;
+        countEl.textContent = n + (n === 1 ? ' seleccionada' : ' seleccionadas');
+        applyBtn.disabled = (n === 0);
+        if (checkAll) {
+            var total = checks().length;
+            checkAll.checked = (n > 0 && n === total);
+            checkAll.indeterminate = (n > 0 && n < total);
+        }
+    }
+
+    if (checkAll) {
+        checkAll.addEventListener('change', function () {
+            checks().forEach(function (c) { c.checked = checkAll.checked; });
+            actualizar();
+        });
+    }
+    document.addEventListener('change', function (e) {
+        if (e.target && e.target.classList && e.target.classList.contains('cot-check')) {
+            actualizar();
+        }
+    });
+
+    applyBtn.addEventListener('click', function () {
+        var sel = seleccionados();
+        if (!sel.length) { alert('Selecciona al menos una cotización.'); return; }
+        var accion = accionSel.value;
+        var verbo = (accion === 'aprobar') ? 'APROBAR' : 'RECHAZAR';
+        var extra = (accion === 'aprobar') ? ' y registrarlas en contabilidad' : '';
+        if (!confirm('¿' + verbo + ' ' + sel.length + ' cotización(es)' + extra + '?')) return;
+
+        var cont = document.getElementById('bulk-ids-container');
+        cont.innerHTML = '';
+        sel.forEach(function (c) {
+            var inp = document.createElement('input');
+            inp.type = 'hidden';
+            inp.name = 'ids';
+            inp.value = c.value;
+            cont.appendChild(inp);
+        });
+        document.getElementById('bulk-accion-field').value = accion;
+        bulkForm.submit();
+    });
+
+    actualizar();
+})();
+</script>
 {% endblock %}
