@@ -1,7 +1,8 @@
 {
-  "latest": "1.0.0",
-  "min_required": "1.0.0",
+  "latest": "1.0.0.2",
+  "min_required": "0.0.0",
   "download_url": "/static/installers/CyberShopSetup_base.exe",
-  "checksum_sha256": "",
-  "release_notes": "Versión inicial del CyberShop POS Desktop con sincronización de branding, instalador asistido y multi-tenant."
+  "checksum_sha256": "3fe2d427ac4ea5db2af263c117515a1e7673c93f96cf1628dcff5ac7394451b8",
+  "release_notes": "Interfaz: dashboard con mas espacio y desplazable; tablas con filas mas holgadas. Mejoras de estabilidad.",
+  "updated_at": "2026-06-21T16:56:50.481583+00:00"
 }

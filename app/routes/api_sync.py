@@ -1058,11 +1058,39 @@ def config():
     except Exception:
         plan, estado = 'standard', 'activo'
 
+    # Flags de módulos del plan (autoritativos en cliente_config del tenant).
+    # El desktop los usa para ocultar/bloquear módulos fuera del plan. Aditivo:
+    # ante cualquier fallo se devuelve {} y el desktop no aplica restricción.
+    modules = {}
+    try:
+        from tenant_features import MODULE_DEFINITIONS, _as_bool
+        wanted = sorted({
+            m['config_key'] for m in MODULE_DEFINITIONS.values() if m.get('config_key')
+        })
+        stored = {}
+        with tenant_cursor(db_name=g.sync_db_name, dict_cursor=True) as cur:
+            cur.execute(
+                'SELECT clave, valor FROM cliente_config WHERE clave = ANY(%s)',
+                (wanted,),
+            )
+            for row in cur.fetchall():
+                stored[row['clave']] = row['valor']
+        for meta in MODULE_DEFINITIONS.values():
+            ck = meta.get('config_key')
+            if ck:
+                modules[ck] = _as_bool(stored.get(ck), meta.get('default', False))
+    except Exception as exc:
+        current_app.logger.warning(
+            'No se pudieron leer modulos del tenant %s: %s', g.sync_tenant_slug, exc
+        )
+        modules = {}
+
     return jsonify({
         'tenant_slug':   g.sync_tenant_slug,
         'tenant_nombre': nombre,
         'plan':          plan,
         'estado':        estado,
+        'modules':       modules,
         'server_time':   _now_iso(),
     })
 

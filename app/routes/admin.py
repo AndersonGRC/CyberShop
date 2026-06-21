@@ -578,6 +578,7 @@ def editar_producto(id):
 @rol_requerido(CATALOG_OPERATIONAL)
 def eliminar_imagen_producto(imagen_id):
     """Elimina una imagen de producto (no permite eliminar la principal si es la única)."""
+    producto_id = None
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -617,7 +618,10 @@ def eliminar_imagen_producto(imagen_id):
         conn.close()
         flash('Imagen eliminada.', 'success')
     except Exception as e:
-        flash(f'Error eliminando imagen: Revisa el log para más detalles.', 'error')
+        current_app.logger.exception('Error eliminando imagen %s: %s', imagen_id, e)
+        flash('Error eliminando imagen: Revisa el log para más detalles.', 'error')
+    if producto_id is None:
+        return redirect(request.referrer or url_for('admin.editar_productos'))
     return redirect(url_for('admin.editar_producto', id=producto_id))
 
 
@@ -625,6 +629,7 @@ def eliminar_imagen_producto(imagen_id):
 @rol_requerido(CATALOG_OPERATIONAL)
 def establecer_imagen_principal(imagen_id):
     """Establece una imagen como la principal del producto."""
+    producto_id = None
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -644,7 +649,10 @@ def establecer_imagen_principal(imagen_id):
         conn.close()
         flash('Imagen principal actualizada.', 'success')
     except Exception as e:
-        flash(f'Error: Revisa el log para más detalles.', 'error')
+        current_app.logger.exception('Error estableciendo imagen principal %s: %s', imagen_id, e)
+        flash('Error: Revisa el log para más detalles.', 'error')
+    if producto_id is None:
+        return redirect(request.referrer or url_for('admin.editar_productos'))
     return redirect(url_for('admin.editar_producto', id=producto_id))
 
 
@@ -1470,38 +1478,54 @@ def toggle_servicio(id):
 @admin_bp.route('/admin/sitio-publico', methods=['GET', 'POST'])
 @rol_requerido(ROL_SUPER_ADMIN)
 def sitio_publico():
-    """Panel de configuración visual del sitio público."""
+    """Movido al maestro. Los CAMPOS DE ADMINISTRADOR (colores, textos completos,
+    branding) se gestionan por cliente desde el panel maestro
+    (admin.cybershopcol.com → cliente → Configuración), NO desde la web del cliente.
+    En la web del cliente solo queda 'Mi Negocio' (datos básicos seguros). Esta
+    ruta redirige allí para que no se editen campos de administrador desde la web."""
+    return redirect(url_for('admin.mi_negocio'))
+
+
+# Claves que el DUEÑO (propietario) puede editar de su negocio. Reusa las MISMAS
+# claves que el maestro/sitio-publico (public_site_settings) → SIN duplicar textos.
+# Excluye: colores (rompen el diseño), correo destino del formulario (interno),
+# logo_url (se actualiza por la subida de archivo). Nunca toca visibilidad/módulos.
+_MI_NEGOCIO_EXCLUDE = {'empresa_logo_url', 'contacto_email_destino'}
+
+
+def _mi_negocio_keys():
+    return [f['key'] for f in PUBLIC_BRANDING_FIELDS + PUBLIC_LANDING_FIELDS
+            if f['key'] not in _MI_NEGOCIO_EXCLUDE]
+
+
+@admin_bp.route('/admin/mi-negocio', methods=['GET', 'POST'])
+@rol_requerido(ADMIN_FULL)  # super admin + propietario (el dueño del negocio)
+def mi_negocio():
+    """Edición de datos básicos del negocio para el dueño: nombre, slogan,
+    contacto, redes, logo y textos del home (Quiénes somos, Misión/Visión,
+    Contacto, Servicios). Reusa las MISMAS claves que el maestro
+    (public_site_settings) → un solo lugar de almacenamiento, sin duplicar.
+    NO expone colores, visibilidad de secciones ni módulos (operador/maestro)."""
+    safe_keys = _mi_negocio_keys()
     if request.method == 'POST':
-        form_type = request.form.get('form_type')
         try:
-            if form_type == 'branding':
-                save_public_site_settings(
-                    request.form,
-                    [
-                        field['key']
-                        for field in PUBLIC_BRANDING_FIELDS + PUBLIC_COLOR_FIELDS + PUBLIC_LANDING_FIELDS
-                        if field['key'] != 'empresa_logo_url'
-                    ],
-                )
-                save_public_logo(request.files.get('logo'), current_app.root_path)
-                flash('Branding y datos públicos actualizados.', 'success')
-                return redirect(url_for('admin.sitio_publico') + '#branding')
-
-            if form_type == 'sections':
-                save_public_site_sections(request.form)
-                flash('Visibilidad del sitio público actualizada.', 'success')
-                return redirect(url_for('admin.sitio_publico') + '#sections')
-
-            flash('No se reconoció el formulario enviado.', 'warning')
+            # Whitelist: solo se escriben las claves seguras, aunque el POST traiga otras.
+            save_public_site_settings(request.form, safe_keys)
+            save_public_logo(request.files.get('logo'), current_app.root_path)
+            flash('Datos de tu negocio actualizados.', 'success')
         except Exception as exc:
-            current_app.logger.error(f'Error actualizando sitio publico: {exc}')
-            flash('No fue posible guardar la configuración del sitio público.', 'error')
-        return redirect(url_for('admin.sitio_publico'))
+            current_app.logger.error(f'Error guardando mi-negocio: {exc}')
+            flash('No fue posible guardar los cambios.', 'error')
+        return redirect(url_for('admin.mi_negocio'))
 
+    ctx = get_public_site_admin_context()
+    safe = set(safe_keys)
     return render_template(
-        'sitio_publico_admin.html',
+        'mi_negocio.html',
         datosApp=get_data_app(),
-        **get_public_site_admin_context(),
+        public_site_settings=ctx['public_site_settings'],
+        branding_fields=[f for f in PUBLIC_BRANDING_FIELDS if f['key'] in safe],
+        landing_fields=[f for f in PUBLIC_LANDING_FIELDS if f['key'] in safe],
     )
 
 

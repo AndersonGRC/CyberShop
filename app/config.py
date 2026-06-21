@@ -67,6 +67,21 @@ class Config:
     UPLOADED_USERIMAGES_DEST = os.path.join('static', 'user')
     UPLOADED_USERIMAGES_URL = '/static/user/'
 
+    # --- Overrides de interfaz por instancia (theme a medida del SITIO PÚBLICO) ---
+    # Cada instancia de cliente puede tener una carpeta de overrides FUERA del
+    # repo compartido. Si existe, sus plantillas/estáticos pisan a los
+    # compartidos SOLO para ese cliente (el código y el /admin no se overridean).
+    # La lógica vive en el backend; las plantillas son solo presentación, así un
+    # fix global llega a todos. Ver app.py (ChoiceLoader + override de 'static').
+    INSTANCE_SLUG = os.getenv('DEFAULT_TENANT_SLUG', '')
+    INSTANCE_OVERRIDES_ROOT = os.getenv('INSTANCE_OVERRIDES_ROOT', '/var/www/cybershop-overrides')
+    # Dir efectivo del cliente actual: explícito desde el env (lo escribe el
+    # provisioning del maestro) o derivado de root+slug. Vacío si no hay slug.
+    # app.py valida que exista antes de activar overrides.
+    INSTANCE_OVERRIDES_DIR = os.getenv('INSTANCE_OVERRIDES_DIR') or (
+        os.path.join(INSTANCE_OVERRIDES_ROOT, INSTANCE_SLUG) if INSTANCE_SLUG else ''
+    )
+
     # --- Colores de Marca (usados en PDFs y emails) ---
     # xhtml2pdf no soporta CSS variables, asi que los colores del PDF
     # se toman de aqui. Deben coincidir con variables.css.

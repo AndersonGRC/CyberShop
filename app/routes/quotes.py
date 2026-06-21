@@ -371,22 +371,22 @@ def editar_cotizacion(id):
                            detalles=detalles)
 
 
-@quotes_bp.route('/admin/cotizar/aprobar/<int:id>', methods=['POST'])
-@rol_requerido(ADMIN_FULL)  # SECURITY A2: solo Admin/Propietario puede registrar ingresos
-def aprobar_cotizacion(id):
-    """Marca la cotización como aprobada y la registra en contabilidad."""
+def _aprobar_cotizacion_core(id):
+    """Aprueba una cotización y la registra en contabilidad. Sin flash/redirect.
+
+    Devuelve (ok: bool, msg: str). Reutilizable por la acción individual y la
+    acción en bloque. La lógica es idéntica a la del flujo individual previo.
+    """
     try:
         with get_db_cursor(dict_cursor=True) as cur:
             cur.execute("SELECT id, cliente_nombre, total, estado FROM cotizaciones WHERE id=%s", (id,))
             cot = cur.fetchone()
 
         if not cot:
-            flash("Cotización no encontrada.", "warning")
-            return redirect(url_for('quotes.ver_cotizaciones'))
+            return False, f"COT {str(id).zfill(10)}: no encontrada."
 
         if cot['estado'] == 'aprobada':
-            flash("Esta cotización ya fue aprobada.", "info")
-            return redirect(url_for('quotes.ver_cotizaciones'))
+            return False, f"COT {str(id).zfill(10)}: ya estaba aprobada."
 
         with get_db_cursor() as cur:
             cur.execute("UPDATE cotizaciones SET estado='aprobada' WHERE id=%s", (id,))
@@ -415,19 +415,14 @@ def aprobar_cotizacion(id):
         except Exception as _oe:
             app.logger.warning(f"Sync oportunidad ganada: {_oe}")
 
-        flash(f"Cotización COT {str(id).zfill(10)} aprobada y registrada en contabilidad.", "success")
+        return True, f"COT {str(id).zfill(10)} aprobada y registrada en contabilidad."
     except Exception as e:
         app.logger.error(f"Error aprobando cotización {id}: {e}")
-        flash(f"Error al aprobar: Revisa el log para más detalles.", "danger")
-
-    return redirect(url_for('quotes.ver_cotizaciones'))
+        return False, f"COT {str(id).zfill(10)}: error al aprobar (revisa el log)."
 
 
-@quotes_bp.route('/admin/cotizar/rechazar/<int:id>', methods=['POST'])
-@rol_requerido(ADMIN_STAFF)
-def rechazar_cotizacion(id):
-    """Marca la cotización como rechazada."""
-    motivo = request.form.get('motivo', '').strip()[:160] or None
+def _rechazar_cotizacion_core(id, motivo=None):
+    """Marca una cotización como rechazada. Sin flash/redirect. Devuelve (ok, msg)."""
     try:
         with get_db_cursor() as cur:
             cur.execute("UPDATE cotizaciones SET estado='rechazada' WHERE id=%s", (id,))
@@ -440,10 +435,89 @@ def rechazar_cotizacion(id):
             )
         except Exception as _oe:
             app.logger.warning(f"Sync oportunidad perdida: {_oe}")
-        flash("Cotización marcada como rechazada.", "warning")
+        return True, f"COT {str(id).zfill(10)} marcada como rechazada."
     except Exception as e:
         app.logger.error(f"Error rechazando cotización {id}: {e}")
-        flash(f"Error: Revisa el log para más detalles.", "danger")
+        return False, f"COT {str(id).zfill(10)}: error al rechazar (revisa el log)."
+
+
+@quotes_bp.route('/admin/cotizar/aprobar/<int:id>', methods=['POST'])
+@rol_requerido(ADMIN_FULL)  # SECURITY A2: solo Admin/Propietario puede registrar ingresos
+def aprobar_cotizacion(id):
+    """Marca la cotización como aprobada y la registra en contabilidad."""
+    ok, msg = _aprobar_cotizacion_core(id)
+    flash(msg, "success" if ok else ("info" if "ya estaba" in msg else "warning"))
+    return redirect(url_for('quotes.ver_cotizaciones'))
+
+
+@quotes_bp.route('/admin/cotizar/rechazar/<int:id>', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+def rechazar_cotizacion(id):
+    """Marca la cotización como rechazada."""
+    motivo = request.form.get('motivo', '').strip()[:160] or None
+    ok, msg = _rechazar_cotizacion_core(id, motivo)
+    flash(msg, "warning" if ok else "danger")
+    return redirect(url_for('quotes.ver_cotizaciones'))
+
+
+@quotes_bp.route('/admin/cotizar/bulk_accion', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+def bulk_accion():
+    """Aprueba o rechaza varias cotizaciones a la vez.
+
+    Recibe `ids` (lista) y `accion` ('aprobar'|'rechazar'). Aprobar exige
+    ADMIN_FULL (igual que la acción individual, porque registra ingresos).
+    """
+    accion = (request.form.get('accion') or '').strip().lower()
+    raw_ids = request.form.getlist('ids')
+
+    if accion not in ('aprobar', 'rechazar'):
+        flash("Acción no válida.", "danger")
+        return redirect(url_for('quotes.ver_cotizaciones'))
+
+    # Gating de permiso: aprobar en bloque = mismo nivel que aprobar individual.
+    if accion == 'aprobar' and session.get('rol_id') not in ADMIN_FULL:
+        flash("No tienes permiso para aprobar cotizaciones.", "danger")
+        return redirect(url_for('quotes.ver_cotizaciones'))
+
+    # Normalizar ids a enteros únicos.
+    ids = []
+    for r in raw_ids:
+        try:
+            n = int(r)
+        except (TypeError, ValueError):
+            continue
+        if n not in ids:
+            ids.append(n)
+
+    if not ids:
+        flash("No seleccionaste ninguna cotización.", "warning")
+        return redirect(url_for('quotes.ver_cotizaciones'))
+
+    ok_count, fail_count, fail_msgs = 0, 0, []
+    for cid in ids:
+        if accion == 'aprobar':
+            ok, msg = _aprobar_cotizacion_core(cid)
+        else:
+            ok, msg = _rechazar_cotizacion_core(cid)
+        if ok:
+            ok_count += 1
+        else:
+            fail_count += 1
+            fail_msgs.append(msg)
+
+    verbo = "aprobada(s)" if accion == 'aprobar' else "rechazada(s)"
+    if ok_count:
+        flash(f"{ok_count} cotización(es) {verbo}." +
+              (f" {fail_count} omitida(s)." if fail_count else ""),
+              "success" if accion == 'aprobar' else "warning")
+    if fail_count and not ok_count:
+        flash(f"No se procesó ninguna. {'; '.join(fail_msgs[:5])}", "danger")
+    elif fail_count:
+        # Detalle breve de las omitidas (sin saturar).
+        flash("Omitidas: " + "; ".join(fail_msgs[:5]) +
+              ("…" if len(fail_msgs) > 5 else ""), "info")
+
     return redirect(url_for('quotes.ver_cotizaciones'))
 
 

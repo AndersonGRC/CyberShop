@@ -81,6 +81,25 @@ def reescribir():
     return jsonify({'ok': True, 'texto': texto})
 
 
+@ia_bp.route('/contenido', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+def contenido():
+    """IA para secciones de Contenido Web (publicaciones, slides, servicios).
+    accion='generar' (desde el título) o 'mejorar' (reescribe el texto dado)."""
+    g = _guard()
+    if g:
+        return g
+    d = request.get_json(silent=True) or {}
+    if (d.get('accion') or '').strip() == 'mejorar':
+        texto, err = ai.mejorar_contenido(d.get('texto', ''))
+    else:
+        texto, err = ai.generar_contenido(
+            d.get('titulo', ''), d.get('tipo', 'contenido'), d.get('detalle', ''))
+    if err:
+        return jsonify({'ok': False, 'error': err}), 400
+    return jsonify({'ok': True, 'texto': texto})
+
+
 @ia_bp.route('/seo', methods=['POST'])
 @rol_requerido(ADMIN_STAFF)
 def seo():
