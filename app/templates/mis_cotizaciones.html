@@ -374,6 +374,16 @@
                                     <i class="fas fa-clock"></i> Pendiente
                                 </span>
                             {% endif %}
+                            {% if fe_habilitada %}
+                              {% if cot.factura_dian_id %}
+                                <span class="estado-badge aprobada" title="Facturada electrónicamente"><i class="fas fa-file-invoice-dollar"></i> FE</span>
+                              {% elif cot.estado == 'pendiente' %}
+                                <label style="display:block;margin-top:6px;font-size:.78em;cursor:pointer;color:#555;">
+                                  <input type="checkbox" class="fe-cot-check" data-id="{{ cot.id }}"
+                                    {% if cot.facturar_electronicamente %}checked{% endif %}> Facturar al aprobar
+                                </label>
+                              {% endif %}
+                            {% endif %}
                         </td>
                         <td data-label="Acciones" class="center cell-acciones acciones-cell">
                             <div class="acciones-grid">
@@ -492,5 +502,20 @@
 
     actualizar();
 })();
+
+// Marcar/desmarcar "Facturar al aprobar" (DIAN) por cotización
+document.querySelectorAll('.fe-cot-check').forEach(function (chk) {
+    chk.addEventListener('change', function () {
+        var csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        var id = this.dataset.id, activar = this.checked;
+        fetch('/admin/cotizar/' + id + '/fe', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ activar: activar })
+        }).then(function (r) { return r.json(); }).then(function (d) {
+            if (!d.success) { chk.checked = !activar; alert('No se pudo actualizar.'); }
+        }).catch(function () { chk.checked = !activar; alert('Error de conexión.'); });
+    });
+});
 </script>
 {% endblock %}

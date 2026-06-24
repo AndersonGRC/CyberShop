@@ -476,6 +476,13 @@
                         </select>
                     </label>
 
+                    {% if fe_habilitada %}
+                    <label class="rtm-mini-label" style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+                        <input type="checkbox" id="rtmFacturarFE" style="width:auto;">
+                        <span><i class="fas fa-file-invoice"></i> Facturar electrónicamente (DIAN)</span>
+                    </label>
+                    {% endif %}
+
                     <!-- Cambio de estado rápido -->
                     <div class="rtm-quick-states">
                         <button class="rtm-state-btn rtm-state-disponible" data-next-state="disponible" type="button">

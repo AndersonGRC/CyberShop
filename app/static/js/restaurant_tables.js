@@ -861,6 +861,7 @@
         try {
             const result = await jsonRequest(endpointForTable(endpoints.closeAccountBase, table.id), {
                 payment_method: paymentMethod,
+                facturar_electronicamente: document.getElementById('rtmFacturarFE')?.checked || false,
             });
             await refreshData(table.id);
             notify(`Cobro registrado. Total final: ${money(result.total)}.`, 'success');
