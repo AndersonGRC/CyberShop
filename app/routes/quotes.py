@@ -7,7 +7,7 @@ items de inventario o personalizados, y exportar a PDF.
 
 import os
 from datetime import datetime
-from flask import Blueprint, render_template, request, Response, session, current_app as app, send_file, url_for, flash, redirect
+from flask import Blueprint, render_template, request, Response, session, current_app as app, send_file, url_for, flash, redirect, jsonify
 from werkzeug.utils import secure_filename
 from xhtml2pdf import pisa
 from io import BytesIO
@@ -323,7 +323,9 @@ def ver_cotizaciones():
         with get_db_cursor(dict_cursor=True) as cur:
             cur.execute("""
                 SELECT id, fecha, cliente_nombre, cliente_documento, total, pdf_path,
-                       COALESCE(estado, 'pendiente') AS estado
+                       COALESCE(estado, 'pendiente') AS estado,
+                       COALESCE(facturar_electronicamente, FALSE) AS facturar_electronicamente,
+                       factura_dian_id
                 FROM cotizaciones
                 ORDER BY fecha DESC
             """)
@@ -331,7 +333,30 @@ def ver_cotizaciones():
     except Exception as e:
         app.logger.error(f"Error listando cotizaciones: {e}")
 
-    return render_template('mis_cotizaciones.html', datosApp=datosApp, cotizaciones=cotizaciones)
+    try:
+        from routes.factura_electronica import facturacion_habilitada
+        fe_habilitada = facturacion_habilitada()
+    except Exception:
+        fe_habilitada = False
+
+    return render_template('mis_cotizaciones.html', datosApp=datosApp,
+                           cotizaciones=cotizaciones, fe_habilitada=fe_habilitada)
+
+
+@quotes_bp.route('/admin/cotizar/<int:id>/fe', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+def toggle_fe_cotizacion(id):
+    """Marca/desmarca una cotización para facturarla electrónicamente al aprobarla."""
+    data = request.get_json(silent=True) or request.form
+    activar = str(data.get('activar', '')).lower() in ('1', 'true', 'on', 'yes')
+    try:
+        with get_db_cursor() as cur:
+            cur.execute("UPDATE cotizaciones SET facturar_electronicamente = %s WHERE id = %s",
+                        (activar, id))
+        return jsonify({'success': True, 'facturar': activar})
+    except Exception as e:
+        app.logger.warning(f"toggle FE cotización {id}: {e}")
+        return jsonify({'success': False, 'error': 'No se pudo actualizar'}), 500
 
 
 @quotes_bp.route('/admin/cotizar/editar/<int:id>')
@@ -414,6 +439,25 @@ def _aprobar_cotizacion_core(id):
             )
         except Exception as _oe:
             app.logger.warning(f"Sync oportunidad ganada: {_oe}")
+
+        # Facturación electrónica (opcional — no frena la aprobación)
+        try:
+            from routes.factura_electronica import (emitir_factura_cotizacion,
+                                                    facturacion_habilitada)
+            if facturacion_habilitada():
+                quiere = False
+                try:
+                    with get_db_cursor(dict_cursor=True) as cur:
+                        cur.execute("SELECT COALESCE(facturar_electronicamente, FALSE) AS f "
+                                    "FROM cotizaciones WHERE id=%s", (id,))
+                        r = cur.fetchone()
+                        quiere = bool(r and r['f'])
+                except Exception:
+                    quiere = False   # columna no existe → no factura
+                if quiere:
+                    emitir_factura_cotizacion(id)
+        except Exception as _fe:
+            app.logger.warning(f"FE cotización {id}: {_fe}")
 
         return True, f"COT {str(id).zfill(10)} aprobada y registrada en contabilidad."
     except Exception as e:

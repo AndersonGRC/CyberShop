@@ -453,3 +453,220 @@ def _guardar_factura_id_en_venta_pos(venta_id: int, factura_dian_id: str):
             f"No se pudo guardar factura_dian_id en venta POS {venta_id}: {e}. "
             "Ejecutar: ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS factura_dian_id UUID;"
         )
+
+
+# ============================================================================
+# Extensión FE a más módulos de dinero: Restaurante, Cuenta de cobro, Cotización
+# Mismo patrón: facturacion_habilitada() + flag por registro + idempotencia
+# (factura_dian_id). El plazo/modo de envío lo decide el cliente en su portal
+# tributario (el microservicio respeta grace_minutos/modo_aprobacion por tenant).
+# ============================================================================
+
+def _guardar_factura_id_tabla(tabla: str, registro_id: int, factura_dian_id: str):
+    """Guarda el UUID de factura DIAN en {tabla}.factura_dian_id (tabla interna, no input)."""
+    if not factura_dian_id:
+        return
+    try:
+        with get_db_cursor() as cur:
+            cur.execute(
+                f"UPDATE {tabla} SET factura_dian_id = %s WHERE id = %s",
+                (factura_dian_id, registro_id)
+            )
+    except Exception as e:
+        logger.warning(
+            f"No se pudo guardar factura_dian_id en {tabla} {registro_id}: {e}. "
+            f"Ejecutar: ALTER TABLE {tabla} ADD COLUMN IF NOT EXISTS factura_dian_id UUID;"
+        )
+
+
+def _emitir_a_dian(tabla: str, registro_id: int, payload: dict | None) -> dict:
+    """
+    Envío genérico al microservicio DIAN, idempotente por {tabla}.factura_dian_id.
+    `tabla` es una constante interna (no entrada del usuario). Devuelve dict
+    {'id','estado'} o {'error': ...} — NUNCA lanza (no debe frenar el flujo de dinero).
+    """
+    if not DIAN_API_KEY:
+        logger.warning("DIAN_API_KEY no configurada — facturación electrónica desactivada")
+        return {"error": "Facturación electrónica no configurada"}
+
+    # Guard idempotente: si ya tiene factura, no reenviar
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute(f"SELECT factura_dian_id FROM {tabla} WHERE id = %s", (registro_id,))
+            row = cur.fetchone()
+            if row and row['factura_dian_id']:
+                return {"id": str(row['factura_dian_id']), "estado": "YA_EMITIDA"}
+    except Exception as e:
+        logger.warning(f"No se pudo verificar factura_dian_id en {tabla} {registro_id}: {e}")
+
+    if not payload:
+        return {"error": f"Registro {registro_id} no encontrado en {tabla}"}
+
+    try:
+        resp = requests.post(
+            f"{DIAN_SERVICE_URL}/facturas",
+            json=payload,
+            headers={"X-API-Key": DIAN_API_KEY, "Content-Type": "application/json"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        resultado = resp.json()
+        _guardar_factura_id_tabla(tabla, registro_id, resultado.get('id'))
+        logger.info(f"Factura encolada para {tabla} {registro_id}: id={resultado.get('id')}")
+        return resultado
+    except requests.exceptions.Timeout:
+        return {"error": "Timeout al conectar con el servicio de facturación"}
+    except requests.exceptions.ConnectionError:
+        return {"error": "Servicio de facturación no disponible"}
+    except requests.exceptions.HTTPError as e:
+        return {"error": f"Error del servicio de facturación: {e}"}
+    except Exception as e:
+        logger.error(f"Error inesperado al facturar {tabla} {registro_id}: {e}")
+        return {"error": str(e)}
+
+
+# ── Restaurante (mesas) ──────────────────────────────────────────────────────
+
+def construir_json_restaurante(order_id: int) -> dict | None:
+    """Convierte una orden de mesa cerrada (restaurant_table_orders) al JSON DIAN."""
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            """SELECT cliente_nombre, total_acumulado, payment_method, factura_dian_id
+               FROM restaurant_table_orders WHERE id = %s""", (order_id,))
+        orden = cur.fetchone()
+        if not orden:
+            return None
+        cur.execute(
+            """SELECT descripcion, cantidad, precio_unitario, subtotal
+               FROM restaurant_table_consumptions WHERE order_id = %s ORDER BY id""", (order_id,))
+        items_db = cur.fetchall()
+
+    orden = dict(orden)
+    items = []
+    for it in (dict(x) for x in items_db):
+        items.append({
+            "descripcion":     it.get('descripcion') or 'Consumo',
+            "cantidad":        int(it.get('cantidad') or 1),
+            "precio_unitario": float(it.get('precio_unitario') or 0),
+            "descuento":       0,
+            "codigo_unidad":   "EA",
+            "impuesto_iva":    19,   # el micro lo pone en 0 si el emisor es No responsable de IVA
+        })
+    metodo = METODO_PAGO_MAP.get(str(orden.get('payment_method') or '').upper(), '10')
+    return {
+        "referencia_pedido": f"REST-{order_id}",
+        "cliente": {
+            "tipo_persona": "natural", "tipo_documento": "CC", "numero_documento": "0",
+            "nombre": orden.get('cliente_nombre') or 'Consumidor Final',
+            "email": "", "telefono": "", "direccion": "", "municipio_codigo": "11001",
+        },
+        "items": items, "metodo_pago": metodo, "moneda": "COP",
+        "notas": f"Restaurante — orden de mesa #{order_id}",
+    }
+
+
+def emitir_factura_restaurante(order_id: int) -> dict:
+    return _emitir_a_dian('restaurant_table_orders', order_id,
+                          construir_json_restaurante(order_id))
+
+
+# ── Cuenta de cobro ──────────────────────────────────────────────────────────
+
+def construir_json_cuenta_cobro(cuenta_id: int) -> dict | None:
+    """Convierte una cuenta de cobro (cuentas_cobro) al JSON DIAN."""
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            """SELECT consecutivo, cliente_nombre, cliente_nit, cliente_direccion,
+                      cliente_telefono, cliente_ciudad, total, factura_dian_id
+               FROM cuentas_cobro WHERE id = %s""", (cuenta_id,))
+        cuenta = cur.fetchone()
+        if not cuenta:
+            return None
+        cur.execute(
+            """SELECT descripcion, valor FROM detalle_cuenta_cobro
+               WHERE cuenta_id = %s ORDER BY id""", (cuenta_id,))
+        items_db = cur.fetchall()
+
+    cuenta = dict(cuenta)
+    nit = (cuenta.get('cliente_nit') or '').strip()
+    tipo_doc = 'NIT' if nit else 'CC'
+    items = []
+    for it in (dict(x) for x in items_db):
+        items.append({
+            "descripcion":     it.get('descripcion') or 'Servicio',
+            "cantidad":        1,
+            "precio_unitario": float(it.get('valor') or 0),
+            "descuento":       0,
+            "codigo_unidad":   "EA",
+            "impuesto_iva":    0,   # honorarios de contratista: sin IVA por defecto
+        })
+    return {
+        "referencia_pedido": cuenta.get('consecutivo') or f"CC-{cuenta_id}",
+        "cliente": {
+            "tipo_persona": "juridica" if tipo_doc == 'NIT' else "natural",
+            "tipo_documento": tipo_doc, "numero_documento": nit or '0',
+            "nombre": cuenta.get('cliente_nombre') or 'Cliente',
+            "email": "", "telefono": cuenta.get('cliente_telefono') or '',
+            "direccion": cuenta.get('cliente_direccion') or '',
+            "municipio_codigo": _municipio_codigo(cuenta.get('cliente_ciudad')),
+        },
+        "items": items, "metodo_pago": "10", "moneda": "COP",
+        "notas": f"Cuenta de cobro {cuenta.get('consecutivo') or cuenta_id}",
+    }
+
+
+def emitir_factura_cuenta_cobro(cuenta_id: int) -> dict:
+    return _emitir_a_dian('cuentas_cobro', cuenta_id,
+                          construir_json_cuenta_cobro(cuenta_id))
+
+
+# ── Cotización aprobada ──────────────────────────────────────────────────────
+
+def construir_json_cotizacion(cotizacion_id: int) -> dict | None:
+    """Convierte una cotización (cotizaciones) al JSON DIAN."""
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            """SELECT cliente_nombre, cliente_documento, cliente_direccion,
+                      cliente_ciudad, cliente_telefono, total, factura_dian_id
+               FROM cotizaciones WHERE id = %s""", (cotizacion_id,))
+        cot = cur.fetchone()
+        if not cot:
+            return None
+        cur.execute(
+            """SELECT descripcion, cantidad, precio_unitario, descuento_porc, iva_porc
+               FROM detalle_cotizacion WHERE cotizacion_id = %s ORDER BY id""", (cotizacion_id,))
+        items_db = cur.fetchall()
+
+    cot = dict(cot)
+    items = []
+    for it in (dict(x) for x in items_db):
+        cant = int(it.get('cantidad') or 1)
+        precio = float(it.get('precio_unitario') or 0)
+        desc_porc = float(it.get('descuento_porc') or 0)
+        items.append({
+            "descripcion":     it.get('descripcion') or 'Item',
+            "cantidad":        cant,
+            "precio_unitario": precio,
+            "descuento":       round(cant * precio * desc_porc / 100, 2),
+            "codigo_unidad":   "EA",
+            "impuesto_iva":    float(it.get('iva_porc') or 0),
+        })
+    doc = (cot.get('cliente_documento') or '').strip()
+    return {
+        "referencia_pedido": f"COT-{cotizacion_id}",
+        "cliente": {
+            "tipo_persona": "natural", "tipo_documento": "CC",
+            "numero_documento": doc or '0',
+            "nombre": cot.get('cliente_nombre') or 'Cliente',
+            "email": "", "telefono": cot.get('cliente_telefono') or '',
+            "direccion": cot.get('cliente_direccion') or '',
+            "municipio_codigo": _municipio_codigo(cot.get('cliente_ciudad')),
+        },
+        "items": items, "metodo_pago": "48", "moneda": "COP",
+        "notas": f"Cotización #{cotizacion_id} aprobada",
+    }
+
+
+def emitir_factura_cotizacion(cotizacion_id: int) -> dict:
+    return _emitir_a_dian('cotizaciones', cotizacion_id,
+                          construir_json_cotizacion(cotizacion_id))

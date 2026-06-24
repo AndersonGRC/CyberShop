@@ -88,6 +88,7 @@ def _restaurant_context(*, view_mode, page_title, page_description, area=None, r
         'table_states': TABLE_STATES,
         'consumption_states': CONSUMPTION_STATES,
         'payment_methods': PAYMENT_METHODS,
+        'fe_habilitada': _fe_habilitada(),
         'accounting_statuses': ACCOUNTING_STATUSES,
         'report_data': report_data,
         'view_mode': view_mode,
@@ -256,9 +257,43 @@ def restaurant_table_close(table_id):
     payload = request.get_json(silent=True) or request.form.to_dict()
     try:
         result = close_table_order(session.get('usuario_id'), table_id, payload)
+        _facturar_orden_si_aplica(result.get('order_id'), payload)
         return jsonify({'success': True, **result})
     except Exception as exc:
         return _json_error(str(exc), 400)
+
+
+def _fe_habilitada():
+    """True si el módulo de facturación electrónica está activo (tolerante)."""
+    try:
+        from routes.factura_electronica import facturacion_habilitada
+        return facturacion_habilitada()
+    except Exception:
+        return False
+
+
+def _facturar_orden_si_aplica(order_id, payload):
+    """Dispara la factura electrónica de la orden si el módulo FE está activo y el
+    cobro la solicitó. NUNCA frena el cierre de la mesa (todo en try/except)."""
+    if not order_id:
+        return
+    try:
+        quiere = str(payload.get('facturar_electronicamente') or '').lower() in (
+            '1', 'true', 'on', 'yes', 'si', 'sí')
+        from routes.factura_electronica import (emitir_factura_restaurante,
+                                                facturacion_habilitada)
+        if not (quiere and facturacion_habilitada()):
+            return
+        try:
+            from database import get_db_cursor
+            with get_db_cursor() as cur:
+                cur.execute("UPDATE restaurant_table_orders "
+                            "SET facturar_electronicamente = TRUE WHERE id = %s", (order_id,))
+        except Exception:
+            pass
+        emitir_factura_restaurante(order_id)
+    except Exception as exc:
+        app.logger.warning(f"FE restaurante orden {order_id}: {exc}")
 
 
 @restaurant_tables_bp.route('/admin/restaurante/mesas/<int:table_id>/cancelar', methods=['POST'])

@@ -9,7 +9,7 @@ para contratistas, con generacion de PDF y soporte para edicion/eliminacion.
 import os
 import locale
 from datetime import datetime
-from flask import Blueprint, render_template, request, Response, session, current_app as app, send_file, url_for, redirect, flash
+from flask import Blueprint, render_template, request, Response, session, current_app as app, send_file, url_for, redirect, flash, jsonify
 from werkzeug.utils import secure_filename
 from xhtml2pdf import pisa
 from io import BytesIO
@@ -350,6 +350,29 @@ def eliminar_cuenta(id):
         
     return redirect(url_for('billing.listar_cuentas'))
 
+
+@billing_bp.route('/admin/cuenta_cobro/<int:id>/facturar', methods=['POST'])
+@rol_requerido(ADMIN_CONTADOR)
+def facturar_cuenta_cobro(id):
+    """Emite factura electrónica para una cuenta de cobro (acción manual)."""
+    from routes.factura_electronica import (emitir_factura_cuenta_cobro,
+                                            facturacion_habilitada)
+    if not facturacion_habilitada():
+        return jsonify({'success': False,
+                        'error': 'Módulo de facturación electrónica no contratado'}), 403
+    try:
+        with get_db_cursor() as cur:
+            cur.execute("UPDATE cuentas_cobro SET facturar_electronicamente = TRUE "
+                        "WHERE id = %s", (id,))
+    except Exception:
+        pass   # columna no existe → idempotencia igual por factura_dian_id
+    resultado = emitir_factura_cuenta_cobro(id)
+    if 'error' in resultado:
+        return jsonify({'success': False, 'error': resultado['error']}), 500
+    return jsonify({'success': True, 'factura_id': resultado.get('id'),
+                    'estado': resultado.get('estado')})
+
+
 @billing_bp.route('/admin/mis_cuentas_cobro')
 @rol_requerido(ADMIN_CONTADOR)
 def listar_cuentas():
@@ -359,13 +382,19 @@ def listar_cuentas():
     try:
         with get_db_cursor(dict_cursor=True) as cur:
             cur.execute("""
-                SELECT id, consecutivo, fecha, cliente_nombre, total, pdf_path 
-                FROM cuentas_cobro 
-                ORDER BY fecha DESC, id DESC
+                SELECT id, consecutivo, fecha, cliente_nombre, total, pdf_path,
+                       factura_dian_id
+                FROM cuentas_cobro ORDER BY fecha DESC, id DESC
             """)
             cuentas = cur.fetchall()
-            
     except Exception as e:
         app.logger.error(f"Error listando cuentas: {e}")
-        
-    return render_template('mis_cuentas_cobro.html', datosApp=datosApp, cuentas=cuentas)
+
+    try:
+        from routes.factura_electronica import facturacion_habilitada
+        fe_habilitada = facturacion_habilitada()
+    except Exception:
+        fe_habilitada = False
+
+    return render_template('mis_cuentas_cobro.html', datosApp=datosApp,
+                           cuentas=cuentas, fe_habilitada=fe_habilitada)
