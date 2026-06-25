@@ -499,7 +499,13 @@ def novedades_crear():
                 
                 if tipo in ['HED', 'HEN', 'HEDF', 'HENF', 'RN', 'RD']:
                     valor_hora = calcular_valor_hora(salario)
-                    valor_total = calcular_horas_extras(valor_hora, tipo, cantidad)
+                    # Fecha del recargo: RD (dominical/festivo) usa factor gradual
+                    # por Ley 2466/2025 según la fecha de la novedad.
+                    try:
+                        fecha_dt = datetime.strptime(fecha, '%Y-%m-%d').date() if fecha else None
+                    except (ValueError, TypeError):
+                        fecha_dt = None
+                    valor_total = calcular_horas_extras(valor_hora, tipo, cantidad, fecha_dt)
                 elif 'INCAPACIDAD' in tipo or 'LICENCIA' in tipo:
                     # Asumimos que cantidad son dias
                     valor_total = calcular_incapacidad(salario, cantidad, tipo, smmlv)
