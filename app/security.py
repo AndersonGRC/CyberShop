@@ -67,6 +67,90 @@ RESTAURANT_CANCEL      = ADMIN_FULL + [ROL_CAJERO]
 # Quién puede anular consumos, cancelar mesas abiertas o anular ventas cerradas
 
 
+# ─────────────────────────────────────────────────────────
+# Manifiesto de permisos para el ESCRITORIO (offline-first)
+# ─────────────────────────────────────────────────────────
+# Deriva los permisos rol → módulo → acción desde los grupos de arriba (fuente
+# única). El desktop lo descarga vía /api/v1/sync/config y lo respeta SIN tener
+# su propia copia hardcodeada (evita drift). Las claves son los NOMBRES de rol
+# del desktop; el desktop intersecta estos módulos con los del PLAN del tenant.
+#
+# Nota nómina: las rutas web de nómina no tienen decorador de rol; por la
+# sensibilidad de los datos (salarios/PII) aquí se restringe a Administrador y
+# Contador (endurecimiento deliberado respecto a la web).
+
+_DESKTOP_ROLE_BY_ID = {
+    1: "Administrador", 2: "Administrador", 3: "Cliente",
+    4: "Empleado", 5: "Contador", 6: "Mesero", 7: "Cajero",
+}
+
+
+def _desktop_actions_for(rol_id):
+    """Acciones permitidas por módulo del desktop para un rol_id dado."""
+    def has(grp):
+        return rol_id in grp
+    m = {"dashboard": ["view"]}
+    # POS + historial de ventas
+    if has(POS_OPERATIONAL):
+        m["pos"] = ["view", "create"] + (["delete"] if has(POS_DELETE) else [])
+        m["sales"] = ["view"]
+    # Catálogo (productos + inventario)
+    if has(CATALOG_OPERATIONAL):
+        acts = ["view", "create", "edit"] + (["delete"] if has(CATALOG_DELETE) else [])
+        m["products"] = list(acts)
+        m["inventory"] = list(acts)
+    # Restaurante
+    if has(RESTAURANT_OPERATIONAL):
+        acts = ["view", "create"]
+        if has(RESTAURANT_CHARGE):
+            acts.append("charge")
+        if has(RESTAURANT_CANCEL):
+            acts.append("cancel")
+        m["restaurant"] = acts
+    # Cotizaciones: ver/crear/editar = staff; aprobar/eliminar = admin
+    if has(ADMIN_STAFF):
+        m["quotes"] = ["view", "create", "edit"] + (["delete", "approve"] if has(ADMIN_FULL) else [])
+        m["crm"] = ["view", "create", "edit", "delete"]
+    # Cuentas de cobro + contabilidad + historial POS = contador/admin
+    # (clave 'cobros' = nav key del desktop, no 'billing')
+    if has(ADMIN_CONTADOR):
+        m["cobros"] = ["view", "create", "edit", "delete"]
+        m["contabilidad"] = ["view", "create", "edit", "delete"]
+        m.setdefault("sales", ["view"])
+    # Nómina: solo Administrador y Contador (endurecimiento; ver nota arriba)
+    if has(ADMIN_FULL) or rol_id == ROL_CONTADOR:
+        m["payroll"] = ["view", "create", "edit", "delete"]
+    # Usuarios + módulos de sistema (sincronización/configuración): solo
+    # Administrador/Propietario (espejo del ROLE_MODULES del desktop).
+    if has(ADMIN_FULL):
+        m["users"] = ["view", "create", "edit", "delete"]
+        m["sync"] = ["view"]
+        m["config"] = ["view"]
+    return m
+
+
+def desktop_permissions_manifest():
+    """Manifiesto rol → {modules, actions} para el desktop, derivado de los
+    grupos de permisos. Devuelve dict keyed por nombre de rol del desktop.
+
+    NO intersecta con el plan del tenant: eso lo hace el desktop con los flags
+    de cliente_config. Los módulos de sistema (dashboard/sync/config) siempre
+    están disponibles del lado del desktop.
+    """
+    out = {}
+    for rid, rname in _DESKTOP_ROLE_BY_ID.items():
+        acts = _desktop_actions_for(rid)
+        if rname in out:
+            # Roles que colapsan al mismo nombre (1 y 2 -> Administrador): unir.
+            merged = out[rname]["actions"]
+            for mod, a in acts.items():
+                merged[mod] = sorted(set(merged.get(mod, [])) | set(a))
+            out[rname]["modules"] = sorted(merged.keys())
+        else:
+            out[rname] = {"modules": sorted(acts.keys()), "actions": acts}
+    return out
+
+
 # --- Control de acceso por rol ---
 
 def _is_json_request():
