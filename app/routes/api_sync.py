@@ -33,7 +33,7 @@ from services.db_layer import control_plane_cursor, tenant_cursor
 
 api_sync_bp = Blueprint('api_sync', __name__, url_prefix='/api/v1/sync')
 
-VALID_ENTITIES = {'sale', 'inventory_movement', 'product', 'user', 'category', 'order', 'restaurant_op', 'contabilidad_op', 'quote_op', 'cobro_op'}
+VALID_ENTITIES = {'sale', 'inventory_movement', 'product', 'user', 'category', 'order', 'restaurant_op', 'contabilidad_op', 'quote_op', 'cobro_op', 'crm_op'}
 VALID_ACTIONS = {'create', 'update', 'delete'}
 DEFAULT_GENERO_NAME = 'POS Desktop'
 DEFAULT_IMAGE = '/static/img/no-image.png'
@@ -310,6 +310,8 @@ def outbox():
                     remote_id = _apply_quote_op(cur, payload)
                 elif entity == 'cobro_op':
                     remote_id = _apply_cobro_op(cur, payload)
+                elif entity == 'crm_op':
+                    remote_id = _apply_crm_op(cur, payload)
                 else:
                     raise ValueError(f'combinacion no soportada: {entity}/{action}')
                 results.append({
@@ -2240,3 +2242,222 @@ def _apply_cobro_op(cur, payload):
         return cid
 
     raise ValueError(f'op de cuentas de cobro no soportada: {op}')
+
+
+# ──────────────────────────────────────────────
+# CRM — snapshot + apply
+# ──────────────────────────────────────────────
+
+CRM_LIMIT = 1000
+
+
+@api_sync_bp.route('/crm/snapshot', methods=['GET'])
+@require_sync_key
+def crm_snapshot():
+    """Estado del modulo CRM: contactos, actividades, tareas y oportunidades."""
+    out = {'contactos': [], 'actividades': [], 'tareas': [], 'oportunidades': [],
+           'server_time': _now_iso()}
+    with tenant_cursor(db_name=g.sync_db_name, dict_cursor=True) as cur:
+        if not _regclass(cur, 'crm_contactos'):
+            return jsonify(out)
+        cur.execute("""
+            SELECT id, tipo, nombre, empresa, cargo, email, telefono, whatsapp,
+                   sitio_web, direccion, ciudad, notas, origen, activo, created_at, updated_at
+            FROM crm_contactos WHERE activo = TRUE ORDER BY id DESC LIMIT %s
+        """, (CRM_LIMIT,))
+        for r in cur.fetchall():
+            out['contactos'].append({
+                'id': int(r['id']), 'tipo': r['tipo'], 'nombre': r['nombre'],
+                'empresa': r['empresa'], 'cargo': r['cargo'], 'email': r['email'],
+                'telefono': r['telefono'], 'whatsapp': r['whatsapp'], 'sitio_web': r['sitio_web'],
+                'direccion': r['direccion'], 'ciudad': r['ciudad'], 'notas': r['notas'],
+                'origen': r['origen'], 'created_at': _iso(r['created_at']),
+                'updated_at': _iso(r['updated_at']),
+            })
+        if _regclass(cur, 'crm_actividades'):
+            cur.execute("""
+                SELECT id, contacto_id, tipo, asunto, descripcion, fecha_actividad
+                FROM crm_actividades ORDER BY id DESC LIMIT %s
+            """, (CRM_LIMIT,))
+            for r in cur.fetchall():
+                out['actividades'].append({
+                    'id': int(r['id']), 'contacto_id': int(r['contacto_id']), 'tipo': r['tipo'],
+                    'asunto': r['asunto'], 'descripcion': r['descripcion'],
+                    'fecha_actividad': _iso(r['fecha_actividad']),
+                })
+        if _regclass(cur, 'crm_tareas'):
+            cur.execute("""
+                SELECT id, contacto_id, titulo, descripcion, prioridad, estado,
+                       fecha_limite, completada_en
+                FROM crm_tareas ORDER BY id DESC LIMIT %s
+            """, (CRM_LIMIT,))
+            for r in cur.fetchall():
+                out['tareas'].append({
+                    'id': int(r['id']), 'contacto_id': int(r['contacto_id']), 'titulo': r['titulo'],
+                    'descripcion': r['descripcion'], 'prioridad': r['prioridad'], 'estado': r['estado'],
+                    'fecha_limite': r['fecha_limite'].isoformat() if r['fecha_limite'] else None,
+                    'completada_en': _iso(r['completada_en']),
+                })
+        if _regclass(cur, 'crm_oportunidades'):
+            cur.execute("""
+                SELECT id, contacto_id, titulo, descripcion, monto_estimado, probabilidad,
+                       etapa, fecha_cierre_est, created_at
+                FROM crm_oportunidades ORDER BY id DESC LIMIT %s
+            """, (CRM_LIMIT,))
+            for r in cur.fetchall():
+                out['oportunidades'].append({
+                    'id': int(r['id']), 'contacto_id': int(r['contacto_id']), 'titulo': r['titulo'],
+                    'descripcion': r['descripcion'], 'monto_estimado': float(r['monto_estimado'] or 0),
+                    'probabilidad': int(r['probabilidad'] or 0), 'etapa': r['etapa'],
+                    'fecha_cierre_est': r['fecha_cierre_est'].isoformat() if r['fecha_cierre_est'] else None,
+                    'created_at': _iso(r['created_at']),
+                })
+    return jsonify(out)
+
+
+def _apply_crm_op(cur, payload):
+    """Aplica operaciones CRM (contactos/tareas/actividades/oportunidades).
+    Idempotente por client_op_uuid en las creaciones."""
+    op = (payload.get('op') or '').strip()
+    if not _regclass(cur, 'crm_contactos'):
+        raise ValueError('Modulo CRM no instalado en el servidor.')
+    user_id = _resolve_usuario_id(cur, payload)
+
+    def _dedup(uuid):
+        if uuid:
+            _ensure_ops_ledger(cur)
+            cur.execute('SELECT remote_id FROM sync_applied_ops WHERE client_op_uuid = %s', (uuid,))
+            prev = cur.fetchone()
+            if prev:
+                raise _DuplicateError(int(prev['remote_id']) if prev['remote_id'] is not None else 0)
+
+    def _ledger(uuid, rid):
+        if uuid:
+            cur.execute("INSERT INTO sync_applied_ops (client_op_uuid, remote_id) VALUES (%s,%s) ON CONFLICT (client_op_uuid) DO NOTHING", (uuid, rid))
+
+    # ── Contactos ──
+    if op == 'create_contacto':
+        u = (payload.get('client_op_uuid') or '').strip(); _dedup(u)
+        nombre = (payload.get('nombre') or '').strip()
+        if not nombre:
+            raise ValueError('El nombre del contacto es obligatorio.')
+        tipo = (payload.get('tipo') or 'cliente').strip()
+        if tipo not in ('cliente', 'proveedor', 'lead', 'socio'):
+            tipo = 'cliente'
+        cur.execute("""
+            INSERT INTO crm_contactos (tipo, nombre, empresa, cargo, email, telefono, whatsapp,
+                                       sitio_web, direccion, ciudad, notas, origen, usuario_id, activo)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,TRUE) RETURNING id
+        """, (tipo, nombre, payload.get('empresa'), payload.get('cargo'), payload.get('email'),
+              payload.get('telefono'), payload.get('whatsapp'), payload.get('sitio_web'),
+              payload.get('direccion'), payload.get('ciudad'), payload.get('notas'),
+              (payload.get('origen') or 'desktop'), user_id))
+        rid = int(cur.fetchone()['id']); _ledger(u, rid); return rid
+
+    if op == 'update_contacto':
+        cid = int(payload['contacto_id'])
+        cur.execute("""
+            UPDATE crm_contactos SET tipo=%s, nombre=%s, empresa=%s, cargo=%s, email=%s,
+                   telefono=%s, whatsapp=%s, sitio_web=%s, direccion=%s, ciudad=%s, notas=%s,
+                   updated_at=NOW() WHERE id=%s RETURNING id
+        """, ((payload.get('tipo') or 'cliente'), (payload.get('nombre') or '').strip(),
+              payload.get('empresa'), payload.get('cargo'), payload.get('email'),
+              payload.get('telefono'), payload.get('whatsapp'), payload.get('sitio_web'),
+              payload.get('direccion'), payload.get('ciudad'), payload.get('notas'), cid))
+        row = cur.fetchone()
+        if not row:
+            raise _DuplicateError(0)
+        return int(row['id'])
+
+    if op == 'delete_contacto':
+        cid = int(payload['contacto_id'])
+        cur.execute('UPDATE crm_contactos SET activo=FALSE, updated_at=NOW() WHERE id=%s RETURNING id', (cid,))
+        row = cur.fetchone()
+        if not row:
+            raise _DuplicateError(0)
+        return int(row['id'])
+
+    # ── Tareas ──
+    if op == 'create_tarea':
+        u = (payload.get('client_op_uuid') or '').strip(); _dedup(u)
+        if not _regclass(cur, 'crm_tareas'):
+            raise ValueError('Tabla de tareas no disponible.')
+        titulo = (payload.get('titulo') or '').strip()
+        if not titulo:
+            raise ValueError('El título de la tarea es obligatorio.')
+        prioridad = (payload.get('prioridad') or 'media').strip()
+        if prioridad not in ('alta', 'media', 'baja'):
+            prioridad = 'media'
+        cur.execute("""
+            INSERT INTO crm_tareas (contacto_id, titulo, descripcion, prioridad, estado,
+                                    fecha_limite, creado_por)
+            VALUES (%s,%s,%s,%s,'pendiente',%s,%s) RETURNING id
+        """, (int(payload['contacto_id']), titulo, payload.get('descripcion'), prioridad,
+              payload.get('fecha_limite') or None, user_id))
+        rid = int(cur.fetchone()['id']); _ledger(u, rid); return rid
+
+    if op == 'complete_tarea':
+        tid = int(payload['tarea_id'])
+        cur.execute("UPDATE crm_tareas SET estado='completada', completada_en=NOW() WHERE id=%s RETURNING id", (tid,))
+        row = cur.fetchone()
+        if not row:
+            raise _DuplicateError(0)
+        return int(row['id'])
+
+    if op == 'delete_tarea':
+        tid = int(payload['tarea_id'])
+        cur.execute('DELETE FROM crm_tareas WHERE id=%s', (tid,))
+        return tid
+
+    # ── Actividades ──
+    if op == 'create_actividad':
+        u = (payload.get('client_op_uuid') or '').strip(); _dedup(u)
+        if not _regclass(cur, 'crm_actividades'):
+            raise ValueError('Tabla de actividades no disponible.')
+        tipo = (payload.get('tipo') or 'nota').strip()
+        if tipo not in ('llamada', 'email', 'reunion', 'whatsapp', 'visita', 'nota', 'otro'):
+            tipo = 'nota'
+        asunto = (payload.get('asunto') or '').strip() or 'Actividad'
+        cur.execute("""
+            INSERT INTO crm_actividades (contacto_id, tipo, asunto, descripcion, usuario_id)
+            VALUES (%s,%s,%s,%s,%s) RETURNING id
+        """, (int(payload['contacto_id']), tipo, asunto, payload.get('descripcion'), user_id))
+        rid = int(cur.fetchone()['id']); _ledger(u, rid); return rid
+
+    # ── Oportunidades ──
+    if op == 'create_oportunidad':
+        u = (payload.get('client_op_uuid') or '').strip(); _dedup(u)
+        if not _regclass(cur, 'crm_oportunidades'):
+            raise ValueError('Tabla de oportunidades no disponible.')
+        titulo = (payload.get('titulo') or '').strip()
+        if not titulo:
+            raise ValueError('El título de la oportunidad es obligatorio.')
+        etapa = (payload.get('etapa') or 'prospecto').strip()
+        if etapa not in ('prospecto', 'calificado', 'propuesta', 'negociacion', 'ganada', 'perdida'):
+            etapa = 'prospecto'
+        cur.execute("""
+            INSERT INTO crm_oportunidades (contacto_id, titulo, descripcion, monto_estimado,
+                                           probabilidad, etapa, asignado_a)
+            VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id
+        """, (int(payload['contacto_id']), titulo, payload.get('descripcion'),
+              float(payload.get('monto_estimado') or 0), int(payload.get('probabilidad') or 50),
+              etapa, user_id))
+        rid = int(cur.fetchone()['id']); _ledger(u, rid); return rid
+
+    if op == 'move_oportunidad':
+        oid = int(payload['oportunidad_id'])
+        etapa = (payload.get('etapa') or '').strip()
+        if etapa not in ('prospecto', 'calificado', 'propuesta', 'negociacion', 'ganada', 'perdida'):
+            raise ValueError('Etapa inválida.')
+        cur.execute('UPDATE crm_oportunidades SET etapa=%s, updated_at=NOW() WHERE id=%s RETURNING id', (etapa, oid))
+        row = cur.fetchone()
+        if not row:
+            raise _DuplicateError(0)
+        return int(row['id'])
+
+    if op == 'delete_oportunidad':
+        oid = int(payload['oportunidad_id'])
+        cur.execute('DELETE FROM crm_oportunidades WHERE id=%s', (oid,))
+        return oid
+
+    raise ValueError(f'op de CRM no soportada: {op}')
