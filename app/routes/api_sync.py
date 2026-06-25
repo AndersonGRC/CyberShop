@@ -33,7 +33,7 @@ from services.db_layer import control_plane_cursor, tenant_cursor
 
 api_sync_bp = Blueprint('api_sync', __name__, url_prefix='/api/v1/sync')
 
-VALID_ENTITIES = {'sale', 'inventory_movement', 'product', 'user', 'category', 'order', 'restaurant_op', 'contabilidad_op', 'quote_op', 'cobro_op', 'crm_op'}
+VALID_ENTITIES = {'sale', 'inventory_movement', 'product', 'user', 'category', 'order', 'restaurant_op', 'contabilidad_op', 'quote_op', 'cobro_op', 'crm_op', 'nomina_op'}
 VALID_ACTIONS = {'create', 'update', 'delete'}
 DEFAULT_GENERO_NAME = 'POS Desktop'
 DEFAULT_IMAGE = '/static/img/no-image.png'
@@ -312,6 +312,8 @@ def outbox():
                     remote_id = _apply_cobro_op(cur, payload)
                 elif entity == 'crm_op':
                     remote_id = _apply_crm_op(cur, payload)
+                elif entity == 'nomina_op':
+                    remote_id = _apply_nomina_op(cur, payload)
                 else:
                     raise ValueError(f'combinacion no soportada: {entity}/{action}')
                 results.append({
@@ -2461,3 +2463,227 @@ def _apply_crm_op(cur, payload):
         return oid
 
     raise ValueError(f'op de CRM no soportada: {op}')
+
+
+# ──────────────────────────────────────────────
+# Nómina — snapshot + apply
+# ──────────────────────────────────────────────
+
+NOMINA_PERIODOS_LIMIT = 120
+
+_NOMINA_EMP_COLS = ('tipo_documento', 'numero_documento', 'nombres', 'apellidos', 'email',
+                    'telefono', 'direccion', 'fecha_ingreso', 'tipo_vinculacion', 'cargo',
+                    'salario_base', 'nivel_arl', 'banco', 'tipo_cuenta', 'numero_cuenta',
+                    'eps', 'fondo_pension', 'fondo_cesantias')
+
+
+@api_sync_bp.route('/nomina/snapshot', methods=['GET'])
+@require_sync_key
+def nomina_snapshot():
+    """Estado del módulo de nómina: empleados, parámetros, períodos, detalle y novedades."""
+    out = {'empleados': [], 'parametros': [], 'periodos': [], 'detalle': [], 'novedades': [],
+           'server_time': _now_iso()}
+    with tenant_cursor(db_name=g.sync_db_name, dict_cursor=True) as cur:
+        if not _regclass(cur, 'nomina_empleados'):
+            return jsonify(out)
+        cur.execute("""
+            SELECT id, tipo_documento, numero_documento, nombres, apellidos, email, telefono,
+                   direccion, fecha_ingreso, fecha_retiro, tipo_vinculacion, cargo, salario_base,
+                   nivel_arl, banco, tipo_cuenta, numero_cuenta, eps, fondo_pension, fondo_cesantias, activo
+            FROM nomina_empleados ORDER BY id
+        """)
+        for r in cur.fetchall():
+            d = dict(r)
+            d['id'] = int(d['id'])
+            d['salario_base'] = float(d.get('salario_base') or 0)
+            d['fecha_ingreso'] = d['fecha_ingreso'].isoformat() if d.get('fecha_ingreso') else None
+            d['fecha_retiro'] = d['fecha_retiro'].isoformat() if d.get('fecha_retiro') else None
+            d['activo'] = bool(d.get('activo'))
+            out['empleados'].append(d)
+
+        if _regclass(cur, 'nomina_parametros'):
+            cur.execute("SELECT anio, salario_minimo, auxilio_transporte, uvt FROM nomina_parametros ORDER BY anio")
+            for r in cur.fetchall():
+                out['parametros'].append({
+                    'anio': int(r['anio']), 'salario_minimo': float(r['salario_minimo'] or 0),
+                    'auxilio_transporte': float(r['auxilio_transporte'] or 0), 'uvt': float(r['uvt'] or 0)})
+
+        periodo_ids = []
+        if _regclass(cur, 'nomina_periodos'):
+            cur.execute("""
+                SELECT id, anio, mes, numero_periodo, fecha_inicio, fecha_fin, observaciones
+                FROM nomina_periodos ORDER BY id DESC LIMIT %s
+            """, (NOMINA_PERIODOS_LIMIT,))
+            for r in cur.fetchall():
+                periodo_ids.append(int(r['id']))
+                out['periodos'].append({
+                    'id': int(r['id']), 'anio': int(r['anio'] or 0), 'mes': r['mes'],
+                    'numero_periodo': r['numero_periodo'],
+                    'fecha_inicio': r['fecha_inicio'].isoformat() if r['fecha_inicio'] else None,
+                    'fecha_fin': r['fecha_fin'].isoformat() if r['fecha_fin'] else None,
+                    'observaciones': r['observaciones']})
+
+        if periodo_ids and _regclass(cur, 'nomina_detalle'):
+            cur.execute("""
+                SELECT id, periodo_id, empleado_id, dias_trabajados, sueldo_basico, auxilio_transporte,
+                       horas_extras, total_devengado, salud_empleado, pension_empleado, fondo_solidaridad,
+                       retencion_fuente, total_deducido, neto_pagar
+                FROM nomina_detalle WHERE periodo_id = ANY(%s)
+            """, (periodo_ids,))
+            for r in cur.fetchall():
+                out['detalle'].append({k: (float(v) if isinstance(v, (int, float)) and k not in
+                                           ('id', 'periodo_id', 'empleado_id', 'dias_trabajados') else v)
+                                       for k, v in dict(r).items()})
+
+        if periodo_ids and _regclass(cur, 'nomina_novedades'):
+            cur.execute("""
+                SELECT id, periodo_id, empleado_id, tipo_novedad, cantidad, valor_total, fecha_novedad, observacion
+                FROM nomina_novedades WHERE periodo_id = ANY(%s) ORDER BY id
+            """, (periodo_ids,))
+            for r in cur.fetchall():
+                out['novedades'].append({
+                    'id': int(r['id']), 'periodo_id': int(r['periodo_id']), 'empleado_id': int(r['empleado_id']),
+                    'tipo_novedad': r['tipo_novedad'], 'cantidad': float(r['cantidad'] or 0),
+                    'valor_total': float(r['valor_total'] or 0),
+                    'fecha_novedad': r['fecha_novedad'].isoformat() if r['fecha_novedad'] else None,
+                    'observacion': r['observacion']})
+    return jsonify(out)
+
+
+def _apply_nomina_op(cur, payload):
+    """Aplica operaciones de nómina. El cálculo del período usa el MISMO motor
+    verificado del servidor (calcular_nomina_periodo_inteligente)."""
+    op = (payload.get('op') or '').strip()
+    if not _regclass(cur, 'nomina_empleados'):
+        raise ValueError('Módulo de nómina no instalado en el servidor.')
+
+    if op == 'create_empleado':
+        u = (payload.get('client_op_uuid') or '').strip()
+        if u:
+            _ensure_ops_ledger(cur)
+            cur.execute('SELECT remote_id FROM sync_applied_ops WHERE client_op_uuid = %s', (u,))
+            prev = cur.fetchone()
+            if prev:
+                raise _DuplicateError(int(prev['remote_id']) if prev['remote_id'] is not None else 0)
+        if not (payload.get('nombres') or '').strip():
+            raise ValueError('Los nombres son obligatorios.')
+        cols = ', '.join(_NOMINA_EMP_COLS)
+        ph = ', '.join(['%s'] * len(_NOMINA_EMP_COLS))
+        vals = []
+        for c in _NOMINA_EMP_COLS:
+            v = payload.get(c)
+            if c == 'salario_base':
+                v = float(v or 0)
+            if c in ('fecha_ingreso',) and not v:
+                v = None
+            vals.append(v)
+        cur.execute(f"INSERT INTO nomina_empleados ({cols}, activo) VALUES ({ph}, TRUE) RETURNING id", tuple(vals))
+        rid = int(cur.fetchone()['id'])
+        if u:
+            cur.execute("INSERT INTO sync_applied_ops (client_op_uuid, remote_id) VALUES (%s,%s) ON CONFLICT (client_op_uuid) DO NOTHING", (u, rid))
+        return rid
+
+    if op == 'update_empleado':
+        eid = int(payload['empleado_id'])
+        sets = ', '.join(f"{c}=%s" for c in _NOMINA_EMP_COLS)
+        vals = []
+        for c in _NOMINA_EMP_COLS:
+            v = payload.get(c)
+            if c == 'salario_base':
+                v = float(v or 0)
+            if c in ('fecha_ingreso',) and not v:
+                v = None
+            vals.append(v)
+        cur.execute(f"UPDATE nomina_empleados SET {sets} WHERE id=%s RETURNING id", tuple(vals) + (eid,))
+        row = cur.fetchone()
+        if not row:
+            raise _DuplicateError(0)
+        return int(row['id'])
+
+    if op == 'delete_empleado':
+        eid = int(payload['empleado_id'])
+        cur.execute('UPDATE nomina_empleados SET activo=FALSE WHERE id=%s RETURNING id', (eid,))
+        row = cur.fetchone()
+        if not row:
+            raise _DuplicateError(0)
+        return int(row['id'])
+
+    if op == 'create_periodo':
+        u = (payload.get('client_op_uuid') or '').strip()
+        if u:
+            _ensure_ops_ledger(cur)
+            cur.execute('SELECT remote_id FROM sync_applied_ops WHERE client_op_uuid = %s', (u,))
+            prev = cur.fetchone()
+            if prev:
+                raise _DuplicateError(int(prev['remote_id']) if prev['remote_id'] is not None else 0)
+        cur.execute("""
+            INSERT INTO nomina_periodos (anio, mes, numero_periodo, fecha_inicio, fecha_fin, observaciones, estado)
+            VALUES (%s,%s,%s,%s,%s,%s,'borrador') RETURNING id
+        """, (int(payload['anio']), int(payload['mes']), int(payload['numero_periodo']),
+              payload.get('fecha_inicio'), payload.get('fecha_fin'), payload.get('observaciones')))
+        rid = int(cur.fetchone()['id'])
+        if u:
+            cur.execute("INSERT INTO sync_applied_ops (client_op_uuid, remote_id) VALUES (%s,%s) ON CONFLICT (client_op_uuid) DO NOTHING", (u, rid))
+        return rid
+
+    if op == 'create_novedad':
+        u = (payload.get('client_op_uuid') or '').strip()
+        if u:
+            _ensure_ops_ledger(cur)
+            cur.execute('SELECT remote_id FROM sync_applied_ops WHERE client_op_uuid = %s', (u,))
+            prev = cur.fetchone()
+            if prev:
+                raise _DuplicateError(int(prev['remote_id']) if prev['remote_id'] is not None else 0)
+        cur.execute("""
+            INSERT INTO nomina_novedades (periodo_id, empleado_id, tipo_novedad, cantidad, valor_total, fecha_novedad, observacion)
+            VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id
+        """, (int(payload['periodo_id']), int(payload['empleado_id']), (payload.get('tipo_novedad') or '').strip(),
+              float(payload.get('cantidad') or 0), float(payload.get('valor_total') or 0),
+              payload.get('fecha_novedad') or None, payload.get('observacion')))
+        rid = int(cur.fetchone()['id'])
+        if u:
+            cur.execute("INSERT INTO sync_applied_ops (client_op_uuid, remote_id) VALUES (%s,%s) ON CONFLICT (client_op_uuid) DO NOTHING", (u, rid))
+        return rid
+
+    if op == 'delete_novedad':
+        nid = int(payload['novedad_id'])
+        cur.execute('DELETE FROM nomina_novedades WHERE id=%s', (nid,))
+        return nid
+
+    if op == 'calcular_periodo':
+        from nomina_inteligente import calcular_nomina_periodo_inteligente
+        pid = int(payload['periodo_id'])
+        cur.execute("SELECT * FROM nomina_periodos WHERE id=%s", (pid,))
+        periodo = cur.fetchone()
+        if not periodo:
+            raise _DuplicateError(0)
+        cur.execute("SELECT * FROM nomina_parametros WHERE anio=%s", (periodo['anio'],))
+        params = cur.fetchone()
+        if not params:
+            raise ValueError(f"No hay parámetros de nómina para el año {periodo['anio']}.")
+        cur.execute("SELECT * FROM nomina_empleados WHERE activo = TRUE")
+        empleados = [dict(r) for r in cur.fetchall()]
+        cur.execute("""
+            SELECT periodo_id, empleado_id, UPPER(tipo_novedad) AS tipo_novedad,
+                   COALESCE(SUM(cantidad),0) AS cantidad, COALESCE(SUM(valor_total),0) AS valor_total
+            FROM nomina_novedades WHERE periodo_id=%s GROUP BY periodo_id, empleado_id, UPPER(tipo_novedad)
+        """, (pid,))
+        novedades = [dict(r) for r in cur.fetchall()]
+        resultado = calcular_nomina_periodo_inteligente(dict(periodo), dict(params), empleados, novedades)
+        cur.execute("DELETE FROM nomina_detalle WHERE periodo_id=%s", (pid,))
+        for d in resultado['detalles']:
+            cur.execute("""
+                INSERT INTO nomina_detalle (periodo_id, empleado_id, dias_trabajados, sueldo_basico,
+                    auxilio_transporte, horas_extras, total_devengado, salud_empleado, pension_empleado,
+                    fondo_solidaridad, retencion_fuente, total_deducido, neto_pagar)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            """, (pid, d['empleado_id'], d['dias_trabajados'], d['sueldo_basico'], d['auxilio_transporte'],
+                  d['horas_extras'], d['total_devengado'], d['salud_empleado'], d['pension_empleado'],
+                  d['fondo_solidaridad'], d['retencion_fuente'], d['total_deducido'], d['neto_pagar']))
+        try:
+            cur.execute("UPDATE nomina_periodos SET estado='calculada' WHERE id=%s", (pid,))
+        except Exception:
+            pass
+        return pid
+
+    raise ValueError(f'op de nómina no soportada: {op}')
