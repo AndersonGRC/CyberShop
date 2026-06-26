@@ -331,6 +331,12 @@ def outbox():
                     'local_id': local_id, 'status': 'stale',
                     'remote_id': stale.remote_id, 'error': 'newer_on_server',
                 })
+            except _ForbiddenError as forb:
+                # Licencia (admin.cybershop) o rol (security.py) no permite la op.
+                results.append({
+                    'local_id': local_id, 'status': 'forbidden',
+                    'remote_id': None, 'error': str(forb)[:200],
+                })
             except Exception as exc:  # noqa: BLE001
                 results.append({
                     'local_id': local_id, 'status': 'error',
@@ -348,6 +354,91 @@ class _DuplicateError(Exception):
     def __init__(self, remote_id):
         super().__init__(f'duplicate remote_id={remote_id}')
         self.remote_id = remote_id
+
+
+class _ForbiddenError(Exception):
+    """La operación no está permitida: módulo no licenciado por el plan
+    (control de admin.cybershop) o el rol del usuario no autoriza la acción
+    (security.py). La op NO se aplica."""
+
+
+# ──────────────────────────────────────────────
+# Enforcement: licencia (cliente_config / master) + rol (security.py)
+# ──────────────────────────────────────────────
+
+def _modulo_licenciado(cur, config_key) -> bool:
+    """True si el módulo está habilitado en el plan del tenant (cliente_config).
+    Autoridad: admin.cybershop. Si la fila no existe, usa el default del módulo."""
+    if not config_key:
+        return True
+    try:
+        from tenant_features import MODULE_DEFINITIONS, _as_bool
+    except Exception:
+        return True  # sin catálogo de módulos no bloqueamos (degradación segura)
+    default = True
+    for meta in MODULE_DEFINITIONS.values():
+        if meta.get('config_key') == config_key:
+            default = meta.get('default', True)
+            break
+    try:
+        cur.execute("SELECT valor FROM cliente_config WHERE clave = %s", (config_key,))
+        row = cur.fetchone()
+    except Exception:
+        return True  # sin tabla cliente_config, no bloqueamos
+    if not row:
+        return bool(default)
+    valor = row['valor'] if isinstance(row, dict) else row[0]
+    return _as_bool(valor, default)
+
+
+def _user_rol_id(cur, payload):
+    """rol_id del usuario que originó la op (a partir de user_remote_id/email)."""
+    uid = _resolve_usuario_id(cur, payload)
+    if uid is None:
+        return None
+    try:
+        cur.execute("SELECT rol_id FROM usuarios WHERE id = %s", (uid,))
+        row = cur.fetchone()
+        if row:
+            return int(row['rol_id'] if isinstance(row, dict) else row[0])
+    except Exception:
+        return None
+    return None
+
+
+def _exigir(cur, payload, config_key, grupo_roles):
+    """Exige licencia del módulo (siempre) y permiso de rol (best-effort).
+
+    - Licencia: si el módulo está apagado en el plan -> _ForbiddenError.
+    - Rol: si se resuelve el usuario y su rol no está en `grupo_roles`
+      -> _ForbiddenError. Si no se resuelve (legacy), no bloquea por rol.
+    """
+    if not _modulo_licenciado(cur, config_key):
+        raise _ForbiddenError(f"Módulo '{config_key}' no está licenciado en el plan del cliente.")
+    if grupo_roles is not None:
+        rol = _user_rol_id(cur, payload)
+        if rol is not None and rol not in grupo_roles:
+            raise _ForbiddenError("El rol del usuario no autoriza esta acción.")
+
+
+_SEC_GRUPOS = None
+
+
+def _grupos():
+    """Grupos de roles de security.py (rol_ids), cacheados. Fuente única para el
+    enforcement por rol, espejo del manifiesto que usa el desktop."""
+    global _SEC_GRUPOS
+    if _SEC_GRUPOS is None:
+        import security as s
+        _SEC_GRUPOS = {
+            'ADMIN_FULL': s.ADMIN_FULL, 'ADMIN_STAFF': s.ADMIN_STAFF,
+            'ADMIN_CONTADOR': s.ADMIN_CONTADOR, 'POS_OPERATIONAL': s.POS_OPERATIONAL,
+            'POS_DELETE': s.POS_DELETE, 'CATALOG_OPERATIONAL': s.CATALOG_OPERATIONAL,
+            'CATALOG_DELETE': s.CATALOG_DELETE, 'RESTAURANT_OPERATIONAL': s.RESTAURANT_OPERATIONAL,
+            'RESTAURANT_CHARGE': s.RESTAURANT_CHARGE, 'RESTAURANT_CANCEL': s.RESTAURANT_CANCEL,
+            'NOMINA': list(s.ADMIN_FULL) + [s.ROL_CONTADOR],
+        }
+    return _SEC_GRUPOS
 
 
 class _StaleError(Exception):
@@ -371,6 +462,7 @@ def _apply_sale(cur, payload):
     items = payload.get('items') or []
     if not receipt or not items:
         raise ValueError('receipt e items son obligatorios')
+    _exigir(cur, payload, 'pos_habilitado', _grupos()['POS_OPERATIONAL'])
 
     cur.execute('SELECT id FROM pos_desktop_sales WHERE receipt_number = %s', (receipt,))
     row = cur.fetchone()
@@ -483,6 +575,7 @@ def _apply_inventory_movement(cur, payload):
 
     if not client_mov_id:
         raise ValueError('client_movement_id es obligatorio para idempotencia')
+    _exigir(cur, payload, 'inventario_habilitado', _grupos()['CATALOG_OPERATIONAL'])
 
     cur.execute(
         'SELECT id FROM pos_desktop_inventory_movements WHERE client_movement_id = %s',
@@ -527,6 +620,8 @@ def _apply_product(cur, action, payload):
     sku = (payload.get('sku') or '').strip()
     if not sku:
         raise ValueError('sku es obligatorio')
+    _exigir(cur, payload, 'inventario_habilitado',
+            _grupos()['CATALOG_DELETE'] if action == 'delete' else _grupos()['CATALOG_OPERATIONAL'])
 
     client_updated = _parse_iso(payload.get('updated_at'))
 
@@ -606,6 +701,7 @@ def _apply_user(cur, action, payload):
     email = (payload.get('email') or '').strip().lower()
     if not email or '@' not in email:
         raise ValueError('email invalido')
+    _exigir(cur, payload, 'usuarios_habilitado', _grupos()['ADMIN_FULL'])
 
     nombre = (payload.get('nombre') or payload.get('name') or email)[:100]
     rol_nombre = (payload.get('rol_nombre') or payload.get('role') or 'Cajero').strip()
@@ -1559,6 +1655,13 @@ def _apply_restaurant_op(cur, payload):
     op = (payload.get('op') or '').strip()
     if not _regclass(cur, 'restaurant_tables'):
         raise ValueError('Modulo de restaurante no instalado en el servidor.')
+    if op == 'close_table':
+        _rgrp = _grupos()['RESTAURANT_CHARGE']        # cobrar/cerrar cuenta
+    elif op == 'cancel_order':
+        _rgrp = _grupos()['RESTAURANT_CANCEL']        # anular
+    else:
+        _rgrp = _grupos()['RESTAURANT_OPERATIONAL']   # atender mesa / consumos
+    _exigir(cur, payload, 'restaurant_tables_habilitado', _rgrp)
 
     if op == 'open_table':
         table_id = int(payload['table_id'])
@@ -1859,6 +1962,7 @@ def _apply_contabilidad_op(cur, payload):
     op = (payload.get('op') or '').strip()
     if not _regclass(cur, 'contabilidad_movimientos'):
         raise ValueError('Modulo de contabilidad no instalado en el servidor.')
+    _exigir(cur, payload, 'contabilidad_habilitada', _grupos()['ADMIN_CONTADOR'])
     user_id = _resolve_usuario_id(cur, payload)
 
     if op == 'create_movimiento':
@@ -2070,6 +2174,8 @@ def _apply_quote_op(cur, payload):
     op = (payload.get('op') or '').strip()
     if not _regclass(cur, 'cotizaciones'):
         raise ValueError('Modulo de cotizaciones no instalado en el servidor.')
+    _grp = _grupos()['ADMIN_FULL'] if op in ('set_estado_cotizacion', 'delete_cotizacion') else _grupos()['ADMIN_STAFF']
+    _exigir(cur, payload, 'cotizaciones_habilitado', _grp)
 
     if op == 'create_cotizacion':
         op_uuid = (payload.get('client_op_uuid') or '').strip()
@@ -2189,6 +2295,7 @@ def _apply_cobro_op(cur, payload):
     op = (payload.get('op') or '').strip()
     if not _regclass(cur, 'cuentas_cobro'):
         raise ValueError('Modulo de cuentas de cobro no instalado en el servidor.')
+    _exigir(cur, payload, 'cuentas_cobro_habilitado', _grupos()['ADMIN_CONTADOR'])
 
     if op == 'create_cuenta':
         op_uuid = (payload.get('client_op_uuid') or '').strip()
@@ -2323,6 +2430,7 @@ def _apply_crm_op(cur, payload):
     op = (payload.get('op') or '').strip()
     if not _regclass(cur, 'crm_contactos'):
         raise ValueError('Modulo CRM no instalado en el servidor.')
+    _exigir(cur, payload, 'crm_habilitado', _grupos()['ADMIN_STAFF'])
     user_id = _resolve_usuario_id(cur, payload)
 
     def _dedup(uuid):
@@ -2556,6 +2664,7 @@ def _apply_nomina_op(cur, payload):
     op = (payload.get('op') or '').strip()
     if not _regclass(cur, 'nomina_empleados'):
         raise ValueError('Módulo de nómina no instalado en el servidor.')
+    _exigir(cur, payload, 'nomina_habilitada', _grupos()['NOMINA'])
 
     if op == 'create_empleado':
         u = (payload.get('client_op_uuid') or '').strip()
