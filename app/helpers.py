@@ -137,7 +137,7 @@ def get_data_app():
     """
     from flask import session as _s
 
-    from security import ADMIN_STAFF, ROL_SUPER_ADMIN
+    from security import ADMIN_STAFF, ADMIN_FULL, ROL_SUPER_ADMIN
     from tenant_features import (
         MODULE_ACCOUNTING,
         MODULE_BILLING,
@@ -205,7 +205,6 @@ def get_data_app():
                 {"nombre": "Publicaciones", "url": "admin.gestion_publicaciones", "icono": "newspaper", "roles": ADMIN_STAFF},
                 {"nombre": "Slides", "url": "admin.gestion_slides", "icono": "images", "roles": ADMIN_STAFF},
                 {"nombre": "Servicios", "url": "admin.gestion_servicios", "icono": "concierge-bell", "roles": ADMIN_STAFF},
-                {"nombre": "Sitio Público", "url": "admin.sitio_publico", "icono": "paint-brush", "roles": [ROL_SUPER_ADMIN]},
             ] + ([
                 {"nombre": "Planes de Software", "url": "admin.software_planes", "icono": "layer-group", "roles": [ROL_SUPER_ADMIN]},
             ] if _modulo_software_on() else [])
@@ -313,7 +312,6 @@ def get_data_app():
             "submodulos": [
                 {"nombre": "Config. Cliente",   "url": "admin.configuracion_cliente", "icono": "paint-brush", "roles": [ROL_SUPER_ADMIN]},
                 {"nombre": "Claves API Sync",   "url": "admin.sync_keys",             "icono": "key", "roles": [ROL_SUPER_ADMIN]},
-                {"nombre": "Config. Secciones", "url": "admin.config_secciones",      "icono": "sliders-h", "roles": [ROL_SUPER_ADMIN]},
                 {"nombre": "Módulos SaaS",      "url": "restaurant_tables.saas_modules_admin", "icono": "toggle-on", "roles": [ROL_SUPER_ADMIN]},
             ]
         },
@@ -323,6 +321,7 @@ def get_data_app():
             "icono": "file-invoice",
             "module_code": MODULE_FACTURACION_ELECTRONICA
         },
+        {"nombre": "Mi Negocio", "url": "admin.mi_negocio", "icono": "store", "roles": ADMIN_FULL},
         {"nombre": "Cerrar Sesion", "url": "auth.logout", "icono": "sign-out-alt"}
     ]
     from services.public_site_service import get_brand_config

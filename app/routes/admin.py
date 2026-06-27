@@ -448,18 +448,19 @@ def editar_productos():
     """Lista de productos disponibles para edicion."""
     datosApp = get_data_app()
     try:
+        _wact = ' WHERE COALESCE(active, TRUE) = TRUE' if _table_has_column('productos', 'active') else ''
         with get_db_cursor(dict_cursor=True) as cur:
             if _table_has_column('productos', 'visible_en_ecommerce'):
-                cur.execute("""
-                    SELECT id, nombre, precio, stock,
+                cur.execute(f"""
+                    SELECT id, nombre, precio, stock, imagen,
                            COALESCE(visible_en_ecommerce, TRUE) AS visible_en_ecommerce
-                    FROM productos
+                    FROM productos{_wact}
                     ORDER BY id ASC
                 """)
             else:
-                cur.execute("""
-                    SELECT id, nombre, precio, stock, TRUE AS visible_en_ecommerce
-                    FROM productos
+                cur.execute(f"""
+                    SELECT id, nombre, precio, stock, imagen, TRUE AS visible_en_ecommerce
+                    FROM productos{_wact}
                     ORDER BY id ASC
                 """)
             productos = cur.fetchall()
@@ -578,6 +579,7 @@ def editar_producto(id):
 @rol_requerido(CATALOG_OPERATIONAL)
 def eliminar_imagen_producto(imagen_id):
     """Elimina una imagen de producto (no permite eliminar la principal si es la única)."""
+    producto_id = None
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -617,7 +619,10 @@ def eliminar_imagen_producto(imagen_id):
         conn.close()
         flash('Imagen eliminada.', 'success')
     except Exception as e:
-        flash(f'Error eliminando imagen: Revisa el log para más detalles.', 'error')
+        current_app.logger.exception('Error eliminando imagen %s: %s', imagen_id, e)
+        flash('Error eliminando imagen: Revisa el log para más detalles.', 'error')
+    if producto_id is None:
+        return redirect(request.referrer or url_for('admin.editar_productos'))
     return redirect(url_for('admin.editar_producto', id=producto_id))
 
 
@@ -625,6 +630,7 @@ def eliminar_imagen_producto(imagen_id):
 @rol_requerido(CATALOG_OPERATIONAL)
 def establecer_imagen_principal(imagen_id):
     """Establece una imagen como la principal del producto."""
+    producto_id = None
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -644,7 +650,10 @@ def establecer_imagen_principal(imagen_id):
         conn.close()
         flash('Imagen principal actualizada.', 'success')
     except Exception as e:
-        flash(f'Error: Revisa el log para más detalles.', 'error')
+        current_app.logger.exception('Error estableciendo imagen principal %s: %s', imagen_id, e)
+        flash('Error: Revisa el log para más detalles.', 'error')
+    if producto_id is None:
+        return redirect(request.referrer or url_for('admin.editar_productos'))
     return redirect(url_for('admin.editar_producto', id=producto_id))
 
 
@@ -653,22 +662,33 @@ def establecer_imagen_principal(imagen_id):
 def eliminar_productos():
     """Lista de productos disponibles para eliminacion."""
     datosApp = get_data_app()
+    productos = []
+    archivados = []
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute('SELECT * FROM productos')
-        productos = cur.fetchall()
+        if _table_has_column('productos', 'active'):
+            cur.execute('SELECT id, imagen, nombre, precio FROM productos WHERE COALESCE(active, TRUE) = TRUE ORDER BY id ASC')
+            productos = cur.fetchall()
+            cur.execute('SELECT id, imagen, nombre, precio FROM productos WHERE active IS FALSE ORDER BY id ASC')
+            archivados = cur.fetchall()
+        else:
+            cur.execute('SELECT id, imagen, nombre, precio FROM productos ORDER BY id ASC')
+            productos = cur.fetchall()
         cur.close()
         conn.close()
     except Exception:
         productos = []
-    return render_template('eliminar_productos.html', datosApp=datosApp, productos=productos)
+        archivados = []
+    return render_template('eliminar_productos.html', datosApp=datosApp,
+                           productos=productos, archivados=archivados)
 
 
 @admin_bp.route('/eliminar-producto/<int:id>', methods=['GET', 'POST'])
 @rol_requerido(CATALOG_DELETE)
 def eliminar_producto(id):
     """Elimina un producto del catalogo por su ID."""
+    import psycopg2
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -677,9 +697,114 @@ def eliminar_producto(id):
         cur.close()
         conn.close()
         flash('Producto eliminado.', 'success')
-    except Exception:
+    except psycopg2.errors.ForeignKeyViolation:
+        # El producto tiene historial (ventas POS, inventario) que impide el
+        # borrado fisico. Se archiva (soft-delete) para conservar la contabilidad.
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        archivado = _archivar_producto(id)
+        if archivado:
+            ventas = _contar_dependencias_producto(id)
+            flash(
+                f'El producto tiene {ventas} registro(s) de ventas/inventario, '
+                f'así que se archivó (se ocultó de la tienda y de las listas) '
+                f'para conservar el historial contable.',
+                'success',
+            )
+        else:
+            flash('No se pudo eliminar ni archivar el producto. Revisa el log.', 'error')
+        try:
+            cur.close(); conn.close()
+        except Exception:
+            pass
+    except Exception as e:
+        current_app.logger.exception('Error eliminando producto %s: %s', id, e)
+        try:
+            conn.rollback(); cur.close(); conn.close()
+        except Exception:
+            pass
         flash('Error eliminando.', 'error')
     return redirect(url_for('admin.eliminar_productos'))
+
+
+@admin_bp.route('/reactivar-producto/<int:id>', methods=['POST'])
+@rol_requerido(CATALOG_DELETE)
+def reactivar_producto(id):
+    """Reactiva un producto archivado (soft-delete): vuelve a active=true."""
+    if not _table_has_column('productos', 'active'):
+        flash('Esta base de datos no soporta archivar/reactivar productos.', 'error')
+        return redirect(url_for('admin.eliminar_productos'))
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        sets = ['active = TRUE']
+        if _table_has_column('productos', 'visible_en_ecommerce'):
+            sets.append('visible_en_ecommerce = TRUE')
+        cur.execute(f'UPDATE productos SET {", ".join(sets)} WHERE id = %s', (id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        flash('Producto reactivado. Vuelve a estar visible en la tienda y las listas.', 'success')
+    except Exception as e:
+        current_app.logger.exception('Error reactivando producto %s: %s', id, e)
+        try:
+            conn.rollback(); cur.close(); conn.close()
+        except Exception:
+            pass
+        flash('Error reactivando el producto. Revisa el log.', 'error')
+    return redirect(url_for('admin.eliminar_productos'))
+
+
+def _archivar_producto(producto_id):
+    """Soft-delete: marca el producto como inactivo (active=false) para ocultarlo
+    de la tienda y de las listas admin sin borrar su historial de ventas.
+    Devuelve True si se archivó correctamente."""
+    if not _table_has_column('productos', 'active'):
+        return False
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        sets = ['active = FALSE']
+        if _table_has_column('productos', 'visible_en_ecommerce'):
+            sets.append('visible_en_ecommerce = FALSE')
+        cur.execute(
+            f'UPDATE productos SET {", ".join(sets)} WHERE id = %s', (producto_id,)
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+        return True
+    except Exception as e:
+        current_app.logger.exception('Error archivando producto %s: %s', producto_id, e)
+        try:
+            conn.rollback(); cur.close(); conn.close()
+        except Exception:
+            pass
+        return False
+
+
+def _contar_dependencias_producto(producto_id):
+    """Cuenta cuántos registros de ventas/inventario referencian al producto
+    (las FK con NO ACTION que impiden el borrado físico)."""
+    total = 0
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        for tabla in ('detalle_venta_pos', 'inventario_log'):
+            try:
+                cur.execute(
+                    f'SELECT COUNT(*) FROM {tabla} WHERE producto_id = %s', (producto_id,)
+                )
+                total += cur.fetchone()[0]
+            except Exception:
+                pass
+        cur.close()
+        conn.close()
+    except Exception:
+        pass
+    return total
 
 
 # --- Gestion de Usuarios ---
@@ -722,6 +847,14 @@ def crear_usuario():
         conn.close()
     except Exception:
         pass
+
+    # Solo un Administrador (SUPER_ADMIN) puede crear usuarios con rol admin.
+    # Para cualquier otro rol (p. ej. "usuario"/propietario) se oculta esa
+    # opción en el formulario y se rechaza en el servidor (anti-escalación).
+    puede_asignar_admin = session.get('rol_id') == ROL_SUPER_ADMIN
+    if not puede_asignar_admin:
+        roles = [r for r in roles if r['id'] != ROL_SUPER_ADMIN]
+
     if request.method == 'POST':
         nombre = request.form.get('nombre')
         email = request.form.get('email')
@@ -730,6 +863,14 @@ def crear_usuario():
         telefono = request.form.get('telefono')
         fecha_nacimiento = request.form.get('fecha_nacimiento')
         direccion = request.form.get('direccion')
+
+        try:
+            rol_sel = int(rol_id)
+        except (TypeError, ValueError):
+            rol_sel = None
+        if rol_sel == ROL_SUPER_ADMIN and not puede_asignar_admin:
+            flash('No tienes permiso para crear usuarios con rol Administrador.', 'error')
+            return redirect(url_for('admin.crear_usuario'))
 
         nombre_foto = 'Perfil_dafault.png'
         file = request.files.get('fotografia')
@@ -780,11 +921,29 @@ def editar_usuario(id):
         flash(f'Error cargando: Revisa el log para más detalles.', 'error')
         return redirect(url_for('admin.gestion_usuarios'))
 
+    # Anti-escalación: solo un Administrador (SUPER_ADMIN) puede editar a otro
+    # administrador o asignar el rol admin. Los demás roles (p. ej. "usuario")
+    # no ven esa opción ni pueden tocar cuentas de administrador.
+    puede_asignar_admin = session.get('rol_id') == ROL_SUPER_ADMIN
+    if not puede_asignar_admin:
+        if usuario and usuario['rol_id'] == ROL_SUPER_ADMIN:
+            flash('No tienes permiso para editar un usuario Administrador.', 'error')
+            return redirect(url_for('admin.gestion_usuarios'))
+        roles = [r for r in roles if r['id'] != ROL_SUPER_ADMIN]
+
     if request.method == 'POST':
         nombre = request.form.get('nombre')
         email = request.form.get('email')
         rol_id = request.form.get('rol_id')
         estado = request.form.get('estado')
+
+        try:
+            rol_sel = int(rol_id)
+        except (TypeError, ValueError):
+            rol_sel = None
+        if rol_sel == ROL_SUPER_ADMIN and not puede_asignar_admin:
+            flash('No tienes permiso para asignar el rol Administrador.', 'error')
+            return redirect(url_for('admin.editar_usuario', id=id))
 
         try:
             conn = get_db_connection()
@@ -930,7 +1089,8 @@ def gestion_inventario():
     try:
         with get_db_cursor(dict_cursor=True) as cur:
             # id, imagen, nombre, referencia, genero_id, descripcion, stock
-            cur.execute('SELECT p.*, g.nombre as categoria FROM productos p JOIN generos g ON p.genero_id = g.id ORDER BY p.id')
+            _wact = ' WHERE COALESCE(p.active, TRUE) = TRUE' if _table_has_column('productos', 'active') else ''
+            cur.execute(f'SELECT p.*, g.nombre as categoria FROM productos p JOIN generos g ON p.genero_id = g.id{_wact} ORDER BY p.id')
             productos_data = cur.fetchall()
             
             # Convertir a lista de dicts para asegurar compatibilidad en template si cursor se cierra
@@ -957,7 +1117,8 @@ def exportar_inventario():
     """Genera y descarga un CSV del inventario."""
     try:
         with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute('SELECT p.id, p.nombre, p.referencia, p.precio, p.stock, g.nombre as categoria FROM productos p JOIN generos g ON p.genero_id = g.id ORDER BY p.id')
+            _wact = ' WHERE COALESCE(p.active, TRUE) = TRUE' if _table_has_column('productos', 'active') else ''
+            cur.execute(f'SELECT p.id, p.nombre, p.referencia, p.precio, p.stock, g.nombre as categoria FROM productos p JOIN generos g ON p.genero_id = g.id{_wact} ORDER BY p.id')
             productos = cur.fetchall()
         
         # Crear CSV en memoria
@@ -1089,6 +1250,99 @@ def historial_inventario(id):
             'usuario': m[6] or 'Sistema'
         })
     return jsonify(lista)
+
+
+@admin_bp.route('/inventario/buscar-barcode', methods=['POST'])
+@rol_requerido(CATALOG_OPERATIONAL)
+def inventario_buscar_barcode():
+    """Busca un producto por su referencia (código de barras) para recepción.
+    A diferencia del buscador del POS, SÍ incluye productos sin stock (0),
+    porque la recepción justamente sirve para reponer artículos agotados."""
+    data = request.get_json(silent=True) or {}
+    barcode = (data.get('barcode') or '').strip()
+    if not barcode:
+        return jsonify({'success': False, 'error': 'Código vacío'}), 400
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            extra = ' AND COALESCE(active, TRUE) = TRUE' if _table_has_column('productos', 'active') else ''
+            cur.execute(
+                'SELECT id, nombre, referencia, stock, imagen FROM productos '
+                'WHERE UPPER(TRIM(referencia)) = UPPER(TRIM(%s))' + extra,
+                (barcode,))
+            producto = cur.fetchone()
+            if not producto:
+                return jsonify({'success': False, 'error': 'No existe un producto con esa referencia'}), 404
+            return jsonify({'success': True, 'producto': {
+                'id': producto['id'],
+                'nombre': producto['nombre'],
+                'referencia': producto['referencia'],
+                'stock': producto['stock'] or 0,
+                'imagen': producto['imagen'],
+            }})
+    except Exception as e:
+        current_app.logger.error(f"Error buscando barcode en inventario: {e}")
+        return jsonify({'success': False, 'error': 'Error al buscar el producto'}), 500
+
+
+@admin_bp.route('/inventario/recepcion', methods=['POST'])
+@rol_requerido(CATALOG_OPERATIONAL)
+def recepcion_inventario():
+    """Recepción de mercancía por escaneo: suma stock a varios productos de una
+    sola vez y registra cada movimiento como ENTRADA en inventario_log.
+    Todo en una transacción (get_db_cursor confirma al salir o revierte si falla)."""
+    data = request.get_json(silent=True) or {}
+    items = data.get('items') or []
+    motivo = (data.get('motivo') or '').strip() or 'Recepción por escaneo'
+    if not items:
+        return jsonify({'success': False, 'error': 'No hay productos para recibir'}), 400
+
+    limpios = []
+    for it in items:
+        try:
+            pid = int(it.get('producto_id'))
+            cant = int(it.get('cantidad', 0))
+        except (TypeError, ValueError):
+            continue
+        if pid and cant > 0:
+            limpios.append((pid, cant))
+    if not limpios:
+        return jsonify({'success': False, 'error': 'Cantidades no válidas'}), 400
+
+    usuario_id = session.get('user_id', 1)
+    resultados = []
+    total_unidades = 0
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            for pid, cant in limpios:
+                cur.execute("SELECT nombre, stock FROM productos WHERE id = %s", (pid,))
+                row = cur.fetchone()
+                if not row:
+                    continue
+                stock_anterior = row['stock'] or 0
+                stock_nuevo = stock_anterior + cant
+                cur.execute("UPDATE productos SET stock = %s WHERE id = %s", (stock_nuevo, pid))
+                cur.execute("""
+                    INSERT INTO inventario_log (producto_id, tipo, cantidad, stock_anterior, stock_nuevo, motivo, usuario_id)
+                    VALUES (%s, 'ENTRADA', %s, %s, %s, %s, %s)
+                """, (pid, cant, stock_anterior, stock_nuevo, motivo, usuario_id))
+                total_unidades += cant
+                resultados.append({
+                    'producto_id': pid,
+                    'nombre': row['nombre'],
+                    'agregado': cant,
+                    'stock_nuevo': stock_nuevo,
+                })
+        if not resultados:
+            return jsonify({'success': False, 'error': 'Los productos indicados no existen'}), 404
+        return jsonify({
+            'success': True,
+            'items': resultados,
+            'total_unidades': total_unidades,
+            'total_productos': len(resultados),
+        })
+    except Exception as e:
+        current_app.logger.error(f"Error en recepción de inventario: {e}")
+        return jsonify({'success': False, 'error': 'No se pudo registrar la recepción'}), 500
 
 
 # --- Gestion de Publicaciones del Home ---
@@ -1505,6 +1759,49 @@ def sitio_publico():
     )
 
 
+# Claves que el DUEÑO (propietario) puede editar de su negocio. Reusa las MISMAS
+# claves que el maestro/sitio-publico (public_site_settings) → SIN duplicar textos.
+# Excluye: colores (rompen el diseño), correo destino del formulario (interno),
+# logo_url (se actualiza por la subida de archivo). Nunca toca visibilidad/módulos.
+_MI_NEGOCIO_EXCLUDE = {'empresa_logo_url', 'contacto_email_destino'}
+
+
+def _mi_negocio_keys():
+    return [f['key'] for f in PUBLIC_BRANDING_FIELDS + PUBLIC_LANDING_FIELDS
+            if f['key'] not in _MI_NEGOCIO_EXCLUDE]
+
+
+@admin_bp.route('/admin/mi-negocio', methods=['GET', 'POST'])
+@rol_requerido(ADMIN_FULL)  # super admin + propietario (el dueño del negocio)
+def mi_negocio():
+    """Edición de datos básicos del negocio para el dueño: nombre, slogan,
+    contacto, redes, logo y textos del home (Quiénes somos, Misión/Visión,
+    Contacto, Servicios). Reusa las MISMAS claves que el maestro
+    (public_site_settings) → un solo lugar de almacenamiento, sin duplicar.
+    NO expone colores, visibilidad de secciones ni módulos (operador/maestro)."""
+    safe_keys = _mi_negocio_keys()
+    if request.method == 'POST':
+        try:
+            # Whitelist: solo se escriben las claves seguras, aunque el POST traiga otras.
+            save_public_site_settings(request.form, safe_keys)
+            save_public_logo(request.files.get('logo'), current_app.root_path)
+            flash('Datos de tu negocio actualizados.', 'success')
+        except Exception as exc:
+            current_app.logger.error(f'Error guardando mi-negocio: {exc}')
+            flash('No fue posible guardar los cambios.', 'error')
+        return redirect(url_for('admin.mi_negocio'))
+
+    ctx = get_public_site_admin_context()
+    safe = set(safe_keys)
+    return render_template(
+        'mi_negocio.html',
+        datosApp=get_data_app(),
+        public_site_settings=ctx['public_site_settings'],
+        branding_fields=[f for f in PUBLIC_BRANDING_FIELDS if f['key'] in safe],
+        landing_fields=[f for f in PUBLIC_LANDING_FIELDS if f['key'] in safe],
+    )
+
+
 @admin_bp.route('/admin/config-secciones', methods=['GET', 'POST'])
 @rol_requerido(ROL_SUPER_ADMIN)
 def config_secciones():
@@ -1522,7 +1819,8 @@ def facturacion_pos():
     productos = []
     try:
         with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute('SELECT id, nombre, precio, stock, imagen FROM productos WHERE stock > 0 ORDER BY nombre')
+            _wact = ' AND COALESCE(active, TRUE) = TRUE' if _table_has_column('productos', 'active') else ''
+            cur.execute(f'SELECT id, nombre, precio, stock, imagen FROM productos WHERE stock > 0{_wact} ORDER BY nombre')
             productos = cur.fetchall()
     except Exception:
         pass
@@ -1829,19 +2127,12 @@ def anular_venta_pos(venta_id):
         cur.close()
         conn.close()
 
-        # Registrar egreso contable (fuera de la transacción principal, como hace procesar_venta_pos)
+        # Quitar la venta de la contabilidad: borramos el ingreso original
+        # registrado por procesar_venta_pos (referencia_tipo='venta_pos').
+        # El rastro de auditoría queda en notas_credito_pos.
         try:
-            from routes.contabilidad import registrar_movimiento
-            registrar_movimiento(
-                tipo='egreso',
-                categoria='anulacion_pos',
-                descripcion=f"Anulación Venta POS {numero_venta} — NC {numero_nota}",
-                monto=total_venta,
-                referencia_tipo='nota_credito_pos',
-                referencia_id=nota_credito_id,
-                usuario_id=usuario_id,
-                auto_generado=True
-            )
+            from routes.contabilidad import eliminar_movimiento_referencia
+            eliminar_movimiento_referencia('venta_pos', venta_id)
         except Exception as _e:
             current_app.logger.warning(f"Contabilidad NC: {_e}")
 
@@ -1858,9 +2149,11 @@ def anular_venta_pos(venta_id):
 
 
 @admin_bp.route('/admin/pos/buscar-barcode', methods=['POST'])
-@rol_requerido(ADMIN_STAFF)
+@rol_requerido(POS_OPERATIONAL)
 def buscar_producto_barcode():
-    """Busca un producto por su código de barras (referencia)."""
+    """Busca un producto por su código de barras (referencia).
+    Mismo permiso que operar el POS (POS_OPERATIONAL) para que Cajero y Mesero
+    también puedan agregar productos con el lector de barras."""
     data = request.get_json()
     barcode = data.get('barcode', '').strip()
 
@@ -1873,7 +2166,7 @@ def buscar_producto_barcode():
                 SELECT id, nombre, precio, stock, referencia
                 FROM productos
                 WHERE UPPER(TRIM(referencia)) = UPPER(TRIM(%s)) AND stock > 0
-            ''', (barcode,))
+            ''' + (' AND COALESCE(active, TRUE) = TRUE' if _table_has_column('productos', 'active') else ''), (barcode,))
             producto = cur.fetchone()
 
             if not producto:
