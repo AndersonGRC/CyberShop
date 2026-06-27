@@ -1,36 +1,35 @@
 {% extends './plantillaapp.html' %}
-
 {% block titulo %}Crear Nuevo Usuario{% endblock %}
 
 {% block LinkAdicional %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/crear_usuario.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/user_forms.css') }}">
 {% endblock %}
 
 {% block body %}
 <section class="page-shell page-shell--narrow">
+
     <div class="page-header">
         <div class="page-header__intro">
-            <div class="page-header__icon">
-                <i class="fas fa-user-plus"></i>
-            </div>
+            <div class="page-header__icon"><i class="fas fa-user-plus"></i></div>
             <div>
                 <span class="page-header__eyebrow">Alta de accesos</span>
                 <h1>Crear nuevo usuario</h1>
-                <p>Registra un perfil interno con una distribucion mas clara entre identidad, permisos y datos de
-                    contacto.</p>
+                <p>Registra un perfil interno con identidad, permisos y datos de contacto bien separados.</p>
             </div>
         </div>
         <div class="page-header__actions">
             <a href="{{ url_for('admin.gestion_usuarios') }}" class="btn-admin btn-admin--secondary">
-                <i class="fas fa-arrow-left"></i>
-                Volver al listado
+                <i class="fas fa-arrow-left"></i> Volver al listado
             </a>
         </div>
     </div>
 
     <form id="user-create-form" method="POST" action="{{ url_for('admin.crear_usuario') }}"
-        enctype="multipart/form-data" class="user-form-stack">
+          enctype="multipart/form-data" class="user-form-stack">
+
         <div class="user-form-grid">
+
+            <!-- ── Panel izquierdo: foto e identidad ── -->
             <section class="surface-card profile-panel">
                 <div class="section-heading">
                     <div>
@@ -40,131 +39,150 @@
                 </div>
 
                 <div class="profile-preview">
-                    <img src="" alt="Previsualizacion de la foto de perfil" class="avatar-preview"
-                        id="profile-pic-preview" hidden>
+                    <img src="" alt="Previsualización" class="avatar-preview" id="profile-pic-preview" hidden>
                     <div class="avatar-placeholder" id="profile-placeholder">
                         <i class="fas fa-user"></i>
                     </div>
                     <div class="profile-preview__copy">
-                        <strong>Nuevo usuario</strong>
-                        <span>Completa los datos base para activar el acceso.</span>
+                        <strong id="preview-name">Nuevo usuario</strong>
+                        <span>Completa los datos para activar el acceso.</span>
                     </div>
                 </div>
 
                 <div class="field">
-                    <label for="fotografia">Imagen de perfil</label>
+                    <label for="fotografia"><i class="fas fa-camera"></i> Imagen de perfil</label>
                     <input type="file" id="fotografia" name="fotografia" accept="image/jpeg, image/png">
-                    <small>Formatos permitidos: JPG o PNG. Tamano maximo recomendado: 2MB.</small>
+                    <small>JPG o PNG · máximo 2 MB recomendado.</small>
+                </div>
+
+                <div class="field">
+                    <label for="nombre">Nombre completo <span class="required-mark">*</span></label>
+                    <input type="text" id="nombre" name="nombre" placeholder="Ej: María García López" required
+                           oninput="document.getElementById('preview-name').textContent = this.value || 'Nuevo usuario'">
+                </div>
+
+                <div class="field">
+                    <label for="email">Correo electrónico <span class="required-mark">*</span></label>
+                    <input type="email" id="email" name="email" placeholder="usuario@empresa.com" required>
                 </div>
 
                 <div class="field-grid">
-                    <div class="field">
-                        <label for="nombre">Nombre completo <span class="required-mark">*</span></label>
-                        <input type="text" id="nombre" name="nombre" required>
-                    </div>
-                    <div class="field">
-                        <label for="email">Email <span class="required-mark">*</span></label>
-                        <input type="email" id="email" name="email" required>
-                    </div>
                     <div class="field">
                         <label for="fecha_nacimiento">Fecha de nacimiento</label>
                         <input type="date" id="fecha_nacimiento" name="fecha_nacimiento">
                     </div>
                     <div class="field">
-                        <label for="telefono">Telefono</label>
-                        <input type="tel" id="telefono" name="telefono">
+                        <label for="telefono">Teléfono</label>
+                        <input type="tel" id="telefono" name="telefono" placeholder="300 000 0000">
                     </div>
                 </div>
             </section>
 
+            <!-- ── Panel derecho: permisos y credenciales ── -->
             <section class="surface-card">
                 <div class="section-heading">
                     <div>
                         <h3>Permisos y credenciales</h3>
-                        <p>Los campos criticos quedan agrupados para minimizar errores de configuracion inicial.</p>
+                        <p>Los campos críticos quedan agrupados para minimizar errores de configuración inicial.</p>
                     </div>
                 </div>
 
-                <div class="field-grid">
-                    <div class="field">
-                        <label for="rol_id">Rol <span class="required-mark">*</span></label>
-                        <select id="rol_id" name="rol_id" required>
-                            <option value="">Seleccione un rol</option>
-                            {% for rol in roles %}
-                            <option value="{{ rol.id }}">{{ rol.nombre }}</option>
-                            {% endfor %}
-                        </select>
+                <div class="field">
+                    <label for="rol_id">Rol <span class="required-mark">*</span></label>
+                    <select id="rol_id" name="rol_id" required>
+                        <option value="">Seleccione un rol</option>
+                        {% for rol in roles %}
+                        <option value="{{ rol.id }}">{{ rol.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="field" style="margin-top:4px;">
+                    <label for="password">Contraseña <span class="required-mark">*</span></label>
+                    <div class="pw-wrap">
+                        <input type="password" id="password" name="password" required minlength="8"
+                               placeholder="Mínimo 8 caracteres">
+                        <button type="button" class="pw-toggle" onclick="togglePw('password', this)" title="Mostrar/ocultar">
+                            <i class="fas fa-eye"></i>
+                        </button>
                     </div>
-                    <div class="field">
-                        <label for="password">Contrasena <span class="required-mark">*</span></label>
-                        <input type="password" id="password" name="password" required minlength="8">
-                        <small>Usa minimo 8 caracteres.</small>
+                    <small>Usa mínimo 8 caracteres, combina letras y números.</small>
+                </div>
+
+                <div class="field">
+                    <label for="confirm_password">Confirmar contraseña <span class="required-mark">*</span></label>
+                    <div class="pw-wrap">
+                        <input type="password" id="confirm_password" name="confirm_password" required
+                               placeholder="Repite la contraseña">
+                        <button type="button" class="pw-toggle" onclick="togglePw('confirm_password', this)" title="Mostrar/ocultar">
+                            <i class="fas fa-eye"></i>
+                        </button>
                     </div>
-                    <div class="field">
-                        <label for="confirm_password">Confirmar contrasena <span class="required-mark">*</span></label>
-                        <input type="password" id="confirm_password" name="confirm_password" required>
-                    </div>
-                    <div class="field field--full">
-                        <label for="direccion">Direccion</label>
-                        <textarea id="direccion" name="direccion" rows="3"></textarea>
-                    </div>
+                </div>
+
+                <div class="field" style="margin-top:4px;">
+                    <label for="direccion">Dirección</label>
+                    <textarea id="direccion" name="direccion" rows="4"
+                              placeholder="Calle, ciudad, departamento…"></textarea>
                 </div>
             </section>
         </div>
 
         <div class="action-row">
-            <button type="submit" class="btn-admin btn-admin--primary">
-                <i class="fas fa-save"></i>
-                Guardar usuario
-            </button>
             <a href="{{ url_for('admin.gestion_usuarios') }}" class="btn-admin btn-admin--ghost">
-                <i class="fas fa-times"></i>
-                Cancelar
+                <i class="fas fa-times"></i> Cancelar
             </a>
+            <button type="submit" class="btn-admin btn-admin--primary">
+                <i class="fas fa-save"></i> Guardar usuario
+            </button>
         </div>
     </form>
+
 </section>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const fileInput = document.getElementById('fotografia');
-        const preview = document.getElementById('profile-pic-preview');
-        const placeholder = document.getElementById('profile-placeholder');
-        const createForm = document.getElementById('user-create-form');
+document.addEventListener('DOMContentLoaded', function () {
+    var fileInput = document.getElementById('fotografia');
+    var preview   = document.getElementById('profile-pic-preview');
+    var placeholder = document.getElementById('profile-placeholder');
 
-        if (fileInput && preview) {
-            fileInput.addEventListener('change', function (event) {
-                const file = event.target.files && event.target.files[0];
-                if (!file) {
-                    return;
-                }
+    if (fileInput && preview) {
+        fileInput.addEventListener('change', function (e) {
+            var file = e.target.files && e.target.files[0];
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function (le) {
+                preview.src = le.target.result;
+                preview.hidden = false;
+                if (placeholder) placeholder.hidden = true;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
 
-                const reader = new FileReader();
-                reader.onload = function (loadEvent) {
-                    preview.src = loadEvent.target.result;
-                    preview.hidden = false;
-                    if (placeholder) {
-                        placeholder.hidden = true;
-                    }
-                };
-                reader.readAsDataURL(file);
-            });
-        }
-
-        if (createForm) {
-            createForm.addEventListener('submit', function (event) {
-                const password = document.getElementById('password').value;
-                const confirmPassword = document.getElementById('confirm_password').value;
-
-                if (password !== confirmPassword) {
-                    event.preventDefault();
-                    alert('Las contrasenas no coinciden.');
-                    document.getElementById('confirm_password').focus();
-                }
-            });
+    document.getElementById('user-create-form').addEventListener('submit', function (e) {
+        var pw  = document.getElementById('password').value;
+        var cpw = document.getElementById('confirm_password').value;
+        if (pw !== cpw) {
+            e.preventDefault();
+            alert('Las contraseñas no coinciden.');
+            document.getElementById('confirm_password').focus();
         }
     });
+});
+
+function togglePw(id, btn) {
+    var input = document.getElementById(id);
+    var icon  = btn.querySelector('i');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'fas fa-eye-slash';
+    } else {
+        input.type = 'password';
+        icon.className = 'fas fa-eye';
+    }
+}
 </script>
 {% endblock %}

@@ -3,7 +3,7 @@
 
 {% block body %}
 <div class="main-container">
-<div class="content-wrapper" style="padding:28px 24px; max-width:960px;">
+<div class="content-wrapper" style="padding:28px 24px; max-width:1200px; margin:0 auto;">
 
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
         <h1 class="page-title" style="margin:0;">
@@ -43,7 +43,7 @@
     </div>
 
     {% if resenas %}
-    <div style="display:flex; flex-direction:column; gap:14px;">
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(440px, 1fr)); gap:16px; align-items:start;">
         {% for r in resenas %}
         <div style="background:#fff; border:1px solid #e0e0e0; border-radius:12px; padding:18px 20px;
                     border-left:4px solid {% if r.aprobado %}#28a745{% else %}#f0ad4e{% endif %};">

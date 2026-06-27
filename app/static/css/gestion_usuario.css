@@ -83,6 +83,15 @@
     margin: 0;
 }
 
+/* La tabla nunca corta informacion: si el ancho no alcanza (tablet/area
+   angosta) hace scroll horizontal; en movil se convierte en tarjetas. */
+.table-scroll {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
 @media (max-width: 768px) {
     .user-overview {
         align-items: stretch;
@@ -93,18 +102,63 @@
         justify-content: center;
     }
 
+    /* En movil ya son tarjetas: la tabla pasa a bloque de ancho completo y
+       no necesita scroll (todo entra y se ajusta). */
+    .table-scroll {
+        overflow-x: visible;
+    }
+
+    /* border-box: el padding/borde de las tarjetas queda DENTRO del 100%,
+       asi no se desbordan ni "flotan" fuera del contenedor. */
+    .admin-table,
+    .admin-table tbody,
+    .admin-table tbody tr,
+    .admin-table tbody td {
+        box-sizing: border-box;
+        max-width: 100%;
+    }
+
+    .admin-table {
+        display: block;
+        width: 100%;
+    }
+
+    .admin-table tbody td {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    /* Tarjeta de usuario en movil: alineada a la izquierda y con quiebre de
+       texto para que los correos largos no se salgan ni se pierda contenido. */
     .user-summary {
-        align-items: flex-start;
+        align-items: center;
+        gap: 12px;
     }
 
     .user-summary__copy {
-        text-align: right;
+        text-align: left;
+        min-width: 0;
+        flex: 1;
     }
 
     .user-summary__copy strong,
     .user-summary__copy span,
     .user-summary__copy small {
         width: 100%;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    /* Acciones a lo ancho de la tarjeta, comodas para el dedo. */
+    .row-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .row-actions .btn-admin {
+        flex: 1;
+        justify-content: center;
     }
 
     .empty-state {

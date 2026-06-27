@@ -447,10 +447,23 @@
         .pa-preview-frame { min-height: auto; }
     }
     @media (max-width: 760px) {
-        .pa-shell { padding: 20px 14px 32px; }
+        .pa-shell { padding: 20px 12px 32px; }
         .pa-hero h1 { font-size: 1.55rem; }
         .pa-card-body, .pa-card-header { padding: 16px; }
-        .pa-preview-scale { transform: scale(0.65); margin-left: -26px; }
+        /* La vista previa es un mock de ancho fijo (420px). En móvil la
+           reducimos con `zoom` en vez de `transform: scale()`: zoom también
+           encoge la caja de layout, así no queda ancho fantasma y la tabla
+           del carrito nunca se sale ni se corta. `overflow-x:hidden` evita
+           cualquier desborde horizontal residual. */
+        .pa-preview-frame { overflow-x: hidden; padding: 14px 10px; }
+        .pa-preview-scale { transform: none; zoom: 0.7; margin: 0 auto; }
+    }
+    @media (max-width: 430px) {
+        .pa-preview-frame { padding: 12px 6px; }
+        .pa-preview-scale { zoom: 0.62; }
+    }
+    @media (max-width: 360px) {
+        .pa-preview-scale { zoom: 0.52; }
     }
 </style>
 {% endblock %}
@@ -729,49 +742,9 @@
                 </form>
             </div>
 
-            <!-- ── Formulario de visibilidad ── -->
-            <div class="pa-card" id="sections">
-                <div class="pa-card-header">
-                    <h2>Visibilidad del sitio y menú</h2>
-                    <p>Decide qué bloques y accesos aparecen en el sitio público. Los cambios se previsual­izan de inmediato en los tabs de la preview.</p>
-                </div>
-                <form method="POST" action="{{ url_for('admin.sitio_publico') }}" class="pa-card-body">
-                    <input type="hidden" name="form_type" value="sections">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                    {% set section_targets = {
-                        'mostrar_about':           'preview-about-section',
-                        'mostrar_mision_vision':   'preview-mission-vision-section',
-                        'mostrar_publicaciones':   'preview-publications-section',
-                        'mostrar_mapa':            'preview-map-section',
-                        'mostrar_contacto':        'preview-contact-section',
-                        'mostrar_nav_productos':   'preview-nav-products',
-                        'mostrar_nav_servicios':   'preview-nav-services',
-                        'mostrar_nav_quienes_somos':'preview-nav-about',
-                        'mostrar_nav_contacto':    'preview-nav-contact',
-                        'mostrar_modulo_ventas':   'preview-nav-products,preview-nav-cart,preview-store-live',
-                    } %}
-
-                    <div class="pa-sections-grid">
-                        {% for field in section_fields %}
-                        <label class="pa-toggle" for="{{ field.key }}">
-                            <div>
-                                <h3>{{ field.label }}</h3>
-                                <p>{{ field.description }}</p>
-                            </div>
-                            <input id="{{ field.key }}" name="{{ field.key }}" type="checkbox" value="true"
-                                   data-preview-visibility-target="{{ section_targets.get(field.key, '') }}"
-                                   data-initial-checked="{{ 'true' if public_site_sections.get(field.key, field.default) else 'false' }}"
-                                   {% if public_site_sections.get(field.key, field.default) %}checked{% endif %}>
-                        </label>
-                        {% endfor %}
-                    </div>
-
-                    <div class="pa-actions">
-                        <button type="submit" class="pa-btn"><i class="fas fa-save"></i> Guardar visibilidad</button>
-                    </div>
-                </form>
-            </div>
+            <!-- Visibilidad de secciones/menús: se administra de forma centralizada
+                 desde el panel maestro (admin.cybershopcol.com → cliente → Secciones).
+                 La preview de la derecha refleja el estado actual. -->
 
         </div><!-- /pa-stack -->
 

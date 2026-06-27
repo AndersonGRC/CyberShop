@@ -1,107 +1,409 @@
 {% extends './plantillaapp.html' %}
-
-{% block titulo %}Gestión de Géneros{% endblock %}
+{% block titulo %}Gestión de Géneros / Categorías{% endblock %}
 
 {% block LinkAdicional %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/gestion_generos.css') }}">
+<style>
+
+/* ── Tabs del sub-módulo Productos ──────────────────────── */
+.prod-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    background: rgba(18,44,148,0.05);
+    padding: 6px;
+    border-radius: 14px;
+    flex-wrap: wrap;
+}
+.prod-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 18px;
+    border-radius: 10px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #667085;
+    text-decoration: none;
+    transition: all 0.18s;
+    white-space: nowrap;
+}
+.prod-tab:hover { background: rgba(18,44,148,0.07); color: #122C94; }
+.prod-tab.active { background: #fff; color: #122C94; box-shadow: 0 2px 8px rgba(18,44,148,0.12); }
+.prod-tab.active-danger { background: #fff; color: #dc2626; box-shadow: 0 2px 8px rgba(220,38,38,0.12); }
+
+/* ── Form card dentro de page-shell ─────────────────────── */
+.form-card {
+    background: #fff;
+    border-radius: 20px;
+    border: 1px solid rgba(18,44,148,0.07);
+    box-shadow: 0 2px 16px rgba(18,44,148,0.06);
+    overflow: hidden;
+}
+.form-card__header {
+    padding: 24px 32px 20px;
+    border-bottom: 1px solid #f0f3f8;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.form-card__icon {
+    width: 46px; height: 46px;
+    border-radius: 13px;
+    background: rgba(18,44,148,0.08);
+    color: #122C94;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+.form-card__icon--danger { background: rgba(220,38,38,0.1); color: #dc2626; }
+.form-card__title { font-size: 1.1rem; font-weight: 800; color: #0d1b54; margin: 0; }
+.form-card__sub   { font-size: 0.84rem; color: #667085; margin: 2px 0 0; }
+.form-card__body { padding: 28px 32px; }
+
+/* ── Form fields modernos ────────────────────────────────── */
+.fg {
+    margin-bottom: 20px;
+}
+.fg label {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 0.86rem; font-weight: 700; color: #374151;
+    margin-bottom: 7px;
+}
+.fg label i { color: #122C94; font-size: 0.82rem; }
+.fg input[type=text],
+.fg input[type=number],
+.fg input[type=file],
+.fg select,
+.fg textarea {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 11px;
+    font-size: 0.92rem;
+    box-sizing: border-box;
+    background: #fafafa;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    font-family: inherit;
+}
+.fg input:focus, .fg select:focus, .fg textarea:focus {
+    border-color: #122C94;
+    box-shadow: 0 0 0 3px rgba(18,44,148,0.1);
+    background: #fff;
+}
+.fg .fg-hint { font-size: 0.8rem; color: #9ca3af; margin-top: 5px; }
+.fg .fg-row { display: grid; gap: 16px; }
+.fg-row-2 { grid-template-columns: 1fr 1fr; }
+.fg-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+/* ── Toggle e-commerce ───────────────────────────────────── */
+.toggle-wrap {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; border-radius: 12px;
+    background: #f8faff; border: 1.5px solid #e5e9f7;
+}
+.toggle-info { font-size: 0.9rem; font-weight: 700; color: #374151; }
+.toggle-info small { display: block; font-size: 0.79rem; font-weight: 400; color: #9ca3af; }
+.toggle-switch { position: relative; display: inline-block; width: 48px; height: 26px; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+    position: absolute; cursor: pointer; inset: 0;
+    background: #d1d5db; border-radius: 999px; transition: .2s;
+}
+.toggle-slider:before {
+    content: ""; position: absolute;
+    height: 20px; width: 20px;
+    left: 3px; bottom: 3px;
+    background: #fff; border-radius: 50%;
+    transition: .2s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+input:checked + .toggle-slider { background: #122C94; }
+input:checked + .toggle-slider:before { transform: translateX(22px); }
+
+/* ── Botón submit ────────────────────────────────────────── */
+.btn-submit {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 13px 28px;
+    background: linear-gradient(135deg, #122C94, #1e3fa8);
+    color: #fff; border: none; border-radius: 12px;
+    font-size: 0.95rem; font-weight: 700;
+    cursor: pointer; transition: all 0.2s;
+}
+.btn-submit:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(18,44,148,0.3); }
+.btn-submit--danger { background: linear-gradient(135deg, #b91c1c, #dc2626); }
+.btn-submit--danger:hover { box-shadow: 0 8px 20px rgba(220,38,38,0.3); }
+.btn-link-secondary {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 13px 20px; border-radius: 12px;
+    background: #f3f4f6; color: #374151;
+    font-size: 0.92rem; font-weight: 700; text-decoration: none;
+    transition: all 0.18s;
+}
+.btn-link-secondary:hover { background: #e5e7eb; }
+
+/* ── Tabla reutilizable ──────────────────────────────────── */
+.data-table { width: 100%; border-collapse: collapse; min-width: 600px; }
+.data-table th {
+    background: #0d1b54; color: rgba(255,255,255,0.9);
+    font-size: 0.73rem; font-weight: 800; letter-spacing: 0.07em;
+    text-transform: uppercase; padding: 13px 18px; text-align: left;
+    white-space: nowrap;
+}
+.data-table td {
+    padding: 12px 18px; border-bottom: 1px solid #f0f3f8;
+    vertical-align: middle; color: #2d3a4a; font-size: 0.92rem;
+}
+.data-table tbody tr { transition: background 0.15s; }
+.data-table tbody tr:hover { background: #f5f8ff; }
+.data-table tbody tr:last-child td { border-bottom: none; }
+
+/* ── Acciones de tabla ───────────────────────────────────── */
+.tbl-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-tbl {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 7px 13px; border: none; border-radius: 9px;
+    cursor: pointer; font-size: 0.83rem; font-weight: 700;
+    text-decoration: none; white-space: nowrap;
+    transition: all 0.18s;
+}
+.btn-tbl:hover { transform: translateY(-1px); }
+.btn-tbl--edit   { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.btn-tbl--edit:hover { background: #dbeafe; }
+.btn-tbl--delete { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+.btn-tbl--delete:hover { background: #fee2e2; }
+.btn-tbl--save   { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+.btn-tbl--save:hover { background: #dcfce7; }
+.btn-tbl--cancel { background: #f9fafb; color: #6b7280; border: 1px solid #e5e7eb; }
+.btn-tbl--cancel:hover { background: #f3f4f6; }
+.btn-tbl-icon {
+    width: 34px; height: 34px; border: none; border-radius: 9px;
+    cursor: pointer; font-size: 0.88rem;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: all 0.18s;
+}
+.btn-tbl-icon:hover { transform: translateY(-1px); }
+
+/* ── E-commerce badge ────────────────────────────────────── */
+.badge-visible { display:inline-flex; align-items:center; gap:5px; padding:4px 11px; border-radius:999px; font-size:0.79rem; font-weight:700; }
+.badge-visible--yes { background:#d1fae5; color:#065f46; }
+.badge-visible--no  { background:#f3f4f6; color:#6b7280; }
+
+/* ── Two-col layout (géneros) ────────────────────────────── */
+.two-col { display: grid; grid-template-columns: 340px 1fr; gap: 24px; align-items: start; }
+@media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+
+/* ── Pill de conteo ──────────────────────────────────────── */
+.count-pill {
+    display: inline-flex; align-items: center;
+    background: rgba(18,44,148,0.08); color: #122C94;
+    border-radius: 999px; font-size: 0.79rem; font-weight: 800;
+    padding: 3px 10px; margin-left: 8px; vertical-align: middle;
+}
+.count-pill--warning { background: rgba(234,179,8,0.15); color: #854d0e; }
+
+/* ── Edición inline (géneros) ───────────────────────────── */
+.input-inline {
+    padding: 7px 11px; border: 1.5px solid #122C94;
+    border-radius: 8px; font-size: 0.9rem; width: 100%;
+    box-sizing: border-box; outline: none;
+}
+
+/* ── Empty state ─────────────────────────────────────────── */
+.empty-state {
+    text-align: center; padding: 60px 20px; color: #9ca3af;
+}
+.empty-state i { font-size: 2.8rem; opacity: 0.3; display: block; margin-bottom: 16px; }
+.empty-state p { margin: 0; font-size: 0.95rem; }
+
+.prod-img { width:44px;height:44px;border-radius:9px;object-fit:cover;border:1px solid #e8edf5; }
+
+/* ── Responsive: tabla → tarjetas en móvil ───────────────── */
+@media (max-width: 768px) {
+    /* Tabs en cuadrícula 2×2 para que siempre quepan en pantalla */
+    .prod-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .prod-tab { justify-content: center; padding: 10px 8px; }
+
+    .form-card > div[style*="overflow-x"] { overflow-x: visible !important; }
+
+    .data-table { min-width: 0; }
+    .data-table thead { display: none; }
+    .data-table,
+    .data-table tbody,
+    .data-table td { display: block; box-sizing: border-box; }
+    .data-table,
+    .data-table tbody { width: 100%; }
+    .data-table td { width: 100%; }
+    .data-table tr { display: block; box-sizing: border-box; }
+
+    .data-table tbody tr {
+        width: auto;
+        background: #fff;
+        border: 1px solid rgba(18,44,148,0.1);
+        border-radius: 14px;
+        margin: 12px 14px;
+        padding: 6px 16px;
+        box-shadow: 0 2px 10px rgba(18,44,148,0.05);
+    }
+    .data-table tbody tr:hover { background: #fff; }
+
+    .data-table td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 10px 0;
+        border-bottom: 1px solid #f0f3f8;
+        text-align: right;
+    }
+    .data-table tbody tr td:last-child { border-bottom: none; }
+
+    .data-table td::before {
+        content: attr(data-label);
+        font-weight: 800;
+        font-size: 0.7rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #667085;
+        text-align: left;
+        flex-shrink: 0;
+    }
+
+    /* Edición inline en línea completa */
+    .data-table td[id^="edit-"] .input-inline { max-width: 60%; }
+
+    /* Acciones a lo ancho */
+    .data-table td[data-label="Acciones"] { flex-direction: column; align-items: stretch; gap: 8px; }
+    .data-table td[data-label="Acciones"]::before { text-align: left; }
+    .data-table td[data-label="Acciones"] .tbl-actions { width: 100%; }
+}
+
+</style>
 {% endblock %}
 
 {% block body %}
+<section class="page-shell">
 
-<!-- Submenú de navegación de productos -->
-<div class="Submenunavegacion">
-    <ul>
-        <li><a href="{{ url_for('admin.GestionProductos') }}"><i class="fas fa-plus-circle"></i> Crear Producto</a></li>
-        <li><a href="{{ url_for('admin.editar_productos') }}"><i class="fas fa-edit"></i> Editar Productos</a></li>
-        <li><a href="{{ url_for('admin.eliminar_productos') }}"><i class="fas fa-trash-alt"></i> Eliminar Productos</a></li>
-        <li><a href="{{ url_for('admin.gestion_generos') }}" class="active"><i class="fas fa-tags"></i> Géneros</a></li>
-    </ul>
-</div>
-
-<main>
-    <div class="generos-layout">
-
-        <!-- Panel izquierdo: formulario para crear nuevo género -->
-        <div class="panel-crear">
-            <div class="panel-header">
-                <i class="fas fa-tags"></i>
-                <h2>Nuevo Género</h2>
+    <div class="page-header">
+        <div class="page-header__intro">
+            <div class="page-header__icon"><i class="fas fa-tags"></i></div>
+            <div>
+                <span class="page-header__eyebrow">Catálogo</span>
+                <h1>Géneros / Categorías</h1>
+                <p>Organiza los productos en categorías para facilitar la búsqueda.</p>
             </div>
-            <form action="{{ url_for('admin.crear_genero') }}" method="POST" class="form-crear">
-                <div class="form-group">
-                    <label for="nombre">Nombre del género</label>
-                    <input type="text" id="nombre" name="nombre"
-                           placeholder="Ej: Electrónica, Ropa, Accesorios..."
-                           maxlength="100" required autocomplete="off">
+        </div>
+    </div>
+
+<nav class="prod-tabs" aria-label="Navegación de productos">
+    <a href="{{ url_for('admin.GestionProductos') }}" class="prod-tab ">
+        <i class="fas fa-plus-circle"></i> Crear
+    </a>
+    <a href="{{ url_for('admin.editar_productos') }}" class="prod-tab ">
+        <i class="fas fa-edit"></i> Editar
+    </a>
+    <a href="{{ url_for('admin.eliminar_productos') }}" class="prod-tab ">
+        <i class="fas fa-trash-alt"></i> Eliminar
+    </a>
+    <a href="{{ url_for('admin.gestion_generos') }}" class="prod-tab active">
+        <i class="fas fa-tags"></i> Géneros
+    </a>
+</nav>
+
+    <div class="two-col">
+
+        <!-- ── Panel crear ──────────────────────────── -->
+        <div class="form-card">
+            <div class="form-card__header">
+                <div class="form-card__icon"><i class="fas fa-plus-circle"></i></div>
+                <div>
+                    <p class="form-card__title">Nuevo Género</p>
+                    <p class="form-card__sub">Agrega una categoría al catálogo</p>
                 </div>
-                <button type="submit" class="btn-crear">
-                    <i class="fas fa-plus-circle"></i> Agregar Género
-                </button>
-            </form>
+            </div>
+            <div class="form-card__body">
+                <form action="{{ url_for('admin.crear_genero') }}" method="POST">
+                    <div class="fg">
+                        <label for="nombre"><i class="fas fa-tag"></i> Nombre del género</label>
+                        <input type="text" id="nombre" name="nombre"
+                               placeholder="Ej: Electrónica, Ropa, Accesorios…"
+                               maxlength="100" required autocomplete="off">
+                        <span class="fg-hint">Máximo 100 caracteres.</span>
+                    </div>
+                    <button type="submit" class="btn-submit" style="width:100%;">
+                        <i class="fas fa-plus-circle"></i> Agregar Género
+                    </button>
+                </form>
+            </div>
         </div>
 
-        <!-- Panel derecho: lista de géneros existentes -->
-        <div class="panel-lista">
-            <div class="panel-header">
-                <i class="fas fa-list"></i>
-                <h2>Géneros Registrados <span class="badge-count">{{ generos|length }}</span></h2>
+        <!-- ── Panel lista ──────────────────────────── -->
+        <div class="form-card">
+            <div class="form-card__header">
+                <div class="form-card__icon"><i class="fas fa-list"></i></div>
+                <div>
+                    <p class="form-card__title">
+                        Géneros registrados
+                        <span class="count-pill">{{ generos|length }}</span>
+                    </p>
+                    <p class="form-card__sub">Haz clic en un nombre para editarlo en línea</p>
+                </div>
             </div>
-
-            {% if generos %}
-            <div class="tabla-wrapper">
-                <table class="tabla-generos">
+            <div style="overflow-x:auto;">
+                {% if generos %}
+                <table class="data-table">
                     <thead>
                         <tr>
-                            <th>#</th>
+                            <th>ID</th>
                             <th>Nombre</th>
-                            <th>Productos</th>
+                            <th style="text-align:center;">Productos</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for g in generos %}
-                        <tr id="fila-{{ g.id }}">
-                            <td class="td-id">{{ g.id }}</td>
+                        <tr id="row-{{ g.id }}">
+                            <td style="color:#9ca3af;font-size:.85rem;" data-label="ID">{{ g.id }}</td>
 
-                            <!-- Modo vista -->
-                            <td class="td-nombre" id="vista-{{ g.id }}">{{ g.nombre }}</td>
-
-                            <!-- Modo edición (oculto por defecto) -->
-                            <td class="td-editar" id="editar-{{ g.id }}" style="display:none;">
+                            <td id="view-{{ g.id }}" style="font-weight:700;color:#0f1728;" data-label="Nombre">{{ g.nombre }}</td>
+                            <td id="edit-{{ g.id }}" style="display:none;" data-label="Nombre">
                                 <form action="{{ url_for('admin.editar_genero', id=g.id) }}" method="POST"
-                                      class="form-editar-inline" id="form-editar-{{ g.id }}">
-                                    <input type="text" name="nombre" value="{{ g.nombre }}"
-                                           maxlength="100" required class="input-editar">
+                                      id="form-{{ g.id }}">
+                                    <input class="input-inline" type="text" name="nombre"
+                                           value="{{ g.nombre }}" maxlength="100" required>
                                 </form>
                             </td>
 
-                            <td class="td-productos">
-                                <span class="chip-productos {% if g.total_productos > 0 %}chip-activo{% endif %}">
-                                    {{ g.total_productos }} producto{% if g.total_productos != 1 %}s{% endif %}
-                                </span>
+                            <td style="text-align:center;" data-label="Productos">
+                                {% if g.total_productos > 0 %}
+                                <span class="count-pill count-pill--warning">{{ g.total_productos }}</span>
+                                {% else %}
+                                <span style="color:#9ca3af;font-size:.85rem;">—</span>
+                                {% endif %}
                             </td>
 
-                            <td class="td-acciones">
-                                <!-- Botones modo vista -->
-                                <div id="acciones-vista-{{ g.id }}" class="acciones-grupo">
-                                    <button class="btn-editar" onclick="activarEdicion({{ g.id }})" title="Editar">
+                            <td data-label="Acciones">
+                                <!-- Vista -->
+                                <div id="va-{{ g.id }}" class="tbl-actions">
+                                    <button class="btn-tbl-icon btn-tbl--edit"
+                                            onclick="activar({{ g.id }})" title="Editar">
                                         <i class="fas fa-pen"></i>
                                     </button>
-                                    <button class="btn-eliminar"
-                                            onclick="confirmarEliminar({{ g.id }}, '{{ g.nombre|e }}', {{ g.total_productos }})"
+                                    <button class="btn-tbl-icon btn-tbl--delete"
+                                            onclick="confirmarBorrar({{ g.id }}, '{{ g.nombre|e }}', {{ g.total_productos }})"
                                             title="Eliminar">
                                         <i class="fas fa-trash-alt"></i>
                                     </button>
                                 </div>
-
-                                <!-- Botones modo edición (ocultos) -->
-                                <div id="acciones-editar-{{ g.id }}" class="acciones-grupo" style="display:none;">
-                                    <button class="btn-guardar"
-                                            onclick="document.getElementById('form-editar-{{ g.id }}').submit()"
-                                            title="Guardar cambios">
+                                <!-- Edición -->
+                                <div id="ea-{{ g.id }}" class="tbl-actions" style="display:none;">
+                                    <button class="btn-tbl-icon btn-tbl--save"
+                                            onclick="document.getElementById('form-{{ g.id }}').submit()"
+                                            title="Guardar">
                                         <i class="fas fa-check"></i>
                                     </button>
-                                    <button class="btn-cancelar" onclick="cancelarEdicion({{ g.id }})" title="Cancelar">
+                                    <button class="btn-tbl-icon btn-tbl--cancel"
+                                            onclick="cancelar({{ g.id }})" title="Cancelar">
                                         <i class="fas fa-times"></i>
                                     </button>
                                 </div>
@@ -110,63 +412,55 @@
                         {% endfor %}
                     </tbody>
                 </table>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-tag"></i>
+                    <p>No hay géneros aún. Crea el primero.</p>
+                </div>
+                {% endif %}
             </div>
-            {% else %}
-            <div class="sin-generos">
-                <i class="fas fa-tag fa-3x"></i>
-                <p>No hay géneros registrados aún.</p>
-                <p>Crea el primero usando el formulario de la izquierda.</p>
-            </div>
-            {% endif %}
         </div>
-    </div>
-</main>
 
-<!-- Formulario oculto para eliminar (se envía via JS) -->
-<form id="form-eliminar" method="POST" style="display:none;">
-    <input type="hidden" name="_method" value="POST">
-</form>
+    </div>
+</section>
+
+<form id="del-form" method="POST" style="display:none;"></form>
 
 <script>
-    function activarEdicion(id) {
-        document.getElementById('vista-' + id).style.display = 'none';
-        document.getElementById('editar-' + id).style.display = '';
-        document.getElementById('acciones-vista-' + id).style.display = 'none';
-        document.getElementById('acciones-editar-' + id).style.display = '';
-        document.querySelector('#form-editar-' + id + ' input[name="nombre"]').focus();
-    }
-
-    function cancelarEdicion(id) {
-        document.getElementById('vista-' + id).style.display = '';
-        document.getElementById('editar-' + id).style.display = 'none';
-        document.getElementById('acciones-vista-' + id).style.display = '';
-        document.getElementById('acciones-editar-' + id).style.display = 'none';
-    }
-
-    function confirmarEliminar(id, nombre, totalProductos) {
-        var mensaje = totalProductos > 0
-            ? 'Este género tiene <strong>' + totalProductos + ' producto(s)</strong> asociado(s) y no puede eliminarse.<br>Reasigna o elimina los productos primero.'
-            : '¿Deseas eliminar el género <strong>"' + nombre + '"</strong>? Esta acción no se puede deshacer.';
-
-        var esEliminable = totalProductos === 0;
-
-        Swal.fire({
-            title: esEliminable ? '¿Eliminar género?' : 'No se puede eliminar',
-            html: mensaje,
-            icon: esEliminable ? 'warning' : 'error',
-            showCancelButton: esEliminable,
-            confirmButtonColor: esEliminable ? '#d33' : '#122C94',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: esEliminable ? 'Sí, eliminar' : 'Entendido',
-            cancelButtonText: 'Cancelar'
-        }).then(function(result) {
-            if (result.isConfirmed && esEliminable) {
-                var form = document.getElementById('form-eliminar');
-                form.action = '/admin/generos/eliminar/' + id;
-                form.submit();
-            }
-        });
-    }
+function activar(id) {
+    document.getElementById('view-' + id).style.display = 'none';
+    document.getElementById('edit-' + id).style.display = '';
+    document.getElementById('va-' + id).style.display = 'none';
+    document.getElementById('ea-' + id).style.display = '';
+    document.querySelector('#form-' + id + ' input').focus();
+}
+function cancelar(id) {
+    document.getElementById('view-' + id).style.display = '';
+    document.getElementById('edit-' + id).style.display = 'none';
+    document.getElementById('va-' + id).style.display = '';
+    document.getElementById('ea-' + id).style.display = 'none';
+}
+function confirmarBorrar(id, nombre, n) {
+    var bloqueado = n > 0;
+    Swal.fire({
+        title: bloqueado ? 'No se puede eliminar' : '¿Eliminar género?',
+        html: bloqueado
+            ? 'Este género tiene <strong>' + n + ' producto(s)</strong>. Reasígnalos primero.'
+            : 'Eliminar <strong>"' + nombre + '"</strong>. Esta acción no se puede deshacer.',
+        icon: bloqueado ? 'error' : 'warning',
+        showCancelButton: !bloqueado,
+        confirmButtonColor: bloqueado ? '#122C94' : '#dc2626',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: bloqueado ? 'Entendido' : 'Sí, eliminar',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true
+    }).then(function(r) {
+        if (r.isConfirmed && !bloqueado) {
+            var f = document.getElementById('del-form');
+            f.action = '/admin/generos/eliminar/' + id;
+            f.submit();
+        }
+    });
+}
 </script>
-
 {% endblock %}

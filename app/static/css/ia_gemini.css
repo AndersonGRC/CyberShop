@@ -409,6 +409,13 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════
+   Los botones IA del formulario de producto (#btn-ia-nombre,
+   #btn-ia-generar, #btn-ia-mejorar) usan el MISMO estilo azul de marca
+   que el resto de módulos (Contenido Web), vía .gem-btn-primary /
+   .gem-btn-secondary. Antes tenían un override verde; se unificó al azul.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════════════
    SHIMMER DE CARGA — #ia-form-status cuando la IA procesa
    ══════════════════════════════════════════════════════════════════ */
 

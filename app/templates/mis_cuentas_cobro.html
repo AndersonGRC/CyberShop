@@ -307,6 +307,20 @@
                                 <i class="fas fa-edit"></i>
                             </a>
 
+                            {% if fe_habilitada %}
+                              {% if c.factura_dian_id %}
+                              <span class="cc-icon-btn" style="color:#198754;" title="Facturada DIAN">
+                                <i class="fas fa-file-invoice-dollar"></i>
+                              </span>
+                              {% else %}
+                              <button type="button" class="cc-icon-btn" style="color:#0d6efd;"
+                                title="Facturar electrónicamente (DIAN)"
+                                onclick="facturarCuentaDian({{ c.id }}, this)">
+                                <i class="fas fa-file-invoice"></i>
+                              </button>
+                              {% endif %}
+                            {% endif %}
+
                             <form action="{{ url_for('billing.eliminar_cuenta', id=c.id) }}" method="POST"
                                 onsubmit="return confirm('¿Está seguro de eliminar esta cuenta?');">
                                 <button type="submit" class="cc-icon-btn eliminar" title="Eliminar">
@@ -325,4 +339,26 @@
         </table>
     </div>
 </div>
+
+<script>
+function facturarCuentaDian(id, btn) {
+  if (!confirm('¿Emitir factura electrónica DIAN de esta cuenta de cobro?')) return;
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  fetch(`/admin/cuenta_cobro/${id}/facturar`, {
+    method: 'POST', headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/json' }
+  }).then(r => r.json()).then(d => {
+    if (d.success) {
+      btn.outerHTML = '<span class="cc-icon-btn" style="color:#198754;" title="Facturada DIAN"><i class="fas fa-file-invoice-dollar"></i></span>';
+      alert('Factura electrónica enviada (estado: ' + (d.estado || 'PENDIENTE') + ').');
+    } else {
+      alert('No se pudo facturar: ' + (d.error || 'error'));
+      btn.disabled = false; btn.innerHTML = '<i class="fas fa-file-invoice"></i>';
+    }
+  }).catch(() => {
+    alert('Error de conexión.');
+    btn.disabled = false; btn.innerHTML = '<i class="fas fa-file-invoice"></i>';
+  });
+}
+</script>
 {% endblock %}

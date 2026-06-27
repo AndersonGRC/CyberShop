@@ -18,7 +18,7 @@
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                <table class="table table-bordered nm-cards" id="dataTable" width="100%" cellspacing="0">
                     <thead>
                         <tr>
                             <th>Contratista</th>
@@ -31,17 +31,17 @@
                     <tbody>
                         {% for c in contratistas %}
                         <tr>
-                            <td>{{ c.nombres }} {{ c.apellidos }}</td>
-                            <td>{{ c.tipo_documento }} {{ c.numero_documento }}</td>
-                            <td>{{ '${:,.0f}'.format(c.salario_base) }}</td>
-                            <td>
+                            <td data-label="Contratista">{{ c.nombres }} {{ c.apellidos }}</td>
+                            <td data-label="Identificación">{{ c.tipo_documento }} {{ c.numero_documento }}</td>
+                            <td data-label="Honorarios">{{ '${:,.0f}'.format(c.salario_base) }}</td>
+                            <td data-label="Estado PILA">
                                 {% if c.pila_verificada %}
                                 <span class="badge badge-success">Verificado</span>
                                 {% else %}
                                 <span class="badge badge-warning">Pendiente</span>
                                 {% endif %}
                             </td>
-                            <td>
+                            <td data-label="Acciones">
                                 <button type="button" class="btn btn-sm btn-primary" data-toggle="modal"
                                     data-target="#modalPila{{ c.id }}">
                                     <i class="fas fa-upload"></i> Subir PILA

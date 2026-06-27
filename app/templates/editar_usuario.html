@@ -1,36 +1,36 @@
 {% extends './plantillaapp.html' %}
-
 {% block titulo %}Editar Usuario{% endblock %}
 
 {% block LinkAdicional %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/editar_usuario.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/user_forms.css') }}">
 {% endblock %}
 
 {% block body %}
 <section class="page-shell page-shell--narrow">
+
     <div class="page-header">
         <div class="page-header__intro">
-            <div class="page-header__icon">
-                <i class="fas fa-user-edit"></i>
-            </div>
+            <div class="page-header__icon"><i class="fas fa-user-edit"></i></div>
             <div>
                 <span class="page-header__eyebrow">Perfil y acceso</span>
                 <h1>Editar usuario</h1>
-                <p>Actualiza identidad, permisos y datos de contacto de <strong>{{ usuario.nombre }}</strong> sin
-                    salir del contexto administrativo.</p>
+                <p>Actualiza identidad, permisos y datos de contacto de <strong>{{ usuario.nombre }}</strong>.</p>
             </div>
         </div>
         <div class="page-header__actions">
             <a href="{{ url_for('admin.gestion_usuarios') }}" class="btn-admin btn-admin--secondary">
-                <i class="fas fa-arrow-left"></i>
-                Volver al listado
+                <i class="fas fa-arrow-left"></i> Volver al listado
             </a>
         </div>
     </div>
 
+    <!-- ── Formulario principal ──────────────────────────────── -->
     <form id="user-edit-form" method="POST" action="{{ url_for('admin.editar_usuario', id=usuario.id) }}"
-        enctype="multipart/form-data" class="user-form-stack">
+          enctype="multipart/form-data" class="user-form-stack">
+
         <div class="user-form-grid">
+
+            <!-- ── Panel izquierdo: foto e identidad ── -->
             <section class="surface-card profile-panel">
                 <div class="section-heading">
                     <div>
@@ -41,14 +41,13 @@
 
                 <div class="profile-preview">
                     {% if usuario.fotografia %}
-                    <img src="{{ usuario.fotografia }}" alt="Foto de perfil actual" class="avatar-preview"
-                        id="profile-pic-preview">
+                    <img src="{{ usuario.fotografia }}" alt="Foto de perfil actual"
+                         class="avatar-preview" id="profile-pic-preview">
                     <div class="avatar-placeholder" id="profile-placeholder" hidden>
                         <i class="fas fa-user"></i>
                     </div>
                     {% else %}
-                    <img src="" alt="Previsualizacion de la foto de perfil" class="avatar-preview"
-                        id="profile-pic-preview" hidden>
+                    <img src="" alt="Previsualización" class="avatar-preview" id="profile-pic-preview" hidden>
                     <div class="avatar-placeholder" id="profile-placeholder">
                         <i class="fas fa-user"></i>
                     </div>
@@ -60,28 +59,41 @@
                 </div>
 
                 <div class="field">
-                    <label for="fotografia">Imagen de perfil</label>
+                    <label for="fotografia"><i class="fas fa-camera"></i> Imagen de perfil</label>
                     <input type="file" id="fotografia" name="fotografia" accept="image/jpeg, image/png">
-                    <small>Formatos permitidos: JPG o PNG. Tamano maximo recomendado: 2MB.</small>
+                    <small>JPG o PNG · máximo 2 MB recomendado.</small>
+                </div>
+
+                <div class="field">
+                    <label for="nombre">Nombre completo <span class="required-mark">*</span></label>
+                    <input type="text" id="nombre" name="nombre" value="{{ usuario.nombre }}" required>
+                </div>
+
+                <div class="field">
+                    <label for="email">Correo electrónico <span class="required-mark">*</span></label>
+                    <input type="email" id="email" name="email" value="{{ usuario.email }}" required>
                 </div>
 
                 <div class="field-grid">
                     <div class="field">
-                        <label for="nombre">Nombre completo <span class="required-mark">*</span></label>
-                        <input type="text" id="nombre" name="nombre" value="{{ usuario.nombre }}" required>
+                        <label for="fecha_nacimiento">Fecha de nacimiento</label>
+                        <input type="date" id="fecha_nacimiento" name="fecha_nacimiento"
+                               value="{{ usuario.fecha_nacimiento.strftime('%Y-%m-%d') if usuario.fecha_nacimiento else '' }}">
                     </div>
                     <div class="field">
-                        <label for="email">Email <span class="required-mark">*</span></label>
-                        <input type="email" id="email" name="email" value="{{ usuario.email }}" required>
+                        <label for="telefono">Teléfono</label>
+                        <input type="tel" id="telefono" name="telefono" value="{{ usuario.telefono or '' }}"
+                               placeholder="300 000 0000">
                     </div>
                 </div>
             </section>
 
+            <!-- ── Panel derecho: permisos y contacto ── -->
             <section class="surface-card">
                 <div class="section-heading">
                     <div>
                         <h3>Permisos y contacto</h3>
-                        <p>Organiza en una sola tarjeta los datos operativos mas usados durante la administracion.</p>
+                        <p>Configura el nivel de acceso y los datos operativos del usuario.</p>
                     </div>
                 </div>
 
@@ -100,119 +112,129 @@
                         <label for="estado">Estado <span class="required-mark">*</span></label>
                         <select id="estado" name="estado" required>
                             <option value="habilitado" {{ 'selected' if usuario.estado == 'habilitado' else '' }}>
-                                Habilitado
+                                ✓ Habilitado
                             </option>
                             <option value="inhabilitado" {{ 'selected' if usuario.estado == 'inhabilitado' else '' }}>
-                                Inhabilitado
+                                ✗ Inhabilitado
                             </option>
                         </select>
                     </div>
-                    <div class="field">
-                        <label for="fecha_nacimiento">Fecha de nacimiento</label>
-                        <input type="date" id="fecha_nacimiento" name="fecha_nacimiento"
-                            value="{{ usuario.fecha_nacimiento.strftime('%Y-%m-%d') if usuario.fecha_nacimiento else '' }}">
-                    </div>
-                    <div class="field">
-                        <label for="telefono">Telefono</label>
-                        <input type="tel" id="telefono" name="telefono" value="{{ usuario.telefono or '' }}">
-                    </div>
-                    <div class="field field--full">
-                        <label for="direccion">Direccion</label>
-                        <textarea id="direccion" name="direccion"
-                            rows="3">{{ usuario.direccion or '' }}</textarea>
-                    </div>
+                </div>
+
+                <div class="field field--full" style="margin-top:6px;">
+                    <label for="direccion">Dirección</label>
+                    <textarea id="direccion" name="direccion" rows="5"
+                              placeholder="Calle, ciudad, departamento…">{{ usuario.direccion or '' }}</textarea>
                 </div>
             </section>
         </div>
 
         <div class="action-row">
-            <button type="submit" class="btn-admin btn-admin--primary">
-                <i class="fas fa-save"></i>
-                Guardar cambios
-            </button>
             <a href="{{ url_for('admin.gestion_usuarios') }}" class="btn-admin btn-admin--ghost">
-                <i class="fas fa-times"></i>
-                Cancelar
+                <i class="fas fa-times"></i> Cancelar
             </a>
+            <button type="submit" class="btn-admin btn-admin--primary">
+                <i class="fas fa-save"></i> Guardar cambios
+            </button>
         </div>
     </form>
 
-    <section class="surface-card security-card">
+    <!-- ── Cambiar contraseña (formulario independiente) ─────── -->
+    <section class="security-card">
         <div class="section-heading">
             <div>
-                <h3>Cambiar contrasena</h3>
+                <h3>Cambiar contraseña</h3>
                 <p>El bloque de seguridad queda aislado del formulario principal para reducir errores accidentales.</p>
             </div>
             <span class="pill-badge pill-badge--neutral">
-                <i class="fas fa-shield-alt"></i>
-                Seguridad
+                <i class="fas fa-shield-alt"></i> Seguridad
             </span>
         </div>
 
-        <form id="password-form" method="POST" action="{{ url_for('admin.cambiar_password', id=usuario.id) }}"
-            class="security-form">
+        <form id="password-form" method="POST"
+              action="{{ url_for('admin.cambiar_password', id=usuario.id) }}"
+              class="security-form">
+
             <div class="field-grid">
                 <div class="field">
-                    <label for="nueva_password">Nueva contrasena <span class="required-mark">*</span></label>
-                    <input type="password" id="nueva_password" name="nueva_password" required minlength="8">
-                    <small>Usa minimo 8 caracteres.</small>
+                    <label for="nueva_password">Nueva contraseña <span class="required-mark">*</span></label>
+                    <div class="pw-wrap">
+                        <input type="password" id="nueva_password" name="nueva_password"
+                               required minlength="8" placeholder="Mínimo 8 caracteres">
+                        <button type="button" class="pw-toggle" onclick="togglePw('nueva_password', this)">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    <small>Usa mínimo 8 caracteres.</small>
                 </div>
                 <div class="field">
-                    <label for="confirmar_password">Confirmar contrasena <span class="required-mark">*</span></label>
-                    <input type="password" id="confirmar_password" name="confirmar_password" required>
+                    <label for="confirmar_password">Confirmar contraseña <span class="required-mark">*</span></label>
+                    <div class="pw-wrap">
+                        <input type="password" id="confirmar_password" name="confirmar_password"
+                               required placeholder="Repite la contraseña">
+                        <button type="button" class="pw-toggle" onclick="togglePw('confirmar_password', this)">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
 
             <div class="action-row">
-                <button type="submit" class="btn-admin btn-admin--warning">
-                    <i class="fas fa-key"></i>
-                    Actualizar contrasena
+                <button type="submit" class="btn-admin--warning">
+                    <i class="fas fa-key"></i> Actualizar contraseña
                 </button>
             </div>
         </form>
     </section>
+
 </section>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const fileInput = document.getElementById('fotografia');
-        const preview = document.getElementById('profile-pic-preview');
-        const placeholder = document.getElementById('profile-placeholder');
-        const passwordForm = document.getElementById('password-form');
+document.addEventListener('DOMContentLoaded', function () {
+    var fileInput   = document.getElementById('fotografia');
+    var preview     = document.getElementById('profile-pic-preview');
+    var placeholder = document.getElementById('profile-placeholder');
+    var pwForm      = document.getElementById('password-form');
 
-        if (fileInput && preview) {
-            fileInput.addEventListener('change', function (event) {
-                const file = event.target.files && event.target.files[0];
-                if (!file) {
-                    return;
-                }
+    if (fileInput && preview) {
+        fileInput.addEventListener('change', function (e) {
+            var file = e.target.files && e.target.files[0];
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function (le) {
+                preview.src = le.target.result;
+                preview.hidden = false;
+                if (placeholder) placeholder.hidden = true;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
 
-                const reader = new FileReader();
-                reader.onload = function (loadEvent) {
-                    preview.src = loadEvent.target.result;
-                    preview.hidden = false;
-                    if (placeholder) {
-                        placeholder.hidden = true;
-                    }
-                };
-                reader.readAsDataURL(file);
-            });
-        }
+    if (pwForm) {
+        pwForm.addEventListener('submit', function (e) {
+            var pw  = document.getElementById('nueva_password').value;
+            var cpw = document.getElementById('confirmar_password').value;
+            if (pw !== cpw) {
+                e.preventDefault();
+                alert('Las contraseñas no coinciden.');
+                document.getElementById('confirmar_password').focus();
+            }
+        });
+    }
+});
 
-        if (passwordForm) {
-            passwordForm.addEventListener('submit', function (event) {
-                const password = document.getElementById('nueva_password').value;
-                const confirmPassword = document.getElementById('confirmar_password').value;
-
-                if (password !== confirmPassword) {
-                    event.preventDefault();
-                    alert('Las contrasenas no coinciden.');
-                    document.getElementById('confirmar_password').focus();
-                }
-            });
-        }
-    });
+function togglePw(id, btn) {
+    var input = document.getElementById(id);
+    var icon  = btn.querySelector('i');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'fas fa-eye-slash';
+    } else {
+        input.type = 'password';
+        icon.className = 'fas fa-eye';
+    }
+}
 </script>
 {% endblock %}

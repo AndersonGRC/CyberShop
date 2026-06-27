@@ -120,11 +120,36 @@
 .btn-quick-add:hover { filter: brightness(1.08); transform: translateY(-1px); }
 
 @media (max-width:768px) {
+    /* Aprovechar el ancho: poco padding lateral en el contenedor general */
+    .content-wrapper { padding-left:8px !important; padding-right:8px !important; }
     #grid-dash-main { grid-template-columns:1fr !important; }
     .kpi-cards { flex-direction:column !important; }
     .kpi-cards > div { min-width:unset !important; width:100%; box-sizing:border-box; }
-    #wrap-table-dash { overflow-x:auto; -webkit-overflow-scrolling:touch; }
-    #wrap-table-dash table { min-width:500px; }
+    /* Panel de la tabla: ~2px de aire lateral para igualar a los demás módulos */
+    .cont-panel-mov { padding-left:2px !important; padding-right:2px !important; }
+    /* Tabla "Últimos movimientos" -> tarjetas apiladas en móvil */
+    #wrap-table-dash { overflow-x:visible; max-width:100%; }
+    #wrap-table-dash table { min-width:0; width:100%; display:block; box-sizing:border-box; }
+    #wrap-table-dash thead { display:none; }
+    #wrap-table-dash tbody, #wrap-table-dash tr, #wrap-table-dash td {
+        display:block; width:100%; box-sizing:border-box;
+    }
+    #wrap-table-dash tbody tr {
+        border:1px solid #eee !important; border-radius:12px;
+        padding:12px 14px; margin:0 0 10px; box-shadow:0 2px 8px rgba(0,0,0,0.04);
+        box-sizing:border-box;
+    }
+    #wrap-table-dash tbody td {
+        display:flex !important; align-items:center; justify-content:space-between; gap:14px;
+        padding:8px 0 !important; border-bottom:1px solid #f5f5f5 !important;
+        max-width:none !important; white-space:normal !important; overflow:visible !important;
+        text-overflow:clip !important; text-align:right !important;
+    }
+    #wrap-table-dash tbody tr td:last-child { border-bottom:none !important; }
+    #wrap-table-dash tbody td::before {
+        content: attr(data-label); font-weight:700; font-size:0.72em; letter-spacing:.04em;
+        text-transform:uppercase; color:#888; text-align:left; flex-shrink:0;
+    }
     .modal-box { margin:16px; }
 
     /* Header del dashboard en mobile */
@@ -307,7 +332,7 @@
     </div>
 
     <!-- Últimos movimientos -->
-    <div style="background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.07); padding:22px 24px;">
+    <div class="cont-panel-mov" style="background:#fff; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.07); padding:22px 24px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
             <h3 style="margin:0; font-size:0.92em; color:#444;">
                 <i class="fas fa-clock" style="color:var(--color-primario);"></i> Últimos movimientos
@@ -333,17 +358,17 @@
                 {% for m in ultimos %}
                 <tr style="border-bottom:1px solid #f9f9f9;"
                     onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
-                    <td style="padding:9px 10px; color:#888; white-space:nowrap;">
+                    <td data-label="Fecha" style="padding:9px 10px; color:#888; white-space:nowrap;">
                         {{ m.fecha.strftime('%d/%m/%Y') if m.fecha else '' }}
                     </td>
-                    <td style="padding:9px 10px; max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                    <td data-label="Descripción" style="padding:9px 10px; max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
                         {{ m.descripcion[:55] }}{% if m.descripcion|length > 55 %}…{% endif %}
                         {% if m.auto_generado %}
                         <i class="fas fa-robot" style="color:#ccc; font-size:0.8em; margin-left:3px;" title="Auto-generado"></i>
                         {% endif %}
                     </td>
-                    <td style="padding:9px 10px; color:#777; font-size:0.85em;">{{ label_cat(m.categoria) }}</td>
-                    <td style="padding:9px 10px; text-align:center;">
+                    <td data-label="Categoría" style="padding:9px 10px; color:#777; font-size:0.85em;">{{ label_cat(m.categoria) }}</td>
+                    <td data-label="Tipo" style="padding:9px 10px; text-align:center;">
                         {% if m.tipo == 'ingreso' %}
                         <span style="background:#d4edda; color:#155724; padding:2px 9px; border-radius:20px; font-size:0.78em; font-weight:600;">
                             <i class="fas fa-arrow-up"></i> Ingreso
@@ -354,7 +379,7 @@
                         </span>
                         {% endif %}
                     </td>
-                    <td style="padding:9px 10px; text-align:right; font-weight:700;
+                    <td data-label="Neto" style="padding:9px 10px; text-align:right; font-weight:700;
                                color:{{ '#28a745' if m.tipo=='ingreso' else '#dc3545' }};">
                         {{ '+' if m.tipo=='ingreso' else '-' }}${{ '{:,.0f}'.format(m.monto) }}
                     </td>

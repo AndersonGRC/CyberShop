@@ -2,60 +2,309 @@
 {% block titulo %}Videollamadas | {{ datosApp.titulo }}{% endblock %}
 
 {% block LinkAdicional %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/video/video_lista.css') }}">
+
+<style>
+/* ============================================================
+   VIDEO MODULE – shared design tokens
+   ============================================================ */
+
+/* ── Status badges ───────────────────────────────────────── */
+.vbadge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 11px; border-radius: 999px;
+    font-size: .75rem; font-weight: 700; letter-spacing: .02em;
+}
+.vbadge--activa     { background: #d1fae5; color: #065f46; }
+.vbadge--finalizada { background: #f3f4f6; color: #6b7280; }
+.vbadge--cancelada  { background: #fee2e2; color: #991b1b; }
+.vbadge--programada { background: #eff6ff; color: #1d4ed8; }
+.vbadge__dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor; display: inline-block;
+    animation: none;
+}
+.vbadge--activa .vbadge__dot {
+    animation: pulse-dot 1.4s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .35; }
+}
+
+/* ── Sala card ───────────────────────────────────────────── */
+.sala-card {
+    display: block;
+    background: #fff;
+    border-radius: 18px;
+    border: 1px solid rgba(18,44,148,.07);
+    box-shadow: 0 2px 10px rgba(18,44,148,.04);
+    padding: 22px 24px;
+    text-decoration: none;
+    color: inherit;
+    position: relative;
+    overflow: hidden;
+    transition: box-shadow .18s, transform .18s;
+}
+.sala-card:hover {
+    box-shadow: 0 8px 28px rgba(18,44,148,.1);
+    transform: translateY(-2px);
+}
+.sala-card__accent {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+}
+.sala-card__accent--activa     { background: linear-gradient(180deg,#10b981,#059669); }
+.sala-card__accent--finalizada { background: #d1d5db; }
+.sala-card__accent--cancelada  { background: linear-gradient(180deg,#ef4444,#dc2626); }
+.sala-card__accent--programada { background: linear-gradient(180deg,#3b82f6,#1d4ed8); }
+
+.sala-card__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.sala-card__name {
+    font-size: .98rem;
+    font-weight: 800;
+    color: #0f1728;
+    margin: 0 0 5px;
+    line-height: 1.3;
+}
+.sala-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: .8rem;
+    color: #9ca3af;
+}
+.sala-card__meta span {
+    display: inline-flex; align-items: center; gap: 4px;
+}
+.sala-card__bottom {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: .8rem;
+    color: #b0b8c8;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #f3f4f6;
+}
+
+/* ── Grid de salas ───────────────────────────────────────── */
+.salas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 14px;
+}
+
+/* ── Empty state ─────────────────────────────────────────── */
+.video-empty {
+    text-align: center;
+    padding: 72px 24px;
+    background: #fff;
+    border-radius: 20px;
+    border: 1px dashed #e5e9f7;
+    color: #9ca3af;
+}
+.video-empty__icon {
+    width: 72px; height: 72px;
+    border-radius: 20px;
+    background: rgba(18,44,148,.06);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.8rem; color: #122C94; opacity: .4;
+    margin: 0 auto 18px;
+}
+.video-empty p { margin: 0 0 16px; font-size: .95rem; }
+
+/* ── Formulario ──────────────────────────────────────────── */
+.vform-card {
+    background: #fff;
+    border-radius: 20px;
+    border: 1px solid rgba(18,44,148,.08);
+    box-shadow: 0 2px 16px rgba(18,44,148,.05);
+    overflow: hidden;
+    max-width: 660px;
+}
+.vform-card__head {
+    padding: 22px 28px 18px;
+    border-bottom: 1px solid #f0f3f8;
+    display: flex; align-items: center; gap: 14px;
+}
+.vform-card__icon {
+    width: 44px; height: 44px; border-radius: 13px;
+    background: rgba(18,44,148,.08); color: #122C94;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.05rem; flex-shrink: 0;
+}
+.vform-card__title { font-size: .97rem; font-weight: 800; color: #0d1b54; margin: 0; }
+.vform-card__sub   { font-size: .82rem; color: #9ca3af; margin: 2px 0 0; }
+.vform-card__body  { padding: 26px 28px; }
+
+.vf {
+    display: flex; flex-direction: column; gap: 6px;
+    margin-bottom: 18px;
+}
+.vf label {
+    font-size: .82rem; font-weight: 700; color: #374151;
+}
+.vf input,
+.vf textarea,
+.vf select {
+    padding: 11px 14px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 11px;
+    font-size: .92rem;
+    background: #fafafa;
+    font-family: inherit;
+    box-sizing: border-box;
+    width: 100%;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.vf input:focus,
+.vf textarea:focus,
+.vf select:focus {
+    border-color: #122C94;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(18,44,148,.1);
+}
+.vf textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+.vf__hint    { font-size: .78rem; color: #9ca3af; margin-top: 3px; }
+.vf__hint code { background: #f3f4f6; border-radius: 4px; padding: 1px 5px; font-size: .8rem; }
+
+/* Toggle habilitado */
+.vtoggle {
+    display: flex; align-items: flex-start; gap: 12px;
+    margin-bottom: 20px;
+    padding: 16px 18px;
+    background: #fafbff;
+    border: 1.5px solid #e8ecf9;
+    border-radius: 14px;
+    cursor: pointer;
+}
+.vtoggle input[type="checkbox"] {
+    width: 20px; height: 20px; margin-top: 1px; cursor: pointer;
+    accent-color: #122C94;
+}
+.vtoggle__label  { font-weight: 700; color: #1a2340; font-size: .95rem; }
+.vtoggle__desc   { font-size: .8rem; color: #9ca3af; margin-top: 3px; }
+
+.vform-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+/* ── Botones acción ──────────────────────────────────────── */
+.vbtn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 11px 24px;
+    border-radius: 11px;
+    font-size: .92rem; font-weight: 700; cursor: pointer;
+    border: none; transition: all .18s;
+    text-decoration: none;
+}
+.vbtn--primary {
+    background: linear-gradient(135deg,#122C94,#1e3fa8);
+    color: #fff;
+}
+.vbtn--primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(18,44,148,.28);
+}
+.vbtn--ghost {
+    background: transparent;
+    color: #6b7280;
+    border: 1.5px solid #e5e7eb;
+}
+.vbtn--ghost:hover { background: #f9fafb; color: #374151; }
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 700px) {
+    .vform-card { max-width: 100%; }
+    .vform-card__body { padding: 18px; }
+    .vform-card__head { padding: 16px 18px 14px; }
+    .vform-grid-2 { grid-template-columns: 1fr; }
+    .salas-grid { grid-template-columns: 1fr; }
+}
+</style>
+
 {% endblock %}
 
 {% block body %}
-<div class="main-container">
-<div class="content-wrapper" style="padding:28px 24px; max-width:960px;">
+<section class="page-shell">
 
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
-        <h1 class="page-title" style="margin:0;">
-            <i class="fas fa-video"></i> Videollamadas
-        </h1>
-        <a href="{{ url_for('video.admin_video_crear') }}"
-           style="background:var(--color-primario); color:#fff; border:none; border-radius:6px;
-                  padding:10px 20px; font-size:0.92em; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
-            <i class="fas fa-plus-circle"></i> Nueva Sala
-        </a>
+    <div class="page-header">
+        <div class="page-header__intro">
+            <div class="page-header__icon"><i class="fas fa-video"></i></div>
+            <div>
+                <span class="page-header__eyebrow">Módulo</span>
+                <h1>Videollamadas</h1>
+                <p>Administra y crea salas de reunión en tiempo real.</p>
+            </div>
+        </div>
+        <div class="page-header__actions">
+            <a href="{{ url_for('video.admin_video_config') }}" class="btn-admin btn-admin--secondary">
+                <i class="fas fa-sliders-h"></i> Configuración
+            </a>
+            <a href="{{ url_for('video.admin_video_crear') }}" class="btn-admin btn-admin--primary">
+                <i class="fas fa-plus"></i> Nueva sala
+            </a>
+        </div>
     </div>
 
     {% if salas %}
-    <div class="video-grid">
+
+    <!-- ── Contadores rápidos ──────────────────────────────────── -->
+    {% set n_activas     = salas | selectattr('estado','eq','activa')     | list | length %}
+    {% set n_programadas = salas | selectattr('estado','eq','programada') | list | length %}
+    {% set n_finalizadas = salas | selectattr('estado','eq','finalizada') | list | length %}
+    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:6px;">
+        <div class="surface-card" style="flex:1; min-width:130px; padding:16px 20px; text-align:center;">
+            <div style="font-size:1.6rem; font-weight:900; color:#0f1728;">{{ salas|length }}</div>
+            <div style="font-size:.78rem; color:#9ca3af; font-weight:700; text-transform:uppercase; letter-spacing:.06em;">Total</div>
+        </div>
+        <div class="surface-card" style="flex:1; min-width:130px; padding:16px 20px; text-align:center;">
+            <div style="font-size:1.6rem; font-weight:900; color:#059669;">{{ n_activas }}</div>
+            <div style="font-size:.78rem; color:#9ca3af; font-weight:700; text-transform:uppercase; letter-spacing:.06em;">Activas</div>
+        </div>
+        <div class="surface-card" style="flex:1; min-width:130px; padding:16px 20px; text-align:center;">
+            <div style="font-size:1.6rem; font-weight:900; color:#1d4ed8;">{{ n_programadas }}</div>
+            <div style="font-size:.78rem; color:#9ca3af; font-weight:700; text-transform:uppercase; letter-spacing:.06em;">Programadas</div>
+        </div>
+        <div class="surface-card" style="flex:1; min-width:130px; padding:16px 20px; text-align:center;">
+            <div style="font-size:1.6rem; font-weight:900; color:#6b7280;">{{ n_finalizadas }}</div>
+            <div style="font-size:.78rem; color:#9ca3af; font-weight:700; text-transform:uppercase; letter-spacing:.06em;">Finalizadas</div>
+        </div>
+    </div>
+
+    <!-- ── Grid de salas ──────────────────────────────────────── -->
+    <div class="salas-grid">
         {% for s in salas %}
-        <a href="{{ url_for('video.admin_video_detalle', id=s.id) }}" class="video-card"
-           style="border-left:4px solid {{ '#28a745' if s.estado == 'activa' else ('#6c757d' if s.estado == 'finalizada' else ('#dc3545' if s.estado == 'cancelada' else 'var(--color-primario)')) }};">
-            <div class="video-card-header">
+        <a href="{{ url_for('video.admin_video_detalle', id=s.id) }}" class="sala-card">
+            <div class="sala-card__accent sala-card__accent--{{ s.estado or 'programada' }}"></div>
+            <div class="sala-card__top">
                 <div>
-                    <div style="font-weight:600; margin-bottom:4px;">{{ s.nombre }}</div>
-                    <div style="color:#aaa; font-size:0.82em;">
-                        <i class="fas fa-user"></i> {{ s.creador_nombre or 'Desconocido' }}
-                        &nbsp;&middot;&nbsp;
-                        <i class="fas fa-users"></i> {{ s.num_participantes }} participante{{ 's' if s.num_participantes != 1 else '' }}
+                    <p class="sala-card__name">{{ s.nombre }}</p>
+                    <div class="sala-card__meta">
+                        <span><i class="fas fa-user"></i> {{ s.creador_nombre or 'Admin' }}</span>
+                        <span><i class="fas fa-users"></i> {{ s.num_participantes }} participante{{ 's' if s.num_participantes != 1 else '' }}</span>
                     </div>
                 </div>
-                <div>
-                    {% if s.estado == 'activa' %}
-                    <span class="video-badge video-badge-activa">
-                        <i class="fas fa-circle" style="font-size:0.5em;"></i> Activa
+                <div style="flex-shrink:0;">
+                    {% set est = s.estado or 'programada' %}
+                    <span class="vbadge vbadge--{{ est }}">
+                        <span class="vbadge__dot"></span>
+                        {{ est|capitalize }}
                     </span>
-                    {% elif s.estado == 'finalizada' %}
-                    <span class="video-badge video-badge-finalizada">
-                        <i class="fas fa-check-circle"></i> Finalizada
-                    </span>
-                    {% elif s.estado == 'cancelada' %}
-                    <span class="video-badge video-badge-cancelada">
-                        <i class="fas fa-times-circle"></i> Cancelada
-                    </span>
-                    {% else %}
-                    <span class="video-badge video-badge-programada">
-                        <i class="fas fa-clock"></i> Programada
-                    </span>
-                    {% endif %}
                 </div>
             </div>
             {% if s.fecha_inicio %}
-            <div style="color:#888; font-size:0.82em; margin-top:8px;">
+            <div class="sala-card__bottom">
                 <i class="fas fa-calendar-alt"></i>
                 {{ s.fecha_inicio.strftime('%d/%m/%Y %H:%M') }}
             </div>
@@ -63,17 +312,16 @@
         </a>
         {% endfor %}
     </div>
+
     {% else %}
-    <div style="text-align:center; padding:60px 20px; color:#ccc;">
-        <i class="fas fa-video" style="font-size:3rem; margin-bottom:16px; display:block;"></i>
-        <p style="font-size:1.05em; margin-bottom:16px;">No hay salas creadas aun.</p>
-        <a href="{{ url_for('video.admin_video_crear') }}"
-           style="color:var(--color-primario); text-decoration:none; font-weight:600;">
-            <i class="fas fa-plus-circle"></i> Crear primera sala
+    <div class="video-empty">
+        <div class="video-empty__icon"><i class="fas fa-video"></i></div>
+        <p>No hay salas creadas aún.</p>
+        <a href="{{ url_for('video.admin_video_crear') }}" class="vbtn vbtn--primary" style="display:inline-flex;">
+            <i class="fas fa-plus"></i> Crear primera sala
         </a>
     </div>
     {% endif %}
 
-</div>
-</div>
+</section>
 {% endblock %}

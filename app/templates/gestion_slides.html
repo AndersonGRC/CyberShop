@@ -232,6 +232,9 @@
         }
     }
 </style>
+{% if 'ai_assistant' in active_modules %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ia_gemini.css') }}">
+{% endif %}
 {% endblock %}
 
 {% block body %}
@@ -277,6 +280,13 @@
             <div class="form-group">
                 <label for="descripcion">Descripcion (opcional)</label>
                 <textarea id="descripcion" name="descripcion"></textarea>
+                {% if 'ai_assistant' in active_modules %}
+                <div class="gem-btn-row" style="margin-top:8px;">
+                    <button type="button" class="gem-btn-primary ia-content-btn" data-ia-accion="generar" data-ia-tipo="un slide / banner" data-ia-titulo="titulo" data-ia-target="descripcion">✦ Generar con IA</button>
+                    <button type="button" class="gem-btn-secondary ia-content-btn" data-ia-accion="mejorar" data-ia-target="descripcion"><span class="gem-btn-label">✨ Mejorar texto</span></button>
+                    <span class="ia-content-status" style="display:none;"></span>
+                </div>
+                {% endif %}
             </div>
             <button type="submit" class="btn-guardar"><i class="fas fa-save"></i> Guardar</button>
             <a href="{{ url_for('admin.gestion_slides') }}" class="btn-cancelar">Cancelar</a>
@@ -310,6 +320,13 @@
             <div class="form-group">
                 <label for="descripcion">Descripcion (opcional)</label>
                 <textarea id="descripcion" name="descripcion">{{ slide.descripcion or '' }}</textarea>
+                {% if 'ai_assistant' in active_modules %}
+                <div class="gem-btn-row" style="margin-top:8px;">
+                    <button type="button" class="gem-btn-primary ia-content-btn" data-ia-accion="generar" data-ia-tipo="un slide / banner" data-ia-titulo="titulo" data-ia-target="descripcion">✦ Generar con IA</button>
+                    <button type="button" class="gem-btn-secondary ia-content-btn" data-ia-accion="mejorar" data-ia-target="descripcion"><span class="gem-btn-label">✨ Mejorar texto</span></button>
+                    <span class="ia-content-status" style="display:none;"></span>
+                </div>
+                {% endif %}
             </div>
             <button type="submit" class="btn-guardar"><i class="fas fa-save"></i> Actualizar</button>
             <a href="{{ url_for('admin.gestion_slides') }}" class="btn-cancelar">Cancelar</a>
@@ -371,4 +388,10 @@
     {% endif %}
     {% endif %}
 </div>
+{% endblock %}
+
+{% block javascript %}
+{% if 'ai_assistant' in active_modules %}
+<script src="{{ url_for('static', filename='js/ia_contenido.js') }}"></script>
+{% endif %}
 {% endblock %}

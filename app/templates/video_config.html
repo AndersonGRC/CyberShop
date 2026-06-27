@@ -2,68 +2,304 @@
 {% block titulo %}Configuracion Videollamadas | {{ datosApp.titulo }}{% endblock %}
 
 {% block LinkAdicional %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/video/video_lista.css') }}">
+
+<style>
+/* ============================================================
+   VIDEO MODULE – shared design tokens
+   ============================================================ */
+
+/* ── Status badges ───────────────────────────────────────── */
+.vbadge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 11px; border-radius: 999px;
+    font-size: .75rem; font-weight: 700; letter-spacing: .02em;
+}
+.vbadge--activa     { background: #d1fae5; color: #065f46; }
+.vbadge--finalizada { background: #f3f4f6; color: #6b7280; }
+.vbadge--cancelada  { background: #fee2e2; color: #991b1b; }
+.vbadge--programada { background: #eff6ff; color: #1d4ed8; }
+.vbadge__dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor; display: inline-block;
+    animation: none;
+}
+.vbadge--activa .vbadge__dot {
+    animation: pulse-dot 1.4s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .35; }
+}
+
+/* ── Sala card ───────────────────────────────────────────── */
+.sala-card {
+    display: block;
+    background: #fff;
+    border-radius: 18px;
+    border: 1px solid rgba(18,44,148,.07);
+    box-shadow: 0 2px 10px rgba(18,44,148,.04);
+    padding: 22px 24px;
+    text-decoration: none;
+    color: inherit;
+    position: relative;
+    overflow: hidden;
+    transition: box-shadow .18s, transform .18s;
+}
+.sala-card:hover {
+    box-shadow: 0 8px 28px rgba(18,44,148,.1);
+    transform: translateY(-2px);
+}
+.sala-card__accent {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+}
+.sala-card__accent--activa     { background: linear-gradient(180deg,#10b981,#059669); }
+.sala-card__accent--finalizada { background: #d1d5db; }
+.sala-card__accent--cancelada  { background: linear-gradient(180deg,#ef4444,#dc2626); }
+.sala-card__accent--programada { background: linear-gradient(180deg,#3b82f6,#1d4ed8); }
+
+.sala-card__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.sala-card__name {
+    font-size: .98rem;
+    font-weight: 800;
+    color: #0f1728;
+    margin: 0 0 5px;
+    line-height: 1.3;
+}
+.sala-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: .8rem;
+    color: #9ca3af;
+}
+.sala-card__meta span {
+    display: inline-flex; align-items: center; gap: 4px;
+}
+.sala-card__bottom {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: .8rem;
+    color: #b0b8c8;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #f3f4f6;
+}
+
+/* ── Grid de salas ───────────────────────────────────────── */
+.salas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 14px;
+}
+
+/* ── Empty state ─────────────────────────────────────────── */
+.video-empty {
+    text-align: center;
+    padding: 72px 24px;
+    background: #fff;
+    border-radius: 20px;
+    border: 1px dashed #e5e9f7;
+    color: #9ca3af;
+}
+.video-empty__icon {
+    width: 72px; height: 72px;
+    border-radius: 20px;
+    background: rgba(18,44,148,.06);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.8rem; color: #122C94; opacity: .4;
+    margin: 0 auto 18px;
+}
+.video-empty p { margin: 0 0 16px; font-size: .95rem; }
+
+/* ── Formulario ──────────────────────────────────────────── */
+.vform-card {
+    background: #fff;
+    border-radius: 20px;
+    border: 1px solid rgba(18,44,148,.08);
+    box-shadow: 0 2px 16px rgba(18,44,148,.05);
+    overflow: hidden;
+    max-width: 660px;
+}
+.vform-card__head {
+    padding: 22px 28px 18px;
+    border-bottom: 1px solid #f0f3f8;
+    display: flex; align-items: center; gap: 14px;
+}
+.vform-card__icon {
+    width: 44px; height: 44px; border-radius: 13px;
+    background: rgba(18,44,148,.08); color: #122C94;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.05rem; flex-shrink: 0;
+}
+.vform-card__title { font-size: .97rem; font-weight: 800; color: #0d1b54; margin: 0; }
+.vform-card__sub   { font-size: .82rem; color: #9ca3af; margin: 2px 0 0; }
+.vform-card__body  { padding: 26px 28px; }
+
+.vf {
+    display: flex; flex-direction: column; gap: 6px;
+    margin-bottom: 18px;
+}
+.vf label {
+    font-size: .82rem; font-weight: 700; color: #374151;
+}
+.vf input,
+.vf textarea,
+.vf select {
+    padding: 11px 14px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 11px;
+    font-size: .92rem;
+    background: #fafafa;
+    font-family: inherit;
+    box-sizing: border-box;
+    width: 100%;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.vf input:focus,
+.vf textarea:focus,
+.vf select:focus {
+    border-color: #122C94;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(18,44,148,.1);
+}
+.vf textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+.vf__hint    { font-size: .78rem; color: #9ca3af; margin-top: 3px; }
+.vf__hint code { background: #f3f4f6; border-radius: 4px; padding: 1px 5px; font-size: .8rem; }
+
+/* Toggle habilitado */
+.vtoggle {
+    display: flex; align-items: flex-start; gap: 12px;
+    margin-bottom: 20px;
+    padding: 16px 18px;
+    background: #fafbff;
+    border: 1.5px solid #e8ecf9;
+    border-radius: 14px;
+    cursor: pointer;
+}
+.vtoggle input[type="checkbox"] {
+    width: 20px; height: 20px; margin-top: 1px; cursor: pointer;
+    accent-color: #122C94;
+}
+.vtoggle__label  { font-weight: 700; color: #1a2340; font-size: .95rem; }
+.vtoggle__desc   { font-size: .8rem; color: #9ca3af; margin-top: 3px; }
+
+.vform-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+/* ── Botones acción ──────────────────────────────────────── */
+.vbtn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 11px 24px;
+    border-radius: 11px;
+    font-size: .92rem; font-weight: 700; cursor: pointer;
+    border: none; transition: all .18s;
+    text-decoration: none;
+}
+.vbtn--primary {
+    background: linear-gradient(135deg,#122C94,#1e3fa8);
+    color: #fff;
+}
+.vbtn--primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(18,44,148,.28);
+}
+.vbtn--ghost {
+    background: transparent;
+    color: #6b7280;
+    border: 1.5px solid #e5e7eb;
+}
+.vbtn--ghost:hover { background: #f9fafb; color: #374151; }
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 700px) {
+    .vform-card { max-width: 100%; }
+    .vform-card__body { padding: 18px; }
+    .vform-card__head { padding: 16px 18px 14px; }
+    .vform-grid-2 { grid-template-columns: 1fr; }
+    .salas-grid { grid-template-columns: 1fr; }
+}
+</style>
+
 {% endblock %}
 
 {% block body %}
-<div class="main-container">
-<div class="content-wrapper" style="padding:28px 24px; max-width:680px;">
+<section class="page-shell">
 
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
-        <h1 class="page-title" style="margin:0;">
-            <i class="fas fa-sliders-h"></i> Configuracion de Videollamadas
-        </h1>
-        <a href="{{ url_for('video.admin_video_lista') }}" style="color:#888; font-size:0.88em; text-decoration:none;">
-            <i class="fas fa-arrow-left"></i> Mis Salas
-        </a>
+    <div class="page-header">
+        <div class="page-header__intro">
+            <div class="page-header__icon"><i class="fas fa-sliders-h"></i></div>
+            <div>
+                <span class="page-header__eyebrow">Videollamadas</span>
+                <h1>Configuracion</h1>
+                <p>Ajusta el comportamiento del modulo de videollamadas.</p>
+            </div>
+        </div>
+        <div class="page-header__actions">
+            <a href="{{ url_for('video.admin_video_lista') }}" class="btn-admin btn-admin--secondary">
+                <i class="fas fa-arrow-left"></i> Mis salas
+            </a>
+        </div>
     </div>
 
-    <div style="background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.08);
-                padding:28px; border-top:4px solid var(--color-primario);">
-        <form action="{{ url_for('video.admin_video_config') }}" method="POST">
-            <div style="margin-bottom:20px;">
-                <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+    <div class="vform-card">
+        <div class="vform-card__head">
+            <div class="vform-card__icon"><i class="fas fa-cog"></i></div>
+            <div>
+                <p class="vform-card__title">Parametros del modulo</p>
+                <p class="vform-card__sub">Los cambios aplican para todos los usuarios de la plataforma.</p>
+            </div>
+        </div>
+        <div class="vform-card__body">
+            <form action="{{ url_for('video.admin_video_config') }}" method="POST">
+
+                <label class="vtoggle">
                     <input type="checkbox" name="video_habilitado" value="true"
-                           {{ 'checked' if cfg.video_habilitado == 'true' else '' }}
-                           style="width:18px; height:18px;">
-                    <span style="font-weight:600; color:#444;">Modulo habilitado</span>
+                           {{ 'checked' if cfg.video_habilitado == 'true' else '' }}>
+                    <div>
+                        <div class="vtoggle__label">Modulo habilitado</div>
+                        <div class="vtoggle__desc">Activa o desactiva el modulo de videollamadas para todos los usuarios.</div>
+                    </div>
                 </label>
-                <p style="color:#aaa; font-size:0.82em; margin:4px 0 0 28px;">
-                    Activa o desactiva el modulo de videollamadas para todo el sitio.
-                </p>
-            </div>
 
-            <div style="margin-bottom:20px;">
-                <label style="display:block; font-size:0.88em; font-weight:600; color:#555; margin-bottom:5px;">
-                    Dominio Jitsi
-                </label>
-                <input type="text" name="video_jitsi_domain" value="{{ cfg.video_jitsi_domain }}"
-                       placeholder="meet.jit.si"
-                       style="width:100%; padding:10px 14px; border-radius:6px; border:1px solid #ddd; font-size:0.95em;">
-                <p style="color:#aaa; font-size:0.82em; margin-top:4px;">
-                    Usa <code>meet.jit.si</code> (gratuito) o tu propio servidor Jitsi.
-                </p>
-            </div>
+                <div class="vf">
+                    <label>Dominio Jitsi</label>
+                    <input type="text" name="video_jitsi_domain"
+                           value="{{ cfg.video_jitsi_domain }}"
+                           placeholder="meet.jit.si">
+                    <span class="vf__hint">
+                        Usa <code>meet.jit.si</code> (gratuito) o el dominio de tu propio servidor Jitsi.
+                    </span>
+                </div>
 
-            <div style="margin-bottom:20px;">
-                <label style="display:block; font-size:0.88em; font-weight:600; color:#555; margin-bottom:5px;">
-                    Maximo de participantes por sala
-                </label>
-                <input type="number" name="video_max_participantes" value="{{ cfg.video_max_participantes }}"
-                       min="2" max="100"
-                       style="width:120px; padding:10px 14px; border-radius:6px; border:1px solid #ddd; font-size:0.95em;">
-            </div>
+                <div class="vf" style="max-width:220px;">
+                    <label>Maximo de participantes por sala</label>
+                    <input type="number" name="video_max_participantes"
+                           value="{{ cfg.video_max_participantes }}"
+                           min="2" max="100">
+                </div>
 
-            <div style="display:flex; justify-content:flex-end; margin-top:24px;">
-                <button type="submit"
-                        style="background:var(--color-primario); color:#fff; border:none; border-radius:6px;
-                               padding:10px 24px; font-size:0.95em; font-weight:600; cursor:pointer;">
-                    <i class="fas fa-save"></i> Guardar
-                </button>
-            </div>
-        </form>
+                <div style="display:flex; justify-content:flex-end; padding-top:8px;">
+                    <button type="submit" class="vbtn vbtn--primary">
+                        <i class="fas fa-save"></i> Guardar configuracion
+                    </button>
+                </div>
+
+            </form>
+        </div>
     </div>
 
-</div>
-</div>
+</section>
 {% endblock %}

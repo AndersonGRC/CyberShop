@@ -1,160 +1,562 @@
-{% extends "public/layout_admin.html" %}
-
-{% block title %}Nómina - Dashboard{% endblock %}
+{% extends './plantillaapp.html' %}
+{% block titulo %}Dashboard — Nómina{% endblock %}
 
 {% block LinkAdicional %}
-{{ super() }}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/nomina/nomina_dashboard.css') }}">
+<style>
+/* ══════════════════════════════════════════════════════
+   NÓMINA DASHBOARD — Diseño propio (sin Bootstrap dep.)
+   ══════════════════════════════════════════════════════ */
+
+/* ── KPI grid ─────────────────────────────────────────── */
+.nm-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+}
+
+.nm-kpi {
+    background: #fff;
+    border-radius: 18px;
+    border: 1px solid rgba(18,44,148,.08);
+    box-shadow: 0 2px 14px rgba(18,44,148,.05);
+    padding: 22px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: relative;
+    overflow: hidden;
+}
+.nm-kpi::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: 2px 2px 0 0;
+}
+.nm-kpi--blue::before   { background: linear-gradient(90deg,#122C94,#1e3fa8); }
+.nm-kpi--green::before  { background: linear-gradient(90deg,#059669,#10b981); }
+.nm-kpi--purple::before { background: linear-gradient(90deg,#7c3aed,#a855f7); }
+.nm-kpi--orange::before { background: linear-gradient(90deg,#b45309,#f59e0b); }
+
+.nm-kpi__icon {
+    width: 52px; height: 52px;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+.nm-kpi--blue   .nm-kpi__icon { background: rgba(18,44,148,.1);  color: #122C94; }
+.nm-kpi--green  .nm-kpi__icon { background: rgba(5,150,105,.12);  color: #065f46; }
+.nm-kpi--purple .nm-kpi__icon { background: rgba(124,58,237,.1); color: #5b21b6; }
+.nm-kpi--orange .nm-kpi__icon { background: rgba(180,83,9,.1);   color: #92400e; }
+
+.nm-kpi__label {
+    font-size: .72rem; font-weight: 800;
+    letter-spacing: .08em; text-transform: uppercase;
+    color: #6b7280; margin-bottom: 4px;
+}
+.nm-kpi__value {
+    font-size: 1.75rem; font-weight: 900;
+    color: #0d1b54; line-height: 1;
+}
+.nm-kpi__sub {
+    font-size: .78rem; color: #9ca3af; margin-top: 4px;
+}
+
+/* ── Layout principal 2 col ──────────────────────────── */
+.nm-grid {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 22px;
+    align-items: start;
+}
+
+/* ── Histograma de períodos ──────────────────────────── */
+.nm-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    height: 160px;
+    padding: 0 4px;
+}
+.nm-bar-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    height: 100%;
+    justify-content: flex-end;
+}
+.nm-bar {
+    width: 100%;
+    border-radius: 8px 8px 0 0;
+    min-height: 4px;
+    transition: opacity .2s;
+    position: relative;
+}
+.nm-bar--calculada { background: linear-gradient(180deg,#3b82f6,#1d4ed8); }
+.nm-bar--aprobada  { background: linear-gradient(180deg,#10b981,#059669); }
+.nm-bar--pagada    { background: linear-gradient(180deg,#7c3aed,#5b21b6); }
+.nm-bar--borrador  { background: #d1d5db; }
+.nm-bar:hover::after {
+    content: attr(data-val);
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0d1b54;
+    color: #fff;
+    font-size: .7rem;
+    font-weight: 700;
+    padding: 3px 7px;
+    border-radius: 6px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 10;
+}
+.nm-bar-label {
+    font-size: .72rem;
+    color: #9ca3af;
+    text-align: center;
+    white-space: nowrap;
+    font-weight: 600;
+}
+
+/* ── Sección heading ─────────────────────────────────── */
+.nm-section {
+    background: #fff;
+    border-radius: 18px;
+    border: 1px solid rgba(18,44,148,.08);
+    box-shadow: 0 2px 14px rgba(18,44,148,.05);
+    overflow: hidden;
+}
+.nm-section__head {
+    padding: 18px 22px 14px;
+    border-bottom: 1px solid #f0f3f8;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.nm-section__title {
+    font-size: .95rem;
+    font-weight: 800;
+    color: #0d1b54;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin: 0;
+}
+.nm-section__title i { color: #122C94; font-size: .9rem; }
+.nm-section__link {
+    font-size: .8rem;
+    color: #122C94;
+    text-decoration: none;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+.nm-section__link:hover { text-decoration: underline; }
+.nm-section__body { padding: 20px 22px; }
+
+/* ── Última nómina breakdown ─────────────────────────── */
+.nm-breakdown {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+.nm-bd-item {
+    text-align: center;
+    padding: 14px 10px;
+    border-radius: 12px;
+    background: #f8faff;
+    border: 1px solid rgba(18,44,148,.07);
+}
+.nm-bd-item__lbl { font-size: .72rem; font-weight: 700; color: #9ca3af; text-transform: uppercase; margin-bottom: 5px; }
+.nm-bd-item__val { font-size: 1.05rem; font-weight: 800; }
+.nm-bd-item--dev  .nm-bd-item__val { color: #059669; }
+.nm-bd-item--ded  .nm-bd-item__val { color: #dc2626; }
+.nm-bd-item--net  .nm-bd-item__val { color: #122C94; }
+
+/* ── Estado badge ────────────────────────────────────── */
+.estado-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 999px;
+    font-size: .75rem; font-weight: 700; white-space: nowrap;
+}
+.estado-badge::before { content:''; width:5px; height:5px; border-radius:50%; background:currentColor; opacity:.7; }
+.eb--borrador  { background:#f3f4f6; color:#6b7280; }
+.eb--calculada { background:#dbeafe; color:#1d4ed8; }
+.eb--aprobada  { background:#d1fae5; color:#065f46; }
+.eb--pagada    { background:#ede9fe; color:#5b21b6; }
+
+/* ── Salary bar ──────────────────────────────────────── */
+.sal-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid #f3f4f6; }
+.sal-row:last-child { border-bottom:none; }
+.sal-name { font-size:.88rem; font-weight:700; color:#0f1728; min-width:0; flex:1; }
+.sal-name small { display:block; font-weight:400; color:#9ca3af; font-size:.77rem; }
+.sal-bar-wrap { width:120px; height:8px; background:#f0f3f8; border-radius:4px; overflow:hidden; flex-shrink:0; }
+.sal-bar-fill { height:100%; border-radius:4px; background:linear-gradient(90deg,#122C94,#1e3fa8); }
+.sal-val { font-size:.84rem; font-weight:800; color:#0d1b54; white-space:nowrap; min-width:90px; text-align:right; }
+
+/* ── Referencia normativa ────────────────────────────── */
+.nm-norma {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 14px;
+}
+.nm-norma-item { padding: 12px 14px; background:#f8faff; border-radius:10px; border:1px solid rgba(18,44,148,.07); }
+.nm-norma-item__lbl { font-size:.72rem; color:#9ca3af; font-weight:700; text-transform:uppercase; margin-bottom:4px; }
+.nm-norma-item__val { font-size:.95rem; font-weight:800; color:#0d1b54; }
+
+/* ── Acciones rápidas ────────────────────────────────── */
+.nm-quick { display:flex; flex-direction:column; gap:10px; }
+.nm-quick-btn {
+    display: flex; align-items: center; gap: 12px;
+    padding: 13px 16px;
+    border-radius: 12px;
+    text-decoration: none;
+    border: 1px solid transparent;
+    transition: all .18s;
+    font-size: .88rem;
+    font-weight: 700;
+}
+.nm-quick-btn i { width:20px; text-align:center; }
+.nm-quick-btn--primary { background:#f0f4ff; color:#122C94; border-color:#c7d5fa; }
+.nm-quick-btn--primary:hover { background:#dde5ff; }
+.nm-quick-btn--success { background:#f0fdf4; color:#065f46; border-color:#bbf7d0; }
+.nm-quick-btn--success:hover { background:#dcfce7; }
+.nm-quick-btn--warning { background:#fffbeb; color:#92400e; border-color:#fde68a; }
+.nm-quick-btn--warning:hover { background:#fef3c7; }
+.nm-quick-btn--purple  { background:#f5f3ff; color:#5b21b6; border-color:#ddd6fe; }
+.nm-quick-btn--purple:hover  { background:#ede9fe; }
+.nm-quick-btn--slate   { background:#f8fafc; color:#374151; border-color:#e2e8f0; }
+.nm-quick-btn--slate:hover  { background:#f1f5f9; }
+
+.nm-quick-btn__sub { font-size:.76rem; font-weight:400; color:#9ca3af; display:block; }
+
+/* ── Alerta borrador ─────────────────────────────────── */
+.nm-alert {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px 16px; border-radius: 12px;
+    font-size: .87rem;
+}
+.nm-alert--warn { background:#fffbeb; border:1px solid #fde68a; color:#92400e; }
+.nm-alert--info { background:#eff6ff; border:1px solid #bfdbfe; color:#1d4ed8; }
+.nm-alert i { font-size:1rem; flex-shrink:0; margin-top:1px; }
+
+/* ── Responsive ──────────────────────────────────────── */
+@media (max-width:1200px) {
+    .nm-kpis { grid-template-columns: repeat(2,1fr); }
+    .nm-grid  { grid-template-columns: 1fr; }
+}
+@media (max-width:640px) {
+    .nm-kpis { grid-template-columns: 1fr 1fr; gap:12px; }
+    .nm-kpi  { padding:16px; }
+    .nm-kpi__value { font-size:1.35rem; }
+    .nm-breakdown { grid-template-columns:1fr; }
+    .nm-norma { grid-template-columns:1fr 1fr; }
+    .sal-bar-wrap { display:none; }
+}
+@media (max-width:400px) {
+    .nm-kpis { grid-template-columns:1fr; }
+    .nm-norma { grid-template-columns:1fr; }
+}
+</style>
 {% endblock %}
 
-{% block content %}
-<div class="container-fluid">
-    <h1 class="h3 mb-2 text-gray-800">Dashboard Nómina</h1>
-    <p class="text-muted mb-4">Liquida la nómina mensual o quincenal de tus empleados y contratistas.</p>
+{% block body %}
+<section class="page-shell">
 
-    <div class="card shadow mb-4 border-left-info">
-        <div class="card-body py-3">
-            <h6 class="font-weight-bold text-info mb-2"><i class="fas fa-info-circle"></i> Cómo liquidar tu nómina (4 pasos)</h6>
-            <ol class="mb-0 pl-3" style="font-size:0.9rem;">
-                <li><strong>Parámetros del año</strong> — registra el SMMLV, auxilio de transporte y UVT vigentes en
-                    <a href="{{ url_for('nomina.parametros_lista') }}">Parámetros</a>. Solo se hace una vez al año.</li>
-                <li><strong>Empleados</strong> — crea cada empleado con su salario y tipo de contrato en
-                    <a href="{{ url_for('nomina.empleados_lista') }}">Empleados</a>.</li>
-                <li><strong>Periodo</strong> — abre el periodo (quincena o mes) en
-                    <a href="{{ url_for('nomina.periodos_lista') }}">Periodos</a>, registra
-                    <a href="{{ url_for('nomina.novedades_lista') }}">Novedades</a> (horas extras, incapacidades, bonos)
-                    y presiona <em>Calcular Nómina</em>.</li>
-                <li><strong>Aprobar y pagar</strong> — revisa el detalle, apruébalo e imprime los desprendibles desde el periodo.</li>
-            </ol>
+    <!-- ── Header ─────────────────────────────────────────── -->
+    <div class="page-header">
+        <div class="page-header__intro">
+            <div class="page-header__icon"><i class="fas fa-money-check-alt"></i></div>
+            <div>
+                <span class="page-header__eyebrow">Recursos Humanos</span>
+                <h1>Dashboard de Nómina</h1>
+                <p>Resumen ejecutivo · masa salarial, períodos y novedades al día de hoy.</p>
+            </div>
+        </div>
+        <div class="page-header__actions">
+            <a href="{{ url_for('nomina.novedades_crear') }}" class="btn-admin btn-admin--secondary">
+                <i class="fas fa-plus"></i> Nueva novedad
+            </a>
+            <a href="{{ url_for('nomina.periodo_crear') }}" class="btn-admin btn-admin--primary">
+                <i class="fas fa-calendar-plus"></i> Nuevo período
+            </a>
         </div>
     </div>
 
-    {% if referencia %}
-    <div class="card shadow mb-4 border-left-{{ 'success' if referencia.estado == 'oficial' else 'warning' }}">
-        <div class="card-body py-3">
-            <div class="d-flex justify-content-between align-items-start flex-wrap">
-                <div>
-                    <h6 class="font-weight-bold text-{{ 'success' if referencia.estado == 'oficial' else 'warning' }} mb-2">
-                        <i class="fas fa-balance-scale"></i>
-                        Norma colombiana vigente — {{ anio_actual }}
-                        {% if referencia.estado == 'proyectado' %}
-                        <span class="badge badge-warning ml-2">Proyectado</span>
-                        {% else %}
-                        <span class="badge badge-success ml-2">Oficial</span>
-                        {% endif %}
-                    </h6>
-                    <div class="row" style="font-size:0.9rem;">
-                        <div class="col-md-3 mb-2">
-                            <small class="text-muted d-block">SMMLV</small>
-                            <strong>{{ formatear_moneda(referencia.salario_minimo) }}</strong>
-                        </div>
-                        <div class="col-md-3 mb-2">
-                            <small class="text-muted d-block">Auxilio de transporte</small>
-                            <strong>{{ formatear_moneda(referencia.auxilio_transporte) }}</strong>
-                        </div>
-                        <div class="col-md-2 mb-2">
-                            <small class="text-muted d-block">UVT (DIAN)</small>
-                            <strong>{{ formatear_moneda(referencia.uvt) }}</strong>
-                        </div>
-                        <div class="col-md-2 mb-2">
-                            <small class="text-muted d-block">Jornada (Ley 2101)</small>
-                            <strong>{{ referencia.jornada_semanal }} h/sem</strong>
-                        </div>
-                        <div class="col-md-2 mb-2">
-                            <small class="text-muted d-block">Salud + Pensión empleado</small>
-                            <strong>4% + 4%</strong>
-                        </div>
-                    </div>
-                    <small class="text-muted d-block mt-2">
-                        <i class="fas fa-book"></i> {{ referencia.fuente }}
-                    </small>
-                </div>
-                <a href="{{ url_for('nomina.parametros_lista') }}" class="btn btn-sm btn-outline-primary mt-2">
-                    Ver parámetros
-                </a>
-            </div>
+    {% if periodos_borrador > 0 %}
+    <div class="nm-alert nm-alert--warn">
+        <i class="fas fa-exclamation-triangle"></i>
+        <div>
+            Tienes <strong>{{ periodos_borrador }} período{% if periodos_borrador>1 %}s{% endif %} en borrador</strong>
+            sin calcular.
+            <a href="{{ url_for('nomina.periodos_lista') }}" style="color:#92400e;font-weight:700;">Ir a períodos →</a>
         </div>
     </div>
     {% endif %}
 
-    <div class="row">
-        <!-- Earnings (Monthly) Card Example -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-primary shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                                Empleados Activos</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ active_employees }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-users fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
+    <!-- ── KPIs ───────────────────────────────────────────── -->
+    <div class="nm-kpis">
+        <div class="nm-kpi nm-kpi--blue">
+            <div class="nm-kpi__icon"><i class="fas fa-users"></i></div>
+            <div>
+                <div class="nm-kpi__label">Empleados activos</div>
+                <div class="nm-kpi__value">{{ active_employees }}</div>
+                <div class="nm-kpi__sub">{{ active_contractors }} contratista{% if active_contractors!=1 %}s{% endif %} · {{ active_employees - active_contractors }} nómina directa</div>
+            </div>
+        </div>
+        <div class="nm-kpi nm-kpi--green">
+            <div class="nm-kpi__icon"><i class="fas fa-wallet"></i></div>
+            <div>
+                <div class="nm-kpi__label">Masa salarial / mes</div>
+                <div class="nm-kpi__value">{{ formatear_moneda(masa_salarial) }}</div>
+                <div class="nm-kpi__sub">Suma salarios base activos</div>
+            </div>
+        </div>
+        <div class="nm-kpi nm-kpi--purple">
+            <div class="nm-kpi__icon"><i class="fas fa-file-invoice-dollar"></i></div>
+            <div>
+                <div class="nm-kpi__label">Última nómina neta</div>
+                <div class="nm-kpi__value">{{ formatear_moneda(last_payroll_total) }}</div>
+                <div class="nm-kpi__sub">
+                    {% if ultimo_periodo %}
+                    Período {{ ultimo_periodo.anio }}-{{ '%02d'|format(ultimo_periodo.mes) }}
+                    <span class="estado-badge eb--{{ ultimo_periodo.estado }}">{{ ultimo_periodo.estado }}</span>
+                    {% else %}Sin períodos calculados{% endif %}
                 </div>
             </div>
         </div>
-
-        <!-- Earnings (Monthly) Card Example -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-success shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                Total Última Nómina</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">${{ "{:,.0f}".format(last_payroll_total)
-                                }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Earnings (Monthly) Card Example -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-info shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Novedades (Mes)
-                            </div>
-                            <div class="row no-gutters align-items-center">
-                                <div class="col-auto">
-                                    <div class="h5 mb-0 mr-3 font-weight-bold text-gray-800">{{ novedades_month }}</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-clipboard-list fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Pending Requests Card Example -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-warning shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                Acciones Rápidas</div>
-                            <a href="{{ url_for('nomina.novedades_crear') }}"
-                                class="btn btn-sm btn-primary shadow-sm">Nueva Novedad</a>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-comments fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
+        <div class="nm-kpi nm-kpi--orange">
+            <div class="nm-kpi__icon"><i class="fas fa-clipboard-list"></i></div>
+            <div>
+                <div class="nm-kpi__label">Novedades del mes</div>
+                <div class="nm-kpi__value">{{ novedades_month }}</div>
+                <div class="nm-kpi__sub">
+                    <a href="{{ url_for('nomina.novedades_lista') }}" style="color:#92400e;">Ver todas →</a>
                 </div>
             </div>
         </div>
     </div>
-</div>
+
+    <!-- ── Grid principal ─────────────────────────────────── -->
+    <div class="nm-grid">
+
+        <!-- Columna izquierda -->
+        <div style="display:flex;flex-direction:column;gap:22px;">
+
+            <!-- Histograma períodos -->
+            <div class="nm-section">
+                <div class="nm-section__head">
+                    <h3 class="nm-section__title"><i class="fas fa-chart-bar"></i> Historial de períodos (últimos {{ hist_periodos|length }})</h3>
+                    <a href="{{ url_for('nomina.periodos_lista') }}" class="nm-section__link">
+                        Ver todos <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+                <div class="nm-section__body">
+                    {% if hist_periodos %}
+                    <div class="nm-chart">
+                        {% for p in hist_periodos %}
+                        <div class="nm-bar-wrap">
+                            <div class="nm-bar nm-bar--{{ p.estado }}"
+                                 style="height:{{ [p.pct, 4]|max }}%"
+                                 data-val="{{ formatear_moneda(p.neto) }}">
+                            </div>
+                            <span class="nm-bar-label">{{ p.label }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;">
+                        <span style="display:flex;align-items:center;gap:5px;font-size:.77rem;color:#6b7280;">
+                            <span style="width:10px;height:10px;border-radius:3px;background:#1d4ed8;display:inline-block;"></span>Calculada
+                        </span>
+                        <span style="display:flex;align-items:center;gap:5px;font-size:.77rem;color:#6b7280;">
+                            <span style="width:10px;height:10px;border-radius:3px;background:#059669;display:inline-block;"></span>Aprobada
+                        </span>
+                        <span style="display:flex;align-items:center;gap:5px;font-size:.77rem;color:#6b7280;">
+                            <span style="width:10px;height:10px;border-radius:3px;background:#7c3aed;display:inline-block;"></span>Pagada
+                        </span>
+                        <span style="display:flex;align-items:center;gap:5px;font-size:.77rem;color:#6b7280;">
+                            <span style="width:10px;height:10px;border-radius:3px;background:#d1d5db;display:inline-block;"></span>Borrador
+                        </span>
+                    </div>
+                    {% else %}
+                    <p style="color:#9ca3af;text-align:center;padding:24px 0;">Sin períodos registrados aún.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Detalle última nómina -->
+            {% if ultimo_periodo %}
+            <div class="nm-section">
+                <div class="nm-section__head">
+                    <h3 class="nm-section__title">
+                        <i class="fas fa-receipt"></i>
+                        Última nómina — {{ ultimo_periodo.anio }}-{{ '%02d'|format(ultimo_periodo.mes) }}
+                        {% if ultimo_periodo.numero_periodo %}Quincena {{ ultimo_periodo.numero_periodo }}{% endif %}
+                    </h3>
+                    <span class="estado-badge eb--{{ ultimo_periodo.estado }}">{{ ultimo_periodo.estado }}</span>
+                </div>
+                <div class="nm-section__body">
+                    <div class="nm-breakdown">
+                        <div class="nm-bd-item nm-bd-item--dev">
+                            <div class="nm-bd-item__lbl">Devengado</div>
+                            <div class="nm-bd-item__val">{{ formatear_moneda(ultimo_periodo.total_devengado) }}</div>
+                        </div>
+                        <div class="nm-bd-item nm-bd-item--ded">
+                            <div class="nm-bd-item__lbl">Deducciones</div>
+                            <div class="nm-bd-item__val">{{ formatear_moneda(ultimo_periodo.total_deducido) }}</div>
+                        </div>
+                        <div class="nm-bd-item nm-bd-item--net">
+                            <div class="nm-bd-item__lbl">Neto a pagar</div>
+                            <div class="nm-bd-item__val">{{ formatear_moneda(ultimo_periodo.neto_total) }}</div>
+                        </div>
+                    </div>
+                    <p style="font-size:.83rem;color:#9ca3af;margin:0;">
+                        <i class="fas fa-users"></i> {{ ultimo_periodo.num_empleados }} empleado{% if ultimo_periodo.num_empleados!=1 %}s{% endif %} incluidos en este período.
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Top 5 salarios -->
+            {% if top_salarios %}
+            <div class="nm-section">
+                <div class="nm-section__head">
+                    <h3 class="nm-section__title"><i class="fas fa-sort-amount-down"></i> Top salarios base</h3>
+                    <a href="{{ url_for('nomina.empleados_lista') }}" class="nm-section__link">Ver todos <i class="fas fa-arrow-right"></i></a>
+                </div>
+                <div class="nm-section__body" style="padding-top:10px;padding-bottom:10px;">
+                    {% for e in top_salarios %}
+                    {% set pct = (e.salario_base|float / salario_max * 100)|round(1) %}
+                    <div class="sal-row">
+                        <div class="sal-name">
+                            {{ e.nombres }} {{ e.apellidos }}
+                            <small>{{ e.cargo }} · {{ e.tipo_vinculacion }}</small>
+                        </div>
+                        <div class="sal-bar-wrap">
+                            <div class="sal-bar-fill" style="width:{{ pct }}%;"></div>
+                        </div>
+                        <div class="sal-val">{{ formatear_moneda(e.salario_base) }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+
+        <!-- Columna derecha -->
+        <div style="display:flex;flex-direction:column;gap:22px;">
+
+            <!-- Acciones rápidas -->
+            <div class="nm-section">
+                <div class="nm-section__head">
+                    <h3 class="nm-section__title"><i class="fas fa-bolt"></i> Flujo de trabajo</h3>
+                </div>
+                <div class="nm-section__body">
+                    <div class="nm-quick">
+                        <a href="{{ url_for('nomina.parametros_lista') }}" class="nm-quick-btn nm-quick-btn--slate">
+                            <i class="fas fa-sliders-h"></i>
+                            <span>Parámetros {{ anio_actual }}<span class="nm-quick-btn__sub">SMMLV · Auxilio · UVT</span></span>
+                        </a>
+                        <a href="{{ url_for('nomina.empleados_lista') }}" class="nm-quick-btn nm-quick-btn--primary">
+                            <i class="fas fa-id-badge"></i>
+                            <span>Empleados<span class="nm-quick-btn__sub">{{ active_employees }} activos registrados</span></span>
+                        </a>
+                        <a href="{{ url_for('nomina.novedades_crear') }}" class="nm-quick-btn nm-quick-btn--warning">
+                            <i class="fas fa-plus-circle"></i>
+                            <span>Registrar novedad<span class="nm-quick-btn__sub">Extras · incapacidades · bonos</span></span>
+                        </a>
+                        <a href="{{ url_for('nomina.periodo_crear') }}" class="nm-quick-btn nm-quick-btn--success">
+                            <i class="fas fa-calendar-check"></i>
+                            <span>Abrir período<span class="nm-quick-btn__sub">Quincena o mes</span></span>
+                        </a>
+                        <a href="{{ url_for('nomina.periodos_lista') }}" class="nm-quick-btn nm-quick-btn--purple">
+                            <i class="fas fa-calculator"></i>
+                            <span>Calcular nómina<span class="nm-quick-btn__sub">Ver períodos y liquidar</span></span>
+                        </a>
+                        <a href="{{ url_for('nomina.contratistas_lista') }}" class="nm-quick-btn nm-quick-btn--slate">
+                            <i class="fas fa-handshake"></i>
+                            <span>Contratistas PILA<span class="nm-quick-btn__sub">{{ active_contractors }} activos este mes</span></span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Novedades del mes por tipo -->
+            {% if novedades_tipo %}
+            <div class="nm-section">
+                <div class="nm-section__head">
+                    <h3 class="nm-section__title"><i class="fas fa-tags"></i> Novedades por tipo</h3>
+                    <a href="{{ url_for('nomina.novedades_lista') }}" class="nm-section__link">Ver <i class="fas fa-arrow-right"></i></a>
+                </div>
+                <div class="nm-section__body" style="padding-top:10px;padding-bottom:10px;">
+                    {% for n in novedades_tipo %}
+                    <div class="sal-row">
+                        <div class="sal-name">{{ n.tipo_novedad }}</div>
+                        <div style="font-size:.9rem;font-weight:800;color:#0d1b54;">{{ n.total }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Referencia normativa -->
+            {% if referencia %}
+            <div class="nm-section">
+                <div class="nm-section__head">
+                    <h3 class="nm-section__title">
+                        <i class="fas fa-balance-scale"></i> Norma {{ anio_actual }}
+                    </h3>
+                    <span class="estado-badge {% if referencia.estado=='oficial' %}eb--aprobada{% else %}eb--calculada{% endif %}">
+                        {{ referencia.estado }}
+                    </span>
+                </div>
+                <div class="nm-section__body" style="padding-top:14px;padding-bottom:14px;">
+                    <div class="nm-norma">
+                        <div class="nm-norma-item">
+                            <div class="nm-norma-item__lbl">SMMLV</div>
+                            <div class="nm-norma-item__val">{{ formatear_moneda(referencia.salario_minimo) }}</div>
+                        </div>
+                        <div class="nm-norma-item">
+                            <div class="nm-norma-item__lbl">Auxilio transp.</div>
+                            <div class="nm-norma-item__val">{{ formatear_moneda(referencia.auxilio_transporte) }}</div>
+                        </div>
+                        <div class="nm-norma-item">
+                            <div class="nm-norma-item__lbl">UVT</div>
+                            <div class="nm-norma-item__val">{{ formatear_moneda(referencia.uvt) }}</div>
+                        </div>
+                        <div class="nm-norma-item">
+                            <div class="nm-norma-item__lbl">Jornada</div>
+                            <div class="nm-norma-item__val">{{ referencia.jornada_semanal }} h/sem</div>
+                        </div>
+                        <div class="nm-norma-item">
+                            <div class="nm-norma-item__lbl">Salud empl.</div>
+                            <div class="nm-norma-item__val">4 %</div>
+                        </div>
+                        <div class="nm-norma-item">
+                            <div class="nm-norma-item__lbl">Pensión empl.</div>
+                            <div class="nm-norma-item__val">4 %</div>
+                        </div>
+                    </div>
+                    <p style="font-size:.76rem;color:#9ca3af;margin:12px 0 0;">
+                        <i class="fas fa-book"></i> {{ referencia.fuente }}
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+
+</section>
 {% endblock %}

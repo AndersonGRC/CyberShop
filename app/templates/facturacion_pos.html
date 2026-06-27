@@ -198,6 +198,7 @@
     .items-table {
         width: 100%;
         border-collapse: collapse;
+        table-layout: fixed;
     }
 
     .items-table th {
@@ -221,6 +222,8 @@
         border: 1px solid #ddd;
         border-radius: 4px;
         font-size: 0.9rem;
+        max-width: 100%;
+        box-sizing: border-box;
     }
 
     .items-table .input-desc {
@@ -541,6 +544,109 @@
             display: none;
         }
     }
+
+    @media (max-width: 600px) {
+        .pos-container {
+            padding: 10px;
+            gap: 12px;
+        }
+
+        .pos-items {
+            padding: 12px;
+        }
+
+        /* La tabla pasa a tarjetas apiladas: nada se sale de la pantalla */
+        .items-table,
+        .items-table tbody,
+        .items-table tfoot,
+        .items-table tr,
+        .items-table td {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .items-table thead {
+            display: none;
+        }
+
+        .items-table tr.pos-item-row {
+            border: 1px solid #e3e3e3;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            padding: 6px 10px;
+            position: relative;
+        }
+
+        .items-table tr.pos-item-row td {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            border: none;
+            padding: 6px 0;
+        }
+
+        /* Etiqueta de cada campo (Cant., Precio, Subtotal) */
+        .items-table td[data-label]::before {
+            content: attr(data-label);
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: #555;
+            flex-shrink: 0;
+        }
+
+        /* La descripcion ocupa toda la fila (deja hueco para la X) */
+        .items-table tr.pos-item-row td:first-child {
+            padding-right: 26px;
+        }
+
+        .items-table .input-desc {
+            width: 100%;
+        }
+
+        .items-table .input-cant,
+        .items-table .input-precio {
+            width: 55%;
+            min-width: 0;
+            text-align: right;
+        }
+
+        .items-table .subtotal-cell {
+            min-width: 0;
+            font-size: 1rem;
+        }
+
+        /* Boton eliminar en la esquina superior derecha de la tarjeta */
+        .items-table td.td-del {
+            position: absolute;
+            top: 4px;
+            right: 6px;
+            width: auto;
+            padding: 0;
+        }
+
+        /* Fila TOTAL en una sola linea */
+        .items-table tfoot .total-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 2px solid var(--color-primario-oscuro, #091C5A);
+            margin-top: 6px;
+        }
+
+        .items-table tfoot .total-row td {
+            display: inline-block;
+            width: auto;
+            border: none;
+            padding: 12px 0;
+            text-align: left;
+        }
+
+        .items-table tfoot .total-row td:empty {
+            display: none;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -557,8 +663,9 @@
             <h2><i class="fas fa-cash-register"></i> Punto de Venta</h2>
             <span class="pos-shortcuts-hint">
                 <kbd>F1</kbd> Ayuda &nbsp;
-                <kbd>F2</kbd> Nueva &nbsp;
-                <kbd>F8</kbd> Cobrar
+                <kbd>Insert</kbd> Producto &nbsp;
+                <kbd>Supr</kbd> Eliminar &nbsp;
+                <kbd>Enter</kbd> Cobrar
             </span>
         </div>
 
@@ -574,10 +681,10 @@
                     autocomplete="off" autofocus>
             </div>
             <button type="button" class="btn-pos btn-add-inv" onclick="agregarItemInventario()">
-                <i class="fas fa-box"></i> Agregar Producto
+                <i class="fas fa-box"></i> Agregar Producto (Insert)
             </button>
             <button type="button" class="btn-pos btn-add-libre" onclick="agregarItemLibre()">
-                <i class="fas fa-plus"></i> Item Libre
+                <i class="fas fa-plus"></i> Item Libre (Shift+Insert)
             </button>
         </div>
 
@@ -652,7 +759,7 @@
         </div>
 
         <button type="button" class="btn-registrar" id="btn-registrar" onclick="registrarVenta()">
-            <i class="fas fa-check-circle"></i> Registrar Venta (F8)
+            <i class="fas fa-check-circle"></i> Registrar Venta (Enter)
         </button>
     </div>
 </div>
@@ -695,10 +802,13 @@
         <h3><i class="fas fa-keyboard"></i> Atajos de Teclado</h3>
         <table>
             <tr><td><kbd>F1</kbd></td><td>Mostrar/ocultar esta ayuda</td></tr>
+            <tr><td><kbd>Insert</kbd></td><td>Agregar producto del inventario</td></tr>
+            <tr><td><kbd>Shift</kbd> + <kbd>Insert</kbd></td><td>Agregar item libre</td></tr>
+            <tr><td><kbd>Supr</kbd></td><td>Eliminar el producto (sobre el selector, o el último desde el escáner)</td></tr>
+            <tr><td><kbd>Enter</kbd></td><td>Registrar / cobrar venta</td></tr>
+            <tr><td><kbd>Esc</kbd></td><td>Volver al campo de escaneo</td></tr>
             <tr><td><kbd>F2</kbd></td><td>Nueva venta (nuevo tab)</td></tr>
             <tr><td><kbd>F4</kbd></td><td>Guardar venta actual y abrir nueva</td></tr>
-            <tr><td><kbd>F8</kbd></td><td>Registrar / cobrar venta</td></tr>
-            <tr><td><kbd>Esc</kbd></td><td>Volver al campo de escaneo</td></tr>
         </table>
         <p style="text-align:center;margin-top:15px;margin-bottom:0">
             <button onclick="document.getElementById('shortcuts-modal').classList.remove('activo')"
@@ -725,10 +835,10 @@
             <input type="hidden" class="item-producto-id" value="">
             <input type="hidden" class="item-desc" value="">
         </td>
-        <td><input type="number" class="input-cant" value="1" min="1" oninput="calcularPOS(this)"></td>
-        <td><input type="number" class="input-precio" value="0" min="0" step="100" oninput="calcularPOS(this)"></td>
-        <td class="subtotal-cell">$0</td>
-        <td><button type="button" class="btn-del-row" onclick="eliminarFilaPOS(this)"><i
+        <td data-label="Cant."><input type="number" class="input-cant" value="1" min="1" oninput="calcularPOS(this)"></td>
+        <td data-label="Precio Unit."><input type="number" class="input-precio" value="0" min="0" step="100" oninput="calcularPOS(this)"></td>
+        <td class="subtotal-cell" data-label="Subtotal">$0</td>
+        <td class="td-del"><button type="button" class="btn-del-row" onclick="eliminarFilaPOS(this)"><i
                     class="fas fa-times"></i></button></td>
     </tr>
 </template>
@@ -741,10 +851,10 @@
             <input type="hidden" class="item-producto-id" value="">
             <input type="hidden" class="item-desc" value="">
         </td>
-        <td><input type="number" class="input-cant" value="1" min="1" oninput="calcularPOS(this)"></td>
-        <td><input type="number" class="input-precio" value="0" min="0" step="100" oninput="calcularPOS(this)"></td>
-        <td class="subtotal-cell">$0</td>
-        <td><button type="button" class="btn-del-row" onclick="eliminarFilaPOS(this)"><i
+        <td data-label="Cant."><input type="number" class="input-cant" value="1" min="1" oninput="calcularPOS(this)"></td>
+        <td data-label="Precio Unit."><input type="number" class="input-precio" value="0" min="0" step="100" oninput="calcularPOS(this)"></td>
+        <td class="subtotal-cell" data-label="Subtotal">$0</td>
+        <td class="td-del"><button type="button" class="btn-del-row" onclick="eliminarFilaPOS(this)"><i
                     class="fas fa-times"></i></button></td>
     </tr>
 </template>
@@ -1328,16 +1438,28 @@ function agregarProductoAutomatico(producto) {
 function agregarItemInventario() {
     const tpl = document.getElementById('tpl-item-inventario');
     const clone = tpl.content.cloneNode(true);
-    document.getElementById('pos-items-body').appendChild(clone);
-    const fila = document.getElementById('pos-items-body').lastElementChild;
+    const body = document.getElementById('pos-items-body');
+    body.prepend(clone);                 // el producto nuevo aparece arriba
+    const fila = body.firstElementChild;
     highlightRow(fila);
+    // Enfocar el selector y abrir el desplegable para elegir de una vez (sin mouse)
+    const select = fila.querySelector('select.input-desc');
+    if (select) {
+        select.focus();
+        // showPicker() abre la lista nativa en navegadores modernos;
+        // si no esta disponible, el foco permite elegir escribiendo el nombre.
+        try {
+            if (typeof select.showPicker === 'function') select.showPicker();
+        } catch (_e) { /* requiere gesto del usuario; el foco ya quedo puesto */ }
+    }
 }
 
 function agregarItemLibre() {
     const tpl = document.getElementById('tpl-item-libre');
     const clone = tpl.content.cloneNode(true);
-    document.getElementById('pos-items-body').appendChild(clone);
-    const fila = document.getElementById('pos-items-body').lastElementChild;
+    const body = document.getElementById('pos-items-body');
+    body.prepend(clone);                 // el item nuevo aparece arriba
+    const fila = body.firstElementChild;
     highlightRow(fila);
     // Enfocar el campo de descripcion
     const input = fila.querySelector('input.input-desc');
@@ -1404,6 +1526,10 @@ function formatCOP(val) {
 }
 
 function registrarVenta() {
+    // Evitar doble registro (doble Enter / F8 + click)
+    const btnReg = document.getElementById('btn-registrar');
+    if (btnReg && btnReg.disabled) return;
+
     // Verificar conexion
     if (!navigator.onLine) {
         playErrorBeep();
@@ -1484,7 +1610,7 @@ function registrarVenta() {
     .then(data => {
         clearTimeout(timeoutId);
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-check-circle"></i> Registrar Venta (F8)';
+        btn.innerHTML = '<i class="fas fa-check-circle"></i> Registrar Venta (Enter)';
 
         if (data.success) {
             // Actualizar dropdowns con stock nuevo
@@ -1501,7 +1627,7 @@ function registrarVenta() {
     .catch(err => {
         clearTimeout(timeoutId);
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-check-circle"></i> Registrar Venta (F8)';
+        btn.innerHTML = '<i class="fas fa-check-circle"></i> Registrar Venta (Enter)';
         playErrorBeep();
 
         if (err.name === 'AbortError') {
@@ -1629,6 +1755,33 @@ document.addEventListener('keydown', function(e) {
     // No procesar si esta el comprobante visible (excepto Escape)
     const comprobante = document.getElementById('comprobante-overlay').classList.contains('activo');
 
+    // Supr (Delete) = eliminar el producto.
+    // - Sobre el selector de producto de una fila: borra esa fila.
+    // - Sobre el campo de escaneo vacio: borra el ultimo producto agregado (el de arriba).
+    // - En campos de cantidad/precio/descripcion: Supr edita el texto normalmente.
+    if (e.key === 'Delete' && !comprobante) {
+        const tag = (e.target.tagName || '').toUpperCase();
+        const enSelectProducto = tag === 'SELECT' && e.target.classList.contains('input-desc');
+        const enEscaneoVacio = e.target.id === 'barcode-input' && e.target.value.trim() === '';
+
+        if (enSelectProducto) {
+            e.preventDefault();
+            const fila = e.target.closest('.pos-item-row');
+            if (fila) eliminarFilaPOS(fila);
+            document.getElementById('barcode-input').focus();
+            return;
+        }
+        if (enEscaneoVacio) {
+            const fila = document.querySelector('#pos-items-body .pos-item-row');
+            if (fila) {
+                e.preventDefault();
+                eliminarFilaPOS(fila);
+                mostrarToast('Producto eliminado', 'info');
+            }
+            return;
+        }
+    }
+
     switch(e.key) {
         case 'F1':
             e.preventDefault();
@@ -1637,6 +1790,13 @@ document.addEventListener('keydown', function(e) {
         case 'F2':
             e.preventDefault();
             if (!comprobante) VentasTabs.addNewTab();
+            break;
+        case 'Insert':
+            e.preventDefault();
+            if (!comprobante) {
+                if (e.shiftKey) agregarItemLibre();   // Shift+Insert = item libre
+                else agregarItemInventario();          // Insert = agregar producto
+            }
             break;
         case 'F4':
             e.preventDefault();
@@ -1654,6 +1814,20 @@ document.addEventListener('keydown', function(e) {
                 registrarVenta();
             }
             break;
+        case 'Enter': {
+            // Enter = registrar la venta desde cualquier campo,
+            // salvo el de codigo de barras (tiene su propia logica) y textareas.
+            if (comprobante) break;
+            // No interferir con modales abiertos (SweetAlert) ni la ayuda
+            if (document.querySelector('.swal2-container')) break;
+            if (document.getElementById('shortcuts-modal').classList.contains('activo')) break;
+            const tag = (e.target.tagName || '').toUpperCase();
+            if (e.target.id === 'barcode-input') break;
+            if (tag === 'TEXTAREA') break;
+            e.preventDefault();
+            registrarVenta();
+            break;
+        }
         case 'Escape':
             if (comprobante) {
                 // No cerrar comprobante con Esc
@@ -1716,6 +1890,11 @@ if (!navigator.onLine) {
     barcodeField.addEventListener('keydown', function(e) {
         if (e.key === 'Enter' || e.key === 'Tab') {
             e.preventDefault();
+            // Enter con el campo vacio = registrar la venta (cobrar)
+            if (e.key === 'Enter' && this.value.trim() === '') {
+                registrarVenta();
+                return;
+            }
             submitBarcode('enter');
             return;
         }

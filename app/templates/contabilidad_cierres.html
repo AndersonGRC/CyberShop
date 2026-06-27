@@ -1,128 +1,399 @@
 {% extends './plantillaapp.html' %}
-{% block titulo %}Cierres | {{ datosApp.titulo }}{% endblock %}
+{% block titulo %}Cierres de periodo | {{ datosApp.titulo }}{% endblock %}
 
 {% block LinkAdicional %}
 <style>
-@media (max-width: 768px) {
-    #grid-cierre-form { grid-template-columns: 1fr !important; }
-    .cierre-card-bottom { flex-direction: column !important; align-items: flex-start !important; }
-    .cierre-amounts { flex-wrap: wrap; gap: 10px !important; }
-    .cierre-amounts > div { min-width: 80px; }
-    .cierre-submit { width: 100%; text-align: center; }
-    .cierre-submit button { width: 100%; }
+/* ============================================================
+   CIERRES DE PERIODO
+   ============================================================ */
+
+/* ── Formulario nuevo cierre ─────────────────────────────── */
+.cierre-form-card {
+    background: #fff;
+    border-radius: 20px;
+    border: 1px solid rgba(18,44,148,.08);
+    box-shadow: 0 2px 16px rgba(18,44,148,.05);
+    overflow: hidden;
+}
+.cierre-form-card__head {
+    padding: 20px 28px 16px;
+    border-bottom: 1px solid #f0f3f8;
+    display: flex;
+    align-items: center;
+    gap: 13px;
+}
+.cierre-form-card__icon {
+    width: 42px; height: 42px;
+    border-radius: 12px;
+    background: rgba(18,44,148,.08);
+    color: #122C94;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; flex-shrink: 0;
+}
+.cierre-form-card__title  { font-size: .97rem; font-weight: 800; color: #0d1b54; margin: 0; }
+.cierre-form-card__sub    { font-size: .82rem; color: #9ca3af; margin: 2px 0 0; }
+.cierre-form-card__body   { padding: 24px 28px; }
+
+/* ── Grid del formulario ─────────────────────────────────── */
+.cierre-form-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+/* ── Fields ──────────────────────────────────────────────── */
+.cf {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.cf label {
+    font-size: .82rem;
+    font-weight: 700;
+    color: #374151;
+}
+.cf input,
+.cf textarea {
+    padding: 11px 14px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 11px;
+    font-size: .92rem;
+    background: #fafafa;
+    font-family: inherit;
+    box-sizing: border-box;
+    width: 100%;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.cf input:focus,
+.cf textarea:focus {
+    border-color: #122C94;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(18,44,148,.1);
+}
+.cf textarea { resize: vertical; min-height: 78px; line-height: 1.5; }
+
+/* ── Botón submit ────────────────────────────────────────── */
+.btn-cierre-submit {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 26px;
+    background: linear-gradient(135deg, #122C94, #1e3fa8);
+    color: #fff; border: none; border-radius: 11px;
+    font-size: .93rem; font-weight: 700; cursor: pointer;
+    transition: transform .15s, box-shadow .15s;
+}
+.btn-cierre-submit:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(18,44,148,.28);
+}
+
+/* ── Historial section ───────────────────────────────────── */
+.cierres-section-label {
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: #9ca3af;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.cierres-section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #f0f3f8;
+}
+
+/* ── Cierre card ─────────────────────────────────────────── */
+.cierre-card {
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid rgba(18,44,148,.07);
+    box-shadow: 0 2px 10px rgba(18,44,148,.04);
+    padding: 0;
+    overflow: hidden;
+    position: relative;
+    transition: box-shadow .18s;
+}
+.cierre-card:hover {
+    box-shadow: 0 6px 24px rgba(18,44,148,.09);
+}
+.cierre-card__accent {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    border-radius: 0;
+}
+.cierre-card__accent--pos { background: linear-gradient(180deg,#10b981,#059669); }
+.cierre-card__accent--neg { background: linear-gradient(180deg,#ef4444,#dc2626); }
+
+.cierre-card__inner {
+    padding: 18px 22px 18px 26px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.cierre-card__meta { flex: 1; min-width: 0; }
+.cierre-card__name {
+    font-size: .97rem;
+    font-weight: 800;
+    color: #0f1728;
+    margin: 0 0 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cierre-card__dates {
+    font-size: .8rem;
+    color: #9ca3af;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.cierre-card__dates i { font-size: .75rem; }
+.cierre-card__notes {
+    font-size: .8rem;
+    color: #b0b8c8;
+    margin-top: 5px;
+    font-style: italic;
+}
+
+/* ── Amounts row ─────────────────────────────────────────── */
+.cierre-amounts {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-shrink: 0;
+}
+.cierre-amt {
+    text-align: right;
+    min-width: 80px;
+}
+.cierre-amt__label {
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: #9ca3af;
+    margin-bottom: 3px;
+}
+.cierre-amt__value {
+    font-size: .95rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+.cierre-amt__value--ing  { color: #059669; }
+.cierre-amt__value--egr  { color: #dc2626; }
+.cierre-amt__value--pos  { color: #122C94; font-size: 1.05rem; }
+.cierre-amt__value--neg  { color: #dc2626; font-size: 1.05rem; }
+
+.cierre-divider {
+    width: 1px; height: 40px;
+    background: #f0f3f8;
+    flex-shrink: 0;
+}
+
+/* ── Boton eliminar ──────────────────────────────────────── */
+.btn-cierre-del {
+    width: 34px; height: 34px;
+    background: #fff2f2;
+    border: 1px solid #fecaca;
+    border-radius: 9px;
+    color: #dc2626;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .88rem;
+    transition: all .18s;
+    flex-shrink: 0;
+}
+.btn-cierre-del:hover {
+    background: #fee2e2;
+    transform: translateY(-1px);
+}
+
+/* ── Empty state ─────────────────────────────────────────── */
+.cierre-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: #9ca3af;
+    background: #fff;
+    border-radius: 16px;
+    border: 1px dashed #e5e9f7;
+}
+.cierre-empty i {
+    font-size: 2.4rem;
+    opacity: .3;
+    display: block;
+    margin-bottom: 14px;
+}
+.cierre-empty p { margin: 0; font-size: .92rem; }
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 900px) {
+    .cierre-form-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 640px) {
+    .cierre-form-grid  { grid-template-columns: 1fr; }
+    .cierre-form-card__head { padding: 16px 18px 13px; }
+    .cierre-form-card__body { padding: 18px; }
+    .cierre-card__inner { padding: 16px 18px 16px 22px; flex-direction: column; }
+    .cierre-amounts { gap: 14px; }
+    .cierre-divider { display: none; }
+    .cierre-amt { min-width: 70px; }
+    .btn-cierre-submit { width: 100%; justify-content: center; }
 }
 </style>
 {% endblock %}
 
 {% block body %}
-<div class="main-container">
-<div class="content-wrapper" style="padding:28px 24px; max-width:900px;">
+<section class="page-shell">
 
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
-        <h1 class="page-title" style="margin:0;"><i class="fas fa-flag-checkered"></i> Cierres de período</h1>
-        <a href="{{ url_for('contabilidad.dashboard') }}" style="color:#888; font-size:0.88em; text-decoration:none;">
-            <i class="fas fa-arrow-left"></i> Dashboard
-        </a>
+    <!-- ── Header ─────────────────────────────────────────── -->
+    <div class="page-header">
+        <div class="page-header__intro">
+            <div class="page-header__icon">
+                <i class="fas fa-flag-checkered"></i>
+            </div>
+            <div>
+                <span class="page-header__eyebrow">Contabilidad</span>
+                <h1>Cierres de periodo</h1>
+                <p>Registra el resumen financiero de cada periodo calculando ingresos, egresos y saldo neto.</p>
+            </div>
+        </div>
+        <div class="page-header__actions">
+            <a href="{{ url_for('contabilidad.dashboard') }}" class="btn-admin btn-admin--secondary">
+                <i class="fas fa-arrow-left"></i> Dashboard
+            </a>
+        </div>
     </div>
 
-    <!-- Formulario nuevo cierre -->
-    <div style="background:#fff; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.08);
-                padding:24px; margin-bottom:28px; border-top:4px solid var(--color-primario);">
-        <h3 style="margin:0 0 16px; font-size:0.95em; color:#444;">
-            <i class="fas fa-plus-circle" style="color:var(--color-primario);"></i> Crear nuevo cierre
-        </h3>
-        <form action="{{ url_for('contabilidad.nuevo_cierre') }}" method="POST">
-            <div id="grid-cierre-form" style="display:grid; grid-template-columns:2fr 1fr 1fr; gap:14px; margin-bottom:14px;">
-                <div>
-                    <label style="display:block; font-size:0.85em; color:#666; margin-bottom:4px; font-weight:600;">Nombre del cierre</label>
-                    <input type="text" name="nombre" required maxlength="120"
-                           placeholder="Ej: Cierre Marzo 2026"
-                           class="form-control" style="width:100%; padding:9px 12px; border-radius:6px; border:1px solid #ddd;">
-                </div>
-                <div>
-                    <label style="display:block; font-size:0.85em; color:#666; margin-bottom:4px; font-weight:600;">Fecha inicio</label>
-                    <input type="date" name="fecha_inicio" required
-                           class="form-control" style="width:100%; padding:9px 12px; border-radius:6px; border:1px solid #ddd;">
-                </div>
-                <div>
-                    <label style="display:block; font-size:0.85em; color:#666; margin-bottom:4px; font-weight:600;">Fecha fin</label>
-                    <input type="date" name="fecha_fin" required
-                           class="form-control" style="width:100%; padding:9px 12px; border-radius:6px; border:1px solid #ddd;">
-                </div>
+    <!-- ── Formulario nuevo cierre ────────────────────────── -->
+    <div class="cierre-form-card">
+        <div class="cierre-form-card__head">
+            <div class="cierre-form-card__icon"><i class="fas fa-plus"></i></div>
+            <div>
+                <p class="cierre-form-card__title">Nuevo cierre</p>
+                <p class="cierre-form-card__sub">Define el rango de fechas — los totales se calculan automaticamente desde los movimientos registrados.</p>
             </div>
-            <div style="margin-bottom:14px;">
-                <label style="display:block; font-size:0.85em; color:#666; margin-bottom:4px; font-weight:600;">Notas (opcional)</label>
-                <textarea name="notas" rows="2" maxlength="500"
-                          class="form-control" style="width:100%; padding:9px 12px; border-radius:6px; border:1px solid #ddd; resize:none;"></textarea>
-            </div>
-            <div class="cierre-submit" style="display:flex; justify-content:flex-end;">
-                <button type="submit"
-                        style="background:var(--color-primario); color:#fff; border:none; border-radius:6px;
-                               padding:10px 28px; font-size:0.95em; font-weight:600; cursor:pointer;">
-                    <i class="fas fa-calculator"></i> Calcular y crear cierre
-                </button>
-            </div>
-        </form>
+        </div>
+        <div class="cierre-form-card__body">
+            <form action="{{ url_for('contabilidad.nuevo_cierre') }}" method="POST">
+                <div class="cierre-form-grid">
+                    <div class="cf">
+                        <label>Nombre del cierre</label>
+                        <input type="text" name="nombre" required maxlength="120"
+                               placeholder="Ej: Cierre Junio 2026">
+                    </div>
+                    <div class="cf">
+                        <label>Fecha inicio</label>
+                        <input type="date" name="fecha_inicio" required>
+                    </div>
+                    <div class="cf">
+                        <label>Fecha fin</label>
+                        <input type="date" name="fecha_fin" required>
+                    </div>
+                </div>
+                <div class="cf" style="margin-bottom:18px;">
+                    <label>Notas (opcional)</label>
+                    <textarea name="notas" maxlength="500" rows="2"
+                              placeholder="Observaciones sobre este periodo..."></textarea>
+                </div>
+                <div style="display:flex; justify-content:flex-end;">
+                    <button type="submit" class="btn-cierre-submit">
+                        <i class="fas fa-calculator"></i> Calcular y crear cierre
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 
-    <!-- Historial de cierres -->
-    <h3 style="font-size:0.9em; color:#666; margin-bottom:14px; font-weight:600; text-transform:uppercase; letter-spacing:.5px;">
+    <!-- ── Historial ──────────────────────────────────────── -->
+    <div class="cierres-section-label">
+        <i class="fas fa-history"></i>
         Historial de cierres
-    </h3>
+        {% if cierres %}<span style="background:rgba(18,44,148,.08);color:#122C94;border-radius:999px;padding:2px 10px;font-size:.78rem;">{{ cierres|length }}</span>{% endif %}
+    </div>
 
     {% if cierres %}
-    <div style="display:flex; flex-direction:column; gap:12px;">
+    <div style="display:flex; flex-direction:column; gap:10px;">
         {% for c in cierres %}
-        <div style="background:#fff; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.07);
-                    padding:18px 22px;
-                    border-left:4px solid {{ '#28a745' if c.saldo >= 0 else '#dc3545' }};">
-            <div class="cierre-card-bottom" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
-                <div>
-                    <div style="font-weight:700; font-size:1em; margin-bottom:4px;">{{ c.nombre }}</div>
-                    <div style="color:#888; font-size:0.83em;">
-                        <i class="fas fa-calendar"></i>
-                        {{ c.fecha_inicio.strftime('%d/%m/%Y') }} — {{ c.fecha_fin.strftime('%d/%m/%Y') }}
-                        &nbsp;·&nbsp; Creado por {{ c.usuario_nombre or 'Admin' }}
-                        el {{ c.created_at.strftime('%d/%m/%Y') if c.created_at else '' }}
+        {% set positivo = c.saldo >= 0 %}
+        <div class="cierre-card">
+            <div class="cierre-card__accent {{ 'cierre-card__accent--pos' if positivo else 'cierre-card__accent--neg' }}"></div>
+            <div class="cierre-card__inner">
+
+                <!-- Meta -->
+                <div class="cierre-card__meta">
+                    <p class="cierre-card__name">{{ c.nombre }}</p>
+                    <div class="cierre-card__dates">
+                        <i class="fas fa-calendar-alt"></i>
+                        {{ c.fecha_inicio.strftime('%d/%m/%Y') }}
+                        <span style="color:#d1d5db;">—</span>
+                        {{ c.fecha_fin.strftime('%d/%m/%Y') }}
+                        <span style="color:#e5e7eb;">·</span>
+                        <span>{{ c.usuario_nombre or 'Admin' }}</span>
+                        {% if c.created_at %}
+                        <span style="color:#e5e7eb;">·</span>
+                        <span>{{ c.created_at.strftime('%d/%m/%Y') }}</span>
+                        {% endif %}
                     </div>
                     {% if c.notas %}
-                    <div style="color:#aaa; font-size:0.82em; margin-top:4px;">{{ c.notas }}</div>
+                    <p class="cierre-card__notes">{{ c.notas }}</p>
                     {% endif %}
                 </div>
-                <div class="cierre-amounts" style="display:flex; gap:16px; align-items:center; flex-shrink:0;">
-                    <div style="text-align:right;">
-                        <div style="font-size:0.78em; color:#888;">Ingresos</div>
-                        <div style="font-weight:600; color:#28a745;">${{ '{:,.0f}'.format(c.total_ingresos) }}</div>
-                    </div>
-                    <div style="text-align:right;">
-                        <div style="font-size:0.78em; color:#888;">Egresos</div>
-                        <div style="font-weight:600; color:#dc3545;">${{ '{:,.0f}'.format(c.total_egresos) }}</div>
-                    </div>
-                    <div style="text-align:right;">
-                        <div style="font-size:0.78em; color:#888;">Saldo</div>
-                        <div style="font-weight:700; font-size:1.1em; color:{{ '#28a745' if c.saldo >= 0 else '#dc3545' }};">
-                            {{ '+' if c.saldo >= 0 else '' }}${{ '{:,.0f}'.format(c.saldo) }}
+
+                <!-- Montos -->
+                <div class="cierre-amounts">
+                    <div class="cierre-amt">
+                        <div class="cierre-amt__label">Ingresos</div>
+                        <div class="cierre-amt__value cierre-amt__value--ing">
+                            ${{ '{:,.0f}'.format(c.total_ingresos) }}
                         </div>
                     </div>
-                    <form action="{{ url_for('contabilidad.eliminar_cierre', cierre_id=c.id) }}" method="POST" style="display:inline;">
-                        <button type="submit" onclick="return confirm('¿Eliminar este cierre?')"
-                                style="background:none; border:none; color:#dc3545; cursor:pointer; font-size:0.9em;"
+                    <div class="cierre-divider"></div>
+                    <div class="cierre-amt">
+                        <div class="cierre-amt__label">Egresos</div>
+                        <div class="cierre-amt__value cierre-amt__value--egr">
+                            ${{ '{:,.0f}'.format(c.total_egresos) }}
+                        </div>
+                    </div>
+                    <div class="cierre-divider"></div>
+                    <div class="cierre-amt">
+                        <div class="cierre-amt__label">Saldo neto</div>
+                        <div class="cierre-amt__value {{ 'cierre-amt__value--pos' if positivo else 'cierre-amt__value--neg' }}">
+                            {{ '+' if positivo else '' }}${{ '{:,.0f}'.format(c.saldo) }}
+                        </div>
+                    </div>
+
+                    <form action="{{ url_for('contabilidad.eliminar_cierre', cierre_id=c.id) }}"
+                          method="POST" style="margin:0;">
+                        <button type="submit" class="btn-cierre-del"
+                                onclick="return confirm('Eliminar el cierre &quot;{{ c.nombre|e }}&quot;? Esta accion no se puede deshacer.')"
                                 title="Eliminar cierre">
                             <i class="fas fa-trash-alt"></i>
                         </button>
                     </form>
                 </div>
+
             </div>
         </div>
         {% endfor %}
     </div>
+
     {% else %}
-    <div style="text-align:center; padding:50px; color:#ccc;">
-        <i class="fas fa-flag-checkered" style="font-size:2.5rem; margin-bottom:12px; display:block;"></i>
-        Aún no hay cierres registrados. Crea el primero arriba.
+    <div class="cierre-empty">
+        <i class="fas fa-flag-checkered"></i>
+        <p>No hay cierres registrados aun.</p>
+        <p style="margin-top:6px;font-size:.84rem;color:#c4c9d6;">Crea el primero usando el formulario de arriba.</p>
     </div>
     {% endif %}
 
-</div>
-</div>
+</section>
 {% endblock %}

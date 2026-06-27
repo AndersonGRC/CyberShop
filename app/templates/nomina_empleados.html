@@ -18,7 +18,7 @@
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                <table class="table table-bordered nm-cards" id="dataTable" width="100%" cellspacing="0">
                     <thead>
                         <tr>
                             <th class="d-none d-md-table-cell">Documento</th>
@@ -32,18 +32,18 @@
                     <tbody>
                         {% for e in empleados %}
                         <tr>
-                            <td class="d-none d-md-table-cell">{{ e.numero_documento }}</td>
-                            <td>{{ e.nombres }} {{ e.apellidos }}</td>
-                            <td>{{ e.cargo }}</td>
-                            <td class="d-none d-md-table-cell">{{ '${:,.0f}'.format(e.salario_base) }}</td>
-                            <td class="d-none d-md-table-cell">
+                            <td class="d-none d-md-table-cell" data-label="Documento">{{ e.numero_documento }}</td>
+                            <td data-label="Nombre">{{ e.nombres }} {{ e.apellidos }}</td>
+                            <td data-label="Cargo">{{ e.cargo }}</td>
+                            <td class="d-none d-md-table-cell" data-label="Salario">{{ '${:,.0f}'.format(e.salario_base) }}</td>
+                            <td class="d-none d-md-table-cell" data-label="Estado">
                                 {% if e.activo %}
                                 <span class="badge badge-success">Activo</span>
                                 {% else %}
                                 <span class="badge badge-danger">Inactivo</span>
                                 {% endif %}
                             </td>
-                            <td>
+                            <td data-label="Acciones">
                                 <a href="{{ url_for('nomina.empleado_ver', id=e.id) }}" class="btn btn-sm btn-info"
                                     title="Ver Detalle"><i class="fas fa-eye"></i></a>
                                 <a href="{{ url_for('nomina.empleado_editar', id=e.id) }}"

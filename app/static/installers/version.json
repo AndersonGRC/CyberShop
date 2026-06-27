@@ -1,7 +1,8 @@
 {
-  "latest": "1.0.0",
-  "min_required": "1.0.0",
+  "latest": "1.0.0.3",
+  "min_required": "0.0.0",
   "download_url": "/static/installers/CyberShopSetup_base.exe",
-  "checksum_sha256": "",
-  "release_notes": "Versión inicial del CyberShop POS Desktop con sincronización de branding, instalador asistido y multi-tenant."
+  "checksum_sha256": "f9e329f2e863e359fd02d138ff98d32a8afd002773092c4219d2963d6fc74e75",
+  "release_notes": "Tablas de Contabilidad (plantillas/cierres) con filas mas altas y botones comodos. Mejoras de interfaz.",
+  "updated_at": "2026-06-21T21:09:36.206239+00:00"
 }

@@ -18,7 +18,7 @@
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                <table class="table table-bordered nm-cards" id="dataTable" width="100%" cellspacing="0">
                     <thead>
                         <tr>
                             <th>Fecha</th>
@@ -33,13 +33,13 @@
                     <tbody>
                         {% for l in liquidaciones %}
                         <tr>
-                            <td>{{ l.fecha_retiro }}</td>
-                            <td>{{ l.nombres }} {{ l.apellidos }}</td>
-                            <td class="d-none d-md-table-cell">{{ l.numero_documento }}</td>
-                            <td class="d-none d-md-table-cell">{{ l.motivo_retiro }}</td>
-                            <td>${{ "{:,.0f}".format(l.total_pagar) }}</td>
-                            <td>{{ l.estado }}</td>
-                            <td>
+                            <td data-label="Fecha">{{ l.fecha_retiro }}</td>
+                            <td data-label="Empleado">{{ l.nombres }} {{ l.apellidos }}</td>
+                            <td class="d-none d-md-table-cell" data-label="Documento">{{ l.numero_documento }}</td>
+                            <td class="d-none d-md-table-cell" data-label="Motivo">{{ l.motivo_retiro }}</td>
+                            <td data-label="Total">${{ "{:,.0f}".format(l.total_pagar) }}</td>
+                            <td data-label="Estado">{{ l.estado }}</td>
+                            <td data-label="Acciones">
                                 <a href="{{ url_for('nomina.liquidacion_ver', id=l.id) }}" class="btn btn-sm btn-info"
                                     title="Ver"><i class="fas fa-eye"></i></a>
                             </td>

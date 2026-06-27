@@ -1,0 +1,123 @@
+/* ================================================================
+   NÓMINA · Tablas responsive (móvil → tarjetas apiladas)
+   ================================================================
+   Convierte en tarjetas apiladas (en pantallas pequeñas) únicamente
+   las tablas marcadas con la clase .nm-cards. Cada celda usa
+   data-label="..." para mostrar el nombre del campo. Scoped a
+   #content para no afectar otras partes del panel.
+   ================================================================ */
+@media (max-width: 768px) {
+
+    /* Desactiva el scroll lateral del contenedor de la tabla */
+    #content .table-responsive {
+        overflow-x: visible;
+        -webkit-overflow-scrolling: auto;
+    }
+
+    #content table.nm-cards {
+        width: 100%;
+        border: none;
+        margin-bottom: 0;
+    }
+
+    #content table.nm-cards thead {
+        display: none;
+    }
+
+    #content table.nm-cards tbody,
+    #content table.nm-cards tr,
+    #content table.nm-cards td {
+        display: block;
+        width: 100%;
+    }
+
+    #content table.nm-cards tbody tr {
+        margin: 0 0 10px;
+        padding: 12px 14px;
+        background: #fff;
+        border: 1px solid rgba(18, 44, 148, 0.1);
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(18, 44, 148, 0.05);
+        box-sizing: border-box;
+    }
+
+    /* Mostrar también las columnas que Bootstrap oculta en móvil
+       (d-none d-md-table-cell): dentro de la tarjeta sí caben */
+    #content table.nm-cards td.d-none,
+    #content table.nm-cards td.d-md-table-cell {
+        display: flex !important;
+    }
+
+    #content table.nm-cards td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 9px 0;
+        border: none;
+        border-bottom: 1px solid #f0f3f8;
+        text-align: right;
+        white-space: normal;
+        word-break: break-word;
+    }
+
+    #content table.nm-cards tbody tr td:last-child {
+        border-bottom: none;
+    }
+
+    /* Etiqueta del campo (encabezado de la columna) */
+    #content table.nm-cards td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        font-size: 0.72rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #667085;
+        text-align: left;
+        flex-shrink: 0;
+    }
+
+    /* Celda de acciones: etiqueta arriba y botones en fila que envuelve */
+    #content table.nm-cards td[data-label="Acciones"],
+    #content table.nm-cards td[data-label="Acción"] {
+        display: block !important;
+        text-align: left;
+        padding-top: 11px;
+    }
+    #content table.nm-cards td[data-label="Acciones"]::before,
+    #content table.nm-cards td[data-label="Acción"]::before {
+        display: block;
+        margin-bottom: 8px;
+    }
+    #content table.nm-cards td[data-label="Acciones"] .btn,
+    #content table.nm-cards td[data-label="Acción"] .btn {
+        margin: 0 4px 4px 0;
+    }
+
+    /* Celdas sin etiqueta: no mostrar el ::before vacío */
+    #content table.nm-cards td:not([data-label])::before {
+        content: none;
+    }
+
+    /* La tarjeta no necesita el hover de fila de escritorio */
+    #content table.nm-cards tbody tr:hover {
+        background: #fff;
+    }
+
+    /* Encabezados de tarjetas Bootstrap más compactos en móvil */
+    #content .card-header.d-flex {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    /* Márgenes laterales uniformes: las tablas ocupan casi todo el ancho.
+       Solo ~2px de aire lateral en el contenedor inmediato de la tabla. */
+    #content .container-fluid {
+        padding-left: 0;
+        padding-right: 0;
+    }
+    #content .card-body {
+        padding-left: 2px;
+        padding-right: 2px;
+    }
+}

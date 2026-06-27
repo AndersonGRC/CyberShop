@@ -30,7 +30,7 @@
     <div class="card shadow mb-4">
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-bordered crm-tabla" width="100%" cellspacing="0">
+                <table class="table table-bordered crm-tabla nm-cards" width="100%" cellspacing="0">
                     <thead>
                         <tr>
                             <th>Prioridad</th>
@@ -46,13 +46,13 @@
                         {% for t in tareas %}
                         {% set vencida = t.fecha_limite and t.estado == 'pendiente' and t.fecha_limite < hoy %}
                         <tr {% if vencida %}class="crm-row-vencida"{% endif %}>
-                            <td>
+                            <td data-label="Prioridad">
                                 <span class="badge badge-prioridad-{{ t.prioridad }}">
                                     {{ t.prioridad|capitalize }}
                                 </span>
                             </td>
-                            <td class="font-weight-bold">{{ t.titulo }}</td>
-                            <td>
+                            <td class="font-weight-bold" data-label="Título">{{ t.titulo }}</td>
+                            <td data-label="Contacto">
                                 <a href="{{ url_for('crm.crm_contacto_ver', id=t.contacto_id) }}">
                                     {{ t.contacto_nombre }}
                                 </a>
@@ -61,7 +61,7 @@
                                     {{ t.contacto_tipo|capitalize }}
                                 </span>
                             </td>
-                            <td>
+                            <td data-label="Fecha límite">
                                 {% if t.fecha_limite %}
                                 <span class="crm-fecha-label">Límite: </span>
                                 <span class="{% if vencida %}crm-fecha-vencida{% elif t.fecha_limite == hoy %}crm-fecha-hoy{% endif %}">
@@ -70,7 +70,7 @@
                                 </span>
                                 {% else %}—{% endif %}
                             </td>
-                            <td>
+                            <td data-label="Estado">
                                 {% if t.estado == 'completada' %}
                                 <span class="badge badge-success">Completada</span>
                                 {% elif t.estado == 'cancelada' %}
@@ -79,10 +79,10 @@
                                 <span class="badge badge-warning text-dark">Pendiente</span>
                                 {% endif %}
                             </td>
-                            <td class="col-asignado d-none d-md-table-cell small">
+                            <td class="col-asignado d-none d-md-table-cell small" data-label="Asignado">
                                 {{ t.asignado_nombre or '—' }}
                             </td>
-                            <td class="crm-td-acciones">
+                            <td class="crm-td-acciones" data-label="Acciones">
                                 <a href="{{ url_for('crm.crm_contacto_ver', id=t.contacto_id) }}"
                                    class="btn btn-sm btn-info" title="Ver contacto">
                                     <i class="fas fa-eye"></i>

@@ -4,21 +4,51 @@
 {% block LinkAdicional %}
 <style>
 @media (max-width: 768px) {
+    /* Aprovechar el ancho, padding lateral mínimo (uniforme con los demás módulos) */
+    .content-wrapper { padding-left:8px !important; padding-right:8px !important; }
     #grid-mov-top { grid-template-columns: 1fr !important; }
-    #wrap-table-mov { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    #wrap-table-mov table { min-width: 600px; }
-    #wrap-table-mov th:nth-child(7),
-    #wrap-table-mov td:nth-child(7) { display: none; } /* ocultar col retenciones en móvil muy pequeño */
     .filtros-row { flex-direction: column !important; }
     .filtros-row > div, .filtros-row > button { width: 100% !important; }
     .filtros-row select, .filtros-row input { width: 100% !important; }
     #seccionImpuestos .imp-row { flex-direction: column; gap: 4px !important; }
     .totales-chips { flex-direction: column !important; }
     .totales-chips > div { width: 100%; box-sizing: border-box; }
-}
-@media (max-width: 480px) {
-    #wrap-table-mov th:nth-child(4),
-    #wrap-table-mov td:nth-child(4) { display: none; } /* tipo en pantallas muy pequeñas */
+
+    /* Tabla de movimientos -> tarjetas apiladas (sin perder columnas) */
+    #wrap-table-mov { overflow:visible !important; box-shadow:none !important; background:transparent !important; padding:0 2px !important; }
+    #wrap-table-mov table { min-width:0; width:100%; display:block; box-sizing:border-box; }
+    #wrap-table-mov thead { display:none; }
+    #wrap-table-mov tbody { display:block; width:100%; }
+
+    /* Fila principal = tarjeta */
+    #wrap-table-mov tr.mov-row {
+        display:block; width:100%; box-sizing:border-box;
+        background:#fff; border:1px solid #eee !important; border-radius:12px;
+        padding:12px 14px; margin:0 0 10px; box-shadow:0 2px 8px rgba(0,0,0,0.04);
+        cursor:default !important;
+    }
+    #wrap-table-mov tr.mov-row td {
+        display:flex !important; align-items:center; justify-content:space-between; gap:14px;
+        width:100%; box-sizing:border-box;
+        padding:8px 0 !important; border-bottom:1px solid #f5f5f5 !important;
+        text-align:right !important; white-space:normal !important;
+    }
+    #wrap-table-mov tr.mov-row td:last-child { border-bottom:none !important; }
+    #wrap-table-mov tr.mov-row td::before {
+        content: attr(data-label); font-weight:700; font-size:0.72em; letter-spacing:.04em;
+        text-transform:uppercase; color:#888; text-align:left; flex-shrink:0;
+    }
+    /* Ocultar la celda del chevron (en móvil el detalle se muestra siempre) */
+    #wrap-table-mov tr.mov-row td.col-chevron { display:none !important; }
+    /* Celdas sin etiqueta: no mostrar ::before vacío */
+    #wrap-table-mov tr.mov-row td:not([data-label])::before { content:none; }
+
+    /* Detalle de retenciones: siempre visible en móvil, como sub-tarjeta */
+    #wrap-table-mov tr[id^="detalle-"] { display:block !important; background:transparent; }
+    #wrap-table-mov tr[id^="detalle-"] td {
+        display:block !important; width:100%; box-sizing:border-box;
+        padding:0 2px 12px !important;
+    }
 }
 </style>
 {% endblock %}
@@ -329,15 +359,15 @@
                     style="border-bottom:1px solid #f0f0f0; cursor:{{ 'pointer' if tiene_ret else 'default' }};"
                     onclick="{{ 'toggleDetalle(' ~ m.id ~ ')' if tiene_ret else '' }}"
                     onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''">
-                    <td style="padding:11px 8px 11px 14px; color:#bbb; font-size:0.8em; text-align:center;">
+                    <td class="col-chevron" style="padding:11px 8px 11px 14px; color:#bbb; font-size:0.8em; text-align:center;">
                         {% if tiene_ret %}
                         <i class="fas fa-chevron-right" id="icon-{{ m.id }}" style="transition:transform 0.2s;"></i>
                         {% endif %}
                     </td>
-                    <td style="padding:11px 14px; color:#888; white-space:nowrap;">
+                    <td data-label="Fecha" style="padding:11px 14px; color:#888; white-space:nowrap;">
                         {{ m.fecha.strftime('%d/%m/%Y') if m.fecha else '' }}
                     </td>
-                    <td style="padding:11px 14px;">
+                    <td data-label="Descripción" style="padding:11px 14px;">
                         {{ m.descripcion[:60] }}{% if m.descripcion|length > 60 %}…{% endif %}
                         {% if m.auto_generado %}
                         <span title="Generado automáticamente" style="font-size:0.75em; color:#aaa; margin-left:4px;"><i class="fas fa-robot"></i></span>
@@ -381,10 +411,10 @@
                         </span>
                         {% endif %}
                     </td>
-                    <td style="padding:11px 10px; text-align:center; color:#666; font-size:0.85em;">
+                    <td data-label="Categoría" style="padding:11px 10px; text-align:center; color:#666; font-size:0.85em;">
                         {{ label_cat(m.categoria) }}
                     </td>
-                    <td style="padding:11px 10px; text-align:center;">
+                    <td data-label="Tipo" style="padding:11px 10px; text-align:center;">
                         {% if m.tipo == 'ingreso' %}
                         <span style="background:#d4edda; color:#155724; padding:3px 10px; border-radius:20px; font-size:0.8em; font-weight:600; white-space:nowrap;">
                             <i class="fas fa-arrow-up"></i> Ingreso
@@ -395,25 +425,25 @@
                         </span>
                         {% endif %}
                     </td>
-                    <td style="padding:11px 14px; text-align:right; font-weight:600; color:#555;">
+                    <td data-label="Bruto" style="padding:11px 14px; text-align:right; font-weight:600; color:#555;">
                         {% if m.monto_bruto and m.monto_bruto != m.monto %}
                             ${{ '{:,.0f}'.format(m.monto_bruto) }}
                         {% else %}
                             ${{ '{:,.0f}'.format(m.monto) }}
                         {% endif %}
                     </td>
-                    <td style="padding:11px 10px; text-align:right; font-size:0.85em; color:#dc3545;">
+                    <td data-label="Retenciones" style="padding:11px 10px; text-align:right; font-size:0.85em; color:#dc3545;">
                         {% if tiene_ret %}
                         −${{ '{:,.0f}'.format(m.total_retenciones) }}
                         {% else %}
                         <span style="color:#ddd;">—</span>
                         {% endif %}
                     </td>
-                    <td style="padding:11px 14px; text-align:right; font-weight:700;
+                    <td data-label="Neto" style="padding:11px 14px; text-align:right; font-weight:700;
                                color:{{ '#28a745' if m.tipo=='ingreso' else '#dc3545' }};">
                         {{ '+' if m.tipo=='ingreso' else '-' }}${{ '{:,.0f}'.format(neto) }}
                     </td>
-                    <td style="padding:11px 10px; text-align:center;">
+                    <td data-label="Acción" style="padding:11px 10px; text-align:center;">
                         {% if not m.auto_generado %}
                         <form action="{{ url_for('contabilidad.eliminar_movimiento', mov_id=m.id) }}" method="POST"
                               style="display:inline;" onclick="event.stopPropagation()">

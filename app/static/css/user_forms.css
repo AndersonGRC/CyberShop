@@ -1,0 +1,532 @@
+@import url('variables.css');
+
+/* ============================================================
+   FORMULARIOS DE USUARIO — crear / editar (compartido)
+   ============================================================ */
+
+/* ── Contenedor estrecho ─────────────────────────────────── */
+.page-shell--narrow {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 28px 24px 52px;
+}
+
+/* ── Header con gradiente ────────────────────────────────── */
+.page-shell--narrow .page-header {
+    background: linear-gradient(135deg,
+        rgba(var(--color-marca-rgb),.09) 0%,
+        rgba(255,255,255,.45) 100%);
+    border: 1px solid rgba(var(--color-marca-rgb),.11);
+    border-radius: 22px;
+    padding: 26px 28px;
+    margin-bottom: 28px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.page-shell--narrow .page-header::before {
+    content: '';
+    position: absolute;
+    top: -40%;
+    right: -6%;
+    width: 240px;
+    height: 240px;
+    border-radius: 50%;
+    background: radial-gradient(circle,
+        rgba(var(--color-marca-rgb),.16),
+        transparent 60%);
+    pointer-events: none;
+}
+
+.page-header__intro {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.page-header__icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 18px;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-size: 1.65rem;
+    background: linear-gradient(135deg, var(--color-primario), var(--color-primario-oscuro));
+    box-shadow: 0 10px 24px rgba(18,44,148,.28);
+    flex-shrink: 0;
+}
+
+.page-header__eyebrow {
+    display: inline-block;
+    font-size: 0.71rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .09em;
+    color: var(--color-primario);
+    background: rgba(var(--color-marca-rgb),.08);
+    padding: 3px 11px;
+    border-radius: 999px;
+    margin-bottom: 7px;
+}
+
+.page-header h1 {
+    font-size: 1.55rem;
+    margin: 0 0 4px;
+    color: var(--color-secundario);
+}
+
+.page-header p {
+    margin: 0;
+    color: var(--color-gris-texto);
+    font-size: .9rem;
+    line-height: 1.55;
+}
+
+.page-header__actions {
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+}
+
+.page-header__actions .btn-admin--secondary {
+    background: #fff;
+    color: var(--color-primario);
+    padding: 10px 18px;
+    border: 1px solid rgba(var(--color-marca-rgb),.18);
+    border-radius: 10px;
+    font-size: .88rem;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    white-space: nowrap;
+    transition: background .15s, transform .15s;
+}
+.page-header__actions .btn-admin--secondary:hover {
+    background: rgba(var(--color-marca-rgb),.06);
+    transform: translateX(-2px);
+}
+
+/* ── Form layout ─────────────────────────────────────────── */
+.user-form-stack { display: grid; gap: 24px; }
+
+.user-form-grid {
+    display: grid;
+    /* Una sola columna: las tarjetas se apilan (Identidad arriba, Permisos
+       abajo) y todo el contenedor queda centrado con margenes iguales. */
+    grid-template-columns: 1fr;
+    gap: 24px;
+}
+
+/* ── Cards ───────────────────────────────────────────────── */
+.user-form-grid .surface-card {
+    padding: 30px;
+    background: #fff;
+    border-radius: 20px;
+    border: 1px solid rgba(var(--color-marca-rgb),.08);
+    box-shadow: 0 4px 20px rgba(18,44,148,.05);
+    position: relative;
+    overflow: hidden;
+}
+.user-form-grid .surface-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--color-primario), var(--color-primario-oscuro));
+}
+
+/* ── Section heading ─────────────────────────────────────── */
+.section-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 22px;
+    padding-bottom: 16px;
+    border-bottom: 1px dashed rgba(var(--color-marca-rgb),.14);
+}
+.section-heading > div { flex: 1; }
+.section-heading h3 {
+    margin: 0 0 5px;
+    font-size: 1.05rem;
+    color: var(--color-primario-oscuro);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.section-heading h3::before {
+    content: '';
+    width: 4px;
+    height: 20px;
+    border-radius: 2px;
+    background: linear-gradient(180deg, var(--color-primario), var(--color-primario-oscuro));
+    flex-shrink: 0;
+}
+.section-heading p {
+    margin: 0;
+    font-size: .84rem;
+    color: var(--color-gris-texto);
+    line-height: 1.5;
+}
+
+/* ── Pill badge (Seguridad) ──────────────────────────────── */
+.pill-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 13px;
+    border-radius: 999px;
+    font-size: .77rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.pill-badge--neutral {
+    background: rgba(var(--color-marca-rgb),.08);
+    color: var(--color-primario);
+}
+
+/* ── Profile panel ───────────────────────────────────────── */
+.profile-panel { display: grid; gap: 22px; align-content: start; }
+
+.profile-preview {
+    padding: 28px 22px 22px;
+    display: grid;
+    gap: 14px;
+    justify-items: center;
+    text-align: center;
+    border-radius: 16px;
+    border: 1px dashed rgba(var(--color-marca-rgb),.22);
+    background:
+        radial-gradient(circle at top, rgba(var(--color-marca-rgb),.08), transparent 55%),
+        rgba(255,255,255,.7);
+}
+
+.avatar-preview,
+.avatar-placeholder {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    transition: transform .25s, box-shadow .25s;
+}
+.avatar-preview:hover, .avatar-placeholder:hover { transform: scale(1.04); }
+
+.avatar-preview {
+    object-fit: cover;
+    border: 4px solid #fff;
+    box-shadow: 0 14px 30px rgba(18,44,148,.18);
+    background: #fff;
+}
+.avatar-placeholder {
+    display: grid;
+    place-items: center;
+    color: var(--color-primario);
+    font-size: 2.8rem;
+    background: linear-gradient(135deg,
+        rgba(var(--color-marca-rgb),.10),
+        rgba(var(--color-marca-rgb),.04));
+    box-shadow: inset 0 0 0 1px rgba(var(--color-marca-rgb),.10);
+}
+
+.profile-preview__copy { display: grid; gap: 4px; }
+.profile-preview__copy strong { color: var(--color-primario-oscuro); font-size: 1rem; }
+.profile-preview__copy span  { color: var(--color-gris-texto); font-size: .84rem; line-height: 1.5; }
+
+/* ── Fields ──────────────────────────────────────────────── */
+.field-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px 22px;
+}
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+}
+.field--full { grid-column: 1 / -1; }
+
+.field label {
+    font-size: .84rem;
+    font-weight: 700;
+    color: var(--color-secundario);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin: 0;
+}
+.required-mark { color: #e60023; font-weight: 700; margin-left: 2px; }
+
+.field input[type="text"],
+.field input[type="email"],
+.field input[type="password"],
+.field input[type="tel"],
+.field input[type="date"],
+.field select,
+.field textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid #d6d8dc;
+    border-radius: 11px;
+    font-size: .93rem;
+    background: #fdfdfe;
+    color: var(--color-texto, #333);
+    font-family: inherit;
+    box-sizing: border-box;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.field textarea {
+    resize: vertical;
+    min-height: 90px;
+    line-height: 1.5;
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+    outline: none;
+    border-color: var(--color-primario);
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(var(--color-marca-rgb),.12);
+}
+.field input:hover:not(:focus),
+.field select:hover:not(:focus),
+.field textarea:hover:not(:focus) { border-color: #b0b8c8; }
+
+/* File input */
+.field input[type="file"] {
+    padding: 11px 14px;
+    border: 1.5px dashed rgba(var(--color-marca-rgb),.28);
+    border-radius: 11px;
+    background: rgba(var(--color-marca-rgb),.03);
+    font-size: .88rem;
+    color: var(--color-gris-texto);
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+    box-sizing: border-box;
+}
+.field input[type="file"]:hover {
+    border-color: var(--color-primario);
+    background: rgba(var(--color-marca-rgb),.06);
+}
+.field input[type="file"]::file-selector-button {
+    padding: 6px 13px;
+    margin-right: 12px;
+    border: none;
+    border-radius: 7px;
+    background: var(--color-primario);
+    color: #fff;
+    font-weight: 600;
+    font-size: .82rem;
+    cursor: pointer;
+    transition: background .15s;
+}
+.field input[type="file"]::file-selector-button:hover { background: var(--color-primario-oscuro); }
+.field small { font-size: .77rem; color: var(--color-gris-texto); line-height: 1.4; }
+
+/* ── Password con botón show/hide ────────────────────────── */
+.pw-wrap { position: relative; }
+.pw-wrap input { padding-right: 44px; }
+.pw-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #9ca3af;
+    padding: 4px;
+    font-size: .95rem;
+    display: flex;
+    align-items: center;
+    transition: color .15s;
+}
+.pw-toggle:hover { color: var(--color-primario); }
+
+/* ── Estado select con color ─────────────────────────────── */
+.field select[name="estado"] option[value="habilitado"]   { color: #166534; }
+.field select[name="estado"] option[value="inhabilitado"] { color: #991b1b; }
+
+/* ── Action row ──────────────────────────────────────────── */
+.action-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding-top: 8px;
+}
+.action-row .btn-admin--primary {
+    background: linear-gradient(135deg, var(--color-primario), var(--color-primario-oscuro));
+    color: #fff;
+    padding: 13px 28px;
+    border: none;
+    border-radius: 11px;
+    font-size: .95rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    box-shadow: 0 8px 18px rgba(18,44,148,.22);
+    transition: transform .15s, box-shadow .15s, filter .15s;
+}
+.action-row .btn-admin--primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px rgba(18,44,148,.30);
+    filter: brightness(1.05);
+}
+.action-row .btn-admin--ghost {
+    background: transparent;
+    color: var(--color-gris-texto);
+    padding: 13px 22px;
+    border: 1px solid rgba(var(--color-marca-rgb),.18);
+    border-radius: 11px;
+    font-size: .95rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    transition: background .15s, color .15s, border-color .15s;
+}
+.action-row .btn-admin--ghost:hover {
+    background: rgba(var(--color-marca-rgb),.05);
+    color: var(--color-primario);
+    border-color: var(--color-primario);
+}
+
+/* ── Security card ───────────────────────────────────────── */
+.security-card {
+    background: #fff;
+    border-radius: 20px;
+    border: 1px solid rgba(var(--color-marca-rgb),.08);
+    box-shadow: 0 4px 20px rgba(18,44,148,.04);
+    padding: 30px;
+    position: relative;
+    overflow: hidden;
+}
+.security-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #b45309, #d97706);
+}
+.security-form { display: grid; gap: 22px; }
+
+.btn-admin--warning {
+    background: linear-gradient(135deg, #b45309, #d97706);
+    color: #fff;
+    padding: 12px 26px;
+    border: none;
+    border-radius: 11px;
+    font-size: .95rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 6px 16px rgba(180,83,9,.22);
+    transition: transform .15s, box-shadow .15s, filter .15s;
+}
+.btn-admin--warning:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 20px rgba(180,83,9,.30);
+    filter: brightness(1.05);
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 980px) {
+    .user-form-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+    /* Reducimos el gutter de <main> a un margen pequeno y parejo para que el
+       formulario ocupe casi todo el ancho, centrado y sin espacio sobrante. */
+    .admin-layout main { padding-left: 10px; padding-right: 10px; }
+
+    /* El shell no agrega gutter propio: el margen lo da unicamente <main>. */
+    .page-shell--narrow {
+        width: 100%;
+        max-width: 100%;
+        margin: 0 auto;
+        padding: 4px 0 28px;
+    }
+    /* Evita cualquier scroll horizontal por sombras/elementos decorativos. */
+    .user-form-stack,
+    .user-form-grid { max-width: 100%; }
+
+    /* Espaciado mas compacto y parejo entre bloques en movil. */
+    .user-form-stack { gap: 16px; }
+    .user-form-grid  { gap: 16px; }
+
+    .page-shell--narrow .page-header {
+        padding: 18px 16px;
+        border-radius: 16px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 14px;
+    }
+    .page-header__intro { flex-direction: column; gap: 12px; }
+    .page-header__icon  { width: 48px; height: 48px; font-size: 1.25rem; border-radius: 13px; }
+    .page-header h1     { font-size: 1.18rem; }
+    .page-header p      { font-size: .85rem; }
+    .page-header__actions { width: 100%; }
+    .page-header__actions .btn-admin--secondary { width: 100%; justify-content: center; }
+
+    .user-form-grid .surface-card { padding: 18px 16px; border-radius: 16px; }
+    .security-card { padding: 18px 16px; border-radius: 16px; }
+
+    /* Encabezados de seccion mas ajustados. */
+    .section-heading { margin-bottom: 16px; padding-bottom: 12px; }
+
+    /* Vista previa de la foto: mas compacta para no empujar el formulario. */
+    .profile-panel  { gap: 16px; }
+    .profile-preview { padding: 18px 14px 16px; gap: 10px; }
+
+    .field-grid { grid-template-columns: 1fr; gap: 14px; }
+
+    .avatar-preview,
+    .avatar-placeholder { width: 110px; height: 110px; }
+    .avatar-placeholder  { font-size: 2.2rem; }
+
+    /* Botones apilados, centrados y comodos para el dedo (accion principal arriba). */
+    .action-row {
+        flex-direction: column-reverse;
+        align-items: center;
+        gap: 12px;
+        margin-top: 4px;
+    }
+    .action-row .btn-admin--primary,
+    .action-row .btn-admin--ghost,
+    .btn-admin--warning {
+        width: 100%;
+        justify-content: center;
+        padding-top: 14px;
+        padding-bottom: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    /* Margen minimo en pantallas muy pequenas: maximo aprovechamiento, centrado. */
+    .admin-layout main { padding-left: 8px; padding-right: 8px; }
+
+    .page-header h1 { font-size: 1.08rem; }
+    .section-heading h3 { font-size: .98rem; }
+    .profile-preview { padding: 16px 12px; }
+    .avatar-preview,
+    .avatar-placeholder { width: 100px; height: 100px; }
+    .avatar-placeholder { font-size: 2rem; }
+}

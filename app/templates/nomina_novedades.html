@@ -18,7 +18,7 @@
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                <table class="table table-bordered nm-cards" id="dataTable" width="100%" cellspacing="0">
                     <thead>
                         <tr>
                             <th class="d-none d-md-table-cell">Periodo</th>
@@ -31,11 +31,11 @@
                     <tbody>
                         {% for n in novedades %}
                         <tr>
-                            <td class="d-none d-md-table-cell">{{ n.anio }}-{{ n.mes }}</td>
-                            <td>{{ n.nombres }} {{ n.apellidos }}</td>
-                            <td>{{ n.tipo_novedad }}</td>
-                            <td>{{ n.cantidad }}</td>
-                            <td class="d-none d-md-table-cell">{{ n.fecha_novedad }}</td>
+                            <td class="d-none d-md-table-cell" data-label="Periodo">{{ n.anio }}-{{ n.mes }}</td>
+                            <td data-label="Empleado">{{ n.nombres }} {{ n.apellidos }}</td>
+                            <td data-label="Tipo">{{ n.tipo_novedad }}</td>
+                            <td data-label="Cantidad">{{ n.cantidad }}</td>
+                            <td class="d-none d-md-table-cell" data-label="Fecha">{{ n.fecha_novedad }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>

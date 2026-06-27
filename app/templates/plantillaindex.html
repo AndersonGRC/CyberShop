@@ -298,7 +298,12 @@
     if (!token) return;
     var csrfValue = token.getAttribute('content');
     document.querySelectorAll('form[method="POST"], form[method="post"]').forEach(function(form) {
-        if (!form.querySelector('input[name="csrf_token"]')) {
+        // ¿el form ya tiene SU PROPIO token? Se ignoran los de forms anidados dentro de él.
+        var tienePropio = Array.prototype.some.call(
+            form.querySelectorAll('input[name="csrf_token"]'),
+            function(inp) { return inp.closest('form') === form; }
+        );
+        if (!tienePropio) {
             var input = document.createElement('input');
             input.type = 'hidden';
             input.name = 'csrf_token';

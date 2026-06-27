@@ -26,7 +26,7 @@
                 <i class="fas fa-balance-scale"></i> Referencia normativa colombiana
             </h6>
             <div class="table-responsive">
-                <table class="table table-sm mb-0">
+                <table class="table table-sm mb-0 nm-cards">
                     <thead class="thead-light">
                         <tr>
                             <th>Año</th>
@@ -41,19 +41,19 @@
                     <tbody>
                         {% for anio, ref in referencias.items()|sort(reverse=true) %}
                         <tr>
-                            <td><strong>{{ anio }}</strong></td>
-                            <td>
+                            <td data-label="Año"><strong>{{ anio }}</strong></td>
+                            <td data-label="Estado">
                                 {% if ref.estado == 'oficial' %}
                                 <span class="badge badge-success">Oficial</span>
                                 {% else %}
                                 <span class="badge badge-warning">Proyectado</span>
                                 {% endif %}
                             </td>
-                            <td>{{ formatear_moneda(ref.salario_minimo) }}</td>
-                            <td>{{ formatear_moneda(ref.auxilio_transporte) }}</td>
-                            <td>{{ formatear_moneda(ref.uvt) }}</td>
-                            <td>{{ ref.jornada_semanal }} h/sem</td>
-                            <td><small class="text-muted">{{ ref.fuente }}</small></td>
+                            <td data-label="SMMLV">{{ formatear_moneda(ref.salario_minimo) }}</td>
+                            <td data-label="Aux. transporte">{{ formatear_moneda(ref.auxilio_transporte) }}</td>
+                            <td data-label="UVT">{{ formatear_moneda(ref.uvt) }}</td>
+                            <td data-label="Jornada">{{ ref.jornada_semanal }} h/sem</td>
+                            <td data-label="Fuente"><small class="text-muted">{{ ref.fuente }}</small></td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -78,7 +78,7 @@
             </div>
             {% else %}
             <div class="table-responsive">
-                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                <table class="table table-bordered nm-cards" id="dataTable" width="100%" cellspacing="0">
                     <thead>
                         <tr>
                             <th>Año</th>
@@ -93,11 +93,11 @@
                         {% for p in params %}
                         {% set ref = referencias.get(p.anio) %}
                         <tr>
-                            <td><strong>{{ p.anio }}</strong></td>
-                            <td>{{ formatear_moneda(p.salario_minimo|float) }}</td>
-                            <td>{{ formatear_moneda(p.auxilio_transporte|float) }}</td>
-                            <td>{{ formatear_moneda(p.uvt|float) }}</td>
-                            <td>
+                            <td data-label="Año"><strong>{{ p.anio }}</strong></td>
+                            <td data-label="Salario Mínimo">{{ formatear_moneda(p.salario_minimo|float) }}</td>
+                            <td data-label="Aux. Transporte">{{ formatear_moneda(p.auxilio_transporte|float) }}</td>
+                            <td data-label="UVT">{{ formatear_moneda(p.uvt|float) }}</td>
+                            <td data-label="Validación">
                                 {% if not ref %}
                                 <span class="badge badge-secondary">Sin referencia</span>
                                 {% elif (p.salario_minimo|float - ref.salario_minimo)|abs < 1
@@ -110,7 +110,7 @@
                                 </span>
                                 {% endif %}
                             </td>
-                            <td>
+                            <td data-label="Acciones">
                                 <a href="{{ url_for('nomina.parametros_editar', anio=p.anio) }}"
                                     class="btn btn-sm btn-info">Editar</a>
                             </td>

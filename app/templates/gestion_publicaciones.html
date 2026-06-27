@@ -219,6 +219,9 @@
         }
     }
 </style>
+{% if 'ai_assistant' in active_modules %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ia_gemini.css') }}">
+{% endif %}
 {% endblock %}
 
 {% block body %}
@@ -255,6 +258,13 @@
             <div class="form-group">
                 <label for="descripcion">Descripcion</label>
                 <textarea id="descripcion" name="descripcion" required></textarea>
+                {% if 'ai_assistant' in active_modules %}
+                <div class="gem-btn-row" style="margin-top:8px;">
+                    <button type="button" class="gem-btn-primary ia-content-btn" data-ia-accion="generar" data-ia-tipo="una publicación" data-ia-titulo="titulo" data-ia-target="descripcion">✦ Generar con IA</button>
+                    <button type="button" class="gem-btn-secondary ia-content-btn" data-ia-accion="mejorar" data-ia-target="descripcion"><span class="gem-btn-label">✨ Mejorar texto</span></button>
+                    <span class="ia-content-status" style="display:none;"></span>
+                </div>
+                {% endif %}
             </div>
             <div class="form-group">
                 <label for="imagen">Imagen (opcional)</label>
@@ -279,6 +289,13 @@
             <div class="form-group">
                 <label for="descripcion">Descripcion</label>
                 <textarea id="descripcion" name="descripcion" required>{{ publicacion.descripcion }}</textarea>
+                {% if 'ai_assistant' in active_modules %}
+                <div class="gem-btn-row" style="margin-top:8px;">
+                    <button type="button" class="gem-btn-primary ia-content-btn" data-ia-accion="generar" data-ia-tipo="una publicación" data-ia-titulo="titulo" data-ia-target="descripcion">✦ Generar con IA</button>
+                    <button type="button" class="gem-btn-secondary ia-content-btn" data-ia-accion="mejorar" data-ia-target="descripcion"><span class="gem-btn-label">✨ Mejorar texto</span></button>
+                    <span class="ia-content-status" style="display:none;"></span>
+                </div>
+                {% endif %}
             </div>
             <div class="form-group">
                 <label for="imagen">Imagen (dejar vacio para mantener actual)</label>
@@ -355,4 +372,10 @@
     {% endif %}
     {% endif %}
 </div>
+{% endblock %}
+
+{% block javascript %}
+{% if 'ai_assistant' in active_modules %}
+<script src="{{ url_for('static', filename='js/ia_contenido.js') }}"></script>
+{% endif %}
 {% endblock %}

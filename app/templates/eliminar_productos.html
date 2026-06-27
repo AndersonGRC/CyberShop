@@ -1,81 +1,472 @@
 {% extends './plantillaapp.html' %}
-
 {% block titulo %}Eliminar Productos{% endblock %}
 
 {% block LinkAdicional %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/eliminar_producto.css') }}">
+<style>
+
+/* ── Tabs del sub-módulo Productos ──────────────────────── */
+.prod-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    background: rgba(18,44,148,0.05);
+    padding: 6px;
+    border-radius: 14px;
+    flex-wrap: wrap;
+}
+.prod-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 18px;
+    border-radius: 10px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #667085;
+    text-decoration: none;
+    transition: all 0.18s;
+    white-space: nowrap;
+}
+.prod-tab:hover { background: rgba(18,44,148,0.07); color: #122C94; }
+.prod-tab.active { background: #fff; color: #122C94; box-shadow: 0 2px 8px rgba(18,44,148,0.12); }
+.prod-tab.active-danger { background: #fff; color: #dc2626; box-shadow: 0 2px 8px rgba(220,38,38,0.12); }
+
+/* ── Form card dentro de page-shell ─────────────────────── */
+.form-card {
+    background: #fff;
+    border-radius: 20px;
+    border: 1px solid rgba(18,44,148,0.07);
+    box-shadow: 0 2px 16px rgba(18,44,148,0.06);
+    overflow: hidden;
+}
+.form-card__header {
+    padding: 24px 32px 20px;
+    border-bottom: 1px solid #f0f3f8;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.form-card__icon {
+    width: 46px; height: 46px;
+    border-radius: 13px;
+    background: rgba(18,44,148,0.08);
+    color: #122C94;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+.form-card__icon--danger { background: rgba(220,38,38,0.1); color: #dc2626; }
+.form-card__title { font-size: 1.1rem; font-weight: 800; color: #0d1b54; margin: 0; }
+.form-card__sub   { font-size: 0.84rem; color: #667085; margin: 2px 0 0; }
+.form-card__body { padding: 28px 32px; }
+
+/* ── Form fields modernos ────────────────────────────────── */
+.fg {
+    margin-bottom: 20px;
+}
+.fg label {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 0.86rem; font-weight: 700; color: #374151;
+    margin-bottom: 7px;
+}
+.fg label i { color: #122C94; font-size: 0.82rem; }
+.fg input[type=text],
+.fg input[type=number],
+.fg input[type=file],
+.fg select,
+.fg textarea {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 11px;
+    font-size: 0.92rem;
+    box-sizing: border-box;
+    background: #fafafa;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    font-family: inherit;
+}
+.fg input:focus, .fg select:focus, .fg textarea:focus {
+    border-color: #122C94;
+    box-shadow: 0 0 0 3px rgba(18,44,148,0.1);
+    background: #fff;
+}
+.fg .fg-hint { font-size: 0.8rem; color: #9ca3af; margin-top: 5px; }
+.fg .fg-row { display: grid; gap: 16px; }
+.fg-row-2 { grid-template-columns: 1fr 1fr; }
+.fg-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+/* ── Toggle e-commerce ───────────────────────────────────── */
+.toggle-wrap {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; border-radius: 12px;
+    background: #f8faff; border: 1.5px solid #e5e9f7;
+}
+.toggle-info { font-size: 0.9rem; font-weight: 700; color: #374151; }
+.toggle-info small { display: block; font-size: 0.79rem; font-weight: 400; color: #9ca3af; }
+.toggle-switch { position: relative; display: inline-block; width: 48px; height: 26px; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+    position: absolute; cursor: pointer; inset: 0;
+    background: #d1d5db; border-radius: 999px; transition: .2s;
+}
+.toggle-slider:before {
+    content: ""; position: absolute;
+    height: 20px; width: 20px;
+    left: 3px; bottom: 3px;
+    background: #fff; border-radius: 50%;
+    transition: .2s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+input:checked + .toggle-slider { background: #122C94; }
+input:checked + .toggle-slider:before { transform: translateX(22px); }
+
+/* ── Botón submit ────────────────────────────────────────── */
+.btn-submit {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 13px 28px;
+    background: linear-gradient(135deg, #122C94, #1e3fa8);
+    color: #fff; border: none; border-radius: 12px;
+    font-size: 0.95rem; font-weight: 700;
+    cursor: pointer; transition: all 0.2s;
+}
+.btn-submit:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(18,44,148,0.3); }
+.btn-submit--danger { background: linear-gradient(135deg, #b91c1c, #dc2626); }
+.btn-submit--danger:hover { box-shadow: 0 8px 20px rgba(220,38,38,0.3); }
+.btn-link-secondary {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 13px 20px; border-radius: 12px;
+    background: #f3f4f6; color: #374151;
+    font-size: 0.92rem; font-weight: 700; text-decoration: none;
+    transition: all 0.18s;
+}
+.btn-link-secondary:hover { background: #e5e7eb; }
+
+/* ── Tabla reutilizable ──────────────────────────────────── */
+.data-table { width: 100%; border-collapse: collapse; min-width: 600px; }
+.data-table th {
+    background: #0d1b54; color: rgba(255,255,255,0.9);
+    font-size: 0.73rem; font-weight: 800; letter-spacing: 0.07em;
+    text-transform: uppercase; padding: 13px 18px; text-align: left;
+    white-space: nowrap;
+}
+.data-table td {
+    padding: 12px 18px; border-bottom: 1px solid #f0f3f8;
+    vertical-align: middle; color: #2d3a4a; font-size: 0.92rem;
+}
+.data-table tbody tr { transition: background 0.15s; }
+.data-table tbody tr:hover { background: #f5f8ff; }
+.data-table tbody tr:last-child td { border-bottom: none; }
+
+/* ── Acciones de tabla ───────────────────────────────────── */
+.tbl-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-tbl {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 7px 13px; border: none; border-radius: 9px;
+    cursor: pointer; font-size: 0.83rem; font-weight: 700;
+    text-decoration: none; white-space: nowrap;
+    transition: all 0.18s;
+}
+.btn-tbl:hover { transform: translateY(-1px); }
+.btn-tbl--edit   { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.btn-tbl--edit:hover { background: #dbeafe; }
+.btn-tbl--delete { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+.btn-tbl--delete:hover { background: #fee2e2; }
+.btn-tbl--save   { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+.btn-tbl--save:hover { background: #dcfce7; }
+.btn-tbl--cancel { background: #f9fafb; color: #6b7280; border: 1px solid #e5e7eb; }
+.btn-tbl--cancel:hover { background: #f3f4f6; }
+.btn-tbl-icon {
+    width: 34px; height: 34px; border: none; border-radius: 9px;
+    cursor: pointer; font-size: 0.88rem;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: all 0.18s;
+}
+.btn-tbl-icon:hover { transform: translateY(-1px); }
+
+/* ── E-commerce badge ────────────────────────────────────── */
+.badge-visible { display:inline-flex; align-items:center; gap:5px; padding:4px 11px; border-radius:999px; font-size:0.79rem; font-weight:700; }
+.badge-visible--yes { background:#d1fae5; color:#065f46; }
+.badge-visible--no  { background:#f3f4f6; color:#6b7280; }
+
+/* ── Two-col layout (géneros) ────────────────────────────── */
+.two-col { display: grid; grid-template-columns: 340px 1fr; gap: 24px; align-items: start; }
+@media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+
+/* ── Pill de conteo ──────────────────────────────────────── */
+.count-pill {
+    display: inline-flex; align-items: center;
+    background: rgba(18,44,148,0.08); color: #122C94;
+    border-radius: 999px; font-size: 0.79rem; font-weight: 800;
+    padding: 3px 10px; margin-left: 8px; vertical-align: middle;
+}
+.count-pill--warning { background: rgba(234,179,8,0.15); color: #854d0e; }
+
+/* ── Edición inline (géneros) ───────────────────────────── */
+.input-inline {
+    padding: 7px 11px; border: 1.5px solid #122C94;
+    border-radius: 8px; font-size: 0.9rem; width: 100%;
+    box-sizing: border-box; outline: none;
+}
+
+/* ── Empty state ─────────────────────────────────────────── */
+.empty-state {
+    text-align: center; padding: 60px 20px; color: #9ca3af;
+}
+.empty-state i { font-size: 2.8rem; opacity: 0.3; display: block; margin-bottom: 16px; }
+.empty-state p { margin: 0; font-size: 0.95rem; }
+
+.prod-img { width:44px;height:44px;border-radius:9px;object-fit:cover;border:1px solid #e8edf5; }
+
+/* ── Responsive: tabla → tarjetas en móvil ───────────────── */
+@media (max-width: 768px) {
+    /* Tabs en cuadrícula 2×2 para que siempre quepan en pantalla */
+    .prod-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .prod-tab { justify-content: center; padding: 10px 8px; }
+
+    .surface-card > div[style*="overflow-x"] { overflow-x: visible !important; }
+
+    .data-table { min-width: 0; }
+    .data-table thead { display: none; }
+    .data-table,
+    .data-table tbody,
+    .data-table td { display: block; box-sizing: border-box; }
+    .data-table,
+    .data-table tbody { width: 100%; }
+    .data-table td { width: 100%; }
+    .data-table tr { display: block; box-sizing: border-box; }
+
+    .data-table tbody tr {
+        width: auto;
+        background: #fff;
+        border: 1px solid rgba(18,44,148,0.1);
+        border-radius: 14px;
+        margin: 12px 14px;
+        padding: 6px 16px;
+        box-shadow: 0 2px 10px rgba(18,44,148,0.05);
+    }
+    .data-table tbody tr:hover { background: #fff; }
+
+    .data-table td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 10px 0;
+        border-bottom: 1px solid #f0f3f8;
+        text-align: right;
+    }
+    .data-table tbody tr td:last-child { border-bottom: none; }
+
+    .data-table td::before {
+        content: attr(data-label);
+        font-weight: 800;
+        font-size: 0.7rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #667085;
+        text-align: left;
+        flex-shrink: 0;
+    }
+
+    /* Acción a lo ancho */
+    .data-table td[data-label="Acción"] { flex-direction: column; align-items: stretch; gap: 8px; }
+    .data-table td[data-label="Acción"]::before { text-align: left; }
+    .data-table td[data-label="Acción"] .btn-tbl { justify-content: center; }
+
+    /* Empty state ocupa toda la tarjeta sin etiqueta */
+    .data-table td[colspan] { display: block; text-align: center; }
+    .data-table td[colspan]::before { content: none; }
+}
+
+</style>
 {% endblock %}
 
 {% block body %}
+<section class="page-shell">
 
-<!-- Submenú de navegación -->
-<div class="Submenunavegacion">
-    <ul>
-        <li><a href="{{ url_for('admin.GestionProductos') }}"><i class="fas fa-plus-circle"></i> Crear Producto</a></li>
-        <li><a href="{{ url_for('admin.editar_productos') }}"><i class="fas fa-edit"></i> Editar Productos</a></li>
-        <li><a href="{{ url_for('admin.eliminar_productos') }}"><i class="fas fa-trash-alt"></i> Eliminar Productos</a></li>
-        <li><a href="{{ url_for('admin.gestion_generos') }}"><i class="fas fa-tags"></i> Géneros</a></li>
-    </ul>
-</div>
-
-<main>
-    <h2><i class="fas fa-trash-alt icono-titulo-peligro"></i>Eliminar Productos</h2>
-
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th><i class="fas fa-tag"></i> Nombre</th>
-                    <th><i class="fas fa-dollar-sign"></i> Precio</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for producto in productos %}
-                <tr>
-                    <td>{{ producto[0] }}</td>
-                    <td>{{ producto[2] }}</td>
-                    <td>${{ "{:,.0f}".format(producto[3]) }}</td>
-                    <td>
-                        <a href="{{ url_for('admin.eliminar_producto', id=producto[0]) }}"
-                           class="btn-eliminar"
-                           onclick="return confirmarEliminar(event, this, '{{ producto[2]|e }}')">
-                            <i class="fas fa-trash"></i> Eliminar
-                        </a>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="4" class="tabla-celda-vacia">
-                        <i class="fas fa-box-open tabla-icono-vacio"></i>
-                        No hay productos registrados.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div class="page-header">
+        <div class="page-header__intro">
+            <div class="page-header__icon" style="background:rgba(220,38,38,0.1);color:#dc2626;">
+                <i class="fas fa-trash-alt"></i>
+            </div>
+            <div>
+                <span class="page-header__eyebrow">Catálogo</span>
+                <h1>Eliminar Productos</h1>
+                <p>Selecciona un producto para eliminarlo permanentemente del catálogo.</p>
+            </div>
+        </div>
     </div>
-</main>
 
+<nav class="prod-tabs" aria-label="Navegación de productos">
+    <a href="{{ url_for('admin.GestionProductos') }}" class="prod-tab ">
+        <i class="fas fa-plus-circle"></i> Crear
+    </a>
+    <a href="{{ url_for('admin.editar_productos') }}" class="prod-tab ">
+        <i class="fas fa-edit"></i> Editar
+    </a>
+    <a href="{{ url_for('admin.eliminar_productos') }}" class="prod-tab active-danger">
+        <i class="fas fa-trash-alt"></i> Eliminar
+    </a>
+    <a href="{{ url_for('admin.gestion_generos') }}" class="prod-tab ">
+        <i class="fas fa-tags"></i> Géneros
+    </a>
+</nav>
+
+    <div class="surface-card" style="padding:0;overflow:hidden;">
+        <div style="padding:18px 24px;border-bottom:1px solid #f0f3f8;display:flex;align-items:center;gap:12px;">
+            <div style="flex:1;min-width:180px;position:relative;">
+                <i class="fas fa-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#aab4c8;font-size:.88rem;pointer-events:none;"></i>
+                <input type="text" id="del-search" onkeyup="filterDel()" placeholder="Buscar producto..."
+                    style="width:100%;padding:10px 14px 10px 34px;border:1px solid #d0d7e3;border-radius:10px;font-size:.9rem;box-sizing:border-box;outline:none;background:#fafbfd;">
+            </div>
+            <span id="del-count" style="font-size:.85rem;color:#667085;white-space:nowrap;">{{ productos|length }} productos</span>
+        </div>
+        <div style="overflow-x:auto;">
+            <table class="data-table" id="del-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Imagen</th>
+                        <th>Nombre</th>
+                        <th>Precio</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for producto in productos %}
+                    <tr>
+                        <td style="color:#9ca3af;font-size:.88rem;" data-label="ID">{{ producto[0] }}</td>
+                        <td data-label="Imagen">
+                            {% if producto[1] %}
+                            <img src="{{ producto[1] }}" class="prod-img" alt="">
+                            {% else %}
+                            <div style="width:44px;height:44px;border-radius:9px;background:#f0f3f8;display:flex;align-items:center;justify-content:center;">
+                                <i class="fas fa-image" style="color:#ccc;"></i>
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td style="font-weight:700;color:#0f1728;" data-label="Nombre">{{ producto[2] }}</td>
+                        <td style="font-weight:700;color:#122C94;" data-label="Precio">${{ "{:,.0f}".format(producto[3]) }}</td>
+                        <td data-label="Acción">
+                            <a href="{{ url_for('admin.eliminar_producto', id=producto[0]) }}"
+                               class="btn-tbl btn-tbl--delete"
+                               onclick="return confirmDel(event, this, '{{ producto[2]|e }}')">
+                                <i class="fas fa-trash"></i> Eliminar
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5">
+                        <div class="empty-state">
+                            <i class="fas fa-box-open"></i>
+                            <p>No hay productos registrados.</p>
+                        </div>
+                    </td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if archivados %}
+    <div class="surface-card" style="padding:0;overflow:hidden;margin-top:24px;">
+        <div style="padding:18px 24px;border-bottom:1px solid #f0f3f8;display:flex;align-items:center;gap:12px;">
+            <div class="form-card__icon" style="background:rgba(234,179,8,0.15);color:#854d0e;">
+                <i class="fas fa-box-archive"></i>
+            </div>
+            <div style="flex:1;">
+                <h2 style="font-size:1rem;font-weight:800;color:#0d1b54;margin:0;">Productos archivados</h2>
+                <p style="font-size:0.82rem;color:#667085;margin:2px 0 0;">
+                    Tienen historial de ventas, por eso no se borraron. Están ocultos de la tienda y las listas. Puedes reactivarlos.
+                </p>
+            </div>
+            <span class="count-pill count-pill--warning">{{ archivados|length }}</span>
+        </div>
+        <div style="overflow-x:auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Imagen</th>
+                        <th>Nombre</th>
+                        <th>Precio</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for producto in archivados %}
+                    <tr>
+                        <td style="color:#9ca3af;font-size:.88rem;" data-label="ID">{{ producto[0] }}</td>
+                        <td data-label="Imagen">
+                            {% if producto[1] %}
+                            <img src="{{ producto[1] }}" class="prod-img" alt="">
+                            {% else %}
+                            <div style="width:44px;height:44px;border-radius:9px;background:#f0f3f8;display:flex;align-items:center;justify-content:center;">
+                                <i class="fas fa-image" style="color:#ccc;"></i>
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td style="font-weight:700;color:#0f1728;" data-label="Nombre">{{ producto[2] }}</td>
+                        <td style="font-weight:700;color:#122C94;" data-label="Precio">${{ "{:,.0f}".format(producto[3]) }}</td>
+                        <td data-label="Acción">
+                            <form method="POST" action="{{ url_for('admin.reactivar_producto', id=producto[0]) }}"
+                                  style="margin:0;" onsubmit="return confirmReact(event, this, '{{ producto[2]|e }}')">
+                                <button type="submit" class="btn-tbl btn-tbl--save">
+                                    <i class="fas fa-rotate-left"></i> Reactivar
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+</section>
 <script>
-function confirmarEliminar(e, link, nombre) {
+function confirmReact(e, form, nombre) {
+    e.preventDefault();
+    Swal.fire({
+        title: '¿Reactivar producto?',
+        html: 'Vas a reactivar <strong>"' + nombre + '"</strong>.<br>Volverá a estar visible en la tienda y las listas.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#166534',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: '<i class="fas fa-rotate-left"></i> Sí, reactivar',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true
+    }).then(function(r) { if (r.isConfirmed) form.submit(); });
+    return false;
+}
+function filterDel() {
+    var q = document.getElementById('del-search').value.toUpperCase();
+    var rows = document.querySelectorAll('#del-table tbody tr');
+    var n = 0;
+    rows.forEach(function(tr) {
+        var show = !q || tr.textContent.toUpperCase().indexOf(q) > -1;
+        tr.style.display = show ? '' : 'none';
+        if (show) n++;
+    });
+    document.getElementById('del-count').textContent = n + ' producto' + (n !== 1 ? 's' : '');
+}
+function confirmDel(e, link, nombre) {
     e.preventDefault();
     var destino = link.getAttribute('href');
     Swal.fire({
         title: '¿Eliminar producto?',
-        html: 'Vas a eliminar <strong>"' + nombre + '"</strong>.<br>Esta acción no se puede deshacer.',
+        html: 'Vas a eliminar <strong>"' + nombre + '"</strong>.<br>Esta acción <strong>no se puede deshacer</strong>.',
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#dc3545',
-        cancelButtonColor: '#6c757d',
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#6b7280',
         confirmButtonText: '<i class="fas fa-trash"></i> Sí, eliminar',
-        cancelButtonText: 'Cancelar'
-    }).then(function(result) {
-        if (result.isConfirmed) {
-            window.location.href = destino;
-        }
-    });
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true
+    }).then(function(r) { if (r.isConfirmed) window.location.href = destino; });
     return false;
 }
 </script>

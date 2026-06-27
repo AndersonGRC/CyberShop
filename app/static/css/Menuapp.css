@@ -45,7 +45,7 @@ header.hidden {
 
 /* Logo */
 header .menu-logo {
-    padding: 20px 24px;
+    padding: 24px 28px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -65,7 +65,7 @@ header .menu-logo img {
 
 /* Nav */
 header .nav {
-    padding: 14px 0 20px;
+    padding: 18px 0 24px;
     overflow-y: auto;
     flex: 1;
     scrollbar-width: thin;
@@ -88,7 +88,7 @@ header .nav ul {
 }
 
 header .nav ul li {
-    margin: 2px 0;
+    margin: 4px 0;
 }
 
 header .nav ul li a {
@@ -97,7 +97,7 @@ header .nav ul li a {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 11px 16px;
+    padding: 13px 18px;
     border-radius: 12px;
     font-size: 0.88rem;
     font-weight: 600;
@@ -154,8 +154,8 @@ header .nav ul li a.is-active-parent i {
 
 /* Submenu */
 .nav ul li .submenu {
-    margin: 4px 0 6px 16px;
-    padding-left: 14px;
+    margin: 6px 0 8px 20px;
+    padding-left: 16px;
     border-left: 2px solid rgba(255, 255, 255, 0.12);
     list-style: none;
     max-height: 0;
@@ -167,7 +167,7 @@ header .nav ul li a.is-active-parent i {
 
 .nav ul li.active > .submenu,
 .nav ul li.has-active-child > .submenu {
-    max-height: 520px;
+    max-height: 700px;
     opacity: 1;
     pointer-events: auto;
 }
@@ -177,9 +177,9 @@ header .nav ul li a.is-active-parent i {
 }
 
 .nav ul li .submenu a {
-    min-height: 38px;
-    padding: 8px 14px;
-    font-size: 0.83rem;
+    min-height: 42px;
+    padding: 10px 16px;
+    font-size: 0.84rem;
     font-weight: 500;
     color: rgba(255, 255, 255, 0.70);
     border-radius: 10px;
@@ -287,7 +287,7 @@ main {
     margin-left: 272px;
     margin-top: 68px;
     min-height: calc(100vh - 68px - 56px);
-    padding: 30px 28px 40px;
+    padding: 36px 32px 48px;
     transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -315,7 +315,7 @@ header.hidden ~ .footer {
     width: min(1240px, 100%);
     margin: 0 auto;
     display: grid;
-    gap: 24px;
+    gap: 32px;
 }
 
 .page-shell--narrow {

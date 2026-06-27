@@ -45,7 +45,7 @@
     <div class="card shadow mb-4">
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-bordered crm-tabla" width="100%" cellspacing="0">
+                <table class="table table-bordered crm-tabla nm-cards" width="100%" cellspacing="0">
                     <thead>
                         <tr>
                             <th class="crm-th-avatar"></th>
@@ -72,18 +72,18 @@
                                 </span>
                                 {% endif %}
                             </td>
-                            <td>
+                            <td data-label="Nombre">
                                 <a href="{{ url_for('crm.crm_contacto_ver', id=c.id) }}"
                                    class="font-weight-bold text-dark">{{ c.nombre }}</a>
                             </td>
-                            <td class="col-empresa d-none d-md-table-cell">{{ c.empresa or '—' }}</td>
-                            <td>
+                            <td class="col-empresa d-none d-md-table-cell" data-label="Empresa">{{ c.empresa or '—' }}</td>
+                            <td data-label="Tipo">
                                 <span class="badge badge-crm-{{ c.tipo }}">{{ c.tipo|capitalize }}</span>
                             </td>
-                            <td class="col-email d-none d-lg-table-cell">{{ c.email or '—' }}</td>
-                            <td class="col-telefono d-none d-md-table-cell">{{ c.telefono or '—' }}</td>
-                            <td class="col-ciudad d-none d-lg-table-cell">{{ c.ciudad or '—' }}</td>
-                            <td class="col-acciones">
+                            <td class="col-email d-none d-lg-table-cell" data-label="Email">{{ c.email or '—' }}</td>
+                            <td class="col-telefono d-none d-md-table-cell" data-label="Teléfono">{{ c.telefono or '—' }}</td>
+                            <td class="col-ciudad d-none d-lg-table-cell" data-label="Ciudad">{{ c.ciudad or '—' }}</td>
+                            <td class="col-acciones" data-label="Acciones">
                                 <a href="{{ url_for('crm.crm_contacto_ver', id=c.id) }}"
                                    class="btn btn-sm btn-info" title="Ver"><i class="fas fa-eye"></i></a>
                                 <a href="{{ url_for('crm.crm_contacto_editar', id=c.id) }}"
