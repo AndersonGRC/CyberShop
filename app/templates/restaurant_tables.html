@@ -343,29 +343,29 @@
                     <tbody>
                         {% for order in report_data.orders %}
                         <tr>
-                            <td>
+                            <td data-label="Orden">
                                 <strong>#{{ order.id }}</strong>
                                 <small>{{ order.cliente_nombre or 'Cliente general' }}</small>
                             </td>
-                            <td>
+                            <td data-label="Mesa">
                                 <strong>{{ order.codigo_mesa }}</strong>
                                 <small>{{ order.nombre_mesa }}</small>
                             </td>
-                            <td>{{ order.area }}</td>
-                            <td>
+                            <td data-label="Área">{{ order.area }}</td>
+                            <td data-label="Estado">
                                 <span class="rt-state-badge {{ 'ocupada' if order.estado == 'abierta' else ('disponible' if order.estado == 'cerrada' else 'reservada') }}">
                                     {{ order.estado|replace('_', ' ')|title }}
                                 </span>
                             </td>
-                            <td>${{ '{:,.0f}'.format(order.total_acumulado|float) }}</td>
-                            <td>{{ order.payment_method_label }}</td>
-                            <td>{{ order.duration_minutes }} min</td>
-                            <td>
+                            <td data-label="Total">${{ '{:,.0f}'.format(order.total_acumulado|float) }}</td>
+                            <td data-label="Pago">{{ order.payment_method_label }}</td>
+                            <td data-label="Duración">{{ order.duration_minutes }} min</td>
+                            <td data-label="Contabilidad">
                                 <span class="rt-sync-pill rt-sync-{{ order.accounting_status or 'pendiente' }}">
                                     {{ order.accounting_status_label }}
                                 </span>
                             </td>
-                            <td>
+                            <td data-label="Acción">
                                 {% if order.can_cancel_sale %}
                                 <button class="rt-report-action" type="button" data-order-id="{{ order.id }}">
                                     Anular venta
@@ -475,6 +475,13 @@
                             {% endfor %}
                         </select>
                     </label>
+
+                    {% if fe_habilitada %}
+                    <label class="rtm-mini-label" style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+                        <input type="checkbox" id="rtmFacturarFE" style="width:auto;">
+                        <span><i class="fas fa-file-invoice"></i> Facturar electrónicamente (DIAN)</span>
+                    </label>
+                    {% endif %}
 
                     <!-- Cambio de estado rápido -->
                     <div class="rtm-quick-states">

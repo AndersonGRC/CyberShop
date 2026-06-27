@@ -861,6 +861,7 @@
         try {
             const result = await jsonRequest(endpointForTable(endpoints.closeAccountBase, table.id), {
                 payment_method: paymentMethod,
+                facturar_electronicamente: document.getElementById('rtmFacturarFE')?.checked || false,
             });
             await refreshData(table.id);
             notify(`Cobro registrado. Total final: ${money(result.total)}.`, 'success');
@@ -953,37 +954,80 @@
         }
 
         const rect = elements.floor.getBoundingClientRect();
+        // Posición y rotación de partida: durante el arrastre dejamos left/top
+        // quietos y movemos con transform (compositado, sin repintar el fondo).
+        const startX = table.pos_x;
+        const startY = table.pos_y;
+        const rot = table.rotacion || 0;
+        // Offset de agarre: distancia entre el cursor y el origen de la mesa al
+        // tomarla. Se mantiene constante durante el arrastre para que el punto
+        // que agarraste quede fijo bajo el cursor (movimiento natural, sin salto).
+        const grabOffsetX = ((event.clientX - rect.left) / rect.width) * 100 - startX;
+        const grabOffsetY = ((event.clientY - rect.top) / rect.height) * 100 - startY;
         state.drag = { tableId, rect, target };
         target.classList.add('dragging');
+        // Apaga los efectos costosos del plano (mezcla/gradientes) mientras se
+        // arrastra, para que el movimiento sea fluido.
+        elements.floor.classList.add('rt-dragging');
         selectTable(tableId);
+
+        let frame = null;
+        const paint = function () {
+            frame = null;
+            const dx = ((table.pos_x - startX) / 100) * rect.width;
+            const dy = ((table.pos_y - startY) / 100) * rect.height;
+            target.style.transform = `translate(${dx}px, ${dy}px) rotate(${rot}deg)`;
+        };
 
         const onMove = function (moveEvent) {
             if (!state.drag) {
                 return;
             }
             moveEvent.preventDefault();
-            let x = clamp(((moveEvent.clientX - rect.left) / rect.width) * 100, 0, 96);
-            let y = clamp(((moveEvent.clientY - rect.top) / rect.height) * 100, 0, 92);
-            if (state.snapMode) {
-                x = clamp(snap(x, 2), 0, 96);
-                y = clamp(snap(y, 2), 0, 92);
-            }
+            // Durante el arrastre la mesa sigue al cursor LIBREMENTE (sin snap),
+            // para un movimiento natural. La alineación a grilla se aplica al
+            // soltar (ver onUp), así no hay saltos/teletransportación.
+            const x = clamp(((moveEvent.clientX - rect.left) / rect.width) * 100 - grabOffsetX, 0, 96);
+            const y = clamp(((moveEvent.clientY - rect.top) / rect.height) * 100 - grabOffsetY, 0, 92);
             table.pos_x = Number(x.toFixed(1));
             table.pos_y = Number(y.toFixed(1));
-            target.style.left = `${table.pos_x}%`;
-            target.style.top = `${table.pos_y}%`;
             if (formFields.pos_x) {
                 formFields.pos_x.value = table.pos_x.toFixed(1);
             }
             if (formFields.pos_y) {
                 formFields.pos_y.value = table.pos_y.toFixed(1);
             }
+            // Throttle al ritmo del navegador para un movimiento natural.
+            if (frame === null) {
+                frame = requestAnimationFrame(paint);
+            }
         };
 
         const onUp = function () {
+            if (frame !== null) {
+                cancelAnimationFrame(frame);
+                frame = null;
+            }
+            // Al soltar, si el snap está activo, alinear la posición final a la
+            // grilla (un único y pequeño ajuste, no durante el movimiento).
+            if (state.snapMode) {
+                table.pos_x = Number(clamp(snap(table.pos_x, 2), 0, 96).toFixed(1));
+                table.pos_y = Number(clamp(snap(table.pos_y, 2), 0, 92).toFixed(1));
+                if (formFields.pos_x) {
+                    formFields.pos_x.value = table.pos_x.toFixed(1);
+                }
+                if (formFields.pos_y) {
+                    formFields.pos_y.value = table.pos_y.toFixed(1);
+                }
+            }
+            // Fijar la posición final en left/top y quitar el transform de arrastre.
+            target.style.transform = `rotate(${rot}deg)`;
+            target.style.left = `${table.pos_x}%`;
+            target.style.top = `${table.pos_y}%`;
             if (state.drag?.target) {
                 state.drag.target.classList.remove('dragging');
             }
+            elements.floor.classList.remove('rt-dragging');
             window.removeEventListener('pointermove', onMove);
             window.removeEventListener('pointerup', onUp);
             state.drag = null;

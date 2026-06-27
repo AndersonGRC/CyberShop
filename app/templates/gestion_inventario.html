@@ -1,639 +1,1154 @@
 {% extends './plantillaapp.html' %}
 
-{% block titulo %}Gestion de Inventario{% endblock %}
+{% block titulo %}Gestión de Inventario{% endblock %}
 
 {% block LinkAdicional %}
 <style>
-    .inventory-page {
-        padding: 24px 16px 40px;
-    }
+/* ═══════════════════════════════════════════════════════════
+   INVENTARIO — Estilos de página
+   ═══════════════════════════════════════════════════════════ */
 
-    .inventory-container {
-        max-width: 1320px;
-        margin: 0 auto;
-        padding: 28px 28px 32px;
-        background: rgba(255, 255, 255, 0.98);
-        border-radius: 18px;
-        border: 1px solid #dfe5f1;
-        box-shadow: 0 18px 40px rgba(15, 34, 84, 0.10);
-    }
+/* ── KPI cards ───────────────────────────────────────────── */
+.inv-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+}
 
-    .inventory-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 18px;
-        margin-bottom: 24px;
-        flex-wrap: wrap;
-    }
+.inv-kpi {
+    padding: 20px 22px;
+    border-radius: 16px;
+    background: #fff;
+    border: 1px solid rgba(18,44,148,0.08);
+    box-shadow: 0 2px 12px rgba(18,44,148,0.05);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
 
-    .inventory-title {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-    }
+.inv-kpi__icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
 
-    .inventory-title h2 {
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        color: #0d1b54;
-        font-size: 1.65rem;
-    }
+.kpi-total   .inv-kpi__icon { background: rgba(18,44,148,0.08);  color: #122C94; }
+.kpi-ok      .inv-kpi__icon { background: rgba(40,167,69,0.12);  color: #1e7e34; }
+.kpi-low     .inv-kpi__icon { background: rgba(255,193,7,0.18);  color: #856404; }
+.kpi-out     .inv-kpi__icon { background: rgba(220,53,69,0.12);  color: #bd2130; }
 
-    .inventory-title p {
-        margin: 0;
-        color: #667085;
-        font-size: 0.95rem;
-    }
+.inv-kpi__info { display: flex; flex-direction: column; gap: 2px; }
+.inv-kpi__label {
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #667085;
+}
+.inv-kpi__value {
+    font-size: 1.7rem;
+    font-weight: 800;
+    color: #0d1b54;
+    line-height: 1;
+}
+.inv-kpi__sub {
+    font-size: 0.78rem;
+    color: #667085;
+    margin-top: 2px;
+}
 
-    .inventory-header-actions {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        flex-wrap: wrap;
-    }
+/* ── Barra de filtros ────────────────────────────────────── */
+.inv-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 24px;
+    border-bottom: 1px solid rgba(18,44,148,0.07);
+    flex-wrap: wrap;
+}
 
-    .inventory-total-card {
-        background: linear-gradient(135deg, #eef3ff 0%, #f7f9fd 100%);
-        border: 1px solid #d7e1fb;
-        color: #0d1b54;
-        padding: 12px 16px;
+.inv-search {
+    flex: 1;
+    min-width: 200px;
+    position: relative;
+}
+
+.inv-search i {
+    position: absolute;
+    left: 13px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #aab4c8;
+    pointer-events: none;
+    font-size: 0.88rem;
+}
+
+.inv-search input {
+    width: 100%;
+    padding: 10px 14px 10px 36px;
+    border: 1px solid #d0d7e3;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background: #fafbfd;
+}
+
+.inv-search input:focus {
+    border-color: #122C94;
+    box-shadow: 0 0 0 3px rgba(18,44,148,0.08);
+    background: #fff;
+}
+
+.inv-filter-select {
+    min-width: 180px;
+    padding: 10px 14px;
+    border: 1px solid #d0d7e3;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    background: #fafbfd;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.inv-filter-select:focus {
+    border-color: #122C94;
+}
+
+.inv-count-label {
+    font-size: 0.85rem;
+    color: #667085;
+    white-space: nowrap;
+    margin-left: auto;
+}
+
+/* ── Tabla ───────────────────────────────────────────────── */
+.inv-table-wrap {
+    overflow-x: auto;
+}
+
+.inv-table {
+    width: 100%;
+    min-width: 800px;
+    border-collapse: collapse;
+}
+
+.inv-table th {
+    background: #0d1b54;
+    color: rgba(255,255,255,0.9);
+    font-size: 0.73rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 13px 18px;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.inv-table th:first-child { border-radius: 0; }
+
+.inv-table td {
+    padding: 13px 18px;
+    border-bottom: 1px solid #f0f3f8;
+    vertical-align: middle;
+    color: #2d3a4a;
+    font-size: 0.93rem;
+}
+
+.inv-table tbody tr {
+    transition: background 0.15s;
+}
+
+.inv-table tbody tr:hover {
+    background: #f5f8ff;
+}
+
+.inv-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Columnas */
+.col-ref {
+    font-family: 'Courier New', monospace;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #6b7a99;
+    white-space: nowrap;
+}
+
+.product-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.product-thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1px solid #e8edf5;
+    background: #f0f3f8;
+}
+
+.product-name {
+    font-weight: 700;
+    color: #0f1728;
+    font-size: 0.92rem;
+    line-height: 1.3;
+}
+
+.cat-pill {
+    display: inline-flex;
+    padding: 4px 11px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #3451b2;
+    font-size: 0.79rem;
+    font-weight: 700;
+    white-space: nowrap;
+    letter-spacing: 0.01em;
+}
+
+/* Badge de stock */
+.stock-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 11px;
+    border-radius: 999px;
+    font-size: 0.79rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.stock-badge::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.7;
+}
+.stock-ok       { background: #d1fadf; color: #166534; }
+.stock-low      { background: #fef9c3; color: #854d0e; }
+.stock-critical { background: #fee2e2; color: #991b1b; }
+
+.col-stock {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #0d1b54;
+    text-align: center;
+}
+
+.inv-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-inv {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 13px;
+    border: none;
+    border-radius: 9px;
+    cursor: pointer;
+    font-size: 0.83rem;
+    font-weight: 700;
+    white-space: nowrap;
+    transition: all 0.18s;
+}
+.btn-inv:hover { transform: translateY(-1px); }
+
+.btn-inv-edit  { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.btn-inv-edit:hover  { background: #dbeafe; }
+.btn-inv-hist  { background: #f0fdfa; color: #0f766e; border: 1px solid #99f6e4; }
+.btn-inv-hist:hover  { background: #ccfbf1; }
+
+/* ── Sin resultados ──────────────────────────────────────── */
+.inv-empty {
+    text-align: center;
+    padding: 48px 24px;
+    color: #667085;
+}
+.inv-empty i {
+    font-size: 2.5rem;
+    opacity: 0.35;
+    display: block;
+    margin-bottom: 14px;
+}
+
+/* ── Modales ─────────────────────────────────────────────── */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1050;
+    inset: 0;
+    background: rgba(9, 28, 90, 0.4);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    align-items: center;
+    justify-content: center;
+}
+.modal.open { display: flex; }
+
+.modal-box {
+    background: #fff;
+    width: min(560px, calc(100vw - 32px));
+    border-radius: 20px;
+    padding: 30px;
+    position: relative;
+    box-shadow: 0 32px 80px rgba(9,28,90,0.22);
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: modalIn 0.22s ease;
+}
+.modal-box--lg { width: min(780px, calc(100vw - 32px)); }
+
+@keyframes modalIn {
+    from { opacity: 0; transform: scale(0.96) translateY(10px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-close {
+    position: absolute;
+    right: 16px;
+    top: 14px;
+    background: rgba(0,0,0,0.06);
+    border: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    font-size: 1rem;
+    color: #555;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+}
+.modal-close:hover { background: rgba(0,0,0,0.12); }
+
+.modal-header {
+    margin-bottom: 20px;
+    padding-right: 36px;
+}
+.modal-header h3 {
+    margin: 0 0 4px;
+    font-size: 1.15rem;
+    color: #0d1b54;
+}
+.modal-header p {
+    margin: 0;
+    font-size: 0.88rem;
+    color: #667085;
+}
+
+.form-field {
+    margin-bottom: 16px;
+}
+.form-field label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 700;
+    font-size: 0.86rem;
+    color: #374151;
+}
+.form-field input,
+.form-field select,
+.form-field textarea {
+    width: 100%;
+    padding: 10px 13px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background: #fafafa;
+}
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+    border-color: #122C94;
+    box-shadow: 0 0 0 3px rgba(18,44,148,0.1);
+    background: #fff;
+}
+.form-field small { font-size: 0.8rem; color: #9ca3af; margin-top: 4px; display: block; }
+
+.btn-modal-primary {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #122C94, #1e3fa8);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 4px;
+}
+.btn-modal-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(18,44,148,0.3);
+}
+
+/* ── Historial ───────────────────────────────────────────── */
+.history-wrap {
+    max-height: 360px;
+    overflow-y: auto;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-top: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+}
+.history-table { min-width: 560px; }
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+.history-table th {
+    background: #374151;
+    color: #fff;
+    padding: 9px 13px;
+    text-align: left;
+    font-size: 0.77rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+.history-table td {
+    border-bottom: 1px solid #f3f4f6;
+    padding: 9px 13px;
+    color: #374151;
+}
+.history-table tbody tr:last-child td { border-bottom: none; }
+.mv-ENTRADA { color: #166534; font-weight: 700; }
+.mv-SALIDA  { color: #991b1b; font-weight: 700; }
+.mv-VENTA   { color: #1d4ed8; font-weight: 700; }
+.mv-AJUSTE  { color: #6b7280; font-weight: 700; }
+
+/* ── Recepción por escaneo ───────────────────────────────── */
+.btn-admin--scan {
+    background: linear-gradient(135deg, #0f766e, #0d9488);
+    color: #fff;
+    border: none;
+}
+.btn-admin--scan:hover { filter: brightness(1.06); }
+
+.rc-scan-field {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 6px;
+    padding: 0 14px;
+    border: 2px solid #0d9488;
+    border-radius: 12px;
+    background: #f0fdfa;
+}
+.rc-scan-field i { color: #0f766e; font-size: 1.2rem; }
+.rc-scan-field input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 14px 0;
+    font-size: 1rem;
+    font-family: 'Raleway', sans-serif;
+    color: #134e4a;
+    outline: none;
+}
+
+.rc-feedback {
+    min-height: 18px;
+    margin: 8px 2px 0;
+    font-size: 0.84rem;
+    font-weight: 600;
+}
+.rc-feedback.ok  { color: #166534; }
+.rc-feedback.err { color: #b91c1c; }
+
+.rc-list-wrap {
+    margin-top: 12px;
+    max-height: 320px;
+    overflow-y: auto;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+}
+.rc-list { width: 100%; border-collapse: collapse; font-size: 0.88rem; min-width: 460px; }
+.rc-list th {
+    background: #374151;
+    color: #fff;
+    padding: 9px 12px;
+    text-align: left;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+}
+.rc-list td {
+    border-bottom: 1px solid #f3f4f6;
+    padding: 8px 12px;
+    color: #374151;
+    vertical-align: middle;
+}
+.rc-list tbody tr:last-child td { border-bottom: none; }
+.rc-empty { text-align: center; color: #9ca3af; padding: 18px; }
+
+.rc-prod { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.rc-prod img { width: 38px; height: 38px; object-fit: cover; border-radius: 8px; border: 1px solid #e5e7eb; flex-shrink: 0; }
+.rc-prod .rc-prod-info { min-width: 0; }
+.rc-prod .rc-prod-name { font-weight: 700; color: #1f2937; display: block; }
+.rc-prod .rc-prod-ref  { font-size: 0.76rem; color: #6b7280; font-family: 'Courier New', monospace; }
+
+.rc-qty { display: inline-flex; align-items: center; gap: 4px; }
+.rc-qty button {
+    width: 28px; height: 28px;
+    border: 1px solid #d1d5db;
+    background: #f9fafb;
+    border-radius: 7px;
+    cursor: pointer;
+    font-weight: 800;
+    color: #374151;
+    line-height: 1;
+}
+.rc-qty button:hover { background: #f0fdfa; border-color: #0d9488; color: #0f766e; }
+.rc-qty input {
+    width: 52px; text-align: center;
+    padding: 6px 4px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 7px;
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+.rc-remove {
+    border: none; background: #fef2f2; color: #b91c1c;
+    width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
+}
+.rc-remove:hover { background: #fee2e2; }
+
+.rc-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 14px; flex-wrap: wrap; margin-top: 16px;
+}
+.rc-total { font-weight: 700; color: #374151; font-size: 0.9rem; }
+.rc-footer .btn-modal-primary { width: auto; margin-top: 0; padding: 12px 22px; }
+.rc-footer .btn-modal-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+@media (max-width: 768px) {
+    .rc-footer { flex-direction: column; align-items: stretch; }
+    .rc-footer .btn-modal-primary { width: 100%; justify-content: center; }
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 1100px) {
+    .inv-kpis { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+    .inv-kpis { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .inv-toolbar { padding: 14px 16px; }
+    .inv-count-label { display: none; }
+
+    /* La barra de filtros se apila */
+    .inv-search,
+    .inv-filter-select { width: 100%; min-width: 0; }
+
+    /* ── Tabla → tarjetas apiladas (no se pierde contenido) ── */
+    .inv-table-wrap { overflow-x: visible; }
+    .inv-table { min-width: 0; }
+    .inv-table thead { display: none; }
+    .inv-table,
+    .inv-table tbody,
+    .inv-table tr,
+    .inv-table td { display: block; box-sizing: border-box; }
+    .inv-table,
+    .inv-table tbody { width: 100%; }
+    .inv-table td { width: 100%; }
+
+    .inv-table tbody tr {
+        /* width auto: llena el ancho descontando el margen (evita el corte) */
+        width: auto;
+        background: #fff;
+        border: 1px solid rgba(18,44,148,0.1);
         border-radius: 14px;
-        font-weight: 700;
-        white-space: nowrap;
+        margin: 12px 14px;
+        padding: 6px 16px;
+        box-shadow: 0 2px 10px rgba(18,44,148,0.05);
     }
+    .inv-table tbody tr:hover { background: #fff; }
 
-    .inventory-export-link {
-        display: inline-flex;
+    .inv-table td {
+        display: flex;
         align-items: center;
-        gap: 8px;
-        text-decoration: none;
-        padding: 11px 16px;
-        background: #28a745;
-        color: white;
-        border-radius: 12px;
-        font-weight: 700;
-        box-shadow: 0 10px 22px rgba(40, 167, 69, 0.22);
-    }
-
-    .inventory-export-link:hover {
-        background: #218838;
-    }
-
-    .inventory-filters {
-        display: grid;
-        grid-template-columns: minmax(0, 1.5fr) minmax(220px, 1fr);
+        justify-content: space-between;
         gap: 14px;
-        margin-bottom: 22px;
+        padding: 10px 0;
+        border-bottom: 1px solid #f0f3f8;
+        text-align: right;
+        font-size: 0.9rem;
     }
+    .inv-table tbody tr td:last-child { border-bottom: none; }
 
-    .search-box input,
-    .inventory-filters select {
-        width: 100%;
-        padding: 12px 14px;
-        border: 1px solid #d0d7e3;
-        border-radius: 12px;
-        background: #fff;
-        box-sizing: border-box;
-    }
-
-    .inventory-table-wrap {
-        overflow-x: auto;
-        border: 1px solid #e6ebf2;
-        border-radius: 16px;
-        background: #fff;
-    }
-
-    .inventory-table {
-        width: 100%;
-        min-width: 860px;
-        border-collapse: collapse;
-    }
-
-    .inventory-table th,
-    .inventory-table td {
-        padding: 14px 16px;
-        text-align: left;
-        border-bottom: 1px solid #edf1f6;
-        vertical-align: middle;
-    }
-
-    .inventory-table th {
-        background-color: #0d1b54;
-        color: white;
-        text-transform: uppercase;
-        font-size: 0.78rem;
-        letter-spacing: 0.06em;
-        white-space: nowrap;
-    }
-
-    .inventory-table tbody tr:hover {
-        background-color: #f8faff;
-    }
-
-    .inventory-table tbody tr:last-child td {
-        border-bottom: none;
-    }
-
-    .inventory-ref {
-        font-weight: 700;
-        color: #50607a;
-        white-space: nowrap;
-    }
-
-    .product-cell {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        min-width: 240px;
-    }
-
-    .product-thumb {
-        width: 48px;
-        height: 48px;
-        border-radius: 10px;
-        object-fit: cover;
-        flex-shrink: 0;
-        background: #eef2f7;
-        border: 1px solid #dfe6ee;
-    }
-
-    .product-name {
-        font-weight: 700;
-        color: #0f1728;
-        line-height: 1.35;
-    }
-
-    .category-pill {
-        display: inline-flex;
-        align-items: center;
-        padding: 7px 12px;
-        border-radius: 999px;
-        background: #eef3ff;
-        color: #234083;
-        font-size: 0.83rem;
-        font-weight: 700;
-        white-space: nowrap;
-    }
-
-    .stock-badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        padding: 7px 12px;
-        border-radius: 999px;
-        color: white;
-        white-space: nowrap;
-    }
-
-    .stock-ok {
-        background-color: #28a745;
-    }
-
-    .stock-low {
-        background-color: #ffc107;
-        color: #333;
-    }
-
-    .stock-critical {
-        background-color: #dc3545;
-    }
-
-    .inventory-stock {
-        font-size: 1.1rem;
+    .inv-table td::before {
+        content: attr(data-label);
         font-weight: 800;
-        color: #0d1b54;
-        white-space: nowrap;
-    }
-
-    .inventory-actions {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-        min-width: 220px;
-    }
-
-    .btn-action {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        padding: 10px 14px;
-        border: none;
-        border-radius: 10px;
-        cursor: pointer;
-        font-size: 0.9rem;
-        font-weight: 700;
-        transition: 0.3s;
-    }
-
-    .btn-edit {
-        background-color: #007bff;
-        color: white;
-    }
-
-    .btn-edit:hover {
-        background-color: #0056b3;
-    }
-
-    .btn-history {
-        background-color: #17a2b8;
-        color: white;
-    }
-
-    .btn-history:hover {
-        background-color: #117a8b;
-    }
-
-    .modal {
-        display: none;
-        position: fixed;
-        z-index: 1000;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        overflow: auto;
-        background-color: rgba(0, 0, 0, 0.5);
-    }
-
-    .modal-content {
-        background-color: #fff;
-        margin: 5% auto;
-        padding: 25px;
-        border: none;
-        width: min(600px, calc(100vw - 32px));
-        border-radius: 10px;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-        position: relative;
-        box-sizing: border-box;
-    }
-
-    .modal-lg {
-        width: min(800px, calc(100vw - 32px));
-    }
-
-    .close {
-        position: absolute;
-        right: 20px;
-        top: 15px;
-        font-size: 24px;
-        font-weight: bold;
-        color: #aaa;
-        cursor: pointer;
-    }
-
-    .form-group {
-        margin-bottom: 20px;
-    }
-
-    .form-group label {
-        display: block;
-        margin-bottom: 8px;
-        font-weight: 600;
-    }
-
-    .form-group input,
-    .form-group select,
-    .form-group textarea {
-        width: 100%;
-        padding: 10px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        box-sizing: border-box;
-    }
-
-    .submit-btn {
-        width: 100%;
-        padding: 12px;
-        background-color: #28a745;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        font-size: 1rem;
-        cursor: pointer;
-    }
-
-    .history-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.9rem;
-    }
-
-    .history-table th {
-        background-color: #6c757d;
-        color: white;
-        padding: 8px;
+        font-size: 0.7rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #667085;
         text-align: left;
+        flex-shrink: 0;
     }
 
-    .history-table td {
-        border-bottom: 1px solid #ddd;
-        padding: 8px;
+    /* La celda de stock conserva su tamaño grande, alineada a la derecha */
+    .inv-table td.col-stock { text-align: right; }
+
+    /* El nombre del producto puede ajustarse a varias líneas */
+    .product-cell { justify-content: flex-end; min-width: 0; }
+    .product-name { white-space: normal; word-break: break-word; }
+
+    /* Acciones: etiqueta arriba, botones a lo ancho */
+    .inv-table td[data-label="Acciones"] {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
     }
-
-    .movement-ENTRADA {
-        color: green;
-    }
-
-    .movement-SALIDA {
-        color: red;
-    }
-
-    .movement-VENTA {
-        color: blue;
-    }
-
-    @media (max-width: 900px) {
-        .inventory-page {
-            padding: 18px 12px 28px;
-        }
-
-        .inventory-container {
-            padding: 22px 18px 24px;
-            border-radius: 16px;
-        }
-
-        .inventory-filters {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    @media (max-width: 640px) {
-        .inventory-page {
-            padding: 14px 10px 24px;
-        }
-
-        .inventory-container {
-            padding: 18px 14px 20px;
-            border-radius: 14px;
-        }
-
-        .inventory-title h2 {
-            font-size: 1.35rem;
-        }
-
-        .inventory-title p {
-            font-size: 0.88rem;
-        }
-
-        .inventory-header-actions {
-            width: 100%;
-        }
-
-        .inventory-total-card,
-        .inventory-export-link {
-            width: 100%;
-            justify-content: center;
-        }
-
-        .inventory-table th,
-        .inventory-table td {
-            padding: 12px 12px;
-            font-size: 0.88rem;
-        }
-
-        .inventory-actions {
-            min-width: 180px;
-        }
-
-        .btn-action {
-            flex: 1 1 100%;
-        }
-
-        .modal-content,
-        .modal-lg {
-            margin: 20px auto;
-            padding: 20px 16px;
-        }
-    }
+    .inv-table td[data-label="Acciones"]::before { text-align: left; }
+    .inv-actions { width: 100%; }
+    .btn-inv { flex: 1; justify-content: center; }
+}
+@media (max-width: 480px) {
+    .inv-kpis { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .inv-kpi { padding: 14px 16px; gap: 10px; }
+    .inv-kpi__value { font-size: 1.35rem; }
+}
 </style>
 {% endblock %}
 
 {% block body %}
-<main>
-    <section class="inventory-page">
-        <div class="inventory-container">
-            <div class="inventory-header">
-                <div class="inventory-title">
-                    <h2><i class="fas fa-boxes"></i> Gestion de Inventario</h2>
-                    <p>Consulta existencias, ajusta stock y revisa movimientos desde una vista ordenada.</p>
-                </div>
-                <div class="inventory-header-actions">
-                    <div class="inventory-total-card">
-                        Valor Total: ${{ "{:,.0f}".format(valor_total) }}
-                    </div>
-                    <a href="{{ url_for('admin.exportar_inventario') }}" class="inventory-export-link">
-                        <i class="fas fa-file-csv"></i> Exportar CSV
-                    </a>
-                </div>
-            </div>
+{% set total   = productos|length %}
+{% set ok_cnt  = productos|selectattr('stock', 'ge', 5)|list|length %}
+{% set low_cnt = productos|selectattr('stock', 'gt', 0)|selectattr('stock', 'lt', 5)|list|length %}
+{% set out_cnt = productos|selectattr('stock', 'eq', 0)|list|length %}
 
-            <div class="inventory-filters">
-                <div class="search-box">
-                    <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="Buscar producto por nombre o referencia...">
-                </div>
-                <div>
-                    <select id="categoryFilter" onchange="filterTable()">
-                        <option value="">Todas las Categorias</option>
-                        {% for c in categorias %}
-                        <option value="{{ c[1] }}">{{ c[1] }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
+<section class="page-shell">
 
-            <div class="inventory-table-wrap">
-                <table class="inventory-table" id="inventoryTable">
-                    <thead>
-                        <tr>
-                            <th>Ref</th>
-                            <th>Producto</th>
-                            <th>Categoria</th>
-                            <th>Estado</th>
-                            <th>Stock</th>
-                            <th style="width: 250px;">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for p in productos %}
-                        {% set stock = p['stock'] %}
-                        <tr>
-                            <td class="inventory-ref">{{ p['referencia'] }}</td>
-                            <td>
-                                <div class="product-cell">
-                                    <img src="{{ p['imagen'] }}" class="product-thumb" alt="{{ p['nombre'] }}">
-                                    <span class="product-name">{{ p['nombre'] }}</span>
-                                </div>
-                            </td>
-                            <td><span class="category-pill">{{ p['categoria'] }}</span></td>
-                            <td>
-                                {% if stock == 0 %}
-                                <span class="stock-badge stock-critical">Agotado</span>
-                                {% elif stock < 5 %}
-                                <span class="stock-badge stock-low">Bajo</span>
-                                {% else %}
-                                <span class="stock-badge stock-ok">Normal</span>
-                                {% endif %}
-                            </td>
-                            <td class="inventory-stock">{{ stock }}</td>
-                            <td>
-                                <div class="inventory-actions">
-                                    <button class="btn-action btn-edit"
-                                        onclick="openUpdateModal('{{ p['id'] }}', '{{ p['nombre'] }}', '{{ stock }}')">
-                                        <i class="fas fa-edit"></i> Ajustar
-                                    </button>
-                                    <button class="btn-action btn-history"
-                                        onclick="openHistoryModal('{{ p['id'] }}', '{{ p['nombre'] }}')">
-                                        <i class="fas fa-history"></i> Historial
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+    <!-- ── Encabezado ─────────────────────────────────────── -->
+    <div class="page-header">
+        <div class="page-header__intro">
+            <div class="page-header__icon">
+                <i class="fas fa-boxes"></i>
+            </div>
+            <div>
+                <span class="page-header__eyebrow">Catálogo</span>
+                <h1>Gestión de Inventario</h1>
+                <p>Consulta existencias, ajusta stock y revisa movimientos.</p>
             </div>
         </div>
-    </section>
-</main>
+        <div class="page-header__actions">
+            <button type="button" class="btn-admin btn-admin--scan" onclick="abrirRecepcion()">
+                <i class="fas fa-barcode"></i> Recepción por escaneo
+            </button>
+            <a href="{{ url_for('admin.exportar_inventario') }}" class="btn-admin btn-admin--success">
+                <i class="fas fa-file-csv"></i> Exportar CSV
+            </a>
+            <a href="{{ url_for('admin.GestionProductos') }}" class="btn-admin btn-admin--primary">
+                <i class="fas fa-plus"></i> Agregar producto
+            </a>
+        </div>
+    </div>
 
-<div id="updateModal" class="modal">
-    <div class="modal-content">
-        <span class="close" onclick="closeModal('updateModal')">&times;</span>
-        <h3 id="modalTitle">Ajuste de Inventario</h3>
-        <p id="productName" style="color: #666; margin-bottom: 20px;"></p>
+    <!-- ── KPIs ───────────────────────────────────────────── -->
+    <div class="inv-kpis">
+        <div class="inv-kpi kpi-total">
+            <div class="inv-kpi__icon"><i class="fas fa-boxes"></i></div>
+            <div class="inv-kpi__info">
+                <span class="inv-kpi__label">Total productos</span>
+                <span class="inv-kpi__value">{{ total }}</span>
+                <span class="inv-kpi__sub">Valor: ${{ "{:,.0f}".format(valor_total) }}</span>
+            </div>
+        </div>
+        <div class="inv-kpi kpi-ok">
+            <div class="inv-kpi__icon"><i class="fas fa-check-circle"></i></div>
+            <div class="inv-kpi__info">
+                <span class="inv-kpi__label">En stock normal</span>
+                <span class="inv-kpi__value">{{ ok_cnt }}</span>
+                <span class="inv-kpi__sub">Stock ≥ 5 unidades</span>
+            </div>
+        </div>
+        <div class="inv-kpi kpi-low">
+            <div class="inv-kpi__icon"><i class="fas fa-exclamation-triangle"></i></div>
+            <div class="inv-kpi__info">
+                <span class="inv-kpi__label">Stock bajo</span>
+                <span class="inv-kpi__value">{{ low_cnt }}</span>
+                <span class="inv-kpi__sub">Entre 1 y 4 unidades</span>
+            </div>
+        </div>
+        <div class="inv-kpi kpi-out">
+            <div class="inv-kpi__icon"><i class="fas fa-times-circle"></i></div>
+            <div class="inv-kpi__info">
+                <span class="inv-kpi__label">Agotados</span>
+                <span class="inv-kpi__value">{{ out_cnt }}</span>
+                <span class="inv-kpi__sub">Requieren reposición</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Tabla ──────────────────────────────────────────── -->
+    <div class="surface-card" style="padding: 0; overflow: hidden;">
+
+        <!-- Toolbar de filtros -->
+        <div class="inv-toolbar">
+            <div class="inv-search">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" onkeyup="filterTable()"
+                       placeholder="Buscar por nombre o referencia...">
+            </div>
+            <select class="inv-filter-select" id="categoryFilter" onchange="filterTable()">
+                <option value="">Todas las categorías</option>
+                {% for c in categorias %}
+                <option value="{{ c[1] }}">{{ c[1] }}</option>
+                {% endfor %}
+            </select>
+            <select class="inv-filter-select" id="stockFilter" onchange="filterTable()" style="min-width: 150px;">
+                <option value="">Todo el stock</option>
+                <option value="ok">Normal (≥ 5)</option>
+                <option value="low">Bajo (1–4)</option>
+                <option value="out">Agotado (0)</option>
+            </select>
+            <span class="inv-count-label" id="countLabel">{{ total }} productos</span>
+        </div>
+
+        <!-- Tabla -->
+        <div class="inv-table-wrap">
+            <table class="inv-table" id="inventoryTable">
+                <thead>
+                    <tr>
+                        <th>Referencia</th>
+                        <th>Producto</th>
+                        <th>Categoría</th>
+                        <th style="text-align:center;">Estado</th>
+                        <th style="text-align:center;">Stock</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in productos %}
+                    {% set stock = p['stock'] %}
+                    <tr data-stock="{{ stock }}"
+                        data-status="{% if stock == 0 %}out{% elif stock < 5 %}low{% else %}ok{% endif %}">
+                        <td class="col-ref" data-label="Referencia">{{ p['referencia'] }}</td>
+                        <td data-label="Producto">
+                            <div class="product-cell">
+                                <img src="{{ p['imagen'] }}" class="product-thumb" alt="" loading="lazy">
+                                <span class="product-name">{{ p['nombre'] }}</span>
+                            </div>
+                        </td>
+                        <td data-label="Categoría"><span class="cat-pill">{{ p['categoria'] }}</span></td>
+                        <td style="text-align:center;" data-label="Estado">
+                            {% if stock == 0 %}
+                            <span class="stock-badge stock-critical">Agotado</span>
+                            {% elif stock < 5 %}
+                            <span class="stock-badge stock-low">Stock bajo</span>
+                            {% else %}
+                            <span class="stock-badge stock-ok">Normal</span>
+                            {% endif %}
+                        </td>
+                        <td class="col-stock" data-label="Stock">{{ stock }}</td>
+                        <td data-label="Acciones">
+                            <div class="inv-actions">
+                                <button class="btn-inv btn-inv-edit"
+                                    data-id="{{ p['id'] }}"
+                                    data-name="{{ p['nombre']|e }}"
+                                    data-stock="{{ stock }}"
+                                    onclick="openAjustar(this)">
+                                    <i class="fas fa-sliders-h"></i> Ajustar
+                                </button>
+                                <button class="btn-inv btn-inv-hist"
+                                    data-id="{{ p['id'] }}"
+                                    data-name="{{ p['nombre']|e }}"
+                                    onclick="openHistorial(this)">
+                                    <i class="fas fa-history"></i> Historial
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <div class="inv-empty" id="emptyState" style="display:none;">
+                <i class="fas fa-search"></i>
+                No se encontraron productos con ese filtro.
+            </div>
+        </div>
+    </div>
+
+</section>
+
+<!-- ═══ Modal: Ajustar stock ═══════════════════════════════════════ -->
+<div id="modalAjustar" class="modal" role="dialog" aria-modal="true">
+    <div class="modal-box">
+        <button class="modal-close" onclick="closeModal('modalAjustar')">&times;</button>
+        <div class="modal-header">
+            <h3><i class="fas fa-sliders-h"></i> Ajuste de stock</h3>
+            <p id="ajustarNombre"></p>
+        </div>
 
         <form action="{{ url_for('admin.actualizar_stock') }}" method="POST">
-            <input type="hidden" id="producto_id" name="producto_id">
+            <input type="hidden" id="ajustarId" name="producto_id">
 
-            <div class="form-group">
-                <label>Tipo de Movimiento:</label>
-                <select id="accion" name="accion" required onchange="toggleMotivo()">
-                    <option value="sumar">Sumar (Entrada)</option>
-                    <option value="restar">Restar (Salida)</option>
-                    <option value="fijar">Fijar Stock (Inventario Fisico)</option>
+            <div class="form-field">
+                <label>Tipo de movimiento</label>
+                <select name="accion" required>
+                    <option value="sumar">➕  Sumar — Entrada de mercancía</option>
+                    <option value="restar">➖  Restar — Salida / merma</option>
+                    <option value="fijar">📋  Fijar — Resultado de inventario físico</option>
                 </select>
             </div>
 
-            <div class="form-group">
-                <label>Cantidad:</label>
+            <div class="form-field">
+                <label>Cantidad</label>
                 <input type="number" name="cantidad" required placeholder="Ej: 10" min="0">
-                <small style="color: #888;">Ingrese siempre un numero positivo.</small>
+                <small>Ingresa siempre un número positivo.</small>
             </div>
 
-            <div class="form-group">
-                <label>Motivo / Observacion:</label>
-                <textarea name="motivo" rows="2" placeholder="Ej: Compra factura #123, Merma, Devolucion..."></textarea>
+            <div class="form-field">
+                <label>Motivo / observación</label>
+                <textarea name="motivo" rows="2"
+                    placeholder="Ej: Compra factura #123, Devolución cliente, Merma..."></textarea>
             </div>
 
-            <button type="submit" class="submit-btn"><i class="fas fa-save"></i> Guardar Movimiento</button>
+            <button type="submit" class="btn-modal-primary">
+                <i class="fas fa-save"></i>&nbsp; Guardar movimiento
+            </button>
         </form>
     </div>
 </div>
 
-<div id="historyModal" class="modal">
-    <div class="modal-content modal-lg">
-        <span class="close" onclick="closeModal('historyModal')">&times;</span>
-        <h3>Historial de Movimientos</h3>
-        <p id="historyProductName" style="font-weight: bold; color: #0d1b54;"></p>
+<!-- ═══ Modal: Historial ════════════════════════════════════════════ -->
+<div id="modalHistorial" class="modal" role="dialog" aria-modal="true">
+    <div class="modal-box modal-box--lg">
+        <button class="modal-close" onclick="closeModal('modalHistorial')">&times;</button>
+        <div class="modal-header">
+            <h3><i class="fas fa-history"></i> Historial de movimientos</h3>
+            <p id="historialNombre"></p>
+        </div>
 
-        <div style="max-height: 400px; overflow-y: auto; margin-top: 15px;">
+        <div class="history-wrap">
             <table class="history-table">
                 <thead>
                     <tr>
                         <th>Fecha</th>
                         <th>Tipo</th>
                         <th>Cant.</th>
-                        <th>Stock Antes</th>
-                        <th>Stock Despues</th>
+                        <th>Antes</th>
+                        <th>Después</th>
                         <th>Motivo</th>
                         <th>Usuario</th>
                     </tr>
                 </thead>
-                <tbody id="historyTableBody">
-                    <tr>
-                        <td colspan="7" style="text-align:center;">Cargando...</td>
-                    </tr>
+                <tbody id="historialBody">
+                    <tr><td colspan="7" style="text-align:center;padding:16px;">Cargando…</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
 </div>
 
+<!-- ═══ Modal: Recepción por escaneo ════════════════════════════════ -->
+<div id="modalRecepcion" class="modal" role="dialog" aria-modal="true">
+    <div class="modal-box modal-box--lg">
+        <button class="modal-close" onclick="closeModal('modalRecepcion')">&times;</button>
+        <div class="modal-header">
+            <h3><i class="fas fa-barcode"></i> Recepción por escaneo</h3>
+            <p>Escanea con la pistola lectora cada producto que llega. Repite el escaneo para sumar unidades, o ajusta la cantidad a mano. Al confirmar, se suma al stock.</p>
+        </div>
+
+        <div class="rc-scan-field">
+            <i class="fas fa-barcode"></i>
+            <input type="text" id="rcBarcode" autocomplete="off"
+                   placeholder="Escanea o escribe la referencia y presiona Enter…">
+        </div>
+        <div id="rcFeedback" class="rc-feedback" aria-live="polite"></div>
+
+        <div class="rc-list-wrap">
+            <table class="rc-list">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th style="text-align:center;">Stock actual</th>
+                        <th style="text-align:center;">A recibir</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="rcBody">
+                    <tr id="rcEmptyRow"><td colspan="4" class="rc-empty">Aún no has escaneado productos.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="form-field" style="margin-top:14px;">
+            <label>Motivo / observación (opcional)</label>
+            <input type="text" id="rcMotivo" placeholder="Ej: Pedido proveedor #123" value="">
+        </div>
+
+        <div class="rc-footer">
+            <span class="rc-total" id="rcTotal">0 productos · 0 unidades</span>
+            <button type="button" class="btn-modal-primary" id="rcConfirm" onclick="confirmarRecepcion()" disabled>
+                <i class="fas fa-check-circle"></i>&nbsp; Confirmar recepción
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
-    function filterTable() {
-        var input, filter, category, table, tr, i, productCell, refCell, categoryCell, textValue, rowCategory, matchesText, matchesCategory;
-        input = document.getElementById("searchInput");
-        filter = input.value.toUpperCase().trim();
-        category = document.getElementById("categoryFilter").value.toUpperCase().trim();
-        table = document.getElementById("inventoryTable");
-        tr = table.getElementsByTagName("tr");
+/* ── Filtros ──────────────────────────────────────────────── */
+function filterTable() {
+    var text     = document.getElementById('searchInput').value.toUpperCase().trim();
+    var category = document.getElementById('categoryFilter').value.toUpperCase().trim();
+    var status   = document.getElementById('stockFilter').value;
+    var rows     = document.querySelectorAll('#inventoryTable tbody tr');
+    var visible  = 0;
 
-        for (i = 0; i < tr.length; i++) {
-            productCell = tr[i].getElementsByTagName("td")[1];
-            refCell = tr[i].getElementsByTagName("td")[0];
-            categoryCell = tr[i].getElementsByTagName("td")[2];
+    rows.forEach(function(tr) {
+        var ref     = (tr.cells[0] ? tr.cells[0].textContent : '').toUpperCase();
+        var prod    = (tr.cells[1] ? tr.cells[1].textContent : '').toUpperCase();
+        var cat     = (tr.cells[2] ? tr.cells[2].textContent : '').toUpperCase().trim();
+        var rowStat = tr.dataset.status || '';
 
-            if (productCell) {
-                textValue = ((productCell.textContent || productCell.innerText) + " " + (refCell ? (refCell.textContent || refCell.innerText) : "")).toUpperCase();
-                rowCategory = categoryCell ? (categoryCell.textContent || categoryCell.innerText).toUpperCase().trim() : "";
-                matchesText = !filter || textValue.indexOf(filter) > -1;
-                matchesCategory = !category || rowCategory.indexOf(category) > -1;
-                tr[i].style.display = matchesText && matchesCategory ? "" : "none";
+        var okText = !text     || (ref + ' ' + prod).indexOf(text)    > -1;
+        var okCat  = !category || cat.indexOf(category) > -1;
+        var okStat = !status   || rowStat === status;
+
+        if (okText && okCat && okStat) {
+            tr.style.display = '';
+            visible++;
+        } else {
+            tr.style.display = 'none';
+        }
+    });
+
+    document.getElementById('countLabel').textContent = visible + ' producto' + (visible !== 1 ? 's' : '');
+    document.getElementById('emptyState').style.display = visible === 0 ? '' : 'none';
+}
+
+/* ── Modales ─────────────────────────────────────────────── */
+function openAjustar(btn) {
+    document.getElementById('ajustarId').value     = btn.dataset.id;
+    document.getElementById('ajustarNombre').textContent =
+        btn.dataset.name + '  —  Stock actual: ' + btn.dataset.stock;
+    openModal('modalAjustar');
+}
+
+function openHistorial(btn) {
+    document.getElementById('historialNombre').textContent = btn.dataset.name;
+    openModal('modalHistorial');
+
+    var tbody = document.getElementById('historialBody');
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:16px;">Cargando…</td></tr>';
+
+    fetch('{{ url_for("admin.historial_inventario", id=0) }}'.replace('/0', '/' + btn.dataset.id))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.length) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:16px;color:#9ca3af;">Sin movimientos registrados.</td></tr>';
+                return;
             }
+            tbody.innerHTML = data.map(function(m) {
+                return '<tr>'
+                    + '<td>' + m.fecha + '</td>'
+                    + '<td class="mv-' + m.tipo + '">' + m.tipo + '</td>'
+                    + '<td><strong>' + m.cantidad + '</strong></td>'
+                    + '<td>' + m.stock_anterior + '</td>'
+                    + '<td>' + m.stock_nuevo + '</td>'
+                    + '<td>' + (m.motivo || '—') + '</td>'
+                    + '<td>' + m.usuario + '</td>'
+                    + '</tr>';
+            }).join('');
+        })
+        .catch(function() {
+            tbody.innerHTML = '<tr><td colspan="7" style="color:#dc2626;text-align:center;padding:16px;">Error cargando historial.</td></tr>';
+        });
+}
+
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+/* ── Recepción por escaneo ───────────────────────────────── */
+var RC_CSRF = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+var RC_BUSCAR = "{{ url_for('admin.inventario_buscar_barcode') }}";
+var RC_RECEPCION = "{{ url_for('admin.recepcion_inventario') }}";
+var rcItems = {};       /* producto_id -> {id, nombre, referencia, stock, imagen, cantidad} */
+var rcBusy = false;
+
+function rcEscape(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function abrirRecepcion() {
+    rcItems = {};
+    document.getElementById('rcBarcode').value = '';
+    document.getElementById('rcMotivo').value = '';
+    rcFeedback('', '');
+    rcRender();
+    openModal('modalRecepcion');
+    setTimeout(function() { document.getElementById('rcBarcode').focus(); }, 120);
+}
+
+function rcFeedback(msg, kind) {
+    var el = document.getElementById('rcFeedback');
+    el.textContent = msg || '';
+    el.className = 'rc-feedback' + (kind ? ' ' + kind : '');
+}
+
+function rcScan() {
+    var input = document.getElementById('rcBarcode');
+    var code = input.value.trim();
+    if (!code || rcBusy) return;
+    rcBusy = true;
+    fetch(RC_BUSCAR, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': RC_CSRF },
+        body: JSON.stringify({ barcode: code })
+    })
+    .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
+    .then(function(res) {
+        if (!res.ok || !res.d.success) {
+            rcFeedback((res.d && res.d.error) || 'Producto no encontrado', 'err');
+            return;
         }
-    }
-
-    function openUpdateModal(id, name, stock) {
-        document.getElementById('updateModal').style.display = 'block';
-        document.getElementById('producto_id').value = id;
-        document.getElementById('productName').innerText = name + " (Stock Actual: " + stock + ")";
-    }
-
-    function openHistoryModal(id, name) {
-        document.getElementById('historyModal').style.display = 'block';
-        document.getElementById('historyProductName').innerText = name;
-
-        fetch('{{ url_for("admin.historial_inventario", id=0) }}'.replace('/0', '/' + id))
-            .then(response => response.json())
-            .then(data => {
-                let tbody = document.getElementById('historyTableBody');
-                tbody.innerHTML = '';
-                if (data.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No hay movimientos registrados.</td></tr>';
-                    return;
-                }
-                data.forEach(m => {
-                    let row = `<tr>
-                    <td>${m.fecha}</td>
-                    <td class="movement-${m.tipo}"><strong>${m.tipo}</strong></td>
-                    <td>${m.cantidad}</td>
-                    <td>${m.stock_anterior}</td>
-                    <td>${m.stock_nuevo}</td>
-                    <td>${m.motivo}</td>
-                    <td>${m.usuario}</td>
-                </tr>`;
-                    tbody.innerHTML += row;
-                });
-            })
-            .catch(err => {
-                console.error(err);
-                document.getElementById('historyTableBody').innerHTML = '<tr><td colspan="7" style="color:red;">Error cargando historial</td></tr>';
-            });
-    }
-
-    function closeModal(modalId) {
-        document.getElementById(modalId).style.display = 'none';
-    }
-
-    window.onclick = function (event) {
-        if (event.target.classList.contains('modal')) {
-            event.target.style.display = "none";
+        var p = res.d.producto;
+        if (rcItems[p.id]) {
+            rcItems[p.id].cantidad += 1;
+        } else {
+            rcItems[p.id] = {
+                id: p.id, nombre: p.nombre, referencia: p.referencia,
+                stock: p.stock, imagen: p.imagen, cantidad: 1
+            };
         }
+        rcFeedback('✓ ' + p.nombre + '  (×' + rcItems[p.id].cantidad + ')', 'ok');
+        rcRender();
+    })
+    .catch(function() { rcFeedback('Error de conexión al buscar el producto', 'err'); })
+    .finally(function() {
+        rcBusy = false;
+        input.value = '';
+        input.focus();
+    });
+}
+
+function rcInc(id, delta) {
+    if (!rcItems[id]) return;
+    rcItems[id].cantidad = Math.max(1, rcItems[id].cantidad + delta);
+    rcRender();
+}
+
+function rcSetQty(id, val) {
+    if (!rcItems[id]) return;
+    var n = parseInt(val, 10);
+    rcItems[id].cantidad = (isNaN(n) || n < 1) ? 1 : n;
+    rcRender();
+}
+
+function rcRemove(id) {
+    delete rcItems[id];
+    rcRender();
+}
+
+function rcRender() {
+    var body = document.getElementById('rcBody');
+    var ids = Object.keys(rcItems);
+    var totalProd = ids.length;
+    var totalUnid = 0;
+
+    if (!totalProd) {
+        body.innerHTML = '<tr id="rcEmptyRow"><td colspan="4" class="rc-empty">Aún no has escaneado productos.</td></tr>';
+    } else {
+        body.innerHTML = ids.map(function(id) {
+            var it = rcItems[id];
+            totalUnid += it.cantidad;
+            return '<tr>'
+                + '<td><div class="rc-prod">'
+                    + '<img src="' + rcEscape(it.imagen) + '" alt="" onerror="this.style.visibility=\'hidden\'">'
+                    + '<div class="rc-prod-info">'
+                        + '<span class="rc-prod-name">' + rcEscape(it.nombre) + '</span>'
+                        + '<span class="rc-prod-ref">' + rcEscape(it.referencia) + '</span>'
+                    + '</div></div></td>'
+                + '<td style="text-align:center;">' + it.stock + '</td>'
+                + '<td style="text-align:center;"><span class="rc-qty">'
+                    + '<button type="button" onclick="rcInc(' + id + ',-1)">−</button>'
+                    + '<input type="number" min="1" value="' + it.cantidad + '" onchange="rcSetQty(' + id + ',this.value)">'
+                    + '<button type="button" onclick="rcInc(' + id + ',1)">+</button>'
+                + '</span></td>'
+                + '<td style="text-align:center;"><button type="button" class="rc-remove" onclick="rcRemove(' + id + ')" title="Quitar"><i class="fas fa-trash-alt"></i></button></td>'
+                + '</tr>';
+        }).join('');
     }
+
+    document.getElementById('rcTotal').textContent =
+        totalProd + ' producto' + (totalProd !== 1 ? 's' : '') + ' · ' + totalUnid + ' unidad' + (totalUnid !== 1 ? 'es' : '');
+    document.getElementById('rcConfirm').disabled = totalProd === 0;
+}
+
+function confirmarRecepcion() {
+    var ids = Object.keys(rcItems);
+    if (!ids.length || rcBusy) return;
+    var items = ids.map(function(id) { return { producto_id: rcItems[id].id, cantidad: rcItems[id].cantidad }; });
+    var motivo = document.getElementById('rcMotivo').value.trim();
+    var btn = document.getElementById('rcConfirm');
+    rcBusy = true;
+    btn.disabled = true;
+    fetch(RC_RECEPCION, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': RC_CSRF },
+        body: JSON.stringify({ items: items, motivo: motivo })
+    })
+    .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
+    .then(function(res) {
+        if (!res.ok || !res.d.success) {
+            rcFeedback((res.d && res.d.error) || 'No se pudo registrar la recepción', 'err');
+            btn.disabled = false;
+            return;
+        }
+        rcFeedback('✓ Recepción registrada: ' + res.d.total_productos + ' productos, ' + res.d.total_unidades + ' unidades. Actualizando…', 'ok');
+        setTimeout(function() { window.location.reload(); }, 900);
+    })
+    .catch(function() {
+        rcFeedback('Error de conexión al registrar la recepción', 'err');
+        btn.disabled = false;
+    })
+    .finally(function() { rcBusy = false; });
+}
+
+/* Enter en el campo de escaneo = procesar código (la pistola envía Enter) */
+document.getElementById('rcBarcode').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); rcScan(); }
+});
+
+/* Cierre por fondo o Escape */
+document.querySelectorAll('.modal').forEach(function(m) {
+    m.addEventListener('click', function(e) { if (e.target === m) closeModal(m.id); });
+});
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape')
+        document.querySelectorAll('.modal.open').forEach(function(m) { closeModal(m.id); });
+});
 </script>
 {% endblock %}

@@ -541,6 +541,13 @@
     mix-blend-mode: screen;
 }
 
+/* Durante el arrastre se apaga el overlay de mezcla (lo más caro de repintar),
+   manteniendo la grilla estable para que el fondo no parezca cambiar. Así la
+   mesa se mueve fluida en su propia capa sin re-mezclar todo el plano. */
+.rt-floorboard.rt-dragging::after {
+    display: none;
+}
+
 .rt-floorboard.is-placement {
     cursor: crosshair;
     outline: 3px dashed rgba(var(--color-marca-rgb), 0.35);
@@ -604,18 +611,26 @@
     color: var(--color-blanco);
     background: linear-gradient(145deg, #94a4ba, #73839d);
     box-shadow: 0 18px 30px var(--negro-alpha-015);
-    padding: 12px 12px 10px;
+    padding: 10px 11px;
     text-align: left;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    gap: 10px;
+    gap: 7px;
     cursor: pointer;
     transition: transform 0.18s ease, box-shadow 0.18s ease, outline 0.18s ease;
     user-select: none;
     min-width: 72px;
+    /* Altura mínima: aunque la mesa sea de 8% (la más chica permitida) y el
+       plano sea bajo, la caja nunca queda por debajo de lo que necesita el
+       contenido esencial (código + nombre + personas/valor) → no se corta. */
+    min-height: 66px;
     overflow: hidden;
     isolation: isolate;
+    /* La mesa es un contenedor de consulta: su contenido se adapta al
+       tamaño REAL de la caja para no cortarse (ver bloque @container). */
+    container-type: size;
+    container-name: rttable;
 }
 
 .rt-table-node:hover {
@@ -627,12 +642,22 @@
     box-shadow: 0 22px 38px var(--negro-alpha-030);
 }
 
-.rt-table-node.layout-mode { cursor: grab; }
+.rt-table-node.layout-mode {
+    cursor: grab;
+    /* Evita que el gesto de arrastre haga scroll del plano en táctil */
+    touch-action: none;
+}
 
 .rt-table-node.layout-mode.dragging {
     cursor: grabbing;
-    opacity: 0.92;
     z-index: 30;
+    /* Sensación de "levantar" la mesa: sombra más marcada (sin opacidad, que
+       la hacía verse fantasma/falsa). */
+    box-shadow: 0 26px 46px var(--negro-alpha-030);
+    /* Arrastre fluido: sin transición que retrase el movimiento y en su
+       propia capa de composición para no repintar el fondo del plano. */
+    transition: none;
+    will-change: transform;
 }
 
 .rt-table-node.round { border-radius: 999px; }
@@ -679,11 +704,11 @@
 }
 
 .rt-table-name {
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 800;
     line-height: 1.15;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 1;
     -webkit-box-orient: vertical;
     overflow: hidden;
     word-break: break-word;
@@ -703,33 +728,41 @@
 }
 
 .rt-table-signal {
-    display: grid;
+    /* Oculto por defecto: lo esencial (código, nombre, personas y valor)
+       siempre se ve; las señales se AGREGAN solo en mesas altas (@container).
+       Así el valor y las personas nunca se recortan ni dependen de soporte
+       de container queries. */
+    display: none;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+    gap: 6px;
 }
 
 .rt-signal {
     min-width: 0;
-    padding: 8px 9px;
-    border-radius: 14px;
+    padding: 6px 8px;
+    border-radius: 12px;
     background: rgba(255, 255, 255, 0.16);
 }
 
 .rt-signal span {
     display: block;
-    font-size: 0.65rem;
+    font-size: 0.62rem;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
     opacity: 0.9;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .rt-signal strong {
     display: block;
-    font-size: 0.95rem;
-    margin-top: 3px;
+    font-size: 0.88rem;
+    margin-top: 2px;
 }
 
 .rt-wait-track {
+    display: none; /* se muestra solo en mesas altas (@container) */
     height: 8px;
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.18);
@@ -754,8 +787,7 @@
 }
 
 .rt-table-node.rt-table-medium .rt-table-signal {
-    grid-template-columns: 1fr;
-    gap: 6px;
+    gap: 5px;
 }
 
 .rt-table-node.rt-table-medium .rt-signal {
@@ -801,6 +833,96 @@
 .rt-table-node.rt-table-compact .rt-table-signal,
 .rt-table-node.rt-table-compact .rt-wait-track {
     display: none;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Adaptación del contenido al tamaño REAL de la mesa (container query)
+   ──────────────────────────────────────────────────────────────────
+   Lógica ADITIVA: la base ya muestra lo esencial (código, estado, nombre,
+   y .rt-table-meta = PERSONAS + VALOR). A medida que la mesa es MÁS ALTA
+   se agregan extras (señales y barra de espera) y el nombre a 2 líneas.
+   Así el valor y las personas se ven SIEMPRE y nunca se recortan, aun si
+   el navegador no soporta @container. La info completa está en el modal.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Mesa con espacio suficiente: mostrar las señales (Pendientes / Abierta).
+   Umbral holgado: sólo cuando la caja realmente las admite sin recortar. */
+@container rttable (min-height: 138px) {
+    .rt-table-node .rt-table-signal {
+        display: grid;
+    }
+}
+
+/* Mesa amplia: además barra de espera */
+@container rttable (min-height: 160px) {
+    .rt-table-node .rt-wait-track {
+        display: block;
+    }
+}
+
+/* Mesa muy amplia: nombre a dos líneas */
+@container rttable (min-height: 185px) {
+    .rt-table-node .rt-table-name {
+        -webkit-line-clamp: 2;
+    }
+}
+
+/* Mesa baja: compactar para que el VALOR y las PERSONAS sigan cabiendo */
+@container rttable (max-height: 104px) {
+    .rt-table-node {
+        justify-content: center;
+        gap: 4px;
+        padding: 8px 10px;
+    }
+    .rt-table-node .rt-table-name {
+        font-size: 0.86rem;
+    }
+    .rt-table-node .rt-table-meta {
+        font-size: 0.72rem;
+    }
+}
+
+/* Mesa muy baja: apurar al máximo el espacio, ocultar el badge de estado
+   pero CONSERVAR personas + valor (las 3 filas esenciales). */
+@container rttable (max-height: 80px) {
+    .rt-table-node {
+        gap: 2px;
+        padding: 5px 8px;
+        line-height: 1.1;
+    }
+    .rt-table-node .rt-table-state {
+        display: none;
+    }
+    .rt-table-node .rt-table-name {
+        font-size: 0.78rem;
+        line-height: 1.1;
+    }
+    .rt-table-node .rt-table-meta {
+        font-size: 0.7rem;
+    }
+}
+
+/* Último recurso (mesa diminuta): solo código + nombre */
+@container rttable (max-height: 54px) {
+    .rt-table-node .rt-table-meta {
+        display: none;
+    }
+}
+
+/* Mesa angosta: la fila personas + valor se mantiene en UNA línea (cada uno
+   con elipsis si hiciera falta, nunca se recorta en alto) y se libera ancho
+   ocultando el badge de estado y poniendo las señales en una columna. */
+@container rttable (max-width: 116px) {
+    .rt-table-node .rt-table-meta {
+        gap: 6px;
+        flex-wrap: nowrap;
+    }
+    .rt-table-node .rt-table-signal {
+        grid-template-columns: 1fr;
+    }
+    .rt-table-node .rt-table-state {
+        display: none;
+    }
 }
 
 .rt-sidebar {
@@ -1162,7 +1284,8 @@
 }
 
 .rt-inline-fields-builder {
-    padding: 0;
+    padding: 0 24px;
+    margin-bottom: 14px;
 }
 
 .rt-inline-fields label,
@@ -1398,6 +1521,100 @@
     padding: 8px 10px;
 }
 
+/* En móvil la tabla de reportes (9 columnas) se vuelve tarjetas apiladas:
+   cada fila es una tarjeta y cada celda muestra su etiqueta (data-label),
+   en lugar de hacer scroll lateral que cortaba el contenido. */
+@media (max-width: 768px) {
+    .rt-report-table-wrap {
+        overflow: visible;
+        padding: 0 12px 14px;
+    }
+
+    .rt-report-table {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .rt-report-table thead {
+        display: none;
+    }
+
+    .rt-report-table tbody,
+    .rt-report-table tr,
+    .rt-report-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .rt-report-table tbody tr {
+        margin: 0 0 12px;
+        padding: 6px 14px 10px;
+        border: 1px solid var(--rt-line);
+        border-radius: 14px;
+        background: var(--rt-card);
+        box-shadow: 0 4px 16px var(--negro-alpha-007);
+    }
+
+    .rt-report-table td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 9px 0;
+        border: none;
+        border-bottom: 1px solid var(--color-fondo-form);
+        text-align: right;
+    }
+
+    .rt-report-table tbody tr td:last-child {
+        border-bottom: none;
+    }
+
+    .rt-report-table td::before {
+        content: attr(data-label);
+        font-weight: 800;
+        font-size: 0.7rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--rt-muted);
+        text-align: left;
+        flex-shrink: 0;
+    }
+
+    /* Las celdas con título + subtítulo (Orden, Mesa) se alinean a la derecha
+       y conservan ambos textos en bloque. */
+    .rt-report-table td strong,
+    .rt-report-table td small {
+        display: block;
+    }
+
+    /* Celda de acción: etiqueta arriba y el botón a lo ancho. */
+    .rt-report-table td[data-label="Acción"] {
+        display: block;
+        text-align: left;
+        padding-top: 11px;
+    }
+
+    .rt-report-table td[data-label="Acción"]::before {
+        display: block;
+        margin-bottom: 8px;
+    }
+
+    .rt-report-table td[data-label="Acción"] .rt-report-action {
+        width: 100%;
+    }
+
+    /* La celda de "sin resultados" ocupa toda la tarjeta sin etiqueta. */
+    .rt-report-table td.rt-empty-cell::before {
+        content: none;
+    }
+
+    .rt-report-table td.rt-empty-cell {
+        justify-content: center;
+        text-align: center;
+    }
+}
+
 /* ─── Responsive ────────────────────────────────────────────────── */
 
 /* Tablet grande (≤1280px): builder y reportes colapsan a 1 columna.
@@ -1450,13 +1667,26 @@
         padding: 16px 6px 32px;
     }
 
+    /* Apilar el hero: texto completo arriba y acciones a lo ancho abajo,
+       así los botones no se montan sobre el título en pantallas chicas. */
     .rt-hero {
+        flex-direction: column;
+        align-items: stretch;
         padding: 20px 18px 18px;
         border-radius: 18px;
     }
 
     .rt-hero h1 {
         font-size: clamp(1.4rem, 5vw, 1.9rem);
+    }
+
+    .rt-hero-actions {
+        width: 100%;
+    }
+
+    .rt-hero-actions .rt-btn {
+        flex: 1 1 auto;
+        justify-content: center;
     }
 
     .rt-module-nav {
@@ -1477,9 +1707,47 @@
         display: none;
     }
 
+    /* Resumen: 2 columnas compactas en vez de una pila larga, sin que
+       los montos largos desborden la tarjeta. */
+    .rt-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .rt-stat-card {
+        padding: 14px 14px 12px;
+    }
+
+    .rt-stat-card span {
+        font-size: 0.72rem;
+        margin-bottom: 5px;
+    }
+
+    .rt-stat-card strong {
+        font-size: 1.5rem;
+        overflow-wrap: anywhere;
+    }
+
+    /* El plano se ve IGUAL que en PC: conserva proporciones con scroll
+       horizontal en vez de aplastar las mesas (que cortaba el texto). */
+    .rt-floor-card {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+    }
+
     .rt-floorboard {
-        min-height: clamp(420px, 56vh, 560px);
-        margin: 0 12px 12px;
+        /* MISMA altura y proporción de canvas que en PC, para que cada
+           mesa tenga el mismo tamaño y NO se recorte su contenido. */
+        min-height: clamp(560px, 68vh, 820px);
+        min-width: 760px;
+        margin: 12px;
+    }
+
+    /* Los chips de área quedan fijos al desplazar el plano */
+    .rt-area-switcher {
+        position: sticky;
+        left: 0;
     }
 
     .rt-floor-header,
@@ -1522,22 +1790,6 @@
         padding-right: 14px;
     }
 
-    .rt-table-node {
-        padding: 8px 10px;
-        gap: 6px;
-    }
-
-    .rt-table-name {
-        font-size: 0.88rem;
-    }
-
-    .rt-table-signal {
-        display: none;
-    }
-
-    .rt-wait-track {
-        display: none;
-    }
 }
 
 @media (max-width: 540px) {

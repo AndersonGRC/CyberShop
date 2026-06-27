@@ -493,6 +493,19 @@
 
     /* ── Responsive ── */
     @media (max-width: 768px) {
+        .config-wrapper {
+            padding: 0 10px 32px;
+        }
+
+        /* Más ancho útil para el contenido en pantallas chicas */
+        .config-card-header {
+            padding: 13px 16px;
+        }
+
+        .config-card-body {
+            padding: 16px 14px;
+        }
+
         .config-row {
             flex-direction: column;
             align-items: flex-start;
@@ -505,6 +518,27 @@
 
         .config-row .field {
             width: 100%;
+        }
+
+        /* Color: apilar swatch+hex arriba y el nombre/ayuda abajo (a todo el
+           ancho) para que el texto no se apriete ni se corte. */
+        .color-item {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+        }
+
+        .color-field {
+            flex-shrink: 1;
+        }
+
+        .color-info .color-help .tag {
+            white-space: normal;
+        }
+
+        /* Módulos: un poco menos de padding para no recortar el texto */
+        .config-item {
+            padding: 13px 14px;
         }
 
         .social-row {
