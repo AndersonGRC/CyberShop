@@ -105,6 +105,28 @@ en el servidor `git pull` (+ restart). Nunca editar directo en producción.
 | Esquema de BD de clientes | Migración **aditiva** en `CyberShopAdmin/migrations/tenant/` → `tools/migrate_tenants.py` (idempotente, no toca datos) |
 | Escritorio | `build_installer.bat` → subir `CyberShopSetup_base.exe` a `static/installers/` del servidor (NO viaja por git) + bump de `version.json` para el auto-update |
 
+### 4.1. Tres capas: qué se actualiza a todos y qué es por cliente
+
+El código es **compartido**: un cambio llega a TODOS al hacer `git pull` + restart. Lo que diverge por cliente NO vive en el código compartido, sino en estas capas:
+
+| Capa | Qué es | Regla de actualización |
+|---|---|---|
+| **Lógica** | Python (rutas/servicios) + esquema BD + **panel `/admin`** | **Siempre global**: el fix/mejora llega a TODOS. El `/admin` es producto global (misma paleta CyberShop uniforme; solo conserva el **logo** de cada cliente). |
+| **Interfaz pública** | Plantillas + `static/` del **sitio público** | Base compartida **+ overrides por instancia** (ver 4.2). Aislados por cliente, nunca se propagan. |
+| **Datos** | `cliente_config`, `public_site_*`, módulos (`tenant_features`) | Por cliente, en su BD. Las actualizaciones de código **no** los tocan. |
+
+**Principio rector**: todo arreglo del sistema (lógica + `/admin`) llega siempre a todos, **sin tocar la BD ni el sitio público** del cliente. Las features en desarrollo viajan a todos pero **se apagan por cliente** con un flag (módulo/sección) **default OFF**.
+
+### 4.2. Overrides de interfaz por instancia (theme a medida del sitio público)
+
+Para personalizar el **sitio público** de UN cliente sin afectar a otros y sin que el próximo `git pull` lo arrastre:
+
+- Carpeta **fuera del repo**: `/var/www/cybershop-overrides/<slug>/{templates,static}` (la crea el provisioning del maestro; `git pull` nunca la toca).
+- La app del cliente la engancha vía `INSTANCE_OVERRIDES_DIR` (env de su instancia): un `ChoiceLoader` de Jinja y una vista `static` propia hacen que **sus** plantillas/estáticos **pisen** a los compartidos **solo para él**. Si no hay archivo override, cae a lo compartido (así los fixes globales siguen llegando). Ver `app.py` y `config.py`.
+- **Regla de oro**: las personalizaciones a medida JAMÁS se editan dentro de `/var/www/CyberShop`; van en la carpeta de overrides del cliente. Tras colocarlas, `systemctl restart cybershop@<slug>` (o botón "Actualizar a última versión" en el maestro).
+
+**Contrato de datos del sitio público** (para que los themes a medida sobrevivan a las actualizaciones): las plantillas son **solo presentación** y consumen un modelo estable que provee el backend compartido — variables de contexto como `brand_config`, `config_global`, `active_modules`, y el contenido `public_site_*` (publicaciones, novedades, servicios, productos). Un arreglo de **lógica/datos** llega a todos (incluidos los de theme propio) porque vive en el backend, no en la plantilla. Cambios a ese contrato deben ser **retrocompatibles**.
+
 ## 5. Documentación por proyecto
 
 | Documento | Contenido |

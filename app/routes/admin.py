@@ -1724,39 +1724,12 @@ def toggle_servicio(id):
 @admin_bp.route('/admin/sitio-publico', methods=['GET', 'POST'])
 @rol_requerido(ROL_SUPER_ADMIN)
 def sitio_publico():
-    """Panel de configuración visual del sitio público."""
-    if request.method == 'POST':
-        form_type = request.form.get('form_type')
-        try:
-            if form_type == 'branding':
-                save_public_site_settings(
-                    request.form,
-                    [
-                        field['key']
-                        for field in PUBLIC_BRANDING_FIELDS + PUBLIC_COLOR_FIELDS + PUBLIC_LANDING_FIELDS
-                        if field['key'] != 'empresa_logo_url'
-                    ],
-                )
-                save_public_logo(request.files.get('logo'), current_app.root_path)
-                flash('Branding y datos públicos actualizados.', 'success')
-                return redirect(url_for('admin.sitio_publico') + '#branding')
-
-            if form_type == 'sections':
-                save_public_site_sections(request.form)
-                flash('Visibilidad del sitio público actualizada.', 'success')
-                return redirect(url_for('admin.sitio_publico') + '#sections')
-
-            flash('No se reconoció el formulario enviado.', 'warning')
-        except Exception as exc:
-            current_app.logger.error(f'Error actualizando sitio publico: {exc}')
-            flash('No fue posible guardar la configuración del sitio público.', 'error')
-        return redirect(url_for('admin.sitio_publico'))
-
-    return render_template(
-        'sitio_publico_admin.html',
-        datosApp=get_data_app(),
-        **get_public_site_admin_context(),
-    )
+    """Movido al maestro. Los CAMPOS DE ADMINISTRADOR (colores, textos completos,
+    branding) se gestionan por cliente desde el panel maestro
+    (admin.cybershopcol.com → cliente → Configuración), NO desde la web del cliente.
+    En la web del cliente solo queda 'Mi Negocio' (datos básicos seguros). Esta
+    ruta redirige allí para que no se editen campos de administrador desde la web."""
+    return redirect(url_for('admin.mi_negocio'))
 
 
 # Claves que el DUEÑO (propietario) puede editar de su negocio. Reusa las MISMAS
