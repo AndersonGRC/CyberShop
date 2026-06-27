@@ -29,6 +29,11 @@ auth_bp = Blueprint('auth', __name__)
 @auth_bp.route('/registrar-cliente', methods=['GET', 'POST'])
 def registrar_cliente():
     """Muestra el formulario de registro y procesa nuevos clientes (rol 3)."""
+    # Si el tenant cerró el acceso (sección 'mostrar_login'), no hay registro
+    # público de clientes (bloquea GET y POST). Multi-tenant: default ON.
+    from services.public_site_service import is_public_section_enabled
+    if not is_public_section_enabled('mostrar_login', True):
+        return redirect(url_for('public.index'))
     datosApp = get_common_data()
     if request.method == 'POST':
         if not controlar_tasa_solicitudes(request.remote_addr, max_requests=5, interval=300):
@@ -83,6 +88,16 @@ def registrar_cliente():
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     """Muestra el formulario de login y autentica al usuario."""
+    # Acceso cerrado por el tenant (sección 'mostrar_login', por-tenant, default
+    # ON). Si está apagado se oculta del público; entrada discreta para el
+    # dueño/admin: /login?acceso=1. Solo se bloquea la VISTA (GET); el POST del
+    # formulario sigue autenticando, así el admin que abre /login?acceso=1 puede
+    # entrar sin quedar bloqueado.
+    from services.public_site_service import is_public_section_enabled
+    if (request.method == 'GET'
+            and not is_public_section_enabled('mostrar_login', True)
+            and not request.args.get('acceso')):
+        return redirect(url_for('public.index'))
     datosApp = get_common_data()
     if request.method == 'POST':
         # SECURITY M6: Rate limiting — máximo 10 intentos/minuto por IP

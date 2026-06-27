@@ -13,10 +13,12 @@ import logging
 # (e.g. "profile" vs "https://www.googleapis.com/auth/userinfo.profile")
 os.environ.setdefault('OAUTHLIB_RELAX_TOKEN_SCOPE', '1')
 from werkzeug.middleware.proxy_fix import ProxyFix
-from flask import Flask, request, url_for as flask_url_for
+from werkzeug.utils import safe_join
+from flask import Flask, request, url_for as flask_url_for, send_from_directory
 from flask_uploads import UploadSet, configure_uploads, IMAGES
 from flask_cors import CORS
 from flask_wtf.csrf import CSRFProtect
+from jinja2 import ChoiceLoader, FileSystemLoader
 
 
 from config import Config, verificar_configuracion_payu
@@ -29,12 +31,52 @@ app.config.from_object(Config)
 app.secret_key = app.config['SECRET_KEY']
 FLASK_SECRET_KEY='Omegafito7217*'
 
+# --- Overrides de interfaz por instancia (SOLO sitio público; ver config.py) ---
+# Si esta instancia de cliente tiene una carpeta de overrides (fuera del repo
+# compartido), sus plantillas/estáticos pisan a los compartidos SOLO para él.
+# La lógica vive en el backend y el /admin NO se overridea → los fixes globales
+# llegan a todos; aquí solo cambia la PRESENTACIÓN del sitio público del cliente.
+_OVERRIDE_DIR = app.config.get('INSTANCE_OVERRIDES_DIR') or ''
+_OVERRIDE_TEMPLATES = os.path.join(_OVERRIDE_DIR, 'templates') if _OVERRIDE_DIR else ''
+_OVERRIDE_STATIC = os.path.join(_OVERRIDE_DIR, 'static') if _OVERRIDE_DIR else ''
+
+# Plantillas: el theme del cliente (si existe) tiene prioridad sobre lo compartido.
+if _OVERRIDE_TEMPLATES and os.path.isdir(_OVERRIDE_TEMPLATES):
+    app.jinja_loader = ChoiceLoader([FileSystemLoader(_OVERRIDE_TEMPLATES), app.jinja_loader])
+    app.logger.info(f"Overrides de plantillas activos: {_OVERRIDE_TEMPLATES}")
+
+
+def _resolve_static_path(filename):
+    """Ruta absoluta del estático: primero el override del cliente, luego el compartido.
+    Devuelve None si no resuelve. Usa safe_join (anti path-traversal)."""
+    if not filename:
+        return None
+    if _OVERRIDE_STATIC:
+        cand = safe_join(_OVERRIDE_STATIC, filename)
+        if cand and os.path.isfile(cand):
+            return cand
+    shared = safe_join(app.static_folder, filename)
+    return shared if (shared and os.path.isfile(shared)) else None
+
+
+# Estáticos: servir primero desde el override del cliente si ese archivo existe.
+if _OVERRIDE_STATIC and os.path.isdir(_OVERRIDE_STATIC):
+    def _static_with_override(filename):
+        cand = safe_join(_OVERRIDE_STATIC, filename) if filename else None
+        if cand and os.path.isfile(cand):
+            return send_from_directory(_OVERRIDE_STATIC, filename)
+        return send_from_directory(app.static_folder, filename)
+    app.view_functions['static'] = _static_with_override
+    app.logger.info(f"Overrides de estáticos activos: {_OVERRIDE_STATIC}")
+
+
 def versioned_url_for(endpoint, **values):
-    """Agrega cache-busting a assets estaticos usando su fecha de modificacion."""
+    """Agrega cache-busting a assets estaticos usando su fecha de modificacion
+    (del archivo que realmente resuelve: override del cliente o compartido)."""
     if endpoint == 'static':
         filename = values.get('filename')
         if filename and 'v' not in values:
-            asset_path = os.path.join(app.static_folder, filename)
+            asset_path = _resolve_static_path(filename) or os.path.join(app.static_folder, filename)
             try:
                 values['v'] = int(os.path.getmtime(asset_path))
             except OSError:
@@ -59,8 +101,10 @@ def handle_csrf_error(e):
             or request.headers.get('X-Requested-With') == 'XMLHttpRequest'):
         from flask import jsonify as _jsonify
         return _jsonify({'success': False, 'error': f'Token CSRF inválido: {e.description}'}), 400
-    from flask import abort
-    abort(400)
+    # Para peticiones HTML: avisar y volver atrás en vez de un 500 crudo.
+    from flask import flash as _flash, redirect as _redirect
+    _flash('Tu sesión expiró o el formulario no es válido. Recarga la página e inténtalo de nuevo.', 'error')
+    return _redirect(request.referrer or '/')
 
 # --- CORS (solo en sandbox) ---
 if app.config.get('PAYU_ENV') == 'sandbox':

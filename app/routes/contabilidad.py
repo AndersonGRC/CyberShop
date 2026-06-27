@@ -194,6 +194,30 @@ def sincronizar_movimiento_referencia(tipo, categoria, descripcion, monto,
             pass
 
 
+def eliminar_movimiento_referencia(referencia_tipo, referencia_id):
+    """Elimina los movimientos contables asociados a una referencia.
+
+    Pensado para anulaciones: al anular una venta POS borramos su ingreso de
+    la contabilidad para que no siga sumando. Devuelve el número de filas
+    eliminadas. No lanza excepciones.
+    """
+    if referencia_tipo is None or referencia_id is None:
+        return 0
+    try:
+        with get_db_cursor() as cur:
+            cur.execute("""
+                DELETE FROM contabilidad_movimientos
+                WHERE referencia_tipo = %s AND referencia_id = %s
+            """, (referencia_tipo, referencia_id))
+            return cur.rowcount or 0
+    except Exception as e:
+        try:
+            app.logger.warning(f"eliminar_movimiento_referencia falló: {e}")
+        except Exception:
+            pass
+        return 0
+
+
 # ─────────────────────────────────────────────────────────
 # CONSTANTES
 # ─────────────────────────────────────────────────────────

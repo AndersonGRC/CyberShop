@@ -129,6 +129,12 @@ PUBLIC_SECTION_FIELDS = [
         'description': 'Muestra el acceso rapido a la seccion de contacto.',
         'default': True,
     },
+    {
+        'key': 'mostrar_login',
+        'label': 'Acceso / Login de clientes',
+        'description': 'Permite el ingreso y registro de clientes. Si se apaga, se oculta el boton Ingresar y se bloquea el acceso publico a /login y /registrar-cliente (el admin entra por /login?acceso=1).',
+        'default': True,
+    },
 ]
 
 PUBLIC_BRANDING_FIELDS = [
@@ -1296,7 +1302,7 @@ def get_public_menu_items(*, include_login=True):
         menu.append({'nombre': '¿Quienes Somos?', 'url': 'public.quienes_somos'})
     if sections.get('mostrar_nav_contacto', True):
         menu.append({'nombre': 'Contactanos', 'url': 'public.contactenos'})
-    if include_login:
+    if include_login and sections.get('mostrar_login', True):
         menu.append({'nombre': 'Ingresar', 'url': 'auth.login'})
 
     return menu

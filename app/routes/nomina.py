@@ -20,42 +20,116 @@ def inject_common_data():
 
 @nomina_bp.route('/')
 def nomina_dashboard():
+    from datetime import datetime as _dt
+    meses_es = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+
     with get_db_cursor(dict_cursor=True) as cur:
-        # 1. Empleados Activos
-        cur.execute("SELECT COUNT(*) as total FROM nomina_empleados WHERE activo = TRUE")
+        # 1. Empleados activos totales
+        cur.execute("SELECT COUNT(*) AS total FROM nomina_empleados WHERE activo = TRUE")
         active_employees = cur.fetchone()['total']
 
-        # 2. Total Nómina último periodo calculado
+        # 2. Contratistas activos
         cur.execute("""
-            SELECT SUM(neto_pagar) as total
-            FROM nomina_detalle
-            WHERE periodo_id = (
-                SELECT id FROM nomina_periodos
-                WHERE estado = 'calculada'
-                ORDER BY id DESC LIMIT 1
-            )
+            SELECT COUNT(*) AS total FROM nomina_empleados
+            WHERE activo = TRUE AND tipo_vinculacion = 'CONTRATISTA'
         """)
-        last_payroll_row = cur.fetchone()
-        last_payroll_total = last_payroll_row['total'] if last_payroll_row and last_payroll_row['total'] else 0
+        active_contractors = cur.fetchone()['total']
 
-        # 3. Novedades del mes actual
+        # 3. Masa salarial mensual (suma salarios base activos)
+        cur.execute("SELECT COALESCE(SUM(salario_base),0) AS total FROM nomina_empleados WHERE activo=TRUE")
+        masa_salarial = float(cur.fetchone()['total'])
+
+        # 4. Último período calculado con totales
         cur.execute("""
-            SELECT COUNT(*) as total
-            FROM nomina_novedades
-            WHERE EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM CURRENT_DATE)
-            AND EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE)
+            SELECT p.*,
+                   COALESCE(SUM(d.total_devengado),0) AS total_devengado,
+                   COALESCE(SUM(d.total_deducido),0)  AS total_deducido,
+                   COALESCE(SUM(d.neto_pagar),0)      AS neto_total,
+                   COUNT(d.id)                         AS num_empleados
+            FROM nomina_periodos p
+            LEFT JOIN nomina_detalle d ON d.periodo_id = p.id
+            WHERE p.estado IN ('calculada','aprobada','pagada')
+            GROUP BY p.id
+            ORDER BY p.id DESC LIMIT 1
+        """)
+        ultimo_periodo = cur.fetchone()
+        last_payroll_total = float(ultimo_periodo['neto_total']) if ultimo_periodo else 0
+
+        # 5. Novedades del mes
+        cur.execute("""
+            SELECT COUNT(*) AS total FROM nomina_novedades
+            WHERE EXTRACT(MONTH FROM created_at)=EXTRACT(MONTH FROM CURRENT_DATE)
+              AND EXTRACT(YEAR  FROM created_at)=EXTRACT(YEAR  FROM CURRENT_DATE)
         """)
         novedades_month = cur.fetchone()['total']
 
-    anio_actual = datetime.now().year
+        # 6. Conteo de períodos por estado
+        cur.execute("SELECT estado, COUNT(*) AS total FROM nomina_periodos GROUP BY estado")
+        periodos_estado = {r['estado']: r['total'] for r in cur.fetchall()}
+        periodos_borrador = periodos_estado.get('borrador', 0)
+
+        # 7. Historial 6 últimos períodos para gráfica
+        cur.execute("""
+            SELECT p.id, p.anio, p.mes, p.numero_periodo, p.estado,
+                   COALESCE(SUM(d.neto_pagar),0) AS neto_total
+            FROM nomina_periodos p
+            LEFT JOIN nomina_detalle d ON d.periodo_id = p.id
+            GROUP BY p.id, p.anio, p.mes, p.numero_periodo, p.estado
+            ORDER BY p.id DESC LIMIT 6
+        """)
+        raw_hist = list(reversed(cur.fetchall()))
+        hist_max = max((float(r['neto_total']) for r in raw_hist), default=1) or 1
+        hist_periodos = []
+        for r in raw_hist:
+            label = f"{meses_es[r['mes']-1]}/{str(r['anio'])[-2:]}"
+            if r['numero_periodo']:
+                label += f" Q{r['numero_periodo']}"
+            hist_periodos.append({
+                'label': label,
+                'neto': float(r['neto_total']),
+                'pct': round(float(r['neto_total']) / hist_max * 100, 1),
+                'estado': r['estado'],
+            })
+
+        # 8. Top 5 empleados por salario
+        cur.execute("""
+            SELECT nombres, apellidos, cargo, salario_base, tipo_vinculacion
+            FROM nomina_empleados WHERE activo=TRUE
+            ORDER BY salario_base DESC LIMIT 5
+        """)
+        top_salarios = cur.fetchall()
+        salario_max = float(top_salarios[0]['salario_base']) if top_salarios else 1
+
+        # 9. Novedades por tipo (mes actual, top 6)
+        cur.execute("""
+            SELECT tipo_novedad, COUNT(*) AS total FROM nomina_novedades
+            WHERE EXTRACT(MONTH FROM created_at)=EXTRACT(MONTH FROM CURRENT_DATE)
+              AND EXTRACT(YEAR  FROM created_at)=EXTRACT(YEAR  FROM CURRENT_DATE)
+            GROUP BY tipo_novedad ORDER BY total DESC LIMIT 6
+        """)
+        novedades_tipo = cur.fetchall()
+
+    anio_actual = _dt.now().year
     referencia_actual = obtener_referencia_normativa(anio_actual)
 
     return render_template('nomina_dashboard.html',
-                           active_employees=active_employees,
-                           last_payroll_total=last_payroll_total,
-                           novedades_month=novedades_month,
-                           referencia=referencia_actual,
-                           anio_actual=anio_actual)
+        active_employees=active_employees,
+        active_contractors=active_contractors,
+        masa_salarial=masa_salarial,
+        ultimo_periodo=ultimo_periodo,
+        last_payroll_total=last_payroll_total,
+        novedades_month=novedades_month,
+        periodos_estado=periodos_estado,
+        periodos_borrador=periodos_borrador,
+        hist_periodos=hist_periodos,
+        hist_max=hist_max,
+        top_salarios=top_salarios,
+        salario_max=salario_max,
+        novedades_tipo=novedades_tipo,
+        referencia=referencia_actual,
+        anio_actual=anio_actual,
+    )
+
 
 @nomina_bp.route('/parametros')
 def parametros_lista():

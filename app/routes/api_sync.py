@@ -33,7 +33,7 @@ from services.db_layer import control_plane_cursor, tenant_cursor
 
 api_sync_bp = Blueprint('api_sync', __name__, url_prefix='/api/v1/sync')
 
-VALID_ENTITIES = {'sale', 'inventory_movement', 'product', 'user', 'category', 'order', 'restaurant_op', 'contabilidad_op'}
+VALID_ENTITIES = {'sale', 'inventory_movement', 'product', 'user', 'category', 'order', 'restaurant_op', 'contabilidad_op', 'quote_op', 'cobro_op', 'crm_op', 'nomina_op'}
 VALID_ACTIONS = {'create', 'update', 'delete'}
 DEFAULT_GENERO_NAME = 'POS Desktop'
 DEFAULT_IMAGE = '/static/img/no-image.png'
@@ -306,6 +306,14 @@ def outbox():
                     remote_id = _apply_restaurant_op(cur, payload)
                 elif entity == 'contabilidad_op':
                     remote_id = _apply_contabilidad_op(cur, payload)
+                elif entity == 'quote_op':
+                    remote_id = _apply_quote_op(cur, payload)
+                elif entity == 'cobro_op':
+                    remote_id = _apply_cobro_op(cur, payload)
+                elif entity == 'crm_op':
+                    remote_id = _apply_crm_op(cur, payload)
+                elif entity == 'nomina_op':
+                    remote_id = _apply_nomina_op(cur, payload)
                 else:
                     raise ValueError(f'combinacion no soportada: {entity}/{action}')
                 results.append({
@@ -322,6 +330,12 @@ def outbox():
                 results.append({
                     'local_id': local_id, 'status': 'stale',
                     'remote_id': stale.remote_id, 'error': 'newer_on_server',
+                })
+            except _ForbiddenError as forb:
+                # Licencia (admin.cybershop) o rol (security.py) no permite la op.
+                results.append({
+                    'local_id': local_id, 'status': 'forbidden',
+                    'remote_id': None, 'error': str(forb)[:200],
                 })
             except Exception as exc:  # noqa: BLE001
                 results.append({
@@ -340,6 +354,91 @@ class _DuplicateError(Exception):
     def __init__(self, remote_id):
         super().__init__(f'duplicate remote_id={remote_id}')
         self.remote_id = remote_id
+
+
+class _ForbiddenError(Exception):
+    """La operación no está permitida: módulo no licenciado por el plan
+    (control de admin.cybershop) o el rol del usuario no autoriza la acción
+    (security.py). La op NO se aplica."""
+
+
+# ──────────────────────────────────────────────
+# Enforcement: licencia (cliente_config / master) + rol (security.py)
+# ──────────────────────────────────────────────
+
+def _modulo_licenciado(cur, config_key) -> bool:
+    """True si el módulo está habilitado en el plan del tenant (cliente_config).
+    Autoridad: admin.cybershop. Si la fila no existe, usa el default del módulo."""
+    if not config_key:
+        return True
+    try:
+        from tenant_features import MODULE_DEFINITIONS, _as_bool
+    except Exception:
+        return True  # sin catálogo de módulos no bloqueamos (degradación segura)
+    default = True
+    for meta in MODULE_DEFINITIONS.values():
+        if meta.get('config_key') == config_key:
+            default = meta.get('default', True)
+            break
+    try:
+        cur.execute("SELECT valor FROM cliente_config WHERE clave = %s", (config_key,))
+        row = cur.fetchone()
+    except Exception:
+        return True  # sin tabla cliente_config, no bloqueamos
+    if not row:
+        return bool(default)
+    valor = row['valor'] if isinstance(row, dict) else row[0]
+    return _as_bool(valor, default)
+
+
+def _user_rol_id(cur, payload):
+    """rol_id del usuario que originó la op (a partir de user_remote_id/email)."""
+    uid = _resolve_usuario_id(cur, payload)
+    if uid is None:
+        return None
+    try:
+        cur.execute("SELECT rol_id FROM usuarios WHERE id = %s", (uid,))
+        row = cur.fetchone()
+        if row:
+            return int(row['rol_id'] if isinstance(row, dict) else row[0])
+    except Exception:
+        return None
+    return None
+
+
+def _exigir(cur, payload, config_key, grupo_roles):
+    """Exige licencia del módulo (siempre) y permiso de rol (best-effort).
+
+    - Licencia: si el módulo está apagado en el plan -> _ForbiddenError.
+    - Rol: si se resuelve el usuario y su rol no está en `grupo_roles`
+      -> _ForbiddenError. Si no se resuelve (legacy), no bloquea por rol.
+    """
+    if not _modulo_licenciado(cur, config_key):
+        raise _ForbiddenError(f"Módulo '{config_key}' no está licenciado en el plan del cliente.")
+    if grupo_roles is not None:
+        rol = _user_rol_id(cur, payload)
+        if rol is not None and rol not in grupo_roles:
+            raise _ForbiddenError("El rol del usuario no autoriza esta acción.")
+
+
+_SEC_GRUPOS = None
+
+
+def _grupos():
+    """Grupos de roles de security.py (rol_ids), cacheados. Fuente única para el
+    enforcement por rol, espejo del manifiesto que usa el desktop."""
+    global _SEC_GRUPOS
+    if _SEC_GRUPOS is None:
+        import security as s
+        _SEC_GRUPOS = {
+            'ADMIN_FULL': s.ADMIN_FULL, 'ADMIN_STAFF': s.ADMIN_STAFF,
+            'ADMIN_CONTADOR': s.ADMIN_CONTADOR, 'POS_OPERATIONAL': s.POS_OPERATIONAL,
+            'POS_DELETE': s.POS_DELETE, 'CATALOG_OPERATIONAL': s.CATALOG_OPERATIONAL,
+            'CATALOG_DELETE': s.CATALOG_DELETE, 'RESTAURANT_OPERATIONAL': s.RESTAURANT_OPERATIONAL,
+            'RESTAURANT_CHARGE': s.RESTAURANT_CHARGE, 'RESTAURANT_CANCEL': s.RESTAURANT_CANCEL,
+            'NOMINA': list(s.ADMIN_FULL) + [s.ROL_CONTADOR],
+        }
+    return _SEC_GRUPOS
 
 
 class _StaleError(Exception):
@@ -363,6 +462,7 @@ def _apply_sale(cur, payload):
     items = payload.get('items') or []
     if not receipt or not items:
         raise ValueError('receipt e items son obligatorios')
+    _exigir(cur, payload, 'pos_habilitado', _grupos()['POS_OPERATIONAL'])
 
     cur.execute('SELECT id FROM pos_desktop_sales WHERE receipt_number = %s', (receipt,))
     row = cur.fetchone()
@@ -475,6 +575,7 @@ def _apply_inventory_movement(cur, payload):
 
     if not client_mov_id:
         raise ValueError('client_movement_id es obligatorio para idempotencia')
+    _exigir(cur, payload, 'inventario_habilitado', _grupos()['CATALOG_OPERATIONAL'])
 
     cur.execute(
         'SELECT id FROM pos_desktop_inventory_movements WHERE client_movement_id = %s',
@@ -519,6 +620,8 @@ def _apply_product(cur, action, payload):
     sku = (payload.get('sku') or '').strip()
     if not sku:
         raise ValueError('sku es obligatorio')
+    _exigir(cur, payload, 'inventario_habilitado',
+            _grupos()['CATALOG_DELETE'] if action == 'delete' else _grupos()['CATALOG_OPERATIONAL'])
 
     client_updated = _parse_iso(payload.get('updated_at'))
 
@@ -598,6 +701,7 @@ def _apply_user(cur, action, payload):
     email = (payload.get('email') or '').strip().lower()
     if not email or '@' not in email:
         raise ValueError('email invalido')
+    _exigir(cur, payload, 'usuarios_habilitado', _grupos()['ADMIN_FULL'])
 
     nombre = (payload.get('nombre') or payload.get('name') or email)[:100]
     rol_nombre = (payload.get('rol_nombre') or payload.get('role') or 'Cajero').strip()
@@ -791,6 +895,7 @@ def users():
             'remote_id': int(row['id']),
             'email': row['email'],
             'nombre': row['nombre'],
+            'rol_id': row['rol_id'],
             'rol_nombre': row['rol_nombre'] or 'Cajero',
             'estado': row['estado'] or 'habilitado',
             'updated_at': cursor_iso,
@@ -1058,11 +1163,53 @@ def config():
     except Exception:
         plan, estado = 'standard', 'activo'
 
+    # Flags de módulos del plan (autoritativos en cliente_config del tenant).
+    # El desktop los usa para ocultar/bloquear módulos fuera del plan. Aditivo:
+    # ante cualquier fallo se devuelve {} y el desktop no aplica restricción.
+    modules = {}
+    try:
+        from tenant_features import MODULE_DEFINITIONS, _as_bool
+        wanted = sorted({
+            m['config_key'] for m in MODULE_DEFINITIONS.values() if m.get('config_key')
+        })
+        stored = {}
+        with tenant_cursor(db_name=g.sync_db_name, dict_cursor=True) as cur:
+            cur.execute(
+                'SELECT clave, valor FROM cliente_config WHERE clave = ANY(%s)',
+                (wanted,),
+            )
+            for row in cur.fetchall():
+                stored[row['clave']] = row['valor']
+        for meta in MODULE_DEFINITIONS.values():
+            ck = meta.get('config_key')
+            if ck:
+                modules[ck] = _as_bool(stored.get(ck), meta.get('default', False))
+    except Exception as exc:
+        current_app.logger.warning(
+            'No se pudieron leer modulos del tenant %s: %s', g.sync_tenant_slug, exc
+        )
+        modules = {}
+
+    # Manifiesto de permisos rol → {modules, actions} (derivado de security.py).
+    # El desktop lo combina con `modules` (plan) para gating por rol y acción.
+    # Aditivo: ante error devuelve {} y el desktop cae a su gating por rol local.
+    permissions = {}
+    try:
+        from security import desktop_permissions_manifest
+        permissions = desktop_permissions_manifest()
+    except Exception as exc:
+        current_app.logger.warning(
+            'No se pudo construir el manifiesto de permisos: %s', exc
+        )
+        permissions = {}
+
     return jsonify({
         'tenant_slug':   g.sync_tenant_slug,
         'tenant_nombre': nombre,
         'plan':          plan,
         'estado':        estado,
+        'modules':       modules,
+        'permissions':   permissions,
         'server_time':   _now_iso(),
     })
 
@@ -1508,6 +1655,13 @@ def _apply_restaurant_op(cur, payload):
     op = (payload.get('op') or '').strip()
     if not _regclass(cur, 'restaurant_tables'):
         raise ValueError('Modulo de restaurante no instalado en el servidor.')
+    if op == 'close_table':
+        _rgrp = _grupos()['RESTAURANT_CHARGE']        # cobrar/cerrar cuenta
+    elif op == 'cancel_order':
+        _rgrp = _grupos()['RESTAURANT_CANCEL']        # anular
+    else:
+        _rgrp = _grupos()['RESTAURANT_OPERATIONAL']   # atender mesa / consumos
+    _exigir(cur, payload, 'restaurant_tables_habilitado', _rgrp)
 
     if op == 'open_table':
         table_id = int(payload['table_id'])
@@ -1808,6 +1962,7 @@ def _apply_contabilidad_op(cur, payload):
     op = (payload.get('op') or '').strip()
     if not _regclass(cur, 'contabilidad_movimientos'):
         raise ValueError('Modulo de contabilidad no instalado en el servidor.')
+    _exigir(cur, payload, 'contabilidad_habilitada', _grupos()['ADMIN_CONTADOR'])
     user_id = _resolve_usuario_id(cur, payload)
 
     if op == 'create_movimiento':
@@ -1953,3 +2108,691 @@ def _apply_contabilidad_op(cur, payload):
         return cid
 
     raise ValueError(f'op de contabilidad no soportada: {op}')
+
+
+# ──────────────────────────────────────────────
+# Cotizaciones — snapshot + apply
+# ──────────────────────────────────────────────
+
+QUOTES_LIMIT = 300
+
+# Campos de cabecera que el desktop crea/edita offline (espejo de quotes.py).
+_QUOTE_HEADER_COLS = (
+    'cliente_nombre', 'cliente_documento', 'cliente_direccion', 'cliente_ciudad',
+    'cliente_telefono', 'cliente_representante', 'cliente_cargo', 'cliente_localidad',
+)
+
+
+@api_sync_bp.route('/quotes/snapshot', methods=['GET'])
+@require_sync_key
+def quotes_snapshot():
+    """Estado del modulo de cotizaciones del tenant: cabeceras + items."""
+    out = {'cotizaciones': [], 'detalles': [], 'server_time': _now_iso()}
+    with tenant_cursor(db_name=g.sync_db_name, dict_cursor=True) as cur:
+        if not _regclass(cur, 'cotizaciones'):
+            return jsonify(out)
+        cur.execute("""
+            SELECT id, cliente_nombre, cliente_documento, cliente_direccion,
+                   cliente_ciudad, cliente_telefono, cliente_representante,
+                   cliente_cargo, cliente_localidad, total,
+                   COALESCE(estado, 'pendiente') AS estado, pdf_path, fecha
+            FROM cotizaciones ORDER BY id DESC LIMIT %s
+        """, (QUOTES_LIMIT,))
+        ids = []
+        for r in cur.fetchall():
+            ids.append(int(r['id']))
+            out['cotizaciones'].append({
+                'id': int(r['id']),
+                'cliente_nombre': r['cliente_nombre'], 'cliente_documento': r['cliente_documento'],
+                'cliente_direccion': r['cliente_direccion'], 'cliente_ciudad': r['cliente_ciudad'],
+                'cliente_telefono': r['cliente_telefono'], 'cliente_representante': r['cliente_representante'],
+                'cliente_cargo': r['cliente_cargo'], 'cliente_localidad': r['cliente_localidad'],
+                'total': float(r['total'] or 0), 'estado': r['estado'], 'pdf_path': r['pdf_path'],
+                'fecha': _iso(r['fecha']),
+            })
+        if ids and _regclass(cur, 'detalle_cotizacion'):
+            cur.execute("""
+                SELECT id, cotizacion_id, descripcion, cantidad, precio_unitario,
+                       subtotal, descuento_porc, iva_porc
+                FROM detalle_cotizacion WHERE cotizacion_id = ANY(%s) ORDER BY id
+            """, (ids,))
+            for r in cur.fetchall():
+                out['detalles'].append({
+                    'id': int(r['id']), 'cotizacion_id': int(r['cotizacion_id']),
+                    'descripcion': r['descripcion'], 'cantidad': int(r['cantidad'] or 0),
+                    'precio_unitario': float(r['precio_unitario'] or 0),
+                    'subtotal': float(r['subtotal'] or 0),
+                    'descuento_porc': float(r['descuento_porc'] or 0),
+                    'iva_porc': float(r['iva_porc'] or 0),
+                })
+    return jsonify(out)
+
+
+def _apply_quote_op(cur, payload):
+    """Aplica una operacion de cotizaciones (create/delete/estado). Idempotente
+    por client_op_uuid en create. Espejo del modelo de routes/quotes.py."""
+    op = (payload.get('op') or '').strip()
+    if not _regclass(cur, 'cotizaciones'):
+        raise ValueError('Modulo de cotizaciones no instalado en el servidor.')
+    _grp = _grupos()['ADMIN_FULL'] if op in ('set_estado_cotizacion', 'delete_cotizacion') else _grupos()['ADMIN_STAFF']
+    _exigir(cur, payload, 'cotizaciones_habilitado', _grp)
+
+    if op == 'create_cotizacion':
+        op_uuid = (payload.get('client_op_uuid') or '').strip()
+        if op_uuid:
+            _ensure_ops_ledger(cur)
+            cur.execute('SELECT remote_id FROM sync_applied_ops WHERE client_op_uuid = %s', (op_uuid,))
+            prev = cur.fetchone()
+            if prev:
+                raise _DuplicateError(int(prev['remote_id']) if prev['remote_id'] is not None else 0)
+        nombre = (payload.get('cliente_nombre') or '').strip()
+        if not nombre:
+            raise ValueError('El nombre del cliente es obligatorio.')
+        items = payload.get('items') or []
+        total = 0.0
+        for it in items:
+            total += float(it.get('subtotal') or 0)
+        cur.execute("""
+            INSERT INTO cotizaciones
+                (cliente_nombre, cliente_documento, cliente_direccion, cliente_ciudad,
+                 cliente_telefono, cliente_representante, cliente_cargo, cliente_localidad,
+                 total, estado)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,'pendiente') RETURNING id
+        """, (nombre, payload.get('cliente_documento'), payload.get('cliente_direccion'),
+              payload.get('cliente_ciudad'), payload.get('cliente_telefono'),
+              payload.get('cliente_representante'), payload.get('cliente_cargo'),
+              payload.get('cliente_localidad'), total))
+        qid = int(cur.fetchone()['id'])
+        if _regclass(cur, 'detalle_cotizacion'):
+            for it in items:
+                cur.execute("""
+                    INSERT INTO detalle_cotizacion
+                        (cotizacion_id, descripcion, cantidad, precio_unitario, subtotal,
+                         descuento_porc, iva_porc)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s)
+                """, (qid, (it.get('descripcion') or '').strip(), int(it.get('cantidad') or 1),
+                      float(it.get('precio_unitario') or 0), float(it.get('subtotal') or 0),
+                      float(it.get('descuento_porc') or 0), float(it.get('iva_porc') or 0)))
+        if op_uuid:
+            cur.execute("INSERT INTO sync_applied_ops (client_op_uuid, remote_id) VALUES (%s,%s) ON CONFLICT (client_op_uuid) DO NOTHING", (op_uuid, qid))
+        return qid
+
+    if op == 'delete_cotizacion':
+        qid = int(payload['cotizacion_id'])
+        cur.execute('SELECT id FROM cotizaciones WHERE id = %s', (qid,))
+        if not cur.fetchone():
+            raise _DuplicateError(0)
+        if _regclass(cur, 'detalle_cotizacion'):
+            cur.execute('DELETE FROM detalle_cotizacion WHERE cotizacion_id = %s', (qid,))
+        cur.execute('DELETE FROM cotizaciones WHERE id = %s', (qid,))
+        return qid
+
+    if op == 'set_estado_cotizacion':
+        qid = int(payload['cotizacion_id'])
+        estado = (payload.get('estado') or '').strip()
+        if estado not in ('pendiente', 'aprobada', 'rechazada'):
+            raise ValueError('Estado invalido.')
+        cur.execute('UPDATE cotizaciones SET estado = %s WHERE id = %s RETURNING id', (estado, qid))
+        row = cur.fetchone()
+        if not row:
+            raise _DuplicateError(0)
+        return int(row['id'])
+
+    raise ValueError(f'op de cotizaciones no soportada: {op}')
+
+
+# ──────────────────────────────────────────────
+# Cuentas de cobro — snapshot + apply
+# ──────────────────────────────────────────────
+
+COBROS_LIMIT = 300
+
+
+@api_sync_bp.route('/cobros/snapshot', methods=['GET'])
+@require_sync_key
+def cobros_snapshot():
+    """Estado del modulo de cuentas de cobro del tenant: cabeceras + items."""
+    out = {'cuentas': [], 'detalles': [], 'server_time': _now_iso()}
+    with tenant_cursor(db_name=g.sync_db_name, dict_cursor=True) as cur:
+        if not _regclass(cur, 'cuentas_cobro'):
+            return jsonify(out)
+        cur.execute("""
+            SELECT id, consecutivo, fecha, cliente_nombre, cliente_nit, cliente_direccion,
+                   cliente_telefono, cliente_ciudad, contractor_nombre, contractor_id,
+                   contractor_telefono, contractor_email, texto_pago, total, pdf_path
+            FROM cuentas_cobro ORDER BY id DESC LIMIT %s
+        """, (COBROS_LIMIT,))
+        ids = []
+        for r in cur.fetchall():
+            ids.append(int(r['id']))
+            out['cuentas'].append({
+                'id': int(r['id']), 'consecutivo': r['consecutivo'],
+                'fecha': _iso(r['fecha']) if r['fecha'] else None,
+                'cliente_nombre': r['cliente_nombre'], 'cliente_nit': r['cliente_nit'],
+                'cliente_direccion': r['cliente_direccion'], 'cliente_telefono': r['cliente_telefono'],
+                'cliente_ciudad': r['cliente_ciudad'], 'contractor_nombre': r['contractor_nombre'],
+                'contractor_id': r['contractor_id'], 'contractor_telefono': r['contractor_telefono'],
+                'contractor_email': r['contractor_email'], 'texto_pago': r['texto_pago'],
+                'total': float(r['total'] or 0), 'pdf_path': r['pdf_path'],
+            })
+        if ids and _regclass(cur, 'detalle_cuenta_cobro'):
+            cur.execute("""
+                SELECT id, cuenta_id, fecha_labor, descripcion, valor
+                FROM detalle_cuenta_cobro WHERE cuenta_id = ANY(%s) ORDER BY id
+            """, (ids,))
+            for r in cur.fetchall():
+                out['detalles'].append({
+                    'id': int(r['id']), 'cuenta_id': int(r['cuenta_id']),
+                    'fecha_labor': _iso(r['fecha_labor']) if r['fecha_labor'] else None,
+                    'descripcion': r['descripcion'], 'valor': float(r['valor'] or 0),
+                })
+    return jsonify(out)
+
+
+def _apply_cobro_op(cur, payload):
+    """Aplica una operacion de cuentas de cobro (create/delete). Idempotente por
+    client_op_uuid en create. El consecutivo lo asigna el servidor."""
+    op = (payload.get('op') or '').strip()
+    if not _regclass(cur, 'cuentas_cobro'):
+        raise ValueError('Modulo de cuentas de cobro no instalado en el servidor.')
+    _exigir(cur, payload, 'cuentas_cobro_habilitado', _grupos()['ADMIN_CONTADOR'])
+
+    if op == 'create_cuenta':
+        op_uuid = (payload.get('client_op_uuid') or '').strip()
+        if op_uuid:
+            _ensure_ops_ledger(cur)
+            cur.execute('SELECT remote_id FROM sync_applied_ops WHERE client_op_uuid = %s', (op_uuid,))
+            prev = cur.fetchone()
+            if prev:
+                raise _DuplicateError(int(prev['remote_id']) if prev['remote_id'] is not None else 0)
+        nombre = (payload.get('cliente_nombre') or '').strip()
+        if not nombre:
+            raise ValueError('El nombre del cliente es obligatorio.')
+        items = payload.get('items') or []
+        total = 0.0
+        for it in items:
+            total += float(it.get('valor') or 0)
+        cur.execute("SELECT COUNT(*) AS c FROM cuentas_cobro")
+        consecutivo = f"CC-{str(int(cur.fetchone()['c']) + 1).zfill(4)}"
+        # cliente_nit / contractor_nombre / contractor_id son NOT NULL en la tabla:
+        # coercer None -> '' para que una cuenta creada offline sin esos datos
+        # no rompa el push con violacion de NOT NULL.
+        cur.execute("""
+            INSERT INTO cuentas_cobro
+                (consecutivo, fecha, cliente_nombre, cliente_nit, cliente_direccion,
+                 cliente_telefono, cliente_ciudad, contractor_nombre, contractor_id,
+                 contractor_telefono, contractor_email, texto_pago, total)
+            VALUES (%s, COALESCE(%s, CURRENT_DATE), %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
+        """, (consecutivo, payload.get('fecha'), nombre, payload.get('cliente_nit') or '',
+              payload.get('cliente_direccion'), payload.get('cliente_telefono'),
+              payload.get('cliente_ciudad'), payload.get('contractor_nombre') or '',
+              payload.get('contractor_id') or '', payload.get('contractor_telefono'),
+              payload.get('contractor_email'), payload.get('texto_pago'), total))
+        cid = int(cur.fetchone()['id'])
+        if _regclass(cur, 'detalle_cuenta_cobro'):
+            for it in items:
+                cur.execute("""
+                    INSERT INTO detalle_cuenta_cobro (cuenta_id, fecha_labor, descripcion, valor)
+                    VALUES (%s, COALESCE(%s, CURRENT_DATE), %s, %s)
+                """, (cid, it.get('fecha_labor'), (it.get('descripcion') or '').strip(),
+                      float(it.get('valor') or 0)))
+        if op_uuid:
+            cur.execute("INSERT INTO sync_applied_ops (client_op_uuid, remote_id) VALUES (%s,%s) ON CONFLICT (client_op_uuid) DO NOTHING", (op_uuid, cid))
+        return cid
+
+    if op == 'delete_cuenta':
+        cid = int(payload['cuenta_id'])
+        cur.execute('SELECT id FROM cuentas_cobro WHERE id = %s', (cid,))
+        if not cur.fetchone():
+            raise _DuplicateError(0)
+        if _regclass(cur, 'detalle_cuenta_cobro'):
+            cur.execute('DELETE FROM detalle_cuenta_cobro WHERE cuenta_id = %s', (cid,))
+        cur.execute('DELETE FROM cuentas_cobro WHERE id = %s', (cid,))
+        return cid
+
+    raise ValueError(f'op de cuentas de cobro no soportada: {op}')
+
+
+# ──────────────────────────────────────────────
+# CRM — snapshot + apply
+# ──────────────────────────────────────────────
+
+CRM_LIMIT = 1000
+
+
+@api_sync_bp.route('/crm/snapshot', methods=['GET'])
+@require_sync_key
+def crm_snapshot():
+    """Estado del modulo CRM: contactos, actividades, tareas y oportunidades."""
+    out = {'contactos': [], 'actividades': [], 'tareas': [], 'oportunidades': [],
+           'server_time': _now_iso()}
+    with tenant_cursor(db_name=g.sync_db_name, dict_cursor=True) as cur:
+        if not _regclass(cur, 'crm_contactos'):
+            return jsonify(out)
+        cur.execute("""
+            SELECT id, tipo, nombre, empresa, cargo, email, telefono, whatsapp,
+                   sitio_web, direccion, ciudad, notas, origen, activo, created_at, updated_at
+            FROM crm_contactos WHERE activo = TRUE ORDER BY id DESC LIMIT %s
+        """, (CRM_LIMIT,))
+        for r in cur.fetchall():
+            out['contactos'].append({
+                'id': int(r['id']), 'tipo': r['tipo'], 'nombre': r['nombre'],
+                'empresa': r['empresa'], 'cargo': r['cargo'], 'email': r['email'],
+                'telefono': r['telefono'], 'whatsapp': r['whatsapp'], 'sitio_web': r['sitio_web'],
+                'direccion': r['direccion'], 'ciudad': r['ciudad'], 'notas': r['notas'],
+                'origen': r['origen'], 'created_at': _iso(r['created_at']),
+                'updated_at': _iso(r['updated_at']),
+            })
+        if _regclass(cur, 'crm_actividades'):
+            cur.execute("""
+                SELECT id, contacto_id, tipo, asunto, descripcion, fecha_actividad
+                FROM crm_actividades ORDER BY id DESC LIMIT %s
+            """, (CRM_LIMIT,))
+            for r in cur.fetchall():
+                out['actividades'].append({
+                    'id': int(r['id']), 'contacto_id': int(r['contacto_id']), 'tipo': r['tipo'],
+                    'asunto': r['asunto'], 'descripcion': r['descripcion'],
+                    'fecha_actividad': _iso(r['fecha_actividad']),
+                })
+        if _regclass(cur, 'crm_tareas'):
+            cur.execute("""
+                SELECT id, contacto_id, titulo, descripcion, prioridad, estado,
+                       fecha_limite, completada_en
+                FROM crm_tareas ORDER BY id DESC LIMIT %s
+            """, (CRM_LIMIT,))
+            for r in cur.fetchall():
+                out['tareas'].append({
+                    'id': int(r['id']), 'contacto_id': int(r['contacto_id']), 'titulo': r['titulo'],
+                    'descripcion': r['descripcion'], 'prioridad': r['prioridad'], 'estado': r['estado'],
+                    'fecha_limite': r['fecha_limite'].isoformat() if r['fecha_limite'] else None,
+                    'completada_en': _iso(r['completada_en']),
+                })
+        if _regclass(cur, 'crm_oportunidades'):
+            cur.execute("""
+                SELECT id, contacto_id, titulo, descripcion, monto_estimado, probabilidad,
+                       etapa, fecha_cierre_est, created_at
+                FROM crm_oportunidades ORDER BY id DESC LIMIT %s
+            """, (CRM_LIMIT,))
+            for r in cur.fetchall():
+                out['oportunidades'].append({
+                    'id': int(r['id']), 'contacto_id': int(r['contacto_id']), 'titulo': r['titulo'],
+                    'descripcion': r['descripcion'], 'monto_estimado': float(r['monto_estimado'] or 0),
+                    'probabilidad': int(r['probabilidad'] or 0), 'etapa': r['etapa'],
+                    'fecha_cierre_est': r['fecha_cierre_est'].isoformat() if r['fecha_cierre_est'] else None,
+                    'created_at': _iso(r['created_at']),
+                })
+    return jsonify(out)
+
+
+def _apply_crm_op(cur, payload):
+    """Aplica operaciones CRM (contactos/tareas/actividades/oportunidades).
+    Idempotente por client_op_uuid en las creaciones."""
+    op = (payload.get('op') or '').strip()
+    if not _regclass(cur, 'crm_contactos'):
+        raise ValueError('Modulo CRM no instalado en el servidor.')
+    _exigir(cur, payload, 'crm_habilitado', _grupos()['ADMIN_STAFF'])
+    user_id = _resolve_usuario_id(cur, payload)
+
+    def _dedup(uuid):
+        if uuid:
+            _ensure_ops_ledger(cur)
+            cur.execute('SELECT remote_id FROM sync_applied_ops WHERE client_op_uuid = %s', (uuid,))
+            prev = cur.fetchone()
+            if prev:
+                raise _DuplicateError(int(prev['remote_id']) if prev['remote_id'] is not None else 0)
+
+    def _ledger(uuid, rid):
+        if uuid:
+            cur.execute("INSERT INTO sync_applied_ops (client_op_uuid, remote_id) VALUES (%s,%s) ON CONFLICT (client_op_uuid) DO NOTHING", (uuid, rid))
+
+    # ── Contactos ──
+    if op == 'create_contacto':
+        u = (payload.get('client_op_uuid') or '').strip(); _dedup(u)
+        nombre = (payload.get('nombre') or '').strip()
+        if not nombre:
+            raise ValueError('El nombre del contacto es obligatorio.')
+        tipo = (payload.get('tipo') or 'cliente').strip()
+        if tipo not in ('cliente', 'proveedor', 'lead', 'socio'):
+            tipo = 'cliente'
+        cur.execute("""
+            INSERT INTO crm_contactos (tipo, nombre, empresa, cargo, email, telefono, whatsapp,
+                                       sitio_web, direccion, ciudad, notas, origen, usuario_id, activo)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,TRUE) RETURNING id
+        """, (tipo, nombre, payload.get('empresa'), payload.get('cargo'), payload.get('email'),
+              payload.get('telefono'), payload.get('whatsapp'), payload.get('sitio_web'),
+              payload.get('direccion'), payload.get('ciudad'), payload.get('notas'),
+              (payload.get('origen') or 'desktop'), user_id))
+        rid = int(cur.fetchone()['id']); _ledger(u, rid); return rid
+
+    if op == 'update_contacto':
+        cid = int(payload['contacto_id'])
+        cur.execute("""
+            UPDATE crm_contactos SET tipo=%s, nombre=%s, empresa=%s, cargo=%s, email=%s,
+                   telefono=%s, whatsapp=%s, sitio_web=%s, direccion=%s, ciudad=%s, notas=%s,
+                   updated_at=NOW() WHERE id=%s RETURNING id
+        """, ((payload.get('tipo') or 'cliente'), (payload.get('nombre') or '').strip(),
+              payload.get('empresa'), payload.get('cargo'), payload.get('email'),
+              payload.get('telefono'), payload.get('whatsapp'), payload.get('sitio_web'),
+              payload.get('direccion'), payload.get('ciudad'), payload.get('notas'), cid))
+        row = cur.fetchone()
+        if not row:
+            raise _DuplicateError(0)
+        return int(row['id'])
+
+    if op == 'delete_contacto':
+        cid = int(payload['contacto_id'])
+        cur.execute('UPDATE crm_contactos SET activo=FALSE, updated_at=NOW() WHERE id=%s RETURNING id', (cid,))
+        row = cur.fetchone()
+        if not row:
+            raise _DuplicateError(0)
+        return int(row['id'])
+
+    # ── Tareas ──
+    if op == 'create_tarea':
+        u = (payload.get('client_op_uuid') or '').strip(); _dedup(u)
+        if not _regclass(cur, 'crm_tareas'):
+            raise ValueError('Tabla de tareas no disponible.')
+        titulo = (payload.get('titulo') or '').strip()
+        if not titulo:
+            raise ValueError('El título de la tarea es obligatorio.')
+        prioridad = (payload.get('prioridad') or 'media').strip()
+        if prioridad not in ('alta', 'media', 'baja'):
+            prioridad = 'media'
+        cur.execute("""
+            INSERT INTO crm_tareas (contacto_id, titulo, descripcion, prioridad, estado,
+                                    fecha_limite, creado_por)
+            VALUES (%s,%s,%s,%s,'pendiente',%s,%s) RETURNING id
+        """, (int(payload['contacto_id']), titulo, payload.get('descripcion'), prioridad,
+              payload.get('fecha_limite') or None, user_id))
+        rid = int(cur.fetchone()['id']); _ledger(u, rid); return rid
+
+    if op == 'complete_tarea':
+        tid = int(payload['tarea_id'])
+        cur.execute("UPDATE crm_tareas SET estado='completada', completada_en=NOW() WHERE id=%s RETURNING id", (tid,))
+        row = cur.fetchone()
+        if not row:
+            raise _DuplicateError(0)
+        return int(row['id'])
+
+    if op == 'delete_tarea':
+        tid = int(payload['tarea_id'])
+        cur.execute('DELETE FROM crm_tareas WHERE id=%s', (tid,))
+        return tid
+
+    # ── Actividades ──
+    if op == 'create_actividad':
+        u = (payload.get('client_op_uuid') or '').strip(); _dedup(u)
+        if not _regclass(cur, 'crm_actividades'):
+            raise ValueError('Tabla de actividades no disponible.')
+        tipo = (payload.get('tipo') or 'nota').strip()
+        if tipo not in ('llamada', 'email', 'reunion', 'whatsapp', 'visita', 'nota', 'otro'):
+            tipo = 'nota'
+        asunto = (payload.get('asunto') or '').strip() or 'Actividad'
+        cur.execute("""
+            INSERT INTO crm_actividades (contacto_id, tipo, asunto, descripcion, usuario_id)
+            VALUES (%s,%s,%s,%s,%s) RETURNING id
+        """, (int(payload['contacto_id']), tipo, asunto, payload.get('descripcion'), user_id))
+        rid = int(cur.fetchone()['id']); _ledger(u, rid); return rid
+
+    # ── Oportunidades ──
+    if op == 'create_oportunidad':
+        u = (payload.get('client_op_uuid') or '').strip(); _dedup(u)
+        if not _regclass(cur, 'crm_oportunidades'):
+            raise ValueError('Tabla de oportunidades no disponible.')
+        titulo = (payload.get('titulo') or '').strip()
+        if not titulo:
+            raise ValueError('El título de la oportunidad es obligatorio.')
+        etapa = (payload.get('etapa') or 'prospecto').strip()
+        if etapa not in ('prospecto', 'calificado', 'propuesta', 'negociacion', 'ganada', 'perdida'):
+            etapa = 'prospecto'
+        cur.execute("""
+            INSERT INTO crm_oportunidades (contacto_id, titulo, descripcion, monto_estimado,
+                                           probabilidad, etapa, asignado_a)
+            VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id
+        """, (int(payload['contacto_id']), titulo, payload.get('descripcion'),
+              float(payload.get('monto_estimado') or 0), int(payload.get('probabilidad') or 50),
+              etapa, user_id))
+        rid = int(cur.fetchone()['id']); _ledger(u, rid); return rid
+
+    if op == 'move_oportunidad':
+        oid = int(payload['oportunidad_id'])
+        etapa = (payload.get('etapa') or '').strip()
+        if etapa not in ('prospecto', 'calificado', 'propuesta', 'negociacion', 'ganada', 'perdida'):
+            raise ValueError('Etapa inválida.')
+        cur.execute('UPDATE crm_oportunidades SET etapa=%s, updated_at=NOW() WHERE id=%s RETURNING id', (etapa, oid))
+        row = cur.fetchone()
+        if not row:
+            raise _DuplicateError(0)
+        return int(row['id'])
+
+    if op == 'delete_oportunidad':
+        oid = int(payload['oportunidad_id'])
+        cur.execute('DELETE FROM crm_oportunidades WHERE id=%s', (oid,))
+        return oid
+
+    raise ValueError(f'op de CRM no soportada: {op}')
+
+
+# ──────────────────────────────────────────────
+# Nómina — snapshot + apply
+# ──────────────────────────────────────────────
+
+NOMINA_PERIODOS_LIMIT = 120
+
+_NOMINA_EMP_COLS = ('tipo_documento', 'numero_documento', 'nombres', 'apellidos', 'email',
+                    'telefono', 'direccion', 'fecha_ingreso', 'tipo_vinculacion', 'cargo',
+                    'salario_base', 'nivel_arl', 'banco', 'tipo_cuenta', 'numero_cuenta',
+                    'eps', 'fondo_pension', 'fondo_cesantias')
+
+
+@api_sync_bp.route('/nomina/snapshot', methods=['GET'])
+@require_sync_key
+def nomina_snapshot():
+    """Estado del módulo de nómina: empleados, parámetros, períodos, detalle y novedades."""
+    out = {'empleados': [], 'parametros': [], 'periodos': [], 'detalle': [], 'novedades': [],
+           'server_time': _now_iso()}
+    with tenant_cursor(db_name=g.sync_db_name, dict_cursor=True) as cur:
+        if not _regclass(cur, 'nomina_empleados'):
+            return jsonify(out)
+        cur.execute("""
+            SELECT id, tipo_documento, numero_documento, nombres, apellidos, email, telefono,
+                   direccion, fecha_ingreso, fecha_retiro, tipo_vinculacion, cargo, salario_base,
+                   nivel_arl, banco, tipo_cuenta, numero_cuenta, eps, fondo_pension, fondo_cesantias, activo
+            FROM nomina_empleados ORDER BY id
+        """)
+        for r in cur.fetchall():
+            d = dict(r)
+            d['id'] = int(d['id'])
+            d['salario_base'] = float(d.get('salario_base') or 0)
+            d['fecha_ingreso'] = d['fecha_ingreso'].isoformat() if d.get('fecha_ingreso') else None
+            d['fecha_retiro'] = d['fecha_retiro'].isoformat() if d.get('fecha_retiro') else None
+            d['activo'] = bool(d.get('activo'))
+            out['empleados'].append(d)
+
+        if _regclass(cur, 'nomina_parametros'):
+            cur.execute("SELECT anio, salario_minimo, auxilio_transporte, uvt FROM nomina_parametros ORDER BY anio")
+            for r in cur.fetchall():
+                out['parametros'].append({
+                    'anio': int(r['anio']), 'salario_minimo': float(r['salario_minimo'] or 0),
+                    'auxilio_transporte': float(r['auxilio_transporte'] or 0), 'uvt': float(r['uvt'] or 0)})
+
+        periodo_ids = []
+        if _regclass(cur, 'nomina_periodos'):
+            cur.execute("""
+                SELECT id, anio, mes, numero_periodo, fecha_inicio, fecha_fin, observaciones
+                FROM nomina_periodos ORDER BY id DESC LIMIT %s
+            """, (NOMINA_PERIODOS_LIMIT,))
+            for r in cur.fetchall():
+                periodo_ids.append(int(r['id']))
+                out['periodos'].append({
+                    'id': int(r['id']), 'anio': int(r['anio'] or 0), 'mes': r['mes'],
+                    'numero_periodo': r['numero_periodo'],
+                    'fecha_inicio': r['fecha_inicio'].isoformat() if r['fecha_inicio'] else None,
+                    'fecha_fin': r['fecha_fin'].isoformat() if r['fecha_fin'] else None,
+                    'observaciones': r['observaciones']})
+
+        if periodo_ids and _regclass(cur, 'nomina_detalle'):
+            cur.execute("""
+                SELECT id, periodo_id, empleado_id, dias_trabajados, sueldo_basico, auxilio_transporte,
+                       horas_extras, total_devengado, salud_empleado, pension_empleado, fondo_solidaridad,
+                       retencion_fuente, total_deducido, neto_pagar
+                FROM nomina_detalle WHERE periodo_id = ANY(%s)
+            """, (periodo_ids,))
+            for r in cur.fetchall():
+                out['detalle'].append({k: (float(v) if isinstance(v, (int, float)) and k not in
+                                           ('id', 'periodo_id', 'empleado_id', 'dias_trabajados') else v)
+                                       for k, v in dict(r).items()})
+
+        if periodo_ids and _regclass(cur, 'nomina_novedades'):
+            cur.execute("""
+                SELECT id, periodo_id, empleado_id, tipo_novedad, cantidad, valor_total, fecha_novedad, observacion
+                FROM nomina_novedades WHERE periodo_id = ANY(%s) ORDER BY id
+            """, (periodo_ids,))
+            for r in cur.fetchall():
+                out['novedades'].append({
+                    'id': int(r['id']), 'periodo_id': int(r['periodo_id']), 'empleado_id': int(r['empleado_id']),
+                    'tipo_novedad': r['tipo_novedad'], 'cantidad': float(r['cantidad'] or 0),
+                    'valor_total': float(r['valor_total'] or 0),
+                    'fecha_novedad': r['fecha_novedad'].isoformat() if r['fecha_novedad'] else None,
+                    'observacion': r['observacion']})
+    return jsonify(out)
+
+
+def _apply_nomina_op(cur, payload):
+    """Aplica operaciones de nómina. El cálculo del período usa el MISMO motor
+    verificado del servidor (calcular_nomina_periodo_inteligente)."""
+    op = (payload.get('op') or '').strip()
+    if not _regclass(cur, 'nomina_empleados'):
+        raise ValueError('Módulo de nómina no instalado en el servidor.')
+    _exigir(cur, payload, 'nomina_habilitada', _grupos()['NOMINA'])
+
+    if op == 'create_empleado':
+        u = (payload.get('client_op_uuid') or '').strip()
+        if u:
+            _ensure_ops_ledger(cur)
+            cur.execute('SELECT remote_id FROM sync_applied_ops WHERE client_op_uuid = %s', (u,))
+            prev = cur.fetchone()
+            if prev:
+                raise _DuplicateError(int(prev['remote_id']) if prev['remote_id'] is not None else 0)
+        if not (payload.get('nombres') or '').strip():
+            raise ValueError('Los nombres son obligatorios.')
+        cols = ', '.join(_NOMINA_EMP_COLS)
+        ph = ', '.join(['%s'] * len(_NOMINA_EMP_COLS))
+        vals = []
+        for c in _NOMINA_EMP_COLS:
+            v = payload.get(c)
+            if c == 'salario_base':
+                v = float(v or 0)
+            if c in ('fecha_ingreso',) and not v:
+                v = None
+            vals.append(v)
+        cur.execute(f"INSERT INTO nomina_empleados ({cols}, activo) VALUES ({ph}, TRUE) RETURNING id", tuple(vals))
+        rid = int(cur.fetchone()['id'])
+        if u:
+            cur.execute("INSERT INTO sync_applied_ops (client_op_uuid, remote_id) VALUES (%s,%s) ON CONFLICT (client_op_uuid) DO NOTHING", (u, rid))
+        return rid
+
+    if op == 'update_empleado':
+        eid = int(payload['empleado_id'])
+        sets = ', '.join(f"{c}=%s" for c in _NOMINA_EMP_COLS)
+        vals = []
+        for c in _NOMINA_EMP_COLS:
+            v = payload.get(c)
+            if c == 'salario_base':
+                v = float(v or 0)
+            if c in ('fecha_ingreso',) and not v:
+                v = None
+            vals.append(v)
+        cur.execute(f"UPDATE nomina_empleados SET {sets} WHERE id=%s RETURNING id", tuple(vals) + (eid,))
+        row = cur.fetchone()
+        if not row:
+            raise _DuplicateError(0)
+        return int(row['id'])
+
+    if op == 'delete_empleado':
+        eid = int(payload['empleado_id'])
+        cur.execute('UPDATE nomina_empleados SET activo=FALSE WHERE id=%s RETURNING id', (eid,))
+        row = cur.fetchone()
+        if not row:
+            raise _DuplicateError(0)
+        return int(row['id'])
+
+    if op == 'create_periodo':
+        u = (payload.get('client_op_uuid') or '').strip()
+        if u:
+            _ensure_ops_ledger(cur)
+            cur.execute('SELECT remote_id FROM sync_applied_ops WHERE client_op_uuid = %s', (u,))
+            prev = cur.fetchone()
+            if prev:
+                raise _DuplicateError(int(prev['remote_id']) if prev['remote_id'] is not None else 0)
+        cur.execute("""
+            INSERT INTO nomina_periodos (anio, mes, numero_periodo, fecha_inicio, fecha_fin, observaciones, estado)
+            VALUES (%s,%s,%s,%s,%s,%s,'borrador') RETURNING id
+        """, (int(payload['anio']), int(payload['mes']), int(payload['numero_periodo']),
+              payload.get('fecha_inicio'), payload.get('fecha_fin'), payload.get('observaciones')))
+        rid = int(cur.fetchone()['id'])
+        if u:
+            cur.execute("INSERT INTO sync_applied_ops (client_op_uuid, remote_id) VALUES (%s,%s) ON CONFLICT (client_op_uuid) DO NOTHING", (u, rid))
+        return rid
+
+    if op == 'create_novedad':
+        u = (payload.get('client_op_uuid') or '').strip()
+        if u:
+            _ensure_ops_ledger(cur)
+            cur.execute('SELECT remote_id FROM sync_applied_ops WHERE client_op_uuid = %s', (u,))
+            prev = cur.fetchone()
+            if prev:
+                raise _DuplicateError(int(prev['remote_id']) if prev['remote_id'] is not None else 0)
+        cur.execute("""
+            INSERT INTO nomina_novedades (periodo_id, empleado_id, tipo_novedad, cantidad, valor_total, fecha_novedad, observacion)
+            VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id
+        """, (int(payload['periodo_id']), int(payload['empleado_id']), (payload.get('tipo_novedad') or '').strip(),
+              float(payload.get('cantidad') or 0), float(payload.get('valor_total') or 0),
+              payload.get('fecha_novedad') or None, payload.get('observacion')))
+        rid = int(cur.fetchone()['id'])
+        if u:
+            cur.execute("INSERT INTO sync_applied_ops (client_op_uuid, remote_id) VALUES (%s,%s) ON CONFLICT (client_op_uuid) DO NOTHING", (u, rid))
+        return rid
+
+    if op == 'delete_novedad':
+        nid = int(payload['novedad_id'])
+        cur.execute('DELETE FROM nomina_novedades WHERE id=%s', (nid,))
+        return nid
+
+    if op == 'calcular_periodo':
+        from nomina_inteligente import calcular_nomina_periodo_inteligente
+        pid = int(payload['periodo_id'])
+        cur.execute("SELECT * FROM nomina_periodos WHERE id=%s", (pid,))
+        periodo = cur.fetchone()
+        if not periodo:
+            raise _DuplicateError(0)
+        cur.execute("SELECT * FROM nomina_parametros WHERE anio=%s", (periodo['anio'],))
+        params = cur.fetchone()
+        if not params:
+            raise ValueError(f"No hay parámetros de nómina para el año {periodo['anio']}.")
+        cur.execute("SELECT * FROM nomina_empleados WHERE activo = TRUE")
+        empleados = [dict(r) for r in cur.fetchall()]
+        cur.execute("""
+            SELECT periodo_id, empleado_id, UPPER(tipo_novedad) AS tipo_novedad,
+                   COALESCE(SUM(cantidad),0) AS cantidad, COALESCE(SUM(valor_total),0) AS valor_total
+            FROM nomina_novedades WHERE periodo_id=%s GROUP BY periodo_id, empleado_id, UPPER(tipo_novedad)
+        """, (pid,))
+        novedades = [dict(r) for r in cur.fetchall()]
+        resultado = calcular_nomina_periodo_inteligente(dict(periodo), dict(params), empleados, novedades)
+        cur.execute("DELETE FROM nomina_detalle WHERE periodo_id=%s", (pid,))
+        for d in resultado['detalles']:
+            cur.execute("""
+                INSERT INTO nomina_detalle (periodo_id, empleado_id, dias_trabajados, sueldo_basico,
+                    auxilio_transporte, horas_extras, total_devengado, salud_empleado, pension_empleado,
+                    fondo_solidaridad, retencion_fuente, total_deducido, neto_pagar)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            """, (pid, d['empleado_id'], d['dias_trabajados'], d['sueldo_basico'], d['auxilio_transporte'],
+                  d['horas_extras'], d['total_devengado'], d['salud_empleado'], d['pension_empleado'],
+                  d['fondo_solidaridad'], d['retencion_fuente'], d['total_deducido'], d['neto_pagar']))
+        try:
+            cur.execute("UPDATE nomina_periodos SET estado='calculada' WHERE id=%s", (pid,))
+        except Exception:
+            pass
+        return pid
+
+    raise ValueError(f'op de nómina no soportada: {op}')

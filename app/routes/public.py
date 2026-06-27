@@ -68,8 +68,9 @@ PRODUCTOS_POR_PAGINA = 24
 _PUBLIC_COLUMN_CACHE = {}
 
 
-def _productos_tienen_visibilidad_online():
-    cache_key = ('productos', 'visible_en_ecommerce')
+def _productos_tienen_columna(columna):
+    """Indica si la tabla productos tiene la columna dada (con cache)."""
+    cache_key = ('productos', columna)
     if cache_key in _PUBLIC_COLUMN_CACHE:
         return _PUBLIC_COLUMN_CACHE[cache_key]
 
@@ -80,15 +81,26 @@ def _productos_tienen_visibilidad_online():
                 FROM information_schema.columns
                 WHERE table_schema = 'public'
                   AND table_name = 'productos'
-                  AND column_name = 'visible_en_ecommerce'
+                  AND column_name = %s
                 LIMIT 1
-            """)
+            """, (columna,))
             exists = cur.fetchone() is not None
     except Exception:
         exists = False
 
     _PUBLIC_COLUMN_CACHE[cache_key] = exists
     return exists
+
+
+def _productos_tienen_visibilidad_online():
+    return _productos_tienen_columna('visible_en_ecommerce')
+
+
+def _productos_activos_sql(alias='p'):
+    """Fragmento WHERE para excluir productos archivados (active=false)."""
+    if _productos_tienen_columna('active'):
+        return f'COALESCE({alias}.active, TRUE) = TRUE'
+    return ''
 
 
 @public_bp.route('/')
@@ -139,6 +151,9 @@ def productos():
             params = []
             if _productos_tienen_visibilidad_online():
                 condiciones.append("COALESCE(p.visible_en_ecommerce, TRUE) = TRUE")
+            _activos = _productos_activos_sql('p')
+            if _activos:
+                condiciones.append(_activos)
             if q:
                 condiciones.append("(p.nombre ILIKE %s OR p.descripcion ILIKE %s)")
                 params += [f'%{q}%', f'%{q}%']
@@ -270,7 +285,8 @@ def detalle_producto(producto_id):
                 FROM productos p
                 JOIN generos g ON p.genero_id = g.id
                 WHERE p.id = %s
-            ''' + (' AND COALESCE(p.visible_en_ecommerce, TRUE) = TRUE' if _productos_tienen_visibilidad_online() else ''), (producto_id,))
+            ''' + (' AND COALESCE(p.visible_en_ecommerce, TRUE) = TRUE' if _productos_tienen_visibilidad_online() else '')
+                + ((' AND ' + _productos_activos_sql('p')) if _productos_activos_sql('p') else ''), (producto_id,))
             producto = cur.fetchone()
             if not producto:
                 return render_template('404.html'), 404
@@ -292,7 +308,8 @@ def detalle_producto(producto_id):
                 SELECT p.id, p.nombre, p.precio, p.imagen
                 FROM productos p
                 WHERE p.genero_id = %s AND p.id != %s AND p.stock > 0
-            ''' + (' AND COALESCE(p.visible_en_ecommerce, TRUE) = TRUE' if _productos_tienen_visibilidad_online() else '') + '''
+            ''' + (' AND COALESCE(p.visible_en_ecommerce, TRUE) = TRUE' if _productos_tienen_visibilidad_online() else '')
+                + ((' AND ' + _productos_activos_sql('p')) if _productos_activos_sql('p') else '') + '''
                 ORDER BY RANDOM() LIMIT 4
             ''', (producto['genero_id'], producto_id))
             relacionados = []
@@ -953,8 +970,12 @@ def sitemap_xml():
     if is_public_section_enabled('mostrar_modulo_ventas', True):
         try:
             with get_db_cursor(dict_cursor=True) as cur:
-                visible = (' WHERE COALESCE(visible_en_ecommerce, TRUE) = TRUE'
-                           if _productos_tienen_visibilidad_online() else '')
+                _conds = []
+                if _productos_tienen_visibilidad_online():
+                    _conds.append('COALESCE(visible_en_ecommerce, TRUE) = TRUE')
+                if _productos_tienen_columna('active'):
+                    _conds.append('COALESCE(active, TRUE) = TRUE')
+                visible = (' WHERE ' + ' AND '.join(_conds)) if _conds else ''
                 cur.execute(f'SELECT id FROM productos{visible} ORDER BY id DESC LIMIT 5000')
                 for row in cur.fetchall():
                     add(url_for('public.detalle_producto', producto_id=row['id'], _external=True),

@@ -34,15 +34,32 @@ BASE_HORAS_MENSUAL = 240
 #   HEDF: Hora Extra Diurna Festiva   (+100%)
 #   HENF: Hora Extra Nocturna Festiva (+150%)
 #   RN:   Recargo Nocturno            (+35% sobre la hora ordinaria)
-#   RD:   Recargo Dominical/Festivo   (+75%)
+#   RD:   Recargo Dominical/Festivo   (gradual, Ley 2466 de 2025: ver abajo)
+#
+# El recargo dominical/festivo (RD) lo modificó la Ley 2466 de 2025 de forma
+# gradual: 75% hasta jun-2025 · 80% desde jul-1-2025 · 90% desde jul-1-2026 ·
+# 100% desde jul-1-2027. Por eso RD se resuelve por FECHA (no es fijo).
 FACTORES_HORAS_EXTRAS = {
     'HED': 1.25,
     'HEN': 1.75,
     'HEDF': 2.00,
     'HENF': 2.50,
     'RN': 0.35,
-    'RD': 0.75,
+    'RD': 0.75,   # valor base (compatibilidad); se sobreescribe por fecha en calcular_horas_extras
 }
+
+
+def factor_recargo_dominical(fecha=None):
+    """Recargo dominical/festivo (RD) por fecha — Ley 2466 de 2025 (gradual)."""
+    if not fecha:
+        fecha = date.today()
+    if fecha >= date(2027, 7, 1):
+        return 1.00
+    if fecha >= date(2026, 7, 1):
+        return 0.90
+    if fecha >= date(2025, 7, 1):
+        return 0.80
+    return 0.75
 
 
 def calcular_valor_hora(salario_base):
@@ -54,7 +71,7 @@ def calcular_valor_hora(salario_base):
     return salario_base / BASE_HORAS_MENSUAL
 
 
-def calcular_horas_extras(valor_hora, tipo, cantidad):
+def calcular_horas_extras(valor_hora, tipo, cantidad, fecha=None):
     """
     Calcula el valor a pagar por horas extras o recargos.
 
@@ -62,11 +79,16 @@ def calcular_horas_extras(valor_hora, tipo, cantidad):
         valor_hora: valor de la hora ordinaria (ver `calcular_valor_hora`).
         tipo: código del recargo (HED, HEN, HEDF, HENF, RN, RD).
         cantidad: número de horas extra o de recargo.
+        fecha: fecha del recargo. Para RD (dominical/festivo) el factor es
+               gradual por Ley 2466/2025; si no se pasa fecha se usa hoy.
 
     Returns:
         Valor en pesos a pagar por el concepto.
     """
-    factor = FACTORES_HORAS_EXTRAS.get(tipo, 1.0)
+    if tipo == 'RD':
+        factor = factor_recargo_dominical(fecha)
+    else:
+        factor = FACTORES_HORAS_EXTRAS.get(tipo, 1.0)
     return valor_hora * factor * cantidad
 
 def calcular_auxilio_transporte(salario_base, smmlv, valor_auxilio):

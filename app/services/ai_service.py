@@ -221,6 +221,34 @@ def reescribir_descripcion(texto):
     return _chat(_contexto_tenant(), user, max_tokens=320)
 
 
+# ── Contenido web (publicaciones, slides, servicios) ───────────
+def generar_contenido(titulo, tipo='contenido', detalle=''):
+    """Redacta un texto breve para una sección de contenido web del tenant
+    (publicación, slide/banner o servicio). Genérico, no específico de producto."""
+    titulo = (titulo or '').strip()
+    if not titulo:
+        return None, 'Escribe primero el título.'
+    detalle = (detalle or '').strip()
+    tipo = (tipo or 'contenido').strip()
+    user = (f"Escribe un texto breve y atractivo para {tipo} titulado «{titulo}» "
+            "de una tienda online."
+            f"{' Ten en cuenta estos detalles: ' + detalle[:300] + '.' if detalle else ''}"
+            " 2 o 3 frases, claro y orientado a interesar al lector. Solo el texto, "
+            "sin títulos ni viñetas.")
+    return _chat(_contexto_tenant(), user, max_tokens=300)
+
+
+def mejorar_contenido(texto):
+    """Reescribe cualquier texto de contenido para que sea más claro y atractivo."""
+    texto = (texto or '').strip()
+    if not texto:
+        return None, 'No hay texto para mejorar.'
+    user = ("Reescribe este texto para que sea más claro, atractivo y bien "
+            "redactado, conservando la información real. Solo el texto final:\n\n"
+            + texto[:1500])
+    return _chat(_contexto_tenant(), user, max_tokens=320)
+
+
 def generar_seo(nombre, descripcion=''):
     nombre = (nombre or '').strip()
     if not nombre:

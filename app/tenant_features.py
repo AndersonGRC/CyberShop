@@ -292,12 +292,19 @@ def _resolve_config_state(meta, stored_flags=None):
 def _normalize_module_row(module_code, meta=None, row=None, stored_flags=None):
     meta = meta or _get_module_meta(module_code) or {}
     row = row or {}
+    stored_flags = stored_flags if stored_flags is not None else _get_module_config_rows()
 
+    config_key = meta.get('config_key')
     raw_is_active = row.get('is_active')
-    if raw_is_active is None:
-        is_active = _resolve_config_state(meta, stored_flags)
-    else:
+    if config_key and config_key in stored_flags:
+        # El maestro administra los módulos vía cliente_config → es la fuente
+        # autoritativa cuando el flag está seteado (gana sobre saas_tenant_modules,
+        # que en BDs legacy como la principal quedó con todo activo).
+        is_active = _as_bool(stored_flags.get(config_key), meta.get('default', False))
+    elif raw_is_active is not None:
         is_active = bool(raw_is_active)
+    else:
+        is_active = _resolve_config_state(meta, stored_flags)
 
     return {
         'id': row.get('id'),
@@ -446,6 +453,14 @@ def get_module_settings(tenant_id=None):
 
 def is_module_active(module_code, tenant_id=None):
     tenant_id = tenant_id or get_current_tenant_id() or get_default_tenant_id()
+    # El maestro administra los módulos vía cliente_config → autoritativo si el
+    # flag está seteado (coherente con _normalize_module_row).
+    _meta = _get_module_meta(module_code)
+    _ck = _meta.get('config_key') if _meta else None
+    if _ck:
+        _stored = _get_module_config_rows()
+        if _ck in _stored:
+            return _as_bool(_stored.get(_ck), _meta.get('default', False))
     if _feature_tables_ready():
         try:
             with get_db_cursor(dict_cursor=True) as cur:
