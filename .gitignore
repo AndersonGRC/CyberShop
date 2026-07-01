@@ -125,3 +125,6 @@ bower_components/
 *.tmp
 *.bak
 *.orig
+
+# Logos/medios del sitio publico subidos por cada cliente (NO entran a git)
+app/static/media/public_site/
