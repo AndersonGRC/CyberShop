@@ -38,9 +38,19 @@
 
 .logo_small {
     display: inline-block;
-    font-size: 18px;
-    padding: 3px 5px;
+    /* Se adapta al nombre del negocio: la fuente escala con el ancho de
+       pantalla y la caja crece con el texto hasta un máximo; nombres muy
+       largos se recortan con "…" en una sola línea (nunca rompen el header). */
+    max-width: min(38vw, 340px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: clamp(13px, 1.5vw, 18px);
+    line-height: 1.3;
+    padding: 4px 10px;
+    margin-left: 14px;   /* respiro: la marca nunca queda pegada/cortada al borde */
     margin-right: 30px;
+    vertical-align: middle;
     color: var(--color-fondo);
     background-color: var(--color-gris);
     border-radius: 6px;
@@ -50,10 +60,17 @@
     transition: all 0.3s ease;
 }
 
+.logo_small .link {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .logo_small:hover {
     color: var(--color-fondo);
     background-color: var(--color-secundario);
-    transform: scale(1.2);
+    transform: scale(1.05);   /* suave: scale(1.2) recortaba la marca en nombres largos */
     box-shadow: 0px 6px 6px var(--color-negro);
 }
 

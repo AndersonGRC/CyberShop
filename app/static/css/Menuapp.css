@@ -63,6 +63,15 @@ header .menu-logo img {
     transition: opacity 0.3s ease;
 }
 
+/* Logo PROPIO subido por el cliente (a color): NO aplicar el filtro que lo
+   vuelve blanco. El logo por defecto de CyberShop (azul) sí se blanquea para
+   verse sobre el menú azul; los logos subidos (media/public_site) se muestran
+   tal cual. La clase 'logo-original' la pone plantillaapp.html según la ruta. */
+header .menu-logo img.logo-original {
+    filter: none !important;
+    opacity: 1 !important;
+}
+
 /* Nav */
 header .nav {
     padding: 18px 0 24px;

@@ -28,7 +28,11 @@
     <!-- Menú lateral -->
     <header id="app-sidebar">
         <div class="menu-logo">
-            <img src="{{ brand_config.empresa_logo_url or url_for('static', filename='img/LogoP.PNG') }}" alt="Logo del menú">
+            {# Logo subido por el cliente (media/public_site) -> mostrarlo a COLOR
+               (clase logo-original quita el filtro que lo vuelve blanco). El logo
+               por defecto de CyberShop sí se blanquea para verse sobre el menú azul. #}
+            <img class="{{ 'logo-original' if (brand_config.empresa_logo_url and '/media/public_site/' in brand_config.empresa_logo_url) }}"
+                 src="{{ brand_config.empresa_logo_url or url_for('static', filename='img/LogoP.PNG') }}" alt="Logo del menú">
         </div>
         <div class="nav">
             <nav>
