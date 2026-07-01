@@ -927,6 +927,21 @@ def _insert_public_block_if_missing(slug, **values):
         )
 
 
+def _instance_media_base(root_path):
+    """Carpeta base para medios del sitio público. AISLAMIENTO POR CLIENTE: si la
+    instancia tiene override propio (`INSTANCE_OVERRIDES_DIR`), se guarda ahí —
+    cada tenant sirve SOLO lo suyo vía el static-override; otra instancia da 404.
+    Sin override (dev / instancia sin overrides), cae al static compartido."""
+    try:
+        from flask import current_app
+        override = (current_app.config.get('INSTANCE_OVERRIDES_DIR') or '').strip()
+        if override:
+            return override
+    except Exception:
+        pass
+    return root_path
+
+
 def _save_public_asset(file_storage, root_path, prefix='public'):
     if not file_storage or not file_storage.filename:
         return None
@@ -937,7 +952,7 @@ def _save_public_asset(file_storage, root_path, prefix='public'):
         ext = '.png'
 
     relative_dir = os.path.join('static', 'media', 'public_site')
-    absolute_dir = os.path.join(root_path, relative_dir)
+    absolute_dir = os.path.join(_instance_media_base(root_path), relative_dir)
     os.makedirs(absolute_dir, exist_ok=True)
 
     filename = f'{prefix}_{uuid.uuid4().hex[:12]}{ext}'
