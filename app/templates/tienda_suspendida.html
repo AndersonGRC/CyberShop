@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tienda temporalmente suspendida</title>
+    <style>
+        :root { --azul:#122C94; --azul-osc:#091C5A; }
+        * { box-sizing: border-box; }
+        body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+               font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+               background: linear-gradient(135deg, var(--azul-osc), var(--azul)); color:#0f172a; padding:24px; }
+        .card { background:#fff; max-width:520px; width:100%; border-radius:16px; padding:40px 34px;
+                box-shadow: 0 20px 60px rgba(0,0,0,.25); text-align:center; }
+        .icon { font-size:54px; line-height:1; margin-bottom:10px; }
+        h1 { font-size:1.5rem; margin:.2rem 0 .6rem; color:var(--azul-osc); }
+        p { color:#475569; line-height:1.55; margin:.4rem 0; }
+        .muted { font-size:.9rem; color:#94a3b8; margin-top:1.4rem; }
+        .btn { display:inline-block; margin-top:1.4rem; background:var(--azul); color:#fff;
+               text-decoration:none; padding:12px 26px; border-radius:10px; font-weight:600; }
+        .btn:hover { background:var(--azul-osc); }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">🔒</div>
+        <h1>Tienda temporalmente suspendida</h1>
+        <p>Este comercio no está disponible en este momento.</p>
+        <p><strong>¿Eres el propietario?</strong> Tu servicio está inactivo por un tema de
+           facturación. Renueva tu plan con el enlace que te enviamos por correo, o contacta a
+           soporte para reactivar tu tienda de inmediato.</p>
+        <a class="btn" href="/planes">Reactivar mi plan</a>
+        <p class="muted">Powered by CyberShop</p>
+    </div>
+</body>
+</html>

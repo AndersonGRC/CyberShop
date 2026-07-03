@@ -71,7 +71,7 @@ def _lookup_key_in_db(raw_key):
                 FROM sync_api_keys k
                 JOIN tenant_databases td ON td.tenant_id = k.tenant_id
                 JOIN tenants t           ON t.id        = k.tenant_id
-                WHERE k.key_hash = %s AND k.active = TRUE
+                WHERE k.key_hash = %s AND k.active = TRUE AND t.estado = 'activo'
             """, (key_hash,))
             row = cur.fetchone()
         if not row:

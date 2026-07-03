@@ -29,7 +29,6 @@ app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.config.from_object(Config)
 app.secret_key = app.config['SECRET_KEY']
-FLASK_SECRET_KEY='Omegafito7217*'
 
 # --- Overrides de interfaz por instancia (SOLO sitio público; ver config.py) ---
 # Si esta instancia de cliente tiene una carpeta de overrides (fuera del repo
@@ -202,6 +201,58 @@ def set_security_headers(response):
 # --- Resolver tenant activo en cada request ---
 from services.tenant_resolver import resolve_current_tenant
 app.before_request(resolve_current_tenant)
+
+# --- Enforcement de suspensión (defensa en profundidad; además de detener la
+#     instancia). Si el tenant de ESTA instancia no está 'activo', bloquea el sitio
+#     con una página "tienda suspendida" salvo las rutas para pagar/reactivar.
+#     FAIL-OPEN: ante cualquier error de lookup NO se bloquea (nunca tumbar un
+#     tenant activo por un hipo del control plane). Estado cacheado por proceso. ---
+import time as _time_susp
+from services.db_layer import control_plane_cursor as _cp_cursor_susp
+
+_INSTANCE_TENANT_ID = int(os.getenv('DEFAULT_TENANT_ID', '1') or 1)
+_estado_cache = {'estado': None, 'exp': 0.0}
+_ESTADO_TTL = 60  # s
+
+def _instance_tenant_estado():
+    now = _time_susp.time()
+    if _estado_cache['exp'] > now:
+        return _estado_cache['estado']
+    estado = None
+    try:
+        with _cp_cursor_susp(dict_cursor=True) as cur:
+            cur.execute("SELECT estado FROM tenants WHERE id = %s", (_INSTANCE_TENANT_ID,))
+            row = cur.fetchone()
+        if row:
+            estado = row['estado']
+    except Exception:
+        estado = None  # fail-open
+    _estado_cache['estado'] = estado
+    _estado_cache['exp'] = now + _ESTADO_TTL
+    return estado
+
+# Rutas que SIEMPRE pasan aunque el tenant esté suspendido (para poder pagar/reactivar,
+# servir estáticos y no romper las APIs, que validan su propio estado).
+_SUSPEND_ALLOW_PREFIXES = (
+    '/static/', '/favicon', '/health', '/api/',
+    '/planes', '/renovar', '/activar-tienda', '/comprar-plan',
+    '/metodos-pago', '/redireccion-payu', '/confirmacion-pago', '/respuesta-pago',
+)
+
+@app.before_request
+def _bloquear_si_suspendido():
+    if _instance_tenant_estado() in ('suspendido', 'cancelado'):
+        path = request.path or '/'
+        if not path.startswith(_SUSPEND_ALLOW_PREFIXES):
+            try:
+                from flask import render_template as _rt
+                return _rt('tienda_suspendida.html'), 503
+            except Exception:
+                return ('<!doctype html><meta charset="utf-8">'
+                        '<title>Tienda suspendida</title>'
+                        '<h1>Tienda temporalmente suspendida</h1>'
+                        '<p>Este comercio está inactivo. Si eres el propietario, '
+                        'renueva tu plan para reactivarlo.</p>'), 503
 
 # --- Meta CAPI: PageView automatico con dedup vs el Pixel ---
 import uuid as _uuid
