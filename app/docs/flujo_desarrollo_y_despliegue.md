@@ -122,3 +122,4 @@ sin desfases. En su lugar, el deploy **detecta** si traería archivos del **siti
 - [ ] Por cliente: **Actualizar app** (o **Deploy completo** si el cambio público es intencional).
 - [ ] Verificar que la marca/datos del cliente quedaron intactos.
 - [ ] Nunca `git add` de `app/static/media/**` (medios de clientes).
+
