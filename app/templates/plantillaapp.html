@@ -71,8 +71,14 @@
 
     <!-- Header superior -->
     <div class="header">
-        <div class="header-logo">
-            <img src="{{ brand_config.empresa_logo_url or url_for('static', filename='img/Logo.PNG') }}" alt="Logo del header">
+        <div class="header-left">
+            <button class="btn-collapse" type="button" title="Colapsar / expandir menú"
+                aria-label="Colapsar o expandir el menú lateral" aria-controls="app-sidebar">
+                <i class="fas fa-angle-double-left"></i>
+            </button>
+            <div class="header-logo">
+                <img src="{{ brand_config.empresa_logo_url or url_for('static', filename='img/Logo.PNG') }}" alt="Logo del header">
+            </div>
         </div>
         <button class="btn-menu" type="button" aria-label="Mostrar u ocultar menú lateral" aria-expanded="true"
             aria-controls="app-sidebar">

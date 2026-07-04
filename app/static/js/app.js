@@ -181,6 +181,47 @@
         }
     });
 
+    // ── Colapso a "rail de iconos" en desktop (agranda el panel) + persistencia ──
+    var collapseButton = document.querySelector('.btn-collapse');
+    var COLLAPSE_KEY = 'cybershop_sidebar_collapsed';
+
+    function applyCollapsed(on) {
+        sidebar.classList.toggle('collapsed', on);
+        if (collapseButton) {
+            collapseButton.setAttribute('aria-expanded', String(!on));
+            collapseButton.setAttribute('title', on ? 'Expandir menú' : 'Colapsar menú');
+        }
+    }
+
+    // Tooltip en modo rail: el título de cada enlace = su etiqueta de texto
+    document.querySelectorAll('header .nav ul li > a').forEach(function (a) {
+        var span = a.querySelector(':scope > span');
+        if (span && !a.title) { a.title = span.textContent.trim(); }
+    });
+
+    // Restaurar el estado colapsado (solo desktop)
+    if (!isMobile() && localStorage.getItem(COLLAPSE_KEY) === '1') {
+        applyCollapsed(true);
+    }
+
+    if (collapseButton) {
+        collapseButton.addEventListener('click', function () {
+            if (isMobile()) { return; }            // en mobile el botón está oculto
+            var on = !sidebar.classList.contains('collapsed');
+            applyCollapsed(on);
+            try { localStorage.setItem(COLLAPSE_KEY, on ? '1' : '0'); } catch (e) {}
+        });
+    }
+
+    // El rail solo existe en desktop: al pasar a mobile se quita; al volver, se restaura
+    window.addEventListener('resize', function () {
+        if (isMobile()) {
+            sidebar.classList.remove('collapsed');
+        } else if (localStorage.getItem(COLLAPSE_KEY) === '1') {
+            applyCollapsed(true);
+        }
+    });
+
     window.addEventListener('resize', resetSidebarForViewport);
     syncSidebarState();
 })();
