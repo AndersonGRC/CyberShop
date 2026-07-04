@@ -507,27 +507,79 @@
         font-size: 0.85rem;
     }
 
+    /* ── Botones de pago rápido (color por método) ── */
+    .pos-pay-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-top: 4px;
+    }
+    .pay-btn {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 5px; padding: 12px 4px; border: 2px solid transparent; border-radius: 12px;
+        cursor: pointer; font-weight: 700; font-size: 0.76rem; color: #fff;
+        line-height: 1.1; text-align: center;
+        transition: transform 0.12s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    }
+    .pay-btn i { font-size: 1.15rem; }
+    .pay-btn:hover { transform: translateY(-2px); filter: brightness(1.06); box-shadow: 0 8px 18px rgba(0,0,0,0.18); }
+    .pay-btn:active { transform: scale(0.95); }
+    .pay-btn.sel { outline: 3px solid rgba(255,255,255,0.7); outline-offset: 1px; }
+    .pay-efectivo  { background: linear-gradient(135deg,#16a34a,#12813b); }
+    .pay-nequi     { background: linear-gradient(135deg,#7c3aed,#5b21b6); }
+    .pay-tarjeta   { background: linear-gradient(135deg,#2563eb,#1e40af); }
+    .pay-transfer  { background: linear-gradient(135deg,#0d9488,#0f766e); }
+    .pay-daviplata { background: linear-gradient(135deg,#dc2626,#991b1b); }
+    .pay-otro      { background: linear-gradient(135deg,#64748b,#475569); }
+
+    /* ── Buscador de productos por nombre (sin código de barras) ── */
+    .barcode-wrapper { position: relative; }
+    .pos-search-results {
+        display: none;
+        position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+        z-index: 60; background: #fff;
+        border: 1px solid #dbe2f1; border-radius: 12px;
+        box-shadow: 0 16px 38px rgba(18, 44, 148, 0.16);
+        max-height: 340px; overflow-y: auto;
+    }
+    .pos-search-results.show { display: block; }
+    .psr-item {
+        display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        padding: 11px 14px; cursor: pointer; border-bottom: 1px solid #f0f3fa;
+    }
+    .psr-item:last-child { border-bottom: none; }
+    .psr-item:hover, .psr-item.active { background: #eef2fb; }
+    .psr-name { font-weight: 600; color: #1e293b; }
+    .psr-meta { color: #64748b; font-size: 0.82rem; white-space: nowrap; }
+    .psr-empty { padding: 14px; color: #94a3b8; text-align: center; }
+
+    /* ── Tiquete térmico (recibo angosto) ── */
+    .comprobante {
+        max-width: 340px;
+        font-family: 'Courier New', ui-monospace, monospace;
+        font-size: 0.82rem;
+        color: #111;
+        padding: 22px 18px;
+    }
+    .comprobante h2 { font-size: 1.05rem; margin: 2px 0; letter-spacing: .02em; }
+    .comp-logo { display: block; margin: 0 auto 8px; max-width: 150px; max-height: 72px; object-fit: contain; }
+    .comprobante p { margin: 2px 0; font-size: 0.8rem; }
+    .comprobante table { font-size: 0.78rem; }
+    .comprobante table th, .comprobante table td { padding: 3px 2px; }
+    .comprobante .comp-total { font-size: 1.05rem; }
+
     @media print {
-        body * {
-            visibility: hidden;
-        }
-
+        @page { size: 80mm auto; margin: 0; }
+        body * { visibility: hidden; }
         .comprobante,
-        .comprobante * {
-            visibility: visible;
-        }
-
+        .comprobante * { visibility: visible; }
         .comprobante {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            box-shadow: none;
+            position: absolute; left: 0; top: 0;
+            width: 76mm; max-width: 76mm;
+            box-shadow: none; border-radius: 0;
+            padding: 4mm 3mm; font-size: 11px;
         }
-
-        .comp-actions {
-            display: none;
-        }
+        .comp-actions { display: none; }
     }
 
     @media (max-width: 900px) {
@@ -677,8 +729,9 @@
             <div class="barcode-wrapper">
                 <i class="fas fa-barcode barcode-icon"></i>
                 <input type="text" id="barcode-input"
-                    placeholder="Escanear codigo de barras o buscar referencia..."
+                    placeholder="Escanea el código o escribe el nombre del producto..."
                     autocomplete="off" autofocus>
+                <div id="pos-search-results" class="pos-search-results"></div>
             </div>
             <button type="button" class="btn-pos btn-add-inv" onclick="agregarItemInventario()">
                 <i class="fas fa-box"></i> Agregar Producto (Insert)
@@ -734,17 +787,18 @@
         </div>
 
         <div class="pos-card">
-            <h3><i class="fas fa-credit-card"></i> Pago</h3>
+            <h3><i class="fas fa-credit-card"></i> Cobrar</h3>
+            <input type="hidden" id="pos-metodo-pago" value="EFECTIVO">
             <div class="pos-field">
-                <label>Metodo de Pago</label>
-                <select id="pos-metodo-pago">
-                    <option value="EFECTIVO">Efectivo</option>
-                    <option value="TARJETA">Tarjeta</option>
-                    <option value="TRANSFERENCIA">Transferencia</option>
-                    <option value="NEQUI">Nequi</option>
-                    <option value="DAVIPLATA">Daviplata</option>
-                    <option value="OTRO">Otro</option>
-                </select>
+                <label>Método de pago — <strong>toca para cobrar al instante</strong></label>
+                <div class="pos-pay-grid">
+                    <button type="button" class="pay-btn pay-efectivo"  data-metodo="EFECTIVO"      onclick="cobrarRapido('EFECTIVO')"><i class="fas fa-money-bill-wave"></i><span>Efectivo</span></button>
+                    <button type="button" class="pay-btn pay-nequi"     data-metodo="NEQUI"         onclick="cobrarRapido('NEQUI')"><i class="fas fa-mobile-alt"></i><span>Nequi</span></button>
+                    <button type="button" class="pay-btn pay-tarjeta"   data-metodo="TARJETA"       onclick="cobrarRapido('TARJETA')"><i class="fas fa-credit-card"></i><span>Tarjeta</span></button>
+                    <button type="button" class="pay-btn pay-transfer"  data-metodo="TRANSFERENCIA" onclick="cobrarRapido('TRANSFERENCIA')"><i class="fas fa-exchange-alt"></i><span>Transfer.</span></button>
+                    <button type="button" class="pay-btn pay-daviplata" data-metodo="DAVIPLATA"     onclick="cobrarRapido('DAVIPLATA')"><i class="fas fa-wallet"></i><span>Daviplata</span></button>
+                    <button type="button" class="pay-btn pay-otro"      data-metodo="OTRO"          onclick="cobrarRapido('OTRO')"><i class="fas fa-ellipsis-h"></i><span>Otro</span></button>
+                </div>
             </div>
             <div class="pos-field">
                 <label>Notas</label>
@@ -759,7 +813,7 @@
         </div>
 
         <button type="button" class="btn-registrar" id="btn-registrar" onclick="registrarVenta()">
-            <i class="fas fa-check-circle"></i> Registrar Venta (Enter)
+            <i class="fas fa-check-circle"></i> Cobrar en Efectivo (Enter)
         </button>
     </div>
 </div>
@@ -767,6 +821,9 @@
 <!-- Comprobante -->
 <div class="comprobante-overlay" id="comprobante-overlay">
     <div class="comprobante" id="comprobante-content">
+        {% if brand_config.empresa_logo_url %}
+        <img class="comp-logo" src="{{ brand_config.empresa_logo_url }}" alt="Logo">
+        {% endif %}
         <h2>{{ brand_config.empresa_nombre or datosApp.titulo }}</h2>
         <p style="text-align:center;color:#666;margin:0">Comprobante de Venta</p>
         <hr class="linea-sep">
@@ -1525,6 +1582,45 @@ function formatCOP(val) {
     return '$' + val.toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
+function cobrarRapido(metodo) {
+    // Toca un método de color -> fija el método y cobra al instante.
+    var input = document.getElementById('pos-metodo-pago');
+    if (input) { input.value = metodo; }
+    document.querySelectorAll('.pay-btn').forEach(function (b) {
+        b.classList.toggle('sel', b.getAttribute('data-metodo') === metodo);
+    });
+    registrarVenta();
+}
+
+function mostrarDeshacer(ventaId) {
+    // Red de seguridad ante clic accidental: toast con "Deshacer" ~4.5s.
+    if (!ventaId) { return; }
+    Swal.fire({
+        toast: true, position: 'top-end', icon: 'success',
+        title: 'Venta registrada',
+        html: '<button id="undo-venta" type="button" style="margin-top:6px;background:#dc2626;color:#fff;border:none;padding:6px 14px;border-radius:8px;cursor:pointer;font-weight:700"><i class="fas fa-undo"></i> Deshacer</button>',
+        showConfirmButton: false, timer: 4500, timerProgressBar: true,
+        didOpen: function (el) {
+            var b = el.querySelector('#undo-venta');
+            if (!b) { return; }
+            b.addEventListener('click', function () {
+                Swal.close();
+                fetch('/admin/pos/' + ventaId + '/anular', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+                    body: JSON.stringify({ motivo: 'Anulación inmediata desde POS (deshacer)' })
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    if (d.success) { Swal.fire('Venta deshecha', 'Se anuló la venta y se restauró el stock.', 'success'); nuevaVenta(); }
+                    else { Swal.fire('No se pudo deshacer', d.error || 'Anúlala desde Historial POS.', 'warning'); }
+                })
+                .catch(function () { Swal.fire('Error', 'No se pudo deshacer. Revisa el Historial POS.', 'error'); });
+            });
+        }
+    });
+}
+
 function registrarVenta() {
     // Evitar doble registro (doble Enter / F8 + click)
     const btnReg = document.getElementById('btn-registrar');
@@ -1619,6 +1715,7 @@ function registrarVenta() {
             }
             StockTracker.reset();
             mostrarComprobante(data);
+            mostrarDeshacer(data.venta_id);
         } else {
             playErrorBeep();
             Swal.fire('Error', data.error || 'Error procesando venta', 'error');
@@ -1875,50 +1972,103 @@ if (!navigator.onLine) {
     let lastKeyTime = 0;
     let scannerMode = false;
 
+    // ── Índice de productos (cliente) para buscar por NOMBRE sin backend ──
+    var PRODUCT_INDEX = (function () {
+        var out = [], tpl = document.getElementById('tpl-item-inventario');
+        if (tpl) {
+            tpl.content.querySelectorAll('select.input-desc option').forEach(function (o) {
+                if (!o.value) return;
+                out.push({
+                    id: parseInt(o.value),
+                    nombre: (o.getAttribute('data-nombre') || o.textContent || '').trim(),
+                    precio: parseFloat(o.getAttribute('data-precio')) || 0,
+                    stock: parseInt(o.getAttribute('data-stock')) || 0
+                });
+            });
+        }
+        return out;
+    })();
+
+    var resultsBox = document.getElementById('pos-search-results');
+    var searchMatches = [];
+
+    function looksLikeText(v) { return /[a-zA-Z]/.test(v); }
+    function hideSearch() { searchMatches = []; if (resultsBox) { resultsBox.classList.remove('show'); resultsBox.innerHTML = ''; } }
+
+    function renderSearch(q) {
+        if (!resultsBox) return;
+        var norm = q.toLowerCase().trim();
+        searchMatches = PRODUCT_INDEX.filter(function (p) { return p.nombre.toLowerCase().indexOf(norm) !== -1; }).slice(0, 8);
+        if (!searchMatches.length) {
+            resultsBox.innerHTML = '<div class="psr-empty">Sin productos que coincidan</div>';
+            resultsBox.classList.add('show');
+            return;
+        }
+        resultsBox.innerHTML = searchMatches.map(function (p, i) {
+            var sin = p.stock <= 0;
+            return '<div class="psr-item' + (i === 0 ? ' active' : '') + '" data-i="' + i + '">' +
+                   '<span class="psr-name">' + p.nombre + '</span>' +
+                   '<span class="psr-meta">' + formatCOP(p.precio) + ' &middot; ' + (sin ? 'sin stock' : (p.stock + ' und')) + '</span></div>';
+        }).join('');
+        resultsBox.classList.add('show');
+        resultsBox.querySelectorAll('.psr-item').forEach(function (el) {
+            el.addEventListener('click', function () { addProductFromSearch(searchMatches[parseInt(el.getAttribute('data-i'))]); });
+        });
+    }
+
+    function addProductFromSearch(prod) {
+        if (!prod) return;
+        agregarProductoAutomatico({ id: prod.id, nombre: prod.nombre, precio: prod.precio, stock: prod.stock });
+        barcodeField.value = '';
+        hideSearch();
+        setTimeout(function () { barcodeField.focus(); }, 30);
+    }
+
     const submitBarcode = (source) => {
         clearTimeout(barcodeDebounce);
         const val = barcodeField.value.trim().replace(/[\x00-\x1F\x7F]/g, '');
         if (val.length < 3) return;
-        console.log('[POS] Submit barcode (' + source + '):', val);
         buscarYAgregarPorBarcode(val);
         barcodeField.value = '';
         scannerMode = false;
         setTimeout(() => barcodeField.focus(), 50);
     };
 
-    // Enter/Tab: fin de escaneo inmediato
+    // Enter/Tab: si es texto con resultados -> agrega el primero; si no, barcode
     barcodeField.addEventListener('keydown', function(e) {
         if (e.key === 'Enter' || e.key === 'Tab') {
             e.preventDefault();
-            // Enter con el campo vacio = registrar la venta (cobrar)
-            if (e.key === 'Enter' && this.value.trim() === '') {
-                registrarVenta();
-                return;
-            }
+            var v = this.value.trim();
+            if (e.key === 'Enter' && v === '') { registrarVenta(); return; }
+            if (looksLikeText(v) && searchMatches.length) { addProductFromSearch(searchMatches[0]); return; }
             submitBarcode('enter');
             return;
         }
-        // Detectar entrada rapida = escaner (teclas a <30ms)
         const now = Date.now();
         if (lastKeyTime && (now - lastKeyTime) < 30) scannerMode = true;
         lastKeyTime = now;
     });
 
-    // Input: auto-submit cuando el escaner no envia Enter
+    // Input: texto -> buscador por nombre; dígitos -> código de barras
     barcodeField.addEventListener('input', function() {
         clearTimeout(barcodeDebounce);
         const val = this.value.trim();
+        if (looksLikeText(val)) {
+            if (val.length >= 2) { renderSearch(val); } else { hideSearch(); }
+            return;
+        }
+        hideSearch();
         if (val.length < 3) return;
-        // Si venimos de entrada rapida (escaner), disparar pronto tras silencio
         const delay = scannerMode ? 80 : 350;
         barcodeDebounce = setTimeout(() => {
             if (barcodeField.value.trim().length >= 3) submitBarcode('debounce');
         }, delay);
     });
 
-    // Refoco persistente: mantener el campo activo para capturar escaneos
+    // Refoco persistente + cerrar resultados al hacer clic fuera
     barcodeField.focus();
     document.addEventListener('click', function(e) {
+        if (!e.target.closest('#pos-search-results') && e.target.id !== 'barcode-input') { hideSearch(); }
         const tag = (e.target.tagName || '').toUpperCase();
         const editable = ['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON', 'A'].includes(tag)
             || e.target.isContentEditable
