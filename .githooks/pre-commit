@@ -1,0 +1,57 @@
+#!/bin/sh
+# Guardián de "condiciones de subida a git" de CyberShop — evita CAOS entre tenants.
+#   BLOQUEA (se replicaría a TODOS los clientes): medios/uploads de cliente,
+#           secretos/config (.env/.cybershop.conf/llaves), backups/binarios, y
+#           llaves privadas o el password filtrado dentro del contenido.
+#   AVISA (no bloquea): cambios del SITIO PÚBLICO (el deploy los BLOQUEA salvo
+#           "Deploy completo") y migraciones que parezcan NO aditivas.
+#   Bypass de emergencia real: git commit --no-verify
+files=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$files" ] && exit 0
+
+# ---------- BLOQUEOS ----------
+blocks=$(printf '%s\n' "$files" | while IFS= read -r f; do
+  case "$f" in */.gitkeep|.githooks/*) continue ;; esac
+  case "$f" in
+    app/static/media/*|*/static/media/*|app/static/uploads/*|app/static/user/*|app/uploads/*|app/static/crm/fotos/*|*/cotizaciones/pdf/*|*/cuentas_cobro/pdf/*)
+      echo "MEDIO/UPLOAD de cliente: $f" ;;
+    .env|*.env|.cybershop.conf|*.cybershop.conf|*.key|*.pem|*.crt|*.p12)
+      echo "SECRETO/CONFIG: $f" ;;
+    *.bak|*.sql.gz|*.pyc)
+      echo "ARTEFACTO no versionable: $f" ;;
+    *)
+      if git show ":$f" 2>/dev/null | grep -qE 'BEGIN [A-Z ]*PRIVATE KEY|Omegafito7217'; then
+        echo "SECRETO en contenido: $f"
+      fi ;;
+  esac
+done)
+
+if [ -n "$blocks" ]; then
+  echo "" >&2
+  echo "ERROR: COMMIT BLOQUEADO -- condiciones de subida a git (caos entre tenants):" >&2
+  printf '%s\n' "$blocks" | sed 's/^/    - /' >&2
+  echo "  Esto NO va al repo compartido (se replica a TODOS los clientes)." >&2
+  echo "  Datos/medios de cliente viven en su BD/overrides; secretos en el .env del server." >&2
+  echo "  Emergencia real: git commit --no-verify" >&2
+  exit 1
+fi
+
+# ---------- AVISOS ----------
+pub=$(printf '%s\n' "$files" | grep -E '^app/templates/(plantillaindex|plantillaindexError|index|productos|producto_detalle|servicios|carrito|metodos_pago|respuesta_pago|redireccion_payu|software|descargar|comprar_plan|activar_tienda|renovar_plan|login|registrarcliente|lista_deseos|404|tienda_suspendida|share/publico_)|^app/static/css/(index|Productos|ProductoDetalle|carrito|error404)|Shoppingcar\.js' 2>/dev/null || true)
+if [ -n "$pub" ]; then
+  echo "" >&2
+  echo "!  Tocas el SITIO PUBLICO (antes del login):" >&2
+  printf '%s\n' "$pub" | sed 's/^/     /' >&2
+  echo "   El boton 'Actualizar app' lo BLOQUEA. Usa una rama o 'Deploy completo'." >&2
+fi
+
+mig=$(printf '%s\n' "$files" | grep -E 'migrations/tenant/.*\.sql$' 2>/dev/null || true)
+if [ -n "$mig" ]; then
+  printf '%s\n' "$mig" | while IFS= read -r m; do
+    if git show ":$m" 2>/dev/null | grep -qiE '(DROP|TRUNCATE|DELETE)[[:space:]]|ALTER[[:space:]]+TABLE[[:space:]].*DROP'; then
+      echo "!  Migracion posiblemente NO aditiva: $m (DROP/TRUNCATE/DELETE). Deben ser aditivas/idempotentes." >&2
+    fi
+  done
+fi
+
+exit 0
