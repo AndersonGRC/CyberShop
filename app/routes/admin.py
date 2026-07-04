@@ -1798,7 +1798,8 @@ def facturacion_pos():
             productos = cur.fetchall()
     except Exception:
         pass
-    return render_template('facturacion_pos.html', datosApp=datosApp, productos=productos)
+    return render_template('facturacion_pos.html', datosApp=datosApp, productos=productos,
+                           metodos_pago=_get_metodos_pago())
 
 
 @admin_bp.route('/admin/pos/procesar', methods=['POST'])
@@ -2999,3 +3000,129 @@ def backup_db_eliminar(archivo_id):
         current_app.logger.error(f"Error eliminando backup {archivo_id}: {e}")
         flash('No se pudo eliminar el backup.', 'error')
     return redirect(url_for('admin.configuracion_cliente') + '#backup-db')
+
+
+# ============================================================
+#  MÉTODOS DE PAGO DEL POS (configurables por el cliente)
+# ============================================================
+_METODOS_PAGO_DEFAULT = [
+    ('EFECTIVO',      'Efectivo',      '#16a34a', 'fa-money-bill-wave', 10),
+    ('NEQUI',         'Nequi',         '#7c3aed', 'fa-mobile-alt',      20),
+    ('TARJETA',       'Tarjeta',       '#2563eb', 'fa-credit-card',     30),
+    ('TRANSFERENCIA', 'Transferencia', '#0d9488', 'fa-exchange-alt',    40),
+    ('DAVIPLATA',     'Daviplata',     '#dc2626', 'fa-wallet',          50),
+    ('OTRO',          'Otro',          '#64748b', 'fa-ellipsis-h',      60),
+]
+
+
+def _ensure_metodos_pago(cur):
+    """Crea la tabla de métodos de pago del POS y la siembra con los 6 por
+    defecto si está vacía (preserva el comportamiento previo)."""
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS metodos_pago_pos (
+            id      SERIAL PRIMARY KEY,
+            codigo  VARCHAR(30)  NOT NULL,
+            nombre  VARCHAR(50)  NOT NULL,
+            color   VARCHAR(20)  NOT NULL DEFAULT '#64748b',
+            icono   VARCHAR(40)  NOT NULL DEFAULT 'fa-money-bill-wave',
+            orden   INTEGER      NOT NULL DEFAULT 0,
+            activo  BOOLEAN      NOT NULL DEFAULT TRUE
+        )
+    """)
+    cur.execute("SELECT COUNT(*) FROM metodos_pago_pos")
+    if (cur.fetchone()[0] or 0) == 0:
+        for codigo, nombre, color, icono, orden in _METODOS_PAGO_DEFAULT:
+            cur.execute(
+                "INSERT INTO metodos_pago_pos (codigo, nombre, color, icono, orden) "
+                "VALUES (%s, %s, %s, %s, %s)",
+                (codigo, nombre, color, icono, orden),
+            )
+
+
+def _get_metodos_pago(solo_activos=True):
+    """Métodos de pago del tenant (crea/siembra la tabla si hace falta)."""
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            _ensure_metodos_pago(cur)
+            q = "SELECT id, codigo, nombre, color, icono, orden, activo FROM metodos_pago_pos"
+            if solo_activos:
+                q += " WHERE activo = TRUE"
+            q += " ORDER BY orden, id"
+            cur.execute(q)
+            return cur.fetchall()
+    except Exception as exc:  # noqa: BLE001
+        current_app.logger.warning('metodos_pago fallback: %s', exc)
+        return [
+            {'id': None, 'codigo': c, 'nombre': n, 'color': col, 'icono': ic, 'orden': o, 'activo': True}
+            for (c, n, col, ic, o) in _METODOS_PAGO_DEFAULT
+        ]
+
+
+@admin_bp.route('/admin/pos/metodos-pago')
+@rol_requerido(ADMIN_FULL)
+def metodos_pago_pos():
+    """Pantalla para que el cliente gestione sus métodos de pago del POS."""
+    datosApp = get_data_app()
+    metodos = _get_metodos_pago(solo_activos=False)
+    return render_template('metodos_pago_admin.html', datosApp=datosApp, metodos=metodos)
+
+
+@admin_bp.route('/admin/pos/metodos-pago/guardar', methods=['POST'])
+@rol_requerido(ADMIN_FULL)
+def guardar_metodo_pago():
+    import re as _re
+    mid    = (request.form.get('id') or '').strip()
+    nombre = (request.form.get('nombre') or '').strip()
+    color  = (request.form.get('color') or '#64748b').strip()
+    icono  = (request.form.get('icono') or 'fa-money-bill-wave').strip()
+    activo = request.form.get('activo') == 'on'
+    try:
+        orden = int(request.form.get('orden') or 0)
+    except ValueError:
+        orden = 0
+    if not nombre:
+        flash('El nombre del método es obligatorio.', 'error')
+        return redirect(url_for('admin.metodos_pago_pos'))
+    codigo = (request.form.get('codigo') or '').strip().upper()
+    if not codigo:
+        codigo = _re.sub(r'[^A-Z0-9]+', '_', nombre.upper()).strip('_')[:30] or 'METODO'
+    try:
+        with get_db_cursor() as cur:
+            _ensure_metodos_pago(cur)
+            if mid:
+                cur.execute(
+                    "UPDATE metodos_pago_pos SET nombre=%s, color=%s, icono=%s, orden=%s, activo=%s WHERE id=%s",
+                    (nombre, color, icono, orden, activo, int(mid)),
+                )
+            else:
+                cur.execute(
+                    "INSERT INTO metodos_pago_pos (codigo, nombre, color, icono, orden, activo) "
+                    "VALUES (%s, %s, %s, %s, %s, %s)",
+                    (codigo, nombre, color, icono, orden, activo),
+                )
+        flash('Método de pago guardado.', 'success')
+    except Exception as exc:  # noqa: BLE001
+        current_app.logger.error('guardar_metodo_pago: %s', exc)
+        flash('No se pudo guardar el método.', 'error')
+    return redirect(url_for('admin.metodos_pago_pos'))
+
+
+@admin_bp.route('/admin/pos/metodos-pago/<int:mid>/eliminar', methods=['POST'])
+@rol_requerido(ADMIN_FULL)
+def eliminar_metodo_pago(mid):
+    try:
+        with get_db_cursor() as cur:
+            _ensure_metodos_pago(cur)
+            cur.execute("SELECT COUNT(*) FROM metodos_pago_pos WHERE activo = TRUE")
+            activos = cur.fetchone()[0] or 0
+            cur.execute("SELECT activo FROM metodos_pago_pos WHERE id = %s", (mid,))
+            row = cur.fetchone()
+            if row and row[0] and activos <= 1:
+                flash('Debe quedar al menos un método de pago activo.', 'warning')
+                return redirect(url_for('admin.metodos_pago_pos'))
+            cur.execute("DELETE FROM metodos_pago_pos WHERE id = %s", (mid,))
+        flash('Método eliminado.', 'success')
+    except Exception as exc:  # noqa: BLE001
+        current_app.logger.error('eliminar_metodo_pago: %s', exc)
+        flash('No se pudo eliminar.', 'error')
+    return redirect(url_for('admin.metodos_pago_pos'))

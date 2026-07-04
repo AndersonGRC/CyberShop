@@ -525,6 +525,8 @@
     .pay-btn:hover { transform: translateY(-2px); filter: brightness(1.06); box-shadow: 0 8px 18px rgba(0,0,0,0.18); }
     .pay-btn:active { transform: scale(0.95); }
     .pay-btn.sel { outline: 3px solid rgba(255,255,255,0.7); outline-offset: 1px; }
+    .pos-cfg-link { float: right; color: #94a3b8; font-size: 0.9rem; text-decoration: none; }
+    .pos-cfg-link:hover { color: var(--color-primario, #122C94); }
     .pay-efectivo  { background: linear-gradient(135deg,#16a34a,#12813b); }
     .pay-nequi     { background: linear-gradient(135deg,#7c3aed,#5b21b6); }
     .pay-tarjeta   { background: linear-gradient(135deg,#2563eb,#1e40af); }
@@ -787,17 +789,18 @@
         </div>
 
         <div class="pos-card">
-            <h3><i class="fas fa-credit-card"></i> Cobrar</h3>
-            <input type="hidden" id="pos-metodo-pago" value="EFECTIVO">
+            <h3><i class="fas fa-credit-card"></i> Cobrar
+                {% if session.get('rol_id') in [1, 2] %}
+                <a href="{{ url_for('admin.metodos_pago_pos') }}" class="pos-cfg-link" title="Configurar métodos de pago"><i class="fas fa-cog"></i></a>
+                {% endif %}
+            </h3>
+            <input type="hidden" id="pos-metodo-pago" value="{{ (metodos_pago[0].codigo if metodos_pago else 'EFECTIVO') }}">
             <div class="pos-field">
                 <label>Método de pago — <strong>toca para cobrar al instante</strong></label>
                 <div class="pos-pay-grid">
-                    <button type="button" class="pay-btn pay-efectivo"  data-metodo="EFECTIVO"      onclick="cobrarRapido('EFECTIVO')"><i class="fas fa-money-bill-wave"></i><span>Efectivo</span></button>
-                    <button type="button" class="pay-btn pay-nequi"     data-metodo="NEQUI"         onclick="cobrarRapido('NEQUI')"><i class="fas fa-mobile-alt"></i><span>Nequi</span></button>
-                    <button type="button" class="pay-btn pay-tarjeta"   data-metodo="TARJETA"       onclick="cobrarRapido('TARJETA')"><i class="fas fa-credit-card"></i><span>Tarjeta</span></button>
-                    <button type="button" class="pay-btn pay-transfer"  data-metodo="TRANSFERENCIA" onclick="cobrarRapido('TRANSFERENCIA')"><i class="fas fa-exchange-alt"></i><span>Transfer.</span></button>
-                    <button type="button" class="pay-btn pay-daviplata" data-metodo="DAVIPLATA"     onclick="cobrarRapido('DAVIPLATA')"><i class="fas fa-wallet"></i><span>Daviplata</span></button>
-                    <button type="button" class="pay-btn pay-otro"      data-metodo="OTRO"          onclick="cobrarRapido('OTRO')"><i class="fas fa-ellipsis-h"></i><span>Otro</span></button>
+                    {% for m in (metodos_pago or []) %}
+                    <button type="button" class="pay-btn" style="background: {{ m.color }}" data-metodo="{{ m.codigo }}" onclick="cobrarRapido('{{ m.codigo }}')"><i class="fas {{ m.icono }}"></i><span>{{ m.nombre }}</span></button>
+                    {% endfor %}
                 </div>
             </div>
             <div class="pos-field">
@@ -813,7 +816,7 @@
         </div>
 
         <button type="button" class="btn-registrar" id="btn-registrar" onclick="registrarVenta()">
-            <i class="fas fa-check-circle"></i> Cobrar en Efectivo (Enter)
+            <i class="fas fa-check-circle"></i> Cobrar (Enter)
         </button>
     </div>
 </div>

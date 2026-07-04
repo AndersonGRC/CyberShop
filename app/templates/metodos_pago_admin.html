@@ -1,0 +1,117 @@
+{% extends 'plantillaapp.html' %}
+{% block titulo %}Métodos de pago · POS{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+    .mp-shell { width: min(1100px, 100%); margin: 0 auto; display: grid; gap: 26px; }
+    .mp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+               padding-bottom: 18px; border-bottom: 1px solid rgba(var(--color-marca-rgb), 0.10); }
+    .mp-head h1 { margin: 0 0 4px; font-size: 1.4rem; color: var(--color-primario-oscuro, #091C5A); }
+    .mp-head p { margin: 0; color: var(--color-gris-texto, #64748b); font-size: 0.9rem; max-width: 620px; }
+    .mp-back { background: rgba(var(--color-marca-rgb), 0.08); color: var(--color-primario); text-decoration: none;
+               padding: 10px 16px; border-radius: 10px; font-weight: 600; white-space: nowrap; }
+    .mp-back:hover { background: rgba(var(--color-marca-rgb), 0.16); }
+
+    .mp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 18px; }
+    .mp-card { background: #fff; border: 1px solid #e6ebf5; border-radius: 16px; padding: 18px;
+               display: flex; flex-direction: column; gap: 12px; box-shadow: 0 6px 20px rgba(18,44,148,0.05); }
+    .mp-card.nuevo { border: 2px dashed #c7d2ec; background: #fbfcff; }
+    .mp-preview { display: flex; align-items: center; justify-content: center; gap: 8px; color: #fff;
+                  border-radius: 12px; padding: 14px; font-weight: 700; font-size: 0.95rem; }
+    .mp-preview i { font-size: 1.2rem; }
+    .mp-card label { display: block; font-size: 0.78rem; font-weight: 600; color: #475569; }
+    .mp-card input[type=text], .mp-card input[type=number], .mp-card select {
+        width: 100%; margin-top: 4px; padding: 9px 11px; border: 1px solid #d7deec; border-radius: 9px; font-size: 0.9rem; }
+    .mp-row { display: flex; gap: 10px; }
+    .mp-row > label:first-child { flex: 1; }
+    .mp-row input[type=color] { width: 100%; height: 40px; margin-top: 4px; border: 1px solid #d7deec;
+                                border-radius: 9px; padding: 2px; cursor: pointer; background: #fff; }
+    .mp-check { display: flex !important; align-items: center; gap: 8px; cursor: pointer; }
+    .mp-check input { width: auto !important; margin: 0 !important; }
+    .mp-actions { display: flex; gap: 8px; margin-top: 2px; }
+    .mp-actions .btn-guardar { flex: 1; background: linear-gradient(135deg, var(--color-primario, #122C94), var(--color-primario-oscuro, #091C5A));
+        color: #fff; border: none; border-radius: 10px; padding: 10px; font-weight: 700; cursor: pointer; }
+    .mp-actions .btn-guardar:hover { filter: brightness(1.07); }
+    .mp-actions .btn-del { background: #fee2e2; color: #b91c1c; border: none; border-radius: 10px;
+        padding: 10px 14px; font-weight: 700; cursor: pointer; }
+    .mp-actions .btn-del:hover { background: #fecaca; }
+    .mp-inactivo { opacity: 0.6; }
+    .mp-badge-off { font-size: 0.72rem; color: #94a3b8; font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="mp-shell">
+    <div class="mp-head">
+        <div>
+            <h1><i class="fas fa-credit-card"></i> Métodos de pago del POS</h1>
+            <p>Estos son los botones de cobro rápido que verás en el Punto de Venta. Puedes agregar los
+               tuyos (Nequi, Bancolombia, Addi, etc.), elegir su color e ícono, y activar o desactivar
+               los que uses. El primero de la lista es el que cobra con <strong>Enter</strong>.</p>
+        </div>
+        <a class="mp-back" href="{{ url_for('admin.facturacion_pos') }}"><i class="fas fa-arrow-left"></i> Volver al POS</a>
+    </div>
+
+    {% set iconos = ['fa-money-bill-wave','fa-mobile-alt','fa-credit-card','fa-exchange-alt','fa-wallet',
+                     'fa-university','fa-qrcode','fa-hand-holding-usd','fa-coins','fa-money-check','fa-piggy-bank','fa-ellipsis-h'] %}
+
+    <div class="mp-grid">
+        <!-- Agregar nuevo -->
+        <form class="mp-card nuevo" method="POST" action="{{ url_for('admin.guardar_metodo_pago') }}">
+            <div class="mp-preview" id="prev-nuevo" style="background:#64748b"><i class="fas fa-plus"></i><span>Nuevo método</span></div>
+            <label>Nombre
+                <input type="text" name="nombre" placeholder="Ej: Bancolombia, Addi…" required
+                       oninput="document.querySelector('#prev-nuevo span').textContent = this.value || 'Nuevo método'">
+            </label>
+            <div class="mp-row">
+                <label>Color
+                    <input type="color" name="color" value="#0ea5e9"
+                           oninput="document.getElementById('prev-nuevo').style.background = this.value">
+                </label>
+                <label>Orden <input type="number" name="orden" value="70"></label>
+            </div>
+            <label>Ícono
+                <select name="icono" onchange="document.querySelector('#prev-nuevo i').className = 'fas ' + this.value">
+                    {% for ic in iconos %}<option value="{{ ic }}">{{ ic.replace('fa-','') }}</option>{% endfor %}
+                </select>
+            </label>
+            <label class="mp-check"><input type="checkbox" name="activo" checked> Activo</label>
+            <div class="mp-actions">
+                <button type="submit" class="btn-guardar"><i class="fas fa-plus"></i> Agregar</button>
+            </div>
+        </form>
+
+        <!-- Existentes -->
+        {% for m in metodos %}
+        <form class="mp-card {{ 'mp-inactivo' if not m.activo }}" method="POST" action="{{ url_for('admin.guardar_metodo_pago') }}">
+            <input type="hidden" name="id" value="{{ m.id }}">
+            <div class="mp-preview" id="prev-{{ m.id }}" style="background: {{ m.color }}">
+                <i class="fas {{ m.icono }}"></i><span>{{ m.nombre }}</span>
+            </div>
+            <label>Nombre {% if not m.activo %}<span class="mp-badge-off">(inactivo)</span>{% endif %}
+                <input type="text" name="nombre" value="{{ m.nombre }}" required
+                       oninput="document.querySelector('#prev-{{ m.id }} span').textContent = this.value || '{{ m.codigo }}'">
+            </label>
+            <div class="mp-row">
+                <label>Color
+                    <input type="color" name="color" value="{{ m.color }}"
+                           oninput="document.getElementById('prev-{{ m.id }}').style.background = this.value">
+                </label>
+                <label>Orden <input type="number" name="orden" value="{{ m.orden }}"></label>
+            </div>
+            <label>Ícono
+                <select name="icono" onchange="document.querySelector('#prev-{{ m.id }} i').className = 'fas ' + this.value">
+                    {% for ic in iconos %}<option value="{{ ic }}" {% if ic == m.icono %}selected{% endif %}>{{ ic.replace('fa-','') }}</option>{% endfor %}
+                </select>
+            </label>
+            <label class="mp-check"><input type="checkbox" name="activo" {% if m.activo %}checked{% endif %}> Activo</label>
+            <div class="mp-actions">
+                <button type="submit" class="btn-guardar"><i class="fas fa-save"></i> Guardar</button>
+                <button type="submit" class="btn-del" formaction="{{ url_for('admin.eliminar_metodo_pago', mid=m.id) }}"
+                        formnovalidate onclick="return confirm('¿Eliminar el método «{{ m.nombre }}»?')"><i class="fas fa-trash"></i></button>
+            </div>
+        </form>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
