@@ -1215,6 +1215,92 @@ def config():
 
 
 # ──────────────────────────────────────────────
+# IA — proxy autenticado por X-Sync-Key (Asistente del negocio)
+# El escritorio NO alcanza Ollama (red privada); habla con la web como proxy.
+# ──────────────────────────────────────────────
+
+def _ai_bridge_tenant():
+    """Puente multi-tenant: fija g.current_tenant a la BD del tenant del sync,
+    para que ai_service/ai_tools (que usan get_db_cursor/get_current_tenant_id)
+    operen SOLO sobre la BD de ESTE cliente y la caché quede aislada por tenant."""
+    g.current_tenant = {'db_name': g.sync_db_name, 'id': g.sync_tenant_id,
+                        'slug': g.sync_tenant_slug}
+
+
+@api_sync_bp.route('/ai/estado', methods=['GET'])
+@require_sync_key
+def ai_estado():
+    """Estado del asistente: licencia + disponibilidad del servidor de IA."""
+    _ai_bridge_tenant()
+    with tenant_cursor(db_name=g.sync_db_name, dict_cursor=True) as cur:
+        licenciado = _modulo_licenciado(cur, 'ia_habilitado')
+    if not licenciado:
+        return jsonify({'online': False, 'licenciado': False, 'modelo': None,
+                        'motivo': 'El módulo Asistente IA no está incluido en el plan.'})
+    import services.ai_service as ai
+    estado = ai.ping()
+    estado['licenciado'] = True
+    return jsonify(estado)
+
+
+@api_sync_bp.route('/ai/chat', methods=['POST'])
+@require_sync_key
+def ai_chat():
+    """Chat del negocio: responde con datos REALES de la BD de este tenant."""
+    _ai_bridge_tenant()
+    with tenant_cursor(db_name=g.sync_db_name, dict_cursor=True) as cur:
+        if not _modulo_licenciado(cur, 'ia_habilitado'):
+            return jsonify({'success': False, 'error': 'Módulo IA no licenciado.'}), 403
+    data = request.get_json(silent=True) or {}
+    pregunta = (data.get('pregunta') or '').strip()
+    if not pregunta:
+        return jsonify({'success': False, 'error': 'Escribe una pregunta.'}), 400
+    import services.ai_service as ai
+    resultado, error = ai.responder_chat(pregunta)
+    if error:
+        return jsonify({'success': False, 'error': error}), 200
+    return jsonify({'success': True, **(resultado or {})})
+
+
+@api_sync_bp.route('/ai/accion', methods=['POST'])
+@require_sync_key
+def ai_accion():
+    """Acciones puntuales de IA (una ruta parametrizada por 'tipo')."""
+    _ai_bridge_tenant()
+    with tenant_cursor(db_name=g.sync_db_name, dict_cursor=True) as cur:
+        if not _modulo_licenciado(cur, 'ia_habilitado'):
+            return jsonify({'success': False, 'error': 'Módulo IA no licenciado.'}), 403
+    data = request.get_json(silent=True) or {}
+    tipo = (data.get('tipo') or '').strip()
+    p = data.get('payload') or {}
+    import services.ai_service as ai
+    try:
+        if tipo == 'descripcion':
+            texto = ai.generar_descripcion(p.get('nombre', ''), p.get('categoria', ''), p.get('keywords', ''), p.get('precio'))
+        elif tipo == 'reescribir':
+            texto = ai.reescribir_descripcion(p.get('texto', ''))
+        elif tipo == 'seo':
+            texto = ai.generar_seo(p.get('nombre', ''), p.get('descripcion', ''))
+        elif tipo == 'tags':
+            texto = ai.generar_tags(p.get('nombre', ''), p.get('descripcion', ''))
+        elif tipo == 'nombre':
+            texto = ai.sugerir_nombre(p.get('descripcion', ''), p.get('categoria', ''))
+        elif tipo == 'traducir':
+            texto = ai.traducir_texto(p.get('texto', ''), p.get('idioma', 'inglés'))
+        elif tipo == 'respuesta':
+            texto = ai.sugerir_respuesta(p.get('mensaje_cliente', ''), p.get('asunto', ''))
+        elif tipo == 'contenido':
+            texto = ai.generar_contenido(p.get('titulo', ''), p.get('tipo', 'contenido'), p.get('detalle', ''))
+        else:
+            return jsonify({'success': False, 'error': f'Acción IA no soportada: {tipo}'}), 400
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({'success': False, 'error': str(exc)[:200]}), 200
+    if isinstance(texto, tuple):  # (None, error)
+        return jsonify({'success': False, 'error': texto[1] if len(texto) > 1 else 'Error de IA.'}), 200
+    return jsonify({'success': True, 'texto': texto})
+
+
+# ──────────────────────────────────────────────
 # GET /version — versión disponible del desktop
 # ──────────────────────────────────────────────
 

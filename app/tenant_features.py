@@ -7,7 +7,7 @@ Si todavia no existe, se mantiene compatibilidad con ``cliente_config``.
 
 from functools import lru_cache, wraps
 
-from flask import current_app, flash, jsonify, redirect, request, session, url_for
+from flask import current_app, flash, g, jsonify, redirect, request, session, url_for
 
 from database import get_db_cursor
 
@@ -399,6 +399,14 @@ def get_current_tenant_id():
     tenant_id = session.get('tenant_id')
     if tenant_id:
         return tenant_id
+
+    # Contexto sin sesión (p.ej. API de sync /ai/*): usar g.current_tenant si
+    # está fijado. Aísla por tenant la caché de IA y las consultas (multi-tenant).
+    try:
+        if getattr(g, 'current_tenant', None) and g.current_tenant.get('id'):
+            return g.current_tenant['id']
+    except Exception:
+        pass
 
     tenant_id = resolve_user_tenant_id(session.get('usuario_id'))
     session['tenant_id'] = tenant_id

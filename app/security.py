@@ -111,6 +111,7 @@ def _desktop_actions_for(rol_id):
     if has(ADMIN_STAFF):
         m["quotes"] = ["view", "create", "edit"] + (["delete", "approve"] if has(ADMIN_FULL) else [])
         m["crm"] = ["view", "create", "edit", "delete"]
+        m["ia"] = ["view", "use"]   # Asistente IA = mismo grupo que la web (ADMIN_STAFF)
     # Cuentas de cobro + contabilidad + historial POS = contador/admin
     # (clave 'cobros' = nav key del desktop, no 'billing')
     if has(ADMIN_CONTADOR):
