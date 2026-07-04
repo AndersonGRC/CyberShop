@@ -219,9 +219,6 @@ def GestionProductos():
             _repair_producto_imagenes_defaults()
             archivos = request.files.getlist('imagenes')
             archivos = [f for f in archivos if f and f.filename != '']
-            if not archivos:
-                flash('Debes subir al menos una imagen.', 'error')
-                return redirect(url_for('admin.GestionProductos'))
 
             nombre = request.form.get('nombre')
             precio = float(request.form.get('precio'))
@@ -234,10 +231,14 @@ def GestionProductos():
                 default=True,
             )
 
-            # Guardar primera imagen como principal del producto
-            primera = archivos[0]
-            imagen_nombre = product_images.save(primera, folder='media')
-            imagen_url_principal = f"/static/media/{imagen_nombre}"
+            # La imagen es OPCIONAL: si suben al menos una, la primera queda como
+            # principal; si no, el producto se crea sin imagen (cadena vacia).
+            if archivos:
+                primera = archivos[0]
+                imagen_nombre = product_images.save(primera, folder='media')
+                imagen_url_principal = f"/static/media/{imagen_nombre}"
+            else:
+                imagen_url_principal = ''
 
             conn = get_db_connection()
             cur = conn.cursor()
