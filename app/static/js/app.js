@@ -150,6 +150,17 @@
         trigger.setAttribute('aria-expanded', String(item.classList.contains('active')));
 
         trigger.addEventListener('click', function (event) {
+            // En modo RAIL (colapsado, desktop): atajo rapido -> ir directo a la
+            // PRIMERA pestana del submenu en vez de desplegar.
+            if (!isMobile() && sidebar.classList.contains('collapsed')) {
+                var firstLink = submenu.querySelector('a[href]');
+                var href = firstLink && firstLink.getAttribute('href');
+                if (href && href !== '#') {
+                    window.location.href = firstLink.href;
+                    return;
+                }
+            }
+
             event.preventDefault();
 
             var willOpen = !item.classList.contains('active');
