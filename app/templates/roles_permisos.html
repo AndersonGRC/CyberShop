@@ -111,6 +111,48 @@
     border-radius: 10px; padding: 10px 14px; font-size: .85rem; display: none;
   }
   .rp-cargando { text-align: center; color: var(--color-gris-texto); padding: 60px 0; }
+
+  /* Guía de 3 pasos (onboarding permanente, muy liviana) */
+  .rp-pasos { display: flex; gap: 10px; flex-wrap: wrap; margin: 0 0 16px; }
+  .rp-paso {
+    display: flex; align-items: center; gap: 8px; background: #fff; border-radius: 10px;
+    padding: 8px 13px; font-size: .82rem; color: var(--color-gris-texto);
+    box-shadow: var(--marca-sombra-sutil);
+  }
+  .rp-paso b {
+    width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center;
+    justify-content: center; color: #fff; font-size: .75rem; flex: 0 0 auto;
+    background: linear-gradient(135deg, var(--color-primario), var(--color-primario-oscuro));
+  }
+
+  /* Estado de la tarjeta: recomendado vs personalizado */
+  .rp-estado-chip {
+    font-size: .66rem; font-weight: 700; border-radius: 8px; padding: 2px 8px;
+    background: rgba(255,255,255,.18); color: #fff; letter-spacing: .2px;
+  }
+  .rp-estado-chip.personalizado { background: #f0a020; color: #fff; }
+  .rp-card-acciones { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+  .rp-mini-btn {
+    background: transparent; border: 0; color: #fff; cursor: pointer;
+    font-size: .82rem; opacity: .8; padding: 2px 6px;
+  }
+  .rp-mini-btn:hover { opacity: 1; }
+
+  /* Vista previa del rol (modal Swal) */
+  .rp-preview-lista { text-align: left; max-height: 320px; overflow-y: auto; margin-top: 6px; }
+  .rp-preview-item { display: flex; align-items: center; gap: 9px; padding: 7px 4px; border-bottom: 1px dashed #e3e6f0; font-size: .88rem; }
+  .rp-preview-item:last-child { border-bottom: 0; }
+  .rp-preview-item i { width: 20px; text-align: center; color: var(--color-primario); }
+  .rp-preview-item .rp-prev-nivel { margin-left: auto; font-size: .72rem; color: #5a7a14; background: #eef7df; border-radius: 8px; padding: 2px 8px; white-space: nowrap; }
+  .rp-preview-vacio { color: #8a6d1a; background: #fff8e6; border-radius: 8px; padding: 10px; font-size: .85rem; }
+
+  /* Móvil: la lista de módulos se vuelve chips horizontales */
+  @media (max-width: 860px) {
+    .rp-modulos { position: static; }
+    #rp-lista-modulos { display: flex; overflow-x: auto; gap: 4px; padding: 8px; }
+    .rp-mod-item { flex: 0 0 auto; border-left: 0; border-bottom: 3px solid transparent; border-radius: 8px; }
+    .rp-mod-item.activo { border-left: 0; border-bottom-color: var(--color-primario); }
+  }
 </style>
 {% endblock %}
 
@@ -131,6 +173,12 @@
   <div class="rp-banner">
     <i class="fas fa-shield-alt"></i>
     El <strong>Propietario</strong> y el <strong>Administrador</strong> siempre pueden hacer todo. Eso no se puede cambiar.
+  </div>
+
+  <div class="rp-pasos">
+    <span class="rp-paso"><b>1</b> Elige un módulo de la lista</span>
+    <span class="rp-paso"><b>2</b> Enciende o apaga lo que cada rol puede hacer</span>
+    <span class="rp-paso"><b>3</b> Listo — se guarda solo y aplica en la web y el escritorio</span>
   </div>
 
   <div id="rp-cargando" class="rp-cargando"><i class="fas fa-circle-notch fa-spin"></i>&nbsp; Cargando permisos…</div>
@@ -219,8 +267,21 @@ function rpPintarDetalle() {
     card.className = 'rp-rol-card';
     const badge = rol.es_sistema ? '' :
       `<span class="rp-rol-badge">copia de ${rol.base_nombre || 'Empleado'}</span>`;
-    const menuBtn = rol.es_sistema ? '' :
-      `<button type="button" class="rp-rol-menu-btn" title="Renombrar o eliminar" onclick="rpMenuRol(${rol.id}, '${rol.nombre.replace(/'/g, "\\'")}')"><i class="fas fa-pen"></i></button>`;
+    // Estado de la celda: ¿el dueño la personalizó o está en lo recomendado?
+    const estado = celda.personalizado
+      ? `<span class="rp-estado-chip personalizado" title="Este módulo tiene cambios tuyos para este rol">Personalizado</span>`
+      : `<span class="rp-estado-chip" title="Valores recomendados del sistema">Recomendado</span>`;
+    const nombreJs = rol.nombre.replace(/'/g, "\\'");
+    let botones = `<button type="button" class="rp-mini-btn" title="Ver qué verá ${rol.nombre}"
+                     onclick="rpVistaRol(${rol.id}, '${nombreJs}')"><i class="fas fa-eye"></i></button>`;
+    if (celda.personalizado) {
+      botones += `<button type="button" class="rp-mini-btn" title="Volver a lo recomendado (solo este rol en este módulo)"
+                    onclick="rpRestaurarCelda(${rol.id}, '${m.modulo}')"><i class="fas fa-undo"></i></button>`;
+    }
+    if (!rol.es_sistema) {
+      botones += `<button type="button" class="rp-mini-btn" title="Renombrar o eliminar"
+                    onclick="rpMenuRol(${rol.id}, '${nombreJs}')"><i class="fas fa-pen"></i></button>`;
+    }
     let filas = '';
     m.acciones.forEach(a => {
       const activo = !!celda[a.accion];
@@ -228,7 +289,7 @@ function rpPintarDetalle() {
       filas += `
         <div class="rp-perm-row ${esDependiente ? 'deshabilitada' : ''}">
           <span class="rp-perm-label">${a.label}</span>
-          <label class="switch">
+          <label class="switch" title="${esDependiente ? 'Primero enciende: Puede entrar y ver' : ''}">
             <input type="checkbox" ${activo ? 'checked' : ''} ${esDependiente ? 'disabled' : ''}
                    onchange="rpToggle(${rol.id}, '${m.modulo}', '${a.accion}', this)">
             <span class="slider-toggle"></span>
@@ -236,11 +297,48 @@ function rpPintarDetalle() {
         </div>`;
     });
     card.innerHTML = `
-      <div class="rp-rol-card-header"><i class="fas fa-user"></i> ${rol.nombre} ${badge} ${menuBtn}</div>
+      <div class="rp-rol-card-header"><i class="fas fa-user"></i> ${rol.nombre} ${badge} ${estado}
+        <span class="rp-card-acciones">${botones}</span></div>
       <div class="rp-rol-card-body">${filas}</div>`;
     grid.appendChild(card);
   });
   rpAvisoRolesSinAcceso();
+}
+
+function rpVistaRol(rolId, nombre) {
+  // Vista previa: qué módulos verá este rol al iniciar sesión y hasta dónde llega.
+  const conAcceso = RP.modulos
+    .map(m => ({ m, p: RP.permisos[`${rolId}:${m.modulo}`] || {} }))
+    .filter(x => x.p.ver);
+  let html;
+  if (!conAcceso.length) {
+    html = `<div class="rp-preview-vacio"><i class="fas fa-exclamation-triangle"></i>
+            &nbsp;${nombre} no podrá entrar a ningún módulo.</div>`;
+  } else {
+    const items = conAcceso.map(x => {
+      const nivel = x.p.eliminar ? 'ver · crear · eliminar'
+                  : x.p.operar ? 'ver · crear' : 'solo ver';
+      return `<div class="rp-preview-item"><i class="fas fa-${x.m.icono}"></i>
+              <span>${x.m.nombre}</span><span class="rp-prev-nivel">${nivel}</span></div>`;
+    }).join('');
+    html = `<div class="rp-preview-lista">${items}</div>`;
+  }
+  Swal.fire({
+    title: `Así queda ${nombre}`,
+    html: `<p style="font-size:.85rem;color:#5a5c69;margin:0 0 4px">
+             Cuando inicie sesión verá ${conAcceso.length} módulo(s):</p>${html}`,
+    confirmButtonText: 'Entendido', confirmButtonColor: BRAND_COLOR_BTN });
+}
+
+async function rpRestaurarCelda(rolId, modulo) {
+  try {
+    await rpFetch(`${RP_BASE}/restaurar`, { rol_id: rolId, modulo });
+    await rpCargar(true);
+    rpToast('Restaurado ✓');
+  } catch (e) {
+    Swal.fire({ icon: 'error', title: 'No se pudo restaurar', text: e.message,
+                confirmButtonColor: BRAND_COLOR_BTN });
+  }
 }
 
 function rpAvisoRolesSinAcceso() {
