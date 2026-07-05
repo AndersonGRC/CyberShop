@@ -1,0 +1,262 @@
+{% extends 'plantillaapp.html' %}
+{% block titulo %}Caja / Arqueo · POS{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+    .cj-shell { width: min(1150px, 100%); margin: 0 auto; display: grid; gap: 22px; }
+    .cj-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+               padding-bottom: 16px; border-bottom: 1px solid rgba(var(--color-marca-rgb), 0.10); }
+    .cj-head h1 { margin: 0 0 4px; font-size: 1.4rem; color: var(--color-primario-oscuro, #091C5A); }
+    .cj-head p { margin: 0; color: var(--color-gris-texto, #64748b); font-size: 0.9rem; max-width: 640px; }
+    .cj-links { display: flex; gap: 10px; flex-wrap: wrap; }
+    .cj-btnlink { background: rgba(var(--color-marca-rgb), 0.08); color: var(--color-primario); text-decoration: none;
+                  padding: 10px 16px; border-radius: 10px; font-weight: 600; white-space: nowrap; }
+    .cj-btnlink:hover { background: rgba(var(--color-marca-rgb), 0.16); }
+
+    .cj-card { background: #fff; border: 1px solid #e6ebf5; border-radius: 16px; padding: 20px;
+               box-shadow: 0 6px 20px rgba(18,44,148,0.05); }
+    .cj-card h3 { margin: 0 0 14px; font-size: 1.02rem; color: #1e293b; display: flex; align-items: center; gap: 8px; }
+    .cj-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; align-items: start; }
+    @media (max-width: 900px) { .cj-grid { grid-template-columns: 1fr; } }
+
+    /* Estado abierta */
+    .cj-status { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+                 background: linear-gradient(135deg, #16a34a, #15803d); color: #fff;
+                 border-radius: 16px; padding: 18px 22px; }
+    .cj-status .st-title { font-weight: 800; font-size: 1.05rem; }
+    .cj-status .st-sub { font-size: 0.85rem; opacity: 0.9; }
+    .cj-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+    .cj-kpi { background: #f8fafc; border: 1px solid #e6ebf5; border-radius: 12px; padding: 12px 14px; }
+    .cj-kpi .k-label { font-size: 0.74rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .03em; }
+    .cj-kpi .k-value { font-size: 1.15rem; font-weight: 800; color: #0f172a; margin-top: 2px; }
+    .cj-kpi.destacado { background: rgba(var(--color-marca-rgb), 0.06); border-color: rgba(var(--color-marca-rgb), 0.25); }
+    .cj-kpi.destacado .k-value { color: var(--color-primario); }
+
+    .cj-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .cj-table th { text-align: left; padding: 8px 10px; color: #64748b; font-size: 0.76rem;
+                   text-transform: uppercase; letter-spacing: .03em; border-bottom: 2px solid #eef1f8; }
+    .cj-table td { padding: 9px 10px; border-bottom: 1px solid #f0f3fa; color: #1e293b; }
+    .cj-table td.num, .cj-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .cj-tag-entrada { color: #15803d; font-weight: 700; }
+    .cj-tag-salida  { color: #b91c1c; font-weight: 700; }
+
+    .cj-field { margin-bottom: 12px; }
+    .cj-field label { display: block; font-size: 0.78rem; font-weight: 600; color: #475569; margin-bottom: 4px; }
+    .cj-field input, .cj-field select, .cj-field textarea {
+        width: 100%; padding: 10px 12px; border: 1px solid #d7deec; border-radius: 9px; font-size: 0.92rem; }
+    .cj-row { display: flex; gap: 10px; }
+    .cj-row > .cj-field { flex: 1; }
+
+    .cj-submit { width: 100%; background: linear-gradient(135deg, var(--color-primario, #122C94), var(--color-primario-oscuro, #091C5A));
+                 color: #fff; border: none; border-radius: 10px; padding: 12px; font-weight: 700; cursor: pointer; font-size: 0.95rem; }
+    .cj-submit:hover { filter: brightness(1.07); }
+    .cj-submit.cerrar { background: linear-gradient(135deg, #b91c1c, #991b1b); }
+    .cj-submit.abrir  { background: linear-gradient(135deg, #16a34a, #15803d); }
+
+    .dif-pos { color: #15803d; font-weight: 800; }
+    .dif-neg { color: #b91c1c; font-weight: 800; }
+    .dif-cero { color: #64748b; font-weight: 700; }
+    .cj-hint { font-size: 0.78rem; color: #94a3b8; margin-top: 6px; }
+</style>
+{% endblock %}
+
+{% block body %}
+{% set fmt = "{:,.0f}" %}
+<div class="cj-shell">
+    <div class="cj-head">
+        <div>
+            <h1><i class="fas fa-coins"></i> Caja / Arqueo</h1>
+            <p>Abre el turno con tu <strong>base de caja</strong>, registra entradas y salidas de efectivo,
+               y al final cuenta el dinero para hacer el <strong>cuadre</strong>. La base no se suma a
+               contabilidad (es dinero ya existente); las salidas y el sobrante/faltante sí quedan registrados.</p>
+        </div>
+        <div class="cj-links">
+            <a class="cj-btnlink" href="{{ url_for('admin.facturacion_pos') }}"><i class="fas fa-cash-register"></i> Ir al POS</a>
+            {% if es_admin_contador %}
+            <a class="cj-btnlink" href="{{ url_for('caja.historial_caja') }}"><i class="fas fa-chart-line"></i> Historial de cuadres</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if sesion %}
+    {# ══════════ CAJA ABIERTA ══════════ #}
+    <div class="cj-status">
+        <div>
+            <div class="st-title"><i class="fas fa-lock-open"></i> Caja abierta</div>
+            <div class="st-sub">Desde {{ sesion.fecha_apertura.strftime('%d/%m/%Y %I:%M %p') }} · Turno #{{ sesion.id }}</div>
+        </div>
+        <div class="st-title">Base: ${{ fmt.format(sesion.base_inicial or 0) }}</div>
+    </div>
+
+    <div class="cj-kpis">
+        <div class="cj-kpi"><div class="k-label">Ventas del turno</div><div class="k-value">${{ fmt.format(resumen.total_ventas) }}</div></div>
+        <div class="cj-kpi"><div class="k-label">Ventas en efectivo</div><div class="k-value">${{ fmt.format(resumen.total_efectivo) }}</div></div>
+        <div class="cj-kpi"><div class="k-label">Entradas</div><div class="k-value">${{ fmt.format(resumen.entradas) }}</div></div>
+        <div class="cj-kpi"><div class="k-label">Salidas</div><div class="k-value">${{ fmt.format(resumen.salidas) }}</div></div>
+        <div class="cj-kpi destacado"><div class="k-label">Efectivo esperado</div><div class="k-value">${{ fmt.format(resumen.esperado) }}</div></div>
+    </div>
+
+    <div class="cj-grid">
+        <div style="display:grid; gap:20px;">
+            <div class="cj-card">
+                <h3><i class="fas fa-list"></i> Ventas por método de pago</h3>
+                <table class="cj-table">
+                    <thead><tr><th>Método</th><th class="num"># Ventas</th><th class="num">Total</th></tr></thead>
+                    <tbody>
+                        {% for m in resumen.metodos %}
+                        <tr><td>{{ m.metodo_pago }}</td><td class="num">{{ m.n }}</td><td class="num">${{ fmt.format(m.total) }}</td></tr>
+                        {% else %}
+                        <tr><td colspan="3" style="color:#94a3b8; text-align:center;">Aún no hay ventas en este turno.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="cj-card">
+                <h3><i class="fas fa-exchange-alt"></i> Entradas y salidas de efectivo</h3>
+                <form method="POST" action="{{ url_for('caja.movimiento_caja') }}">
+                    <div class="cj-row">
+                        <div class="cj-field">
+                            <label>Tipo</label>
+                            <select name="tipo">
+                                <option value="salida">Salida (sacar dinero)</option>
+                                <option value="entrada">Entrada (agregar dinero)</option>
+                            </select>
+                        </div>
+                        <div class="cj-field">
+                            <label>Categoría</label>
+                            <select name="categoria">
+                                {% for cod, nom in categorias_mov %}<option value="{{ cod }}">{{ nom }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="cj-field">
+                            <label>Monto</label>
+                            <input type="text" name="monto" placeholder="10.000" required inputmode="numeric">
+                        </div>
+                    </div>
+                    <div class="cj-field">
+                        <label>Descripción</label>
+                        <input type="text" name="descripcion" placeholder="Ej: pago del domicilio, retiro a banco…">
+                    </div>
+                    <button type="submit" class="cj-submit">Registrar movimiento</button>
+                    <div class="cj-hint">Las salidas quedan registradas también como egreso en Contabilidad.</div>
+                </form>
+
+                {% if movimientos %}
+                <table class="cj-table" style="margin-top:14px;">
+                    <thead><tr><th>Hora</th><th>Tipo</th><th>Descripción</th><th class="num">Monto</th></tr></thead>
+                    <tbody>
+                        {% for mv in movimientos %}
+                        <tr>
+                            <td>{{ mv.fecha.strftime('%I:%M %p') }}</td>
+                            <td class="cj-tag-{{ mv.tipo }}">{{ 'Entrada' if mv.tipo == 'entrada' else 'Salida' }}</td>
+                            <td>{{ mv.descripcion or dict(categorias_mov).get(mv.categoria, mv.categoria) }}</td>
+                            <td class="num">${{ fmt.format(mv.monto) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="cj-card">
+            <h3><i class="fas fa-balance-scale"></i> Cerrar caja (cuadre)</h3>
+            <p style="font-size:0.85rem; color:#64748b; margin:0 0 12px;">
+                Cuenta TODO el efectivo del cajón (incluida la base) y escríbelo aquí.
+                El sistema calcula el sobrante o faltante.</p>
+            <form method="POST" action="{{ url_for('caja.cerrar_caja') }}" id="form-cerrar">
+                <div class="cj-field">
+                    <label>Efectivo contado ($)</label>
+                    <input type="text" name="efectivo_contado" id="inp-contado" placeholder="0" required inputmode="numeric">
+                </div>
+                <div class="cj-field">
+                    <label>Notas del cierre (opcional)</label>
+                    <textarea name="notas" rows="2" placeholder="Observaciones…"></textarea>
+                </div>
+                <div class="cj-kpi" style="margin-bottom:12px;">
+                    <div class="k-label">Diferencia estimada</div>
+                    <div class="k-value" id="dif-preview">—</div>
+                </div>
+                <button type="submit" class="cj-submit cerrar"><i class="fas fa-lock"></i> Cerrar y cuadrar caja</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            var esperado = {{ resumen.esperado | round(2) }};
+            var inp = document.getElementById('inp-contado');
+            var prev = document.getElementById('dif-preview');
+            function parseMonto(v) {
+                v = (v || '').replace(/\$/g, '').replace(/\s/g, '');
+                if (v.indexOf(',') !== -1) { v = v.replace(/\./g, '').replace(',', '.'); }
+                else if ((v.match(/\./g) || []).length > 1 || /\.\d{3}$/.test(v)) { v = v.replace(/\./g, ''); }
+                var n = parseFloat(v); return isNaN(n) ? null : n;
+            }
+            function fmt(n) { return '$' + Math.abs(n).toLocaleString('es-CO', { maximumFractionDigits: 0 }); }
+            inp.addEventListener('input', function () {
+                var c = parseMonto(inp.value);
+                if (c === null) { prev.textContent = '—'; prev.className = 'k-value'; return; }
+                var d = c - esperado;
+                if (Math.abs(d) < 0.01) { prev.textContent = 'Cuadre exacto ✓'; prev.className = 'k-value dif-cero'; }
+                else if (d > 0) { prev.textContent = 'Sobrante ' + fmt(d); prev.className = 'k-value dif-pos'; }
+                else { prev.textContent = 'Faltante ' + fmt(d); prev.className = 'k-value dif-neg'; }
+            });
+            document.getElementById('form-cerrar').addEventListener('submit', function (e) {
+                var c = parseMonto(inp.value);
+                if (c === null) return;
+                var d = c - esperado;
+                var msg = Math.abs(d) < 0.01 ? 'Cuadre exacto.' :
+                          (d > 0 ? 'Sobrante de ' + fmt(d) + '.' : 'FALTANTE de ' + fmt(d) + '.');
+                if (!confirm('Cerrar la caja del turno?\n\nEsperado: ' + fmt(esperado) + '\nContado: ' + fmt(c) + '\n' + msg)) {
+                    e.preventDefault();
+                }
+            });
+        })();
+    </script>
+
+    {% else %}
+    {# ══════════ CAJA CERRADA → APERTURA ══════════ #}
+    <div class="cj-grid">
+        <div class="cj-card">
+            <h3><i class="fas fa-lock-open"></i> Abrir caja</h3>
+            <p style="font-size:0.87rem; color:#64748b; margin:0 0 14px;">
+                Cuenta el efectivo con el que inicias (la <strong>base</strong>: billetes y monedas
+                para dar vueltos) y ábrela. Sin caja abierta el POS no permite cobrar.</p>
+            <form method="POST" action="{{ url_for('caja.abrir_caja') }}">
+                <div class="cj-field">
+                    <label>Base de caja ($)</label>
+                    <input type="text" name="base" placeholder="50.000" required inputmode="numeric" autofocus>
+                </div>
+                <div class="cj-field">
+                    <label>Notas (opcional)</label>
+                    <input type="text" name="notas" placeholder="Ej: turno mañana">
+                </div>
+                <button type="submit" class="cj-submit abrir"><i class="fas fa-play"></i> Abrir caja</button>
+            </form>
+        </div>
+
+        <div class="cj-card">
+            <h3><i class="fas fa-history"></i> Últimos cuadres</h3>
+            <table class="cj-table">
+                <thead><tr><th>Turno</th><th class="num">Ventas</th><th class="num">Diferencia</th><th></th></tr></thead>
+                <tbody>
+                    {% for s in recientes %}
+                    <tr>
+                        <td>#{{ s.id }} · {{ s.fecha_apertura.strftime('%d/%m') }}</td>
+                        <td class="num">${{ fmt.format(s.total_ventas or 0) }}</td>
+                        <td class="num {{ 'dif-pos' if (s.diferencia or 0) > 0 else ('dif-neg' if (s.diferencia or 0) < 0 else 'dif-cero') }}">
+                            {{ '+' if (s.diferencia or 0) > 0 else ('-' if (s.diferencia or 0) < 0 else '') }}${{ fmt.format((s.diferencia or 0) | abs) }}</td>
+                        <td><a href="{{ url_for('caja.arqueo_sesion', sesion_id=s.id) }}" title="Ver arqueo"><i class="fas fa-receipt"></i></a></td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" style="color:#94a3b8; text-align:center;">Aún no hay cuadres registrados.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

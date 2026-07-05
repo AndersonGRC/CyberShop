@@ -228,6 +228,7 @@ CATEGORIAS_INGRESO = [
     ('venta_restaurante', 'Venta restaurante'),
     ('pedido_online', 'Pedido online'),
     ('honorarios',    'Honorarios'),
+    ('sobrante_caja', 'Sobrante cuadre de caja'),
     ('otro_ingreso',  'Otro ingreso'),
 ]
 CATEGORIAS_EGRESO = [
@@ -240,6 +241,9 @@ CATEGORIAS_EGRESO = [
     ('prestamos',   'Préstamos / cuotas'),
     ('anulacion_pos', 'Anulación venta POS'),
     ('anulacion_restaurante', 'Anulación venta restaurante'),
+    ('gasto_caja',    'Gasto de caja (menor)'),
+    ('retiro_banco',  'Retiro / consignación a banco'),
+    ('faltante_caja', 'Faltante cuadre de caja'),
     ('otro_egreso', 'Otro egreso'),
 ]
 ALL_CATEGORIAS = dict(CATEGORIAS_INGRESO + CATEGORIAS_EGRESO)

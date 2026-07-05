@@ -1,0 +1,129 @@
+{% extends 'plantillaapp.html' %}
+{% block titulo %}Arqueo de caja #{{ sesion.id }}{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+    .arq-shell { width: min(760px, 100%); margin: 0 auto; display: grid; gap: 18px; }
+    .arq-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .arq-btn { background: rgba(var(--color-marca-rgb), 0.08); color: var(--color-primario); text-decoration: none;
+               padding: 10px 16px; border-radius: 10px; font-weight: 600; border: none; cursor: pointer; font-size: 0.9rem; }
+    .arq-btn:hover { background: rgba(var(--color-marca-rgb), 0.16); }
+    .arq-btn.primario { background: linear-gradient(135deg, var(--color-primario, #122C94), var(--color-primario-oscuro, #091C5A)); color: #fff; }
+
+    /* Tiquete estilo térmico (mismo lenguaje del comprobante POS) */
+    .comprobante {
+        max-width: 340px; margin: 0 auto;
+        background: #fff; border: 1px solid #e6ebf5; border-radius: 14px;
+        font-family: 'Courier New', ui-monospace, monospace;
+        font-size: 0.82rem; color: #111; padding: 22px 18px;
+        box-shadow: 0 6px 20px rgba(18,44,148,0.06);
+    }
+    .comprobante h2 { font-size: 1.05rem; margin: 2px 0; text-align: center; letter-spacing: .02em; }
+    .comprobante .sub { text-align: center; font-size: 0.78rem; color: #333; margin: 1px 0; }
+    .comp-logo { display: block; margin: 0 auto 8px; max-width: 150px; max-height: 72px; object-fit: contain; }
+    .linea-sep { border: none; border-top: 1px dashed #999; margin: 8px 0; }
+    .arq-row { display: flex; justify-content: space-between; gap: 8px; margin: 2px 0; }
+    .arq-row .lbl { color: #333; }
+    .arq-row .val { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .arq-row.total { font-weight: 800; font-size: 0.92rem; }
+    .arq-dif-pos { color: #15803d; }
+    .arq-dif-neg { color: #b91c1c; }
+    .arq-firma { margin-top: 26px; text-align: center; }
+    .arq-firma .linea { border-top: 1px solid #333; width: 75%; margin: 0 auto 4px; }
+    .arq-firma .quien { font-size: 0.75rem; color: #333; }
+
+    @media print {
+        @page { size: 80mm auto; margin: 0; }
+        body * { visibility: hidden; }
+        .comprobante, .comprobante * { visibility: visible; }
+        .comprobante {
+            position: absolute; left: 0; top: 0;
+            width: 76mm; max-width: 76mm;
+            box-shadow: none; border: none; border-radius: 0;
+            padding: 4mm 3mm; font-size: 11px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+{% set fmt = "{:,.0f}" %}
+{% set dif = sesion.diferencia or 0 %}
+<div class="arq-shell">
+    <div class="arq-actions">
+        <a class="arq-btn" href="{{ url_for('caja.caja_estado') }}"><i class="fas fa-arrow-left"></i> Volver a Caja</a>
+        <button class="arq-btn primario" onclick="window.print()"><i class="fas fa-print"></i> Imprimir arqueo</button>
+    </div>
+
+    <div class="comprobante">
+        {% if brand_config and brand_config.empresa_logo_url %}
+        <img class="comp-logo" src="{{ brand_config.empresa_logo_url }}" alt="logo">
+        {% endif %}
+        <h2>{{ (brand_config.empresa_nombre if brand_config else None) or datosApp.titulo }}</h2>
+        <p class="sub">ARQUEO DE CAJA · Turno #{{ sesion.id }}</p>
+        <p class="sub">{{ 'CERRADO' if sesion.estado == 'cerrada' else 'EN CURSO (parcial)' }}</p>
+        <hr class="linea-sep">
+
+        <div class="arq-row"><span class="lbl">Apertura:</span>
+            <span class="val">{{ sesion.fecha_apertura.strftime('%d/%m/%Y %I:%M %p') }}</span></div>
+        <div class="arq-row"><span class="lbl">Abrió:</span>
+            <span class="val">{{ sesion.nombre_apertura or '—' }}</span></div>
+        {% if sesion.fecha_cierre %}
+        <div class="arq-row"><span class="lbl">Cierre:</span>
+            <span class="val">{{ sesion.fecha_cierre.strftime('%d/%m/%Y %I:%M %p') }}</span></div>
+        <div class="arq-row"><span class="lbl">Cerró:</span>
+            <span class="val">{{ sesion.nombre_cierre or '—' }}</span></div>
+        {% endif %}
+        <hr class="linea-sep">
+
+        <div class="arq-row total"><span class="lbl">BASE INICIAL</span>
+            <span class="val">${{ fmt.format(resumen.base) }}</span></div>
+        <hr class="linea-sep">
+
+        <div class="arq-row total"><span class="lbl">VENTAS POR MÉTODO</span><span></span></div>
+        {% for m in resumen.metodos %}
+        <div class="arq-row"><span class="lbl">{{ m.metodo_pago }} ({{ m.n }})</span>
+            <span class="val">${{ fmt.format(m.total) }}</span></div>
+        {% else %}
+        <div class="arq-row"><span class="lbl">Sin ventas</span><span class="val">$0</span></div>
+        {% endfor %}
+        <div class="arq-row total"><span class="lbl">TOTAL VENTAS</span>
+            <span class="val">${{ fmt.format(resumen.total_ventas) }}</span></div>
+        <hr class="linea-sep">
+
+        {% if movimientos %}
+        <div class="arq-row total"><span class="lbl">MOVIMIENTOS EFECTIVO</span><span></span></div>
+        {% for mv in movimientos %}
+        <div class="arq-row"><span class="lbl">{{ '+' if mv.tipo == 'entrada' else '-' }} {{ (mv.descripcion or mv.categoria)[:22] }}</span>
+            <span class="val">${{ fmt.format(mv.monto) }}</span></div>
+        {% endfor %}
+        <hr class="linea-sep">
+        {% endif %}
+
+        <div class="arq-row"><span class="lbl">Base</span><span class="val">${{ fmt.format(resumen.base) }}</span></div>
+        <div class="arq-row"><span class="lbl">+ Ventas efectivo</span>
+            <span class="val">${{ fmt.format(resumen.metodos | selectattr('metodo_pago', 'equalto', 'EFECTIVO') | map(attribute='total') | sum) }}</span></div>
+        <div class="arq-row"><span class="lbl">+ Entradas</span><span class="val">${{ fmt.format(resumen.entradas) }}</span></div>
+        <div class="arq-row"><span class="lbl">− Salidas</span><span class="val">${{ fmt.format(resumen.salidas) }}</span></div>
+        <div class="arq-row total"><span class="lbl">EFECTIVO ESPERADO</span>
+            <span class="val">${{ fmt.format(resumen.esperado) }}</span></div>
+
+        {% if sesion.estado == 'cerrada' %}
+        <div class="arq-row total"><span class="lbl">EFECTIVO CONTADO</span>
+            <span class="val">${{ fmt.format(sesion.efectivo_contado or 0) }}</span></div>
+        <hr class="linea-sep">
+        <div class="arq-row total {{ 'arq-dif-pos' if dif > 0 else ('arq-dif-neg' if dif < 0 else '') }}">
+            <span class="lbl">{{ 'SOBRANTE' if dif > 0 else ('FALTANTE' if dif < 0 else 'CUADRE EXACTO') }}</span>
+            <span class="val">{{ '' if dif == 0 else '$' + fmt.format(dif | abs) }}</span></div>
+        {% if sesion.notas_cierre %}
+        <hr class="linea-sep">
+        <p class="sub" style="text-align:left;">Notas: {{ sesion.notas_cierre }}</p>
+        {% endif %}
+        <div class="arq-firma">
+            <div class="linea"></div>
+            <div class="quien">{{ sesion.nombre_cierre or 'Responsable' }}</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

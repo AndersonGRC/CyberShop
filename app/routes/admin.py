@@ -1798,8 +1798,14 @@ def facturacion_pos():
             productos = cur.fetchall()
     except Exception:
         pass
+    caja_abierta = None
+    try:
+        from routes.caja import get_caja_abierta
+        caja_abierta = get_caja_abierta()
+    except Exception:
+        pass
     return render_template('facturacion_pos.html', datosApp=datosApp, productos=productos,
-                           metodos_pago=_get_metodos_pago())
+                           metodos_pago=_get_metodos_pago(), caja_abierta=caja_abierta)
 
 
 @admin_bp.route('/admin/pos/procesar', methods=['POST'])
@@ -1822,8 +1828,20 @@ def procesar_venta_pos():
         data.get('facturar_electronicamente'),
         default=False,
     )
-    usuario_id = session.get('user_id', 1)
+    usuario_id = session.get('usuario_id') or 1
     schema = _get_product_schema_flags()
+
+    # Caja obligatoria: no se puede cobrar sin una caja abierta (el POS muestra
+    # un modal de apertura rápida al recibir este 409).
+    caja_abierta = None
+    try:
+        from routes.caja import get_caja_abierta
+        caja_abierta = get_caja_abierta()
+    except Exception:
+        pass
+    if not caja_abierta:
+        return jsonify({'success': False, 'caja_cerrada': True,
+                        'error': 'Debes abrir la caja antes de vender'}), 409
 
     try:
         conn = get_db_connection()
@@ -1894,6 +1912,9 @@ def procesar_venta_pos():
         if schema['has_fe_flag_pos']:
             sales_columns.append('facturar_electronicamente')
             sales_values.append(facturar_electronicamente)
+        if caja_abierta and _table_has_column('ventas_pos', 'caja_sesion_id'):
+            sales_columns.append('caja_sesion_id')
+            sales_values.append(caja_abierta['id'])
 
         cur.execute(f"""
             INSERT INTO ventas_pos ({", ".join(sales_columns)})
@@ -2031,7 +2052,7 @@ def anular_venta_pos(venta_id):
     if not motivo:
         return jsonify({'success': False, 'error': 'El motivo de anulación es obligatorio'}), 400
 
-    usuario_id = session.get('user_id', 1)
+    usuario_id = session.get('usuario_id') or 1
 
     try:
         conn = get_db_connection()

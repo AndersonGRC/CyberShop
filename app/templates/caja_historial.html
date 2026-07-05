@@ -1,0 +1,84 @@
+{% extends 'plantillaapp.html' %}
+{% block titulo %}Historial de cuadres de caja{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+    .ch-shell { width: min(1100px, 100%); margin: 0 auto; display: grid; gap: 20px; }
+    .ch-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+               padding-bottom: 14px; border-bottom: 1px solid rgba(var(--color-marca-rgb), 0.10); }
+    .ch-head h1 { margin: 0; font-size: 1.35rem; color: var(--color-primario-oscuro, #091C5A); }
+    .ch-filtros { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+    .ch-filtros label { font-size: 0.75rem; font-weight: 600; color: #475569; display: block; margin-bottom: 3px; }
+    .ch-filtros input { padding: 8px 10px; border: 1px solid #d7deec; border-radius: 9px; }
+    .ch-filtros button { background: var(--color-primario); color: #fff; border: none; border-radius: 9px;
+                         padding: 9px 16px; font-weight: 700; cursor: pointer; }
+    .ch-card { background: #fff; border: 1px solid #e6ebf5; border-radius: 16px; padding: 6px 14px;
+               box-shadow: 0 6px 20px rgba(18,44,148,0.05); overflow-x: auto; }
+    .ch-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; min-width: 760px; }
+    .ch-table th { text-align: left; padding: 12px 10px; color: #64748b; font-size: 0.75rem;
+                   text-transform: uppercase; letter-spacing: .03em; border-bottom: 2px solid #eef1f8; }
+    .ch-table td { padding: 11px 10px; border-bottom: 1px solid #f0f3fa; color: #1e293b; }
+    .ch-table td.num, .ch-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.76rem; font-weight: 700; }
+    .badge.ok { background: #dcfce7; color: #15803d; }
+    .badge.sobra { background: #dbeafe; color: #1d4ed8; }
+    .badge.falta { background: #fee2e2; color: #b91c1c; }
+    .badge.abierta { background: #fef9c3; color: #a16207; }
+    .ch-link { color: var(--color-primario); text-decoration: none; font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block body %}
+{% set fmt = "{:,.0f}" %}
+<div class="ch-shell">
+    <div class="ch-head">
+        <div>
+            <h1><i class="fas fa-chart-line"></i> Historial de cuadres de caja</h1>
+            <p style="margin:4px 0 0; color:#64748b; font-size:0.88rem;">Un renglón por turno: base, ventas, esperado, contado y diferencia. Este es tu reporte diario de caja.</p>
+        </div>
+        <form class="ch-filtros" method="GET">
+            <div><label>Desde</label><input type="date" name="desde" value="{{ desde }}"></div>
+            <div><label>Hasta</label><input type="date" name="hasta" value="{{ hasta }}"></div>
+            <button type="submit"><i class="fas fa-search"></i> Filtrar</button>
+            <a class="ch-link" style="align-self:center;" href="{{ url_for('caja.caja_estado') }}"><i class="fas fa-arrow-left"></i> Caja</a>
+        </form>
+    </div>
+
+    <div class="ch-card">
+        <table class="ch-table">
+            <thead>
+                <tr>
+                    <th>Turno</th><th>Apertura</th><th>Cierre</th><th>Cajero</th>
+                    <th class="num">Base</th><th class="num">Ventas</th>
+                    <th class="num">Esperado</th><th class="num">Contado</th>
+                    <th class="num">Diferencia</th><th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in sesiones %}
+                {% set dif = s.diferencia or 0 %}
+                <tr>
+                    <td>#{{ s.id }}</td>
+                    <td>{{ s.fecha_apertura.strftime('%d/%m/%Y %I:%M %p') }}</td>
+                    <td>{{ s.fecha_cierre.strftime('%d/%m %I:%M %p') if s.fecha_cierre else '—' }}</td>
+                    <td>{{ s.nombre_cierre or s.nombre_apertura or '—' }}</td>
+                    <td class="num">${{ fmt.format(s.base_inicial or 0) }}</td>
+                    <td class="num">${{ fmt.format(s.total_ventas or 0) }}</td>
+                    <td class="num">{{ '$' + fmt.format(s.efectivo_esperado) if s.efectivo_esperado is not none else '—' }}</td>
+                    <td class="num">{{ '$' + fmt.format(s.efectivo_contado) if s.efectivo_contado is not none else '—' }}</td>
+                    <td class="num">
+                        {% if s.estado != 'cerrada' %}<span class="badge abierta">Abierta</span>
+                        {% elif dif > 0 %}<span class="badge sobra">+${{ fmt.format(dif) }}</span>
+                        {% elif dif < 0 %}<span class="badge falta">-${{ fmt.format(dif | abs) }}</span>
+                        {% else %}<span class="badge ok">Exacto</span>{% endif %}
+                    </td>
+                    <td><a class="ch-link" href="{{ url_for('caja.arqueo_sesion', sesion_id=s.id) }}" title="Ver arqueo"><i class="fas fa-receipt"></i></a></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="10" style="text-align:center; color:#94a3b8; padding:26px;">No hay turnos de caja en este rango de fechas.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -527,6 +527,18 @@
     .pay-btn.sel { outline: 3px solid rgba(255,255,255,0.7); outline-offset: 1px; }
     .pos-cfg-link { float: right; color: #94a3b8; font-size: 0.9rem; text-decoration: none; }
     .pos-cfg-link:hover { color: var(--color-primario, #122C94); }
+
+    /* ── Franja de estado de caja ── */
+    .pos-caja-strip {
+        display: flex; align-items: center; gap: 8px;
+        border-radius: 12px; padding: 10px 14px;
+        font-size: 0.86rem; font-weight: 700;
+    }
+    .pos-caja-strip a { margin-left: auto; text-decoration: none; font-weight: 700; }
+    .pos-caja-strip.abierta { background: #dcfce7; color: #15803d; }
+    .pos-caja-strip.abierta a { color: #15803d; }
+    .pos-caja-strip.cerrada { background: #fef9c3; color: #a16207; }
+    .pos-caja-strip.cerrada a { color: #a16207; text-decoration: underline; }
     .pay-efectivo  { background: linear-gradient(135deg,#16a34a,#12813b); }
     .pay-nequi     { background: linear-gradient(135deg,#7c3aed,#5b21b6); }
     .pay-tarjeta   { background: linear-gradient(135deg,#2563eb,#1e40af); }
@@ -767,6 +779,19 @@
 
     <!-- Panel Sidebar -->
     <div class="pos-sidebar">
+        {% if caja_abierta %}
+        <div class="pos-caja-strip abierta" id="pos-caja-strip">
+            <i class="fas fa-lock-open"></i>
+            <span id="pos-caja-texto">Caja abierta · Base ${{ "{:,.0f}".format(caja_abierta.base_inicial or 0) }}</span>
+            <a href="{{ url_for('caja.caja_estado') }}" title="Ir a Caja / Arqueo"><i class="fas fa-external-link-alt"></i></a>
+        </div>
+        {% else %}
+        <div class="pos-caja-strip cerrada" id="pos-caja-strip">
+            <i class="fas fa-lock"></i>
+            <span id="pos-caja-texto">Caja cerrada — abre la caja para cobrar</span>
+            <a href="{{ url_for('caja.caja_estado') }}">Abrir</a>
+        </div>
+        {% endif %}
         <div class="pos-total">
             <div class="total-label">Total a cobrar</div>
             <div class="total-valor" id="sidebar-total">$0</div>
@@ -1719,6 +1744,8 @@ function registrarVenta() {
             StockTracker.reset();
             mostrarComprobante(data);
             mostrarDeshacer(data.venta_id);
+        } else if (data.caja_cerrada) {
+            pedirAperturaCaja();   // modal rápido: abrir caja y reintentar el cobro
         } else {
             playErrorBeep();
             Swal.fire('Error', data.error || 'Error procesando venta', 'error');
@@ -1735,6 +1762,69 @@ function registrarVenta() {
         } else {
             Swal.fire('Error', 'Error de conexion: ' + err.message, 'error');
         }
+    });
+}
+
+/* ── Caja: apertura rápida desde el POS (cuando el server responde 409 caja_cerrada) ── */
+function parseMontoCaja(v) {
+    v = (v || '').replace(/\$/g, '').replace(/\s/g, '');
+    if (v.indexOf(',') !== -1) { v = v.replace(/\./g, '').replace(',', '.'); }
+    else if ((v.match(/\./g) || []).length > 1 || /\.\d{3}$/.test(v)) { v = v.replace(/\./g, ''); }
+    var n = parseFloat(v);
+    return isNaN(n) ? null : n;
+}
+
+function actualizarBannerCaja(base) {
+    var strip = document.getElementById('pos-caja-strip');
+    var texto = document.getElementById('pos-caja-texto');
+    if (!strip || !texto) return;
+    strip.classList.remove('cerrada');
+    strip.classList.add('abierta');
+    var icon = strip.querySelector('i.fas');
+    if (icon) icon.className = 'fas fa-lock-open';
+    texto.textContent = 'Caja abierta · Base $' + (base || 0).toLocaleString('es-CO', { maximumFractionDigits: 0 });
+}
+
+function pedirAperturaCaja() {
+    Swal.fire({
+        title: 'Caja cerrada',
+        html: 'Para cobrar primero abre la caja.<br><small>Cuenta el efectivo con el que inicias (la <b>base</b> para dar vueltos).</small>',
+        input: 'text',
+        inputLabel: 'Base de caja ($)',
+        inputPlaceholder: '50.000',
+        inputAttributes: { inputmode: 'numeric' },
+        showCancelButton: true,
+        confirmButtonText: 'Abrir caja y cobrar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: (typeof BRAND_COLOR_BTN !== 'undefined' ? BRAND_COLOR_BTN : undefined),
+        preConfirm: function (v) {
+            var n = parseMontoCaja(v);
+            if (n === null || n < 0) {
+                Swal.showValidationMessage('Escribe un monto válido (0 o más)');
+                return false;
+            }
+            return n;
+        }
+    }).then(function (res) {
+        if (!res.isConfirmed) return;
+        fetch("{{ url_for('caja.abrir_caja') }}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+            body: JSON.stringify({ base: res.value })
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+            if (d.success) {
+                actualizarBannerCaja(d.base);
+                registrarVenta();   // reintenta el cobro que quedó pendiente
+            } else {
+                playErrorBeep();
+                Swal.fire('Error', d.error || 'No se pudo abrir la caja', 'error');
+            }
+        })
+        .catch(function () {
+            Swal.fire('Error', 'Error de conexión abriendo la caja', 'error');
+        });
     });
 }
 

@@ -53,6 +53,10 @@ def register_blueprints(app):
     from routes.contabilidad import contabilidad_bp
     app.register_blueprint(contabilidad_bp)
 
+    # Caja del POS (apertura con base + cuadre/arqueo)
+    from routes.caja import caja_bp
+    app.register_blueprint(caja_bp)
+
     # Videollamadas
     from routes.video import video_bp
     app.register_blueprint(video_bp)

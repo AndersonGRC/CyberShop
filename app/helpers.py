@@ -172,6 +172,7 @@ def get_data_app():
             "icono": "cash-register",
             "submodulos": [
                 {"nombre": "Punto de Venta", "url": "admin.facturacion_pos", "icono": "cash-register", "module_code": MODULE_POS},
+                {"nombre": "Caja / Arqueo", "url": "caja.caja_estado", "icono": "coins", "module_code": MODULE_POS},
                 {"nombre": "Historial POS", "url": "admin.historial_pos", "icono": "receipt", "module_code": MODULE_POS},
                 {"nombre": "Gestionar Pedidos", "url": "admin.gestion_pedidos", "icono": "truck", "module_code": MODULE_ORDERS},
                 {"nombre": "Nueva Cotización", "url": "quotes.cotizar", "icono": "file-invoice-dollar", "module_code": MODULE_QUOTES},
