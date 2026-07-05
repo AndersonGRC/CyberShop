@@ -77,44 +77,44 @@
         <hr class="linea-sep">
 
         <div class="arq-row total"><span class="lbl">BASE INICIAL</span>
-            <span class="val">${{ fmt.format(resumen.base) }}</span></div>
+            <span class="val">${{ fmt.format(resumen.base) | replace(",", ".") }}</span></div>
         <hr class="linea-sep">
 
         <div class="arq-row total"><span class="lbl">VENTAS POR MÉTODO</span><span></span></div>
         {% for m in resumen.metodos %}
         <div class="arq-row"><span class="lbl">{{ m.metodo_pago }} ({{ m.n }})</span>
-            <span class="val">${{ fmt.format(m.total) }}</span></div>
+            <span class="val">${{ fmt.format(m.total) | replace(",", ".") }}</span></div>
         {% else %}
         <div class="arq-row"><span class="lbl">Sin ventas</span><span class="val">$0</span></div>
         {% endfor %}
         <div class="arq-row total"><span class="lbl">TOTAL VENTAS</span>
-            <span class="val">${{ fmt.format(resumen.total_ventas) }}</span></div>
+            <span class="val">${{ fmt.format(resumen.total_ventas) | replace(",", ".") }}</span></div>
         <hr class="linea-sep">
 
         {% if movimientos %}
         <div class="arq-row total"><span class="lbl">MOVIMIENTOS EFECTIVO</span><span></span></div>
         {% for mv in movimientos %}
         <div class="arq-row"><span class="lbl">{{ '+' if mv.tipo == 'entrada' else '-' }} {{ (mv.descripcion or mv.categoria)[:22] }}</span>
-            <span class="val">${{ fmt.format(mv.monto) }}</span></div>
+            <span class="val">${{ fmt.format(mv.monto) | replace(",", ".") }}</span></div>
         {% endfor %}
         <hr class="linea-sep">
         {% endif %}
 
-        <div class="arq-row"><span class="lbl">Base</span><span class="val">${{ fmt.format(resumen.base) }}</span></div>
+        <div class="arq-row"><span class="lbl">Base</span><span class="val">${{ fmt.format(resumen.base) | replace(",", ".") }}</span></div>
         <div class="arq-row"><span class="lbl">+ Ventas efectivo</span>
-            <span class="val">${{ fmt.format(resumen.metodos | selectattr('metodo_pago', 'equalto', 'EFECTIVO') | map(attribute='total') | sum) }}</span></div>
-        <div class="arq-row"><span class="lbl">+ Entradas</span><span class="val">${{ fmt.format(resumen.entradas) }}</span></div>
-        <div class="arq-row"><span class="lbl">− Salidas</span><span class="val">${{ fmt.format(resumen.salidas) }}</span></div>
+            <span class="val">${{ fmt.format(resumen.metodos | selectattr('metodo_pago', 'equalto', 'EFECTIVO') | map(attribute='total') | sum) | replace(",", ".") }}</span></div>
+        <div class="arq-row"><span class="lbl">+ Entradas</span><span class="val">${{ fmt.format(resumen.entradas) | replace(",", ".") }}</span></div>
+        <div class="arq-row"><span class="lbl">− Salidas</span><span class="val">${{ fmt.format(resumen.salidas) | replace(",", ".") }}</span></div>
         <div class="arq-row total"><span class="lbl">EFECTIVO ESPERADO</span>
-            <span class="val">${{ fmt.format(resumen.esperado) }}</span></div>
+            <span class="val">${{ fmt.format(resumen.esperado) | replace(",", ".") }}</span></div>
 
         {% if sesion.estado == 'cerrada' %}
         <div class="arq-row total"><span class="lbl">EFECTIVO CONTADO</span>
-            <span class="val">${{ fmt.format(sesion.efectivo_contado or 0) }}</span></div>
+            <span class="val">${{ fmt.format(sesion.efectivo_contado or 0) | replace(",", ".") }}</span></div>
         <hr class="linea-sep">
         <div class="arq-row total {{ 'arq-dif-pos' if dif > 0 else ('arq-dif-neg' if dif < 0 else '') }}">
             <span class="lbl">{{ 'SOBRANTE' if dif > 0 else ('FALTANTE' if dif < 0 else 'CUADRE EXACTO') }}</span>
-            <span class="val">{{ '' if dif == 0 else '$' + fmt.format(dif | abs) }}</span></div>
+            <span class="val">{{ '' if dif == 0 else '$' + (fmt.format(dif | abs) | replace(',', '.')) }}</span></div>
         {% if sesion.notas_cierre %}
         <hr class="linea-sep">
         <p class="sub" style="text-align:left;">Notas: {{ sesion.notas_cierre }}</p>

@@ -782,7 +782,7 @@
         {% if caja_abierta %}
         <div class="pos-caja-strip abierta" id="pos-caja-strip">
             <i class="fas fa-lock-open"></i>
-            <span id="pos-caja-texto">Caja abierta · Base ${{ "{:,.0f}".format(caja_abierta.base_inicial or 0) }}</span>
+            <span id="pos-caja-texto">Caja abierta · Base ${{ "{:,.0f}".format(caja_abierta.base_inicial or 0) | replace(",", ".") }}</span>
             <a href="{{ url_for('caja.caja_estado') }}" title="Ir a Caja / Arqueo"><i class="fas fa-external-link-alt"></i></a>
         </div>
         {% else %}
@@ -913,7 +913,7 @@
                 {% for p in productos %}
                 <option value="{{ p.id }}" data-nombre="{{ p.nombre }}" data-precio="{{ p.precio }}"
                     data-stock="{{ p.stock }}">
-                    {{ p.nombre }} (Stock: {{ p.stock }}) - ${{ "{:,.0f}".format(p.precio) }}
+                    {{ p.nombre }} (Stock: {{ p.stock }}) - ${{ "{:,.0f}".format(p.precio) | replace(",", ".") }}
                 </option>
                 {% endfor %}
             </select>

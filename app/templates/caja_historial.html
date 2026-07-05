@@ -62,14 +62,14 @@
                     <td>{{ s.fecha_apertura.strftime('%d/%m/%Y %I:%M %p') }}</td>
                     <td>{{ s.fecha_cierre.strftime('%d/%m %I:%M %p') if s.fecha_cierre else '—' }}</td>
                     <td>{{ s.nombre_cierre or s.nombre_apertura or '—' }}</td>
-                    <td class="num">${{ fmt.format(s.base_inicial or 0) }}</td>
-                    <td class="num">${{ fmt.format(s.total_ventas or 0) }}</td>
-                    <td class="num">{{ '$' + fmt.format(s.efectivo_esperado) if s.efectivo_esperado is not none else '—' }}</td>
-                    <td class="num">{{ '$' + fmt.format(s.efectivo_contado) if s.efectivo_contado is not none else '—' }}</td>
+                    <td class="num">${{ fmt.format(s.base_inicial or 0) | replace(",", ".") }}</td>
+                    <td class="num">${{ fmt.format(s.total_ventas or 0) | replace(",", ".") }}</td>
+                    <td class="num">{{ '$' + (fmt.format(s.efectivo_esperado) | replace(',', '.')) if s.efectivo_esperado is not none else '—' }}</td>
+                    <td class="num">{{ '$' + (fmt.format(s.efectivo_contado) | replace(',', '.')) if s.efectivo_contado is not none else '—' }}</td>
                     <td class="num">
                         {% if s.estado != 'cerrada' %}<span class="badge abierta">Abierta</span>
-                        {% elif dif > 0 %}<span class="badge sobra">+${{ fmt.format(dif) }}</span>
-                        {% elif dif < 0 %}<span class="badge falta">-${{ fmt.format(dif | abs) }}</span>
+                        {% elif dif > 0 %}<span class="badge sobra">+${{ fmt.format(dif) | replace(",", ".") }}</span>
+                        {% elif dif < 0 %}<span class="badge falta">-${{ fmt.format(dif | abs) | replace(",", ".") }}</span>
                         {% else %}<span class="badge ok">Exacto</span>{% endif %}
                     </td>
                     <td><a class="ch-link" href="{{ url_for('caja.arqueo_sesion', sesion_id=s.id) }}" title="Ver arqueo"><i class="fas fa-receipt"></i></a></td>
