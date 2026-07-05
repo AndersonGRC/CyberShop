@@ -12,9 +12,13 @@ from flask import current_app as app
 
 from database import get_db_cursor
 from helpers import get_data_app
-from security import rol_requerido, ADMIN_STAFF
+from security import registrar_guard_permiso, rol_requerido, ADMIN_STAFF
 
 cupones_bp = Blueprint('cupones', __name__)
+
+# Permisos dinámicos (matriz del Propietario): guard 'ver' de todo el
+# blueprint. Convive con los @rol_requerido existentes (defensa doble).
+registrar_guard_permiso(cupones_bp, 'coupons', solo_prefijos=('/admin/cupones',))
 
 
 # ─────────────────────────────────────────────────────────

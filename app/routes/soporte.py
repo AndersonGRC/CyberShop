@@ -40,10 +40,14 @@ from helpers_gmail import enviar_email_gmail
 
 from database import get_db_cursor
 from helpers import get_data_app, get_data_cliente
-from security import rol_requerido, ADMIN_STAFF
+from security import registrar_guard_permiso, rol_requerido, ADMIN_STAFF
 from tenant_features import MODULE_SUPPORT, is_module_active, set_module_state
 
 soporte_bp = Blueprint('soporte', __name__)
+
+# Permisos dinámicos (matriz del Propietario): guard 'ver' de todo el
+# blueprint. Convive con los @rol_requerido existentes (defensa doble).
+registrar_guard_permiso(soporte_bp, 'support', solo_prefijos=('/admin/soporte',))
 
 
 # ──────────────────────────────────────────────

@@ -406,39 +406,24 @@ def _user_rol_id(cur, payload):
     return None
 
 
-def _exigir(cur, payload, config_key, grupo_roles):
-    """Exige licencia del módulo (siempre) y permiso de rol (best-effort).
+def _exigir(cur, payload, config_key, modulo, accion='operar'):
+    """Exige licencia del módulo (siempre) y permiso del rol (best-effort)
+    contra la matriz DINÁMICA configurable por el Propietario.
 
     - Licencia: si el módulo está apagado en el plan -> _ForbiddenError.
-    - Rol: si se resuelve el usuario y su rol no está en `grupo_roles`
-      -> _ForbiddenError. Si no se resuelve (legacy), no bloquea por rol.
+    - Permiso: si se resuelve el usuario y su rol NO tiene `accion` en
+      `modulo` (services/permisos_service.tiene_permiso con el cursor del
+      tenant) -> _ForbiddenError. Si no se resuelve (legacy), no bloquea.
     """
     if not _modulo_licenciado(cur, config_key):
         raise _ForbiddenError(f"Módulo '{config_key}' no está licenciado en el plan del cliente.")
-    if grupo_roles is not None:
+    if modulo is not None:
         rol = _user_rol_id(cur, payload)
-        if rol is not None and rol not in grupo_roles:
-            raise _ForbiddenError("El rol del usuario no autoriza esta acción.")
-
-
-_SEC_GRUPOS = None
-
-
-def _grupos():
-    """Grupos de roles de security.py (rol_ids), cacheados. Fuente única para el
-    enforcement por rol, espejo del manifiesto que usa el desktop."""
-    global _SEC_GRUPOS
-    if _SEC_GRUPOS is None:
-        import security as s
-        _SEC_GRUPOS = {
-            'ADMIN_FULL': s.ADMIN_FULL, 'ADMIN_STAFF': s.ADMIN_STAFF,
-            'ADMIN_CONTADOR': s.ADMIN_CONTADOR, 'POS_OPERATIONAL': s.POS_OPERATIONAL,
-            'POS_DELETE': s.POS_DELETE, 'CATALOG_OPERATIONAL': s.CATALOG_OPERATIONAL,
-            'CATALOG_DELETE': s.CATALOG_DELETE, 'RESTAURANT_OPERATIONAL': s.RESTAURANT_OPERATIONAL,
-            'RESTAURANT_CHARGE': s.RESTAURANT_CHARGE, 'RESTAURANT_CANCEL': s.RESTAURANT_CANCEL,
-            'NOMINA': list(s.ADMIN_FULL) + [s.ROL_CONTADOR],
-        }
-    return _SEC_GRUPOS
+        if rol is not None:
+            from services.permisos_service import tiene_permiso
+            if not tiene_permiso(rol, modulo, accion, cur=cur):
+                raise _ForbiddenError(
+                    "El rol del usuario no autoriza esta acción (permisos del negocio).")
 
 
 class _StaleError(Exception):
@@ -462,7 +447,7 @@ def _apply_sale(cur, payload):
     items = payload.get('items') or []
     if not receipt or not items:
         raise ValueError('receipt e items son obligatorios')
-    _exigir(cur, payload, 'pos_habilitado', _grupos()['POS_OPERATIONAL'])
+    _exigir(cur, payload, 'pos_habilitado', 'pos', 'operar')
 
     cur.execute('SELECT id FROM pos_desktop_sales WHERE receipt_number = %s', (receipt,))
     row = cur.fetchone()
@@ -575,7 +560,7 @@ def _apply_inventory_movement(cur, payload):
 
     if not client_mov_id:
         raise ValueError('client_movement_id es obligatorio para idempotencia')
-    _exigir(cur, payload, 'inventario_habilitado', _grupos()['CATALOG_OPERATIONAL'])
+    _exigir(cur, payload, 'inventario_habilitado', 'inventory', 'operar')
 
     cur.execute(
         'SELECT id FROM pos_desktop_inventory_movements WHERE client_movement_id = %s',
@@ -620,8 +605,8 @@ def _apply_product(cur, action, payload):
     sku = (payload.get('sku') or '').strip()
     if not sku:
         raise ValueError('sku es obligatorio')
-    _exigir(cur, payload, 'inventario_habilitado',
-            _grupos()['CATALOG_DELETE'] if action == 'delete' else _grupos()['CATALOG_OPERATIONAL'])
+    _exigir(cur, payload, 'inventario_habilitado', 'inventory',
+            'eliminar' if action == 'delete' else 'operar')
 
     client_updated = _parse_iso(payload.get('updated_at'))
 
@@ -701,7 +686,7 @@ def _apply_user(cur, action, payload):
     email = (payload.get('email') or '').strip().lower()
     if not email or '@' not in email:
         raise ValueError('email invalido')
-    _exigir(cur, payload, 'usuarios_habilitado', _grupos()['ADMIN_FULL'])
+    _exigir(cur, payload, 'usuarios_habilitado', 'users', 'operar')
 
     nombre = (payload.get('nombre') or payload.get('name') or email)[:100]
     rol_nombre = (payload.get('rol_nombre') or payload.get('role') or 'Cajero').strip()
@@ -1190,13 +1175,29 @@ def config():
         )
         modules = {}
 
-    # Manifiesto de permisos rol → {modules, actions} (derivado de security.py).
-    # El desktop lo combina con `modules` (plan) para gating por rol y acción.
-    # Aditivo: ante error devuelve {} y el desktop cae a su gating por rol local.
+    # Manifiesto de permisos rol → {modules, actions}, computado contra la
+    # matriz DINÁMICA del tenant (rol_permisos + roles personalizados). El
+    # desktop lo combina con `modules` (plan) para gating por rol y acción.
+    # Degradación: si la BD no tiene la migración aún → manifiesto estático
+    # (defaults); ante cualquier otro error → {} (el desktop usa su fallback).
     permissions = {}
     try:
         from security import desktop_permissions_manifest
-        permissions = desktop_permissions_manifest()
+        from services.permisos_service import resolver_para_cursor
+        try:
+            with tenant_cursor(db_name=g.sync_db_name, dict_cursor=True) as cur:
+                cur.execute("SELECT id, nombre FROM roles "
+                            "WHERE COALESCE(activo, TRUE) IS TRUE ORDER BY id")
+                roles_tenant = [dict(r) for r in cur.fetchall()]
+                # resolver con los datos del tenant cargados una sola vez
+                # (aislamiento multi-tenant: usa ESTE cursor, no la sesión)
+                resolver = resolver_para_cursor(cur)
+            permissions = desktop_permissions_manifest(
+                resolver=resolver, roles_tenant=roles_tenant)
+        except Exception as exc:
+            current_app.logger.warning(
+                'Manifiesto dinámico falló (%s); usando estático.', exc)
+            permissions = desktop_permissions_manifest()
     except Exception as exc:
         current_app.logger.warning(
             'No se pudo construir el manifiesto de permisos: %s', exc
@@ -1742,12 +1743,12 @@ def _apply_restaurant_op(cur, payload):
     if not _regclass(cur, 'restaurant_tables'):
         raise ValueError('Modulo de restaurante no instalado en el servidor.')
     if op == 'close_table':
-        _rgrp = _grupos()['RESTAURANT_CHARGE']        # cobrar/cerrar cuenta
+        _racc = 'operar'        # cobrar/cerrar cuenta
     elif op == 'cancel_order':
-        _rgrp = _grupos()['RESTAURANT_CANCEL']        # anular
+        _racc = 'eliminar'      # anular
     else:
-        _rgrp = _grupos()['RESTAURANT_OPERATIONAL']   # atender mesa / consumos
-    _exigir(cur, payload, 'restaurant_tables_habilitado', _rgrp)
+        _racc = 'ver'           # atender mesa / consumos
+    _exigir(cur, payload, 'restaurant_tables_habilitado', 'restaurant_tables', _racc)
 
     if op == 'open_table':
         table_id = int(payload['table_id'])
@@ -2048,7 +2049,8 @@ def _apply_contabilidad_op(cur, payload):
     op = (payload.get('op') or '').strip()
     if not _regclass(cur, 'contabilidad_movimientos'):
         raise ValueError('Modulo de contabilidad no instalado en el servidor.')
-    _exigir(cur, payload, 'contabilidad_habilitada', _grupos()['ADMIN_CONTADOR'])
+    _exigir(cur, payload, 'contabilidad_habilitada', 'accounting',
+            'eliminar' if op.startswith('delete') else 'operar')
     user_id = _resolve_usuario_id(cur, payload)
 
     if op == 'create_movimiento':
@@ -2260,8 +2262,8 @@ def _apply_quote_op(cur, payload):
     op = (payload.get('op') or '').strip()
     if not _regclass(cur, 'cotizaciones'):
         raise ValueError('Modulo de cotizaciones no instalado en el servidor.')
-    _grp = _grupos()['ADMIN_FULL'] if op in ('set_estado_cotizacion', 'delete_cotizacion') else _grupos()['ADMIN_STAFF']
-    _exigir(cur, payload, 'cotizaciones_habilitado', _grp)
+    _qacc = 'eliminar' if op in ('set_estado_cotizacion', 'delete_cotizacion') else 'operar'
+    _exigir(cur, payload, 'cotizaciones_habilitado', 'quotes', _qacc)
 
     if op == 'create_cotizacion':
         op_uuid = (payload.get('client_op_uuid') or '').strip()
@@ -2381,7 +2383,8 @@ def _apply_cobro_op(cur, payload):
     op = (payload.get('op') or '').strip()
     if not _regclass(cur, 'cuentas_cobro'):
         raise ValueError('Modulo de cuentas de cobro no instalado en el servidor.')
-    _exigir(cur, payload, 'cuentas_cobro_habilitado', _grupos()['ADMIN_CONTADOR'])
+    _exigir(cur, payload, 'cuentas_cobro_habilitado', 'billing',
+            'eliminar' if op.startswith('delete') else 'operar')
 
     if op == 'create_cuenta':
         op_uuid = (payload.get('client_op_uuid') or '').strip()
@@ -2516,7 +2519,8 @@ def _apply_crm_op(cur, payload):
     op = (payload.get('op') or '').strip()
     if not _regclass(cur, 'crm_contactos'):
         raise ValueError('Modulo CRM no instalado en el servidor.')
-    _exigir(cur, payload, 'crm_habilitado', _grupos()['ADMIN_STAFF'])
+    _exigir(cur, payload, 'crm_habilitado', 'crm',
+            'eliminar' if op.startswith('delete') else 'operar')
     user_id = _resolve_usuario_id(cur, payload)
 
     def _dedup(uuid):
@@ -2750,7 +2754,8 @@ def _apply_nomina_op(cur, payload):
     op = (payload.get('op') or '').strip()
     if not _regclass(cur, 'nomina_empleados'):
         raise ValueError('Módulo de nómina no instalado en el servidor.')
-    _exigir(cur, payload, 'nomina_habilitada', _grupos()['NOMINA'])
+    _exigir(cur, payload, 'nomina_habilitada', 'payroll',
+            'eliminar' if op.startswith('delete') else 'operar')
 
     if op == 'create_empleado':
         u = (payload.get('client_op_uuid') or '').strip()

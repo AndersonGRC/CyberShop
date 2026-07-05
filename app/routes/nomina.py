@@ -8,26 +8,14 @@ from nomina_inteligente import (
     PARAMETROS_OFICIALES_NOMINA,
 )
 from helpers import get_data_app, formatear_moneda
-from security import ADMIN_CONTADOR, _is_json_request
+from security import registrar_guard_permiso
 
 nomina_bp = Blueprint('nomina', __name__, url_prefix='/admin/nomina')
 
-
-@nomina_bp.before_request
-def _guard_nomina():
-    """PII/salarios: TODO el módulo exige sesión con rol Admin o Contador
-    (espejo del manifiesto desktop). Guard único a nivel de blueprint para que
-    cualquier ruta nueva del módulo quede protegida por defecto."""
-    if 'rol_id' not in session:
-        if _is_json_request():
-            return jsonify({'success': False, 'error': 'Sesión expirada. Inicia sesión de nuevo.'}), 401
-        flash('No tienes permiso para acceder a esta página.', 'error')
-        return redirect(url_for('auth.login'))
-    if session['rol_id'] not in ADMIN_CONTADOR:
-        if _is_json_request():
-            return jsonify({'success': False, 'error': 'No tienes permiso para esta acción.'}), 403
-        flash('No tienes permiso para acceder a esta página.', 'error')
-        return redirect(url_for('auth.login'))
+# PII/salarios: TODO el módulo exige sesión + permiso 'ver' de payroll según la
+# matriz configurable del Propietario (recomendado: Admin y Contador). Guard
+# único a nivel de blueprint: cualquier ruta nueva queda protegida por defecto.
+registrar_guard_permiso(nomina_bp, 'payroll')
 
 
 @nomina_bp.context_processor

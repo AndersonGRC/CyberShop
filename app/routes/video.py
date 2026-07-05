@@ -27,10 +27,14 @@ from flask import (Blueprint, render_template, request, redirect,
 from database import get_db_cursor
 from helpers import get_data_app, get_data_cliente
 from helpers_gmail import enviar_email_gmail
-from security import rol_requerido, ADMIN_STAFF, ROLES_CLIENTE
+from security import registrar_guard_permiso, rol_requerido, ADMIN_STAFF, ROLES_CLIENTE
 from tenant_features import MODULE_VIDEO, is_module_active, set_module_state
 
 video_bp = Blueprint('video', __name__)
+
+# Permisos dinámicos (matriz del Propietario): guard 'ver' de todo el
+# blueprint. Convive con los @rol_requerido existentes (defensa doble).
+registrar_guard_permiso(video_bp, 'video', solo_prefijos=('/admin/video',))
 
 
 # ------------------------------------------------------------------

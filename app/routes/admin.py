@@ -23,6 +23,7 @@ from psycopg2.extras import DictCursor
 from database import get_db_connection, get_db_cursor
 from helpers import get_data_app
 from security import (
+    permiso_requerido,
     rol_requerido,
     ADMIN_FULL,
     ADMIN_STAFF,
@@ -195,6 +196,7 @@ def dashboard_admin():
 
 @admin_bp.route('/agregar-producto', methods=['GET', 'POST'])
 @rol_requerido(CATALOG_OPERATIONAL)
+@permiso_requerido('inventory', 'operar')
 def GestionProductos():
     """Formulario para agregar nuevos productos al catalogo."""
     from app import product_images
@@ -445,6 +447,7 @@ def cargue_masivo_productos():
 
 @admin_bp.route('/editar-productos')
 @rol_requerido(CATALOG_OPERATIONAL)
+@permiso_requerido('inventory', 'operar')
 def editar_productos():
     """Lista de productos disponibles para edicion."""
     datosApp = get_data_app()
@@ -660,6 +663,7 @@ def establecer_imagen_principal(imagen_id):
 
 @admin_bp.route('/eliminar-productos')
 @rol_requerido(CATALOG_DELETE)
+@permiso_requerido('inventory', 'eliminar')
 def eliminar_productos():
     """Lista de productos disponibles para eliminacion."""
     datosApp = get_data_app()
@@ -812,6 +816,7 @@ def _contar_dependencias_producto(producto_id):
 
 @admin_bp.route('/gestion-usuarios')
 @rol_requerido(ADMIN_FULL)
+@permiso_requerido('users', 'ver')
 def gestion_usuarios():
     """Lista de todos los usuarios del sistema con sus roles."""
     datosApp = get_data_app()
@@ -822,7 +827,7 @@ def gestion_usuarios():
         cur = conn.cursor(cursor_factory=DictCursor)
         cur.execute('SELECT u.*, r.nombre as rol_nombre FROM usuarios u JOIN roles r ON u.rol_id = r.id ORDER BY u.id')
         usuarios = cur.fetchall()
-        cur.execute('SELECT * FROM roles')
+        cur.execute('SELECT * FROM roles WHERE COALESCE(activo, TRUE) IS TRUE ORDER BY es_sistema DESC, id')
         roles = cur.fetchall()
         cur.close()
         conn.close()
@@ -833,6 +838,7 @@ def gestion_usuarios():
 
 @admin_bp.route('/crear-usuario', methods=['GET', 'POST'])
 @rol_requerido(ADMIN_FULL)
+@permiso_requerido('users', 'operar')
 def crear_usuario():
     """Formulario para crear nuevos usuarios con cualquier rol."""
     from app import user_images
@@ -842,7 +848,7 @@ def crear_usuario():
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=DictCursor)
-        cur.execute('SELECT * FROM roles ORDER BY id')
+        cur.execute('SELECT * FROM roles WHERE COALESCE(activo, TRUE) IS TRUE ORDER BY es_sistema DESC, id')
         roles = cur.fetchall()
         cur.close()
         conn.close()
@@ -901,6 +907,7 @@ def crear_usuario():
 
 @admin_bp.route('/editar-usuario/<int:id>', methods=['GET', 'POST'])
 @rol_requerido(ADMIN_FULL)
+@permiso_requerido('users', 'operar')
 def editar_usuario(id):
     """Formulario de edicion de datos de un usuario existente."""
     from app import user_images
@@ -914,7 +921,7 @@ def editar_usuario(id):
         cur = conn.cursor(cursor_factory=DictCursor)
         cur.execute('SELECT * FROM usuarios WHERE id=%s', (id,))
         usuario = cur.fetchone()
-        cur.execute('SELECT * FROM roles')
+        cur.execute('SELECT * FROM roles WHERE COALESCE(activo, TRUE) IS TRUE ORDER BY es_sistema DESC, id')
         roles = cur.fetchall()
         cur.close()
         conn.close()
@@ -1051,6 +1058,7 @@ def vista_detalle_pedido_admin(pedido_id):
 
 @admin_bp.route('/gestion-pedidos')
 @rol_requerido(ADMIN_STAFF)
+@permiso_requerido('orders', 'ver')
 def gestion_pedidos():
     """Lista de todos los pedidos con detalle de productos comprados."""
     datosApp = get_data_app()
@@ -1080,6 +1088,7 @@ def gestion_pedidos():
 
 @admin_bp.route('/inventario')
 @rol_requerido(CATALOG_OPERATIONAL)
+@permiso_requerido('inventory', 'ver')
 def gestion_inventario():
     """Lista de productos con su stock actual."""
     datosApp = get_data_app()
@@ -1350,6 +1359,7 @@ def recepcion_inventario():
 
 @admin_bp.route('/admin/publicaciones')
 @rol_requerido(ADMIN_STAFF)
+@permiso_requerido('content', 'ver')
 def gestion_publicaciones():
     """Lista de publicaciones del home."""
     datosApp = get_data_app()
@@ -1474,6 +1484,7 @@ def toggle_publicacion(id):
 
 @admin_bp.route('/admin/slides')
 @rol_requerido(ADMIN_STAFF)
+@permiso_requerido('content', 'ver')
 def gestion_slides():
     """Lista de slides del carrusel del home."""
     datosApp = get_data_app()
@@ -1596,6 +1607,7 @@ def toggle_slide(id):
 
 @admin_bp.route('/admin/servicios')
 @rol_requerido(ADMIN_STAFF)
+@permiso_requerido('content', 'ver')
 def gestion_servicios():
     """Lista de servicios."""
     datosApp = get_data_app()
@@ -1787,6 +1799,7 @@ def config_secciones():
 
 @admin_bp.route('/admin/pos')
 @rol_requerido(POS_OPERATIONAL)
+@permiso_requerido('pos', 'ver')
 def facturacion_pos():
     """Interfaz de punto de venta para facturacion en fisico."""
     datosApp = get_data_app()
@@ -1975,6 +1988,7 @@ def procesar_venta_pos():
 
 @admin_bp.route('/admin/pos/historial')
 @rol_requerido(POS_OPERATIONAL)
+@permiso_requerido('pos', 'ver')
 def historial_pos():
     """Historial de ventas POS."""
     datosApp = get_data_app()
@@ -2050,6 +2064,7 @@ def detalle_venta_pos(id):
 
 @admin_bp.route('/admin/pos/<int:venta_id>/anular', methods=['POST'])
 @rol_requerido(POS_DELETE)
+@permiso_requerido('pos', 'eliminar')
 def anular_venta_pos(venta_id):
     """Anula una venta POS creando una nota de crédito, restaurando stock y registrando egreso contable."""
     from datetime import datetime
@@ -2193,6 +2208,7 @@ def buscar_producto_barcode():
 
 @admin_bp.route('/admin/generos')
 @rol_requerido(CATALOG_OPERATIONAL)
+@permiso_requerido('inventory', 'operar')
 def gestion_generos():
     """Lista todos los géneros y muestra el formulario de gestión."""
     datosApp = get_data_app()

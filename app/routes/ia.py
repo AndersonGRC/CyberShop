@@ -8,12 +8,16 @@ ai_service arma el contexto solo desde esa BD.
 
 from flask import Blueprint, request, jsonify, render_template
 
-from security import rol_requerido, ADMIN_STAFF
+from security import registrar_guard_permiso, rol_requerido, ADMIN_STAFF
 from database import get_db_cursor
 from helpers import get_data_app
 import services.ai_service as ai
 
 ia_bp = Blueprint('ia', __name__, url_prefix='/admin/ia')
+
+# Permisos dinámicos (matriz del Propietario): guard 'ver' de todo el
+# blueprint. Convive con los @rol_requerido existentes (defensa doble).
+registrar_guard_permiso(ia_bp, 'ai_assistant')
 
 
 def _guard():

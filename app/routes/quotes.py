@@ -14,9 +14,13 @@ from io import BytesIO
 
 from database import get_db_cursor
 from helpers import get_data_app, formatear_moneda, pdf_link_callback, logo_local_path as resolve_logo_path
-from security import rol_requerido, ADMIN_STAFF, ADMIN_FULL
+from security import permiso_requerido, registrar_guard_permiso, rol_requerido, ADMIN_STAFF, ADMIN_FULL
 
 quotes_bp = Blueprint('quotes', __name__)
+
+# Permisos dinámicos (matriz del Propietario): guard 'ver' de todo el
+# blueprint. Convive con los @rol_requerido existentes (defensa doble).
+registrar_guard_permiso(quotes_bp, 'quotes')
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
@@ -486,6 +490,7 @@ def _rechazar_cotizacion_core(id, motivo=None):
 
 
 @quotes_bp.route('/admin/cotizar/aprobar/<int:id>', methods=['POST'])
+@permiso_requerido('quotes', 'eliminar')
 @rol_requerido(ADMIN_FULL)  # SECURITY A2: solo Admin/Propietario puede registrar ingresos
 def aprobar_cotizacion(id):
     """Marca la cotización como aprobada y la registra en contabilidad."""
@@ -566,6 +571,7 @@ def bulk_accion():
 
 
 @quotes_bp.route('/admin/cotizar/eliminar/<int:id>', methods=['POST'])
+@permiso_requerido('quotes', 'eliminar')
 @rol_requerido(ADMIN_STAFF)
 def eliminar_cotizacion(id):
     """Elimina una cotización y su archivo PDF."""

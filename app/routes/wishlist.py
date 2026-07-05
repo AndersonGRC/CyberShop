@@ -11,9 +11,13 @@ from flask import current_app as app
 
 from database import get_db_cursor
 from helpers import get_data_app, get_data_cliente
-from security import rol_requerido, ADMIN_STAFF, ROL_CLIENTE
+from security import registrar_guard_permiso, rol_requerido, ADMIN_STAFF, ROL_CLIENTE
 
 wishlist_bp = Blueprint('wishlist', __name__)
+
+# Permisos dinámicos (matriz del Propietario): guard 'ver' de todo el
+# blueprint. Convive con los @rol_requerido existentes (defensa doble).
+registrar_guard_permiso(wishlist_bp, 'wishlist', solo_prefijos=('/admin/wishlist',))
 
 
 # ─────────────────────────────────────────────────────────

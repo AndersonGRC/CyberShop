@@ -12,9 +12,13 @@ from helpers_gmail import enviar_email_gmail
 from werkzeug.utils import secure_filename
 from database import get_db_cursor
 from helpers import get_data_app
-from security import rol_requerido, ADMIN_STAFF
+from security import registrar_guard_permiso, rol_requerido, ADMIN_STAFF
 
 crm_bp = Blueprint('crm', __name__, url_prefix='/admin/crm')
+
+# Permisos dinámicos (matriz del Propietario): guard 'ver' de todo el
+# blueprint. Convive con los @rol_requerido existentes (defensa doble).
+registrar_guard_permiso(crm_bp, 'crm')
 
 UPLOAD_DIR = os.path.join('static', 'crm', 'fotos')
 ALLOWED_EXT = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}

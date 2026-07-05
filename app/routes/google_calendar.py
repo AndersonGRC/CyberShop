@@ -19,9 +19,13 @@ from googleapiclient.errors import HttpError
 
 from database import get_db_cursor
 from helpers_google import get_calendar_service, registrar_watch
-from security import rol_requerido, ADMIN_STAFF
+from security import registrar_guard_permiso, rol_requerido, ADMIN_STAFF
 
 google_bp = Blueprint('google', __name__, url_prefix='/admin/google')
+
+# Permisos dinámicos (matriz del Propietario): guard 'ver' de todo el
+# blueprint. Convive con los @rol_requerido existentes (defensa doble).
+registrar_guard_permiso(google_bp, 'crm', exempt_endpoints={'webhook'})
 
 
 # ------------------------------------------------------------------

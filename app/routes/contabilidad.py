@@ -30,9 +30,13 @@ from flask import (Blueprint, render_template, request, redirect,
 
 from database import get_db_cursor
 from helpers import get_data_app
-from security import rol_requerido, ADMIN_CONTADOR, ROL_SUPER_ADMIN
+from security import registrar_guard_permiso, rol_requerido, ADMIN_CONTADOR, ROL_SUPER_ADMIN
 
 contabilidad_bp = Blueprint('contabilidad', __name__)
+
+# Permisos dinámicos (matriz del Propietario): guard 'ver' de todo el
+# blueprint. Convive con los @rol_requerido existentes (defensa doble).
+registrar_guard_permiso(contabilidad_bp, 'accounting')
 
 _CONTABILIDAD_DEFAULTS_REPAIRED = False
 

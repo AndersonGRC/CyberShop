@@ -1,0 +1,359 @@
+{% extends './plantillaapp.html' %}
+
+{% block titulo %}Roles y Permisos — {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+  /* ═══ Roles y Permisos — paso a paso por módulo ═══ */
+  .rp-wrapper { max-width: 1100px; margin: 0 auto; padding: 8px 4px 40px; }
+
+  .rp-header { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; flex-wrap: wrap; }
+  .rp-header .icon-circle {
+    width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--color-primario), var(--color-primario-oscuro));
+    color: #fff; font-size: 19px; flex: 0 0 auto;
+  }
+  .rp-header h1 { font-size: 1.35rem; margin: 0; color: var(--color-primario-oscuro); }
+  .rp-header p { margin: 2px 0 0; color: var(--color-gris-texto); font-size: .9rem; }
+  .rp-header .rp-spacer { flex: 1; }
+  .btn-rp-nuevo-rol {
+    border: 0; border-radius: 10px; padding: 10px 16px; cursor: pointer; font-weight: 700; color: #fff;
+    background: linear-gradient(135deg, var(--color-primario), var(--color-primario-oscuro));
+    box-shadow: var(--marca-sombra-sutil);
+  }
+  .btn-rp-nuevo-rol:hover { filter: brightness(1.08); }
+
+  .rp-banner {
+    background: var(--marca-tinte); border: 1px solid var(--color-gris-borde); border-radius: 10px;
+    padding: 9px 14px; font-size: .85rem; color: var(--color-gris-texto); margin: 10px 0 16px;
+  }
+  .rp-banner i { color: var(--color-primario); margin-right: 6px; }
+
+  .rp-layout { display: grid; grid-template-columns: 260px 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .rp-layout { grid-template-columns: 1fr; } }
+
+  /* Panel izquierdo: módulos */
+  .rp-modulos {
+    background: #fff; border-radius: 14px; box-shadow: var(--marca-sombra-card);
+    overflow: hidden; position: sticky; top: 12px;
+  }
+  .rp-modulos-header {
+    background: linear-gradient(135deg, var(--color-primario), var(--color-primario-oscuro));
+    color: #fff; font-weight: 700; padding: 12px 16px; font-size: .9rem;
+  }
+  .rp-mod-item {
+    display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+    padding: 11px 16px; border: 0; background: transparent; cursor: pointer;
+    font-size: .9rem; color: #333; border-left: 3px solid transparent;
+  }
+  .rp-mod-item:hover { background: var(--marca-tinte); }
+  .rp-mod-item.activo {
+    background: var(--marca-tinte); border-left-color: var(--color-primario);
+    font-weight: 700; color: var(--color-primario-oscuro);
+  }
+  .rp-mod-item i { width: 20px; text-align: center; color: var(--color-primario); }
+  .rp-mod-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: #f0a020; margin-left: auto;
+    flex: 0 0 auto; display: none;
+  }
+  .rp-mod-item.con-cambios .rp-mod-dot { display: block; }
+
+  /* Panel derecho */
+  .rp-detalle-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+  .rp-detalle-header h2 { margin: 0; font-size: 1.15rem; color: var(--color-primario-oscuro); }
+  .rp-detalle-header h2 i { margin-right: 8px; color: var(--color-primario); }
+  .rp-detalle-header p { margin: 3px 0 0; color: var(--color-gris-texto); font-size: .85rem; }
+  .btn-rp-restaurar {
+    margin-left: auto; border: 1px solid var(--color-gris-borde); background: #fff; color: var(--color-gris-texto);
+    border-radius: 9px; padding: 8px 13px; cursor: pointer; font-size: .82rem; font-weight: 600;
+  }
+  .btn-rp-restaurar:hover { border-color: var(--color-primario); color: var(--color-primario); }
+
+  .rp-roles-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+
+  .rp-rol-card { background: #fff; border-radius: 14px; box-shadow: var(--marca-sombra-card); overflow: hidden; }
+  .rp-rol-card-header {
+    display: flex; align-items: center; gap: 8px; padding: 11px 15px; font-weight: 700; color: #fff;
+    background: linear-gradient(135deg, var(--color-primario), var(--color-primario-oscuro)); font-size: .92rem;
+  }
+  .rp-rol-card-header .rp-rol-badge {
+    font-size: .68rem; font-weight: 600; opacity: .85; background: rgba(255,255,255,.18);
+    border-radius: 8px; padding: 2px 8px;
+  }
+  .rp-rol-menu-btn {
+    margin-left: auto; background: transparent; border: 0; color: #fff; cursor: pointer;
+    font-size: .85rem; opacity: .85; padding: 2px 6px;
+  }
+  .rp-rol-menu-btn:hover { opacity: 1; }
+  .rp-rol-card-body { padding: 8px 15px 13px; }
+
+  .rp-perm-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--color-gris-borde); }
+  .rp-perm-row:last-child { border-bottom: 0; }
+  .rp-perm-label { font-size: .86rem; color: #333; flex: 1; }
+  .rp-perm-row.deshabilitada .rp-perm-label { color: #b6b9c4; }
+
+  /* Toggle switch (patrón configuracion_cliente) */
+  .switch { position: relative; display: inline-block; width: 46px; height: 24px; flex: 0 0 auto; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider-toggle {
+    position: absolute; cursor: pointer; inset: 0; background: #cfd3de; border-radius: 24px; transition: .25s;
+  }
+  .slider-toggle:before {
+    content: ""; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px;
+    background: #fff; border-radius: 50%; transition: .25s; box-shadow: 0 1px 3px rgba(0,0,0,.25);
+  }
+  .switch input:checked + .slider-toggle { background: #28a745; }
+  .switch input:checked + .slider-toggle:before { transform: translateX(22px); }
+  .switch input:disabled + .slider-toggle { opacity: .45; cursor: not-allowed; }
+
+  .rp-aviso-sin-modulos {
+    margin-top: 14px; background: #fff8e6; border: 1px solid #f0d48a; color: #8a6d1a;
+    border-radius: 10px; padding: 10px 14px; font-size: .85rem; display: none;
+  }
+  .rp-cargando { text-align: center; color: var(--color-gris-texto); padding: 60px 0; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="rp-wrapper">
+  <div class="rp-header">
+    <div class="icon-circle"><i class="fas fa-user-shield"></i></div>
+    <div>
+      <h1>Roles y Permisos</h1>
+      <p>Elige un módulo y decide qué puede hacer cada persona de tu equipo.</p>
+    </div>
+    <div class="rp-spacer"></div>
+    <button type="button" class="btn-rp-nuevo-rol" onclick="rpCrearRol()">
+      <i class="fas fa-plus"></i>&nbsp; Crear un rol nuevo
+    </button>
+  </div>
+
+  <div class="rp-banner">
+    <i class="fas fa-shield-alt"></i>
+    El <strong>Propietario</strong> y el <strong>Administrador</strong> siempre pueden hacer todo. Eso no se puede cambiar.
+  </div>
+
+  <div id="rp-cargando" class="rp-cargando"><i class="fas fa-circle-notch fa-spin"></i>&nbsp; Cargando permisos…</div>
+
+  <div class="rp-layout" id="rp-layout" style="display:none">
+    <div class="rp-modulos">
+      <div class="rp-modulos-header"><i class="fas fa-th-large"></i>&nbsp; Módulos</div>
+      <div id="rp-lista-modulos"></div>
+    </div>
+    <div>
+      <div class="rp-detalle-header">
+        <div>
+          <h2 id="rp-mod-titulo"></h2>
+          <p id="rp-mod-desc"></p>
+        </div>
+        <button type="button" class="btn-rp-restaurar" onclick="rpRestaurarModulo()">
+          <i class="fas fa-undo"></i>&nbsp; Volver a lo recomendado
+        </button>
+      </div>
+      <div class="rp-roles-grid" id="rp-roles-grid"></div>
+      <div class="rp-aviso-sin-modulos" id="rp-aviso"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const RP_CSRF = "{{ csrf_token() }}";
+const RP_BASE = "{{ url_for('roles_permisos.pagina') }}".replace(/\/$/, '');
+let RP = { modulos: [], roles: [], permisos: {}, moduloActivo: null };
+
+async function rpFetch(url, body) {
+  const opts = body === undefined
+    ? { headers: { 'Accept': 'application/json' } }
+    : { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': RP_CSRF },
+        body: JSON.stringify(body) };
+  const r = await fetch(url, opts);
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || d.success === false) throw new Error(d.error || 'No se pudo guardar. Intenta de nuevo.');
+  return d;
+}
+
+function rpToast(texto, icono) {
+  Swal.fire({ toast: true, position: 'top-end', timer: 1500, showConfirmButton: false,
+              icon: icono || 'success', title: texto });
+}
+
+async function rpCargar(keepModulo) {
+  const d = await rpFetch(`${RP_BASE}/data`);
+  RP.modulos = d.modulos; RP.roles = d.roles; RP.permisos = d.permisos;
+  if (!keepModulo || !RP.modulos.some(m => m.modulo === RP.moduloActivo)) {
+    RP.moduloActivo = RP.modulos.length ? RP.modulos[0].modulo : null;
+  }
+  document.getElementById('rp-cargando').style.display = 'none';
+  document.getElementById('rp-layout').style.display = '';
+  rpPintarModulos(); rpPintarDetalle();
+}
+
+function rpModTieneCambios(mod) {
+  return RP.roles.some(r => (RP.permisos[`${r.id}:${mod}`] || {}).personalizado);
+}
+
+function rpPintarModulos() {
+  const host = document.getElementById('rp-lista-modulos');
+  host.innerHTML = '';
+  RP.modulos.forEach(m => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'rp-mod-item' + (m.modulo === RP.moduloActivo ? ' activo' : '')
+                + (rpModTieneCambios(m.modulo) ? ' con-cambios' : '');
+    b.innerHTML = `<i class="fas fa-${m.icono}"></i><span>${m.nombre}</span><span class="rp-mod-dot" title="Tiene cambios respecto a lo recomendado"></span>`;
+    b.onclick = () => { RP.moduloActivo = m.modulo; rpPintarModulos(); rpPintarDetalle(); };
+    host.appendChild(b);
+  });
+}
+
+function rpPintarDetalle() {
+  const m = RP.modulos.find(x => x.modulo === RP.moduloActivo);
+  if (!m) return;
+  document.getElementById('rp-mod-titulo').innerHTML = `<i class="fas fa-${m.icono}"></i>${m.nombre}`;
+  document.getElementById('rp-mod-desc').textContent = m.descripcion;
+  const grid = document.getElementById('rp-roles-grid');
+  grid.innerHTML = '';
+  RP.roles.forEach(rol => {
+    const celda = RP.permisos[`${rol.id}:${m.modulo}`] || {};
+    const card = document.createElement('div');
+    card.className = 'rp-rol-card';
+    const badge = rol.es_sistema ? '' :
+      `<span class="rp-rol-badge">copia de ${rol.base_nombre || 'Empleado'}</span>`;
+    const menuBtn = rol.es_sistema ? '' :
+      `<button type="button" class="rp-rol-menu-btn" title="Renombrar o eliminar" onclick="rpMenuRol(${rol.id}, '${rol.nombre.replace(/'/g, "\\'")}')"><i class="fas fa-pen"></i></button>`;
+    let filas = '';
+    m.acciones.forEach(a => {
+      const activo = !!celda[a.accion];
+      const esDependiente = a.accion !== 'ver' && !celda['ver'];
+      filas += `
+        <div class="rp-perm-row ${esDependiente ? 'deshabilitada' : ''}">
+          <span class="rp-perm-label">${a.label}</span>
+          <label class="switch">
+            <input type="checkbox" ${activo ? 'checked' : ''} ${esDependiente ? 'disabled' : ''}
+                   onchange="rpToggle(${rol.id}, '${m.modulo}', '${a.accion}', this)">
+            <span class="slider-toggle"></span>
+          </label>
+        </div>`;
+    });
+    card.innerHTML = `
+      <div class="rp-rol-card-header"><i class="fas fa-user"></i> ${rol.nombre} ${badge} ${menuBtn}</div>
+      <div class="rp-rol-card-body">${filas}</div>`;
+    grid.appendChild(card);
+  });
+  rpAvisoRolesSinAcceso();
+}
+
+function rpAvisoRolesSinAcceso() {
+  const aviso = document.getElementById('rp-aviso');
+  const sinVer = RP.roles.filter(r =>
+    !RP.modulos.some(m => (RP.permisos[`${r.id}:${m.modulo}`] || {}).ver));
+  if (sinVer.length) {
+    aviso.style.display = '';
+    aviso.innerHTML = `<i class="fas fa-exclamation-triangle"></i>&nbsp; Ojo: <strong>${sinVer.map(r => r.nombre).join(', ')}</strong> no podrá entrar a ningún módulo.`;
+  } else {
+    aviso.style.display = 'none';
+  }
+}
+
+async function rpToggle(rolId, modulo, accion, input) {
+  const valor = input.checked;
+  try {
+    const d = await rpFetch(`${RP_BASE}/toggle`, { rol_id: rolId, modulo, accion, valor });
+    RP.permisos[`${rolId}:${modulo}`] = d.estado;
+    rpPintarModulos(); rpPintarDetalle();
+    rpToast('Guardado ✓');
+  } catch (e) {
+    input.checked = !valor;
+    Swal.fire({ icon: 'error', title: 'No se pudo guardar', text: e.message,
+                confirmButtonColor: BRAND_COLOR_BTN });
+  }
+}
+
+async function rpRestaurarModulo() {
+  const m = RP.modulos.find(x => x.modulo === RP.moduloActivo);
+  if (!m) return;
+  const ok = await Swal.fire({
+    icon: 'question', title: `¿Volver a lo recomendado?`,
+    text: `Los permisos de "${m.nombre}" volverán a los valores recomendados para todos los roles.`,
+    showCancelButton: true, confirmButtonText: 'Sí, restaurar', cancelButtonText: 'Cancelar',
+    confirmButtonColor: BRAND_COLOR_BTN });
+  if (!ok.isConfirmed) return;
+  try {
+    await rpFetch(`${RP_BASE}/restaurar`, { modulo: m.modulo });
+    await rpCargar(true);
+    rpToast('Restaurado ✓');
+  } catch (e) {
+    Swal.fire({ icon: 'error', title: 'No se pudo restaurar', text: e.message,
+                confirmButtonColor: BRAND_COLOR_BTN });
+  }
+}
+
+async function rpCrearRol() {
+  const bases = RP.roles.filter(r => r.es_sistema);
+  const opciones = bases.map(b => `<option value="${b.id}">${b.nombre}</option>`).join('');
+  const res = await Swal.fire({
+    title: 'Crear un rol nuevo',
+    html: `
+      <input id="rp-nuevo-nombre" class="swal2-input" placeholder="Nombre del rol (ej: Vendedor)" maxlength="50">
+      <label style="display:block;font-size:.85rem;color:#5a5c69;margin:6px 0 4px">Empezará con los mismos permisos de:</label>
+      <select id="rp-nuevo-base" class="swal2-select" style="width:80%">${opciones}</select>`,
+    showCancelButton: true, confirmButtonText: 'Crear rol', cancelButtonText: 'Cancelar',
+    confirmButtonColor: BRAND_COLOR_BTN,
+    preConfirm: () => {
+      const nombre = document.getElementById('rp-nuevo-nombre').value.trim();
+      if (nombre.length < 2) { Swal.showValidationMessage('Escribe un nombre para el rol.'); return false; }
+      return { nombre, base_rol_id: parseInt(document.getElementById('rp-nuevo-base').value, 10) };
+    }
+  });
+  if (!res.isConfirmed || !res.value) return;
+  try {
+    await rpFetch(`${RP_BASE}/rol`, res.value);
+    await rpCargar(true);
+    rpToast(`Rol "${res.value.nombre}" creado ✓`);
+  } catch (e) {
+    Swal.fire({ icon: 'error', title: 'No se pudo crear', text: e.message,
+                confirmButtonColor: BRAND_COLOR_BTN });
+  }
+}
+
+async function rpMenuRol(rolId, nombre) {
+  const res = await Swal.fire({
+    title: nombre,
+    text: '¿Qué quieres hacer con este rol?',
+    showDenyButton: true, showCancelButton: true,
+    confirmButtonText: 'Renombrar', denyButtonText: 'Eliminar', cancelButtonText: 'Cancelar',
+    confirmButtonColor: BRAND_COLOR_BTN, denyButtonColor: '#d33' });
+  if (res.isConfirmed) {
+    const r2 = await Swal.fire({
+      title: 'Nuevo nombre', input: 'text', inputValue: nombre,
+      showCancelButton: true, confirmButtonText: 'Guardar', cancelButtonText: 'Cancelar',
+      confirmButtonColor: BRAND_COLOR_BTN });
+    if (!r2.isConfirmed || !(r2.value || '').trim()) return;
+    try {
+      await rpFetch(`${RP_BASE}/rol/${rolId}/renombrar`, { nombre: r2.value.trim() });
+      await rpCargar(true); rpToast('Renombrado ✓');
+    } catch (e) {
+      Swal.fire({ icon: 'error', title: 'No se pudo renombrar', text: e.message, confirmButtonColor: BRAND_COLOR_BTN });
+    }
+  } else if (res.isDenied) {
+    const r3 = await Swal.fire({
+      icon: 'warning', title: `¿Eliminar el rol "${nombre}"?`,
+      text: 'Solo se puede eliminar si ninguna persona lo tiene asignado.',
+      showCancelButton: true, confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#d33' });
+    if (!r3.isConfirmed) return;
+    try {
+      await rpFetch(`${RP_BASE}/rol/${rolId}/eliminar`, {});
+      await rpCargar(true); rpToast('Rol eliminado ✓');
+    } catch (e) {
+      Swal.fire({ icon: 'error', title: 'No se pudo eliminar', text: e.message, confirmButtonColor: BRAND_COLOR_BTN });
+    }
+  }
+}
+
+rpCargar().catch(e => {
+  document.getElementById('rp-cargando').innerHTML =
+    '<i class="fas fa-exclamation-triangle"></i>&nbsp; No se pudieron cargar los permisos. Recarga la página.';
+});
+</script>
+{% endblock %}

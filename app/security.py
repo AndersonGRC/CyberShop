@@ -85,62 +85,89 @@ _DESKTOP_ROLE_BY_ID = {
 }
 
 
-def _desktop_actions_for(rol_id):
-    """Acciones permitidas por módulo del desktop para un rol_id dado."""
-    def has(grp):
-        return rol_id in grp
+# Traducción módulo web (matriz 3 niveles) → nav keys y acciones del desktop.
+# Cada entrada: modulo_web → [(nav_key_desktop, {accion_web: [acciones_desktop]})]
+_DESKTOP_TRANSLATION = {
+    'pos':               [('pos',          {'ver': ['view'], 'operar': ['create'], 'eliminar': ['delete']}),
+                          ('sales',        {'ver': ['view']})],
+    'inventory':         [('products',     {'ver': ['view'], 'operar': ['create', 'edit'], 'eliminar': ['delete']}),
+                          ('inventory',    {'ver': ['view'], 'operar': ['create', 'edit'], 'eliminar': ['delete']})],
+    'restaurant_tables': [('restaurant',   {'ver': ['view', 'create'], 'operar': ['charge'], 'eliminar': ['cancel']})],
+    'quotes':            [('quotes',       {'ver': ['view'], 'operar': ['create', 'edit'], 'eliminar': ['delete', 'approve']})],
+    'crm':               [('crm',          {'ver': ['view'], 'operar': ['create', 'edit'], 'eliminar': ['delete']})],
+    'accounting':        [('contabilidad', {'ver': ['view'], 'operar': ['create', 'edit'], 'eliminar': ['delete']})],
+    'billing':           [('cobros',       {'ver': ['view'], 'operar': ['create', 'edit'], 'eliminar': ['delete']})],
+    'payroll':           [('payroll',      {'ver': ['view'], 'operar': ['create', 'edit'], 'eliminar': ['delete']})],
+    'users':             [('users',        {'ver': ['view'], 'operar': ['create', 'edit'], 'eliminar': ['delete']})],
+    'ai_assistant':      [('ia',           {'ver': ['view'], 'operar': ['use']})],
+}
+
+
+def _desktop_actions_for(rol_id, resolver=None):
+    """Acciones permitidas por módulo del desktop para un rol_id.
+
+    `resolver(rol_id, modulo, accion) -> bool` permite computar contra la
+    matriz DINÁMICA del tenant (services/permisos_service.tiene_permiso con el
+    cursor del tenant). Sin resolver usa los defaults estáticos del servicio
+    (mismos grupos de siempre) — con la tabla de overrides vacía ambos caminos
+    producen el mismo manifiesto."""
+    if resolver is None:
+        from services.permisos_service import tiene_permiso as resolver  # noqa: PLW0127
+
     m = {"dashboard": ["view"]}
-    # POS + historial de ventas
-    if has(POS_OPERATIONAL):
-        m["pos"] = ["view", "create"] + (["delete"] if has(POS_DELETE) else [])
-        m["sales"] = ["view"]
-    # Catálogo (productos + inventario)
-    if has(CATALOG_OPERATIONAL):
-        acts = ["view", "create", "edit"] + (["delete"] if has(CATALOG_DELETE) else [])
-        m["products"] = list(acts)
-        m["inventory"] = list(acts)
-    # Restaurante
-    if has(RESTAURANT_OPERATIONAL):
-        acts = ["view", "create"]
-        if has(RESTAURANT_CHARGE):
-            acts.append("charge")
-        if has(RESTAURANT_CANCEL):
-            acts.append("cancel")
-        m["restaurant"] = acts
-    # Cotizaciones: ver/crear/editar = staff; aprobar/eliminar = admin
-    if has(ADMIN_STAFF):
-        m["quotes"] = ["view", "create", "edit"] + (["delete", "approve"] if has(ADMIN_FULL) else [])
-        m["crm"] = ["view", "create", "edit", "delete"]
-        m["ia"] = ["view", "use"]   # Asistente IA = mismo grupo que la web (ADMIN_STAFF)
-    # Cuentas de cobro + contabilidad + historial POS = contador/admin
-    # (clave 'cobros' = nav key del desktop, no 'billing')
-    if has(ADMIN_CONTADOR):
-        m["cobros"] = ["view", "create", "edit", "delete"]
-        m["contabilidad"] = ["view", "create", "edit", "delete"]
-        m.setdefault("sales", ["view"])
-    # Nómina: solo Administrador y Contador (endurecimiento; ver nota arriba)
-    if has(ADMIN_FULL) or rol_id == ROL_CONTADOR:
-        m["payroll"] = ["view", "create", "edit", "delete"]
-    # Usuarios + módulos de sistema (sincronización/configuración): solo
-    # Administrador/Propietario (espejo del ROLE_MODULES del desktop).
-    if has(ADMIN_FULL):
-        m["users"] = ["view", "create", "edit", "delete"]
+    for modulo_web, targets in _DESKTOP_TRANSLATION.items():
+        for nav_key, mapa in targets:
+            acts = []
+            for accion_web, acciones_desktop in mapa.items():
+                try:
+                    permitido = resolver(rol_id, modulo_web, accion_web)
+                except Exception:
+                    permitido = False
+                if permitido:
+                    acts.extend(acciones_desktop)
+            if acts and 'view' in acts:
+                prev = m.get(nav_key, [])
+                m[nav_key] = sorted(set(prev) | set(acts))
+    # Historial de ventas también para contador (ve contabilidad → ve ventas)
+    try:
+        if resolver(rol_id, 'accounting', 'ver'):
+            m.setdefault('sales', ['view'])
+    except Exception:
+        pass
+    # Módulos de sistema (sincronización/configuración): solo Admin/Propietario.
+    if rol_id in ADMIN_FULL:
         m["sync"] = ["view"]
         m["config"] = ["view"]
     return m
 
 
-def desktop_permissions_manifest():
-    """Manifiesto rol → {modules, actions} para el desktop, derivado de los
-    grupos de permisos. Devuelve dict keyed por nombre de rol del desktop.
+def desktop_permissions_manifest(resolver=None, roles_tenant=None):
+    """Manifiesto rol → {modules, actions} para el desktop, keyed por NOMBRE de
+    rol. Con `resolver` + `roles_tenant` (lista de dicts {id, nombre} de la BD
+    del tenant, incluyendo roles personalizados) computa el manifiesto DINÁMICO
+    del tenant; sin argumentos usa los roles de sistema y los defaults (misma
+    salida de siempre — fallback seguro).
 
     NO intersecta con el plan del tenant: eso lo hace el desktop con los flags
-    de cliente_config. Los módulos de sistema (dashboard/sync/config) siempre
-    están disponibles del lado del desktop.
-    """
+    de cliente_config."""
+    pares = []          # (rol_id, nombre_desktop)
+    if roles_tenant:
+        for r in roles_tenant:
+            rid = int(r['id'])
+            nombre = _DESKTOP_ROLE_BY_ID.get(rid, (r.get('nombre') or '').strip())
+            if not nombre:
+                continue
+            pares.append((rid, nombre))
+        # Garantizar que Administrador (1/2) siempre exista aunque la tabla
+        # roles del tenant tenga nombres viejos ('admin','usuario').
+        pares = [(rid, n) for rid, n in pares if rid not in (1, 2)]
+        pares = [(1, "Administrador"), (2, "Administrador")] + pares
+    else:
+        pares = [(rid, rname) for rid, rname in _DESKTOP_ROLE_BY_ID.items()]
+
     out = {}
-    for rid, rname in _DESKTOP_ROLE_BY_ID.items():
-        acts = _desktop_actions_for(rid)
+    for rid, rname in pares:
+        acts = _desktop_actions_for(rid, resolver=resolver)
         if rname in out:
             # Roles que colapsan al mismo nombre (1 y 2 -> Administrador): unir.
             merged = out[rname]["actions"]
@@ -182,7 +209,32 @@ def rol_requerido(rol_id):
                 flash('No tienes permiso para acceder a esta página.', 'error')
                 return redirect(url_for('auth.login'))
             permitidos = rol_id if isinstance(rol_id, list) else [rol_id]
-            if session['rol_id'] not in permitidos:
+            rol_sesion = session['rol_id']
+            if rol_sesion not in permitidos:
+                # Roles PERSONALIZADOS (creados por el Propietario): heredan la
+                # pertenencia a grupos de su rol base. Así los decoradores
+                # legacy siguen funcionando sin refactor; la matriz dinámica
+                # (permiso_requerido/guards) aplica los ajustes finos encima.
+                try:
+                    from services.permisos_service import rol_base_efectivo
+                    rol_sesion = rol_base_efectivo(rol_sesion)
+                except Exception:
+                    pass
+            if rol_sesion not in permitidos:
+                # AMPLIACIÓN del dueño: si el guard dinámico del blueprint ya
+                # autorizó este módulo Y existe un override explícito (ver=True
+                # configurado en Roles y Permisos), la decisión del dueño manda
+                # sobre el grupo estático. Con solo defaults, se veta como
+                # siempre. Las acciones sensibles siguen protegidas por
+                # @permiso_requerido(..., 'operar'/'eliminar').
+                try:
+                    from flask import g as _g
+                    from services.permisos_service import tiene_override_ver
+                    mod = getattr(_g, '_rp_modulo_autorizado', None)
+                    if mod and tiene_override_ver(session['rol_id'], mod):
+                        return f(*args, **kwargs)
+                except Exception:
+                    pass
                 if _is_json_request():
                     return jsonify({'success': False, 'error': 'No tienes permiso para esta acción.'}), 403
                 flash('No tienes permiso para acceder a esta página.', 'error')
@@ -190,6 +242,67 @@ def rol_requerido(rol_id):
             return f(*args, **kwargs)
         return decorated_function
     return decorator
+
+
+# ─────────────────────────────────────────────────────────
+# Permisos dinámicos (matriz configurable por el Propietario)
+# ─────────────────────────────────────────────────────────
+
+def _denegar(json_status=403, mensaje='No tienes permiso para esta acción.'):
+    """Respuesta uniforme de denegación (idéntica a rol_requerido)."""
+    if _is_json_request():
+        return jsonify({'success': False, 'error': mensaje}), json_status
+    flash('No tienes permiso para acceder a esta página.', 'error')
+    return redirect(url_for('auth.login'))
+
+
+def permiso_requerido(modulo, accion='ver'):
+    """Decorador de permisos DINÁMICOS: consulta la matriz configurable del
+    tenant (services/permisos_service). Roles 1/2 siempre pasan (anti-bloqueo).
+    Convive con @rol_requerido (defensa en profundidad)."""
+    def decorator(f):
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            if 'rol_id' not in session:
+                return _denegar(401, 'Sesión expirada. Inicia sesión de nuevo.')
+            from services.permisos_service import tiene_permiso
+            if not tiene_permiso(session['rol_id'], modulo, accion):
+                return _denegar()
+            return f(*args, **kwargs)
+        return wrapped
+    return decorator
+
+
+def registrar_guard_permiso(bp, modulo, exempt_endpoints=frozenset(), solo_prefijos=None):
+    """Guard before_request de blueprint: exige sesión + permiso 'ver' del
+    módulo (las rutas nuevas quedan protegidas por defecto).
+
+    - `exempt_endpoints`: endpoints (sin prefijo del blueprint) que se saltan
+      el guard (p.ej. webhooks o rutas públicas por token).
+    - `solo_prefijos`: si se da, el guard SOLO aplica a rutas cuyo path empieza
+      por alguno de estos prefijos (para blueprints que mezclan rutas admin con
+      rutas de cliente final o públicas, p.ej. video/soporte/share)."""
+    @bp.before_request
+    def _guard():  # noqa: ANN202
+        endpoint = (request.endpoint or '').rsplit('.', 1)[-1]
+        if endpoint in exempt_endpoints:
+            return None
+        if solo_prefijos is not None and not any(
+                request.path.startswith(p) for p in solo_prefijos):
+            return None
+        if 'rol_id' not in session:
+            return _denegar(401, 'Sesión expirada. Inicia sesión de nuevo.')
+        from services.permisos_service import tiene_permiso
+        if not tiene_permiso(session['rol_id'], modulo, 'ver'):
+            return _denegar()
+        # Marca el módulo autorizado dinámicamente: rol_requerido (legacy) cede
+        # ante AMPLIACIONES explícitas del dueño (override ver=True) para las
+        # rutas de este blueprint. Sin override, el decorador legacy sigue
+        # vetando igual que siempre (defensa en profundidad intacta).
+        from flask import g as _g
+        _g._rp_modulo_autorizado = modulo
+        return None
+    return _guard
 
 
 # --- Autenticacion de usuario ---

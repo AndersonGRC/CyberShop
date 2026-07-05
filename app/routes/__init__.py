@@ -77,6 +77,10 @@ def register_blueprints(app):
     from routes.ia import ia_bp
     app.register_blueprint(ia_bp)
 
+    # Roles y Permisos (matriz configurable por el Propietario)
+    from routes.roles_permisos import roles_permisos_bp
+    app.register_blueprint(roles_permisos_bp)
+
     # API REST v1 (habilitada con CYBERSHOP_API_ENABLED=1)
     if os.getenv('CYBERSHOP_API_ENABLED', '0') == '1':
         from routes.api_auth import api_auth_bp

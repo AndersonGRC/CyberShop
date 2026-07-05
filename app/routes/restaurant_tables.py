@@ -21,6 +21,7 @@ from security import (
     RESTAURANT_OPERATIONAL,
     RESTAURANT_CHARGE,
     RESTAURANT_CANCEL,
+    permiso_requerido, registrar_guard_permiso,
     rol_requerido,
 )
 from services.restaurant_tables_service import (
@@ -49,6 +50,10 @@ from tenant_features import (
 )
 
 restaurant_tables_bp = Blueprint('restaurant_tables', __name__)
+
+# Permisos dinámicos (matriz del Propietario): guard 'ver' de todo el
+# blueprint. Convive con los @rol_requerido existentes (defensa doble).
+registrar_guard_permiso(restaurant_tables_bp, 'restaurant_tables', exempt_endpoints={'saas_modules_admin'})
 # Acceso de lectura general (constructor, reportes): staff + contador
 RESTAURANT_ACCESS = ADMIN_STAFF + [role for role in ADMIN_CONTADOR if role not in ADMIN_STAFF]
 # Acceso operativo (atender mesas, tomar pedidos): incluye mesero y cajero
@@ -251,6 +256,7 @@ def restaurant_consumption_state_change(consumption_id):
 
 
 @restaurant_tables_bp.route('/admin/restaurante/mesas/<int:table_id>/cerrar', methods=['POST'])
+@permiso_requerido('restaurant_tables', 'operar')
 @rol_requerido(RESTAURANT_CHARGE)
 @module_required(MODULE_RESTAURANT_TABLES)
 def restaurant_table_close(table_id):
@@ -297,6 +303,7 @@ def _facturar_orden_si_aplica(order_id, payload):
 
 
 @restaurant_tables_bp.route('/admin/restaurante/mesas/<int:table_id>/cancelar', methods=['POST'])
+@permiso_requerido('restaurant_tables', 'eliminar')
 @rol_requerido(RESTAURANT_CANCEL)
 @module_required(MODULE_RESTAURANT_TABLES)
 def restaurant_table_cancel_open(table_id):
@@ -309,6 +316,7 @@ def restaurant_table_cancel_open(table_id):
 
 
 @restaurant_tables_bp.route('/admin/restaurante/ordenes/<int:order_id>/anular', methods=['POST'])
+@permiso_requerido('restaurant_tables', 'eliminar')
 @rol_requerido(RESTAURANT_CANCEL)
 @module_required(MODULE_RESTAURANT_TABLES)
 def restaurant_closed_order_cancel(order_id):

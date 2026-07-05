@@ -17,9 +17,13 @@ import num2words
 
 from database import get_db_cursor
 from helpers import get_data_app, formatear_moneda, pdf_link_callback, logo_local_path as resolve_logo_path
-from security import rol_requerido, ADMIN_CONTADOR
+from security import permiso_requerido, registrar_guard_permiso, rol_requerido, ADMIN_CONTADOR
 
 billing_bp = Blueprint('billing', __name__)
+
+# Permisos dinámicos (matriz del Propietario): guard 'ver' de todo el
+# blueprint. Convive con los @rol_requerido existentes (defensa doble).
+registrar_guard_permiso(billing_bp, 'billing')
 
 
 
@@ -323,6 +327,7 @@ def guardar_generar_cuenta():
         return Response(f"Error: {e}", status=500)
 
 @billing_bp.route('/admin/cuenta_cobro/eliminar/<int:id>', methods=['POST'])
+@permiso_requerido('billing', 'eliminar')
 @rol_requerido(ADMIN_CONTADOR)
 def eliminar_cuenta(id):
     """Elimina una cuenta de cobro y su archivo PDF."""
