@@ -21,6 +21,7 @@ Reglas:
 """
 
 import json
+import math
 
 from flask import (Blueprint, render_template, request, redirect,
                    url_for, session, flash, jsonify, current_app)
@@ -156,7 +157,11 @@ def _registrar_egreso_contable(categoria, descripcion, monto, referencia_tipo, r
 
 
 def _monto(valor):
-    """Parsea un monto del form: acepta '50.000', '50000', '50000.50'."""
+    """Parsea un monto del form: acepta '50.000', '50000', '50000.50'.
+
+    Rechaza (ValueError) valores no numéricos, no finitos (inf/nan) o fuera del
+    rango de NUMERIC(14,2). Sin esta guarda, 'nan'/'inf' pasaban las validaciones
+    (`< 0` / `<= 0` dan False con nan/inf) y envenenaban el arqueo/contabilidad."""
     s = str(valor or '').strip().replace('$', '').replace(' ', '')
     if not s:
         return 0.0
@@ -165,7 +170,10 @@ def _monto(valor):
         s = s.replace('.', '').replace(',', '.')
     elif s.count('.') > 1 or (s.count('.') == 1 and len(s.split('.')[1]) == 3):
         s = s.replace('.', '')
-    return float(s)
+    n = float(s)   # ValueError si no es número
+    if not math.isfinite(n) or abs(n) >= 1e12:  # descarta inf/nan y overflow de NUMERIC(14,2)
+        raise ValueError('monto fuera de rango')
+    return n
 
 
 # ─────────────────────────────────────────────────────────
