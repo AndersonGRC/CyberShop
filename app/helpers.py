@@ -137,7 +137,23 @@ def get_data_app():
     """
     from flask import session as _s
 
-    from security import ADMIN_STAFF, ADMIN_FULL, ROL_SUPER_ADMIN
+    from security import (
+        ADMIN_CONTADOR,
+        ADMIN_FULL,
+        ADMIN_STAFF,
+        CATALOG_DELETE,
+        CATALOG_OPERATIONAL,
+        POS_OPERATIONAL,
+        ROL_CAJERO,
+        ROL_CONTADOR,
+        ROL_MESERO,
+        ROL_SUPER_ADMIN,
+    )
+
+    # Espejo de los grupos de restaurant_tables.py (no importables sin ciclo):
+    # quién puede atender mesas vs quién administra plano/reportes.
+    RESTAURANT_SERVICE = ADMIN_STAFF + [ROL_CONTADOR, ROL_MESERO, ROL_CAJERO]
+    RESTAURANT_ADMIN = ADMIN_STAFF + [ROL_CONTADOR]
     from tenant_features import (
         MODULE_ACCOUNTING,
         MODULE_BILLING,
@@ -163,23 +179,27 @@ def get_data_app():
     active_modules = get_active_module_codes()
     rol_actual = _s.get('rol_id')
 
+    # Regla de visibilidad: cada ítem lleva 'roles' = ESPEJO EXACTO del
+    # @rol_requerido de su ruta destino. Así el menú nunca muestra módulos que
+    # el rol no puede abrir (nada de "No tienes permiso" al hacer clic).
+    # El gate por plan/licencia sigue siendo module_code (rol ∩ plan).
     App = [
-        {"nombre": "Panel Principal", "url": "admin.dashboard_admin", "icono": "home"},
-        
+        {"nombre": "Panel Principal", "url": "admin.dashboard_admin", "icono": "home", "roles": ADMIN_STAFF},
+
         {
             "nombre": "Ventas",
             "url": "#", # Grupo
             "icono": "cash-register",
             "submodulos": [
-                {"nombre": "Punto de Venta", "url": "admin.facturacion_pos", "icono": "cash-register", "module_code": MODULE_POS},
-                {"nombre": "Caja / Arqueo", "url": "caja.caja_estado", "icono": "coins", "module_code": MODULE_POS},
-                {"nombre": "Historial POS", "url": "admin.historial_pos", "icono": "receipt", "module_code": MODULE_POS},
-                {"nombre": "Gestionar Pedidos", "url": "admin.gestion_pedidos", "icono": "truck", "module_code": MODULE_ORDERS},
-                {"nombre": "Nueva Cotización", "url": "quotes.cotizar", "icono": "file-invoice-dollar", "module_code": MODULE_QUOTES},
-                {"nombre": "Mis Cotizaciones", "url": "quotes.ver_cotizaciones", "icono": "history", "module_code": MODULE_QUOTES},
-                {"nombre": "Nueva Cuenta de Cobro", "url": "billing.crear_cuenta", "icono": "file-invoice", "module_code": MODULE_BILLING},
-                {"nombre": "Mis Cuentas de Cobro", "url": "billing.listar_cuentas", "icono": "folder-open", "module_code": MODULE_BILLING},
-                {"nombre": "Cupones", "url": "cupones.gestion_cupones", "icono": "ticket-alt", "module_code": MODULE_COUPONS}
+                {"nombre": "Punto de Venta", "url": "admin.facturacion_pos", "icono": "cash-register", "module_code": MODULE_POS, "roles": POS_OPERATIONAL},
+                {"nombre": "Caja / Arqueo", "url": "caja.caja_estado", "icono": "coins", "module_code": MODULE_POS, "roles": POS_OPERATIONAL},
+                {"nombre": "Historial POS", "url": "admin.historial_pos", "icono": "receipt", "module_code": MODULE_POS, "roles": POS_OPERATIONAL},
+                {"nombre": "Gestionar Pedidos", "url": "admin.gestion_pedidos", "icono": "truck", "module_code": MODULE_ORDERS, "roles": ADMIN_STAFF},
+                {"nombre": "Nueva Cotización", "url": "quotes.cotizar", "icono": "file-invoice-dollar", "module_code": MODULE_QUOTES, "roles": ADMIN_STAFF},
+                {"nombre": "Mis Cotizaciones", "url": "quotes.ver_cotizaciones", "icono": "history", "module_code": MODULE_QUOTES, "roles": ADMIN_STAFF},
+                {"nombre": "Nueva Cuenta de Cobro", "url": "billing.crear_cuenta", "icono": "file-invoice", "module_code": MODULE_BILLING, "roles": ADMIN_CONTADOR},
+                {"nombre": "Mis Cuentas de Cobro", "url": "billing.listar_cuentas", "icono": "folder-open", "module_code": MODULE_BILLING, "roles": ADMIN_CONTADOR},
+                {"nombre": "Cupones", "url": "cupones.gestion_cupones", "icono": "ticket-alt", "module_code": MODULE_COUPONS, "roles": ADMIN_STAFF}
             ]
         },
         {
@@ -188,13 +208,13 @@ def get_data_app():
             "icono": "boxes",
             "module_code": MODULE_INVENTORY,
             "submodulos": [
-                {"nombre": "Resumen / Stock", "url": "admin.gestion_inventario", "icono": "clipboard-list"},
-                {"nombre": "Agregar Producto", "url": "admin.GestionProductos", "icono": "plus-circle"},
-                {"nombre": "Editar Productos", "url": "admin.editar_productos", "icono": "edit"},
-                {"nombre": "Eliminar Productos", "url": "admin.eliminar_productos", "icono": "trash-alt"},
-                {"nombre": "Géneros", "url": "admin.gestion_generos", "icono": "tags"},
-                {"nombre": "Reseñas", "url": "admin.gestion_resenas", "icono": "star"},
-                {"nombre": "Wishlist Stats", "url": "wishlist.wishlist_estadisticas", "icono": "heart", "module_code": MODULE_WISHLIST}
+                {"nombre": "Resumen / Stock", "url": "admin.gestion_inventario", "icono": "clipboard-list", "roles": CATALOG_OPERATIONAL},
+                {"nombre": "Agregar Producto", "url": "admin.GestionProductos", "icono": "plus-circle", "roles": CATALOG_OPERATIONAL},
+                {"nombre": "Editar Productos", "url": "admin.editar_productos", "icono": "edit", "roles": CATALOG_OPERATIONAL},
+                {"nombre": "Eliminar Productos", "url": "admin.eliminar_productos", "icono": "trash-alt", "roles": CATALOG_DELETE},
+                {"nombre": "Géneros", "url": "admin.gestion_generos", "icono": "tags", "roles": CATALOG_OPERATIONAL},
+                {"nombre": "Reseñas", "url": "admin.gestion_resenas", "icono": "star", "roles": ADMIN_STAFF},
+                {"nombre": "Wishlist Stats", "url": "wishlist.wishlist_estadisticas", "icono": "heart", "module_code": MODULE_WISHLIST, "roles": ADMIN_STAFF}
             ]
         },
         {
@@ -216,8 +236,8 @@ def get_data_app():
             "icono": "users",
             "module_code": MODULE_USERS,
             "submodulos": [
-                {"nombre": "Gestión Usuarios", "url": "admin.gestion_usuarios", "icono": "user-cog"},
-                {"nombre": "Crear Usuario", "url": "admin.crear_usuario", "icono": "user-plus"}
+                {"nombre": "Gestión Usuarios", "url": "admin.gestion_usuarios", "icono": "user-cog", "roles": ADMIN_FULL},
+                {"nombre": "Crear Usuario", "url": "admin.crear_usuario", "icono": "user-plus", "roles": ADMIN_FULL}
             ]
         },
         {
@@ -225,14 +245,16 @@ def get_data_app():
             "url": "#",
             "icono": "id-card",
             "module_code": MODULE_PAYROLL,
+            # PII/salarios: solo Admin y Contador (espejo del guard de nomina.py
+            # y del manifiesto desktop).
             "submodulos": [
-                {"nombre": "Dashboard Nomina", "url": "nomina.nomina_dashboard", "icono": "chart-line"},
-                {"nombre": "Empleados", "url": "nomina.empleados_lista", "icono": "users"},
-                {"nombre": "Contratistas", "url": "nomina.contratistas_lista", "icono": "user-tie"},
-                {"nombre": "Periodos Nomina", "url": "nomina.periodos_lista", "icono": "calendar-alt"},
-                {"nombre": "Novedades", "url": "nomina.novedades_lista", "icono": "clipboard-list"},
-                {"nombre": "Liquidaciones", "url": "nomina.liquidaciones_lista", "icono": "file-invoice-dollar"},
-                {"nombre": "Parametros", "url": "nomina.parametros_lista", "icono": "cogs"}
+                {"nombre": "Dashboard Nomina", "url": "nomina.nomina_dashboard", "icono": "chart-line", "roles": ADMIN_CONTADOR},
+                {"nombre": "Empleados", "url": "nomina.empleados_lista", "icono": "users", "roles": ADMIN_CONTADOR},
+                {"nombre": "Contratistas", "url": "nomina.contratistas_lista", "icono": "user-tie", "roles": ADMIN_CONTADOR},
+                {"nombre": "Periodos Nomina", "url": "nomina.periodos_lista", "icono": "calendar-alt", "roles": ADMIN_CONTADOR},
+                {"nombre": "Novedades", "url": "nomina.novedades_lista", "icono": "clipboard-list", "roles": ADMIN_CONTADOR},
+                {"nombre": "Liquidaciones", "url": "nomina.liquidaciones_lista", "icono": "file-invoice-dollar", "roles": ADMIN_CONTADOR},
+                {"nombre": "Parametros", "url": "nomina.parametros_lista", "icono": "cogs", "roles": ADMIN_CONTADOR}
             ]
         },
         {
@@ -241,9 +263,9 @@ def get_data_app():
             "icono": "address-book",
             "module_code": MODULE_CRM,
             "submodulos": [
-                {"nombre": "Dashboard CRM",  "url": "crm.crm_dashboard",      "icono": "chart-pie"},
-                {"nombre": "Contactos",      "url": "crm.crm_contactos_lista", "icono": "address-card"},
-                {"nombre": "Tareas",         "url": "crm.crm_tareas_lista",    "icono": "tasks"},
+                {"nombre": "Dashboard CRM",  "url": "crm.crm_dashboard",      "icono": "chart-pie", "roles": ADMIN_STAFF},
+                {"nombre": "Contactos",      "url": "crm.crm_contactos_lista", "icono": "address-card", "roles": ADMIN_STAFF},
+                {"nombre": "Tareas",         "url": "crm.crm_tareas_lista",    "icono": "tasks", "roles": ADMIN_STAFF},
             ]
         },
         {
@@ -252,10 +274,10 @@ def get_data_app():
             "icono": "chart-line",
             "module_code": MODULE_ACCOUNTING,
             "submodulos": [
-                {"nombre": "Dashboard",    "url": "contabilidad.dashboard",    "icono": "tachometer-alt"},
-                {"nombre": "Movimientos",  "url": "contabilidad.movimientos",  "icono": "exchange-alt"},
-                {"nombre": "Plantillas",   "url": "contabilidad.plantillas",   "icono": "clone"},
-                {"nombre": "Cierres",      "url": "contabilidad.cierres",      "icono": "flag-checkered"},
+                {"nombre": "Dashboard",    "url": "contabilidad.dashboard",    "icono": "tachometer-alt", "roles": ADMIN_CONTADOR},
+                {"nombre": "Movimientos",  "url": "contabilidad.movimientos",  "icono": "exchange-alt", "roles": ADMIN_CONTADOR},
+                {"nombre": "Plantillas",   "url": "contabilidad.plantillas",   "icono": "clone", "roles": ADMIN_CONTADOR},
+                {"nombre": "Cierres",      "url": "contabilidad.cierres",      "icono": "flag-checkered", "roles": ADMIN_CONTADOR},
             ]
         },
         {
@@ -264,8 +286,8 @@ def get_data_app():
             "icono": "headset",
             "module_code": MODULE_SUPPORT,
             "submodulos": [
-                {"nombre": "Tickets clientes", "url": "soporte.admin_tickets",     "icono": "ticket-alt"},
-                {"nombre": "Configuración",     "url": "soporte.admin_soporte_config", "icono": "sliders-h"},
+                {"nombre": "Tickets clientes", "url": "soporte.admin_tickets",     "icono": "ticket-alt", "roles": ADMIN_STAFF},
+                {"nombre": "Configuración",     "url": "soporte.admin_soporte_config", "icono": "sliders-h", "roles": ADMIN_STAFF},
             ]
         },
         {
@@ -274,8 +296,8 @@ def get_data_app():
             "icono": "share-alt",
             "module_code": MODULE_SHARE,
             "submodulos": [
-                {"nombre": "Carpetas",      "url": "share.gestion_carpetas", "icono": "folder-open"},
-                {"nombre": "Nueva Carpeta", "url": "share.crear_carpeta",    "icono": "folder-plus"},
+                {"nombre": "Carpetas",      "url": "share.gestion_carpetas", "icono": "folder-open", "roles": ADMIN_STAFF},
+                {"nombre": "Nueva Carpeta", "url": "share.crear_carpeta",    "icono": "folder-plus", "roles": ADMIN_STAFF},
             ]
         },
         {
@@ -283,6 +305,7 @@ def get_data_app():
             "url": "ia.panel",
             "icono": "robot",
             "module_code": MODULE_AI,
+            "roles": ADMIN_STAFF,
         },
         {
             "nombre": "Videollamadas",
@@ -290,9 +313,9 @@ def get_data_app():
             "icono": "video",
             "module_code": MODULE_VIDEO,
             "submodulos": [
-                {"nombre": "Mis Salas",      "url": "video.admin_video_lista",  "icono": "door-open"},
-                {"nombre": "Nueva Sala",     "url": "video.admin_video_crear",  "icono": "plus-circle"},
-                {"nombre": "Configuración",  "url": "video.admin_video_config", "icono": "sliders-h"},
+                {"nombre": "Mis Salas",      "url": "video.admin_video_lista",  "icono": "door-open", "roles": ADMIN_STAFF},
+                {"nombre": "Nueva Sala",     "url": "video.admin_video_crear",  "icono": "plus-circle", "roles": ADMIN_STAFF},
+                {"nombre": "Configuración",  "url": "video.admin_video_config", "icono": "sliders-h", "roles": ADMIN_STAFF},
             ]
         },
         {
@@ -301,9 +324,9 @@ def get_data_app():
             "icono": "utensils",
             "module_code": MODULE_RESTAURANT_TABLES,
             "submodulos": [
-                {"nombre": "Atención de Mesas", "url": "restaurant_tables.restaurant_tables_dashboard", "icono": "concierge-bell"},
-                {"nombre": "Construcción de Plano", "url": "restaurant_tables.restaurant_tables_builder", "icono": "drafting-compass"},
-                {"nombre": "Reportes de Mesas", "url": "restaurant_tables.restaurant_tables_reports", "icono": "chart-bar"},
+                {"nombre": "Atención de Mesas", "url": "restaurant_tables.restaurant_tables_dashboard", "icono": "concierge-bell", "roles": RESTAURANT_SERVICE},
+                {"nombre": "Construcción de Plano", "url": "restaurant_tables.restaurant_tables_builder", "icono": "drafting-compass", "roles": RESTAURANT_ADMIN},
+                {"nombre": "Reportes de Mesas", "url": "restaurant_tables.restaurant_tables_reports", "icono": "chart-bar", "roles": RESTAURANT_ADMIN},
             ]
         },
         {
@@ -320,7 +343,8 @@ def get_data_app():
             "nombre": "Facturación DIAN",
             "url": "admin.facturacion_dian",
             "icono": "file-invoice",
-            "module_code": MODULE_FACTURACION_ELECTRONICA
+            "module_code": MODULE_FACTURACION_ELECTRONICA,
+            "roles": ADMIN_CONTADOR,
         },
         {"nombre": "Mi Negocio", "url": "admin.mi_negocio", "icono": "store", "roles": ADMIN_FULL},
         {"nombre": "Cerrar Sesion", "url": "auth.logout", "icono": "sign-out-alt"}
@@ -353,54 +377,9 @@ def get_data_app():
             filtered_app.append(item_copy)
 
         App = filtered_app
-
-        # Mesero (6) y Cajero (7): solo ven Restaurante y Cerrar Sesión
-        if rol_actual in (6, 7):
-            App = [item for item in App if item.get('nombre') in ('Restaurante', 'Ventas', 'Inventario', 'Cerrar Sesion')]
-            if rol_actual == 6:
-                for grupo in App:
-                    if grupo.get('nombre') == 'Restaurante':
-                        grupo['submodulos'] = [
-                            sub for sub in grupo.get('submodulos', [])
-                            if sub.get('url') == 'restaurant_tables.restaurant_tables_dashboard'
-                        ]
-                    elif grupo.get('nombre') == 'Ventas':
-                        grupo['submodulos'] = [
-                            sub for sub in grupo.get('submodulos', [])
-                            if sub.get('url') in ('admin.facturacion_pos', 'admin.historial_pos')
-                        ]
-                    elif grupo.get('nombre') == 'Inventario':
-                        grupo['submodulos'] = [
-                            sub for sub in grupo.get('submodulos', [])
-                            if sub.get('url') in (
-                                'admin.gestion_inventario',
-                                'admin.GestionProductos',
-                                'admin.editar_productos',
-                                'admin.gestion_generos',
-                            )
-                        ]
-                App = [item for item in App if item.get('nombre') != 'Restaurante' or item.get('submodulos')]
-                App = [item for item in App if item.get('nombre') != 'Ventas' or item.get('submodulos')]
-                App = [item for item in App if item.get('nombre') != 'Inventario' or item.get('submodulos')]
-            elif rol_actual == 7:
-                for grupo in App:
-                    if grupo.get('nombre') == 'Ventas':
-                        grupo['submodulos'] = [
-                            sub for sub in grupo.get('submodulos', [])
-                            if sub.get('url') in ('admin.facturacion_pos', 'admin.historial_pos')
-                        ]
-                    elif grupo.get('nombre') == 'Inventario':
-                        grupo['submodulos'] = [
-                            sub for sub in grupo.get('submodulos', [])
-                            if sub.get('url') in (
-                                'admin.gestion_inventario',
-                                'admin.GestionProductos',
-                                'admin.editar_productos',
-                                'admin.gestion_generos',
-                            )
-                        ]
-                App = [item for item in App if item.get('nombre') != 'Restaurante' or item.get('submodulos')]
-                App = [item for item in App if item.get('nombre') != 'Inventario' or item.get('submodulos')]
+        # Nota: el antiguo recorte hard-coded para Mesero(6)/Cajero(7) se
+        # eliminó — la clave 'roles' de cada ítem (espejo de @rol_requerido)
+        # cubre todos los roles de forma uniforme.
     except Exception:
         pass
 

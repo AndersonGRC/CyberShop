@@ -16,6 +16,8 @@ from database import get_db_connection, get_db_cursor
 from helpers import get_common_data, get_data_app, get_data_cliente
 from security import (
     ROL_CAJERO,
+    ROL_CONTADOR,
+    ROL_EMPLEADO,
     ROL_MESERO,
     rol_requerido,
     autenticar_usuario,
@@ -121,6 +123,10 @@ def login():
             if usuario['rol_id'] == 1: return redirect(url_for('admin.dashboard_admin'))
             elif usuario['rol_id'] == 2: return redirect(url_for('admin.dashboard_admin'))
             elif usuario['rol_id'] == 3: return redirect(url_for('auth.dashboard_cliente'))
+            # Empleado: staff → dashboard admin (permitido por ADMIN_STAFF)
+            elif usuario['rol_id'] == ROL_EMPLEADO: return redirect(url_for('admin.dashboard_admin'))
+            # Contador: su módulo principal (no puede abrir /admin, que es solo staff)
+            elif usuario['rol_id'] == ROL_CONTADOR: return redirect(url_for('contabilidad.dashboard'))
             elif usuario['rol_id'] in (ROL_MESERO, ROL_CAJERO): return redirect(url_for('restaurant_tables.waiter_panel'))
             else: return redirect(url_for('auth.login'))
         else: return redirect(url_for('auth.login'))
@@ -337,6 +343,10 @@ def google_login_callback():
         return redirect(url_for('admin.dashboard_admin'))
     elif rol == 3:
         return redirect(url_for('auth.dashboard_cliente'))
+    elif rol == ROL_EMPLEADO:
+        return redirect(url_for('admin.dashboard_admin'))
+    elif rol == ROL_CONTADOR:
+        return redirect(url_for('contabilidad.dashboard'))
     elif rol in (ROL_MESERO, ROL_CAJERO):
         return redirect(url_for('restaurant_tables.waiter_panel'))
     return redirect(url_for('auth.login'))
