@@ -779,6 +779,7 @@
 
     <!-- Panel Sidebar -->
     <div class="pos-sidebar">
+        {% if caja_activa %}{# módulo Caja/Arqueo activo para este tenant #}
         {% if caja_abierta %}
         <div class="pos-caja-strip abierta" id="pos-caja-strip">
             <i class="fas fa-lock-open"></i>
@@ -791,6 +792,7 @@
             <span id="pos-caja-texto">Caja cerrada — abre la caja para cobrar</span>
             <a href="{{ url_for('caja.caja_estado') }}">Abrir</a>
         </div>
+        {% endif %}
         {% endif %}
         <div class="pos-total">
             <div class="total-label">Total a cobrar</div>

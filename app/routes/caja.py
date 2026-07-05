@@ -28,6 +28,7 @@ from flask import (Blueprint, render_template, request, redirect,
 from database import get_db_cursor, get_db_connection
 from helpers import get_data_app
 from security import rol_requerido, POS_OPERATIONAL, ADMIN_CONTADOR
+from tenant_features import MODULE_CAJA, module_required
 
 caja_bp = Blueprint('caja', __name__)
 
@@ -173,6 +174,7 @@ def _monto(valor):
 
 @caja_bp.route('/admin/pos/caja')
 @rol_requerido(POS_OPERATIONAL)
+@module_required(MODULE_CAJA)
 def caja_estado():
     """Página principal de caja: apertura o resumen vivo + cierre."""
     datosApp = get_data_app()
@@ -207,6 +209,7 @@ def caja_estado():
 
 @caja_bp.route('/admin/pos/caja/abrir', methods=['POST'])
 @rol_requerido(POS_OPERATIONAL)
+@module_required(MODULE_CAJA)
 def abrir_caja():
     """Abre la caja con la base. Acepta form (página de caja) y JSON (modal del POS).
     La base es dinero ya existente: NO genera movimiento contable."""
@@ -262,6 +265,7 @@ def abrir_caja():
 
 @caja_bp.route('/admin/pos/caja/movimiento', methods=['POST'])
 @rol_requerido(POS_OPERATIONAL)
+@module_required(MODULE_CAJA)
 def movimiento_caja():
     """Entrada/salida de efectivo del turno. Las salidas crean egreso contable."""
     tipo = (request.form.get('tipo') or '').strip()
@@ -304,6 +308,7 @@ def movimiento_caja():
 
 @caja_bp.route('/admin/pos/caja/cerrar', methods=['POST'])
 @rol_requerido(POS_OPERATIONAL)
+@module_required(MODULE_CAJA)
 def cerrar_caja():
     """Cuadre: el cajero cuenta el efectivo, el sistema calcula la diferencia,
     congela el snapshot por método y publica sobrante/faltante en contabilidad."""
@@ -377,6 +382,7 @@ def cerrar_caja():
 
 @caja_bp.route('/admin/pos/caja/sesion/<int:sesion_id>')
 @rol_requerido(POS_OPERATIONAL)
+@module_required(MODULE_CAJA)
 def arqueo_sesion(sesion_id):
     """Detalle/arqueo de una sesión, con tiquete imprimible de 80mm."""
     datosApp = get_data_app()
@@ -419,6 +425,7 @@ def arqueo_sesion(sesion_id):
 
 @caja_bp.route('/admin/pos/caja/historial')
 @rol_requerido(ADMIN_CONTADOR)
+@module_required(MODULE_CAJA)
 def historial_caja():
     """Reporte de cuadres: una fila por sesión con base/ventas/esperado/contado/diferencia."""
     from datetime import date, timedelta

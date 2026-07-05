@@ -173,6 +173,7 @@ def get_data_app():
         MODULE_VIDEO,
         MODULE_WISHLIST,
         MODULE_AI,
+        MODULE_CAJA,
         get_active_module_codes,
     )
 
@@ -192,7 +193,7 @@ def get_data_app():
             "icono": "cash-register",
             "submodulos": [
                 {"nombre": "Punto de Venta", "url": "admin.facturacion_pos", "icono": "cash-register", "module_code": MODULE_POS, "roles": POS_OPERATIONAL},
-                {"nombre": "Caja / Arqueo", "url": "caja.caja_estado", "icono": "coins", "module_code": MODULE_POS, "roles": POS_OPERATIONAL},
+                {"nombre": "Caja / Arqueo", "url": "caja.caja_estado", "icono": "coins", "module_code": MODULE_CAJA, "roles": POS_OPERATIONAL},
                 {"nombre": "Historial POS", "url": "admin.historial_pos", "icono": "receipt", "module_code": MODULE_POS, "roles": POS_OPERATIONAL},
                 {"nombre": "Gestionar Pedidos", "url": "admin.gestion_pedidos", "icono": "truck", "module_code": MODULE_ORDERS, "roles": ADMIN_STAFF},
                 {"nombre": "Nueva Cotización", "url": "quotes.cotizar", "icono": "file-invoice-dollar", "module_code": MODULE_QUOTES, "roles": ADMIN_STAFF},

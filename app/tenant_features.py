@@ -16,6 +16,7 @@ LOCAL_TENANT_ID = 1
 
 MODULE_ORDERS = 'orders'
 MODULE_POS = 'pos'
+MODULE_CAJA = 'caja'
 MODULE_QUOTES = 'quotes'
 MODULE_BILLING = 'billing'
 MODULE_COUPONS = 'coupons'
@@ -50,6 +51,15 @@ MODULE_DEFINITIONS = {
         'config_key': 'pos_habilitado',
         'default': True,
         'orden': 20,
+        'is_core': False,
+    },
+    MODULE_CAJA: {
+        'nombre': 'Caja / Arqueo',
+        'descripcion': 'Apertura de caja con base, movimientos de efectivo y cuadre diario del POS. Al desactivarlo, el POS cobra sin exigir caja abierta.',
+        'categoria': 'ventas',
+        'config_key': 'caja_habilitado',
+        'default': True,
+        'orden': 25,
         'is_core': False,
     },
     MODULE_QUOTES: {

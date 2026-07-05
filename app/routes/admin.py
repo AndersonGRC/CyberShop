@@ -1798,14 +1798,18 @@ def facturacion_pos():
             productos = cur.fetchall()
     except Exception:
         pass
-    caja_abierta = None
+    caja_abierta, caja_activa = None, False
     try:
+        from tenant_features import MODULE_CAJA, is_module_active
         from routes.caja import get_caja_abierta
-        caja_abierta = get_caja_abierta()
+        caja_activa = is_module_active(MODULE_CAJA)
+        if caja_activa:
+            caja_abierta = get_caja_abierta()
     except Exception:
         pass
     return render_template('facturacion_pos.html', datosApp=datosApp, productos=productos,
-                           metodos_pago=_get_metodos_pago(), caja_abierta=caja_abierta)
+                           metodos_pago=_get_metodos_pago(), caja_abierta=caja_abierta,
+                           caja_activa=caja_activa)
 
 
 @admin_bp.route('/admin/pos/procesar', methods=['POST'])
@@ -1831,17 +1835,20 @@ def procesar_venta_pos():
     usuario_id = session.get('usuario_id') or 1
     schema = _get_product_schema_flags()
 
-    # Caja obligatoria: no se puede cobrar sin una caja abierta (el POS muestra
-    # un modal de apertura rápida al recibir este 409).
+    # Caja obligatoria SOLO si el módulo Caja/Arqueo está activo para el tenant:
+    # sin caja abierta no se cobra (el POS muestra el modal de apertura al recibir
+    # este 409). Con el módulo desactivado, el POS cobra libre y sin estampar turno.
     caja_abierta = None
     try:
+        from tenant_features import MODULE_CAJA, is_module_active
         from routes.caja import get_caja_abierta
-        caja_abierta = get_caja_abierta()
+        if is_module_active(MODULE_CAJA):
+            caja_abierta = get_caja_abierta()
+            if not caja_abierta:
+                return jsonify({'success': False, 'caja_cerrada': True,
+                                'error': 'Debes abrir la caja antes de vender'}), 409
     except Exception:
         pass
-    if not caja_abierta:
-        return jsonify({'success': False, 'caja_cerrada': True,
-                        'error': 'Debes abrir la caja antes de vender'}), 409
 
     try:
         conn = get_db_connection()
