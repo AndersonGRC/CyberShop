@@ -398,6 +398,12 @@ async function rpRestaurarModulo() {
 
 async function rpCrearRol() {
   const bases = RP.roles.filter(r => r.es_sistema);
+  if (!bases.length) {
+    Swal.fire({ icon: 'info', title: 'Aún no se cargan los roles',
+                text: 'Recarga la página e intenta de nuevo.',
+                confirmButtonColor: BRAND_COLOR_BTN });
+    return;
+  }
   const opciones = bases.map(b => `<option value="${b.id}">${b.nombre}</option>`).join('');
   const res = await Swal.fire({
     title: 'Crear un rol nuevo',

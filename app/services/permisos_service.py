@@ -123,24 +123,41 @@ MODULO_ICONOS = {
 @lru_cache(maxsize=1)
 def _load_estado(_bucket):
     """Carga completa de roles + overrides. `_bucket` cambia cada _CACHE_TTL seg
-    para expirar solo (convergencia entre workers); invalidar_cache() fuerza."""
+    para expirar solo (convergencia entre workers); invalidar_cache() fuerza.
+
+    Tolerante a BD sin migrar: si `roles` no tiene aún las columnas nuevas
+    (es_sistema...) se leen las básicas; si `rol_permisos` no existe todavía,
+    overrides = {} (todo queda en los recomendados). Así la página funciona
+    ANTES de aplicar las migraciones 0001/0002."""
     roles, overrides = {}, {}
     with get_db_cursor(dict_cursor=True) as cur:
-        cur.execute("SELECT id, nombre, es_sistema, base_rol_id, activo FROM roles")
-        for r in cur.fetchall():
-            roles[int(r['id'])] = {
-                'id': int(r['id']),
+        try:
+            cur.execute("SELECT id, nombre, es_sistema, base_rol_id, activo FROM roles")
+            filas = cur.fetchall()
+            extendida = True
+        except Exception:
+            cur.connection.rollback()
+            cur.execute("SELECT id, nombre FROM roles")
+            filas = cur.fetchall()
+            extendida = False
+        for r in filas:
+            rid = int(r['id'])
+            roles[rid] = {
+                'id': rid,
                 'nombre': r['nombre'],
-                'es_sistema': bool(r.get('es_sistema', True)),
-                'base_rol_id': int(r['base_rol_id']) if r.get('base_rol_id') else None,
-                'activo': bool(r.get('activo', True)),
+                'es_sistema': bool(r.get('es_sistema', True)) if extendida else True,
+                'base_rol_id': (int(r['base_rol_id']) if extendida and r.get('base_rol_id') else None),
+                'activo': bool(r.get('activo', True)) if extendida else True,
             }
-        cur.execute("SELECT rol_id, modulo, ver, operar, eliminar FROM rol_permisos")
-        for p in cur.fetchall():
-            overrides[(int(p['rol_id']), p['modulo'])] = {
-                'ver': bool(p['ver']), 'operar': bool(p['operar']),
-                'eliminar': bool(p['eliminar']),
-            }
+        try:
+            cur.execute("SELECT rol_id, modulo, ver, operar, eliminar FROM rol_permisos")
+            for p in cur.fetchall():
+                overrides[(int(p['rol_id']), p['modulo'])] = {
+                    'ver': bool(p['ver']), 'operar': bool(p['operar']),
+                    'eliminar': bool(p['eliminar']),
+                }
+        except Exception:
+            cur.connection.rollback()   # tabla aún no migrada → recomendados
     return roles, overrides
 
 
