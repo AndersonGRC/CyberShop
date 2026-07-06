@@ -267,6 +267,11 @@ function rpPintarDetalle() {
     card.className = 'rp-rol-card';
     const badge = rol.es_sistema ? '' :
       `<span class="rp-rol-badge">copia de ${rol.base_nombre || 'Empleado'}</span>`;
+    // Personas reales con este rol en la BD de ESTE negocio
+    const n = rol.usuarios;
+    const personas = (n === undefined) ? '' : (n > 0
+      ? `<span class="rp-rol-badge" title="Personas con este rol en tu negocio"><i class="fas fa-users"></i> ${n}</span>`
+      : `<span class="rp-rol-badge" style="opacity:.55" title="Nadie tiene este rol todavía">sin personas</span>`);
     // Estado de la celda: ¿el dueño la personalizó o está en lo recomendado?
     const estado = celda.personalizado
       ? `<span class="rp-estado-chip personalizado" title="Este módulo tiene cambios tuyos para este rol">Personalizado</span>`
@@ -297,7 +302,7 @@ function rpPintarDetalle() {
         </div>`;
     });
     card.innerHTML = `
-      <div class="rp-rol-card-header"><i class="fas fa-user"></i> ${rol.nombre} ${badge} ${estado}
+      <div class="rp-rol-card-header"><i class="fas fa-user"></i> ${rol.nombre} ${personas} ${badge} ${estado}
         <span class="rp-card-acciones">${botones}</span></div>
       <div class="rp-rol-card-body">${filas}</div>`;
     grid.appendChild(card);
@@ -323,10 +328,15 @@ function rpVistaRol(rolId, nombre) {
     }).join('');
     html = `<div class="rp-preview-lista">${items}</div>`;
   }
+  const rolInfo = RP.roles.find(r => r.id === rolId) || {};
+  const usa = (rolInfo.usuarios === undefined) ? ''
+    : (rolInfo.usuarios > 0
+       ? ` Lo tienen <b>${rolInfo.usuarios}</b> persona(s) de tu negocio.`
+       : ' Nadie tiene este rol todavía.');
   Swal.fire({
     title: `Así queda ${nombre}`,
     html: `<p style="font-size:.85rem;color:#5a5c69;margin:0 0 4px">
-             Cuando inicie sesión verá ${conAcceso.length} módulo(s):</p>${html}`,
+             Cuando inicie sesión verá ${conAcceso.length} módulo(s).${usa}</p>${html}`,
     confirmButtonText: 'Entendido', confirmButtonColor: BRAND_COLOR_BTN });
 }
 

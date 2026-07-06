@@ -308,10 +308,57 @@ def modulos_gestionables():
     return out
 
 
-def roles_editables():
+_ROLES_SISTEMA_SEED = {4: 'Empleado', 5: 'Contador', 6: 'Mesero', 7: 'Cajero'}
+
+
+def _ensure_roles_sistema():
+    """Autocuración: garantiza que los 4 roles operativos del sistema existen
+    en la BD del tenant (hay BDs reales sin las filas 4/5 o 4-7 — sin ellas la
+    página no puede configurarlos y el sync de usuarios por nombre falla).
+    Idempotente. Se llama solo al abrir la página o crear un rol, nunca en el
+    hot path de tiene_permiso. Espejo de la migración 0002."""
+    try:
+        roles, _ = _estado()
+        faltantes = [rid for rid in _ROLES_SISTEMA_SEED if rid not in roles]
+        if not faltantes:
+            return
+        with get_db_cursor() as cur:
+            for rid in faltantes:
+                cur.execute(
+                    "INSERT INTO roles (id, nombre) SELECT %s, %s "
+                    "WHERE NOT EXISTS (SELECT 1 FROM roles WHERE id = %s)",
+                    (rid, _ROLES_SISTEMA_SEED[rid], rid),
+                )
+            cur.execute("SELECT setval(pg_get_serial_sequence('roles','id'), "
+                        "GREATEST((SELECT COALESCE(MAX(id),1) FROM roles), 7))")
+        invalidar_cache()
+        try:
+            current_app.logger.info(f"permisos: roles de sistema sembrados {faltantes}")
+        except Exception:
+            pass
+    except Exception as exc:  # nunca romper la página por esto
+        try:
+            current_app.logger.warning(f"permisos: no se pudo sembrar roles ({exc})")
+        except Exception:
+            pass
+
+
+def _usuarios_por_rol():
+    """Conteo real de personas por rol en la BD del tenant."""
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT rol_id, COUNT(*) AS n FROM usuarios GROUP BY rol_id")
+            return {int(r['rol_id']): int(r['n']) for r in cur.fetchall() if r['rol_id']}
+    except Exception:
+        return {}
+
+
+def roles_editables(con_usuarios=False):
     """Roles que el dueño puede configurar: los 4 de sistema operativos +
-    personalizados activos. Nunca 1, 2 ni 3."""
+    personalizados activos. Nunca 1, 2 ni 3. Con `con_usuarios` añade el
+    conteo real de personas que tienen cada rol."""
     roles, _ = _estado()
+    conteos = _usuarios_por_rol() if con_usuarios else {}
     out = []
     for rid in sorted(roles):
         info = roles[rid]
@@ -320,10 +367,13 @@ def roles_editables():
         if info['es_sistema'] and rid not in ROLES_BASE_VALIDOS:
             continue
         base = roles.get(info.get('base_rol_id') or 0)
-        out.append({
+        item = {
             'id': rid, 'nombre': info['nombre'], 'es_sistema': info['es_sistema'],
             'base_nombre': base['nombre'] if base else None,
-        })
+        }
+        if con_usuarios:
+            item['usuarios'] = conteos.get(rid, 0)
+        out.append(item)
     # sistema primero, luego personalizados por nombre
     out.sort(key=lambda r: (not r['es_sistema'] and 1 or 0, r['id']))
     return out
@@ -331,10 +381,13 @@ def roles_editables():
 
 def matriz_para_ui():
     """Todo lo que la página necesita: módulos, roles y estados efectivos,
-    marcando si cada celda viene de un override (personalizado por el dueño)."""
+    marcando si cada celda viene de un override (personalizado por el dueño).
+    Autocura los roles de sistema faltantes y trae el conteo real de personas
+    por rol (la configuración refleja la BD de ESTE cliente)."""
+    _ensure_roles_sistema()
     _, overrides = _estado()
     modulos = modulos_gestionables()
-    roles = roles_editables()
+    roles = roles_editables(con_usuarios=True)
     permisos = {}
     for r in roles:
         for m in modulos:
@@ -437,6 +490,7 @@ def restaurar_defaults(rol_id=None, modulo=None, updated_by=None):
 # Roles personalizados (Fase 2)
 # ─────────────────────────────────────────────────────────
 def crear_rol(nombre, base_rol_id, updated_by=None):
+    _ensure_roles_sistema()   # el rol base debe existir en la BD del tenant
     nombre = (nombre or '').strip()
     if not (2 <= len(nombre) <= 50):
         raise ValueError('El nombre del rol debe tener entre 2 y 50 caracteres.')
