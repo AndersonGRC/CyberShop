@@ -1,0 +1,16 @@
+{%extends './plantillaindexError.html'%}
+{%block titulo%}Error 500 - Algo salió mal{%endblock%}
+
+{%block body%}
+
+<body>
+    <!-- Imagen del logo -->
+    <img src="{{ url_for('static', filename='img/Logo.PNG') }}" alt="Logo">
+
+    <!-- Mensaje de error -->
+    <h1>Error 500</h1>
+    <p>Ocurrió un problema inesperado. Ya quedó registrado y lo estamos revisando.</p>
+    <p>Intenta de nuevo en un momento.</p>
+    {% if request_id %}<p style="opacity:.6;font-size:.85rem;">Código de referencia: {{ request_id }}</p>{% endif %}
+</body>
+{%endblock%}

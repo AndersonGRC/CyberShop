@@ -116,12 +116,116 @@ if app.config.get('PAYU_ENV') == 'sandbox':
         }
     })
 
-# --- Logging ---
-logging.basicConfig(level=logging.INFO)
+# --- Logging (con request-id + tenant, sink con nombre correcto y rotacion) ---
+import uuid as _uuid
+from flask import g as _g
 from logging.handlers import RotatingFileHandler
-file_handler = RotatingFileHandler('payu_integration.log', maxBytes=5*1024*1024, backupCount=3)
-file_handler.setLevel(logging.INFO)
-app.logger.addHandler(file_handler)
+
+
+class _RequestContextFilter(logging.Filter):
+    """Inyecta request_id y tenant en cada log (fuera de request usa '-')."""
+    def filter(self, record):
+        rid, tenant = '-', '-'
+        try:
+            from flask import has_request_context
+            if has_request_context():
+                rid = getattr(_g, 'request_id', '-') or '-'
+                t = getattr(_g, 'current_tenant', None)
+                if isinstance(t, dict):
+                    tenant = t.get('db_name', '-') or '-'
+        except Exception:
+            pass
+        record.request_id = rid
+        record.tenant = tenant
+        return True
+
+
+def _pick_log_dir():
+    """Primer directorio escribible: /var/log/cybershop → <app>/logs."""
+    for d in ('/var/log/cybershop', os.path.join(app.root_path, 'logs')):
+        try:
+            os.makedirs(d, exist_ok=True)
+            _t = os.path.join(d, '.wtest')
+            with open(_t, 'w') as _f:
+                _f.write('x')
+            os.remove(_t)
+            return d
+        except Exception:
+            continue
+    return app.root_path
+
+
+_LOG_DIR = _pick_log_dir()
+_LOG_FMT = '%(asctime)s %(levelname)s [rid=%(request_id)s tenant=%(tenant)s] %(name)s: %(message)s'
+logging.basicConfig(level=logging.INFO, format=_LOG_FMT)
+
+_file_handler = RotatingFileHandler(os.path.join(_LOG_DIR, 'app.log'),
+                                    maxBytes=5 * 1024 * 1024, backupCount=5)
+_file_handler.setLevel(logging.INFO)
+_file_handler.setFormatter(logging.Formatter(_LOG_FMT))
+_ctx_filter = _RequestContextFilter()
+_file_handler.addFilter(_ctx_filter)
+app.logger.addHandler(_file_handler)
+app.logger.addFilter(_ctx_filter)
+for _h in logging.getLogger().handlers:      # que el root (basicConfig) tambien tenga request-id
+    _h.addFilter(_ctx_filter)
+app.logger.setLevel(logging.INFO)
+
+
+# --- Request-ID: identifica cada request en logs y en la respuesta ---
+@app.before_request
+def _assign_request_id():
+    _g.request_id = request.headers.get('X-Request-Id') or _uuid.uuid4().hex[:12]
+
+
+@app.after_request
+def _emit_request_id(response):
+    rid = getattr(_g, 'request_id', None)
+    if rid:
+        response.headers['X-Request-Id'] = rid
+    return response
+
+
+# --- Manejo de errores no capturados (500) ---
+from werkzeug.exceptions import HTTPException as _HTTPException
+
+
+def _wants_json():
+    return (request.is_json
+            or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or request.headers.get('Accept', '').startswith('application/json')
+            or request.path.startswith('/api/'))
+
+
+def _render_error_500():
+    rid = getattr(_g, 'request_id', '-')
+    if _wants_json():
+        from flask import jsonify as _jsonify
+        return _jsonify({'success': False, 'error': 'Error interno del servidor',
+                         'request_id': rid}), 500
+    try:
+        from flask import render_template as _rt
+        return _rt('500.html', request_id=rid), 500
+    except Exception:
+        return 'Error interno del servidor', 500
+
+
+@app.errorhandler(500)
+def _handle_500(e):
+    return _render_error_500()
+
+
+@app.errorhandler(Exception)
+def _handle_unexpected(e):
+    # Deja pasar las HTTPException (404/403/redirects/CSRF) a sus handlers propios.
+    if isinstance(e, _HTTPException):
+        return e
+    rid = getattr(_g, 'request_id', '-')
+    try:
+        app.logger.exception(f"Unhandled exception en {request.method} {request.path}")
+    except Exception:
+        pass
+    return _render_error_500()
 
 from flask_mail import Mail
 # --- Mail (Gmail API es prioritario; Flask-Mail SMTP queda como respaldo) ---
