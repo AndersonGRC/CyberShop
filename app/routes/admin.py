@@ -1864,7 +1864,7 @@ _MI_NEGOCIO_EXCLUDE = {'empresa_logo_url', 'contacto_email_destino'}
 
 def _mi_negocio_keys():
     return [f['key'] for f in PUBLIC_BRANDING_FIELDS + PUBLIC_LANDING_FIELDS
-            if f['key'] not in _MI_NEGOCIO_EXCLUDE]
+            if f['key'] not in _MI_NEGOCIO_EXCLUDE] + ['plantilla_sitio']
 
 
 @admin_bp.route('/admin/mi-negocio', methods=['GET', 'POST'])

@@ -570,9 +570,24 @@ PUBLIC_FIELD_BY_KEY = {
 }
 PUBLIC_SECTION_BY_KEY = {field['key']: field for field in PUBLIC_SECTION_FIELDS}
 
+# Ajustes de sistema del sitio público (no se auto-renderizan en mi_negocio;
+# se editan donde se decida exponerlos). 'plantilla_sitio' = estilo/diseño elegible.
+PUBLIC_SYSTEM_FIELDS = [
+    {
+        'key': 'plantilla_sitio',
+        'label': 'Plantilla del sitio',
+        'description': 'Estilo/diseño del sitio público: clasico, innovador, ofertas, elegante.',
+        'type': 'select',
+        'group': 'sitio_publico',
+        'default': 'clasico',
+        'order': 400,
+    },
+]
+
 PUBLIC_STRUCTURED_SETTING_FIELDS = (
     PUBLIC_BRANDING_FIELDS
     + PUBLIC_COLOR_FIELDS
+    + PUBLIC_SYSTEM_FIELDS
     + [
         {
             'key': field['key'],
@@ -1252,7 +1267,7 @@ def get_brand_config():
     legacy = _legacy_cliente_config_values()
     values = {}
 
-    for field in PUBLIC_BRANDING_FIELDS + PUBLIC_COLOR_FIELDS:
+    for field in PUBLIC_BRANDING_FIELDS + PUBLIC_COLOR_FIELDS + PUBLIC_SYSTEM_FIELDS:
         values[field['key']] = structured.get(
             field['key'],
             legacy.get(field['key'], field['default']),
@@ -1427,6 +1442,10 @@ def save_public_site_settings(form_data, keys):
     bootstrap_public_site_structure()
 
     for key in keys:
+        # Si la clave NO viene en el formulario, no la sobrescribas (evita dejar
+        # en vacío ajustes que ese form no incluye, p.ej. plantilla_sitio).
+        if form_data.get(key) is None:
+            continue
         if key in PUBLIC_LANDING_FIELD_TO_BLOCK:
             slug, target_field = PUBLIC_LANDING_FIELD_TO_BLOCK[key]
             block_values = _structured_blocks_map().get(slug, {})
