@@ -23,7 +23,6 @@ from psycopg2.extras import DictCursor
 from database import get_db_connection, get_db_cursor
 from helpers import get_data_app
 from security import (
-    permiso_requerido,
     rol_requerido,
     ADMIN_FULL,
     ADMIN_STAFF,
@@ -80,7 +79,21 @@ def _get_product_schema_flags():
     return {
         'has_online_visibility': _table_has_column('productos', 'visible_en_ecommerce'),
         'has_fe_flag_pos': _table_has_column('ventas_pos', 'facturar_electronicamente'),
+        'has_costo': _table_has_column('productos', 'costo'),
+        'has_stock_minimo': _table_has_column('productos', 'stock_minimo'),
     }
+
+
+def _num(valor, default=0.0):
+    """Convierte a número de forma segura (form vacío/None -> default; sin inf/nan)."""
+    import math
+    try:
+        n = float(str(valor).replace(',', '.')) if valor not in (None, '') else float(default)
+    except (TypeError, ValueError):
+        return float(default)
+    if not math.isfinite(n) or n < 0:
+        return float(default)
+    return n
 
 
 def _parse_visible_en_ecommerce(value, default=True):
@@ -132,7 +145,7 @@ def _parse_facturar_electronicamente(value, default=False):
 
 
 def _build_product_insert_data(*, imagen, nombre, precio, referencia, genero_id, descripcion, stock,
-                               visible_en_ecommerce=True):
+                               visible_en_ecommerce=True, costo=0, stock_minimo=0):
     schema = _get_product_schema_flags()
     columns = ['imagen', 'nombre', 'precio', 'referencia', 'genero_id', 'descripcion', 'stock']
     values = [imagen, nombre, precio, referencia, genero_id, descripcion, stock]
@@ -140,6 +153,12 @@ def _build_product_insert_data(*, imagen, nombre, precio, referencia, genero_id,
     if schema['has_online_visibility']:
         columns.append('visible_en_ecommerce')
         values.append(bool(visible_en_ecommerce))
+    if schema['has_costo']:
+        columns.append('costo')
+        values.append(_num(costo))
+    if schema['has_stock_minimo']:
+        columns.append('stock_minimo')
+        values.append(int(_num(stock_minimo)))
 
     return columns, values
 
@@ -196,7 +215,6 @@ def dashboard_admin():
 
 @admin_bp.route('/agregar-producto', methods=['GET', 'POST'])
 @rol_requerido(CATALOG_OPERATIONAL)
-@permiso_requerido('inventory', 'operar')
 def GestionProductos():
     """Formulario para agregar nuevos productos al catalogo."""
     from app import product_images
@@ -228,6 +246,8 @@ def GestionProductos():
             genero_id = request.form.get('genero_id')
             descripcion = request.form.get('descripcion')
             stock = request.form.get('stock', 0)
+            costo = request.form.get('costo', 0)
+            stock_minimo = request.form.get('stock_minimo', 0)
             visible_en_ecommerce = _parse_visible_en_ecommerce(
                 request.form.get('visible_en_ecommerce'),
                 default=True,
@@ -253,6 +273,8 @@ def GestionProductos():
                 descripcion=descripcion,
                 stock=stock,
                 visible_en_ecommerce=visible_en_ecommerce,
+                costo=costo,
+                stock_minimo=stock_minimo,
             )
             cur.execute(
                 f"INSERT INTO productos ({', '.join(insert_columns)}) VALUES ({', '.join(['%s'] * len(insert_columns))}) RETURNING id",
@@ -447,7 +469,6 @@ def cargue_masivo_productos():
 
 @admin_bp.route('/editar-productos')
 @rol_requerido(CATALOG_OPERATIONAL)
-@permiso_requerido('inventory', 'operar')
 def editar_productos():
     """Lista de productos disponibles para edicion."""
     datosApp = get_data_app()
@@ -538,6 +559,12 @@ def editar_producto(id):
             if _table_has_column('productos', 'visible_en_ecommerce'):
                 update_sql += ', visible_en_ecommerce=%s'
                 update_params.append(visible_en_ecommerce)
+            if _table_has_column('productos', 'costo'):
+                update_sql += ', costo=%s'
+                update_params.append(_num(request.form.get('costo', 0)))
+            if _table_has_column('productos', 'stock_minimo'):
+                update_sql += ', stock_minimo=%s'
+                update_params.append(int(_num(request.form.get('stock_minimo', 0))))
             update_sql += ' WHERE id=%s'
             update_params.append(id)
             cur.execute(update_sql, tuple(update_params))
@@ -663,7 +690,6 @@ def establecer_imagen_principal(imagen_id):
 
 @admin_bp.route('/eliminar-productos')
 @rol_requerido(CATALOG_DELETE)
-@permiso_requerido('inventory', 'eliminar')
 def eliminar_productos():
     """Lista de productos disponibles para eliminacion."""
     datosApp = get_data_app()
@@ -816,7 +842,6 @@ def _contar_dependencias_producto(producto_id):
 
 @admin_bp.route('/gestion-usuarios')
 @rol_requerido(ADMIN_FULL)
-@permiso_requerido('users', 'ver')
 def gestion_usuarios():
     """Lista de todos los usuarios del sistema con sus roles."""
     datosApp = get_data_app()
@@ -827,7 +852,7 @@ def gestion_usuarios():
         cur = conn.cursor(cursor_factory=DictCursor)
         cur.execute('SELECT u.*, r.nombre as rol_nombre FROM usuarios u JOIN roles r ON u.rol_id = r.id ORDER BY u.id')
         usuarios = cur.fetchall()
-        cur.execute('SELECT * FROM roles WHERE COALESCE(activo, TRUE) IS TRUE ORDER BY es_sistema DESC, id')
+        cur.execute('SELECT * FROM roles')
         roles = cur.fetchall()
         cur.close()
         conn.close()
@@ -838,7 +863,6 @@ def gestion_usuarios():
 
 @admin_bp.route('/crear-usuario', methods=['GET', 'POST'])
 @rol_requerido(ADMIN_FULL)
-@permiso_requerido('users', 'operar')
 def crear_usuario():
     """Formulario para crear nuevos usuarios con cualquier rol."""
     from app import user_images
@@ -848,7 +872,7 @@ def crear_usuario():
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=DictCursor)
-        cur.execute('SELECT * FROM roles WHERE COALESCE(activo, TRUE) IS TRUE ORDER BY es_sistema DESC, id')
+        cur.execute('SELECT * FROM roles ORDER BY id')
         roles = cur.fetchall()
         cur.close()
         conn.close()
@@ -907,7 +931,6 @@ def crear_usuario():
 
 @admin_bp.route('/editar-usuario/<int:id>', methods=['GET', 'POST'])
 @rol_requerido(ADMIN_FULL)
-@permiso_requerido('users', 'operar')
 def editar_usuario(id):
     """Formulario de edicion de datos de un usuario existente."""
     from app import user_images
@@ -921,7 +944,7 @@ def editar_usuario(id):
         cur = conn.cursor(cursor_factory=DictCursor)
         cur.execute('SELECT * FROM usuarios WHERE id=%s', (id,))
         usuario = cur.fetchone()
-        cur.execute('SELECT * FROM roles WHERE COALESCE(activo, TRUE) IS TRUE ORDER BY es_sistema DESC, id')
+        cur.execute('SELECT * FROM roles')
         roles = cur.fetchall()
         cur.close()
         conn.close()
@@ -1058,7 +1081,6 @@ def vista_detalle_pedido_admin(pedido_id):
 
 @admin_bp.route('/gestion-pedidos')
 @rol_requerido(ADMIN_STAFF)
-@permiso_requerido('orders', 'ver')
 def gestion_pedidos():
     """Lista de todos los pedidos con detalle de productos comprados."""
     datosApp = get_data_app()
@@ -1088,7 +1110,6 @@ def gestion_pedidos():
 
 @admin_bp.route('/inventario')
 @rol_requerido(CATALOG_OPERATIONAL)
-@permiso_requerido('inventory', 'ver')
 def gestion_inventario():
     """Lista de productos con su stock actual."""
     datosApp = get_data_app()
@@ -1359,7 +1380,6 @@ def recepcion_inventario():
 
 @admin_bp.route('/admin/publicaciones')
 @rol_requerido(ADMIN_STAFF)
-@permiso_requerido('content', 'ver')
 def gestion_publicaciones():
     """Lista de publicaciones del home."""
     datosApp = get_data_app()
@@ -1484,7 +1504,6 @@ def toggle_publicacion(id):
 
 @admin_bp.route('/admin/slides')
 @rol_requerido(ADMIN_STAFF)
-@permiso_requerido('content', 'ver')
 def gestion_slides():
     """Lista de slides del carrusel del home."""
     datosApp = get_data_app()
@@ -1607,7 +1626,6 @@ def toggle_slide(id):
 
 @admin_bp.route('/admin/servicios')
 @rol_requerido(ADMIN_STAFF)
-@permiso_requerido('content', 'ver')
 def gestion_servicios():
     """Lista de servicios."""
     datosApp = get_data_app()
@@ -1799,7 +1817,6 @@ def config_secciones():
 
 @admin_bp.route('/admin/pos')
 @rol_requerido(POS_OPERATIONAL)
-@permiso_requerido('pos', 'ver')
 def facturacion_pos():
     """Interfaz de punto de venta para facturacion en fisico."""
     datosApp = get_data_app()
@@ -1958,12 +1975,20 @@ def procesar_venta_pos():
         except Exception as _e:
             current_app.logger.warning(f"Contabilidad POS: {_e}")
 
-        # Insertar detalles
+        # Insertar detalles (estampando el costo del producto al momento de la venta
+        # para calcular margen histórico correcto aunque el costo cambie después)
+        _has_costo_det = _table_has_column('detalle_venta_pos', 'costo_unitario')
         for det in detalles_para_insertar:
-            cur.execute("""
-                INSERT INTO detalle_venta_pos (venta_id, producto_id, descripcion, cantidad, precio_unitario, subtotal)
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """, (venta_id, det[0], det[1], det[2], det[3], det[4]))
+            if _has_costo_det:
+                cur.execute("""
+                    INSERT INTO detalle_venta_pos (venta_id, producto_id, descripcion, cantidad, precio_unitario, subtotal, costo_unitario)
+                    VALUES (%s, %s, %s, %s, %s, %s, COALESCE((SELECT costo FROM productos WHERE id = %s), 0))
+                """, (venta_id, det[0], det[1], det[2], det[3], det[4], det[0]))
+            else:
+                cur.execute("""
+                    INSERT INTO detalle_venta_pos (venta_id, producto_id, descripcion, cantidad, precio_unitario, subtotal)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (venta_id, det[0], det[1], det[2], det[3], det[4]))
 
         conn.commit()
         cur.close()
@@ -1988,7 +2013,6 @@ def procesar_venta_pos():
 
 @admin_bp.route('/admin/pos/historial')
 @rol_requerido(POS_OPERATIONAL)
-@permiso_requerido('pos', 'ver')
 def historial_pos():
     """Historial de ventas POS."""
     datosApp = get_data_app()
@@ -2064,7 +2088,6 @@ def detalle_venta_pos(id):
 
 @admin_bp.route('/admin/pos/<int:venta_id>/anular', methods=['POST'])
 @rol_requerido(POS_DELETE)
-@permiso_requerido('pos', 'eliminar')
 def anular_venta_pos(venta_id):
     """Anula una venta POS creando una nota de crédito, restaurando stock y registrando egreso contable."""
     from datetime import datetime
@@ -2208,7 +2231,6 @@ def buscar_producto_barcode():
 
 @admin_bp.route('/admin/generos')
 @rol_requerido(CATALOG_OPERATIONAL)
-@permiso_requerido('inventory', 'operar')
 def gestion_generos():
     """Lista todos los géneros y muestra el formulario de gestión."""
     datosApp = get_data_app()

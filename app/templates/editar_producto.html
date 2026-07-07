@@ -502,13 +502,23 @@ input:checked + .toggle-slider:before { transform: translateX(22px); }
         </div>
 
         <div class="form-group">
-            <label for="precio"><i class="fas fa-dollar-sign"></i> Precio</label>
+            <label for="precio"><i class="fas fa-dollar-sign"></i> Precio de venta</label>
             <input type="number" id="precio" name="precio" value="{{ producto['precio'] }}" step="0.01" required>
+        </div>
+
+        <div class="form-group">
+            <label for="costo"><i class="fas fa-tag"></i> Costo <small style="opacity:.6">(para calcular tu ganancia)</small></label>
+            <input type="number" id="costo" name="costo" value="{{ producto['costo'] or 0 }}" step="0.01" min="0">
         </div>
 
         <div class="form-group">
             <label for="stock"><i class="fas fa-cubes"></i> Stock</label>
             <input type="number" id="stock" name="stock" value="{{ producto['stock'] }}" min="0" required>
+        </div>
+
+        <div class="form-group">
+            <label for="stock_minimo"><i class="fas fa-bell"></i> Stock mínimo <small style="opacity:.6">(alerta cuando baje de aquí)</small></label>
+            <input type="number" id="stock_minimo" name="stock_minimo" value="{{ producto['stock_minimo'] or 0 }}" min="0">
         </div>
 
         <div class="form-group">

@@ -435,12 +435,20 @@ input:checked + .toggle-slider:before { transform: translateX(22px); }
                 {% endif %}
             </div>
             <div class="form-group">
-                <label for="precio"><i class="fas fa-dollar-sign"></i> Precio</label>
+                <label for="precio"><i class="fas fa-dollar-sign"></i> Precio de venta</label>
                 <input type="number" id="precio" name="precio" step="0.01" placeholder="Ej: 59900" required>
+            </div>
+            <div class="form-group">
+                <label for="costo"><i class="fas fa-tag"></i> Costo <small style="opacity:.6">(para calcular tu ganancia)</small></label>
+                <input type="number" id="costo" name="costo" step="0.01" min="0" placeholder="Ej: 35000">
             </div>
             <div class="form-group">
                 <label for="stock"><i class="fas fa-cubes"></i> Stock inicial</label>
                 <input type="number" id="stock" name="stock" min="0" placeholder="Ej: 50" required>
+            </div>
+            <div class="form-group">
+                <label for="stock_minimo"><i class="fas fa-bell"></i> Stock mínimo <small style="opacity:.6">(alerta cuando baje de aquí)</small></label>
+                <input type="number" id="stock_minimo" name="stock_minimo" min="0" placeholder="Ej: 5" value="0">
             </div>
             <div class="form-group">
                 <label for="referencia"><i class="fas fa-barcode"></i> Referencia</label>
