@@ -451,6 +451,26 @@ input:checked + .toggle-slider:before { transform: translateX(22px); }
                 <input type="number" id="stock_minimo" name="stock_minimo" min="0" placeholder="Ej: 5" value="0">
             </div>
             <div class="form-group">
+                <label for="impuesto"><i class="fas fa-file-invoice-dollar"></i> IVA <small style="opacity:.6">(opcional)</small></label>
+                <select id="impuesto" name="impuesto">
+                    <option value="excluido">Excluido (sin IVA)</option>
+                    <option value="0">IVA 0%</option>
+                    <option value="5">IVA 5%</option>
+                    <option value="19">IVA 19%</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="unidad_medida"><i class="fas fa-balance-scale"></i> Unidad <small style="opacity:.6">(opcional)</small></label>
+                <select id="unidad_medida" name="unidad_medida">
+                    <option value="unidad">Unidad</option>
+                    <option value="libra">Libra</option>
+                    <option value="kilo">Kilo</option>
+                    <option value="gramo">Gramo</option>
+                    <option value="docena">Docena</option>
+                    <option value="litro">Litro</option>
+                </select>
+            </div>
+            <div class="form-group">
                 <label for="referencia"><i class="fas fa-barcode"></i> Referencia</label>
                 <input type="text" id="referencia" name="referencia" placeholder="Ej: CAM-001-NEG" required>
             </div>

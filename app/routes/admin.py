@@ -75,12 +75,42 @@ def _table_has_column(table_name, column_name):
     return exists
 
 
+# Opciones (listas) de campos opcionales de producto — todo tiene un default seguro.
+OPCIONES_IMPUESTO = [('excluido', 'Excluido (sin IVA)'), ('0', 'IVA 0%'),
+                     ('5', 'IVA 5%'), ('19', 'IVA 19%')]
+OPCIONES_UNIDAD = [('unidad', 'Unidad'), ('libra', 'Libra'), ('kilo', 'Kilo'),
+                   ('gramo', 'Gramo'), ('docena', 'Docena'), ('litro', 'Litro')]
+_IMPUESTO_VALIDOS = {c for c, _ in OPCIONES_IMPUESTO}
+_UNIDAD_VALIDOS = {c for c, _ in OPCIONES_UNIDAD}
+
+
+def _norm_impuesto(valor):
+    """Normaliza el IVA a un código válido; si viene vacío/raro -> 'excluido'."""
+    s = str(valor or '').strip().lower().replace('%', '').replace('iva', '').strip()
+    if s in ('', 'excluido', 'exento', 'ninguno', 'sin'):
+        return 'excluido'
+    if s in _IMPUESTO_VALIDOS:
+        return s
+    return 'excluido'
+
+
+def _norm_unidad(valor):
+    """Normaliza la unidad a un código válido; si viene vacío/raro -> 'unidad'."""
+    s = str(valor or '').strip().lower()
+    alias = {'und': 'unidad', 'un': 'unidad', 'lb': 'libra', 'kg': 'kilo',
+             'gr': 'gramo', 'g': 'gramo', 'lt': 'litro', 'l': 'litro', 'doc': 'docena'}
+    s = alias.get(s, s)
+    return s if s in _UNIDAD_VALIDOS else 'unidad'
+
+
 def _get_product_schema_flags():
     return {
         'has_online_visibility': _table_has_column('productos', 'visible_en_ecommerce'),
         'has_fe_flag_pos': _table_has_column('ventas_pos', 'facturar_electronicamente'),
         'has_costo': _table_has_column('productos', 'costo'),
         'has_stock_minimo': _table_has_column('productos', 'stock_minimo'),
+        'has_impuesto': _table_has_column('productos', 'impuesto'),
+        'has_unidad': _table_has_column('productos', 'unidad_medida'),
     }
 
 
@@ -145,7 +175,8 @@ def _parse_facturar_electronicamente(value, default=False):
 
 
 def _build_product_insert_data(*, imagen, nombre, precio, referencia, genero_id, descripcion, stock,
-                               visible_en_ecommerce=True, costo=0, stock_minimo=0):
+                               visible_en_ecommerce=True, costo=0, stock_minimo=0,
+                               impuesto=None, unidad_medida=None):
     schema = _get_product_schema_flags()
     columns = ['imagen', 'nombre', 'precio', 'referencia', 'genero_id', 'descripcion', 'stock']
     values = [imagen, nombre, precio, referencia, genero_id, descripcion, stock]
@@ -159,6 +190,12 @@ def _build_product_insert_data(*, imagen, nombre, precio, referencia, genero_id,
     if schema['has_stock_minimo']:
         columns.append('stock_minimo')
         values.append(int(_num(stock_minimo)))
+    if schema['has_impuesto']:
+        columns.append('impuesto')
+        values.append(_norm_impuesto(impuesto))
+    if schema['has_unidad']:
+        columns.append('unidad_medida')
+        values.append(_norm_unidad(unidad_medida))
 
     return columns, values
 
@@ -248,6 +285,8 @@ def GestionProductos():
             stock = request.form.get('stock', 0)
             costo = request.form.get('costo', 0)
             stock_minimo = request.form.get('stock_minimo', 0)
+            impuesto = request.form.get('impuesto')
+            unidad_medida = request.form.get('unidad_medida')
             visible_en_ecommerce = _parse_visible_en_ecommerce(
                 request.form.get('visible_en_ecommerce'),
                 default=True,
@@ -275,6 +314,8 @@ def GestionProductos():
                 visible_en_ecommerce=visible_en_ecommerce,
                 costo=costo,
                 stock_minimo=stock_minimo,
+                impuesto=impuesto,
+                unidad_medida=unidad_medida,
             )
             cur.execute(
                 f"INSERT INTO productos ({', '.join(insert_columns)}) VALUES ({', '.join(['%s'] * len(insert_columns))}) RETURNING id",
@@ -331,7 +372,7 @@ def descargar_plantilla_productos():
     
     # Definir las columnas exactas requeridas
     columnas = ['Nombre del Producto', 'Referencia', 'Género', 'Descripción', 'Precio',
-                'Costo', 'Stock inicial', 'Stock mínimo', 'Visible en E-commerce']
+                'Costo', 'Stock inicial', 'Stock mínimo', 'IVA', 'Unidad', 'Visible en E-commerce']
 
     # Crear un DataFrame con una fila de EJEMPLO para orientar al usuario
     df = pd.DataFrame([{
@@ -343,6 +384,8 @@ def descargar_plantilla_productos():
         'Costo': 600,
         'Stock inicial': 50,
         'Stock mínimo': 10,
+        'IVA': 'excluido',
+        'Unidad': 'unidad',
         'Visible en E-commerce': 'Sí',
     }], columns=columnas)
     
@@ -426,6 +469,8 @@ def cargue_masivo_productos():
                 costo = _cell('Costo')
                 stock_inicial = int(_cell('Stock inicial'))
                 stock_minimo = int(_cell('Stock mínimo'))
+                impuesto_val = None if pd.isna(row.get('IVA')) else row.get('IVA')
+                unidad_val = None if pd.isna(row.get('Unidad')) else row.get('Unidad')
 
                 # Fila de ejemplo de la plantilla: se ignora silenciosamente
                 if 'EJEMPLO' in nombre.upper():
@@ -463,6 +508,8 @@ def cargue_masivo_productos():
                     visible_en_ecommerce=visible_en_ecommerce,
                     costo=costo,
                     stock_minimo=stock_minimo,
+                    impuesto=impuesto_val,
+                    unidad_medida=unidad_val,
                 )
                 
                 # Insertar en base de datos
@@ -595,6 +642,12 @@ def editar_producto(id):
             if _table_has_column('productos', 'stock_minimo'):
                 update_sql += ', stock_minimo=%s'
                 update_params.append(int(_num(request.form.get('stock_minimo', 0))))
+            if _table_has_column('productos', 'impuesto'):
+                update_sql += ', impuesto=%s'
+                update_params.append(_norm_impuesto(request.form.get('impuesto')))
+            if _table_has_column('productos', 'unidad_medida'):
+                update_sql += ', unidad_medida=%s'
+                update_params.append(_norm_unidad(request.form.get('unidad_medida')))
             update_sql += ' WHERE id=%s'
             update_params.append(id)
             cur.execute(update_sql, tuple(update_params))
@@ -1179,11 +1232,15 @@ def exportar_inventario():
     try:
         _has_costo = _table_has_column('productos', 'costo')
         _has_min = _table_has_column('productos', 'stock_minimo')
+        _has_imp = _table_has_column('productos', 'impuesto')
+        _has_uni = _table_has_column('productos', 'unidad_medida')
         _sel_costo = ', p.costo' if _has_costo else ', 0 AS costo'
         _sel_min = ', p.stock_minimo' if _has_min else ', 0 AS stock_minimo'
+        _sel_imp = ', p.impuesto' if _has_imp else ", 'excluido' AS impuesto"
+        _sel_uni = ', p.unidad_medida' if _has_uni else ", 'unidad' AS unidad_medida"
         with get_db_cursor(dict_cursor=True) as cur:
             _wact = ' WHERE COALESCE(p.active, TRUE) = TRUE' if _table_has_column('productos', 'active') else ''
-            cur.execute(f'SELECT p.id, p.nombre, p.referencia, p.precio, p.stock{_sel_costo}{_sel_min}, g.nombre as categoria '
+            cur.execute(f'SELECT p.id, p.nombre, p.referencia, p.precio, p.stock{_sel_costo}{_sel_min}{_sel_imp}{_sel_uni}, g.nombre as categoria '
                         f'FROM productos p JOIN generos g ON p.genero_id = g.id{_wact} ORDER BY p.id')
             productos = cur.fetchall()
 
@@ -1192,7 +1249,8 @@ def exportar_inventario():
         si.write('﻿')
         cw = csv.writer(si)
         cw.writerow(['ID', 'Nombre', 'Referencia', 'Categoria', 'Precio', 'Costo', 'Margen unitario',
-                     'Stock', 'Stock minimo', 'Valor venta (Precio x Stock)', 'Valor costo (Costo x Stock)'])
+                     'Stock', 'Stock minimo', 'IVA', 'Unidad',
+                     'Valor venta (Precio x Stock)', 'Valor costo (Costo x Stock)'])
 
         for p in productos:
             precio = float(p['precio'] or 0)
@@ -1201,6 +1259,7 @@ def exportar_inventario():
             margen = precio - costo
             cw.writerow([p['id'], p['nombre'], p['referencia'], p['categoria'],
                          precio, costo, margen, stock, int(p['stock_minimo'] or 0),
+                         p['impuesto'], p['unidad_medida'],
                          precio * stock, costo * stock])
 
         output = si.getvalue()

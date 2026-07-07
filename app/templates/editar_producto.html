@@ -521,6 +521,27 @@ input:checked + .toggle-slider:before { transform: translateX(22px); }
             <input type="number" id="stock_minimo" name="stock_minimo" value="{{ producto['stock_minimo'] or 0 }}" min="0">
         </div>
 
+        {% set imp_actual = producto['impuesto'] or 'excluido' %}
+        <div class="form-group">
+            <label for="impuesto"><i class="fas fa-file-invoice-dollar"></i> IVA <small style="opacity:.6">(opcional)</small></label>
+            <select id="impuesto" name="impuesto">
+                <option value="excluido" {{ 'selected' if imp_actual == 'excluido' }}>Excluido (sin IVA)</option>
+                <option value="0" {{ 'selected' if imp_actual == '0' }}>IVA 0%</option>
+                <option value="5" {{ 'selected' if imp_actual == '5' }}>IVA 5%</option>
+                <option value="19" {{ 'selected' if imp_actual == '19' }}>IVA 19%</option>
+            </select>
+        </div>
+
+        {% set uni_actual = producto['unidad_medida'] or 'unidad' %}
+        <div class="form-group">
+            <label for="unidad_medida"><i class="fas fa-balance-scale"></i> Unidad <small style="opacity:.6">(opcional)</small></label>
+            <select id="unidad_medida" name="unidad_medida">
+                {% for cod, lbl in [('unidad','Unidad'),('libra','Libra'),('kilo','Kilo'),('gramo','Gramo'),('docena','Docena'),('litro','Litro')] %}
+                <option value="{{ cod }}" {{ 'selected' if uni_actual == cod }}>{{ lbl }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
         <div class="form-group">
             <label for="referencia"><i class="fas fa-barcode"></i> Referencia</label>
             <input type="text" id="referencia" name="referencia" value="{{ producto['referencia'] }}" required>
