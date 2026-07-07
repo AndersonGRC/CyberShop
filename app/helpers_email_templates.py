@@ -425,3 +425,68 @@ def generar_email_recordatorio_pago(compra, plan, renovacion_url, etapa, dias=0)
     """
     texto = f"Hola {nombre}, {titulo.lower()}. Renueva aquí: {renovacion_url}"
     return asunto, texto, _base_html(contenido, empresa)
+
+def generar_email_confirmacion_trial(compra, confirmar_url):
+    """Verificación de email para la prueba gratis de 15 días."""
+    empresa = _get_empresa_info()
+    colores = _get_colores()
+    nombre = compra.get('buyer_nombre') or 'Hola'
+    negocio = compra.get('nombre_negocio') or 'tu negocio'
+    asunto = "Confirma tu correo y activa tu prueba gratis de 15 días"
+    contenido = f"""
+    <h2 style="margin:0 0 14px;color:{colores['primario']};">¡Ya casi! Confirma tu correo</h2>
+    <p style="font-size:15px;line-height:1.6;color:#333;">Hola <strong>{nombre}</strong>,
+      estás a un clic de crear la tienda de <strong>{negocio}</strong> con
+      <strong>15 días gratis</strong> del plan más completo (todo incluido:
+      tienda en línea, punto de venta, inventario, contabilidad, nómina y
+      asistente con IA). Sin tarjeta, sin compromiso.</p>
+    <p style="text-align:center;margin:26px 0;">
+      <a href="{confirmar_url}" style="background:{colores['primario']};color:#fff;
+         padding:14px 34px;border-radius:8px;text-decoration:none;font-weight:bold;
+         font-size:16px;display:inline-block;">Confirmar y crear mi tienda</a>
+    </p>
+    <p style="font-size:13px;color:#777;">Si el botón no funciona:
+      <a href="{confirmar_url}" style="color:{colores['primario']};word-break:break-all;">{confirmar_url}</a></p>
+    <p style="font-size:12px;color:#999;">Si no pediste esta prueba, ignora este correo.</p>
+    """
+    texto = (f"Hola {nombre}, confirma tu correo para activar tu prueba gratis "
+             f"de 15 días: {confirmar_url}")
+    return asunto, texto, _base_html(contenido, empresa)
+
+
+def generar_email_trial_recordatorio(compra, plan, renovacion_url, dias_restantes):
+    """Recordatorios de la prueba gratis: quedan 5 / 2 / 0 días."""
+    empresa = _get_empresa_info()
+    colores = _get_colores()
+    nombre = compra.get('buyer_nombre') or 'Hola'
+    dominio = compra.get('dominio') or ''
+    if dias_restantes > 0:
+        titulo = f"Te quedan {dias_restantes} días de prueba gratis"
+        asunto = f"⏳ Te quedan {dias_restantes} días de prueba — activa tu plan"
+        aviso = ''
+    else:
+        titulo = "Tu prueba gratis vence HOY"
+        asunto = "⏰ Tu prueba gratis vence hoy — no pierdas tu tienda"
+        aviso = ('<p style="font-size:13px;color:#b42318;background:#fdeaea;'
+                 'border-radius:6px;padding:10px 14px;">Si no activas tu plan, '
+                 'mañana la tienda quedará pausada. Tus productos, ventas y '
+                 'configuración se conservan y vuelven al instante al pagar.</p>')
+    contenido = f"""
+    <h2 style="margin:0 0 14px;color:{colores['primario']};">{titulo}</h2>
+    <p style="font-size:15px;line-height:1.6;color:#333;">Hola <strong>{nombre}</strong>,
+      esperamos que <strong>{dominio}</strong> esté siendo un gran aliado.
+      Para seguir usando todo (tienda en línea, POS, inventario, contabilidad,
+      nómina y asistente IA) activa tu plan <strong>{plan.get('nombre')}</strong>
+      por <strong>${'{:,.0f}'.format(float(plan.get('precio') or 0)).replace(',', '.')}/{plan.get('periodo','mes')}</strong>.</p>
+    {aviso}
+    <p style="text-align:center;margin:26px 0;">
+      <a href="{renovacion_url}" style="background:{colores['primario']};color:#fff;
+         padding:14px 34px;border-radius:8px;text-decoration:none;font-weight:bold;
+         font-size:16px;display:inline-block;">Activar mi plan</a>
+    </p>
+    <p style="font-size:13px;color:#777;">Si el botón no funciona:
+      <a href="{renovacion_url}" style="color:{colores['primario']};word-break:break-all;">{renovacion_url}</a></p>
+    """
+    texto = f"Hola {nombre}, {titulo.lower()}. Activa tu plan aquí: {renovacion_url}"
+    return asunto, texto, _base_html(contenido, empresa)
+

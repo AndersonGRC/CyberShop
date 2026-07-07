@@ -1,6 +1,42 @@
 {% extends './plantillaindex.html' %}
 
 {% block titulo %}{{ producto.nombre }} — {{ datosApp.titulo }}{% endblock %}
+{% block meta_description %}{{ (producto.descripcion or producto.nombre) | striptags | truncate(155, True) }} Compra en línea en {{ datosApp.titulo }}.{% endblock %}
+{% block og_type %}product{% endblock %}
+{% block og_image %}{{ (producto.imagenes[0] if producto.imagenes else producto.imagen) or '' }}{% endblock %}
+{% block twitter_card %}summary_large_image{% endblock %}
+{% block jsonld %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": {{ producto.nombre | tojson }},
+  "image": {{ ((producto.imagenes[0] if producto.imagenes else producto.imagen) or '') | tojson }},
+  "description": {{ ((producto.descripcion or producto.nombre) | striptags | truncate(300, True)) | tojson }},
+  "sku": {{ (producto.referencia or producto.id) | string | tojson }},
+  {% if producto.genero %}"category": {{ producto.genero | tojson }},{% endif %}
+  "offers": {
+    "@type": "Offer",
+    "url": {{ request.base_url | tojson }},
+    "priceCurrency": "COP",
+    "price": {{ '%.0f' | format(producto.precio or 0) }},
+    "availability": "{{ 'https://schema.org/InStock' if (producto.stock or 0) > 0 else 'https://schema.org/OutOfStock' }}",
+    "itemCondition": "https://schema.org/NewCondition"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Inicio", "item": {{ url_for('public.index', _external=True) | tojson }}},
+    {"@type": "ListItem", "position": 2, "name": "Productos", "item": {{ url_for('public.productos', _external=True) | tojson }}},
+    {"@type": "ListItem", "position": 3, "name": {{ producto.nombre | tojson }}}
+  ]
+}
+</script>
+{% endblock %}
 
 {% block LinkAdicional %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/ProductoDetalle.css') }}">
@@ -47,7 +83,7 @@
                 {% for url in producto.imagenes %}
                 <img
                     src="{{ url }}"
-                    alt="Vista {{ loop.index }}"
+                    alt="{{ producto.nombre }} — vista {{ loop.index }}" loading="lazy"
                     class="detalle-miniatura{% if loop.first %} activa{% endif %}"
                     data-src="{{ url }}"
                     data-index="{{ loop.index0 }}"

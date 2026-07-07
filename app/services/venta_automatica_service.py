@@ -64,6 +64,11 @@ def procesar_compra_plan(referencia, base_url='https://cybershopcol.com'):
         pcs.marcar_contacto(compra['id'])  # cierra la fila de renovación
         padre = pcs.extender_periodo(compra['renovacion_de']) or {}
 
+        # Conversión de prueba gratis → plan pagado
+        if padre_pre.get('es_trial'):
+            pcs.marcar_trial_convertido(compra['renovacion_de'])
+            limpiar_datos_trial(padre_pre)
+
         reactivada = ''
         if padre_pre.get('suspendida_por_pago') and padre_pre.get('tenant_id'):
             try:
@@ -112,6 +117,43 @@ def procesar_compra_plan(referencia, base_url='https://cybershopcol.com'):
     return resultado
 
 
+def _sembrar_datos_trial(compra):
+    """Escribe en la BD del NUEVO tenant las llaves que su instancia usa para
+    mostrar el banner '🎁 te quedan N días': trial_hasta y trial_renovar_url.
+    (El app del operador puede escribir cualquier BD de tenant vía tenant_cursor.)"""
+    try:
+        from services.db_layer import tenant_cursor
+        db_name = f"cyber_t{int(compra['tenant_id'])}"
+        url = f"https://cybershopcol.com/renovar/{compra['token_renovacion']}"
+        with tenant_cursor(db_name=db_name) as cur:
+            for clave, valor in (('trial_hasta', str(compra['proximo_pago'])),
+                                 ('trial_renovar_url', url)):
+                cur.execute(
+                    """
+                    INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion)
+                    VALUES (%s, %s, 'texto', 'sistema', 'Prueba gratis (auto)')
+                    ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor
+                    """,
+                    (clave, valor),
+                )
+    except Exception as exc:  # noqa: BLE001 — el banner es cosmético, no romper
+        try:
+            current_app.logger.warning(f"trial: no se pudo sembrar banner: {exc}")
+        except Exception:
+            pass
+
+
+def limpiar_datos_trial(compra):
+    """El trial pagó: quita las llaves del banner en la BD del tenant."""
+    try:
+        from services.db_layer import tenant_cursor
+        db_name = f"cyber_t{int(compra['tenant_id'])}"
+        with tenant_cursor(db_name=db_name) as cur:
+            cur.execute("DELETE FROM cliente_config WHERE clave IN ('trial_hasta','trial_renovar_url')")
+    except Exception:
+        pass
+
+
 def validar_slug(slug):
     """Valida el subdominio elegido. Devuelve (slug_normalizado, error|None)."""
     slug = (slug or '').strip().lower()
@@ -135,20 +177,26 @@ def activar_tienda_async(app, compra_id, slug, nombre_negocio):
                 return
             plan = get_plan(compra['plan_key']) or {}
             master_plan = pcs.PLANES_AUTOMATICOS.get(compra['plan_key'], 'estandar')
+            es_trial = bool(compra.get('es_trial'))
             try:
                 resultado = crear_tenant_en_maestro(
                     slug=slug, nombre=nombre_negocio,
                     email=compra['buyer_email'], master_plan=master_plan)
                 pcs.marcar_activada(compra_id, resultado.get('tenant_id'),
                                     slug, resultado.get('domain'),
-                                    periodo=compra.get('periodo') or 'mes')
+                                    periodo=compra.get('periodo') or 'mes',
+                                    dias=pcs.TRIAL_DIAS if es_trial else None)
                 compra = pcs.get_por_id(compra_id)
+                if es_trial:
+                    _sembrar_datos_trial(compra)
                 _enviar(compra['buyer_email'],
                         generar_email_bienvenida_tienda(compra, plan, resultado))
                 _enviar(_email_operador(), generar_email_aviso_operador(
-                    f"🚀 Tienda activada — {resultado.get('domain')}",
+                    ("🎁 PRUEBA GRATIS activada — " if es_trial else "🚀 Tienda activada — ")
+                    + str(resultado.get('domain')),
                     [f"Cliente: {compra.get('buyer_nombre')} <{compra.get('buyer_email')}>",
-                     f"Plan: {plan.get('nombre')} → módulos '{master_plan}'",
+                     f"Plan: {plan.get('nombre')} → módulos '{master_plan}'"
+                     + (f" | Prueba hasta {compra.get('proximo_pago')}" if es_trial else ""),
                      f"Tenant ID: {resultado.get('tenant_id')} | Puerto: {resultado.get('port')}"]))
             except MasterError as exc:
                 pcs.marcar_error(compra_id, str(exc))

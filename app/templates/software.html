@@ -347,7 +347,10 @@
           necesita en un solo lugar.
         </p>
         <div class="sw-cta-row">
-          <a href="{{ url_for('public.descargar') }}" class="sw-btn sw-btn-primary">
+          <a href="{{ url_for('public.prueba_gratis') }}" class="sw-btn sw-btn-primary">
+            <i class="fas fa-gift"></i> Prueba gratis 15 días
+          </a>
+          <a href="{{ url_for('public.descargar') }}" class="sw-btn sw-btn-ghost">
             <i class="fas fa-download"></i> Descargar la App
           </a>
           <a href="#planes" class="sw-btn sw-btn-ghost">
@@ -429,6 +432,7 @@
           </ul>
           {% if plan.comprable %}
           <a href="{{ url_for('public.comprar_plan', plan_id=plan.plan_key) }}" class="plan-btn"><i class="fas fa-lock"></i> Comprar con PayU</a>
+          <a href="{{ url_for('public.prueba_gratis') }}" class="plan-btn-secondary"><i class="fas fa-gift"></i> Probar gratis 15 días</a>
           {% if plan.tiene_app %}
           <a href="{{ url_for('public.descargar') }}" class="plan-btn-secondary"><i class="fas fa-download"></i> Descargar la App</a>
           {% endif %}

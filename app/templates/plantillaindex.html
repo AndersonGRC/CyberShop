@@ -5,10 +5,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block titulo%} {% endblock%}</title>
-    <meta name="description" content="{% block meta_description %}Tienda en línea — productos y servicios tecnológicos{% endblock %}">
-    <meta property="og:title" content="{% block og_title %}{{ datosApp.titulo if datosApp else 'CyberShop' }}{% endblock %}">
-    <meta property="og:description" content="{% block og_description %}Productos y servicios tecnológicos{% endblock %}">
-    <meta property="og:type" content="website">
+    {# ═══ SEO central: heredado por TODAS las páginas públicas del tenant.
+       Cada página puede sobreescribir los bloques (meta_description, og_image,
+       jsonld) — p.ej. el detalle de producto pone su imagen y su schema. ═══ #}
+    {% set _seo_desc_default = (brand_config.empresa_tagline or (brand_config.empresa_nombre ~ ' — tienda en línea con los mejores productos y atención en Colombia.')) if brand_config else 'Tienda en línea — productos y servicios' %}
+    <meta name="description" content="{% block meta_description %}{{ _seo_desc_default }}{% endblock %}">
+    <link rel="canonical" href="{% block canonical %}{{ request.base_url }}{% endblock %}">
+    <meta property="og:site_name" content="{{ brand_config.empresa_nombre if brand_config else 'CyberShop' }}">
+    <meta property="og:title" content="{% block og_title %}{{ self.titulo() }}{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}{{ _seo_desc_default }}{% endblock %}">
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+    <meta property="og:url" content="{{ request.base_url }}">
+    <meta property="og:image" content="{% block og_image %}{{ (brand_config.empresa_logo_url or url_for('static', filename='img/Logo.PNG')) if brand_config else url_for('static', filename='img/Logo.PNG') }}{% endblock %}">
+    <meta name="twitter:card" content="{% block twitter_card %}summary{% endblock %}">
+    <meta name="twitter:title" content="{{ self.og_title() }}">
+    <meta name="twitter:description" content="{{ self.og_description() }}">
+    <meta name="twitter:image" content="{{ self.og_image() }}">
+    {% if brand_config %}
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "LocalBusiness",
+      "name": {{ brand_config.empresa_nombre | tojson }},
+      "url": {{ request.url_root | tojson }},
+      "image": {{ (brand_config.empresa_logo_url or '') | tojson }}
+      {%- if brand_config.empresa_telefono %},
+      "telephone": {{ brand_config.empresa_telefono | tojson }}{% endif %}
+      {%- if brand_config.empresa_direccion %},
+      "address": { "@type": "PostalAddress",
+                   "streetAddress": {{ brand_config.empresa_direccion | tojson }},
+                   "addressCountry": "CO" }{% endif %}
+      {%- set _redes = [brand_config.empresa_facebook, brand_config.empresa_instagram,
+                        brand_config.empresa_twitter, brand_config.empresa_youtube,
+                        brand_config.empresa_linkedin] | select | list %}
+      {%- if _redes %},
+      "sameAs": {{ _redes | tojson }}{% endif %}
+    }
+    </script>
+    {% endif %}
+    {% block jsonld %}{% endblock %}
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- Meta Pixel Code (con dedup vs Conversions API por eventID) -->

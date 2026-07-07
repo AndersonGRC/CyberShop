@@ -25,7 +25,11 @@ PLANES_AUTOMATICOS = {
     'ultra': 'ultra',
 }
 
-ESTADOS = ('PENDIENTE_PAGO', 'PAGADO', 'CONTACTO', 'ACTIVANDO', 'ACTIVADA', 'ERROR')
+ESTADOS = ('PENDIENTE_PAGO', 'PAGADO', 'CONTACTO', 'ACTIVANDO', 'ACTIVADA', 'ERROR',
+           'TRIAL_PENDIENTE')
+
+TRIAL_DIAS = 15          # duración de la prueba gratis
+TRIAL_PLAN_KEY = 'ultra'  # decisión de negocio: toda prueba usa el plan completo
 
 
 def _ensure_table():
@@ -56,6 +60,10 @@ def _ensure_table():
             )
             """
         )
+        # Prueba gratis 15 días (aditivo/idempotente)
+        cur.execute("ALTER TABLE plan_compras ADD COLUMN IF NOT EXISTS es_trial BOOLEAN NOT NULL DEFAULT FALSE")
+        cur.execute("ALTER TABLE plan_compras ADD COLUMN IF NOT EXISTS nombre_negocio VARCHAR(150)")
+        cur.execute("ALTER TABLE plan_compras ADD COLUMN IF NOT EXISTS buyer_telefono VARCHAR(40)")
 
 
 def crear_compra(pedido_id, referencia, plan_key, buyer_nombre, buyer_email,
@@ -154,10 +162,14 @@ def marcar_activando(compra_id, slug):
         return cur.rowcount > 0
 
 
-def marcar_activada(compra_id, tenant_id, slug, dominio, periodo='mes'):
+def marcar_activada(compra_id, tenant_id, slug, dominio, periodo='mes', dias=None):
     """ACTIVANDO -> ACTIVADA: tienda creada. Fija proximo_pago y emite el
-    token de renovación permanente (para los recordatorios de cobro)."""
-    delta = timedelta(days=365) if periodo == 'año' else timedelta(days=30)
+    token de renovación permanente (para los recordatorios de cobro).
+    `dias` fuerza el vencimiento (p.ej. 15 para la prueba gratis)."""
+    if dias is not None:
+        delta = timedelta(days=int(dias))
+    else:
+        delta = timedelta(days=365) if periodo == 'año' else timedelta(days=30)
     with get_db_cursor() as cur:
         cur.execute(
             """
@@ -169,6 +181,66 @@ def marcar_activada(compra_id, tenant_id, slug, dominio, periodo='mes'):
             """,
             (tenant_id, slug, dominio, date.today() + delta,
              secrets.token_urlsafe(24), compra_id),
+        )
+
+
+# ── Prueba gratis (trial 15 días, plan Ultra, sin pago) ────────
+
+def crear_trial(nombre_negocio, buyer_nombre, buyer_email, slug, telefono=''):
+    """Registro de prueba gratis: fila TRIAL_PENDIENTE con token de
+    verificación de email. Devuelve (compra_id, token) o (None, error)."""
+    _ensure_table()
+    buyer_email = (buyer_email or '').strip().lower()
+    with get_db_cursor(dict_cursor=True) as cur:
+        # Antiabuso: un solo trial por email (pendiente o ya usado)
+        cur.execute(
+            "SELECT 1 FROM plan_compras WHERE LOWER(buyer_email) = %s AND es_trial = TRUE",
+            (buyer_email,),
+        )
+        if cur.fetchone():
+            return None, 'Ese correo ya usó una prueba gratis. Escríbenos y te ayudamos.'
+        cur.execute(
+            "SELECT 1 FROM plan_compras WHERE slug = %s AND estado IN ('TRIAL_PENDIENTE','ACTIVANDO','ACTIVADA')",
+            (slug,),
+        )
+        if cur.fetchone():
+            return None, 'Ese subdominio ya está en uso. Elige otro.'
+        token = secrets.token_urlsafe(24)
+        referencia = f"TRIAL-{secrets.token_hex(8).upper()}"
+        cur.execute(
+            """
+            INSERT INTO plan_compras
+                (referencia_pedido, plan_key, buyer_nombre, buyer_email,
+                 buyer_telefono, nombre_negocio, slug, token, estado,
+                 periodo, es_trial)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'TRIAL_PENDIENTE', 'mes', TRUE)
+            RETURNING id
+            """,
+            (referencia, TRIAL_PLAN_KEY, buyer_nombre, buyer_email,
+             telefono, nombre_negocio, slug, token),
+        )
+        return cur.fetchone()['id'], token
+
+
+def marcar_trial_verificado(compra_id):
+    """TRIAL_PENDIENTE -> PAGADO (email verificado; entra al mismo camino de
+    activación que una compra pagada). Idempotente."""
+    with get_db_cursor() as cur:
+        cur.execute(
+            "UPDATE plan_compras SET estado = 'PAGADO' "
+            "WHERE id = %s AND estado = 'TRIAL_PENDIENTE'",
+            (compra_id,),
+        )
+        return cur.rowcount > 0
+
+
+def marcar_trial_convertido(compra_id):
+    """El trial pagó: deja de ser prueba (los recordatorios pasan al ciclo
+    normal previo/día0/vencido)."""
+    with get_db_cursor() as cur:
+        cur.execute(
+            "UPDATE plan_compras SET es_trial = FALSE WHERE id = %s",
+            (compra_id,),
         )
 
 

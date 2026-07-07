@@ -1,6 +1,19 @@
 {% extends './plantillaindex.html' %}
 
 {% block titulo %}Productos — {{ datosApp.titulo }}{% endblock %}
+{% block meta_description %}Catálogo de productos de {{ datosApp.titulo }}: compra en línea con envío y pago seguro.{% endblock %}
+{% block jsonld %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Inicio", "item": {{ url_for('public.index', _external=True) | tojson }}},
+    {"@type": "ListItem", "position": 2, "name": "Productos"}
+  ]
+}
+</script>
+{% endblock %}
 
 {% block LinkAdicional %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/Productos.css') }}">

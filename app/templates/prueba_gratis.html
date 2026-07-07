@@ -1,0 +1,133 @@
+{% extends "plantillaindex.html" %}
+
+{% block titulo %}Prueba gratis 15 días | {{ datosApp.titulo or 'CyberShop' }}{% endblock %}
+{% block meta_description %}Crea tu tienda en línea con punto de venta, inventario, contabilidad y asistente IA. Prueba gratis 15 días, sin tarjeta.{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+  header::after { content: ""; display: table; clear: both; }
+  header .nav .wrap { left: 0 !important; }
+  body.nav_fixed .nav .wrap { left: 0 !important; }
+
+  .tg-page {
+    --tg-primario: {{ sw_color_primario }};
+    --tg-oscuro: {{ sw_color_oscuro }};
+    color: #1c2433;
+    background:
+      radial-gradient(900px 420px at 100% -10%, rgba(41,169,226,.10), transparent 60%),
+      linear-gradient(180deg, #f5f7fb 0%, #eef2fa 100%);
+    min-height: 72vh; padding: 56px 18px 72px;
+  }
+  .tg-card {
+    max-width: 640px; margin: 0 auto; background: #fff; border-radius: 22px;
+    padding: 40px 36px; border: 1px solid #e9edf6;
+    box-shadow: 0 18px 50px rgba(18, 44, 148, .10);
+  }
+  .tg-card h1 { margin: 0 0 6px; font-size: 1.7rem; color: var(--tg-oscuro); }
+  .tg-card .tg-sub { color: #5b6575; font-size: .95rem; margin: 0 0 22px; line-height: 1.55; }
+  .tg-badge {
+    display: inline-block; background: #eaf7ee; color: #1d7a3d; font-weight: 700;
+    font-size: .8rem; border-radius: 20px; padding: 5px 14px; margin-bottom: 14px;
+  }
+  .tg-field { margin-bottom: 16px; }
+  .tg-field label { display: block; font-weight: 700; font-size: .86rem; color: #33405c; margin-bottom: 6px; }
+  .tg-field input {
+    width: 100%; box-sizing: border-box; border: 1.5px solid #dbe2f0; border-radius: 10px;
+    padding: 12px 14px; font-size: 15px; outline: none; transition: border-color .15s;
+  }
+  .tg-field input:focus { border-color: var(--tg-primario); }
+  .tg-field .tg-hint { font-size: .78rem; color: #8a93a6; margin-top: 4px; }
+  .tg-sub-row { display: flex; align-items: center; gap: 8px; }
+  .tg-sub-row input { flex: 1; }
+  .tg-sub-row .tg-domain { color: #5b6575; font-weight: 700; white-space: nowrap; }
+  .tg-btn {
+    width: 100%; border: 0; border-radius: 12px; padding: 15px; cursor: pointer;
+    font-size: 16px; font-weight: 800; color: #fff;
+    background: linear-gradient(135deg, var(--tg-primario), var(--tg-oscuro));
+    box-shadow: 0 10px 24px rgba(18,44,148,.25);
+  }
+  .tg-btn:hover { filter: brightness(1.07); }
+  .tg-error {
+    background: #fdeaea; color: #b42318; border-radius: 10px; padding: 11px 14px;
+    font-size: .88rem; margin-bottom: 16px;
+  }
+  .tg-check { text-align: center; padding: 20px 0 6px; }
+  .tg-check .tg-icon { font-size: 52px; }
+  .tg-incluye { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 22px; padding: 0; list-style: none; }
+  .tg-incluye li {
+    background: #f2f5fc; color: #33405c; border-radius: 16px; padding: 5px 12px; font-size: .78rem;
+  }
+  .tg-hp { position: absolute; left: -9999px; opacity: 0; height: 0; overflow: hidden; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="tg-page">
+  <div class="tg-card">
+    {% if enviado %}
+      <div class="tg-check">
+        <div class="tg-icon">📬</div>
+        <h1>Revisa tu correo</h1>
+        <p class="tg-sub">Te enviamos un enlace a <strong>{{ email_destino }}</strong> para
+        confirmar tu correo y crear tu tienda. El enlace llega en menos de un minuto
+        (mira también en spam).</p>
+      </div>
+    {% else %}
+      <span class="tg-badge">🎁 15 días gratis · sin tarjeta · sin compromiso</span>
+      <h1>Crea tu tienda hoy</h1>
+      <p class="tg-sub">Prueba el plan más completo de CyberShop con todo incluido:</p>
+      <ul class="tg-incluye">
+        <li>🛒 Tienda en línea</li><li>💳 Punto de venta</li><li>📦 Inventario</li>
+        <li>Σ Contabilidad</li><li>👥 Nómina</li><li>🤖 Asistente IA</li>
+        <li>🖥️ App de escritorio (funciona sin internet)</li>
+      </ul>
+
+      {% if error %}<div class="tg-error">{{ error }}</div>{% endif %}
+
+      <form method="POST" autocomplete="on">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <!-- honeypot antibots -->
+        <div class="tg-hp" aria-hidden="true">
+          <label>No llenes este campo</label>
+          <input type="text" name="website2" tabindex="-1" autocomplete="off">
+        </div>
+        <div class="tg-field">
+          <label>Nombre de tu negocio</label>
+          <input type="text" name="nombre_negocio" required minlength="3" maxlength="80"
+                 value="{{ form.nombre_negocio or '' }}" placeholder="Ej: Panadería Roma">
+        </div>
+        <div class="tg-field">
+          <label>Tu nombre</label>
+          <input type="text" name="buyer_nombre" required minlength="3" maxlength="100"
+                 value="{{ form.buyer_nombre or '' }}" placeholder="Nombre y apellido">
+        </div>
+        <div class="tg-field">
+          <label>Tu correo</label>
+          <input type="email" name="buyer_email" required maxlength="150"
+                 value="{{ form.buyer_email or '' }}" placeholder="tucorreo@gmail.com">
+          <div class="tg-hint">Aquí te llegan el enlace de confirmación y tus claves de acceso.</div>
+        </div>
+        <div class="tg-field">
+          <label>WhatsApp (opcional)</label>
+          <input type="tel" name="buyer_telefono" maxlength="20"
+                 value="{{ form.buyer_telefono or '' }}" placeholder="300 123 4567">
+        </div>
+        <div class="tg-field">
+          <label>Elige tu dirección web</label>
+          <div class="tg-sub-row">
+            <input type="text" name="subdominio" required minlength="3" maxlength="40"
+                   value="{{ form.subdominio or '' }}" placeholder="minegocio"
+                   pattern="[a-z0-9]+(-[a-z0-9]+)*" style="text-transform:lowercase">
+            <span class="tg-domain">.cybershopcol.com</span>
+          </div>
+          <div class="tg-hint">Solo minúsculas, números y guiones. Luego puedes conectar tu dominio propio.</div>
+        </div>
+        <button type="submit" class="tg-btn">Crear mi tienda gratis →</button>
+        <p class="tg-hint" style="text-align:center;margin-top:12px">
+          Al continuar aceptas los términos del servicio. Tus datos se conservan si decides no seguir.
+        </p>
+      </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

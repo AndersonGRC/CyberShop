@@ -301,6 +301,16 @@ def inject_config_global():
         'whatsapp': bool(brand.get('empresa_whatsapp')),
     }
 
+    # Banner de PRUEBA GRATIS: si esta instancia es un trial (llaves sembradas
+    # en cliente_config al crearla), el staff ve "te quedan N días" con el link
+    # de pago. Barato: 2 claves leídas con caché de proceso (TTL 10 min).
+    trial_info = None
+    if session_usuario and session_usuario.get('rol_id') in (1, 2, 4):
+        try:
+            trial_info = _trial_banner_info()
+        except Exception:
+            trial_info = None
+
     return dict(
         config_global=config,
         brand_config=brand,
@@ -309,7 +319,36 @@ def inject_config_global():
         active_modules=active_modules,
         current_tenant_id=current_tenant_id,
         integraciones=integraciones,
+        trial_info=trial_info,
     )
+
+
+_TRIAL_CACHE = {'ts': 0, 'data': None}
+
+
+def _trial_banner_info():
+    """{'dias': N, 'url': ...} si la instancia está en prueba gratis; None si no."""
+    import time as _time
+    from datetime import date as _date
+    if _time.time() - _TRIAL_CACHE['ts'] < 600:
+        return _TRIAL_CACHE['data']
+    data = None
+    try:
+        from database import get_db_cursor
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT clave, valor FROM cliente_config "
+                        "WHERE clave IN ('trial_hasta','trial_renovar_url')")
+            filas = {r['clave']: r['valor'] for r in cur.fetchall()}
+        if filas.get('trial_hasta') and filas.get('trial_renovar_url'):
+            hasta = _date.fromisoformat(filas['trial_hasta'][:10])
+            data = {'dias': max(0, (hasta - _date.today()).days),
+                    'hasta': hasta.strftime('%d/%m/%Y'),
+                    'url': filas['trial_renovar_url']}
+    except Exception:
+        data = None
+    _TRIAL_CACHE['ts'] = _time.time()
+    _TRIAL_CACHE['data'] = data
+    return data
 
 # --- Security headers ---
 @app.after_request

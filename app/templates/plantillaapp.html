@@ -90,6 +90,20 @@
 
     <!-- Sección principal -->
     <main>
+        {% if trial_info %}
+        <div style="background:linear-gradient(90deg,#fff7e0,#ffefc2);border:1px solid #f0d48a;
+                    border-radius:12px;margin:10px 14px 0;padding:10px 16px;display:flex;
+                    align-items:center;gap:12px;flex-wrap:wrap;font-size:14px;color:#7a5c00;">
+            <span style="font-size:18px">🎁</span>
+            <span><strong>Prueba gratis:</strong>
+              {% if trial_info.dias > 0 %}te quedan <strong>{{ trial_info.dias }} día(s)</strong> (hasta el {{ trial_info.hasta }}).{% else %}vence <strong>hoy</strong>.{% endif %}
+              Activa tu plan para no perder acceso.</span>
+            <a href="{{ trial_info.url }}" target="_blank" rel="noopener"
+               style="margin-left:auto;background:#122C94;color:#fff;border-radius:9px;
+                      padding:8px 18px;font-weight:700;text-decoration:none;white-space:nowrap;">
+               Activar mi plan</a>
+        </div>
+        {% endif %}
         {% block body %}{% endblock %}
     </main>
 

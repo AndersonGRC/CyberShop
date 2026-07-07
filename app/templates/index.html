@@ -1,5 +1,20 @@
 {%extends './plantillaindex.html'%}
 {%block titulo%}{{datosApp.titulo}}{%endblock%}
+{% block jsonld %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": {{ datosApp.titulo | tojson }},
+  "url": {{ request.url_root | tojson }},
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": {{ (url_for('public.productos', _external=True) ~ '?buscar={search_term_string}') | tojson }},
+    "query-input": "required name=search_term_string"
+  }
+}
+</script>
+{% endblock %}
 
 {% block LinkAdicional%}
 <script type="text/javascript" src="{{ url_for('static', filename='js/galeriaprincipal.js') }}" defer></script>

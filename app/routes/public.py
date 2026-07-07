@@ -809,6 +809,101 @@ def comprar_plan(plan_id):
 # VENTA AUTOMÁTICA: activación de tienda y renovación de planes
 # ════════════════════════════════════════════════════════════════
 
+@public_bp.route('/prueba-gratis', methods=['GET', 'POST'])
+def prueba_gratis():
+    """Registro self-service de la PRUEBA GRATIS de 15 días (plan Ultra, sin
+    pago ni tarjeta). Verifica el email antes de crear nada: la tienda se crea
+    al confirmar el enlace enviado al correo."""
+    from services import plan_compras_service as pcs
+    from services.venta_automatica_service import validar_slug
+
+    if not is_public_section_enabled('mostrar_modulo_software', False):
+        return redirect(url_for('public.index'))
+
+    datosApp = get_common_data()
+    try:
+        from services.public_site_service import get_brand_config
+        brand = get_brand_config() or {}
+    except Exception:
+        brand = {}
+    sw_colors = _software_colors(brand)
+    form = {}
+    error = None
+
+    if request.method == 'POST':
+        # Antiabuso: honeypot + rate limit por IP (mismo patrón de /descargar)
+        if (request.form.get('website2') or '').strip():
+            return redirect(url_for('public.index'))
+        from security import controlar_tasa_solicitudes
+        ip = request.headers.get('X-Forwarded-For', request.remote_addr or '?').split(',')[0].strip()
+        if not controlar_tasa_solicitudes(f"trial:{ip}", max_requests=5, interval=600):
+            error = 'Demasiados intentos. Espera unos minutos e intenta de nuevo.'
+
+        form = {k: (request.form.get(k) or '').strip()
+                for k in ('nombre_negocio', 'buyer_nombre', 'buyer_email',
+                          'buyer_telefono', 'subdominio')}
+        slug, slug_err = validar_slug(form['subdominio'])
+        if not error:
+            if len(form['nombre_negocio']) < 3:
+                error = 'Escribe el nombre de tu negocio (mínimo 3 caracteres).'
+            elif len(form['buyer_nombre']) < 3:
+                error = 'Escribe tu nombre.'
+            elif '@' not in form['buyer_email'] or len(form['buyer_email']) < 6:
+                error = 'Escribe un correo válido.'
+            elif slug_err:
+                error = slug_err
+
+        if not error:
+            compra_id, res = pcs.crear_trial(
+                form['nombre_negocio'], form['buyer_nombre'],
+                form['buyer_email'], slug, telefono=form['buyer_telefono'])
+            if compra_id is None:
+                error = res
+            else:
+                from helpers_email_templates import generar_email_confirmacion_trial
+                from helpers_gmail import enviar_email_gmail
+                compra = pcs.get_por_id(compra_id)
+                confirmar_url = url_for('public.prueba_gratis_confirmar',
+                                        token=res, _external=True)
+                try:
+                    asunto, texto, html = generar_email_confirmacion_trial(compra, confirmar_url)
+                    enviar_email_gmail(form['buyer_email'], asunto, texto, html=html)
+                except Exception as exc:  # noqa: BLE001
+                    app.logger.error(f"trial: email de confirmación falló: {exc}")
+                    error = 'No pudimos enviar el correo de confirmación. Intenta de nuevo.'
+                if not error:
+                    return render_template('prueba_gratis.html', datosApp=datosApp,
+                                           enviado=True, email_destino=form['buyer_email'],
+                                           form={}, error=None, **sw_colors)
+
+    return render_template('prueba_gratis.html', datosApp=datosApp, enviado=False,
+                           form=form, error=error, **sw_colors)
+
+
+@public_bp.route('/prueba-gratis/confirmar/<token>')
+def prueba_gratis_confirmar(token):
+    """El usuario confirmó su correo: dispara la creación de la tienda trial
+    (mismo camino que una compra pagada) y muestra el progreso en la página
+    de activación existente."""
+    from services import plan_compras_service as pcs
+    from services.venta_automatica_service import activar_tienda_async
+
+    compra = pcs.get_por_token(token)
+    if not compra or not compra.get('es_trial'):
+        flash('El enlace de confirmación no es válido.', 'error')
+        return redirect(url_for('public.index'))
+
+    if pcs.marcar_trial_verificado(compra['id']):
+        # Ya tenemos slug y nombre del negocio desde el registro: activar directo
+        if pcs.marcar_activando(compra['id'], compra['slug']):
+            from flask import current_app
+            activar_tienda_async(current_app._get_current_object(),
+                                 compra['id'], compra['slug'],
+                                 compra.get('nombre_negocio') or compra['slug'])
+    # Reutiliza la página de activación (muestra ACTIVANDO → ACTIVADA / ERROR)
+    return redirect(url_for('public.activar_tienda', token=token))
+
+
 @public_bp.route('/activar-tienda/<token>', methods=['GET', 'POST'])
 def activar_tienda(token):
     """Página de activación post-pago: el cliente elige nombre del negocio y
