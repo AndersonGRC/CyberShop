@@ -330,10 +330,21 @@ def descargar_plantilla_productos():
     import io
     
     # Definir las columnas exactas requeridas
-    columnas = ['Nombre del Producto', 'Referencia', 'Género', 'Descripción', 'Precio', 'Visible en E-commerce']
-    
-    # Crear un DataFrame vacío con esas columnas
-    df = pd.DataFrame(columns=columnas)
+    columnas = ['Nombre del Producto', 'Referencia', 'Género', 'Descripción', 'Precio',
+                'Costo', 'Stock inicial', 'Stock mínimo', 'Visible en E-commerce']
+
+    # Crear un DataFrame con una fila de EJEMPLO para orientar al usuario
+    df = pd.DataFrame([{
+        'Nombre del Producto': 'Pan blanco (EJEMPLO — borra esta fila)',
+        'Referencia': 'PAN-001',
+        'Género': '',
+        'Descripción': 'Pan artesanal',
+        'Precio': 1000,
+        'Costo': 600,
+        'Stock inicial': 50,
+        'Stock mínimo': 10,
+        'Visible en E-commerce': 'Sí',
+    }], columns=columnas)
     
     # Escribir el DataFrame en un buffer de memoria como Excel
     output = io.BytesIO()
@@ -403,6 +414,23 @@ def cargue_masivo_productos():
                 precio = float(row['Precio'])
                 visible_en_ecommerce = _parse_excel_visible_value(row.get('Visible en E-commerce'))
 
+                # Columnas opcionales (si no vienen, quedan en 0)
+                def _cell(col):
+                    v = row.get(col)
+                    if v is None or pd.isna(v):
+                        return 0
+                    try:
+                        return float(str(v).replace(',', '.'))
+                    except (TypeError, ValueError):
+                        return 0
+                costo = _cell('Costo')
+                stock_inicial = int(_cell('Stock inicial'))
+                stock_minimo = int(_cell('Stock mínimo'))
+
+                # Fila de ejemplo de la plantilla: se ignora silenciosamente
+                if 'EJEMPLO' in nombre.upper():
+                    continue
+
                 if not nombre or not referencia:
                     errores.append(f"Fila {index+2}: El nombre y la referencia no pueden quedar vacíos.")
                     continue
@@ -431,8 +459,10 @@ def cargue_masivo_productos():
                     referencia=referencia,
                     genero_id=genero_id,
                     descripcion=descripcion,
-                    stock=0,
+                    stock=stock_inicial,
                     visible_en_ecommerce=visible_en_ecommerce,
+                    costo=costo,
+                    stock_minimo=stock_minimo,
                 )
                 
                 # Insertar en base de datos
@@ -1147,22 +1177,35 @@ def gestion_inventario():
 def exportar_inventario():
     """Genera y descarga un CSV del inventario."""
     try:
+        _has_costo = _table_has_column('productos', 'costo')
+        _has_min = _table_has_column('productos', 'stock_minimo')
+        _sel_costo = ', p.costo' if _has_costo else ', 0 AS costo'
+        _sel_min = ', p.stock_minimo' if _has_min else ', 0 AS stock_minimo'
         with get_db_cursor(dict_cursor=True) as cur:
             _wact = ' WHERE COALESCE(p.active, TRUE) = TRUE' if _table_has_column('productos', 'active') else ''
-            cur.execute(f'SELECT p.id, p.nombre, p.referencia, p.precio, p.stock, g.nombre as categoria FROM productos p JOIN generos g ON p.genero_id = g.id{_wact} ORDER BY p.id')
+            cur.execute(f'SELECT p.id, p.nombre, p.referencia, p.precio, p.stock{_sel_costo}{_sel_min}, g.nombre as categoria '
+                        f'FROM productos p JOIN generos g ON p.genero_id = g.id{_wact} ORDER BY p.id')
             productos = cur.fetchall()
-        
-        # Crear CSV en memoria
+
+        # Crear CSV en memoria (UTF-8 con BOM para que Excel muestre bien las tildes)
         si = io.StringIO()
+        si.write('﻿')
         cw = csv.writer(si)
-        cw.writerow(['ID', 'Nombre', 'Referencia', 'Categoria', 'Precio', 'Stock', 'Valor Total'])
-        
+        cw.writerow(['ID', 'Nombre', 'Referencia', 'Categoria', 'Precio', 'Costo', 'Margen unitario',
+                     'Stock', 'Stock minimo', 'Valor venta (Precio x Stock)', 'Valor costo (Costo x Stock)'])
+
         for p in productos:
-            valor = p['precio'] * p['stock']
-            cw.writerow([p['id'], p['nombre'], p['referencia'], p['categoria'], p['precio'], p['stock'], valor])
-            
+            precio = float(p['precio'] or 0)
+            costo = float(p['costo'] or 0)
+            stock = int(p['stock'] or 0)
+            margen = precio - costo
+            cw.writerow([p['id'], p['nombre'], p['referencia'], p['categoria'],
+                         precio, costo, margen, stock, int(p['stock_minimo'] or 0),
+                         precio * stock, costo * stock])
+
         output = si.getvalue()
-        return Response(output, mimetype='text/csv', headers={"Content-Disposition": "attachment;filename=inventario.csv"})
+        return Response(output, mimetype='text/csv; charset=utf-8',
+                        headers={"Content-Disposition": "attachment;filename=inventario.csv"})
         
     except Exception as e:
         current_app.logger.error(f"Error exportando CSV: {e}")
