@@ -51,16 +51,12 @@ def optimizar_imagen(ruta, max_ancho=MAX_ANCHO):
                          optimize=True, progressive=True)
             elif ext == '.webp':
                 img.save(tmp, 'WEBP', quality=JPEG_QUALITY, method=6)
-            else:  # PNG
-                tiene_alpha = img.mode in ('RGBA', 'LA') or (
-                    img.mode == 'P' and 'transparency' in img.info)
-                if tiene_alpha:
-                    img.save(tmp, 'PNG', optimize=True)
-                else:
-                    # PNG opaco (fotos exportadas como PNG): JPEG rinde 5-10x
-                    img = img.convert('RGB')
-                    img.save(tmp, 'JPEG', quality=JPEG_QUALITY,
-                             optimize=True, progressive=True)
+            else:  # PNG: SIEMPRE se re-guarda como PNG (mismo formato que la
+                    # extensión — nunca bytes JPEG bajo un nombre .png). El
+                    # resize a 1600px ya da el grueso del ahorro.
+                if img.mode == 'P':
+                    img = img.convert('RGBA' if 'transparency' in img.info else 'RGB')
+                img.save(tmp, 'PNG', optimize=True)
 
         despues = os.path.getsize(tmp)
         if despues < antes:

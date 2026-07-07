@@ -141,8 +141,10 @@ def productos_categoria(genero_id, slug):
         return redirect(url_for('public.productos'))
     slug_real = _slugify(genero['nombre'])
     if slug != slug_real:
-        return redirect(url_for('public.productos_categoria',
-                                genero_id=genero_id, slug=slug_real), 301)
+        destino = url_for('public.productos_categoria',
+                          genero_id=genero_id, slug=slug_real)
+        qs = request.query_string.decode()
+        return redirect(destino + ('?' + qs if qs else ''), 301)
     return _render_catalogo(categoria_forzada=genero_id, seo_categoria=genero)
 
 
@@ -396,9 +398,10 @@ def detalle_producto(producto_id, slug=None):
             # SEO: 301 a la URL canónica con slug (id manda; slug decorativo)
             slug_real = producto.get('slug')
             if slug_real and slug != slug_real:
-                return redirect(url_for('public.detalle_producto',
-                                        producto_id=producto_id, slug=slug_real),
-                                301)
+                destino = url_for('public.detalle_producto',
+                                  producto_id=producto_id, slug=slug_real)
+                qs = request.query_string.decode()
+                return redirect(destino + ('?' + qs if qs else ''), 301)
             producto['precio_fmt'] = formatear_moneda(float(producto['precio']))
             cur.execute('''
                 SELECT imagen_url
