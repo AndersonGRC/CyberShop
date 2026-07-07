@@ -9,8 +9,10 @@ def test_plantilla_incluye_costo_y_stock(as_propietario):
     r = as_propietario.get('/descargar-plantilla-productos')
     assert r.status_code == 200
     df = pd.read_excel(io.BytesIO(r.data))
-    for col in ['Costo', 'Stock inicial', 'Stock mínimo']:
+    for col in ['Costo', 'Stock inicial']:
         assert col in df.columns, f"falta columna {col} en la plantilla"
+    # Stock mínimo es automático (5), ya NO es una columna capturable
+    assert 'Stock mínimo' not in df.columns
 
 
 def test_csv_export_incluye_costo_y_margen(as_propietario):
@@ -32,7 +34,7 @@ def test_carga_masiva_lee_costo_stock(as_propietario, cursor):
     df = pd.DataFrame([{
         'Nombre del Producto': 'PYTEST-MASIVO', 'Referencia': ref, 'Género': genero,
         'Descripción': 'x', 'Precio': 1000, 'Costo': 600,
-        'Stock inicial': 7, 'Stock mínimo': 3, 'Visible en E-commerce': 'Sí',
+        'Stock inicial': 7, 'Visible en E-commerce': 'Sí',
     }])
     buf = io.BytesIO()
     with pd.ExcelWriter(buf, engine='openpyxl') as w:
@@ -49,7 +51,7 @@ def test_carga_masiva_lee_costo_stock(as_propietario, cursor):
         assert row, "el producto no se creo por carga masiva"
         assert float(row['costo']) == 600
         assert int(row['stock']) == 7
-        assert int(row['stock_minimo']) == 3
+        assert int(row['stock_minimo']) == 5   # automatico
     finally:
         with cursor() as cur:
             cur.execute("DELETE FROM productos WHERE referencia=%s", (ref,))

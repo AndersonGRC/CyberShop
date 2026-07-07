@@ -187,9 +187,7 @@ def _build_product_insert_data(*, imagen, nombre, precio, referencia, genero_id,
     if schema['has_costo']:
         columns.append('costo')
         values.append(_num(costo))
-    if schema['has_stock_minimo']:
-        columns.append('stock_minimo')
-        values.append(int(_num(stock_minimo)))
+    # stock_minimo es AUTOMATICO (default 5 en la BD) — no se captura por producto.
     if schema['has_impuesto']:
         columns.append('impuesto')
         values.append(_norm_impuesto(impuesto))
@@ -284,7 +282,6 @@ def GestionProductos():
             descripcion = request.form.get('descripcion')
             stock = request.form.get('stock', 0)
             costo = request.form.get('costo', 0)
-            stock_minimo = request.form.get('stock_minimo', 0)
             impuesto = request.form.get('impuesto')
             unidad_medida = request.form.get('unidad_medida')
             visible_en_ecommerce = _parse_visible_en_ecommerce(
@@ -313,7 +310,6 @@ def GestionProductos():
                 stock=stock,
                 visible_en_ecommerce=visible_en_ecommerce,
                 costo=costo,
-                stock_minimo=stock_minimo,
                 impuesto=impuesto,
                 unidad_medida=unidad_medida,
             )
@@ -372,7 +368,7 @@ def descargar_plantilla_productos():
     
     # Definir las columnas exactas requeridas
     columnas = ['Nombre del Producto', 'Referencia', 'Género', 'Descripción', 'Precio',
-                'Costo', 'Stock inicial', 'Stock mínimo', 'IVA', 'Unidad', 'Visible en E-commerce']
+                'Costo', 'Stock inicial', 'IVA', 'Unidad', 'Visible en E-commerce']
 
     # Crear un DataFrame con una fila de EJEMPLO para orientar al usuario
     df = pd.DataFrame([{
@@ -383,7 +379,6 @@ def descargar_plantilla_productos():
         'Precio': 1000,
         'Costo': 600,
         'Stock inicial': 50,
-        'Stock mínimo': 10,
         'IVA': 'excluido',
         'Unidad': 'unidad',
         'Visible en E-commerce': 'Sí',
@@ -468,7 +463,6 @@ def cargue_masivo_productos():
                         return 0
                 costo = _cell('Costo')
                 stock_inicial = int(_cell('Stock inicial'))
-                stock_minimo = int(_cell('Stock mínimo'))
                 impuesto_val = None if pd.isna(row.get('IVA')) else row.get('IVA')
                 unidad_val = None if pd.isna(row.get('Unidad')) else row.get('Unidad')
 
@@ -507,7 +501,6 @@ def cargue_masivo_productos():
                     stock=stock_inicial,
                     visible_en_ecommerce=visible_en_ecommerce,
                     costo=costo,
-                    stock_minimo=stock_minimo,
                     impuesto=impuesto_val,
                     unidad_medida=unidad_val,
                 )
@@ -639,9 +632,6 @@ def editar_producto(id):
             if _table_has_column('productos', 'costo'):
                 update_sql += ', costo=%s'
                 update_params.append(_num(request.form.get('costo', 0)))
-            if _table_has_column('productos', 'stock_minimo'):
-                update_sql += ', stock_minimo=%s'
-                update_params.append(int(_num(request.form.get('stock_minimo', 0))))
             if _table_has_column('productos', 'impuesto'):
                 update_sql += ', impuesto=%s'
                 update_params.append(_norm_impuesto(request.form.get('impuesto')))
