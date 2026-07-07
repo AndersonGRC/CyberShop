@@ -224,6 +224,7 @@ def get_data_app():
             "icono": "newspaper",
             "module_code": MODULE_CONTENT,
             "submodulos": [
+                {"nombre": "Blog (SEO)", "url": "blog_admin.lista", "icono": "blog", "permiso": ("content", "ver")},
                 {"nombre": "Publicaciones", "url": "admin.gestion_publicaciones", "icono": "newspaper", "permiso": ("content", "ver")},
                 {"nombre": "Slides", "url": "admin.gestion_slides", "icono": "images", "permiso": ("content", "ver")},
                 {"nombre": "Servicios", "url": "admin.gestion_servicios", "icono": "concierge-bell", "permiso": ("content", "ver")},

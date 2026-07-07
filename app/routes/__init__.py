@@ -81,6 +81,10 @@ def register_blueprints(app):
     from routes.roles_permisos import roles_permisos_bp
     app.register_blueprint(roles_permisos_bp)
 
+    # Blog SEO (articulos con pagina propia + asistente IA)
+    from routes.blog_admin import blog_admin_bp
+    app.register_blueprint(blog_admin_bp)
+
     # API REST v1 (habilitada con CYBERSHOP_API_ENABLED=1)
     if os.getenv('CYBERSHOP_API_ENABLED', '0') == '1':
         from routes.api_auth import api_auth_bp

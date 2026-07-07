@@ -1,0 +1,91 @@
+{% extends './plantillaindex.html' %}
+
+{% block titulo %}Contáctanos — {{ datosApp.titulo }}{% endblock %}
+{% block meta_description %}Contacta a {{ datosApp.titulo }}{% if brand_config.empresa_telefono %} — Tel: {{ brand_config.empresa_telefono }}{% endif %}{% if brand_config.empresa_direccion %} — {{ brand_config.empresa_direccion }}{% endif %}. Te respondemos rápido.{% endblock %}
+{% block jsonld %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ContactPage",
+  "name": "Contáctanos — {{ datosApp.titulo }}",
+  "url": {{ request.base_url | tojson }}
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Inicio", "item": {{ url_for('public.index', _external=True) | tojson }}},
+    {"@type": "ListItem", "position": 2, "name": "Contáctanos"}
+  ]
+}
+</script>
+{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+  .ct-wrap { max-width: 920px; margin: 0 auto; padding: 46px 18px 70px; }
+  .ct-wrap h1 { color: var(--color-primario, #122C94); font-size: 2rem; margin: 0 0 8px; }
+  .ct-sub { color: #5b6575; margin: 0 0 28px; }
+  .ct-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 26px; }
+  @media (max-width: 760px) { .ct-grid { grid-template-columns: 1fr; } }
+  .ct-datos { background: #f5f7fb; border-radius: 16px; padding: 26px; }
+  .ct-datos .ct-item { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 16px; color: #2c3444; }
+  .ct-datos .ct-item i { color: var(--color-primario, #122C94); width: 20px; margin-top: 3px; }
+  .ct-datos a { color: var(--color-primario, #122C94); text-decoration: none; }
+  .ct-form { background: #fff; border: 1px solid #e9edf6; border-radius: 16px; padding: 26px;
+             box-shadow: 0 8px 26px rgba(18,44,148,.07); }
+  .ct-form label { display: block; font-weight: 700; font-size: .84rem; color: #33405c; margin: 12px 0 5px; }
+  .ct-form input, .ct-form textarea { width: 100%; box-sizing: border-box; border: 1.5px solid #dbe2f0;
+             border-radius: 9px; padding: 11px 13px; font-size: 14px; font-family: inherit; }
+  .ct-form textarea { min-height: 120px; }
+  .ct-form button { margin-top: 16px; width: 100%; border: 0; border-radius: 11px; padding: 13px;
+             font-weight: 800; font-size: 15px; color: #fff; cursor: pointer;
+             background: var(--color-primario, #122C94); }
+  .ct-mapa { margin-top: 28px; border-radius: 16px; overflow: hidden; }
+  .ct-mapa iframe { width: 100%; height: 320px; border: 0; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="ct-wrap">
+  <h1>Contáctanos</h1>
+  <p class="ct-sub">Escríbenos y te respondemos lo antes posible.</p>
+  <div class="ct-grid">
+    <div class="ct-datos">
+      {% if brand_config.empresa_telefono %}
+      <div class="ct-item"><i class="fas fa-phone"></i>
+        <span><strong>Teléfono</strong><br><a href="tel:{{ brand_config.empresa_telefono | replace(' ', '') }}">{{ brand_config.empresa_telefono }}</a></span></div>
+      {% endif %}
+      {% if brand_config.empresa_whatsapp %}
+      <div class="ct-item"><i class="fab fa-whatsapp"></i>
+        <span><strong>WhatsApp</strong><br><a href="https://wa.me/{{ brand_config.empresa_whatsapp | replace(' ', '') | replace('+', '') }}" target="_blank" rel="noopener">Escríbenos</a></span></div>
+      {% endif %}
+      {% if brand_config.empresa_email %}
+      <div class="ct-item"><i class="fas fa-envelope"></i>
+        <span><strong>Correo</strong><br><a href="mailto:{{ brand_config.empresa_email }}">{{ brand_config.empresa_email }}</a></span></div>
+      {% endif %}
+      {% if brand_config.empresa_direccion %}
+      <div class="ct-item"><i class="fas fa-map-marker-alt"></i>
+        <span><strong>Dirección</strong><br>{{ brand_config.empresa_direccion }}</span></div>
+      {% endif %}
+    </div>
+    <div class="ct-form">
+      <form method="POST" action="{{ url_for('public.enviar_mensaje') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>Tu nombre</label>
+        <input type="text" name="nombre" required maxlength="100">
+        <label>Tu correo</label>
+        <input type="email" name="email" required maxlength="150">
+        <label>Mensaje</label>
+        <textarea name="mensaje" required maxlength="2000"></textarea>
+        <button type="submit"><i class="fas fa-paper-plane"></i> Enviar mensaje</button>
+      </form>
+    </div>
+  </div>
+  {% if brand_config.empresa_maps_embed and config_global.get('mostrar_mapa', True) %}
+  <div class="ct-mapa">{{ brand_config.empresa_maps_embed | safe }}</div>
+  {% endif %}
+</div>
+{% endblock %}

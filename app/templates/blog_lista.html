@@ -1,0 +1,78 @@
+{% extends './plantillaindex.html' %}
+
+{% block titulo %}Blog — {{ datosApp.titulo }}{% endblock %}
+{% block meta_description %}Consejos, guías y novedades de {{ datosApp.titulo }} para hacer crecer tu negocio.{% endblock %}
+{% block jsonld %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Inicio", "item": {{ url_for('public.index', _external=True) | tojson }}},
+    {"@type": "ListItem", "position": 2, "name": "Blog"}
+  ]
+}
+</script>
+{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+  .blog-wrap { max-width: 1080px; margin: 0 auto; padding: 46px 18px 70px; }
+  .blog-wrap h1 { color: var(--color-primario, #122C94); font-size: 2rem; margin: 0 0 6px; }
+  .blog-wrap .blog-sub { color: #5b6575; margin: 0 0 30px; }
+  .blog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 22px; }
+  .blog-card {
+    background: #fff; border-radius: 16px; overflow: hidden; border: 1px solid #e9edf6;
+    box-shadow: 0 8px 26px rgba(18,44,148,.07); display: flex; flex-direction: column;
+    transition: transform .15s, box-shadow .15s; text-decoration: none; color: inherit;
+  }
+  .blog-card:hover { transform: translateY(-4px); box-shadow: 0 14px 34px rgba(18,44,148,.13); }
+  .blog-card img { width: 100%; height: 170px; object-fit: cover; }
+  .blog-card .bc-body { padding: 18px 20px 22px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .blog-card h2 { font-size: 1.05rem; margin: 0; color: #1c2433; line-height: 1.35; }
+  .blog-card p { font-size: .88rem; color: #5b6575; margin: 0; line-height: 1.5; flex: 1; }
+  .blog-card .bc-meta { font-size: .75rem; color: #93a; color: #8a93a6; }
+  .blog-pag { display: flex; justify-content: center; gap: 8px; margin-top: 34px; }
+  .blog-pag a, .blog-pag span {
+    padding: 8px 14px; border-radius: 9px; border: 1px solid #e0e5f0; text-decoration: none;
+    color: var(--color-primario, #122C94); font-weight: 600; font-size: .9rem;
+  }
+  .blog-pag .actual { background: var(--color-primario, #122C94); color: #fff; border-color: transparent; }
+  .blog-vacio { text-align: center; color: #8a93a6; padding: 70px 0; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="blog-wrap">
+  <h1>Blog</h1>
+  <p class="blog-sub">Consejos y novedades de {{ datosApp.titulo }} para tu negocio.</p>
+
+  {% if posts %}
+  <div class="blog-grid">
+    {% for p in posts %}
+    <a class="blog-card" href="{{ url_for('public.blog_post', slug=p.slug) }}">
+      {% if p.imagen %}<img src="{{ p.imagen }}" alt="{{ p.titulo }}" loading="lazy">{% endif %}
+      <div class="bc-body">
+        <h2>{{ p.titulo }}</h2>
+        {% if p.extracto %}<p>{{ p.extracto }}</p>{% endif %}
+        <span class="bc-meta">
+          {% if p.fecha_publicado %}{{ p.fecha_publicado.strftime('%d/%m/%Y') }}{% endif %}
+          {% if p.autor %} · {{ p.autor }}{% endif %}
+        </span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% if total_paginas > 1 %}
+  <div class="blog-pag">
+    {% for n in range(1, total_paginas + 1) %}
+      {% if n == pagina %}<span class="actual">{{ n }}</span>
+      {% else %}<a href="{{ url_for('public.blog_lista', pagina=n) }}">{{ n }}</a>{% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% else %}
+  <div class="blog-vacio">Aún no hay artículos publicados. ¡Vuelve pronto!</div>
+  {% endif %}
+</div>
+{% endblock %}

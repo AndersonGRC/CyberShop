@@ -82,6 +82,12 @@ PUBLIC_SECTION_FIELDS = [
         'default': True,
     },
     {
+        'key': 'mostrar_blog',
+        'label': 'Blog (SEO)',
+        'description': 'Activa el blog público (/blog) con los artículos publicados desde el panel. Ayuda a que Google encuentre tu negocio. Apagado por defecto.',
+        'default': False,
+    },
+    {
         'key': 'mostrar_modulo_software',
         'label': 'Módulo Software POS',
         'description': 'Habilita la venta del Software CyberShop en este sitio: pestaña del menú, landing /software, /descargar y checkout de planes. Apagado por defecto (solo para sitios que comercializan el software).',

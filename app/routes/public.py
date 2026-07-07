@@ -121,12 +121,48 @@ def index():
 @public_bp.route('/productos')
 def productos():
     """Catalogo de productos con filtros, busqueda y orden."""
+    return _render_catalogo()
+
+
+@public_bp.route('/productos/categoria/<int:genero_id>-<slug>')
+def productos_categoria(genero_id, slug):
+    """Página de CATEGORÍA indexable (SEO): misma grilla del catálogo pero con
+    URL semántica, H1/meta propios y canonical. El slug es decorativo: si no
+    coincide con el nombre actual del género → 301 a la URL correcta."""
+    if not is_public_section_enabled('mostrar_modulo_ventas', True):
+        return redirect(url_for('public.index'))
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute('SELECT id, nombre FROM generos WHERE id = %s', (genero_id,))
+            genero = cur.fetchone()
+    except Exception:
+        genero = None
+    if not genero:
+        return redirect(url_for('public.productos'))
+    slug_real = _slugify(genero['nombre'])
+    if slug != slug_real:
+        return redirect(url_for('public.productos_categoria',
+                                genero_id=genero_id, slug=slug_real), 301)
+    return _render_catalogo(categoria_forzada=genero_id, seo_categoria=genero)
+
+
+def _slugify(texto):
+    """nombre → slug URL (mismo criterio del backfill SQL de productos)."""
+    import re as _re
+    t = (texto or '').lower()
+    t = t.translate(str.maketrans('áéíóúüñ', 'aeiouun'))
+    t = _re.sub(r'[^a-z0-9]+', '-', t).strip('-')
+    return t or 'categoria'
+
+
+def _render_catalogo(categoria_forzada=None, seo_categoria=None):
+    """Núcleo compartido de /productos y /productos/categoria/... (SEO)."""
     if not is_public_section_enabled('mostrar_modulo_ventas', True):
         return redirect(url_for('public.index'))
 
     # Parámetros de filtro desde URL
     q          = request.args.get('q', '').strip()
-    categoria  = request.args.get('categoria', '')
+    categoria  = str(categoria_forzada) if categoria_forzada else request.args.get('categoria', '')
     orden      = request.args.get('orden', '')
     precio_min = request.args.get('precio_min', '')
     precio_max = request.args.get('precio_max', '')
@@ -244,7 +280,66 @@ def productos():
                                         precio_min=precio_min, precio_max=precio_max),
                            filtros_activos=filtros_activos,
                            pagina=pagina, total_paginas=total_paginas,
-                           total_productos=total_productos)
+                           total_productos=total_productos,
+                           seo_categoria=seo_categoria)
+
+
+@public_bp.route('/blog')
+def blog_lista():
+    """Listado del blog del tenant (SEO). Solo si activó la sección
+    'mostrar_blog' (default OFF: cada dueño decide si su tienda tiene blog)."""
+    if not is_public_section_enabled('mostrar_blog', False):
+        return redirect(url_for('public.index'))
+    datosApp = get_common_data()
+    try:
+        pagina = max(1, int(request.args.get('pagina', 1)))
+    except (ValueError, TypeError):
+        pagina = 1
+    por_pagina = 9
+    posts, total = [], 0
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT COUNT(*) AS n FROM blog_posts WHERE estado = 'publicado'")
+            total = cur.fetchone()['n']
+            cur.execute("""
+                SELECT slug, titulo, extracto, imagen, fecha_publicado, autor
+                FROM blog_posts WHERE estado = 'publicado'
+                ORDER BY fecha_publicado DESC
+                LIMIT %s OFFSET %s
+            """, (por_pagina, (pagina - 1) * por_pagina))
+            posts = cur.fetchall()
+    except Exception as e:
+        app.logger.warning(f"blog: {e}")
+    import math
+    total_paginas = math.ceil(total / por_pagina) if total else 1
+    return render_template('blog_lista.html', datosApp=datosApp, posts=posts,
+                           pagina=pagina, total_paginas=total_paginas)
+
+
+@public_bp.route('/blog/<slug>')
+def blog_post(slug):
+    """Artículo del blog con schema Article (SEO)."""
+    if not is_public_section_enabled('mostrar_blog', False):
+        return redirect(url_for('public.index'))
+    datosApp = get_common_data()
+    post = None
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT * FROM blog_posts WHERE slug = %s AND estado = 'publicado'",
+                        (slug,))
+            post = cur.fetchone()
+            recientes = []
+            if post:
+                cur.execute("""SELECT slug, titulo FROM blog_posts
+                               WHERE estado = 'publicado' AND slug <> %s
+                               ORDER BY fecha_publicado DESC LIMIT 4""", (slug,))
+                recientes = cur.fetchall()
+    except Exception as e:
+        app.logger.warning(f"blog post: {e}")
+    if not post:
+        return render_template('404.html'), 404
+    return render_template('blog_post.html', datosApp=datosApp, post=post,
+                           recientes=recientes)
 
 
 @public_bp.route('/servicios')
@@ -261,19 +356,26 @@ def servicios():
 
 @public_bp.route('/quienes_somos')
 def quienes_somos():
-    """Redirige a la seccion 'Quienes somos' en la pagina principal."""
-    return redirect(url_for('public.index', _anchor='quienes_somos'))
+    """Página propia (SEO): reutiliza el contenido editable del home
+    (about/misión/visión de get_public_home_content)."""
+    return render_template('quienes_somos.html', datosApp=get_common_data(),
+                           public_content=get_public_home_content())
 
 
 @public_bp.route('/contactenos')
 def contactenos():
-    """Redirige a la seccion de contacto en la pagina principal."""
-    return redirect(url_for('public.index', _anchor='contactenos'))
+    """Página propia de contacto (SEO): datos NAP del tenant + formulario
+    (reutiliza el endpoint /enviar-mensaje del home)."""
+    return render_template('contactenos.html', datosApp=get_common_data())
 
 
 @public_bp.route('/producto/<int:producto_id>')
-def detalle_producto(producto_id):
-    """Página de detalle de un producto individual."""
+@public_bp.route('/producto/<int:producto_id>-<slug>')
+def detalle_producto(producto_id, slug=None):
+    """Página de detalle de un producto individual.
+
+    SEO: la URL canónica lleva slug (/producto/12-bateria-hp). El id manda:
+    /producto/12 o un slug viejo hacen 301 a la URL con el slug actual."""
     if not is_public_section_enabled('mostrar_modulo_ventas', True):
         return redirect(url_for('public.index'))
     datosApp = get_common_data()
@@ -291,6 +393,12 @@ def detalle_producto(producto_id):
             if not producto:
                 return render_template('404.html'), 404
             producto = dict(producto)
+            # SEO: 301 a la URL canónica con slug (id manda; slug decorativo)
+            slug_real = producto.get('slug')
+            if slug_real and slug != slug_real:
+                return redirect(url_for('public.detalle_producto',
+                                        producto_id=producto_id, slug=slug_real),
+                                301)
             producto['precio_fmt'] = formatear_moneda(float(producto['precio']))
             cur.execute('''
                 SELECT imagen_url
@@ -305,7 +413,7 @@ def detalle_producto(producto_id):
 
             # Productos relacionados (misma categoría)
             cur.execute('''
-                SELECT p.id, p.nombre, p.precio, p.imagen
+                SELECT p.id, p.nombre, p.precio, p.imagen, p.slug
                 FROM productos p
                 WHERE p.genero_id = %s AND p.id != %s AND p.stock > 0
             ''' + (' AND COALESCE(p.visible_en_ecommerce, TRUE) = TRUE' if _productos_tienen_visibilidad_online() else '')
@@ -1059,6 +1167,8 @@ def sitemap_xml():
     if is_public_section_enabled('mostrar_modulo_ventas', True):
         add(url_for('public.productos', _external=True), 'daily', '0.8')
     add(url_for('public.servicios', _external=True), 'monthly', '0.6')
+    add(url_for('public.quienes_somos', _external=True), 'monthly', '0.5')
+    add(url_for('public.contactenos', _external=True), 'monthly', '0.5')
     add(url_for('public.descargar', _external=True), 'monthly', '0.7')
 
     # Productos individuales (si el módulo de ventas está activo)
@@ -1071,12 +1181,49 @@ def sitemap_xml():
                 if _productos_tienen_columna('active'):
                     _conds.append('COALESCE(active, TRUE) = TRUE')
                 visible = (' WHERE ' + ' AND '.join(_conds)) if _conds else ''
-                cur.execute(f'SELECT id FROM productos{visible} ORDER BY id DESC LIMIT 5000')
+                _tiene_slug = _productos_tienen_columna('slug')
+                _campos = 'id, slug, fecha_actualizacion' if _tiene_slug else 'id'
+                cur.execute(f'SELECT {_campos} FROM productos{visible} ORDER BY id DESC LIMIT 5000')
                 for row in cur.fetchall():
-                    add(url_for('public.detalle_producto', producto_id=row['id'], _external=True),
-                        'weekly', '0.6')
+                    kwargs = {'producto_id': row['id'], '_external': True}
+                    if _tiene_slug and row.get('slug'):
+                        kwargs['slug'] = row['slug']
+                    lastmod = None
+                    if _tiene_slug and row.get('fecha_actualizacion'):
+                        lastmod = str(row['fecha_actualizacion'])[:10]
+                    add(url_for('public.detalle_producto', **kwargs),
+                        'weekly', '0.6', lastmod=lastmod)
         except Exception as e:
             app.logger.warning(f"sitemap: no se pudieron listar productos: {e}")
+
+    # Páginas de categoría (indexables)
+    if is_public_section_enabled('mostrar_modulo_ventas', True):
+        try:
+            with get_db_cursor(dict_cursor=True) as cur:
+                cur.execute('''SELECT g.id, g.nombre FROM generos g
+                               WHERE EXISTS (SELECT 1 FROM productos p WHERE p.genero_id = g.id)
+                               ORDER BY g.nombre''')
+                for g in cur.fetchall():
+                    add(url_for('public.productos_categoria', genero_id=g['id'],
+                                slug=_slugify(g['nombre']), _external=True),
+                        'weekly', '0.7')
+        except Exception as e:
+            app.logger.warning(f"sitemap: categorías: {e}")
+
+    # Artículos del blog publicados (si el tenant activó su blog)
+    if is_public_section_enabled('mostrar_blog', False):
+        try:
+            with get_db_cursor(dict_cursor=True) as cur:
+                cur.execute("""SELECT slug, updated_at FROM blog_posts
+                               WHERE estado = 'publicado' ORDER BY fecha_publicado DESC LIMIT 500""")
+                filas = cur.fetchall()
+            if filas:
+                add(url_for('public.blog_lista', _external=True), 'weekly', '0.8')
+                for b in filas:
+                    add(url_for('public.blog_post', slug=b['slug'], _external=True),
+                        'monthly', '0.7', lastmod=str(b['updated_at'])[:10])
+        except Exception as e:
+            app.logger.warning(f"sitemap: blog: {e}")
 
     partes = ['<?xml version="1.0" encoding="UTF-8"?>',
               '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']

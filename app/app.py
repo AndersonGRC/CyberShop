@@ -264,6 +264,23 @@ configure_uploads(app, user_images)
 os.makedirs(app.config['UPLOADED_IMAGES_DEST'], exist_ok=True)
 os.makedirs(app.config['UPLOADED_USERIMAGES_DEST'], exist_ok=True)
 
+
+# SEO/Core Web Vitals: TODA imagen subida se optimiza al guardarse (resize a
+# máx 1600px + recompresión; ver services/image_optimizer). Un solo wrap aquí
+# cubre los ~11 puntos de guardado y los futuros. Nunca rompe el upload.
+def _wrap_save_optimizado(upload_set):
+    original = upload_set.save
+
+    def _save(*args, **kwargs):
+        nombre = original(*args, **kwargs)
+        from services.image_optimizer import optimizar_guardado
+        return optimizar_guardado(upload_set, nombre)
+    upload_set.save = _save
+
+
+_wrap_save_optimizado(product_images)
+_wrap_save_optimizado(user_images)
+
 # --- Context processor: inyecta config_secciones a todos los templates ---
 @app.context_processor
 def inject_config_global():

@@ -1,7 +1,7 @@
 {% extends './plantillaindex.html' %}
 
-{% block titulo %}Productos — {{ datosApp.titulo }}{% endblock %}
-{% block meta_description %}Catálogo de productos de {{ datosApp.titulo }}: compra en línea con envío y pago seguro.{% endblock %}
+{% block titulo %}{% if seo_categoria %}{{ seo_categoria.nombre }} — {{ datosApp.titulo }}{% else %}Productos — {{ datosApp.titulo }}{% endif %}{% endblock %}
+{% block meta_description %}{% if seo_categoria %}{{ seo_categoria.nombre }} en {{ datosApp.titulo }}: compra en línea con envío y pago seguro.{% else %}Catálogo de productos de {{ datosApp.titulo }}: compra en línea con envío y pago seguro.{% endif %}{% endblock %}
 {% block jsonld %}
 <script type="application/ld+json">
 {
@@ -26,7 +26,7 @@
    HERO DE LA SECCIÓN
    ══════════════════════════════════════════════════════ #}
 <div class="cat-hero">
-    <h1 class="cat-hero-titulo">Nuestros Productos</h1>
+    <h1 class="cat-hero-titulo">{% if seo_categoria %}{{ seo_categoria.nombre }}{% else %}Nuestros Productos{% endif %}</h1>
     <p class="cat-hero-sub">
         {% if datosApp.productos | length > 0 %}
             {{ datosApp.productos | length }} producto{{ 's' if datosApp.productos | length != 1 }} disponibles
@@ -231,7 +231,7 @@
                         <i class="fas fa-ban"></i> Agotado
                     </button>
                     {% endif %}
-                    <a href="{{ url_for('public.detalle_producto', producto_id=producto['id']) }}"
+                    <a href="{% if producto.get('slug') %}{{ url_for('public.detalle_producto', producto_id=producto['id'], slug=producto['slug']) }}{% else %}{{ url_for('public.detalle_producto', producto_id=producto['id']) }}{% endif %}"
                        class="ver-descripcion" title="Ver detalle completo">
                         <i class="fas fa-external-link-alt"></i>
                     </a>

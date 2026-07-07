@@ -238,6 +238,82 @@ def generar_contenido(titulo, tipo='contenido', detalle=''):
     return _chat(_contexto_tenant(), user, max_tokens=300)
 
 
+def generar_articulo_blog(tema, keyword='', publico=''):
+    """Redacta un ARTÍCULO DE BLOG completo optimizado para SEO (borrador que
+    el dueño revisa y publica). Devuelve (dict, None) o (None, error). El dict:
+    titulo (≤60), meta_descripcion (≤155), slug_sugerido, extracto, cuerpo_html.
+    """
+    import re as _re
+    tema = (tema or '').strip()
+    if not tema:
+        return None, 'Escribe primero el tema del artículo.'
+    keyword = (keyword or '').strip()
+    publico = (publico or '').strip() or 'dueños de pequeños negocios en Colombia'
+
+    system = ("Eres un redactor SEO senior colombiano. Escribes artículos útiles, "
+              "concretos y cercanos (tuteo), sin relleno ni promesas exageradas. "
+              "Respondes EXACTAMENTE en el formato pedido, sin comentarios extra.")
+    kw = (f"Palabra clave objetivo: «{keyword}» (úsala en el título, el primer "
+          "párrafo y un subtítulo, con naturalidad). ") if keyword else ''
+    user = (f"Escribe un artículo de blog sobre: «{tema}». {kw}"
+            f"Público: {publico}. "
+            "Extensión OBLIGATORIA: mínimo 900 palabras (desarrolla cada "
+            "sección con 120-180 palabras; ejemplos concretos de negocios "
+            "colombianos: tiendas de barrio, restaurantes, panaderías). "
+            "Estructura: introducción que enganche (80-120 palabras), 4 o 5 "
+            "secciones con subtítulos <h2> (y <h3> si aplica), una lista <ul> "
+            "donde aporte, y cierra con una sección "
+            "<h2>Preguntas frecuentes</h2> con 3 preguntas <h3> y su respuesta "
+            "de 40-70 palabras cada una. "
+            "FORMATO DE RESPUESTA (respeta los marcadores; cuerpo en HTML "
+            "simple usando solo <h2> <h3> <p> <ul> <li> <strong>): "
+            "primera línea 'TITULO: ...' (máx 60 caracteres, con la palabra "
+            "clave); segunda línea 'META: ...' (máx 155, invita al clic); "
+            "tercera línea 'EXTRACTO: ...' (2 frases); luego una línea "
+            "'CUERPO:' y a continuación el HTML del artículo.")
+    texto, err = _chat(system, user, max_tokens=2600, temperature=0.6)
+    if err:
+        return None, err
+
+    out = {'titulo': '', 'meta_descripcion': '', 'extracto': '', 'cuerpo_html': ''}
+    m = _re.search(r'TITULO:\s*(.+)', texto)
+    if m:
+        out['titulo'] = m.group(1).strip().strip('«»"')[:120]
+    m = _re.search(r'META:\s*(.+)', texto)
+    if m:
+        out['meta_descripcion'] = m.group(1).strip()[:160]
+    m = _re.search(r'EXTRACTO:\s*(.+)', texto)
+    if m:
+        out['extracto'] = m.group(1).strip()[:390]
+    m = _re.search(r'CUERPO:\s*(.*)', texto, _re.S)
+    if m:
+        out['cuerpo_html'] = m.group(1).strip()
+    if not out['titulo'] or not out['cuerpo_html']:
+        return None, 'La IA no devolvió el formato esperado. Intenta de nuevo.'
+
+    # Los modelos pequeños tienden a quedarse cortos: si el cuerpo no llega a
+    # ~550 palabras, una segunda pasada lo amplía sección por sección.
+    palabras = len(_re.sub(r'<[^>]+>', ' ', out['cuerpo_html']).split())
+    if palabras < 550:
+        ampliado, err2 = _chat(
+            system,
+            "Amplía este artículo hasta MÍNIMO 900 palabras. Conserva los "
+            "mismos subtítulos y estructura; desarrolla cada sección con más "
+            "detalle, ejemplos concretos de negocios colombianos (tienda de "
+            "barrio, restaurante, panadería) y consejos accionables. Devuelve "
+            "SOLO el HTML del cuerpo (h2, h3, p, ul, li, strong), sin "
+            "marcadores:\n\n" + out['cuerpo_html'],
+            max_tokens=3200, temperature=0.6)
+        if not err2 and ampliado:
+            nuevo = ampliado.strip()
+            if len(_re.sub(r'<[^>]+>', ' ', nuevo).split()) > palabras:
+                out['cuerpo_html'] = nuevo
+
+    s = out['titulo'].lower().translate(str.maketrans('áéíóúüñ', 'aeiouun'))
+    out['slug_sugerido'] = _re.sub(r'[^a-z0-9]+', '-', s).strip('-')[:170]
+    return out, None
+
+
 def mejorar_contenido(texto):
     """Reescribe cualquier texto de contenido para que sea más claro y atractivo."""
     texto = (texto or '').strip()

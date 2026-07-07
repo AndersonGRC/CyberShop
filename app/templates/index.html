@@ -28,7 +28,8 @@
   {% if slides|length > 0 %}
     {% for slide in slides %}
     <div class="slide {% if loop.first %}active{% endif %}">
-      <img src="{{ slide.imagen }}" alt="{{ slide.titulo or 'Imagen de presentación' }}">
+      <img src="{{ slide.imagen }}" alt="{{ slide.titulo or 'Imagen de presentación' }}"
+           {% if loop.first %}fetchpriority="high" decoding="async"{% else %}loading="lazy" decoding="async"{% endif %}>
       <div class="hero-overlay"></div>
       <div class="info">
         <span class="hero-eyebrow"><span class="hero-dot"></span>{{ brand_config.empresa_nombre or datosApp.titulo }}</span>
@@ -47,7 +48,7 @@
     {% endfor %}
   {% else %}
     <div class="slide active">
-      <img src="{{url_for('static',filename='img/Slider-Decuento.png')}}" alt="{{ datosApp.titulo }}">
+      <img src="{{url_for('static',filename='img/Slider-Decuento.png')}}" alt="{{ datosApp.titulo }}" fetchpriority="high" decoding="async">
       <div class="hero-overlay"></div>
       <div class="info">
         <span class="hero-eyebrow"><span class="hero-dot"></span>{{ brand_config.empresa_nombre or datosApp.titulo }}</span>

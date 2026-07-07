@@ -71,11 +71,12 @@
     <!-- End Meta Pixel Code -->
 
     <link rel="shortcut icon" href="{{ brand_config.empresa_logo_url or url_for('static', filename='img/Logo.PNG') }}">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
-    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css">
     <link href="https://fonts.googleapis.com/css?family=Dancing+Script|Raleway:500,600&display=swap" rel="stylesheet">
+    {# Una sola Font Awesome (antes se cargaban 3 versiones de 3 CDNs) #}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
     <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
     <script type="text/javascript" src="{{ url_for('static', filename='js/layout.js') }}" defer></script>
 
@@ -217,22 +218,22 @@
             <p>{{ brand_config.empresa_tagline or 'Síguenos en nuestras redes sociales y conoce nuestros servicios destacados.' }}</p>
             <ul class="socials">
                 {% if brand_config.empresa_facebook and brand_config.empresa_facebook != '#' %}
-                <li><a href="{{ brand_config.empresa_facebook }}"><i class="fa fa-facebook"></i></a></li>
+                <li><a href="{{ brand_config.empresa_facebook }}"><i class="fab fa-facebook-f"></i></a></li>
                 {% endif %}
                 {% if brand_config.empresa_twitter and brand_config.empresa_twitter != '#' %}
-                <li><a href="{{ brand_config.empresa_twitter }}"><i class="fa fa-twitter"></i></a></li>
+                <li><a href="{{ brand_config.empresa_twitter }}"><i class="fab fa-twitter"></i></a></li>
                 {% endif %}
                 {% if brand_config.empresa_email %}
-                <li><a href="mailto:{{ brand_config.empresa_email }}"><i class="fa fa-google-plus"></i></a></li>
+                <li><a href="mailto:{{ brand_config.empresa_email }}"><i class="fas fa-envelope"></i></a></li>
                 {% endif %}
                 {% if brand_config.empresa_youtube and brand_config.empresa_youtube != '#' %}
-                <li><a href="{{ brand_config.empresa_youtube }}"><i class="fa fa-youtube"></i></a></li>
+                <li><a href="{{ brand_config.empresa_youtube }}"><i class="fab fa-youtube"></i></a></li>
                 {% endif %}
                 {% if brand_config.empresa_linkedin and brand_config.empresa_linkedin != '#' %}
-                <li><a href="{{ brand_config.empresa_linkedin }}" target="_blank"><i class="fa fa-linkedin-square"></i></a></li>
+                <li><a href="{{ brand_config.empresa_linkedin }}" target="_blank"><i class="fab fa-linkedin"></i></a></li>
                 {% endif %}
                 {% if brand_config.empresa_instagram and brand_config.empresa_instagram != '#' %}
-                <li><a href="{{ brand_config.empresa_instagram }}" target="_blank"><i class="fa fa-instagram"></i></a></li>
+                <li><a href="{{ brand_config.empresa_instagram }}" target="_blank"><i class="fab fa-instagram"></i></a></li>
                 {% endif %}
             </ul>
         </div>

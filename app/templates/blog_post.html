@@ -1,0 +1,83 @@
+{% extends './plantillaindex.html' %}
+
+{% block titulo %}{{ post.titulo }} — {{ datosApp.titulo }}{% endblock %}
+{% block meta_description %}{{ post.meta_descripcion or post.extracto or post.titulo }}{% endblock %}
+{% block og_type %}article{% endblock %}
+{% block og_image %}{{ post.imagen or ((brand_config.empresa_logo_url or '') if brand_config else '') }}{% endblock %}
+{% block twitter_card %}summary_large_image{% endblock %}
+{% block jsonld %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": {{ post.titulo | tojson }},
+  "description": {{ (post.meta_descripcion or post.extracto or '') | tojson }},
+  {% if post.imagen %}"image": {{ post.imagen | tojson }},{% endif %}
+  "datePublished": {{ (post.fecha_publicado | string)[:10] | tojson }},
+  "dateModified": {{ (post.updated_at | string)[:10] | tojson }},
+  "author": {"@type": "Person", "name": {{ (post.autor or datosApp.titulo) | tojson }}},
+  "publisher": {
+    "@type": "Organization",
+    "name": {{ datosApp.titulo | tojson }}
+    {%- if brand_config and brand_config.empresa_logo_url %},
+    "logo": {"@type": "ImageObject", "url": {{ brand_config.empresa_logo_url | tojson }}}{% endif %}
+  },
+  "mainEntityOfPage": {{ request.base_url | tojson }}
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Inicio", "item": {{ url_for('public.index', _external=True) | tojson }}},
+    {"@type": "ListItem", "position": 2, "name": "Blog", "item": {{ url_for('public.blog_lista', _external=True) | tojson }}},
+    {"@type": "ListItem", "position": 3, "name": {{ post.titulo | tojson }}}
+  ]
+}
+</script>
+{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+  .post-wrap { max-width: 780px; margin: 0 auto; padding: 46px 18px 70px; }
+  .post-crumb { font-size: .82rem; color: #8a93a6; margin-bottom: 16px; }
+  .post-crumb a { color: var(--color-primario, #122C94); text-decoration: none; }
+  .post-wrap h1 { color: #1c2433; font-size: 2rem; line-height: 1.25; margin: 0 0 10px; }
+  .post-meta { font-size: .82rem; color: #8a93a6; margin-bottom: 22px; }
+  .post-hero { width: 100%; border-radius: 16px; margin-bottom: 26px; max-height: 420px; object-fit: cover; }
+  .post-cuerpo { font-size: 1.02rem; color: #2c3444; line-height: 1.75; }
+  .post-cuerpo h2 { color: var(--color-primario, #122C94); font-size: 1.35rem; margin: 34px 0 10px; }
+  .post-cuerpo h3 { color: #1c2433; font-size: 1.1rem; margin: 24px 0 8px; }
+  .post-cuerpo p { margin: 0 0 16px; }
+  .post-cuerpo ul { margin: 0 0 16px 22px; }
+  .post-cuerpo li { margin-bottom: 6px; }
+  .post-mas { margin-top: 44px; border-top: 1px solid #e9edf6; padding-top: 22px; }
+  .post-mas h4 { color: #1c2433; margin: 0 0 12px; }
+  .post-mas a { display: block; color: var(--color-primario, #122C94); text-decoration: none; margin-bottom: 8px; font-size: .93rem; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="post-wrap">
+  <nav class="post-crumb"><a href="{{ url_for('public.index') }}">Inicio</a> ›
+    <a href="{{ url_for('public.blog_lista') }}">Blog</a> › {{ post.titulo }}</nav>
+  <article>
+    <h1>{{ post.titulo }}</h1>
+    <div class="post-meta">
+      {% if post.fecha_publicado %}{{ post.fecha_publicado.strftime('%d de %B, %Y') }}{% endif %}
+      {% if post.autor %} · Por {{ post.autor }}{% endif %}
+    </div>
+    {% if post.imagen %}<img class="post-hero" src="{{ post.imagen }}" alt="{{ post.titulo }}" fetchpriority="high">{% endif %}
+    <div class="post-cuerpo">{{ post.cuerpo_html | safe }}</div>
+  </article>
+  {% if recientes %}
+  <div class="post-mas">
+    <h4>También te puede interesar</h4>
+    {% for r in recientes %}
+    <a href="{{ url_for('public.blog_post', slug=r.slug) }}">→ {{ r.titulo }}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

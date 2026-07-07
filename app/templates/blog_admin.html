@@ -1,0 +1,194 @@
+{% extends './plantillaapp.html' %}
+{% block titulo %}Blog — {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+  .ba-wrap { max-width: 1000px; margin: 0 auto; padding: 8px 6px 40px; }
+  .ba-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .ba-head h1 { font-size: 1.35rem; color: #091C5A; margin: 0; }
+  .ba-head .sp { flex: 1; }
+  .ba-btn { border: 0; border-radius: 10px; padding: 10px 16px; cursor: pointer; font-weight: 700;
+            color: #fff; background: linear-gradient(135deg, var(--color-primario, #122C94), var(--color-primario-oscuro, #091C5A)); text-decoration: none; display: inline-block; }
+  .ba-btn.ia { background: linear-gradient(135deg, #6d28d9, #4c1d95); }
+  .ba-btn.sec { background: #fff; color: #4a5568; border: 1px solid #dbe2f0; }
+  .ba-card { background: #fff; border-radius: 14px; box-shadow: 0 6px 22px rgba(18,44,148,.08); padding: 20px 22px; margin-bottom: 18px; }
+  .ba-field { margin-bottom: 13px; }
+  .ba-field label { display: block; font-weight: 700; font-size: .84rem; color: #33405c; margin-bottom: 5px; }
+  .ba-field input, .ba-field textarea { width: 100%; box-sizing: border-box; border: 1.5px solid #dbe2f0; border-radius: 9px; padding: 10px 12px; font-size: 14px; font-family: inherit; }
+  .ba-field textarea.cuerpo { min-height: 340px; font-family: Consolas, monospace; font-size: 13px; }
+  .ba-field .hint { font-size: .75rem; color: #8a93a6; margin-top: 3px; }
+  .ba-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 720px) { .ba-row2 { grid-template-columns: 1fr; } }
+  table.ba-tabla { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  .ba-tabla th, .ba-tabla td { padding: 9px 10px; border-bottom: 1px solid #eef1f8; text-align: left; }
+  .ba-badge { border-radius: 9px; padding: 3px 10px; font-size: .74rem; font-weight: 700; }
+  .ba-badge.pub { background: #eaf7ee; color: #1d7a3d; }
+  .ba-badge.bor { background: #fff3d6; color: #8a6d1a; }
+  .ba-acciones form { display: inline; }
+  .ba-acciones button, .ba-acciones a { background: none; border: 0; cursor: pointer; color: var(--color-primario, #122C94); font-size: .85rem; margin-right: 8px; text-decoration: none; }
+  .ba-acciones .rojo { color: #b42318; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="ba-wrap">
+  <div class="ba-head">
+    <h1><i class="fas fa-blog"></i> Blog</h1>
+    <span class="sp"></span>
+    <button type="button" class="ba-btn ia" onclick="baGenerarIA()">✦ Generar artículo con IA</button>
+    <a href="{{ url_for('blog_admin.editar') }}" class="ba-btn">＋ Nuevo artículo</a>
+  </div>
+  <p style="color:#5b6575;font-size:.88rem;margin:0 0 18px">
+    Los artículos publicados aparecen en <strong>/blog</strong> de tu sitio y en Google
+    (activa la sección <em>Blog</em> en Sitio Público si aún no se ve).
+  </p>
+
+  {# ── Editor ── #}
+  <div class="ba-card" id="ba-editor" {% if not post and request.endpoint == 'blog_admin.lista' %}style="display:none"{% endif %}>
+    <form method="POST" action="{{ url_for('blog_admin.editar', post_id=post.id) if post else url_for('blog_admin.editar') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="ba-field">
+        <label>Título (con tu palabra clave; máx 60 caracteres ideal)</label>
+        <input type="text" name="titulo" id="ba-titulo" maxlength="200" required
+               value="{{ post.titulo if post else '' }}">
+      </div>
+      <div class="ba-row2">
+        <div class="ba-field">
+          <label>Dirección (slug)</label>
+          <input type="text" name="slug" id="ba-slug" maxlength="170"
+                 value="{{ post.slug if post else '' }}" placeholder="se-genera-del-titulo">
+          <div class="hint">Quedará en /blog/<span id="ba-slug-prev">{{ post.slug if post else '…' }}</span></div>
+        </div>
+        <div class="ba-field">
+          <label>Palabra clave objetivo</label>
+          <input type="text" name="keyword_objetivo" id="ba-keyword" maxlength="120"
+                 value="{{ post.keyword_objetivo if post else '' }}" placeholder="ej: software pos colombia">
+        </div>
+      </div>
+      <div class="ba-field">
+        <label>Meta descripción (lo que Google muestra; máx 155)</label>
+        <input type="text" name="meta_descripcion" id="ba-meta" maxlength="170"
+               value="{{ post.meta_descripcion if post else '' }}">
+      </div>
+      <div class="ba-field">
+        <label>Extracto (tarjeta del listado)</label>
+        <input type="text" name="extracto" id="ba-extracto" maxlength="390"
+               value="{{ post.extracto if post else '' }}">
+      </div>
+      <div class="ba-field">
+        <label>Imagen (URL, opcional)</label>
+        <input type="text" name="imagen" maxlength="300" value="{{ post.imagen if post else '' }}"
+               placeholder="/static/media/media/mi-imagen.jpg">
+      </div>
+      <div class="ba-field">
+        <label>Cuerpo del artículo (HTML: h2, h3, p, ul, li, strong)</label>
+        <textarea name="cuerpo_html" id="ba-cuerpo" class="cuerpo" required>{{ post.cuerpo_html if post else '' }}</textarea>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button type="submit" name="accion" value="guardar" class="ba-btn sec">Guardar borrador</button>
+        <button type="submit" name="accion" value="publicar" class="ba-btn">Publicar</button>
+        {% if post and post.estado == 'publicado' %}
+        <a class="ba-btn sec" target="_blank" href="{{ url_for('public.blog_post', slug=post.slug) }}">Ver en el sitio ↗</a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+
+  {# ── Lista ── #}
+  <div class="ba-card">
+    <table class="ba-tabla">
+      <tr><th>Artículo</th><th>Palabra clave</th><th>Estado</th><th>Actualizado</th><th></th></tr>
+      {% for p in posts %}
+      <tr>
+        <td><strong>{{ p.titulo }}</strong><br><span style="color:#8a93a6;font-size:.78rem">/blog/{{ p.slug }}</span></td>
+        <td>{{ p.keyword_objetivo or '—' }}</td>
+        <td><span class="ba-badge {{ 'pub' if p.estado == 'publicado' else 'bor' }}">{{ p.estado }}</span></td>
+        <td style="font-size:.8rem;color:#5b6575">{{ (p.updated_at | string)[:16] }}</td>
+        <td class="ba-acciones">
+          <a href="{{ url_for('blog_admin.editar', post_id=p.id) }}">Editar</a>
+          <form method="POST" action="{{ url_for('blog_admin.cambiar_estado', post_id=p.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button name="accion" value="{{ 'despublicar' if p.estado == 'publicado' else 'publicar' }}">
+              {{ 'Despublicar' if p.estado == 'publicado' else 'Publicar' }}</button>
+          </form>
+          <form method="POST" action="{{ url_for('blog_admin.eliminar', post_id=p.id) }}"
+                onsubmit="return confirm('¿Eliminar este artículo?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="rojo">Eliminar</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" style="color:#8a93a6;text-align:center;padding:26px">
+        Sin artículos aún — usa <strong>✦ Generar artículo con IA</strong> para el primero.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+
+<script>
+const BA_CSRF = "{{ csrf_token() }}";
+
+// slug en vivo desde el título
+document.getElementById('ba-titulo')?.addEventListener('input', function () {
+  const slugI = document.getElementById('ba-slug');
+  if (slugI && !slugI.dataset.tocado) {
+    const s = this.value.toLowerCase()
+      .replace(/[áéíóúüñ]/g, c => ({'á':'a','é':'e','í':'i','ó':'o','ú':'u','ü':'u','ñ':'n'}[c]))
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    slugI.value = s;
+    document.getElementById('ba-slug-prev').textContent = s || '…';
+  }
+});
+document.getElementById('ba-slug')?.addEventListener('input', function () {
+  this.dataset.tocado = '1';
+  document.getElementById('ba-slug-prev').textContent = this.value || '…';
+});
+
+async function baGenerarIA() {
+  const res = await Swal.fire({
+    title: '✦ Generar artículo con IA',
+    html: `
+      <input id="ia-tema" class="swal2-input" placeholder="Tema (ej: cómo controlar el inventario)" maxlength="160">
+      <input id="ia-kw" class="swal2-input" placeholder="Palabra clave (ej: software de inventario)" maxlength="120">
+      <input id="ia-pub" class="swal2-input" placeholder="Público (opcional)" maxlength="120">`,
+    showCancelButton: true, confirmButtonText: 'Redactar borrador',
+    cancelButtonText: 'Cancelar', confirmButtonColor: BRAND_COLOR_BTN,
+    preConfirm: () => {
+      const tema = document.getElementById('ia-tema').value.trim();
+      if (tema.length < 5) { Swal.showValidationMessage('Escribe el tema.'); return false; }
+      return { tema, keyword: document.getElementById('ia-kw').value.trim(),
+               publico: document.getElementById('ia-pub').value.trim() };
+    }
+  });
+  if (!res.isConfirmed || !res.value) return;
+  Swal.fire({ title: 'La IA está redactando…', text: 'Esto toma 1-2 minutos.',
+              allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+  try {
+    const r = await fetch("{{ url_for('blog_admin.generar_ia') }}", {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': BA_CSRF },
+      body: JSON.stringify(res.value) });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error || 'No se pudo generar.');
+    const a = d.articulo;
+    document.getElementById('ba-editor').style.display = '';
+    document.getElementById('ba-titulo').value = a.titulo;
+    const slugI = document.getElementById('ba-slug');
+    slugI.value = a.slug_sugerido; slugI.dataset.tocado = '1';
+    document.getElementById('ba-slug-prev').textContent = a.slug_sugerido;
+    document.getElementById('ba-meta').value = a.meta_descripcion || '';
+    document.getElementById('ba-extracto').value = a.extracto || '';
+    document.getElementById('ba-keyword').value = res.value.keyword || '';
+    document.getElementById('ba-cuerpo').value = a.cuerpo_html;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    Swal.fire({ icon: 'success', title: 'Borrador listo',
+                text: 'Revísalo, ajústalo a tu gusto y publícalo.',
+                confirmButtonColor: BRAND_COLOR_BTN });
+  } catch (e) {
+    Swal.fire({ icon: 'error', title: 'No se pudo generar', text: e.message,
+                confirmButtonColor: BRAND_COLOR_BTN });
+  }
+}
+</script>
+{% endblock %}

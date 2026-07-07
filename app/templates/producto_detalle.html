@@ -23,6 +23,27 @@
     "availability": "{{ 'https://schema.org/InStock' if (producto.stock or 0) > 0 else 'https://schema.org/OutOfStock' }}",
     "itemCondition": "https://schema.org/NewCondition"
   }
+  {#- Estrellas en Google: solo con reseñas REALES aprobadas (el marcado debe
+      estar respaldado por lo visible en la página) -#}
+  {%- if stats_rating and (stats_rating.get('total', 0) | int) > 0 %},
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": {{ stats_rating.get('promedio') | float }},
+    "reviewCount": {{ stats_rating.get('total', 0) | int }},
+    "bestRating": 5, "worstRating": 1
+  },
+  "review": [
+    {%- for c in (comentarios or [])[:5] %}
+    {
+      "@type": "Review",
+      "author": {"@type": "Person", "name": {{ (c.autor_nombre or 'Cliente') | tojson }}},
+      "datePublished": {{ (c.fecha_creacion | string)[:10] | tojson }},
+      "reviewBody": {{ (c.comentario or '') | striptags | truncate(280, True) | tojson }},
+      "reviewRating": {"@type": "Rating", "ratingValue": {{ c.calificacion | int }}, "bestRating": 5}
+    }{{ "," if not loop.last }}
+    {%- endfor %}
+  ]
+  {%- endif %}
 }
 </script>
 <script type="application/ld+json">
@@ -360,7 +381,7 @@
         </h2>
         <div class="detalle-relacionados-grid">
             {% for rp in relacionados %}
-            <a href="{{ url_for('public.detalle_producto', producto_id=rp.id) }}" class="detalle-rel-card">
+            <a href="{% if rp.slug %}{{ url_for('public.detalle_producto', producto_id=rp.id, slug=rp.slug) }}{% else %}{{ url_for('public.detalle_producto', producto_id=rp.id) }}{% endif %}" class="detalle-rel-card">
                 <img
                     src="{{ rp.imagen }}"
                     alt="{{ rp.nombre }}"
