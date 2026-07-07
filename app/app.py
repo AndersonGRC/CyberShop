@@ -105,6 +105,29 @@ def handle_csrf_error(e):
     _flash('Tu sesión expiró o el formulario no es válido. Recarga la página e inténtalo de nuevo.', 'error')
     return _redirect(request.referrer or '/')
 
+# --- Rate limiting (Flask-Limiter + Redis; fail-open si Redis cae) ---
+app.config.setdefault('RATELIMIT_STORAGE_URI', os.getenv('REDIS_URL', 'memory://'))
+app.config.setdefault('RATELIMIT_STRATEGY', 'fixed-window')
+app.config.setdefault('RATELIMIT_SWALLOW_ERRORS', True)   # Redis abajo -> no bloquear trafico
+app.config.setdefault('RATELIMIT_HEADERS_ENABLED', True)
+from extensions import limiter
+limiter.init_app(app)
+
+
+@app.errorhandler(429)
+def _handle_rate_limited(e):
+    """Respuesta amable al exceder el limite (login/registro)."""
+    from flask import jsonify as _jsonify
+    if (request.is_json
+            or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or request.path.startswith('/api/')):
+        return _jsonify({'success': False,
+                         'error': 'Demasiados intentos. Espera un momento e inténtalo de nuevo.'}), 429
+    from flask import flash as _flash, redirect as _redirect
+    _flash('Demasiados intentos seguidos. Espera un minuto e inténtalo de nuevo.', 'error')
+    return _redirect(request.referrer or '/'), 429
+
+
 # --- CORS (solo en sandbox) ---
 if app.config.get('PAYU_ENV') == 'sandbox':
     CORS(app, resources={

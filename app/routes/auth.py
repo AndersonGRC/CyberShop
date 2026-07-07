@@ -24,11 +24,13 @@ from security import (
     controlar_tasa_solicitudes,
 )
 from tenant_features import bind_session_tenant
+from extensions import limiter
 
 auth_bp = Blueprint('auth', __name__)
 
 
 @auth_bp.route('/registrar-cliente', methods=['GET', 'POST'])
+@limiter.limit('5 per 5 minutes', methods=['POST'])
 def registrar_cliente():
     """Muestra el formulario de registro y procesa nuevos clientes (rol 3)."""
     # Si el tenant cerró el acceso (sección 'mostrar_login'), no hay registro
@@ -88,6 +90,7 @@ def registrar_cliente():
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
+@limiter.limit('10 per minute; 60 per hour', methods=['POST'])
 def login():
     """Muestra el formulario de login y autentica al usuario."""
     # Acceso cerrado por el tenant (sección 'mostrar_login', por-tenant, default
