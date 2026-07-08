@@ -52,11 +52,12 @@
     margin-right: 30px;
     vertical-align: middle;
     color: var(--color-fondo);
-    background-color: var(--color-gris);
+    background-color: rgba(255, 255, 255, 0.10); /* integrado al nav (antes --color-gris que parecia glitch) */
+    border: 1px solid rgba(255, 255, 255, 0.20);
     border-radius: 6px;
     cursor: pointer;
     z-index: 11;
-    box-shadow: 0px 4px 6px var(--color-negro);
+    box-shadow: none;
     transition: all 0.3s ease;
 }
 
@@ -101,7 +102,7 @@
 
 .nav .wrap {
     position: relative;
-    left: -150px;
+    left: 0; /* antes -150px: hack fragil que filtraba nombres largos y dependia de los modulos activos (ecommerce) */
     transition: 0.4s ease all;
     z-index: 21;
 }
@@ -142,6 +143,22 @@ body.nav_fixed .nav {
 
 body.nav_fixed .nav .wrap {
     left: 0;
+}
+
+/* Chip de marca: OCULTO cuando el nav esta encima (tope de pagina, solo
+   escritorio); APARECE al bajar (body.nav_fixed lo agrega el scroll). Robusto:
+   se colapsa por completo -> nombres largos no se asoman y no depende del
+   ecommerce ni de los modulos activos. En movil el chip del menu no se toca. */
+@media screen and (min-width: 769px) {
+    body:not(.nav_fixed) .logo_small {
+        max-width: 0;
+        opacity: 0;
+        margin-left: 0;
+        margin-right: 0;
+        padding-left: 0;
+        padding-right: 0;
+        border-width: 0;
+    }
 }
 
 .main {
@@ -261,7 +278,7 @@ html {
 }
 
 #google_translate_container {
-    display: inline-block;
+    display: none; /* Oculto en escritorio: el selector de idioma solo se muestra en el menu movil */
     margin: 10px;
     z-index: 1001;
     position: relative;
@@ -626,38 +643,40 @@ html {
         margin: 0 !important;
     }
 
-    /* 4. TRADUCTOR (Opcional - Más arriba) */
+    /* 4. TRADUCTOR - dentro del menu lateral movil, anclado abajo (no flotante) */
     #google_translate_container {
         position: fixed !important;
-        bottom: 230px !important;
-        right: 20px !important;
-        width: 55px !important;
-        height: 55px !important;
-        /* TAMAÑO UNIFORME */
+        left: 0 !important;
+        right: auto !important;
+        bottom: 20px !important;
+        top: auto !important;
+        width: 100% !important;
+        height: auto !important;
         margin: 0 !important;
-        padding: 0 !important;
-        background: var(--color-secundario) !important;
-        border: 2px solid var(--color-fondo) !important;
-        border-radius: 50% !important;
-        box-shadow: var(--sombra-media) !important;
-        z-index: 1050 !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
+        padding: 0 20px !important;
+        background: transparent !important;
+        border: none !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        z-index: 22 !important;
+        display: block !important;
     }
 
     #custom_translate_btn {
-        position: absolute !important;
+        position: static !important;
         width: 100% !important;
-        height: 100% !important;
-        opacity: 0.01 !important;
+        height: auto !important;
+        opacity: 1 !important;
+        padding: 12px 14px !important;
+        font-size: 15px !important;
+        background: rgba(255, 255, 255, 0.12) !important;
+        color: var(--color-fondo) !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        border-radius: 10px !important;
     }
 
     #google_translate_container::before {
-        content: "🌐" !important;
-        font-size: 24px !important;
-        position: absolute !important;
-        pointer-events: none !important;
+        content: none !important;
     }
 
     #custom_translate_btn option {
