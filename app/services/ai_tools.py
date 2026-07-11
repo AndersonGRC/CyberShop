@@ -140,6 +140,31 @@ def top_productos(periodo='todo', limite=5, **_):
             'productos': [{'nombre': r['nombre'], 'unidades': int(r['unidades'])} for r in filas]}
 
 
+def kpis_dashboard():
+    """KPIs puros para el dashboard admin (consultas directas, SIN LLM):
+    ventas de hoy y de la semana (3 canales), pedidos por despachar y
+    productos con stock bajo. No está en TOOLS: lo usa la vista."""
+    with get_db_cursor(dict_cursor=True) as cur:
+        hoy_n, hoy_t, _d = _ventas_en(
+            cur, _PERIODO_SQL['hoy'].format(col='fecha_creacion'),
+            _PERIODO_SQL['hoy'].format(col='fecha'),
+            _PERIODO_SQL['hoy'].format(col='created_at_local'))
+        sem_n, sem_t, _d = _ventas_en(
+            cur, _PERIODO_SQL['semana'].format(col='fecha_creacion'),
+            _PERIODO_SQL['semana'].format(col='fecha'),
+            _PERIODO_SQL['semana'].format(col='created_at_local'))
+        cur.execute("""SELECT COUNT(*) n FROM pedidos WHERE estado_pago='APROBADO'
+                       AND estado_envio IN ('POR_DESPACHAR','PENDIENTE')""")
+        despachar = cur.fetchone()['n']
+        cur.execute("SELECT COUNT(*) n FROM productos WHERE stock <= 5")
+        stock_bajo = cur.fetchone()['n']
+    return {
+        'ventas_hoy_n': hoy_n, 'ventas_hoy': formatear_moneda(hoy_t),
+        'ventas_semana_n': sem_n, 'ventas_semana': formatear_moneda(sem_t),
+        'por_despachar': int(despachar), 'stock_bajo': int(stock_bajo),
+    }
+
+
 def top_clientes(limite=5, **_):
     """Clientes que más han comprado (web + POS) por importe."""
     lim = max(1, min(int(limite or 5), 20))
@@ -166,6 +191,63 @@ def productos_bajo_stock(umbral=5, **_):
         filas = cur.fetchall()
     return {'umbral': u, 'cantidad': len(filas),
             'productos': [{'nombre': r['nombre'], 'stock': int(r['stock'])} for r in filas]}
+
+
+def sugerencia_reorden(**_):
+    """Qué productos hay que reponer pronto: ritmo de venta de los últimos
+    30 días (3 canales) vs stock actual → días de cobertura estimados.
+    Lista los que se agotan en <15 días con una cantidad sugerida para
+    cubrir ~30 días de venta. Consulta pura (sin LLM): también la usa la
+    tarjeta del inventario web."""
+    DIAS, HORIZONTE, OBJETIVO = 30, 15, 30
+    with get_db_cursor(dict_cursor=True) as cur:
+        # Unidades vendidas por producto (id si existe; si no, por nombre)
+        partes = [f"""SELECT NULL::int pid, LOWER(TRIM(d.producto_nombre)) nom, d.cantidad cant
+                      FROM detalle_pedidos d JOIN pedidos p ON p.id=d.pedido_id
+                      WHERE {_PEDIDO_PAGADO} AND p.fecha_creacion >= CURRENT_DATE - INTERVAL '{DIAS} days'"""]
+        if _existe(cur, 'detalle_venta_pos') and _existe(cur, 'ventas_pos'):
+            partes.append(f"""SELECT dv.producto_id pid, LOWER(TRIM(dv.descripcion)) nom, dv.cantidad cant
+                FROM detalle_venta_pos dv JOIN ventas_pos v ON v.id=dv.venta_id
+                WHERE COALESCE(v.estado,'completada') <> 'anulada'
+                  AND v.fecha >= CURRENT_DATE - INTERVAL '{DIAS} days'""")
+        if _existe(cur, 'pos_desktop_sale_items') and _existe(cur, 'pos_desktop_sales'):
+            partes.append(f"""SELECT di.product_id pid, LOWER(TRIM(di.name_snapshot)) nom, di.quantity cant
+                FROM pos_desktop_sale_items di JOIN pos_desktop_sales s ON s.id=di.sale_id
+                WHERE s.created_at_local >= CURRENT_DATE - INTERVAL '{DIAS} days'""")
+        cur.execute(
+            "SELECT pr.id, pr.nombre, pr.stock, SUM(v.cant) unidades "
+            "FROM (" + " UNION ALL ".join(partes) + ") v "
+            "JOIN productos pr ON (v.pid = pr.id) "
+            "  OR (v.pid IS NULL AND LOWER(TRIM(pr.nombre)) = v.nom) "
+            "GROUP BY pr.id, pr.nombre, pr.stock")
+        filas = cur.fetchall()
+
+    urgentes = []
+    for r in filas:
+        unidades = float(r['unidades'] or 0)
+        stock = int(r['stock'] or 0)
+        if unidades <= 0:
+            continue
+        diarias = unidades / DIAS
+        cobertura = stock / diarias if diarias > 0 else None
+        if cobertura is not None and cobertura < HORIZONTE:
+            sugerida = max(1, int(round(diarias * OBJETIVO - stock)))
+            urgentes.append({
+                'nombre': r['nombre'], 'stock': stock,
+                'vendidas_30_dias': int(unidades),
+                'dias_cobertura': round(cobertura, 1),
+                'cantidad_sugerida': sugerida,
+            })
+    urgentes.sort(key=lambda x: x['dias_cobertura'])
+    return {
+        'criterio': (f'Productos cuyo stock se agota en menos de {HORIZONTE} días '
+                     f'al ritmo de venta de los últimos {DIAS} días. La cantidad '
+                     f'sugerida cubre ~{OBJETIVO} días de venta.'),
+        'cantidad': len(urgentes),
+        'productos': urgentes[:15],
+        'nota': (None if urgentes else
+                 'Ningún producto se agota pronto al ritmo actual de ventas.'),
+    }
 
 
 def catalogo_pendiente(**_):
@@ -239,6 +321,7 @@ TOOLS = {
     'top_productos':       (top_productos,       "Productos más vendidos en un período.", ['periodo', 'limite']),
     'top_clientes':        (top_clientes,        "Clientes que más han comprado.", ['limite']),
     'productos_bajo_stock':(productos_bajo_stock, "Productos con stock bajo o agotados (parámetro: umbral).", ['umbral']),
+    'sugerencia_reorden':  (sugerencia_reorden,   "Qué comprar/reponer pronto: productos que se agotan según su ritmo de venta, con cantidad sugerida.", []),
     'catalogo_pendiente':  (catalogo_pendiente,  "Qué falta por completar en el catálogo (sin descripción, imagen o categoría).", []),
     'resumen_inventario':  (resumen_inventario,  "Tamaño y valor del inventario.", []),
     'conteo_general':      (conteo_general,      "Números generales: productos, categorías, clientes, pedidos.", []),

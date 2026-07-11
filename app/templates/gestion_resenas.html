@@ -118,6 +118,47 @@
                     </a>
                 </div>
             </div>
+
+            <!-- ── Respuesta del negocio (visible en la tienda) ── -->
+            <div style="margin-top:14px; padding-top:12px; border-top:1px dashed #e4e4e4;">
+                <form method="POST" action="{{ url_for('admin.responder_resena', resena_id=r.id) }}" style="margin:0;">
+                    <label style="font-size:0.78rem; font-weight:700; color:#666; display:block; margin-bottom:5px;">
+                        <i class="fas fa-reply" style="margin-right:4px;"></i>
+                        Respuesta del negocio
+                        {% if r.respuesta %}
+                        <span style="background:#e7f0ff; color:#1d4ed8; font-weight:700; font-size:0.72rem;
+                                     padding:2px 8px; border-radius:10px; margin-left:6px;">Publicada</span>
+                        {% endif %}
+                    </label>
+                    <textarea name="respuesta" id="resp-{{ r.id }}" rows="2" maxlength="1500"
+                              placeholder="Escribe una respuesta pública para este cliente…"
+                              style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #ddd;
+                                     font-size:0.86rem; font-family:inherit; resize:vertical;">{{ r.respuesta or '' }}</textarea>
+                    <div style="display:flex; gap:8px; margin-top:6px; flex-wrap:wrap;">
+                        {% if ia_activa %}
+                        <button type="button" onclick="sugerirRespuestaIA({{ r.id }}, this)"
+                                data-comentario="{{ r.comentario | e }}"
+                                data-contexto="Reseña de {{ r.calificacion }}/5 estrellas sobre el producto {{ r.producto_nombre | e }}"
+                                style="background:#f3f0ff; color:#5b21b6; border:1px solid #ddd0ff; border-radius:8px;
+                                       padding:7px 13px; font-size:0.8rem; font-weight:600; cursor:pointer;">
+                            ✦ Sugerir respuesta
+                        </button>
+                        {% endif %}
+                        <button type="submit"
+                                style="background:var(--color-primario); color:#fff; border:none; border-radius:8px;
+                                       padding:7px 14px; font-size:0.8rem; font-weight:600; cursor:pointer;">
+                            <i class="fas fa-paper-plane"></i> {{ 'Actualizar respuesta' if r.respuesta else 'Publicar respuesta' }}
+                        </button>
+                        {% if r.respuesta %}
+                        <button type="submit" onclick="document.getElementById('resp-{{ r.id }}').value='';"
+                                style="background:#f1f1f1; color:#888; border:none; border-radius:8px;
+                                       padding:7px 12px; font-size:0.8rem; font-weight:600; cursor:pointer;">
+                            Quitar
+                        </button>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
         </div>
         {% endfor %}
     </div>
@@ -135,4 +176,33 @@
 
 </div>
 </div>
+
+{% if ia_activa %}
+<script>
+function sugerirRespuestaIA(id, btn) {
+    var area = document.getElementById('resp-' + id);
+    var token = document.querySelector('meta[name="csrf-token"]');
+    var original = btn.textContent;
+    btn.disabled = true; btn.textContent = '✦ Pensando…';
+    fetch('/admin/ia/respuesta-sugerida', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json',
+                   'X-CSRFToken': token ? token.getAttribute('content') : '' },
+        body: JSON.stringify({ mensaje: btn.dataset.comentario,
+                               asunto: btn.dataset.contexto })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+        if (data.ok && data.respuesta) {
+            area.value = data.respuesta;
+            area.focus();
+        } else {
+            alert(data.error || 'No pude generar la sugerencia ahora.');
+        }
+    })
+    .catch(function () { alert('Error de conexión con la IA.'); })
+    .finally(function () { btn.disabled = false; btn.textContent = original; });
+}
+</script>
+{% endif %}
 {% endblock %}

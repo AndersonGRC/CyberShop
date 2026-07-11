@@ -708,6 +708,32 @@
         </div>
     </div>
 
+    {% if reorden %}
+    <!-- ── Reorden sugerido (ritmo de venta 30 días vs stock) ── -->
+    <div class="surface-card" style="padding:16px 20px; margin-bottom:16px; border-left:4px solid #7c3aed;">
+        <h3 style="margin:0 0 4px; font-size:0.95em; color:#444;">
+            <span style="color:#7c3aed;">✦</span> Compra pronto
+            <span style="font-weight:400; color:#888; font-size:0.85em;">
+                — se agotan en menos de 15 días al ritmo de venta del último mes
+            </span>
+        </h3>
+        <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;">
+            {% for r in reorden %}
+            <div style="background:#faf8ff; border:1px solid #e6ddfa; border-radius:10px; padding:10px 14px; min-width:170px;">
+                <div style="font-weight:700; font-size:0.88em; color:#333;">{{ r.nombre }}</div>
+                <div style="font-size:0.8em; color:#888; margin-top:2px;">
+                    Stock: <strong>{{ r.stock }}</strong> · se agota en
+                    <strong style="color:{{ '#dc3545' if r.dias_cobertura < 7 else '#b45309' }};">{{ r.dias_cobertura }} día(s)</strong>
+                </div>
+                <div style="font-size:0.82em; color:#5b21b6; margin-top:4px;">
+                    Sugerido: comprar <strong>{{ r.cantidad_sugerida }}</strong> unidad(es)
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
     <!-- ── Tabla ──────────────────────────────────────────── -->
     <div class="surface-card" style="padding: 0; overflow: hidden;">
 

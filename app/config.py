@@ -109,6 +109,9 @@ class Config:
     # porque cada request es stateless y solo lleva datos del cliente actual.
     AI_BASE_URL = os.getenv('AI_BASE_URL', '')          # ej. http://10.200.0.2:11434
     AI_MODEL    = os.getenv('AI_MODEL', 'qwen2.5:7b')
+    # Fallback automático: si AI_MODEL falla (memoria/timeout/error del server)
+    # se reintenta UNA vez con este modelo más liviano. Vacío = sin fallback.
+    AI_MODEL_FALLBACK = os.getenv('AI_MODEL_FALLBACK', 'qwen2.5:7b')
     AI_API_KEY  = os.getenv('AI_API_KEY', '')           # vacío para Ollama
     # read timeout amplio: el cold-start del modelo (carga a VRAM) puede tardar.
     # El connect timeout es corto (fast-fail si la GPU está apagada) — ver ai_service.

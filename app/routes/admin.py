@@ -243,7 +243,28 @@ def _repair_producto_imagenes_defaults():
 def dashboard_admin():
     """Panel principal de administracion."""
     datosApp = get_data_app()
-    return render_template('dashboard_admin.html', datosApp=datosApp)
+
+    # KPIs reales (consultas puras, sin LLM). Tolerante: si falla, sin fila.
+    kpis = None
+    try:
+        from services.ai_tools import kpis_dashboard
+        kpis = kpis_dashboard()
+    except Exception as e:
+        current_app.logger.warning(f"kpis_dashboard falló: {e}")
+
+    # Resumen ejecutivo IA: solo se muestra la tarjeta si el plan tiene IA.
+    # En la carga inicial solo se lee el caché (nunca se gasta GPU aquí).
+    ia_activa, resumen_ia = False, None
+    try:
+        import services.ai_service as ai_svc
+        ia_activa = ai_svc.ia_disponible()
+        if ia_activa:
+            resumen_ia = ai_svc.resumen_cacheado()
+    except Exception:
+        pass
+
+    return render_template('dashboard_admin.html', datosApp=datosApp,
+                           kpis=kpis, ia_activa=ia_activa, resumen_ia=resumen_ia)
 
 
 # --- Gestion de Productos ---
@@ -1211,8 +1232,17 @@ def gestion_inventario():
     except Exception as e:
         current_app.logger.error(f"Error cargando inventario: {e}")
         flash(f"Error cargando inventario: Revisa el log para más detalles.", "error")
-    
-    return render_template('gestion_inventario.html', datosApp=datosApp, productos=productos, valor_total=valor_total, categorias=categorias)
+
+    # Reorden sugerido: consulta pura (ritmo de venta 30d vs stock, sin LLM).
+    # Tolerante a fallos: si algo falla la tarjeta simplemente no aparece.
+    reorden = []
+    try:
+        from services.ai_tools import sugerencia_reorden
+        reorden = (sugerencia_reorden() or {}).get('productos', [])[:5]
+    except Exception as e:
+        current_app.logger.warning(f"sugerencia_reorden falló: {e}")
+
+    return render_template('gestion_inventario.html', datosApp=datosApp, productos=productos, valor_total=valor_total, categorias=categorias, reorden=reorden)
 
 
 @admin_bp.route('/inventario/exportar')
@@ -2434,8 +2464,13 @@ def gestion_resenas():
     except Exception as e:
         current_app.logger.error(f'Error cargando reseñas: {e}')
         flash('Error al cargar las reseñas.', 'error')
+    try:
+        import services.ai_service as ai_svc
+        ia_activa = ai_svc.ia_disponible()
+    except Exception:
+        ia_activa = False
     return render_template('gestion_resenas.html', datosApp=datosApp,
-                           resenas=resenas, filtro=filtro)
+                           resenas=resenas, filtro=filtro, ia_activa=ia_activa)
 
 
 @admin_bp.route('/admin/resenas/<int:resena_id>/aprobar', methods=['POST'])
@@ -2449,6 +2484,32 @@ def aprobar_resena(resena_id):
     except Exception as e:
         current_app.logger.error(f'Error aprobando reseña {resena_id}: {e}')
         flash('Error al aprobar la reseña.', 'error')
+    return redirect(request.referrer or url_for('admin.gestion_resenas'))
+
+
+@admin_bp.route('/admin/resenas/<int:resena_id>/responder', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+def responder_resena(resena_id):
+    """Guarda (o borra, si llega vacía) la respuesta del negocio a una reseña.
+    La respuesta se muestra en la página pública del producto bajo el
+    comentario. La IA solo SUGIERE el texto (botón en la UI); guardar
+    siempre es una acción humana."""
+    respuesta = (request.form.get('respuesta') or '').strip()
+    try:
+        with get_db_cursor() as cur:
+            if respuesta:
+                cur.execute("""UPDATE producto_comentarios
+                               SET respuesta = %s, respuesta_fecha = NOW()
+                               WHERE id = %s""", (respuesta[:1500], resena_id))
+                flash('Respuesta publicada. Ya es visible en la página del producto.', 'success')
+            else:
+                cur.execute("""UPDATE producto_comentarios
+                               SET respuesta = NULL, respuesta_fecha = NULL
+                               WHERE id = %s""", (resena_id,))
+                flash('Respuesta eliminada.', 'success')
+    except Exception as e:
+        current_app.logger.error(f'Error respondiendo reseña {resena_id}: {e}')
+        flash('Error al guardar la respuesta.', 'error')
     return redirect(request.referrer or url_for('admin.gestion_resenas'))
 
 

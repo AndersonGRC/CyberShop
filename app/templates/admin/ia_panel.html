@@ -47,6 +47,7 @@
             <button class="gem-chip" type="button">¿Qué productos tienen poco stock?</button>
             <button class="gem-chip" type="button">¿Qué le falta a mi catálogo?</button>
             <button class="gem-chip" type="button">¿Cuál es mi mejor producto?</button>
+            <button class="gem-chip" type="button">¿Qué debo comprar esta semana?</button>
         </div>
 
         <form id="gem-chat-form" class="gem-chat-form">
@@ -309,6 +310,26 @@
         return wrap;
     }
 
+    /* Respaldo sin streaming (respuesta completa) — se usa si el stream
+       falla antes de pintar el primer fragmento (proxy viejo, red rara). */
+    function preguntarSinStream(texto, thinking, alTerminar) {
+        fetch('/admin/ia/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ pregunta: texto })
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            thinking.remove();
+            addMsg(data.ok ? data.respuesta : (data.error || 'No pude responder eso ahora.'), 'ia');
+        })
+        .catch(function () {
+            thinking.remove();
+            addMsg('Error de conexión. Intenta de nuevo.', 'ia');
+        })
+        .finally(alTerminar);
+    }
+
     function preguntar(texto) {
         texto = (texto || '').trim();
         if (!texto || chatBusy) return;
@@ -319,28 +340,76 @@
         const thinking = addThinking();
         chatSend.disabled = true;
 
-        fetch('/admin/ia/chat', {
+        function terminar() {
+            chatBusy = false;
+            chatSend.disabled = false;
+            chatInput.focus();
+        }
+
+        /* Streaming (SSE sobre fetch): la respuesta aparece palabra a palabra */
+        let bubble = null;   // burbuja de la respuesta (se crea con el primer delta)
+        let acumulado = '';
+
+        function procesarEvento(ev) {
+            if (ev.e === 'delta') {
+                if (!bubble) {
+                    thinking.remove();
+                    bubble = addMsg('', 'ia').querySelector('.gem-chat-bubble');
+                }
+                acumulado += ev.d;
+                bubble.textContent = acumulado;
+                chatLog.scrollTop = chatLog.scrollHeight;
+            } else if (ev.e === 'error') {
+                if (bubble) {
+                    /* ya había texto: se conserva y no se muestra el error */
+                } else {
+                    thinking.remove();
+                    addMsg(ev.d || 'No pude responder eso ahora.', 'ia');
+                    bubble = true; /* evita el fallback duplicado */
+                }
+            }
+        }
+
+        fetch('/admin/ia/chat-stream', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
             body: JSON.stringify({ pregunta: texto })
         })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-            thinking.remove();
-            if (data.ok) {
-                addMsg(data.respuesta, 'ia');
+        .then(function (r) {
+            if (!r.ok || !r.body) throw new Error('sin stream');
+            const reader = r.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            function leer() {
+                return reader.read().then(function (res) {
+                    if (res.done) return;
+                    buffer += decoder.decode(res.value, { stream: true });
+                    const partes = buffer.split('\n\n');
+                    buffer = partes.pop();
+                    partes.forEach(function (bloque) {
+                        const linea = bloque.split('\n').find(function (l) { return l.indexOf('data:') === 0; });
+                        if (!linea) return;
+                        try { procesarEvento(JSON.parse(linea.slice(5))); } catch (e) { /* ignora */ }
+                    });
+                    return leer();
+                });
+            }
+            return leer();
+        })
+        .then(function () {
+            if (!bubble) {
+                /* stream terminó sin producir nada: respaldo clásico */
+                preguntarSinStream(texto, thinking, terminar);
             } else {
-                addMsg(data.error || 'No pude responder eso ahora.', 'ia');
+                terminar();
             }
         })
         .catch(function () {
-            thinking.remove();
-            addMsg('Error de conexión. Intenta de nuevo.', 'ia');
-        })
-        .finally(function () {
-            chatBusy = false;
-            chatSend.disabled = false;
-            chatInput.focus();
+            if (!bubble) {
+                preguntarSinStream(texto, thinking, terminar);
+            } else {
+                terminar();
+            }
         });
     }
 

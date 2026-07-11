@@ -11,6 +11,7 @@ AISLAMIENTO POR CLIENTE (requisito de seguridad):
 """
 
 import hashlib
+import json
 import re
 import time
 
@@ -89,23 +90,28 @@ def ping():
                 'motivo': 'El módulo Asistente IA no está habilitado.'}
     base = (current_app.config.get('AI_BASE_URL') or '').strip().rstrip('/')
     modelo = current_app.config.get('AI_MODEL') or 'qwen2.5:7b'
+    fallback = (current_app.config.get('AI_MODEL_FALLBACK') or '').strip()
+    fallback = fallback if fallback and fallback != modelo else None
     if not base:
-        return {'online': False, 'modelo': modelo,
+        return {'online': False, 'modelo': modelo, 'fallback': fallback,
                 'motivo': 'La IA no está configurada (falta el servidor de IA).'}
     key = (current_app.config.get('AI_API_KEY') or '').strip()
     headers = {'Authorization': f'Bearer {key}'} if key else {}
     try:
         r = requests.get(f'{base}/api/tags', headers=headers, timeout=5)
+        if r.status_code != 200:
+            # Algunos proveedores cloud no exponen /api/tags pero sí /v1/models
+            r = requests.get(f'{base}/v1/models', headers=headers, timeout=5)
         if r.status_code == 200:
-            return {'online': True, 'modelo': modelo, 'motivo': 'IA en línea.'}
-        # Algunos proveedores cloud no exponen /api/tags pero sí /v1/models
-        r = requests.get(f'{base}/v1/models', headers=headers, timeout=5)
-        if r.status_code == 200:
-            return {'online': True, 'modelo': modelo, 'motivo': 'IA en línea.'}
-        return {'online': False, 'modelo': modelo,
+            motivo = 'IA en línea.'
+            if fallback:
+                motivo = f'IA en línea (respaldo: {fallback}).'
+            return {'online': True, 'modelo': modelo, 'fallback': fallback,
+                    'motivo': motivo}
+        return {'online': False, 'modelo': modelo, 'fallback': fallback,
                 'motivo': f'El servidor de IA respondió {r.status_code}.'}
     except requests.RequestException:
-        return {'online': False, 'modelo': modelo,
+        return {'online': False, 'modelo': modelo, 'fallback': fallback,
                 'motivo': 'El servidor de IA está fuera de línea (¿tu equipo está apagado o desconectado?).'}
 
 
@@ -137,14 +143,12 @@ def _contexto_tenant():
 
 
 # ── Cliente OpenAI-compatible (stateless) ──────────────────────
-def _chat(system, user, max_tokens=400, temperature=0.7):
-    """Una sola llamada stateless al endpoint /v1/chat/completions.
-    Devuelve (texto, None) en éxito o (None, mensaje_amigable) en error."""
-    ok, motivo = estado_ia()
-    if not ok:
-        return None, motivo
+def _chat_una_vez(model, system, user, max_tokens, temperature):
+    """Una llamada a /v1/chat/completions con UN modelo concreto.
+    Devuelve (texto, None) o (None, (codigo, mensaje_amigable)) donde codigo
+    distingue errores REINTENTABLES con otro modelo ('modelo') de los que no
+    ('red' = servidor apagado: cambiar de modelo no ayuda)."""
     base = (current_app.config.get('AI_BASE_URL') or '').strip().rstrip('/')
-    model = current_app.config.get('AI_MODEL') or 'qwen2.5:7b'
     key = (current_app.config.get('AI_API_KEY') or '').strip()
     read_timeout = int(current_app.config.get('AI_TIMEOUT') or 120)
     headers = {'Content-Type': 'application/json'}
@@ -157,7 +161,11 @@ def _chat(system, user, max_tokens=400, temperature=0.7):
             {'role': 'user', 'content': user},
         ],
         'temperature': temperature,
-        'max_tokens': max_tokens,
+        # Margen para modelos razonadores (gpt-oss gasta tokens en su canal de
+        # razonamiento ANTES del contenido; medido: hasta ~700-900 en tareas
+        # con datos JSON — sin margen devuelve vacío). max_tokens es solo un
+        # TECHO: el modelo para en EOS, así que el margen amplio no cuesta.
+        'max_tokens': int(max_tokens) + 1200,
         'stream': False,
     }
     try:
@@ -166,29 +174,139 @@ def _chat(system, user, max_tokens=400, temperature=0.7):
         r = requests.post(f'{base}/v1/chat/completions', json=payload,
                           headers=headers, timeout=(5, read_timeout))
     except requests.ConnectTimeout:
-        return None, 'El servidor de IA no responde (¿tu equipo está apagado o desconectado?).'
+        return None, ('red', 'El servidor de IA no responde (¿tu equipo está apagado o desconectado?).')
     except requests.Timeout:
-        return None, 'La IA tardó demasiado en responder. Intenta de nuevo.'
+        return None, ('modelo', 'La IA tardó demasiado en responder. Intenta de nuevo.')
     except requests.RequestException as exc:
         try:
             current_app.logger.warning(f'IA error de red: {exc}')
         except Exception:
             pass
-        return None, 'No se pudo conectar con el servidor de IA. Intenta más tarde.'
+        return None, ('red', 'No se pudo conectar con el servidor de IA. Intenta más tarde.')
     if r.status_code != 200:
         try:
-            current_app.logger.warning(f'IA HTTP {r.status_code}: {r.text[:200]}')
+            current_app.logger.warning(f'IA HTTP {r.status_code} ({model}): {r.text[:200]}')
         except Exception:
             pass
-        return None, 'El servidor de IA devolvió un error. Intenta más tarde.'
+        # 500 típico: el modelo no cupo en memoria → REINTENTABLE con fallback
+        return None, ('modelo', 'El servidor de IA devolvió un error. Intenta más tarde.')
     try:
         data = r.json()
         texto = (data['choices'][0]['message']['content'] or '').strip()
     except Exception:
-        return None, 'Respuesta de IA no válida.'
+        return None, ('modelo', 'Respuesta de IA no válida.')
     if not texto:
-        return None, 'La IA no devolvió contenido. Intenta de nuevo.'
+        return None, ('modelo', 'La IA no devolvió contenido. Intenta de nuevo.')
     return texto, None
+
+
+class _ErrorIA(Exception):
+    """Fallo de una llamada streaming ANTES de producir contenido.
+    codigo: 'modelo' (reintentable con el fallback) o 'red' (no reintentar)."""
+
+    def __init__(self, codigo, mensaje):
+        super().__init__(mensaje)
+        self.codigo = codigo
+        self.mensaje = mensaje
+
+
+def _chat_stream_una_vez(model, system, user, max_tokens, temperature):
+    """Generador: fragmentos de texto de /v1/chat/completions con stream=True.
+    Si falla ANTES del primer fragmento lanza _ErrorIA (el caller decide si
+    reintenta con el fallback). Si el stream se corta a MITAD, termina en
+    silencio: el texto ya emitido se conserva en pantalla. Los deltas de
+    razonamiento (gpt-oss emite 'reasoning' antes del contenido) se descartan."""
+    base = (current_app.config.get('AI_BASE_URL') or '').strip().rstrip('/')
+    key = (current_app.config.get('AI_API_KEY') or '').strip()
+    read_timeout = int(current_app.config.get('AI_TIMEOUT') or 120)
+    headers = {'Content-Type': 'application/json'}
+    if key:
+        headers['Authorization'] = f'Bearer {key}'
+    payload = {
+        'model': model,
+        'messages': [
+            {'role': 'system', 'content': system},
+            {'role': 'user', 'content': user},
+        ],
+        'temperature': temperature,
+        # Mismo margen razonador que _chat_una_vez.
+        'max_tokens': int(max_tokens) + 1200,
+        'stream': True,
+    }
+    try:
+        r = requests.post(f'{base}/v1/chat/completions', json=payload,
+                          headers=headers, stream=True, timeout=(5, read_timeout))
+    except requests.ConnectTimeout:
+        raise _ErrorIA('red', 'El servidor de IA no responde (¿tu equipo está apagado o desconectado?).')
+    except requests.Timeout:
+        raise _ErrorIA('modelo', 'La IA tardó demasiado en responder. Intenta de nuevo.')
+    except requests.RequestException as exc:
+        try:
+            current_app.logger.warning(f'IA error de red (stream): {exc}')
+        except Exception:
+            pass
+        raise _ErrorIA('red', 'No se pudo conectar con el servidor de IA. Intenta más tarde.')
+    if r.status_code != 200:
+        try:
+            current_app.logger.warning(f'IA HTTP {r.status_code} stream ({model}): {r.text[:200]}')
+        except Exception:
+            pass
+        raise _ErrorIA('modelo', 'El servidor de IA devolvió un error. Intenta más tarde.')
+    emitio = False
+    try:
+        for linea in r.iter_lines(decode_unicode=True):
+            if not linea or not linea.startswith('data:'):
+                continue
+            cuerpo = linea[5:].strip()
+            if cuerpo == '[DONE]':
+                break
+            try:
+                delta = json.loads(cuerpo)['choices'][0].get('delta') or {}
+            except Exception:
+                continue
+            frag = delta.get('content') or ''
+            if frag:
+                emitio = True
+                yield frag
+    except requests.RequestException:
+        if not emitio:
+            raise _ErrorIA('modelo', 'La IA tardó demasiado en responder. Intenta de nuevo.')
+        return
+    finally:
+        try:
+            r.close()
+        except Exception:
+            pass
+    if not emitio:
+        raise _ErrorIA('modelo', 'La IA no devolvió contenido. Intenta de nuevo.')
+
+
+def _chat(system, user, max_tokens=400, temperature=0.7):
+    """Llamada de chat con FALLBACK automático de modelo: si el primario
+    (AI_MODEL, p.ej. gpt-oss:20b) falla por memoria/timeout/error del server,
+    reintenta UNA vez con AI_MODEL_FALLBACK (p.ej. qwen2.5:7b) — el usuario
+    recibe respuesta en vez de un error. Devuelve (texto, None) o (None, msg)."""
+    ok, motivo = estado_ia()
+    if not ok:
+        return None, motivo
+    primario = current_app.config.get('AI_MODEL') or 'qwen2.5:7b'
+    fallback = (current_app.config.get('AI_MODEL_FALLBACK') or '').strip()
+
+    texto, err = _chat_una_vez(primario, system, user, max_tokens, temperature)
+    if texto is not None:
+        return texto, None
+    codigo, mensaje = err
+    if codigo == 'modelo' and fallback and fallback != primario:
+        try:
+            current_app.logger.warning(
+                f"IA fallback: {primario} falló ({mensaje[:60]}) → intentando {fallback}")
+        except Exception:
+            pass
+        texto, err2 = _chat_una_vez(fallback, system, user, max_tokens, temperature)
+        if texto is not None:
+            return texto, None
+        mensaje = err2[1]
+    return None, mensaje
 
 
 # ── Funciones del asistente ────────────────────────────────────
@@ -346,13 +464,12 @@ def generar_seo(nombre, descripcion=''):
     return {'meta_title': meta_title, 'meta_description': meta_desc}, None
 
 
-def responder_chat(pregunta):
-    """Asistente conversacional del negocio. Flujo seguro en 2 pasos:
-      1) La IA elige UNA herramienta de solo-lectura del catálogo (JSON estricto).
-      2) Ejecutamos esa herramienta (consulta REAL a la BD del tenant).
-      3) La IA redacta la respuesta con esos datos reales (no inventa cifras).
-    Devuelve (dict {respuesta, datos, herramienta}, None) o (None, mensaje_error)."""
-    import json
+def _plan_chat(pregunta):
+    """Pasos 1 y 2 del chat del negocio (comunes a la variante normal y a la
+    streaming): la IA elige UNA herramienta de solo-lectura (JSON estricto) y
+    la ejecutamos contra la BD del tenant. Devuelve (plan, None) o (None, err),
+    donde plan = {system, user, max_tokens, datos, herramienta} deja lista la
+    redacción final (paso 3)."""
     import services.ai_tools as tools
 
     pregunta = (pregunta or '').strip()
@@ -385,16 +502,16 @@ def responder_chat(pregunta):
     if not code or code == 'ninguna' or code not in tools.TOOLS:
         # Pregunta fuera del alcance de los datos (o dato sensible): responde
         # con honestidad y recuerda los límites del contexto.
-        resp, err2 = _chat(
-            _contexto_tenant() + "\n" + tools.CONTEXTO_DATOS,
-            f"El dueño preguntó: «{pregunta}». No tienes una herramienta ni permiso "
-            "para responder eso con datos. Responde breve y amable; si es un dato "
-            "sensible niégate, y en todo caso indícale qué SÍ puedes consultar "
-            "(ventas, productos más vendidos, stock bajo, inventario, clientes, "
-            "pedidos por despachar, estado del catálogo).", max_tokens=220)
-        if err2:
-            return None, err2
-        return {'respuesta': resp, 'datos': None, 'herramienta': None}, None
+        return {
+            'system': _contexto_tenant() + "\n" + tools.CONTEXTO_DATOS,
+            'user': (
+                f"El dueño preguntó: «{pregunta}». No tienes una herramienta ni permiso "
+                "para responder eso con datos. Responde breve y amable; si es un dato "
+                "sensible niégate, y en todo caso indícale qué SÍ puedes consultar "
+                "(ventas, productos más vendidos, stock bajo, inventario, clientes, "
+                "pedidos por despachar, estado del catálogo)."),
+            'max_tokens': 220, 'datos': None, 'herramienta': None,
+        }, None
 
     # Paso 2: ejecutar la herramienta (consulta real, tenant-scoped)
     try:
@@ -406,17 +523,195 @@ def responder_chat(pregunta):
             pass
         return None, 'No pude consultar esos datos en este momento.'
 
-    # Paso 3: redacción con los datos reales
-    red_system = (_contexto_tenant() +
-                  " Responde la pregunta del dueño usando ÚNICAMENTE los datos que "
-                  "te doy (son reales, de su tienda). Sé claro y breve, en español, "
-                  "con las cifras exactas. No inventes nada que no esté en los datos.")
-    red_user = (f"Pregunta: «{pregunta}»\nDatos reales de su tienda (JSON):\n"
-                f"{json.dumps(datos, ensure_ascii=False)}\n\nRedacta la respuesta.")
-    resp, err3 = _chat(red_system, red_user, max_tokens=350)
+    # Paso 3 (preparado): redacción con los datos reales
+    return {
+        'system': (_contexto_tenant() +
+                   " Responde la pregunta del dueño usando ÚNICAMENTE los datos que "
+                   "te doy (son reales, de su tienda). Sé claro y breve, en español, "
+                   "con las cifras exactas. No inventes nada que no esté en los datos."),
+        'user': (f"Pregunta: «{pregunta}»\nDatos reales de su tienda (JSON):\n"
+                 f"{json.dumps(datos, ensure_ascii=False)}\n\nRedacta la respuesta."),
+        'max_tokens': 350, 'datos': datos, 'herramienta': code,
+    }, None
+
+
+def responder_chat(pregunta):
+    """Asistente conversacional del negocio (respuesta completa, sin streaming
+    — la usa el desktop y queda de respaldo para el panel web).
+    Devuelve (dict {respuesta, datos, herramienta}, None) o (None, mensaje_error)."""
+    plan, err = _plan_chat(pregunta)
+    if err:
+        return None, err
+    resp, err3 = _chat(plan['system'], plan['user'], max_tokens=plan['max_tokens'])
     if err3:
         return None, err3
-    return {'respuesta': resp, 'datos': datos, 'herramienta': code}, None
+    return {'respuesta': resp, 'datos': plan['datos'],
+            'herramienta': plan['herramienta']}, None
+
+
+def responder_chat_stream(pregunta):
+    """Variante STREAMING del chat del negocio. Los pasos 1-2 (elegir
+    herramienta + consulta real) no se pueden streamear; solo la redacción
+    final se emite palabra a palabra. Generador de eventos (tuplas):
+      ('meta',  {herramienta, datos})  — una vez, antes del texto
+      ('delta', fragmento)             — texto incremental
+      ('fin',   texto_completo)        — cierre normal
+      ('error', mensaje)               — cierre con error (puede llegar sin deltas)
+    Mantiene el fallback de modelo: si el primario falla ANTES de emitir texto,
+    reintenta con AI_MODEL_FALLBACK. Si falla a mitad, lo emitido se conserva."""
+    plan, err = _plan_chat(pregunta)
+    if err:
+        yield ('error', err)
+        return
+    yield ('meta', {'herramienta': plan['herramienta'], 'datos': plan['datos']})
+
+    primario = current_app.config.get('AI_MODEL') or 'qwen2.5:7b'
+    fallback = (current_app.config.get('AI_MODEL_FALLBACK') or '').strip()
+    partes = []
+    try:
+        for frag in _chat_stream_una_vez(primario, plan['system'], plan['user'],
+                                         plan['max_tokens'], 0.7):
+            partes.append(frag)
+            yield ('delta', frag)
+    except _ErrorIA as e:
+        if e.codigo == 'modelo' and fallback and fallback != primario and not partes:
+            try:
+                current_app.logger.warning(
+                    f"IA fallback (stream): {primario} falló ({e.mensaje[:60]}) "
+                    f"→ intentando {fallback}")
+            except Exception:
+                pass
+            try:
+                for frag in _chat_stream_una_vez(fallback, plan['system'], plan['user'],
+                                                 plan['max_tokens'], 0.7):
+                    partes.append(frag)
+                    yield ('delta', frag)
+            except _ErrorIA as e2:
+                yield ('error', e2.mensaje)
+                return
+        else:
+            yield ('error', e.mensaje)
+            return
+    yield ('fin', ''.join(partes).strip())
+
+
+def resumen_cacheado():
+    """Último resumen ejecutivo guardado en cliente_config (BD del tenant),
+    si tiene menos de 1 hora. None si no hay o venció. No usa el LLM."""
+    from datetime import datetime, timedelta
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT clave, valor FROM cliente_config WHERE clave IN "
+                        "('ia_resumen_negocio','ia_resumen_negocio_ts')")
+            filas = {r['clave']: r['valor'] for r in cur.fetchall()}
+        texto, ts = filas.get('ia_resumen_negocio'), filas.get('ia_resumen_negocio_ts')
+        if not texto or not ts:
+            return None
+        if datetime.now() - datetime.fromisoformat(ts) > timedelta(hours=1):
+            return None
+        return {'resumen': texto, 'generado': ts}
+    except Exception:
+        return None
+
+
+def resumen_ejecutivo(force=False):
+    """Resumen ejecutivo del negocio: 4-5 líneas accionables redactadas por la
+    IA a partir de las herramientas de datos REALES del tenant. Caché de 1 hora
+    en cliente_config (no gastar GPU en cada carga del dashboard; el botón
+    «Actualizar» pasa force=True). Devuelve
+    ({'resumen', 'generado', 'cache'}, None) o (None, mensaje_error)."""
+    from datetime import datetime
+    import services.ai_tools as tools
+
+    if not force:
+        cached = resumen_cacheado()
+        if cached:
+            return {**cached, 'cache': True}, None
+
+    datos = {}
+    for nombre, fn, kw in (
+            ('ventas_semana', tools.ventas_periodo, {'periodo': 'semana'}),
+            ('top_productos_mes', tools.top_productos, {'periodo': 'mes', 'limite': 5}),
+            ('stock_bajo', tools.productos_bajo_stock, {'umbral': 5}),
+            ('pedidos_por_despachar', tools.pedidos_por_despachar, {}),
+            ('compras_sugeridas', tools.sugerencia_reorden, {}),
+    ):
+        try:
+            datos[nombre] = fn(**kw)
+        except Exception:
+            pass
+    if not datos:
+        return None, 'No pude consultar los datos del negocio.'
+
+    user = ("Con estos datos REALES de la tienda (JSON), escribe un resumen "
+            "ejecutivo para el dueño: 4 o 5 líneas, cada una en un renglón "
+            "empezando con «• », concretas y accionables (qué va bien, qué "
+            "atender hoy, qué comprar o despachar). Usa las cifras exactas, no "
+            "inventes nada y no saludes:\n\n" + json.dumps(datos, ensure_ascii=False))
+    texto, err = _chat(_contexto_tenant(), user, max_tokens=380, temperature=0.5)
+    if err:
+        return None, err
+
+    ahora = datetime.now().isoformat(timespec='seconds')
+    try:
+        with get_db_cursor() as cur:
+            for clave, valor in (('ia_resumen_negocio', texto),
+                                 ('ia_resumen_negocio_ts', ahora)):
+                cur.execute(
+                    """INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion)
+                       VALUES (%s, %s, 'texto', 'sistema', 'Resumen IA del dashboard (auto)')
+                       ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor""",
+                    (clave, valor))
+    except Exception:
+        pass  # el caché es cosmético: si no se pudo guardar, igual respondemos
+    return {'resumen': texto, 'generado': ahora, 'cache': False}, None
+
+
+def sugerir_categoria_movimiento(descripcion, tipo='egreso', monto=None):
+    """Clasifica un movimiento contable en UNA categoría de la lista REAL del
+    módulo (lista cerrada — nunca inventa categorías). Solo SUGIERE: el humano
+    siempre confirma en el formulario. Devuelve
+    ({'categoria': code, 'etiqueta': label}, None) o (None, mensaje_error)."""
+    # Import diferido: routes importa services, no al revés (evita ciclo).
+    from routes.contabilidad import CATEGORIAS_INGRESO, CATEGORIAS_EGRESO
+
+    descripcion = (descripcion or '').strip()
+    if not descripcion:
+        return None, 'Escribe primero la descripción del movimiento.'
+    tipo = 'ingreso' if (tipo or '').strip().lower() == 'ingreso' else 'egreso'
+    cats = CATEGORIAS_INGRESO if tipo == 'ingreso' else CATEGORIAS_EGRESO
+
+    ckey = _cache_key('cat_mov', tipo, descripcion)
+    cached = _cache_get(ckey)
+    if cached:
+        return cached, None
+
+    try:
+        monto_txt = f" por ${float(monto):,.0f} COP" if monto else ''
+    except (TypeError, ValueError):
+        monto_txt = ''
+    lista = '\n'.join(f"- {c}: {l}" for c, l in cats)
+    user = (f"Clasifica este {tipo} de la contabilidad de una tienda en UNA "
+            f"categoría de esta lista. Responde SOLO el código (lo que va antes "
+            f"de los dos puntos), nada más:\n{lista}\n\n"
+            f"Movimiento: «{descripcion[:200]}»{monto_txt}\nCódigo:")
+    texto, err = _chat(
+        "Eres el contador de una tienda en Colombia. Respondes únicamente con "
+        "el código de categoría pedido, sin explicaciones.",
+        user, max_tokens=20, temperature=0)
+    if err:
+        return None, err
+
+    # El modelo puede envolver el código ("Código: venta_pos.") → buscar el
+    # código válido más largo dentro del texto; si no hay, cae a otro_*.
+    t = texto.strip().lower().replace('-', '_')
+    validos = [c for c, _ in cats]
+    code = next((c for c in sorted(validos, key=len, reverse=True) if c in t), '')
+    if not code:
+        code = 'otro_ingreso' if tipo == 'ingreso' else 'otro_egreso'
+    res = {'categoria': code, 'etiqueta': dict(cats).get(code, code)}
+    _cache_set(ckey, res)
+    return res, None
 
 
 def sugerir_nombre(descripcion, categoria=''):

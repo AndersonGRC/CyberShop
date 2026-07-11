@@ -32,6 +32,55 @@
         </div>
     </div>
 
+    {% if kpis %}
+    <!-- ── KPIs del día (datos reales, 3 canales de venta) ────── -->
+    <section style="display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; margin-bottom:18px;"
+             aria-label="Indicadores del negocio">
+        <div class="surface-card" style="padding:16px 18px; border-left:4px solid #16a34a;">
+            <div style="font-size:0.78em; color:#888; text-transform:uppercase; letter-spacing:.4px;">Ventas de hoy</div>
+            <div style="font-size:1.45em; font-weight:800; color:#16a34a; margin-top:4px;">{{ kpis.ventas_hoy }}</div>
+            <div style="font-size:0.8em; color:#888;">{{ kpis.ventas_hoy_n }} venta(s) · web + POS</div>
+        </div>
+        <div class="surface-card" style="padding:16px 18px; border-left:4px solid var(--color-primario);">
+            <div style="font-size:0.78em; color:#888; text-transform:uppercase; letter-spacing:.4px;">Ventas de la semana</div>
+            <div style="font-size:1.45em; font-weight:800; color:var(--color-primario); margin-top:4px;">{{ kpis.ventas_semana }}</div>
+            <div style="font-size:0.8em; color:#888;">{{ kpis.ventas_semana_n }} venta(s) · web + POS</div>
+        </div>
+        <div class="surface-card" style="padding:16px 18px; border-left:4px solid #f59e0b;">
+            <div style="font-size:0.78em; color:#888; text-transform:uppercase; letter-spacing:.4px;">Por despachar</div>
+            <div style="font-size:1.45em; font-weight:800; color:#b45309; margin-top:4px;">{{ kpis.por_despachar }}</div>
+            <div style="font-size:0.8em; color:#888;">
+                {% if kpis.por_despachar %}<a href="{{ url_for('admin.gestion_pedidos') }}" style="color:#b45309;">pedidos pagados esperando envío</a>{% else %}nada pendiente 🎉{% endif %}
+            </div>
+        </div>
+        <div class="surface-card" style="padding:16px 18px; border-left:4px solid #dc3545;">
+            <div style="font-size:0.78em; color:#888; text-transform:uppercase; letter-spacing:.4px;">Stock bajo</div>
+            <div style="font-size:1.45em; font-weight:800; color:#dc3545; margin-top:4px;">{{ kpis.stock_bajo }}</div>
+            <div style="font-size:0.8em; color:#888;">
+                {% if kpis.stock_bajo %}<a href="{{ url_for('admin.gestion_inventario') }}" style="color:#dc3545;">productos con 5 o menos unidades</a>{% else %}inventario sano{% endif %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if ia_activa %}
+    <!-- ── Resumen ejecutivo IA (caché 1h; generar es bajo demanda) ── -->
+    <section class="surface-card" style="padding:18px 22px; margin-bottom:18px; border-left:4px solid #7c3aed;">
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <h3 style="margin:0; font-size:1em; color:#444;"><span style="color:#7c3aed;">✦</span> Resumen de tu negocio</h3>
+            <span id="resumenIAFecha" style="font-size:0.78em; color:#999;">
+                {% if resumen_ia %}generado {{ resumen_ia.generado.replace('T', ' a las ')[:19] }}{% endif %}
+            </span>
+            <button type="button" id="btnResumenIA" onclick="generarResumenIA()"
+                    style="margin-left:auto; background:#7c3aed; color:#fff; border:none; border-radius:8px;
+                           padding:7px 16px; font-size:0.85em; font-weight:700; cursor:pointer;">
+                {{ 'Actualizar' if resumen_ia else '✦ Generar resumen' }}
+            </button>
+        </div>
+        <div id="resumenIATexto" style="margin-top:10px; font-size:0.92em; color:#333; line-height:1.65; white-space:pre-line;">{% if resumen_ia %}{{ resumen_ia.resumen }}{% else %}Pulsa «Generar resumen» y la IA leerá tus ventas, pedidos e inventario para decirte qué atender hoy.{% endif %}</div>
+    </section>
+    {% endif %}
+
     <section class="surface-card dashboard-hero">
         <div class="dashboard-hero__copy">
             <span class="dashboard-hero__eyebrow">Flujo diario recomendado</span>
@@ -164,4 +213,40 @@
 
     </section>
 </section>
+
+{% if ia_activa %}
+<script>
+function generarResumenIA() {
+    var btn = document.getElementById('btnResumenIA');
+    var txt = document.getElementById('resumenIATexto');
+    var fecha = document.getElementById('resumenIAFecha');
+    var token = document.querySelector('meta[name="csrf-token"]');
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = '✦ Pensando…';
+    fetch("{{ url_for('ia.resumen_negocio') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json',
+                   'X-CSRFToken': token ? token.getAttribute('content') : '' },
+        body: JSON.stringify({ force: true })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+        if (data.ok) {
+            txt.textContent = data.resumen;
+            if (fecha && data.generado) fecha.textContent = 'generado ' + data.generado.replace('T', ' a las ').slice(0, 19);
+            btn.textContent = 'Actualizar';
+        } else {
+            txt.textContent = data.error || 'No pude generar el resumen ahora.';
+            btn.textContent = original;
+        }
+    })
+    .catch(function () {
+        txt.textContent = 'Error de conexión. Intenta de nuevo.';
+        btn.textContent = original;
+    })
+    .finally(function () { btn.disabled = false; });
+}
+</script>
+{% endif %}
 {% endblock %}

@@ -323,6 +323,22 @@
                     </div>
                 </div>
                 <p class="resena-texto">{{ c.comentario }}</p>
+                {% if c.respuesta %}
+                <!-- Respuesta del negocio (moderación de reseñas del admin) -->
+                <div class="resena-respuesta" style="margin:10px 0 2px 14px; padding:10px 14px;
+                            background:var(--color-fondo-claro,#f7f8fc); border-left:3px solid var(--color-primario);
+                            border-radius:0 10px 10px 0;">
+                    <div style="font-size:0.8rem; font-weight:700; color:var(--color-primario); margin-bottom:4px;">
+                        <i class="fas fa-store" style="margin-right:4px;"></i>
+                        Respuesta de {{ brand_config.empresa_nombre or datosApp.titulo }}
+                        {% if c.respuesta_fecha %}
+                        <span style="font-weight:400; color:var(--color-texto-claro,#888);">
+                            · {{ c.respuesta_fecha.strftime('%d/%m/%Y') }}</span>
+                        {% endif %}
+                    </div>
+                    <p style="margin:0; font-size:0.9rem; line-height:1.55;">{{ c.respuesta }}</p>
+                </div>
+                {% endif %}
             </div>
             {% endfor %}
         </div>

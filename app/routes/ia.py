@@ -6,7 +6,10 @@ BD usa get_db_cursor(), que resuelve a la BD del tenant del request. El servicio
 ai_service arma el contexto solo desde esa BD.
 """
 
-from flask import Blueprint, request, jsonify, render_template
+import json
+
+from flask import (Blueprint, request, jsonify, render_template, Response,
+                   stream_with_context)
 
 from security import registrar_guard_permiso, rol_requerido, ADMIN_STAFF
 from database import get_db_cursor
@@ -142,6 +145,45 @@ def chat():
     if err:
         return jsonify({'ok': False, 'error': err}), 400
     return jsonify({'ok': True, **res})
+
+
+@ia_bp.route('/resumen-negocio', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+def resumen_negocio():
+    """Resumen ejecutivo del dashboard (4-5 líneas accionables con datos
+    reales). Con caché de 1h; force=true lo regenera."""
+    g = _guard()
+    if g:
+        return g
+    d = request.get_json(silent=True) or {}
+    res, err = ai.resumen_ejecutivo(force=bool(d.get('force')))
+    if err:
+        return jsonify({'ok': False, 'error': err}), 400
+    return jsonify({'ok': True, **res})
+
+
+@ia_bp.route('/chat-stream', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+def chat_stream():
+    """Chat del negocio en STREAMING (Server-Sent Events): la respuesta se
+    pinta palabra a palabra en el panel. El desktop y el respaldo del panel
+    siguen usando /chat (respuesta completa). Eventos: meta, delta, fin, error."""
+    g = _guard()
+    if g:
+        return g
+    d = request.get_json(silent=True) or {}
+    pregunta = d.get('pregunta', '')
+
+    def gen():
+        # stream_with_context mantiene vivo el request (get_db_cursor del
+        # tenant sigue resolviendo dentro del generador).
+        for evento, dato in ai.responder_chat_stream(pregunta):
+            yield f"data: {json.dumps({'e': evento, 'd': dato}, ensure_ascii=False)}\n\n"
+
+    return Response(stream_with_context(gen()), mimetype='text/event-stream',
+                    headers={'Cache-Control': 'no-cache',
+                             # nginx: no bufferizar el SSE (si no, llega en bloque)
+                             'X-Accel-Buffering': 'no'})
 
 
 @ia_bp.route('/nombre', methods=['POST'])

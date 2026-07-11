@@ -159,8 +159,13 @@
 
                 <div style="margin-bottom:10px;">
                     <label style="font-size:0.8em; color:#888; display:block; margin-bottom:3px;">Descripción</label>
-                    <input type="text" name="descripcion" required maxlength="200"
+                    <input type="text" name="descripcion" id="descMov" required maxlength="200"
+                           onblur="sugerirCategoriaIA()"
                            class="form-control" style="width:100%; padding:7px 10px; border-radius:6px; border:1px solid #ddd; font-size:0.88em;">
+                    <!-- Sugerencia IA (solo aparece si el plan tiene IA y hay respuesta) -->
+                    <button type="button" id="chipCatIA" onclick="aplicarCategoriaIA()" style="display:none;
+                            margin-top:6px; background:#f3f0ff; color:#5b21b6; border:1px solid #ddd0ff;
+                            border-radius:999px; padding:4px 12px; font-size:0.8em; cursor:pointer;"></button>
                 </div>
 
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
@@ -548,6 +553,46 @@ function actualizarCategorias() {
     for (var i = 0; i < sel.options.length; i++) {
         if (sel.options[i].style.display !== 'none') { sel.selectedIndex = i; break; }
     }
+}
+
+/* ── Sugerencia IA de categoría (chip, el humano confirma) ── */
+var catIASugerida = null;
+function sugerirCategoriaIA() {
+    var desc = document.getElementById('descMov').value.trim();
+    var chip = document.getElementById('chipCatIA');
+    if (desc.length < 4) { chip.style.display = 'none'; return; }
+    var token = document.querySelector('meta[name="csrf-token"]');
+    fetch("{{ url_for('contabilidad.ia_categoria') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json',
+                   'X-CSRFToken': token ? token.getAttribute('content') : '' },
+        body: JSON.stringify({
+            descripcion: desc,
+            tipo: document.getElementById('tipoSelect').value,
+            monto: document.getElementById('montoBruto').value || null
+        })
+    })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (data) {
+        if (!data || !data.ok) return;               /* sin IA: no molestar */
+        catIASugerida = data.categoria;
+        /* si ya está seleccionada esa categoría, no hay nada que sugerir */
+        if (document.getElementById('catSelect').value === data.categoria) return;
+        chip.textContent = '✦ Sugerencia: ' + data.etiqueta + ' (clic para usar)';
+        chip.style.display = 'inline-block';
+    })
+    .catch(function () { /* silencioso: el chip es opcional */ });
+}
+function aplicarCategoriaIA() {
+    if (!catIASugerida) return;
+    var sel = document.getElementById('catSelect');
+    for (var i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].value === catIASugerida && sel.options[i].style.display !== 'none') {
+            sel.selectedIndex = i;
+            break;
+        }
+    }
+    document.getElementById('chipCatIA').style.display = 'none';
 }
 
 /* ── Mostrar/ocultar sección impuestos ─────────────────── */

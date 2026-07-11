@@ -26,7 +26,8 @@ import io
 from datetime import date, timedelta
 
 from flask import (Blueprint, render_template, request, redirect,
-                   url_for, session, flash, current_app as app, Response)
+                   url_for, session, flash, current_app as app, Response,
+                   jsonify)
 
 from database import get_db_cursor
 from helpers import get_data_app
@@ -608,6 +609,24 @@ def eliminar_movimiento(mov_id):
         app.logger.error(f"Error eliminando movimiento {mov_id}: {e}")
         flash('Error al eliminar.', 'error')
     return redirect(url_for('contabilidad.movimientos'))
+
+
+@contabilidad_bp.route('/admin/contabilidad/ia/categoria', methods=['POST'])
+@rol_requerido(ADMIN_CONTADOR)
+def ia_categoria():
+    """Sugerencia IA de categoría para el movimiento que se está escribiendo.
+    Vive en ESTE blueprint (guard 'accounting') para que el Contador la use
+    sin necesitar permiso del módulo Asistente IA. Lista cerrada: la IA solo
+    puede responder una categoría real; el humano confirma en el select."""
+    import services.ai_service as ai
+    if not ai.ia_disponible():
+        return jsonify({'ok': False, 'error': 'IA no disponible'}), 403
+    d = request.get_json(silent=True) or {}
+    res, err = ai.sugerir_categoria_movimiento(
+        d.get('descripcion', ''), d.get('tipo', 'egreso'), d.get('monto'))
+    if err:
+        return jsonify({'ok': False, 'error': err}), 400
+    return jsonify({'ok': True, **res})
 
 
 # ─────────────────────────────────────────────────────────
