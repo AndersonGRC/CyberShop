@@ -310,6 +310,7 @@ input:checked + .toggle-slider:before { transform: translateX(22px); }
     </a>
 </nav>
 
+    {% if 'bulk_upload' in active_modules %}
     <!-- ── Preferencia: crear géneros al importar productos ─────────── -->
     <div class="form-card" style="margin-bottom:20px;">
         <div class="form-card__body" style="padding:18px 24px;">
@@ -358,6 +359,7 @@ input:checked + .toggle-slider:before { transform: translateX(22px); }
             </p>
         </div>
     </div>
+    {% endif %}
 
     <div class="two-col">
 

@@ -33,6 +33,7 @@ MODULE_RESTAURANT_TABLES = 'restaurant_tables'
 MODULE_FACTURACION_ELECTRONICA = 'facturacion_electronica'
 MODULE_SHARE = 'share'
 MODULE_AI = 'ai_assistant'
+MODULE_BULK_UPLOAD = 'bulk_upload'
 
 MODULE_DEFINITIONS = {
     MODULE_ORDERS: {
@@ -204,6 +205,15 @@ MODULE_DEFINITIONS = {
         'config_key': 'ia_habilitado',
         'default': False,
         'orden': 170,
+        'is_core': False,
+    },
+    MODULE_BULK_UPLOAD: {
+        'nombre': 'Cargue masivo',
+        'descripcion': 'Importacion masiva de productos y generos por Excel (plantilla + subir). Al desactivarlo, esos botones desaparecen del panel del cliente sin afectar el resto.',
+        'categoria': 'catalogo',
+        'config_key': 'cargue_masivo_habilitado',
+        'default': True,
+        'orden': 65,
         'is_core': False,
     },
 }

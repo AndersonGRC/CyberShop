@@ -508,6 +508,7 @@ input:checked + .toggle-slider:before { transform: translateX(22px); }
         </form>
     </div>
 
+    {% if 'bulk_upload' in active_modules %}
     <!-- Formulario: Cargue masivo -->
     <div class="form-general">
         <div class="form-header">
@@ -545,6 +546,7 @@ input:checked + .toggle-slider:before { transform: translateX(22px); }
             </div>
         </form>
     </div>
+    {% endif %}
     </div>{# /form-card__body #}
     </div>{# /form-card #}
 </section>

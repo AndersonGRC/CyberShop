@@ -33,7 +33,7 @@ from security import (
     POS_DELETE,
     ROL_SUPER_ADMIN,
 )
-from tenant_features import get_module_settings, set_module_state
+from tenant_features import get_module_settings, set_module_state, is_module_active
 from services.db_layer import control_plane_cursor
 from services.public_site_service import (
     PUBLIC_BRANDING_FIELDS,
@@ -440,7 +440,11 @@ def _cargue_auto_generos_activo() -> bool:
 def cargue_masivo_productos():
     """Procesa el cargue masivo de productos desde un archivo Excel."""
     import pandas as pd
-    
+
+    if not is_module_active('bulk_upload'):
+        flash('El cargue masivo no está habilitado para tu plan.', 'warning')
+        return redirect(url_for('admin.GestionProductos'))
+
     if 'archivo_excel' not in request.files:
         flash('No se seleccionó ningún archivo.', 'error')
         return redirect(url_for('admin.GestionProductos'))
@@ -2461,6 +2465,9 @@ def cargue_masivo_generos():
     """Crea géneros/categorías en masivo desde un Excel (columna 'Género').
     Ignora duplicados, filas de ejemplo y vacías."""
     import pandas as pd
+    if not is_module_active('bulk_upload'):
+        flash('El cargue masivo no está habilitado para tu plan.', 'warning')
+        return redirect(url_for('admin.gestion_generos'))
     if 'archivo_excel' not in request.files or request.files['archivo_excel'].filename == '':
         flash('No se seleccionó ningún archivo.', 'error')
         return redirect(url_for('admin.gestion_generos'))
