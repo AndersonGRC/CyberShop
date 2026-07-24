@@ -310,6 +310,55 @@ input:checked + .toggle-slider:before { transform: translateX(22px); }
     </a>
 </nav>
 
+    <!-- ── Preferencia: crear géneros al importar productos ─────────── -->
+    <div class="form-card" style="margin-bottom:20px;">
+        <div class="form-card__body" style="padding:18px 24px;">
+            <form action="{{ url_for('admin.toggle_auto_generos') }}" method="POST" id="form-auto-generos">
+                <label class="toggle-wrap" style="cursor:pointer;">
+                    <span class="toggle-info">
+                        <i class="fas fa-magic" style="color:#122C94;margin-right:6px;"></i>Crear géneros automáticamente al importar
+                        <small>En el cargue masivo por Excel, si un género no existe se crea solo. Si está apagado, esas filas se reportan como error (comportamiento clásico).</small>
+                    </span>
+                    <span class="toggle-switch">
+                        <input type="checkbox" name="activo"
+                               onchange="document.getElementById('form-auto-generos').submit()"
+                               {% if auto_generos %}checked{% endif %}>
+                        <span class="toggle-slider"></span>
+                    </span>
+                </label>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── Carga masiva de géneros (plantilla + subir) ──────────────── -->
+    <div class="form-card" style="margin-bottom:20px;">
+        <div class="form-card__header">
+            <div class="form-card__icon"><i class="fas fa-file-excel"></i></div>
+            <div>
+                <p class="form-card__title">Carga masiva de géneros</p>
+                <p class="form-card__sub">Descarga la plantilla, llénala y súbela para crear varias categorías de una vez.</p>
+            </div>
+        </div>
+        <div class="form-card__body">
+            <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;">
+                <a href="{{ url_for('admin.descargar_plantilla_generos') }}" class="btn-link-secondary">
+                    <i class="fas fa-download"></i> Descargar plantilla
+                </a>
+                <form action="{{ url_for('admin.cargue_masivo_generos') }}" method="POST"
+                      enctype="multipart/form-data"
+                      style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;flex:1;min-width:260px;">
+                    <input type="file" name="archivo_excel" accept=".xlsx" required style="flex:1;min-width:180px;">
+                    <button type="submit" class="btn-submit">
+                        <i class="fas fa-upload"></i> Cargar géneros
+                    </button>
+                </form>
+            </div>
+            <p class="fg-hint" style="margin-top:12px;">
+                La plantilla tiene una sola columna <strong>Género</strong>. Los duplicados se omiten automáticamente.
+            </p>
+        </div>
+    </div>
+
     <div class="two-col">
 
         <!-- ── Panel crear ──────────────────────────── -->

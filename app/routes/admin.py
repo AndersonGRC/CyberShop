@@ -419,6 +419,22 @@ def descargar_plantilla_productos():
         headers={"Content-Disposition": "attachment;filename=plantilla_productos.xlsx"}
     )
 
+def _cargue_auto_generos_activo() -> bool:
+    """True si el cliente activó la auto-creación de géneros en el cargue masivo.
+
+    Flag por tenant en cliente_config (clave 'cargue_auto_generos'). Default OFF:
+    si la clave no existe, el cargue masivo exige que el género ya exista (como
+    siempre). Cada cliente lo activa desde /admin/generos.
+    """
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT valor FROM cliente_config WHERE clave = 'cargue_auto_generos' LIMIT 1")
+            row = cur.fetchone()
+        return bool(row) and str(row['valor']).strip().lower() in ('true', '1', 'yes', 'on', 'si')
+    except Exception:
+        return False
+
+
 @admin_bp.route('/cargue-masivo-productos', methods=['POST'])
 @rol_requerido(CATALOG_OPERATIONAL)
 def cargue_masivo_productos():
@@ -456,7 +472,9 @@ def cargue_masivo_productos():
         cur.execute('SELECT id, nombre FROM generos')
         generos_rows = cur.fetchall()
         generos_map = {row[1].strip().lower(): row[0] for row in generos_rows}
+        auto_generos = _cargue_auto_generos_activo()
         productos_creados = 0
+        generos_creados = []
         errores = []
         
         for index, row in df.iterrows():
@@ -504,10 +522,23 @@ def cargue_masivo_productos():
                     errores.append(f"Fila {index+2}: La referencia '{referencia}' ya existe en el sistema.")
                     continue
                     
-                # Validar género
-                if genero_nombre not in generos_map:
-                    errores.append(f"Fila {index+2}: El género '{row['Género']}' no existe en la base de datos.")
+                # Género: obligatorio. Si no existe y el auto-alta está activo se
+                # crea; si el auto-alta está apagado, se reporta como error.
+                if pd.isna(row.get('Género')) or genero_nombre in ('', 'nan'):
+                    errores.append(f"Fila {index+2}: Falta el género (columna obligatoria).")
                     continue
+                if genero_nombre not in generos_map:
+                    if auto_generos:
+                        genero_nombre_original = str(row['Género']).strip()
+                        cur.execute('INSERT INTO generos (nombre) VALUES (%s) RETURNING id',
+                                    (genero_nombre_original,))
+                        generos_map[genero_nombre] = cur.fetchone()[0]
+                        generos_creados.append(genero_nombre_original)
+                    else:
+                        errores.append(
+                            f"Fila {index+2}: El género '{row['Género']}' no existe. "
+                            "Créalo antes, o activa 'Crear géneros al importar' en Géneros.")
+                        continue
                 genero_id = generos_map[genero_nombre]
                 
                 # Asignamos imagen por defecto
@@ -542,7 +573,11 @@ def cargue_masivo_productos():
         
         if productos_creados > 0:
             flash(f'¡Se importaron {productos_creados} productos exitosamente!', 'success')
-            
+
+        if generos_creados:
+            flash(f'Se crearon automáticamente {len(generos_creados)} género(s) nuevo(s): '
+                  f'{", ".join(generos_creados)}.', 'info')
+
         if errores:
             # Mostramos un resumen de errores en un format amigable
             error_msgs = "\n".join(errores[:10])
@@ -2369,7 +2404,107 @@ def gestion_generos():
             generos = cur.fetchall()
     except Exception as e:
         flash(f'Error al cargar géneros: Revisa el log para más detalles.', 'error')
-    return render_template('gestion_generos.html', datosApp=datosApp, generos=generos)
+    return render_template('gestion_generos.html', datosApp=datosApp, generos=generos,
+                           auto_generos=_cargue_auto_generos_activo())
+
+
+@admin_bp.route('/admin/generos/auto-generos', methods=['POST'])
+@rol_requerido(CATALOG_OPERATIONAL)
+def toggle_auto_generos():
+    """Activa/desactiva la creación automática de géneros al importar productos.
+
+    Guarda el flag por tenant en cliente_config (UPDATE→INSERT, sin ON CONFLICT
+    porque no todas las BDs de cliente tienen índice único en 'clave')."""
+    nuevo = 'true' if request.form.get('activo') else 'false'
+    try:
+        with get_db_cursor() as cur:
+            cur.execute("UPDATE cliente_config SET valor = %s WHERE clave = 'cargue_auto_generos'",
+                        (nuevo,))
+            if cur.rowcount == 0:
+                cur.execute(
+                    "INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion) "
+                    "VALUES ('cargue_auto_generos', %s, 'boolean', 'catalogo', "
+                    "'Crear géneros automáticamente al importar productos por Excel')",
+                    (nuevo,))
+        flash('Creación automática de géneros ' + ('activada.' if nuevo == 'true' else 'desactivada.'),
+              'success')
+    except Exception:
+        flash('No se pudo guardar la preferencia de géneros. Revisa el log.', 'error')
+    return redirect(url_for('admin.gestion_generos'))
+
+
+@admin_bp.route('/admin/generos/plantilla')
+@rol_requerido(CATALOG_OPERATIONAL)
+def descargar_plantilla_generos():
+    """Descarga un Excel plantilla para el cargue masivo de géneros/categorías."""
+    import pandas as pd
+    import io
+    df = pd.DataFrame(
+        [{'Género': 'Electrónica (EJEMPLO — borra esta fila)'},
+         {'Género': 'Ropa'},
+         {'Género': 'Accesorios'}],
+        columns=['Género'])
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Plantilla Generos')
+    output.seek(0)
+    return Response(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={"Content-Disposition": "attachment;filename=plantilla_generos.xlsx"}
+    )
+
+
+@admin_bp.route('/admin/generos/cargue-masivo', methods=['POST'])
+@rol_requerido(CATALOG_OPERATIONAL)
+def cargue_masivo_generos():
+    """Crea géneros/categorías en masivo desde un Excel (columna 'Género').
+    Ignora duplicados, filas de ejemplo y vacías."""
+    import pandas as pd
+    if 'archivo_excel' not in request.files or request.files['archivo_excel'].filename == '':
+        flash('No se seleccionó ningún archivo.', 'error')
+        return redirect(url_for('admin.gestion_generos'))
+    file = request.files['archivo_excel']
+    if not file.filename.lower().endswith('.xlsx'):
+        flash('Formato inválido. Sube un archivo .xlsx', 'error')
+        return redirect(url_for('admin.gestion_generos'))
+    try:
+        df = pd.read_excel(file)
+        df.columns = df.columns.str.strip()
+        col = next((c for c in df.columns
+                    if c.strip().lower() in ('género', 'genero', 'categoría', 'categoria', 'nombre')), None)
+        if not col:
+            flash("El archivo debe tener una columna 'Género' (o 'Categoría').", 'error')
+            return redirect(url_for('admin.gestion_generos'))
+        creados, duplicados, vistos = [], 0, set()
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute('SELECT LOWER(TRIM(nombre)) AS n FROM generos')
+            existentes = {r['n'] for r in cur.fetchall()}
+            for _, row in df.iterrows():
+                val = row.get(col)
+                if val is None or pd.isna(val):
+                    continue
+                nombre = str(val).strip()
+                clave = nombre.lower()
+                if not nombre or 'ejemplo' in clave or clave in vistos:
+                    continue
+                vistos.add(clave)
+                if clave in existentes:
+                    duplicados += 1
+                    continue
+                cur.execute('INSERT INTO generos (nombre) VALUES (%s)', (nombre,))
+                creados.append(nombre)
+        if creados:
+            flash(f'Se crearon {len(creados)} género(s): {", ".join(creados[:20])}'
+                  + (f' …y {len(creados) - 20} más.' if len(creados) > 20 else '.'), 'success')
+        if duplicados:
+            flash(f'{duplicados} ya existían y se omitieron.', 'info')
+        if not creados and not duplicados:
+            flash('No se encontraron géneros para crear en el archivo.', 'warning')
+    except Exception as exc:
+        current_app.logger.error(f"Error cargue masivo géneros: {exc}")
+        flash('Ocurrió un error al procesar el archivo. Revisa el log.', 'error')
+    return redirect(url_for('admin.gestion_generos'))
 
 
 @admin_bp.route('/admin/generos/crear', methods=['POST'])
