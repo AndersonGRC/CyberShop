@@ -109,7 +109,9 @@
 
     <!-- Pie de página compacto -->
     <footer class="footer">
-        <p>&copy;{{ now.year if now else '2025' }} {{ brand_config.empresa_copyright or datosApp.titulo }}.</p>
+        <p>&copy;{{ now.year if now else '2025' }} {{ brand_config.empresa_copyright or datosApp.titulo }}.
+           <span class="app-version" title="Versión del panel instalada" style="opacity:.75;font-size:.8em;margin-left:6px;">CyberShop Admin v{{ app_version }}</span>
+        </p>
     </footer>
 
     <script type="text/javascript" src="{{ url_for('static', filename='js/app.js') }}"></script>

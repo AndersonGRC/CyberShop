@@ -2,6 +2,16 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ⚖️ REGLA: Versionado obligatorio
+
+**Todo cambio que se despliega DEBE subir la versión.** Sin bump de versión, el
+cambio no está terminado. Aplica a todos los productos y clientes (incl. CyberShop).
+
+- **Admin web** → `config.py: Config.APP_VERSION` (se muestra en el footer de `/admin`).
+- **POS Escritorio** → `main.py: APP_VERSION` + `installer.iss: AppVersion`.
+- Esquema `A.B.C.D`: **A** radical · **B** módulo nuevo · **C** estabilización · **D** corrección.
+- Detalle completo y checklist: [docs/VERSIONADO.md](docs/VERSIONADO.md).
+
 ## Running the Application
 
 ```bash

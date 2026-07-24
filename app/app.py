@@ -337,6 +337,7 @@ def inject_config_global():
         current_tenant_id=current_tenant_id,
         integraciones=integraciones,
         trial_info=trial_info,
+        app_version=Config.APP_VERSION,
     )
 
 

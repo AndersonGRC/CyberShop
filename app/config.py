@@ -16,6 +16,14 @@ load_dotenv(Path(__file__).parent / '.cybershop.conf')
 class Config:
     """Configuracion principal de la aplicacion Flask."""
 
+    # --- Versión del software (admin web) ---
+    # Esquema A.B.C.D (ver docs/VERSIONADO.md). REGLA: cada desarrollo bumpea
+    # esta versión. Se muestra en el footer del panel admin (para TODOS los
+    # clientes, código compartido → todos ven la misma = la última desplegada).
+    #   A = cambio radical de plataforma · B = módulo nuevo grande
+    #   C = estabilización / mejora · D = correcciones y ajustes de UI
+    APP_VERSION = "1.0.0.0"
+
     # --- General / Sesion ---
     # SECURITY M2: Sin fallback débil — falla explícitamente si no está configurado
     SECRET_KEY = os.getenv('FLASK_SECRET_KEY')
