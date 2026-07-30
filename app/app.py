@@ -322,11 +322,16 @@ def inject_config_global():
     # en cliente_config al crearla), el staff ve "te quedan N días" con el link
     # de pago. Barato: 2 claves leídas con caché de proceso (TTL 10 min).
     trial_info = None
+    plan_aviso = None
     if session_usuario and session_usuario.get('rol_id') in (1, 2, 4):
         try:
             trial_info = _trial_banner_info()
         except Exception:
             trial_info = None
+        try:
+            plan_aviso = _plan_expiry_info()
+        except Exception:
+            plan_aviso = None
 
     return dict(
         config_global=config,
@@ -337,11 +342,13 @@ def inject_config_global():
         current_tenant_id=current_tenant_id,
         integraciones=integraciones,
         trial_info=trial_info,
+        plan_aviso=plan_aviso,
         app_version=Config.APP_VERSION,
     )
 
 
 _TRIAL_CACHE = {'ts': 0, 'data': None}
+_PLAN_CACHE = {'ts': 0, 'data': None}
 
 
 def _trial_banner_info():
@@ -366,6 +373,35 @@ def _trial_banner_info():
         data = None
     _TRIAL_CACHE['ts'] = _time.time()
     _TRIAL_CACHE['data'] = data
+    return data
+
+
+def _plan_expiry_info():
+    """{'dias': N, 'hasta': 'dd/mm/aaaa'} si el plan vence en ≤ 3 días y los
+    avisos NO están silenciados; None si no. El maestro sincroniza 'plan_vence'
+    y 'plan_avisos_off' al cliente_config del tenant (ver billing_service)."""
+    import time as _time
+    from datetime import date as _date
+    if _time.time() - _PLAN_CACHE['ts'] < 600:
+        return _PLAN_CACHE['data']
+    data = None
+    try:
+        from database import get_db_cursor
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT clave, valor FROM cliente_config "
+                        "WHERE clave IN ('plan_vence','plan_avisos_off')")
+            filas = {r['clave']: r['valor'] for r in cur.fetchall()}
+        off = str(filas.get('plan_avisos_off', '')).strip().lower() in ('true', '1', 'yes', 'on', 'si')
+        vence = (filas.get('plan_vence') or '').strip()
+        if not off and vence:
+            hasta = _date.fromisoformat(vence[:10])
+            dias = (hasta - _date.today()).days
+            if 0 <= dias <= 3:
+                data = {'dias': dias, 'hasta': hasta.strftime('%d/%m/%Y')}
+    except Exception:
+        data = None
+    _PLAN_CACHE['ts'] = _time.time()
+    _PLAN_CACHE['data'] = data
     return data
 
 # --- Security headers ---

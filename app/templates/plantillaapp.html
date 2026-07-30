@@ -158,6 +158,35 @@
     {% block scripts %}{% endblock %}
     {% block javascript %}{% endblock %}
 
+    {% if plan_aviso %}
+    {# Aviso "plan por vencer": modal cerrable, 1 vez al día (guard en localStorage). #}
+    <script>
+    (function () {
+        var hoy = new Date().toISOString().slice(0, 10);
+        if (localStorage.getItem('plan_aviso_visto') === hoy) return;
+        var dias = {{ plan_aviso.dias }};
+        var hasta = {{ plan_aviso.hasta | tojson }};
+        var msg = (dias > 0)
+            ? ('Tu plan vence el <b>' + hasta + '</b> — faltan <b>' + dias + ' día(s)</b>.')
+            : ('Tu plan vence <b>hoy</b> (' + hasta + ').');
+        function show() {
+            if (typeof Swal === 'undefined') { setTimeout(show, 400); return; }
+            Swal.fire({
+                title: '⚠️ ATENCIÓN',
+                html: '<p style="margin:.4rem 0 0;font-size:1.02rem;">' + msg + '</p>'
+                    + '<p style="margin:.9rem 0 0;color:#b42318;font-weight:700;">En caso de no pago se procederá a suspender el servicio.</p>'
+                    + '<p style="margin:.7rem 0 0;color:#667085;font-size:.9rem;">Realiza tu pago para no interrumpir tu servicio.</p>',
+                icon: 'warning',
+                confirmButtonText: 'Entendido',
+                confirmButtonColor: (typeof BRAND_COLOR_BTN !== 'undefined') ? BRAND_COLOR_BTN : '#122C94',
+                allowOutsideClick: true
+            }).then(function () { localStorage.setItem('plan_aviso_visto', hoy); });
+        }
+        show();
+    })();
+    </script>
+    {% endif %}
+
     <script>
     /* Auto-inyectar CSRF token en todos los formularios POST */
     (function() {
