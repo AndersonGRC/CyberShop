@@ -113,6 +113,7 @@ def index():
         datosApp=datosApp,
         slides=payload['slides'],
         publicaciones=payload['publications'],
+        servicios=payload['services'],
         config=payload['sections'],
         public_content=payload['content'],
     )
