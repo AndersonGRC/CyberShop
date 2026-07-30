@@ -166,20 +166,35 @@
         if (localStorage.getItem('plan_aviso_visto') === hoy) return;
         var dias = {{ plan_aviso.dias }};
         var hasta = {{ plan_aviso.hasta | tojson }};
-        var msg = (dias > 0)
-            ? ('Tu plan vence el <b>' + hasta + '</b> — faltan <b>' + dias + ' día(s)</b>.')
-            : ('Tu plan vence <b>hoy</b> (' + hasta + ').');
+        var diasTxt = (dias > 1) ? ('Faltan ' + dias + ' días')
+                    : (dias === 1) ? 'Falta 1 día' : 'Vence hoy';
+        var acento = (dias <= 1) ? '#dc2626' : '#d97706';   // rojo si urge, ámbar si no
         function show() {
             if (typeof Swal === 'undefined') { setTimeout(show, 400); return; }
+            // Esperar si ya hay otro modal abierto (p.ej. un mensaje flash).
+            if (Swal.isVisible && Swal.isVisible()) { setTimeout(show, 800); return; }
             Swal.fire({
-                title: '⚠️ ATENCIÓN',
-                html: '<p style="margin:.4rem 0 0;font-size:1.02rem;">' + msg + '</p>'
-                    + '<p style="margin:.9rem 0 0;color:#b42318;font-weight:700;">En caso de no pago se procederá a suspender el servicio.</p>'
-                    + '<p style="margin:.7rem 0 0;color:#667085;font-size:.9rem;">Realiza tu pago para no interrumpir tu servicio.</p>',
-                icon: 'warning',
+                iconHtml: '<span style="font-size:2rem;line-height:1;">📣</span>',
+                iconColor: acento,
+                title: 'ATENCIÓN',
+                width: 460,
+                html:
+                  '<div style="text-align:center;">' +
+                    '<p style="margin:.1rem 0 1.1rem;font-size:1.02rem;color:#334155;">Tu plan está próximo a vencer.</p>' +
+                    '<div style="display:inline-block;padding:14px 28px;border-radius:16px;background:#eef3ff;border:1px solid #d7e0f7;">' +
+                      '<div style="font-size:.72rem;font-weight:800;letter-spacing:.08em;color:#64748b;text-transform:uppercase;">Fecha de vencimiento</div>' +
+                      '<div style="font-size:1.5rem;font-weight:800;color:#122C94;line-height:1.2;margin-top:3px;">' + hasta + '</div>' +
+                      '<div style="display:inline-block;margin-top:9px;padding:3px 15px;border-radius:999px;background:' + acento + ';color:#fff;font-size:.8rem;font-weight:800;letter-spacing:.02em;">' + diasTxt + '</div>' +
+                    '</div>' +
+                    '<div style="margin-top:18px;padding:12px 16px;border-radius:12px;background:#fef2f2;border:1px solid #fecaca;color:#b42318;font-weight:700;font-size:.93rem;line-height:1.45;">' +
+                      'En caso de no pago se procederá a <u>suspender el servicio</u>.' +
+                    '</div>' +
+                    '<p style="margin:.95rem 0 0;color:#64748b;font-size:.85rem;">Realiza tu pago para no interrumpir tu operación.</p>' +
+                  '</div>',
                 confirmButtonText: 'Entendido',
-                confirmButtonColor: (typeof BRAND_COLOR_BTN !== 'undefined') ? BRAND_COLOR_BTN : '#122C94',
-                allowOutsideClick: true
+                confirmButtonColor: '#122C94',
+                allowOutsideClick: true,
+                allowEscapeKey: true
             }).then(function () { localStorage.setItem('plan_aviso_visto', hoy); });
         }
         show();
