@@ -40,6 +40,7 @@ from services.public_site_service import (
     PUBLIC_COLOR_FIELDS,
     PUBLIC_LANDING_FIELDS,
     get_public_site_admin_context,
+    save_public_content_image,
     save_public_logo,
     save_public_site_sections,
     save_public_site_settings,
@@ -1558,8 +1559,6 @@ def gestion_publicaciones():
 @rol_requerido(ADMIN_STAFF)
 def crear_publicacion():
     """Crear nueva publicacion del home."""
-    from app import product_images
-
     datosApp = get_data_app()
     if request.method == 'POST':
         titulo = request.form.get('titulo')
@@ -1568,8 +1567,7 @@ def crear_publicacion():
 
         file = request.files.get('imagen')
         if file and file.filename != '':
-            imagen_nombre = product_images.save(file, folder='media')
-            imagen_url = f"/static/media/{imagen_nombre}"
+            imagen_url = save_public_content_image(file, current_app.root_path, prefix='publicacion')
 
         try:
             with get_db_cursor() as cur:
@@ -1589,8 +1587,6 @@ def crear_publicacion():
 @rol_requerido(ADMIN_STAFF)
 def editar_publicacion(id):
     """Editar publicacion existente."""
-    from app import product_images
-
     datosApp = get_data_app()
     publicacion = None
 
@@ -1610,8 +1606,7 @@ def editar_publicacion(id):
         try:
             with get_db_cursor() as cur:
                 if file and file.filename != '':
-                    imagen_nombre = product_images.save(file, folder='media')
-                    imagen_url = f"/static/media/{imagen_nombre}"
+                    imagen_url = save_public_content_image(file, current_app.root_path, prefix='publicacion')
                     cur.execute(
                         'UPDATE publicaciones_home SET titulo=%s, descripcion=%s, imagen=%s WHERE id=%s',
                         (titulo, descripcion, imagen_url, id)
@@ -1682,8 +1677,6 @@ def gestion_slides():
 @rol_requerido(ADMIN_STAFF)
 def crear_slide():
     """Crear nuevo slide del carrusel."""
-    from app import product_images
-
     datosApp = get_data_app()
     if request.method == 'POST':
         titulo = request.form.get('titulo')
@@ -1695,8 +1688,7 @@ def crear_slide():
             flash('La imagen es obligatoria para el slide.', 'error')
             return redirect(url_for('admin.gestion_slides'))
 
-        imagen_nombre = product_images.save(file, folder='media')
-        imagen_url = f"/static/media/{imagen_nombre}"
+        imagen_url = save_public_content_image(file, current_app.root_path, prefix='slide')
 
         try:
             with get_db_cursor() as cur:
@@ -1716,8 +1708,6 @@ def crear_slide():
 @rol_requerido(ADMIN_STAFF)
 def editar_slide(id):
     """Editar slide existente."""
-    from app import product_images
-
     datosApp = get_data_app()
     slide = None
 
@@ -1738,8 +1728,7 @@ def editar_slide(id):
         try:
             with get_db_cursor() as cur:
                 if file and file.filename != '':
-                    imagen_nombre = product_images.save(file, folder='media')
-                    imagen_url = f"/static/media/{imagen_nombre}"
+                    imagen_url = save_public_content_image(file, current_app.root_path, prefix='slide')
                     cur.execute(
                         'UPDATE slides_home SET imagen=%s, titulo=%s, descripcion=%s, orden=%s WHERE id=%s',
                         (imagen_url, titulo, descripcion, orden, id)
@@ -1804,8 +1793,6 @@ def gestion_servicios():
 @rol_requerido(ADMIN_STAFF)
 def crear_servicio():
     """Crear nuevo servicio."""
-    from app import product_images
-
     datosApp = get_data_app()
     if request.method == 'POST':
         titulo = request.form.get('titulo')
@@ -1816,8 +1803,7 @@ def crear_servicio():
 
         file = request.files.get('imagen')
         if file and file.filename != '':
-            imagen_nombre = product_images.save(file, folder='media')
-            imagen_url = f"/static/media/{imagen_nombre}"
+            imagen_url = save_public_content_image(file, current_app.root_path, prefix='servicio')
 
         try:
             with get_db_cursor() as cur:
@@ -1837,8 +1823,6 @@ def crear_servicio():
 @rol_requerido(ADMIN_STAFF)
 def editar_servicio(id):
     """Editar servicio existente."""
-    from app import product_images
-
     datosApp = get_data_app()
     servicio = None
 
@@ -1860,8 +1844,7 @@ def editar_servicio(id):
         try:
             with get_db_cursor() as cur:
                 if file and file.filename != '':
-                    imagen_nombre = product_images.save(file, folder='media')
-                    imagen_url = f"/static/media/{imagen_nombre}"
+                    imagen_url = save_public_content_image(file, current_app.root_path, prefix='servicio')
                     cur.execute(
                         'UPDATE servicios_home SET titulo=%s, descripcion=%s, beneficios=%s, imagen=%s, orden=%s WHERE id=%s',
                         (titulo, descripcion, beneficios, imagen_url, orden, id)
@@ -2741,8 +2724,12 @@ def configuracion_cliente():
             logo = request.files.get('logo')
             if logo and logo.filename:
                 try:
-                    logo_path = os.path.join(current_app.root_path, 'static', 'img', 'Logo.png')
-                    logo.save(logo_path)
+                    # AISLAMIENTO POR CLIENTE: se guarda en el override de la instancia y
+                    # se actualiza `empresa_logo_url`. NUNCA se sobrescribe
+                    # static/img/Logo.png: ese archivo está versionado en el repo COMPARTIDO
+                    # por todos los tenants — pisarlo cambia el logo de los demás y deja el
+                    # árbol de git sucio, lo que rompe el `git merge --ff-only` del deploy.
+                    save_public_logo(logo, current_app.root_path)
                 except Exception as e:
                     current_app.logger.error(f"Error guardando logo: {e}")
                     flash('Configuración guardada, pero hubo un error al subir el logo.', 'warning')

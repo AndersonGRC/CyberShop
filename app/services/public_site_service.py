@@ -461,6 +461,36 @@ PUBLIC_LANDING_FIELDS = [
         'default': 'Presentamos soluciones especializadas para operación, soporte y crecimiento digital.',
         'order': 31,
     },
+    # Bloque "lema / pilares": lista de valores o principios de la empresa.
+    # Default VACÍO a propósito: las plantillas lo renderizan solo si el cliente lo
+    # llena, así que activarlo es opt-in y no altera el home de ningún tenant actual.
+    {
+        'key': 'home_lema_titulo',
+        'label': 'Titulo del lema / pilares',
+        'description': 'Encabezado del bloque de pilares o valores (ej: Nuestro Lema). Vacio = bloque oculto.',
+        'type': 'text',
+        'group': 'sitio_publico',
+        'default': '',
+        'order': 32,
+    },
+    {
+        'key': 'home_lema_subtitulo',
+        'label': 'Subtitulo del lema / pilares',
+        'description': 'Frase corta bajo el titulo del bloque de pilares.',
+        'type': 'textarea',
+        'group': 'sitio_publico',
+        'default': '',
+        'order': 33,
+    },
+    {
+        'key': 'home_lema_items',
+        'label': 'Pilares (uno por linea)',
+        'description': 'Un pilar por linea con el formato "Nombre: descripcion". Ejemplo: Crecer: Impulsamos el exito sostenible de tu negocio.',
+        'type': 'textarea',
+        'group': 'sitio_publico',
+        'default': '',
+        'order': 34,
+    },
 ]
 
 PUBLIC_BLOCK_DEFINITIONS = {
@@ -529,6 +559,14 @@ PUBLIC_BLOCK_DEFINITIONS = {
             'body': next(field['default'] for field in PUBLIC_LANDING_FIELDS if field['key'] == 'servicios_hero_subtitulo'),
             'extra_body': '',
         },
+    },
+    'motto': {
+        'block_type': 'landing',
+        'title_key': 'home_lema_titulo',
+        'body_key': 'home_lema_subtitulo',
+        'extra_body_key': 'home_lema_items',
+        'sort_order': 35,
+        'default': {'title': '', 'body': '', 'extra_body': ''},
     },
 }
 
@@ -1365,6 +1403,28 @@ def _get_landing_values():
     return values
 
 
+def _parse_motto_items(raw):
+    """Convierte el textarea de pilares en una lista renderizable.
+
+    Formato por línea: "Nombre: descripción" (también acepta "|" como separador,
+    y viñetas al inicio). Una línea sin separador se toma como pilar sin
+    descripción. Devuelve [] si no hay nada configurado, para que la plantilla
+    pueda ocultar el bloque entero.
+    """
+    items = []
+    for linea in (raw or '').splitlines():
+        linea = linea.strip().lstrip('•-*').strip()
+        if not linea:
+            continue
+        separador = '|' if '|' in linea else (':' if ':' in linea else None)
+        if separador:
+            titulo, _, texto = linea.partition(separador)
+            items.append({'titulo': titulo.strip(), 'texto': texto.strip()})
+        else:
+            items.append({'titulo': linea, 'texto': ''})
+    return items
+
+
 def get_public_home_content():
     settings = get_public_site_settings()
     company_name = settings.get('empresa_nombre') or 'CyberShop'
@@ -1383,6 +1443,9 @@ def get_public_home_content():
         'contact_intro': settings.get('home_contacto_intro'),
         'services_hero_title': settings.get('servicios_hero_titulo'),
         'services_hero_subtitle': settings.get('servicios_hero_subtitulo'),
+        'motto_title': settings.get('home_lema_titulo'),
+        'motto_subtitle': settings.get('home_lema_subtitulo'),
+        'motto_items': _parse_motto_items(settings.get('home_lema_items')),
     }
 
 
@@ -1495,6 +1558,21 @@ def save_public_logo(file_storage, root_path):
     _upsert_cliente_config('empresa_logo_url', logo_url)
     clear_public_site_cache()
     return logo_url
+
+
+def save_public_content_image(file_storage, root_path, prefix='contenido'):
+    """Guarda una imagen de Contenido Web (slides / servicios / publicaciones).
+
+    AISLAMIENTO POR CLIENTE: delega en `_save_public_asset`, que escribe en el
+    override de la instancia cuando existe (`INSTANCE_OVERRIDES_DIR`). Antes estas
+    imágenes iban a `static/media/` del repo COMPARTIDO por todos los tenants, con
+    lo que quedaban mezcladas entre clientes y servibles desde cualquier instancia.
+
+    Devuelve la URL pública (`/static/media/public_site/<archivo>`) o None si no
+    venía archivo. Las URLs antiguas `/static/media/<archivo>` siguen resolviendo:
+    este cambio solo afecta a las subidas nuevas.
+    """
+    return _save_public_asset(file_storage, root_path, prefix=prefix)
 
 
 def save_public_site_item(form_data, file_storage, root_path):
