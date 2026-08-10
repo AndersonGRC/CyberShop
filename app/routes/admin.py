@@ -112,7 +112,27 @@ def _get_product_schema_flags():
         'has_stock_minimo': _table_has_column('productos', 'stock_minimo'),
         'has_impuesto': _table_has_column('productos', 'impuesto'),
         'has_unidad': _table_has_column('productos', 'unidad_medida'),
+        # Migración 0009: cobro en efectivo y datos de facturación del comprador.
+        'has_efectivo_pos': _table_has_column('ventas_pos', 'efectivo_recibido'),
+        'has_email_pos': _table_has_column('ventas_pos', 'cliente_email'),
     }
+
+
+def _num_opcional(valor):
+    """Convierte a float o devuelve None si no vino dato.
+
+    Distinto de `_num`: aquí None es un valor legítimo ("no aplica"), porque una
+    venta con tarjeta no lleva efectivo recibido y eso no es lo mismo que cero.
+    """
+    if valor is None or valor == '':
+        return None
+    try:
+        numero = float(valor)
+    except (TypeError, ValueError):
+        return None
+    if numero != numero or numero in (float('inf'), float('-inf')):
+        return None
+    return numero
 
 
 def _num(valor, default=0.0):
@@ -1981,9 +2001,18 @@ def facturacion_pos():
             caja_abierta = get_caja_abierta()
     except Exception:
         pass
+    # Los campos de email y tipo de documento sólo se muestran si el tenant factura
+    # electrónicamente: son obligatorios para la DIAN pero estorban en un mostrador
+    # que no emite factura.
+    fe_activa = False
+    try:
+        from routes.factura_electronica import facturacion_habilitada
+        fe_activa = facturacion_habilitada()
+    except Exception:
+        pass
     return render_template('facturacion_pos.html', datosApp=datosApp, productos=productos,
                            metodos_pago=_get_metodos_pago(), caja_abierta=caja_abierta,
-                           caja_activa=caja_activa)
+                           caja_activa=caja_activa, fe_activa=fe_activa)
 
 
 @admin_bp.route('/admin/pos/procesar', methods=['POST'])
@@ -2000,8 +2029,13 @@ def procesar_venta_pos():
     cliente_nombre = data.get('cliente_nombre', '')
     cliente_documento = data.get('cliente_documento', '')
     cliente_telefono = data.get('cliente_telefono', '')
+    cliente_email = (data.get('cliente_email') or '').strip()
+    cliente_tipo_doc = (data.get('cliente_tipo_doc') or '').strip().upper()
     metodo_pago = data.get('metodo_pago', 'EFECTIVO')
     notas = data.get('notas', '')
+    # Efectivo entregado por el cliente. Las vueltas NO se aceptan del navegador:
+    # se calculan aquí sobre el total recalculado en servidor (ver más abajo).
+    efectivo_recibido = _num_opcional(data.get('efectivo_recibido'))
     facturar_electronicamente = _parse_facturar_electronicamente(
         data.get('facturar_electronicamente'),
         default=False,
@@ -2081,6 +2115,22 @@ def procesar_venta_pos():
 
             detalles_para_insertar.append((producto_id, descripcion, cantidad, precio_unitario, subtotal_item))
 
+        # Vueltas: se calculan aquí sobre el total recalculado en servidor, nunca se
+        # aceptan del navegador. Si el cajero dice haber recibido menos que el total,
+        # la venta se rechaza en vez de guardarse descuadrada.
+        cambio = None
+        if efectivo_recibido is not None:
+            if efectivo_recibido + 0.005 < total_venta:
+                conn.rollback()
+                cur.close()
+                conn.close()
+                return jsonify({
+                    'success': False,
+                    'error': 'El efectivo recibido (%.2f) es menor que el total (%.2f).'
+                             % (efectivo_recibido, total_venta)
+                }), 400
+            cambio = round(efectivo_recibido - float(total_venta), 2)
+
         # Insertar venta
         sales_columns = [
             'numero_venta', 'cliente_nombre', 'cliente_documento', 'cliente_telefono',
@@ -2093,6 +2143,12 @@ def procesar_venta_pos():
         if schema['has_fe_flag_pos']:
             sales_columns.append('facturar_electronicamente')
             sales_values.append(facturar_electronicamente)
+        if schema['has_efectivo_pos'] and efectivo_recibido is not None:
+            sales_columns += ['efectivo_recibido', 'cambio']
+            sales_values += [efectivo_recibido, cambio]
+        if schema['has_email_pos']:
+            sales_columns += ['cliente_email', 'cliente_tipo_doc']
+            sales_values += [cliente_email or None, cliente_tipo_doc or None]
         if caja_abierta and _table_has_column('ventas_pos', 'caja_sesion_id'):
             sales_columns.append('caja_sesion_id')
             sales_values.append(caja_abierta['id'])
@@ -2148,6 +2204,8 @@ def procesar_venta_pos():
             'cliente_nombre': cliente_nombre,
             'metodo_pago': metodo_pago,
             'facturar_electronicamente': facturar_electronicamente,
+            'efectivo_recibido': efectivo_recibido,
+            'cambio': cambio,
             'stock_updates': [{'id': pid, 'stock': s} for pid, s in stock_cambios.items()]
         })
 
@@ -2214,6 +2272,9 @@ def detalle_venta_pos(id):
             'cliente_documento': venta['cliente_documento'] or '-',
             'metodo_pago': venta['metodo_pago'],
             'total': float(venta['total']),
+            # None en ventas que no fueron en efectivo o anteriores a la migración 0009.
+            'efectivo_recibido': float(venta['efectivo_recibido']) if venta.get('efectivo_recibido') is not None else None,
+            'cambio': float(venta['cambio']) if venta.get('cambio') is not None else None,
             'notas': venta['notas'] or '',
             'estado': venta.get('estado', 'activa'),
             'facturar_electronicamente': bool(venta.get('facturar_electronicamente')),

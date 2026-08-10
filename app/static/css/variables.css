@@ -189,6 +189,10 @@
    --color-peligro-tinte: #ffebee;
    --color-peligro-tinte-hover: #ffcdd2;
 
+   /* -- Tinte de exito (fondo del recuadro de vueltas en el cobro POS) -- */
+   --color-exito-tinte: #e8f7ed;
+   --color-exito-borde: #b7e4c7;
+
    /* ============================================
      BLANCO SEMITRANSPARENTE
      Nav chip, session bar, overlays sobre fondos oscuros

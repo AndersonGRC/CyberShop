@@ -713,6 +713,35 @@
             display: none;
         }
     }
+
+    /* ── Modal de cobro en efectivo ──────────────────────────────────────────
+       Colores desde variables.css (regla del proyecto): sin hex sueltos. */
+    .cobro-box { text-align: left; }
+    .cobro-total-wrap { display: flex; flex-direction: column; align-items: center; gap: 2px;
+        background: var(--marca-tinte-leve); border-radius: 12px; padding: 14px 12px; margin-bottom: 18px; }
+    .cobro-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em;
+        color: var(--color-texto-muted); font-weight: 700; }
+    .cobro-total { font-size: 2rem; font-weight: 800; color: var(--color-primario); line-height: 1.1; }
+    .cobro-input { width: 100%; margin-top: 6px; padding: 14px 16px; font-size: 1.6rem; font-weight: 700;
+        text-align: right; border: 2px solid var(--color-gris-borde); border-radius: 10px;
+        color: var(--color-texto); font-family: inherit; }
+    .cobro-input:focus { outline: none; border-color: var(--color-primario); box-shadow: var(--marca-focus-ring); }
+    .cobro-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 18px; }
+    .cobro-chip { flex: 1 1 auto; min-width: 84px; padding: 9px 10px; border-radius: 999px; cursor: pointer;
+        border: 1px solid var(--color-gris-borde); background: var(--color-fondo-form);
+        color: var(--color-texto); font-weight: 700; font-size: .9rem; font-family: inherit;
+        transition: background .15s ease, border-color .15s ease, color .15s ease; }
+    .cobro-chip:hover { background: var(--marca-tinte); border-color: var(--color-primario);
+        color: var(--color-primario); }
+    .cobro-vueltas { display: flex; align-items: center; justify-content: space-between;
+        padding: 14px 16px; border-radius: 12px; background: var(--color-exito-tinte);
+        border: 1px solid var(--color-exito-borde); }
+    .cobro-vueltas-val { font-size: 1.7rem; font-weight: 800; color: var(--color-exito); }
+    .cobro-vueltas.falta { background: var(--color-peligro-tinte); border-color: var(--color-peligro-tinte-hover); }
+    .cobro-vueltas.falta .cobro-vueltas-val { color: var(--color-peligro); font-size: 1.15rem; }
+
+    /* Filas de efectivo/vueltas en la tirilla */
+    .comp-efectivo { display: flex; justify-content: space-between; font-size: .82rem; margin-top: 2px; }
 </style>
 {% endblock %}
 
@@ -809,6 +838,24 @@
                 <label>Documento</label>
                 <input type="text" id="pos-cliente-doc" placeholder="CC / NIT">
             </div>
+            {% if fe_activa %}
+            {# La DIAN exige tipo de documento y correo del comprador. Sólo se piden
+               si el tenant emite factura electrónica. #}
+            <div class="pos-field">
+                <label>Tipo de documento</label>
+                <select id="pos-cliente-tipo-doc">
+                    <option value="CC">Cédula de ciudadanía</option>
+                    <option value="NIT">NIT (empresa)</option>
+                    <option value="CE">Cédula de extranjería</option>
+                    <option value="PASS">Pasaporte</option>
+                    <option value="TI">Tarjeta de identidad</option>
+                </select>
+            </div>
+            <div class="pos-field">
+                <label>Email <small>(para la factura)</small></label>
+                <input type="email" id="pos-cliente-email" placeholder="correo@ejemplo.com">
+            </div>
+            {% endif %}
             <div class="pos-field">
                 <label>Telefono</label>
                 <input type="text" id="pos-cliente-tel" placeholder="Telefono">
@@ -842,7 +889,7 @@
             </div>
         </div>
 
-        <button type="button" class="btn-registrar" id="btn-registrar" onclick="registrarVenta()">
+        <button type="button" class="btn-registrar" id="btn-registrar" onclick="cobrarVenta()">
             <i class="fas fa-check-circle"></i> Cobrar (Enter)
         </button>
     </div>
@@ -875,6 +922,13 @@
         </table>
         <hr class="linea-sep">
         <div class="comp-total">TOTAL: <span id="comp-total"></span></div>
+        <!-- Sólo se muestran en ventas en efectivo (ver mostrarComprobante) -->
+        <div class="comp-efectivo" id="comp-fila-efectivo" style="display:none">
+            <span>Efectivo recibido:</span><span id="comp-efectivo"></span>
+        </div>
+        <div class="comp-efectivo" id="comp-fila-cambio" style="display:none">
+            <span><strong>Vueltas:</strong></span><span id="comp-cambio"><strong></strong></span>
+        </div>
         <div class="comp-actions">
             <button class="btn-imprimir" onclick="window.print()"><i class="fas fa-print"></i> Imprimir</button>
             <button class="btn-facturar-dian" id="btn-facturar-dian" onclick="facturarDian()" title="Emitir factura electrónica DIAN"><i class="fas fa-file-invoice"></i> Facturar</button>
@@ -1119,6 +1173,11 @@ const VentasTabs = {
         venta.cliente.nombre = document.getElementById('pos-cliente-nombre').value;
         venta.cliente.doc = document.getElementById('pos-cliente-doc').value;
         venta.cliente.tel = document.getElementById('pos-cliente-tel').value;
+        // Campos de facturacion electronica: pueden no existir en este tenant.
+        var _em = document.getElementById('pos-cliente-email');
+        var _td = document.getElementById('pos-cliente-tipo-doc');
+        venta.cliente.email = _em ? _em.value : '';
+        venta.cliente.tipoDoc = _td ? _td.value : '';
         venta.metodoPago = document.getElementById('pos-metodo-pago').value;
         venta.notas = document.getElementById('pos-notas').value;
         venta.facturarElectronicamente = document.getElementById('pos-facturar-electronicamente').checked;
@@ -1169,6 +1228,10 @@ const VentasTabs = {
         document.getElementById('pos-cliente-nombre').value = venta.cliente.nombre;
         document.getElementById('pos-cliente-doc').value = venta.cliente.doc;
         document.getElementById('pos-cliente-tel').value = venta.cliente.tel;
+        var _em = document.getElementById('pos-cliente-email');
+        var _td = document.getElementById('pos-cliente-tipo-doc');
+        if (_em) { _em.value = venta.cliente.email || ''; }
+        if (_td) { _td.value = venta.cliente.tipoDoc || 'CC'; }
         document.getElementById('pos-metodo-pago').value = venta.metodoPago;
         document.getElementById('pos-notas').value = venta.notas;
         document.getElementById('pos-facturar-electronicamente').checked = !!venta.facturarElectronicamente;
@@ -1240,6 +1303,10 @@ const VentasTabs = {
         document.getElementById('pos-cliente-nombre').value = '';
         document.getElementById('pos-cliente-doc').value = '';
         document.getElementById('pos-cliente-tel').value = '';
+        var _em = document.getElementById('pos-cliente-email');
+        var _td = document.getElementById('pos-cliente-tipo-doc');
+        if (_em) { _em.value = ''; }
+        if (_td) { _td.value = 'CC'; }
         document.getElementById('pos-metodo-pago').value = 'EFECTIVO';
         document.getElementById('pos-notas').value = '';
         document.getElementById('pos-facturar-electronicamente').checked = false;
@@ -1619,7 +1686,137 @@ function cobrarRapido(metodo) {
     document.querySelectorAll('.pay-btn').forEach(function (b) {
         b.classList.toggle('sel', b.getAttribute('data-metodo') === metodo);
     });
-    registrarVenta();
+    // En efectivo hay vueltas que calcular: se pide el monto recibido antes de
+    // registrar. Los demás métodos cobran de un toque, como siempre.
+    if (String(metodo || '').toUpperCase() === 'EFECTIVO') {
+        pedirEfectivo();
+    } else {
+        registrarVenta();
+    }
+}
+
+// Punto de entrada ÚNICO para cobrar desde la interfaz (botón, F8, Enter). Decide
+// si hay que pedir el efectivo antes de registrar. Los reintentos internos siguen
+// llamando a registrarVenta() directamente para no volver a abrir el modal.
+function cobrarVenta() {
+    var input = document.getElementById('pos-metodo-pago');
+    var metodo = String((input && input.value) || '').toUpperCase();
+    if (metodo === 'EFECTIVO') { pedirEfectivo(); } else { registrarVenta(); }
+}
+
+/* ── Cobro en efectivo: monto recibido y cálculo de vueltas ───────────────── */
+
+// Billetes colombianos en circulación, de mayor a menor.
+var DENOMINACIONES_COP = [100000, 50000, 20000, 10000, 5000, 2000];
+
+function totalPOSActual() {
+    var total = 0;
+    document.querySelectorAll('.pos-item-row').forEach(function (fila) {
+        var cant = parseFloat(fila.querySelector('.input-cant').value) || 0;
+        var precio = parseFloat(fila.querySelector('.input-precio').value) || 0;
+        total += cant * precio;
+    });
+    return total;
+}
+
+// Siguiente múltiplo "cómodo" hacia arriba: con qué billete redondo suele pagar
+// el cliente. Para $37.500 sugiere $40.000; para $8.200, $10.000.
+function siguienteRedondo(total) {
+    var paso = total >= 50000 ? 10000 : (total >= 10000 ? 5000 : 1000);
+    var redondo = Math.ceil(total / paso) * paso;
+    return redondo > total ? redondo : redondo + paso;
+}
+
+function pedirEfectivo() {
+    var filas = document.querySelectorAll('.pos-item-row');
+    if (filas.length === 0) {
+        Swal.fire('Atencion', 'Agrega al menos un item a la venta.', 'warning');
+        return;
+    }
+    var total = totalPOSActual();
+    if (total <= 0) {
+        Swal.fire('Atencion', 'El total de la venta debe ser mayor que cero.', 'warning');
+        return;
+    }
+
+    // Atajos: valor exacto, el siguiente billete redondo y las denominaciones
+    // que alcanzan a cubrir el total (no tiene sentido ofrecer $5.000 si debe $37.500).
+    var sugeridos = [total, siguienteRedondo(total)];
+    DENOMINACIONES_COP.forEach(function (d) { if (d > total) { sugeridos.push(d); } });
+    sugeridos = sugeridos.filter(function (v, i, a) { return a.indexOf(v) === i; })
+                         .sort(function (a, b) { return a - b; })
+                         .slice(0, 6);
+
+    var botones = sugeridos.map(function (v) {
+        var etiqueta = (v === total) ? 'Exacto' : formatCOP(v);
+        return '<button type="button" class="cobro-chip" data-monto="' + v + '">' + etiqueta + '</button>';
+    }).join('');
+
+    Swal.fire({
+        title: 'Cobro en efectivo',
+        width: 460,
+        html:
+            '<div class="cobro-box">' +
+              '<div class="cobro-total-wrap">' +
+                '<span class="cobro-label">Total a cobrar</span>' +
+                '<span class="cobro-total">' + formatCOP(total) + '</span>' +
+              '</div>' +
+              '<label class="cobro-label" for="cobro-recibido">Efectivo recibido</label>' +
+              '<input id="cobro-recibido" class="cobro-input" type="text" inputmode="numeric" ' +
+                     'autocomplete="off" placeholder="0">' +
+              '<div class="cobro-chips">' + botones + '</div>' +
+              '<div class="cobro-vueltas falta" id="cobro-vueltas-box">' +
+                '<span class="cobro-label">Vueltas</span>' +
+                '<span class="cobro-vueltas-val" id="cobro-vueltas">—</span>' +
+              '</div>' +
+            '</div>',
+        showCancelButton: true,
+        confirmButtonText: 'Cobrar y registrar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: (typeof BRAND_COLOR_BTN !== 'undefined' ? BRAND_COLOR_BTN : undefined),
+        allowEnterKey: true,
+        didOpen: function (popup) {
+            var input = popup.querySelector('#cobro-recibido');
+            var box = popup.querySelector('#cobro-vueltas-box');
+            var salida = popup.querySelector('#cobro-vueltas');
+            var confirmar = Swal.getConfirmButton();
+
+            function refrescar() {
+                var recibido = parseMontoCaja(input.value);
+                if (recibido === null || recibido < total) {
+                    box.classList.add('falta');
+                    salida.textContent = recibido === null ? '—' : 'Faltan ' + formatCOP(total - recibido);
+                    confirmar.disabled = true;
+                } else {
+                    box.classList.remove('falta');
+                    salida.textContent = formatCOP(recibido - total);
+                    confirmar.disabled = false;
+                }
+            }
+
+            input.addEventListener('input', refrescar);
+            popup.querySelectorAll('.cobro-chip').forEach(function (chip) {
+                chip.addEventListener('click', function () {
+                    input.value = chip.getAttribute('data-monto');
+                    refrescar();
+                    input.focus();
+                });
+            });
+            refrescar();
+            input.focus();
+        },
+        preConfirm: function () {
+            var recibido = parseMontoCaja(document.getElementById('cobro-recibido').value);
+            if (recibido === null || recibido < total) {
+                Swal.showValidationMessage('El efectivo recibido no cubre el total');
+                return false;
+            }
+            return recibido;
+        }
+    }).then(function (res) {
+        if (!res.isConfirmed) { return; }
+        registrarVenta({ efectivo_recibido: res.value });
+    });
 }
 
 function mostrarDeshacer(ventaId) {
@@ -1651,7 +1848,11 @@ function mostrarDeshacer(ventaId) {
     });
 }
 
-function registrarVenta() {
+// `extra` transporta datos del cobro (hoy: efectivo_recibido). Se recibe como
+// parámetro y no se lee del DOM para que el reintento tras abrir la caja pueda
+// reenviar el monto que el cajero ya digitó, sin volver a preguntárselo.
+function registrarVenta(extra) {
+    extra = extra || {};
     // Evitar doble registro (doble Enter / F8 + click)
     const btnReg = document.getElementById('btn-registrar');
     if (btnReg && btnReg.disabled) return;
@@ -1717,6 +1918,14 @@ function registrarVenta() {
         notas: document.getElementById('pos-notas').value,
         facturar_electronicamente: document.getElementById('pos-facturar-electronicamente').checked
     };
+    // Datos de facturación electrónica: sólo existen si el módulo está activo.
+    var inpEmail = document.getElementById('pos-cliente-email');
+    if (inpEmail) { payload.cliente_email = inpEmail.value; }
+    var inpTipoDoc = document.getElementById('pos-cliente-tipo-doc');
+    if (inpTipoDoc) { payload.cliente_tipo_doc = inpTipoDoc.value; }
+    if (extra.efectivo_recibido !== undefined) {
+        payload.efectivo_recibido = extra.efectivo_recibido;
+    }
 
     const btn = document.getElementById('btn-registrar');
     btn.disabled = true;
@@ -1747,7 +1956,8 @@ function registrarVenta() {
             mostrarComprobante(data);
             mostrarDeshacer(data.venta_id);
         } else if (data.caja_cerrada) {
-            pedirAperturaCaja();   // modal rápido: abrir caja y reintentar el cobro
+            // Se arrastra `extra` para no volver a pedirle el efectivo al cajero.
+            pedirAperturaCaja(extra);
         } else {
             playErrorBeep();
             Swal.fire('Error', data.error || 'Error procesando venta', 'error');
@@ -1787,7 +1997,8 @@ function actualizarBannerCaja(base) {
     texto.textContent = 'Caja abierta · Base $' + (base || 0).toLocaleString('es-CO', { maximumFractionDigits: 0 });
 }
 
-function pedirAperturaCaja() {
+function pedirAperturaCaja(extra) {
+    extra = extra || {};
     Swal.fire({
         title: 'Caja cerrada',
         html: 'Para cobrar primero abre la caja.<br><small>Cuenta el efectivo con el que inicias (la <b>base</b> para dar vueltos).</small>',
@@ -1818,7 +2029,7 @@ function pedirAperturaCaja() {
         .then(function (d) {
             if (d.success) {
                 actualizarBannerCaja(d.base);
-                registrarVenta();   // reintenta el cobro que quedó pendiente
+                registrarVenta(extra);   // reintenta el cobro con el efectivo ya digitado
             } else {
                 playErrorBeep();
                 Swal.fire('Error', d.error || 'No se pudo abrir la caja', 'error');
@@ -1882,6 +2093,16 @@ function mostrarComprobante(data) {
     document.getElementById('comp-cliente').textContent = data.cliente_nombre || 'Consumidor Final';
     document.getElementById('comp-metodo').textContent = data.metodo_pago;
     document.getElementById('comp-total').textContent = formatCOP(data.total);
+
+    // Efectivo y vueltas: sólo si la venta los trae (null en tarjeta/transferencia
+    // y en ventas anteriores a la migración 0009).
+    var hayEfectivo = (data.efectivo_recibido !== null && data.efectivo_recibido !== undefined);
+    document.getElementById('comp-fila-efectivo').style.display = hayEfectivo ? 'flex' : 'none';
+    document.getElementById('comp-fila-cambio').style.display = hayEfectivo ? 'flex' : 'none';
+    if (hayEfectivo) {
+        document.getElementById('comp-efectivo').textContent = formatCOP(data.efectivo_recibido);
+        document.getElementById('comp-cambio').innerHTML = '<strong>' + formatCOP(data.cambio || 0) + '</strong>';
+    }
 
     const tbody = document.getElementById('comp-items');
     tbody.innerHTML = '';
@@ -2003,7 +2224,7 @@ document.addEventListener('keydown', function(e) {
             if (comprobante) {
                 nuevaVenta();
             } else {
-                registrarVenta();
+                cobrarVenta();
             }
             break;
         case 'Enter': {
@@ -2017,7 +2238,7 @@ document.addEventListener('keydown', function(e) {
             if (e.target.id === 'barcode-input') break;
             if (tag === 'TEXTAREA') break;
             e.preventDefault();
-            registrarVenta();
+            cobrarVenta();
             break;
         }
         case 'Escape':
@@ -2134,7 +2355,7 @@ if (!navigator.onLine) {
         if (e.key === 'Enter' || e.key === 'Tab') {
             e.preventDefault();
             var v = this.value.trim();
-            if (e.key === 'Enter' && v === '') { registrarVenta(); return; }
+            if (e.key === 'Enter' && v === '') { cobrarVenta(); return; }
             if (looksLikeText(v) && searchMatches.length) { addProductFromSearch(searchMatches[0]); return; }
             submitBarcode('enter');
             return;

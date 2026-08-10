@@ -447,6 +447,11 @@
         </table>
         <p style="font-size:1.2rem;font-weight:bold;text-align:right;margin-top:10px">TOTAL: <span
                 id="det-total"></span></p>
+        <!-- Sólo en ventas en efectivo posteriores a la migración 0009 -->
+        <p id="det-efectivo-wrap" style="display:none;text-align:right;margin:2px 0">
+            Efectivo recibido: <span id="det-efectivo"></span><br>
+            <strong>Vueltas: <span id="det-cambio"></span></strong>
+        </p>
         <p id="det-notas-wrap" style="display:none"><strong>Notas:</strong> <span id="det-notas"></span></p>
         <div>
             <button class="modal-close"
@@ -478,6 +483,13 @@
                 document.getElementById('det-doc').textContent = data.cliente_documento;
                 document.getElementById('det-metodo').textContent = data.metodo_pago;
                 document.getElementById('det-total').textContent = '$' + data.total.toLocaleString('es-CO');
+
+                var hayEfectivo = (data.efectivo_recibido !== null && data.efectivo_recibido !== undefined);
+                document.getElementById('det-efectivo-wrap').style.display = hayEfectivo ? 'block' : 'none';
+                if (hayEfectivo) {
+                    document.getElementById('det-efectivo').textContent = '$' + data.efectivo_recibido.toLocaleString('es-CO');
+                    document.getElementById('det-cambio').textContent = '$' + (data.cambio || 0).toLocaleString('es-CO');
+                }
 
                 if (data.notas) {
                     document.getElementById('det-notas').textContent = data.notas;

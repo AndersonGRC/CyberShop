@@ -191,14 +191,12 @@ def construir_json_pos(venta_id: int) -> dict | None:
         Dict con la estructura del microservicio, o None si la venta no existe.
     """
     with get_db_cursor(dict_cursor=True) as cur:
+        # SELECT * a propósito: `cliente_email` y `cliente_tipo_doc` llegan con la
+        # migración 0009 y puede que un tenant aún no la tenga aplicada. Con el
+        # cursor de diccionario, las claves ausentes se resuelven con .get() -> None
+        # en vez de reventar la consulta.
         cur.execute(
-            """SELECT v.numero_venta,
-                      v.cliente_nombre,
-                      v.cliente_documento,
-                      v.cliente_telefono,
-                      v.metodo_pago,
-                      v.total,
-                      v.factura_dian_id
+            """SELECT v.*
                FROM ventas_pos v
                WHERE v.id = %s""",
             (venta_id,)
@@ -238,14 +236,36 @@ def construir_json_pos(venta_id: int) -> dict | None:
         str(venta.get('metodo_pago', '')).upper(), '10'  # efectivo por defecto en POS
     )
 
+    # Tipo de documento real del comprador. Antes iba 'CC' fijo, así que una venta
+    # a una empresa con NIT se emitía como persona natural con cédula.
+    tipo_doc = TIPO_DOC_MAP.get(
+        str(venta.get('cliente_tipo_doc') or '').strip().upper(), 'CC'
+    )
+
+    # La DIAN exige correo del adquiriente y rechaza la factura si va vacío (422).
+    # En una venta de mostrador casi nunca se pide, así que se cae al correo del
+    # negocio para que la emisión no se caiga por un dato que el cajero no tiene.
+    email = (venta.get('cliente_email') or '').strip()
+    if '@' not in email:
+        try:
+            from services.public_site_service import get_public_contact_destination_email
+            email = (get_public_contact_destination_email() or '').strip()
+        except Exception:
+            email = ''
+    if '@' not in email:
+        email = 'facturacion@empresa.co'
+
+    # Consumidor final: la DIAN espera 222222222222, no '0'.
+    documento = str(venta.get('cliente_documento') or '').strip() or '222222222222'
+
     return {
         "referencia_pedido": venta['numero_venta'],
         "cliente": {
-            "tipo_persona":     "natural",
-            "tipo_documento":   "CC",
-            "numero_documento": venta.get('cliente_documento') or '0',
+            "tipo_persona":     "juridica" if tipo_doc == 'NIT' else "natural",
+            "tipo_documento":   tipo_doc,
+            "numero_documento": documento,
             "nombre":           venta.get('cliente_nombre') or 'Consumidor Final',
-            "email":            '',
+            "email":            email,
             "telefono":         venta.get('cliente_telefono') or '',
             "direccion":        '',
             "municipio_codigo": '11001',
