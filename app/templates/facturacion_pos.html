@@ -904,21 +904,20 @@
         {# Los datos del comprador SOLO se piden cuando la venta va a facturacion
            electronica: la DIAN los exige, pero estorban en una venta de mostrador.
            La tarjeta permanece bloqueada hasta que se marca el check de arriba. #}
-        {# El bloqueo SOLO aplica a clientes que facturan electrónicamente. En un
-           negocio sin ese módulo el check no sirve de nada, así que la tarjeta se
-           comporta como siempre: opcional y editable para anotar al comprador. #}
-        <div class="pos-card pos-card-cliente{% if fe_activa %} bloqueada{% endif %}"
-             id="pos-card-cliente"{% if fe_activa %} data-atada-fe="1"{% endif %}>
+        {# La tarjeta SIEMPRE nace bloqueada y se abre solo con el check de arriba.
+           Se aplica tambien a negocios sin facturacion electronica: alli el campo
+           no hacia falta y en la practica se usaba mal (en Panaderia Nicolas, 3 de
+           863 ventas tenian "nombre de cliente", y los tres eran nombres de
+           PRODUCTO tecleados por error en la casilla equivocada). #}
+        <div class="pos-card pos-card-cliente bloqueada" id="pos-card-cliente" data-atada-fe="1">
             <h3><i class="fas fa-user"></i> Datos del cliente
                 <span class="pos-cliente-estado" id="pos-cliente-estado">
-                    {% if fe_activa %}<i class="fas fa-lock"></i> Requiere facturación electrónica
-                    {% else %}Opcional{% endif %}
+                    <i class="fas fa-lock"></i> Requiere facturación electrónica
                 </span>
             </h3>
             <div class="pos-field">
                 <label for="pos-cliente-nombre">Nombre / Razón social</label>
-                <input type="text" id="pos-cliente-nombre" placeholder="Nombre del cliente"
-                       {% if fe_activa %}disabled{% endif %}>
+                <input type="text" id="pos-cliente-nombre" placeholder="Nombre del cliente" disabled>
             </div>
             {% if fe_activa %}
             <div class="pos-field">
@@ -934,8 +933,7 @@
             {% endif %}
             <div class="pos-field">
                 <label for="pos-cliente-doc">Número de documento</label>
-                <input type="text" id="pos-cliente-doc" placeholder="CC / NIT"
-                       {% if fe_activa %}disabled{% endif %}>
+                <input type="text" id="pos-cliente-doc" placeholder="CC / NIT" disabled>
             </div>
             {% if fe_activa %}
             <div class="pos-field">
@@ -945,8 +943,7 @@
             {% endif %}
             <div class="pos-field">
                 <label for="pos-cliente-tel">Teléfono</label>
-                <input type="text" id="pos-cliente-tel" placeholder="Telefono"
-                       {% if fe_activa %}disabled{% endif %}>
+                <input type="text" id="pos-cliente-tel" placeholder="Telefono" disabled>
             </div>
         </div>
 
