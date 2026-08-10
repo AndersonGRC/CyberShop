@@ -904,15 +904,21 @@
         {# Los datos del comprador SOLO se piden cuando la venta va a facturacion
            electronica: la DIAN los exige, pero estorban en una venta de mostrador.
            La tarjeta permanece bloqueada hasta que se marca el check de arriba. #}
-        <div class="pos-card pos-card-cliente bloqueada" id="pos-card-cliente">
+        {# El bloqueo SOLO aplica a clientes que facturan electrónicamente. En un
+           negocio sin ese módulo el check no sirve de nada, así que la tarjeta se
+           comporta como siempre: opcional y editable para anotar al comprador. #}
+        <div class="pos-card pos-card-cliente{% if fe_activa %} bloqueada{% endif %}"
+             id="pos-card-cliente"{% if fe_activa %} data-atada-fe="1"{% endif %}>
             <h3><i class="fas fa-user"></i> Datos del cliente
                 <span class="pos-cliente-estado" id="pos-cliente-estado">
-                    <i class="fas fa-lock"></i> Requiere facturación electrónica
+                    {% if fe_activa %}<i class="fas fa-lock"></i> Requiere facturación electrónica
+                    {% else %}Opcional{% endif %}
                 </span>
             </h3>
             <div class="pos-field">
                 <label for="pos-cliente-nombre">Nombre / Razón social</label>
-                <input type="text" id="pos-cliente-nombre" placeholder="Nombre del cliente" disabled>
+                <input type="text" id="pos-cliente-nombre" placeholder="Nombre del cliente"
+                       {% if fe_activa %}disabled{% endif %}>
             </div>
             {% if fe_activa %}
             <div class="pos-field">
@@ -928,7 +934,8 @@
             {% endif %}
             <div class="pos-field">
                 <label for="pos-cliente-doc">Número de documento</label>
-                <input type="text" id="pos-cliente-doc" placeholder="CC / NIT" disabled>
+                <input type="text" id="pos-cliente-doc" placeholder="CC / NIT"
+                       {% if fe_activa %}disabled{% endif %}>
             </div>
             {% if fe_activa %}
             <div class="pos-field">
@@ -938,7 +945,8 @@
             {% endif %}
             <div class="pos-field">
                 <label for="pos-cliente-tel">Teléfono</label>
-                <input type="text" id="pos-cliente-tel" placeholder="Telefono" disabled>
+                <input type="text" id="pos-cliente-tel" placeholder="Telefono"
+                       {% if fe_activa %}disabled{% endif %}>
             </div>
         </div>
 
@@ -1759,6 +1767,9 @@ function sincronizarTarjetaCliente() {
     var card = document.getElementById('pos-card-cliente');
     var estado = document.getElementById('pos-cliente-estado');
     if (!check || !card) { return; }
+    // Negocio sin facturación electrónica: la tarjeta no se ata al check, queda
+    // editable como siempre. Sin esto perderían poder anotar al comprador.
+    if (!card.hasAttribute('data-atada-fe')) { return; }
 
     var activa = check.checked;
     card.classList.toggle('bloqueada', !activa);
