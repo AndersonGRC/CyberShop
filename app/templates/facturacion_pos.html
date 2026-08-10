@@ -715,30 +715,60 @@
     }
 
     /* ── Modal de cobro en efectivo ──────────────────────────────────────────
-       Colores desde variables.css (regla del proyecto): sin hex sueltos. */
-    .cobro-box { text-align: left; }
-    .cobro-total-wrap { display: flex; flex-direction: column; align-items: center; gap: 2px;
-        background: var(--marca-tinte-leve); border-radius: 12px; padding: 14px 12px; margin-bottom: 18px; }
-    .cobro-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em;
+       Colores desde variables.css (regla del proyecto): sin hex sueltos.
+       `box-sizing` explícito en todo el bloque: sin él, el ancho 100% del input
+       más su padding y borde desbordaban el modal y aparecía scroll horizontal. */
+    .cobro-box, .cobro-box * { box-sizing: border-box; }
+    .cobro-box { text-align: left; padding: 4px 2px 0; }
+    .cobro-popup .swal2-html-container { overflow: visible; margin: 0; padding: 0 1.4em; }
+    .cobro-popup .swal2-title { padding-top: .6em; }
+
+    .cobro-total-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px;
+        background: var(--marca-tinte-leve); border: 1px solid var(--marca-tinte-medio);
+        border-radius: 14px; padding: 16px 12px; margin-bottom: 22px; }
+    .cobro-label { display: block; font-size: .72rem; text-transform: uppercase; letter-spacing: .08em;
         color: var(--color-texto-muted); font-weight: 700; }
-    .cobro-total { font-size: 2rem; font-weight: 800; color: var(--color-primario); line-height: 1.1; }
-    .cobro-input { width: 100%; margin-top: 6px; padding: 14px 16px; font-size: 1.6rem; font-weight: 700;
-        text-align: right; border: 2px solid var(--color-gris-borde); border-radius: 10px;
-        color: var(--color-texto); font-family: inherit; }
+    .cobro-total { font-size: 2.15rem; font-weight: 800; color: var(--color-primario); line-height: 1.1; }
+
+    .cobro-campo { margin-bottom: 18px; }
+    .cobro-campo .cobro-label { margin-bottom: 8px; }
+    .cobro-input { width: 100%; padding: 16px 18px; font-size: 1.75rem; font-weight: 700;
+        text-align: right; border: 2px solid var(--color-gris-borde); border-radius: 12px;
+        color: var(--color-texto); font-family: inherit; background: var(--color-blanco); }
+    .cobro-input::placeholder { color: var(--color-gris-deshabilitado); font-weight: 600; }
     .cobro-input:focus { outline: none; border-color: var(--color-primario); box-shadow: var(--marca-focus-ring); }
-    .cobro-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 18px; }
-    .cobro-chip { flex: 1 1 auto; min-width: 84px; padding: 9px 10px; border-radius: 999px; cursor: pointer;
-        border: 1px solid var(--color-gris-borde); background: var(--color-fondo-form);
-        color: var(--color-texto); font-weight: 700; font-size: .9rem; font-family: inherit;
+
+    .cobro-chips { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 22px; }
+    /* min-height 44px: objetivo táctil accesible en pantallas de mostrador */
+    .cobro-chip { flex: 1 1 90px; min-height: 44px; padding: 10px 12px; border-radius: 999px;
+        cursor: pointer; border: 1px solid var(--color-gris-borde); background: var(--color-fondo-form);
+        color: var(--color-texto); font-weight: 700; font-size: .92rem; font-family: inherit;
         transition: background .15s ease, border-color .15s ease, color .15s ease; }
     .cobro-chip:hover { background: var(--marca-tinte); border-color: var(--color-primario);
         color: var(--color-primario); }
-    .cobro-vueltas { display: flex; align-items: center; justify-content: space-between;
-        padding: 14px 16px; border-radius: 12px; background: var(--color-exito-tinte);
+    .cobro-chip:focus-visible { outline: 2px solid var(--color-primario); outline-offset: 2px; }
+
+    .cobro-vueltas { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        padding: 16px 18px; border-radius: 14px; background: var(--color-exito-tinte);
         border: 1px solid var(--color-exito-borde); }
-    .cobro-vueltas-val { font-size: 1.7rem; font-weight: 800; color: var(--color-exito); }
+    .cobro-vueltas-val { font-size: 1.8rem; font-weight: 800; color: var(--color-exito);
+        line-height: 1.1; text-align: right; }
     .cobro-vueltas.falta { background: var(--color-peligro-tinte); border-color: var(--color-peligro-tinte-hover); }
-    .cobro-vueltas.falta .cobro-vueltas-val { color: var(--color-peligro); font-size: 1.15rem; }
+    .cobro-vueltas.falta .cobro-vueltas-val { color: var(--color-peligro); font-size: 1.2rem; }
+
+    .cobro-ayuda { margin: 14px 0 0; text-align: center; font-size: .78rem; color: var(--color-texto-muted); }
+    .cobro-ayuda kbd { background: var(--color-gris-claro); border: 1px solid var(--color-gris-borde);
+        border-radius: 5px; padding: 1px 6px; font-family: inherit; font-size: .74rem; font-weight: 700; }
+
+    /* El botón deshabilitado debe leerse como deshabilitado, no como pulsable */
+    .cobro-popup .swal2-confirm[disabled] { opacity: .45; cursor: not-allowed; }
+    .cobro-popup .swal2-actions { gap: 10px; margin-top: 1.4em; }
+
+    @media (max-width: 520px) {
+        .cobro-total { font-size: 1.8rem; }
+        .cobro-input { font-size: 1.45rem; padding: 14px 15px; }
+        .cobro-chip { flex: 1 1 calc(50% - 5px); }
+    }
 
     /* Filas de efectivo/vueltas en la tirilla */
     .comp-efectivo { display: flex; justify-content: space-between; font-size: .82rem; margin-top: 2px; }
@@ -1708,6 +1738,10 @@ function cobrarVenta() {
 
 // Billetes colombianos en circulación, de mayor a menor.
 var DENOMINACIONES_COP = [100000, 50000, 20000, 10000, 5000, 2000];
+// Escalones para sugerir montos por encima del total. Sin esto, una venta de
+// $117.750 solo ofrecía "Exacto" y "$120.000", porque todos los billetes son
+// menores que el total.
+var ESCALONES_COP = [10000, 20000, 50000, 100000];
 
 function totalPOSActual() {
     var total = 0;
@@ -1739,40 +1773,52 @@ function pedirEfectivo() {
         return;
     }
 
-    // Atajos: valor exacto, el siguiente billete redondo y las denominaciones
-    // que alcanzan a cubrir el total (no tiene sentido ofrecer $5.000 si debe $37.500).
+    // Atajos: el valor exacto, el siguiente redondo, los billetes que por sí solos
+    // cubren el total, y escalones por encima para cuando el total supera al billete
+    // más grande (una venta de $117.750 no tiene ningún billete que la cubra).
     var sugeridos = [total, siguienteRedondo(total)];
     DENOMINACIONES_COP.forEach(function (d) { if (d > total) { sugeridos.push(d); } });
+    ESCALONES_COP.forEach(function (paso) {
+        var arriba = Math.ceil(total / paso) * paso;
+        if (arriba > total) { sugeridos.push(arriba); }
+    });
     sugeridos = sugeridos.filter(function (v, i, a) { return a.indexOf(v) === i; })
                          .sort(function (a, b) { return a - b; })
-                         .slice(0, 6);
+                         .slice(0, 5);
 
     var botones = sugeridos.map(function (v) {
-        var etiqueta = (v === total) ? 'Exacto' : formatCOP(v);
-        return '<button type="button" class="cobro-chip" data-monto="' + v + '">' + etiqueta + '</button>';
+        var exacto = (v === total);
+        return '<button type="button" class="cobro-chip" data-monto="' + v + '"' +
+               ' aria-label="' + (exacto ? 'Pago exacto' : 'Recibido ' + formatCOP(v)) + '">' +
+               (exacto ? 'Exacto' : formatCOP(v)) + '</button>';
     }).join('');
 
     Swal.fire({
         title: 'Cobro en efectivo',
-        width: 460,
+        width: 480,
+        showCloseButton: true,
+        customClass: { popup: 'cobro-popup' },
         html:
             '<div class="cobro-box">' +
               '<div class="cobro-total-wrap">' +
                 '<span class="cobro-label">Total a cobrar</span>' +
                 '<span class="cobro-total">' + formatCOP(total) + '</span>' +
               '</div>' +
-              '<label class="cobro-label" for="cobro-recibido">Efectivo recibido</label>' +
-              '<input id="cobro-recibido" class="cobro-input" type="text" inputmode="numeric" ' +
-                     'autocomplete="off" placeholder="0">' +
-              '<div class="cobro-chips">' + botones + '</div>' +
-              '<div class="cobro-vueltas falta" id="cobro-vueltas-box">' +
+              '<div class="cobro-campo">' +
+                '<label class="cobro-label" for="cobro-recibido">Efectivo recibido</label>' +
+                '<input id="cobro-recibido" class="cobro-input" type="text" inputmode="numeric" ' +
+                       'autocomplete="off" placeholder="0" aria-describedby="cobro-vueltas-box">' +
+              '</div>' +
+              '<div class="cobro-chips" role="group" aria-label="Montos frecuentes">' + botones + '</div>' +
+              '<div class="cobro-vueltas falta" id="cobro-vueltas-box" role="status" aria-live="polite">' +
                 '<span class="cobro-label">Vueltas</span>' +
                 '<span class="cobro-vueltas-val" id="cobro-vueltas">—</span>' +
               '</div>' +
+              '<p class="cobro-ayuda"><kbd>Enter</kbd> cobra · <kbd>Esc</kbd> cancela</p>' +
             '</div>',
         showCancelButton: true,
         confirmButtonText: 'Cobrar y registrar',
-        cancelButtonText: 'Cancelar',
+        cancelButtonText: 'Volver',
         confirmButtonColor: (typeof BRAND_COLOR_BTN !== 'undefined' ? BRAND_COLOR_BTN : undefined),
         allowEnterKey: true,
         didOpen: function (popup) {
@@ -1780,6 +1826,21 @@ function pedirEfectivo() {
             var box = popup.querySelector('#cobro-vueltas-box');
             var salida = popup.querySelector('#cobro-vueltas');
             var confirmar = Swal.getConfirmButton();
+            var cerrar = popup.querySelector('.swal2-close');
+            if (cerrar) { cerrar.setAttribute('aria-label', 'Cerrar sin cobrar'); }
+
+            // Separador de miles mientras se teclea: leer "500.000" de un vistazo
+            // evita el error clásico de contar ceros con el cliente esperando.
+            function formatearEntrada() {
+                var alFinal = (input.selectionStart === input.value.length);
+                var digitos = input.value.replace(/\D/g, '');
+                if (!digitos) { input.value = ''; return; }
+                var bonito = parseInt(digitos, 10).toLocaleString('es-CO');
+                if (bonito !== input.value) {
+                    input.value = bonito;
+                    if (alFinal) { input.setSelectionRange(bonito.length, bonito.length); }
+                }
+            }
 
             function refrescar() {
                 var recibido = parseMontoCaja(input.value);
@@ -1787,17 +1848,19 @@ function pedirEfectivo() {
                     box.classList.add('falta');
                     salida.textContent = recibido === null ? '—' : 'Faltan ' + formatCOP(total - recibido);
                     confirmar.disabled = true;
+                    confirmar.setAttribute('aria-disabled', 'true');
                 } else {
                     box.classList.remove('falta');
                     salida.textContent = formatCOP(recibido - total);
                     confirmar.disabled = false;
+                    confirmar.removeAttribute('aria-disabled');
                 }
             }
 
-            input.addEventListener('input', refrescar);
+            input.addEventListener('input', function () { formatearEntrada(); refrescar(); });
             popup.querySelectorAll('.cobro-chip').forEach(function (chip) {
                 chip.addEventListener('click', function () {
-                    input.value = chip.getAttribute('data-monto');
+                    input.value = parseInt(chip.getAttribute('data-monto'), 10).toLocaleString('es-CO');
                     refrescar();
                     input.focus();
                 });
