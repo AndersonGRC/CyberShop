@@ -714,6 +714,21 @@
         }
     }
 
+    /* ── Tarjeta de cliente: atada al check de facturación electrónica ────── */
+    .pos-fe-toggle { display: flex; align-items: center; gap: 10px; cursor: pointer;
+        padding: 10px 12px; border-radius: 10px; background: var(--marca-tinte-leve);
+        border: 1px solid var(--marca-tinte-medio); font-weight: 600; }
+    .pos-fe-toggle:hover { background: var(--marca-tinte); }
+    .pos-fe-toggle input { width: 18px; height: 18px; cursor: pointer; accent-color: var(--color-primario); }
+
+    .pos-card-cliente { transition: opacity .18s ease; }
+    .pos-card-cliente.bloqueada { opacity: .55; }
+    .pos-card-cliente.bloqueada input,
+    .pos-card-cliente.bloqueada select { cursor: not-allowed; background: var(--color-gris-claro); }
+    .pos-cliente-estado { display: block; margin-top: 4px; font-size: .72rem; font-weight: 600;
+        text-transform: none; letter-spacing: 0; color: var(--color-texto-muted); }
+    .pos-card-cliente:not(.bloqueada) .pos-cliente-estado { color: var(--color-primario); }
+
     /* ── Modal de cobro en efectivo ──────────────────────────────────────────
        Colores desde variables.css (regla del proyecto): sin hex sueltos.
        `box-sizing` explícito en todo el bloque: sin él, el ancho 100% del input
@@ -859,40 +874,6 @@
         </div>
 
         <div class="pos-card">
-            <h3><i class="fas fa-user"></i> Cliente (opcional)</h3>
-            <div class="pos-field">
-                <label>Nombre</label>
-                <input type="text" id="pos-cliente-nombre" placeholder="Nombre del cliente">
-            </div>
-            <div class="pos-field">
-                <label>Documento</label>
-                <input type="text" id="pos-cliente-doc" placeholder="CC / NIT">
-            </div>
-            {% if fe_activa %}
-            {# La DIAN exige tipo de documento y correo del comprador. Sólo se piden
-               si el tenant emite factura electrónica. #}
-            <div class="pos-field">
-                <label>Tipo de documento</label>
-                <select id="pos-cliente-tipo-doc">
-                    <option value="CC">Cédula de ciudadanía</option>
-                    <option value="NIT">NIT (empresa)</option>
-                    <option value="CE">Cédula de extranjería</option>
-                    <option value="PASS">Pasaporte</option>
-                    <option value="TI">Tarjeta de identidad</option>
-                </select>
-            </div>
-            <div class="pos-field">
-                <label>Email <small>(para la factura)</small></label>
-                <input type="email" id="pos-cliente-email" placeholder="correo@ejemplo.com">
-            </div>
-            {% endif %}
-            <div class="pos-field">
-                <label>Telefono</label>
-                <input type="text" id="pos-cliente-tel" placeholder="Telefono">
-            </div>
-        </div>
-
-        <div class="pos-card">
             <h3><i class="fas fa-credit-card"></i> Cobrar
                 {% if session.get('rol_id') in [1, 2] %}
                 <a href="{{ url_for('admin.metodos_pago_pos') }}" class="pos-cfg-link" title="Configurar métodos de pago"><i class="fas fa-cog"></i></a>
@@ -912,10 +893,52 @@
                 <textarea id="pos-notas" placeholder="Observaciones..."></textarea>
             </div>
             <div class="pos-field">
-                <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
-                    <input type="checkbox" id="pos-facturar-electronicamente">
+                <label class="pos-fe-toggle">
+                    <input type="checkbox" id="pos-facturar-electronicamente"
+                           aria-controls="pos-card-cliente">
                     <span>Facturar electronicamente</span>
                 </label>
+            </div>
+        </div>
+
+        {# Los datos del comprador SOLO se piden cuando la venta va a facturacion
+           electronica: la DIAN los exige, pero estorban en una venta de mostrador.
+           La tarjeta permanece bloqueada hasta que se marca el check de arriba. #}
+        <div class="pos-card pos-card-cliente bloqueada" id="pos-card-cliente">
+            <h3><i class="fas fa-user"></i> Datos del cliente
+                <span class="pos-cliente-estado" id="pos-cliente-estado">
+                    <i class="fas fa-lock"></i> Requiere facturación electrónica
+                </span>
+            </h3>
+            <div class="pos-field">
+                <label for="pos-cliente-nombre">Nombre / Razón social</label>
+                <input type="text" id="pos-cliente-nombre" placeholder="Nombre del cliente" disabled>
+            </div>
+            {% if fe_activa %}
+            <div class="pos-field">
+                <label for="pos-cliente-tipo-doc">Tipo de documento</label>
+                <select id="pos-cliente-tipo-doc" disabled>
+                    <option value="CC">Cédula de ciudadanía</option>
+                    <option value="NIT">NIT (empresa)</option>
+                    <option value="CE">Cédula de extranjería</option>
+                    <option value="PASS">Pasaporte</option>
+                    <option value="TI">Tarjeta de identidad</option>
+                </select>
+            </div>
+            {% endif %}
+            <div class="pos-field">
+                <label for="pos-cliente-doc">Número de documento</label>
+                <input type="text" id="pos-cliente-doc" placeholder="CC / NIT" disabled>
+            </div>
+            {% if fe_activa %}
+            <div class="pos-field">
+                <label for="pos-cliente-email">Email <small>(donde llega la factura)</small></label>
+                <input type="email" id="pos-cliente-email" placeholder="correo@ejemplo.com" disabled>
+            </div>
+            {% endif %}
+            <div class="pos-field">
+                <label for="pos-cliente-tel">Teléfono</label>
+                <input type="text" id="pos-cliente-tel" placeholder="Telefono" disabled>
             </div>
         </div>
 
@@ -1265,6 +1288,7 @@ const VentasTabs = {
         document.getElementById('pos-metodo-pago').value = venta.metodoPago;
         document.getElementById('pos-notas').value = venta.notas;
         document.getElementById('pos-facturar-electronicamente').checked = !!venta.facturarElectronicamente;
+        sincronizarTarjetaCliente();
 
         calcularTotalPOS();
         StockTracker.rebuildFromDOM();
@@ -1340,6 +1364,7 @@ const VentasTabs = {
         document.getElementById('pos-metodo-pago').value = 'EFECTIVO';
         document.getElementById('pos-notas').value = '';
         document.getElementById('pos-facturar-electronicamente').checked = false;
+        sincronizarTarjetaCliente();
         calcularTotalPOS();
         StockTracker.reset();
 
@@ -1725,6 +1750,35 @@ function cobrarRapido(metodo) {
     }
 }
 
+/* ── Datos del cliente: sólo activos con facturación electrónica ──────────── */
+
+// Sin el check marcado la venta NO va a la DIAN, así que pedir los datos del
+// comprador sólo entorpece el mostrador. La tarjeta se bloquea y se limpia.
+function sincronizarTarjetaCliente() {
+    var check = document.getElementById('pos-facturar-electronicamente');
+    var card = document.getElementById('pos-card-cliente');
+    var estado = document.getElementById('pos-cliente-estado');
+    if (!check || !card) { return; }
+
+    var activa = check.checked;
+    card.classList.toggle('bloqueada', !activa);
+    card.querySelectorAll('input, select').forEach(function (campo) {
+        campo.disabled = !activa;
+        if (!activa) { campo.value = campo.tagName === 'SELECT' ? 'CC' : ''; }
+    });
+    if (estado) {
+        estado.innerHTML = activa
+            ? '<i class="fas fa-file-invoice"></i> Obligatorios para la factura'
+            : '<i class="fas fa-lock"></i> Requiere facturación electrónica';
+    }
+    // Al activarla, llevar el foco al primer campo: el cajero acaba de decidir
+    // que esta venta se factura y lo siguiente que hará es escribir el nombre.
+    if (activa) {
+        var primero = card.querySelector('input:not([disabled])');
+        if (primero && document.activeElement === check) { primero.focus(); }
+    }
+}
+
 // Punto de entrada ÚNICO para cobrar desde la interfaz (botón, F8, Enter). Decide
 // si hay que pedir el efectivo antes de registrar. Los reintentos internos siguen
 // llamando a registrarVenta() directamente para no volver a abrir el modal.
@@ -1970,6 +2024,33 @@ function registrarVenta(extra) {
     if (!valido) {
         Swal.fire('Atencion', 'Todos los items deben tener descripcion, cantidad y precio validos.', 'warning');
         return;
+    }
+
+    // Con facturación electrónica marcada, la DIAN exige identificar al comprador.
+    // Se avisa aquí y no al emitir, que es cuando el cliente ya se fue.
+    var chkFE = document.getElementById('pos-facturar-electronicamente');
+    if (chkFE && chkFE.checked) {
+        var faltantes = [];
+        var reqNombre = document.getElementById('pos-cliente-nombre');
+        var reqDoc = document.getElementById('pos-cliente-doc');
+        var reqEmail = document.getElementById('pos-cliente-email');
+        if (reqNombre && !reqNombre.value.trim()) { faltantes.push('nombre o razón social'); }
+        if (reqDoc && !reqDoc.value.trim()) { faltantes.push('número de documento'); }
+        if (reqEmail && reqEmail.value.indexOf('@') === -1) { faltantes.push('email válido'); }
+        if (faltantes.length) {
+            playErrorBeep();
+            Swal.fire({
+                icon: 'warning',
+                title: 'Faltan datos del cliente',
+                html: 'Para emitir la factura electrónica falta: <b>' + faltantes.join('</b>, <b>') + '</b>.' +
+                      '<br><br><small>Si esta venta no lleva factura electrónica, desmarca el check de <b>Cobrar</b>.</small>',
+                confirmButtonColor: (typeof BRAND_COLOR_BTN !== 'undefined' ? BRAND_COLOR_BTN : undefined)
+            }).then(function () {
+                var primero = document.querySelector('#pos-card-cliente input:not([disabled])');
+                if (primero) { primero.focus(); }
+            });
+            return;
+        }
     }
 
     const payload = {
@@ -2337,6 +2418,14 @@ window.addEventListener('online', () => {
    ================================================================ */
 ScannerEngine.init();
 VentasTabs.init();
+
+// La tarjeta de cliente sigue al check de facturación electrónica. Se sincroniza
+// al arrancar (VentasTabs pudo restaurar una pestaña con el check ya marcado).
+(function () {
+    var check = document.getElementById('pos-facturar-electronicamente');
+    if (check) { check.addEventListener('change', sincronizarTarjetaCliente); }
+    sincronizarTarjetaCliente();
+})();
 
 if (!navigator.onLine) {
     document.getElementById('pos-offline-banner').style.display = 'block';
