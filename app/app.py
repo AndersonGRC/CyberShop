@@ -344,6 +344,9 @@ def inject_config_global():
         trial_info=trial_info,
         plan_aviso=plan_aviso,
         app_version=Config.APP_VERSION,
+        # Site key del reCAPTCHA por instancia. Debe ser la pareja del
+        # RECAPTCHA_SECRET_KEY del mismo env, o la verificacion falla siempre.
+        recaptcha_site_key=Config.RECAPTCHA_SITE_KEY,
     )
 
 

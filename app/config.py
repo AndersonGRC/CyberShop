@@ -22,7 +22,7 @@ class Config:
     # clientes, código compartido → todos ven la misma = la última desplegada).
     #   A = cambio radical de plataforma · B = módulo nuevo grande
     #   C = estabilización / mejora · D = correcciones y ajustes de UI
-    APP_VERSION = "1.0.1.3"
+    APP_VERSION = "1.0.1.4"
 
     # --- General / Sesion ---
     # SECURITY M2: Sin fallback débil — falla explícitamente si no está configurado
@@ -58,6 +58,10 @@ class Config:
     PAYU_TIMEOUT = 45
 
     # --- reCAPTCHA ---
+    # AMBAS claves son POR INSTANCIA: el widget del navegador usa el site key y el
+    # servidor verifica con el secret. Tienen que ser del MISMO par de Google o la
+    # validacion falla siempre. Por eso el site key ya no va fijo en la plantilla.
+    RECAPTCHA_SITE_KEY   = os.getenv('RECAPTCHA_SITE_KEY')
     RECAPTCHA_SECRET_KEY = os.getenv('RECAPTCHA_SECRET_KEY')
 
     # --- Mail (Gmail SMTP — respaldo cuando Gmail API no está autorizado) ---

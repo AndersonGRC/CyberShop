@@ -200,7 +200,10 @@
         <input type="text" name="website" style="display:none" tabindex="-1" autocomplete="off">
 
         <!-- Google reCAPTCHA -->
-        <div class="g-recaptcha" data-sitekey="6LcgDbsrAAAAAEii5NGsPJLCj1aKqc9vej9G7Y76"></div>
+        <!-- Site key por instancia (RECAPTCHA_SITE_KEY). Si no esta configurado se
+             usa el historico, pero entonces NO parea con el secret del env y la
+             verificacion fallara: hay que configurar ambas claves del mismo par. -->
+        <div class="g-recaptcha" data-sitekey="{{ recaptcha_site_key or '6LcgDbsrAAAAAEii5NGsPJLCj1aKqc9vej9G7Y76' }}"></div>
 
         <button type="submit"><i class="fas fa-paper-plane"></i> Enviar mensaje</button>
       </form>
