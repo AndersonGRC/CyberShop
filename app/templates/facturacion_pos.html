@@ -748,13 +748,13 @@
         color: var(--color-primario); }
     .cobro-chip:focus-visible { outline: 2px solid var(--color-primario); outline-offset: 2px; }
 
-    .cobro-vueltas { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    .cobro-cambio { display: flex; align-items: center; justify-content: space-between; gap: 12px;
         padding: 16px 18px; border-radius: 14px; background: var(--color-exito-tinte);
         border: 1px solid var(--color-exito-borde); }
-    .cobro-vueltas-val { font-size: 1.8rem; font-weight: 800; color: var(--color-exito);
+    .cobro-cambio-val { font-size: 1.8rem; font-weight: 800; color: var(--color-exito);
         line-height: 1.1; text-align: right; }
-    .cobro-vueltas.falta { background: var(--color-peligro-tinte); border-color: var(--color-peligro-tinte-hover); }
-    .cobro-vueltas.falta .cobro-vueltas-val { color: var(--color-peligro); font-size: 1.2rem; }
+    .cobro-cambio.falta { background: var(--color-peligro-tinte); border-color: var(--color-peligro-tinte-hover); }
+    .cobro-cambio.falta .cobro-cambio-val { color: var(--color-peligro); font-size: 1.2rem; }
 
     .cobro-ayuda { margin: 14px 0 0; text-align: center; font-size: .78rem; color: var(--color-texto-muted); }
     .cobro-ayuda kbd { background: var(--color-gris-claro); border: 1px solid var(--color-gris-borde);
@@ -770,7 +770,7 @@
         .cobro-chip { flex: 1 1 calc(50% - 5px); }
     }
 
-    /* Filas de efectivo/vueltas en la tirilla */
+    /* Filas de efectivo/cambio en la tirilla */
     .comp-efectivo { display: flex; justify-content: space-between; font-size: .82rem; margin-top: 2px; }
 </style>
 {% endblock %}
@@ -957,7 +957,7 @@
             <span>Efectivo recibido:</span><span id="comp-efectivo"></span>
         </div>
         <div class="comp-efectivo" id="comp-fila-cambio" style="display:none">
-            <span><strong>Vueltas:</strong></span><span id="comp-cambio"><strong></strong></span>
+            <span><strong>Cambio:</strong></span><span id="comp-cambio"><strong></strong></span>
         </div>
         <div class="comp-actions">
             <button class="btn-imprimir" onclick="window.print()"><i class="fas fa-print"></i> Imprimir</button>
@@ -1716,7 +1716,7 @@ function cobrarRapido(metodo) {
     document.querySelectorAll('.pay-btn').forEach(function (b) {
         b.classList.toggle('sel', b.getAttribute('data-metodo') === metodo);
     });
-    // En efectivo hay vueltas que calcular: se pide el monto recibido antes de
+    // En efectivo hay cambio que calcular: se pide el monto recibido antes de
     // registrar. Los demás métodos cobran de un toque, como siempre.
     if (String(metodo || '').toUpperCase() === 'EFECTIVO') {
         pedirEfectivo();
@@ -1734,7 +1734,7 @@ function cobrarVenta() {
     if (metodo === 'EFECTIVO') { pedirEfectivo(); } else { registrarVenta(); }
 }
 
-/* ── Cobro en efectivo: monto recibido y cálculo de vueltas ───────────────── */
+/* ── Cobro en efectivo: monto recibido y cálculo del cambio ───────────────── */
 
 // Billetes colombianos en circulación, de mayor a menor.
 var DENOMINACIONES_COP = [100000, 50000, 20000, 10000, 5000, 2000];
@@ -1807,12 +1807,12 @@ function pedirEfectivo() {
               '<div class="cobro-campo">' +
                 '<label class="cobro-label" for="cobro-recibido">Efectivo recibido</label>' +
                 '<input id="cobro-recibido" class="cobro-input" type="text" inputmode="numeric" ' +
-                       'autocomplete="off" placeholder="0" aria-describedby="cobro-vueltas-box">' +
+                       'autocomplete="off" placeholder="0" aria-describedby="cobro-cambio-box">' +
               '</div>' +
               '<div class="cobro-chips" role="group" aria-label="Montos frecuentes">' + botones + '</div>' +
-              '<div class="cobro-vueltas falta" id="cobro-vueltas-box" role="status" aria-live="polite">' +
-                '<span class="cobro-label">Vueltas</span>' +
-                '<span class="cobro-vueltas-val" id="cobro-vueltas">—</span>' +
+              '<div class="cobro-cambio falta" id="cobro-cambio-box" role="status" aria-live="polite">' +
+                '<span class="cobro-label">Cambio</span>' +
+                '<span class="cobro-cambio-val" id="cobro-cambio">—</span>' +
               '</div>' +
               '<p class="cobro-ayuda"><kbd>Enter</kbd> cobra · <kbd>Esc</kbd> cancela</p>' +
             '</div>',
@@ -1823,8 +1823,8 @@ function pedirEfectivo() {
         allowEnterKey: true,
         didOpen: function (popup) {
             var input = popup.querySelector('#cobro-recibido');
-            var box = popup.querySelector('#cobro-vueltas-box');
-            var salida = popup.querySelector('#cobro-vueltas');
+            var box = popup.querySelector('#cobro-cambio-box');
+            var salida = popup.querySelector('#cobro-cambio');
             var confirmar = Swal.getConfirmButton();
             var cerrar = popup.querySelector('.swal2-close');
             if (cerrar) { cerrar.setAttribute('aria-label', 'Cerrar sin cobrar'); }
@@ -2064,7 +2064,7 @@ function pedirAperturaCaja(extra) {
     extra = extra || {};
     Swal.fire({
         title: 'Caja cerrada',
-        html: 'Para cobrar primero abre la caja.<br><small>Cuenta el efectivo con el que inicias (la <b>base</b> para dar vueltos).</small>',
+        html: 'Para cobrar primero abre la caja.<br><small>Cuenta el efectivo con el que inicias (la <b>base</b> para dar cambio).</small>',
         input: 'text',
         inputLabel: 'Base de caja ($)',
         inputPlaceholder: '50.000',
@@ -2157,7 +2157,7 @@ function mostrarComprobante(data) {
     document.getElementById('comp-metodo').textContent = data.metodo_pago;
     document.getElementById('comp-total').textContent = formatCOP(data.total);
 
-    // Efectivo y vueltas: sólo si la venta los trae (null en tarjeta/transferencia
+    // Efectivo y cambio: sólo si la venta los trae (null en tarjeta/transferencia
     // y en ventas anteriores a la migración 0009).
     var hayEfectivo = (data.efectivo_recibido !== null && data.efectivo_recibido !== undefined);
     document.getElementById('comp-fila-efectivo').style.display = hayEfectivo ? 'flex' : 'none';

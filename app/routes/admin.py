@@ -2033,7 +2033,7 @@ def procesar_venta_pos():
     cliente_tipo_doc = (data.get('cliente_tipo_doc') or '').strip().upper()
     metodo_pago = data.get('metodo_pago', 'EFECTIVO')
     notas = data.get('notas', '')
-    # Efectivo entregado por el cliente. Las vueltas NO se aceptan del navegador:
+    # Efectivo entregado por el cliente. El cambio NO se acepta del navegador:
     # se calculan aquí sobre el total recalculado en servidor (ver más abajo).
     efectivo_recibido = _num_opcional(data.get('efectivo_recibido'))
     facturar_electronicamente = _parse_facturar_electronicamente(
@@ -2115,7 +2115,7 @@ def procesar_venta_pos():
 
             detalles_para_insertar.append((producto_id, descripcion, cantidad, precio_unitario, subtotal_item))
 
-        # Vueltas: se calculan aquí sobre el total recalculado en servidor, nunca se
+        # Cambio: se calcula aquí sobre el total recalculado en servidor, nunca se
         # aceptan del navegador. Si el cajero dice haber recibido menos que el total,
         # la venta se rechaza en vez de guardarse descuadrada.
         cambio = None
