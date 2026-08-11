@@ -408,6 +408,11 @@
                 <section class="rtm-table-summary">
                     <div class="rtm-table-summary-head">
                         <div class="rtm-table-summary-title">
+                            <button id="rtmMenuToggle" class="rtm-menu-toggle" type="button"
+                                    title="Ocultar / mostrar el menú lateral (más espacio)"
+                                    aria-label="Ocultar o mostrar el menú lateral">
+                                <i class="fas fa-angle-double-left"></i>
+                            </button>
                             <span id="rtmTableCode" class="rtm-code-pill"></span>
                             <h2 id="rtmTableTitle">Mesa</h2>
                         </div>
@@ -540,30 +545,31 @@
                     <i class="fas fa-pen"></i> Ítem libre — no registrado
                 </button>
 
-                <!-- Panel de ítem libre (se despliega al pulsar el botón) -->
-                <div id="rtmFreeItemPanel" class="rtm-add-panel" hidden>
-                    <label class="rtm-notes-label" style="margin:0;">
+                <!-- Panel de ítem libre COMPACTO (se despliega al pulsar el botón).
+                     Flujo ágil: escribe qué vendes, precio, cantidad y Añadir (o Enter). -->
+                <div id="rtmFreeItemPanel" class="rtm-add-panel rtm-freeitem-panel" hidden>
+                    <label class="rtm-freeitem-field">
                         <i class="fas fa-tag"></i>
-                        <input id="rtmFreeItemDesc" type="text" placeholder="Descripción (ej: Almuerzo del día)"
-                               style="width:100%;">
+                        <input id="rtmFreeItemDesc" type="text" placeholder="¿Qué vendes? (ej: Almuerzo del día)" autocomplete="off">
                     </label>
-                    <div class="rtm-add-controls">
-                        <label class="rtm-mini-label" style="flex:1;">
-                            Precio
-                            <input id="rtmFreeItemPrice" type="number" min="0" step="any" value=""
-                                   placeholder="0" class="rtm-qty-input" style="width:100%;">
-                        </label>
-                        <button id="rtmFreeQtyMinus" class="rtm-qty-btn" type="button"><i class="fas fa-minus"></i></button>
-                        <input id="rtmFreeItemQty" type="number" min="1" value="1" class="rtm-qty-input">
-                        <button id="rtmFreeQtyPlus" class="rtm-qty-btn" type="button"><i class="fas fa-plus"></i></button>
+                    <div class="rtm-freeitem-row">
+                        <div class="rtm-freeitem-price">
+                            <span>$</span>
+                            <input id="rtmFreeItemPrice" type="number" min="0" step="any" placeholder="Precio">
+                        </div>
+                        <div class="rtm-freeitem-qty">
+                            <button id="rtmFreeQtyMinus" class="rtm-qty-btn" type="button"><i class="fas fa-minus"></i></button>
+                            <input id="rtmFreeItemQty" type="number" min="1" value="1" class="rtm-qty-input">
+                            <button id="rtmFreeQtyPlus" class="rtm-qty-btn" type="button"><i class="fas fa-plus"></i></button>
+                        </div>
+                        <button id="rtmFreeItemAdd" class="rtm-btn-add rtm-freeitem-add" type="button">
+                            <i class="fas fa-plus-circle"></i> Añadir
+                        </button>
                     </div>
-                    <label class="rtm-notes-label">
+                    <label class="rtm-freeitem-field rtm-freeitem-notes">
                         <i class="fas fa-comment-alt"></i>
-                        <textarea id="rtmFreeItemNotes" rows="2" placeholder="Notas (opcional)"></textarea>
+                        <input id="rtmFreeItemNotes" type="text" placeholder="Notas para cocina (opcional)" autocomplete="off">
                     </label>
-                    <button id="rtmFreeItemAdd" class="rtm-btn-add" type="button">
-                        <i class="fas fa-plus-circle"></i> Añadir ítem libre
-                    </button>
                 </div>
 
                 <!-- Grid de productos -->

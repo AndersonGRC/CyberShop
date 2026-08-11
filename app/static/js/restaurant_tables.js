@@ -1464,6 +1464,27 @@
         });
         document.getElementById('rtmFreeItemAdd')?.addEventListener('click', modalAddFreeItem);
 
+        // Toggle de menú lateral desde el modal (reusa el .btn-menu del layout admin
+        // para ocultar el sidebar y ganar ancho de productos, sin salir de la mesa).
+        document.getElementById('rtmMenuToggle')?.addEventListener('click', function () {
+            const real = document.querySelector('.btn-menu') || document.querySelector('.btn-collapse');
+            if (real) real.click();
+            const sb = document.getElementById('app-sidebar');
+            const ic = this.querySelector('i');
+            if (sb && ic) {
+                ic.className = sb.classList.contains('hidden')
+                    ? 'fas fa-angle-double-right'
+                    : 'fas fa-angle-double-left';
+            }
+        });
+
+        // Enter = añadir el ítem libre al instante (agilidad en mesa)
+        ['rtmFreeItemDesc', 'rtmFreeItemPrice'].forEach(function (id) {
+            document.getElementById(id)?.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); modalAddFreeItem(); }
+            });
+        });
+
         modal.stateButtons.forEach((btn) => {
             btn.addEventListener('click', async function () {
                 await changeTableState(this.dataset.nextState);

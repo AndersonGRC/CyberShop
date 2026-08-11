@@ -1805,7 +1805,9 @@
 
 .rtm-overlay {
     position: fixed;
-    top: var(--rt-admin-header-height);
+    top: 0;                 /* cubre TODO el alto (incl. el topbar) para dar el máximo
+                               espacio a los productos; el modal trae sus propios
+                               controles (ocultar menú + cerrar). */
     right: 0;
     bottom: 0;
     left: var(--rt-admin-sidebar-width);
@@ -1825,10 +1827,16 @@ header.hidden ~ .rtm-overlay {
     left: 0;
 }
 
+/* Sidebar colapsado (angosto): el modal se ajusta a su ancho */
+header.collapsed ~ main .rtm-overlay,
+header.collapsed ~ .rtm-overlay {
+    left: 76px;
+}
+
 /* En móvil no hay sidebar fijo: cubrir toda la pantalla */
 @media (max-width: 768px) {
     .rtm-overlay {
-        top: var(--rt-admin-header-height-mobile);
+        top: 0;
         left: 0;
     }
 }
@@ -1898,6 +1906,29 @@ header.hidden ~ .rtm-overlay {
     transform: translateY(-1px);
     background: var(--color-eliminar, #e63946);
     color: #fff;
+}
+
+/* Toggle de "ocultar menú" dentro del modal (el modal cubre el topbar, así que
+   trae su propio control para ganar ancho ocultando el sidebar). */
+.rtm-menu-toggle {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 10px;
+    background: rgba(9, 28, 90, 0.10);
+    color: var(--color-primario-oscuro);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.rtm-menu-toggle:hover {
+    background: var(--color-primario);
+    color: var(--color-blanco, #fff);
 }
 
 @keyframes rtm-slide-up {
@@ -2442,6 +2473,96 @@ header.hidden ~ .rtm-overlay {
 .rtm-freeitem-btn:hover {
     background: var(--color-primario);
     color: var(--color-blanco, #fff);
+}
+
+/* Panel de ítem libre COMPACTO (agilidad en mesa) */
+.rtm-freeitem-panel {
+    gap: 10px;
+}
+
+.rtm-freeitem-field {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    background: var(--color-blanco);
+    border: 1.5px solid var(--color-gris-borde);
+    border-radius: 12px;
+    padding: 0 12px;
+}
+
+.rtm-freeitem-field i {
+    color: var(--rt-muted);
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+.rtm-freeitem-field input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    padding: 11px 0;
+    font: inherit;
+    color: var(--rt-text);
+    outline: none;
+}
+
+.rtm-freeitem-field:focus-within {
+    border-color: var(--color-primario);
+    box-shadow: 0 0 0 3px rgba(var(--color-marca-rgb), 0.14);
+}
+
+.rtm-freeitem-notes input { font-size: 0.9rem; }
+
+.rtm-freeitem-row {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.rtm-freeitem-price {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--color-blanco);
+    border: 1.5px solid var(--color-gris-borde);
+    border-radius: 12px;
+    padding: 0 12px;
+    font-weight: 800;
+    color: var(--color-primario);
+}
+
+.rtm-freeitem-price input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    padding: 11px 0;
+    font: inherit;
+    font-weight: 700;
+    outline: none;
+    color: var(--rt-text);
+}
+
+.rtm-freeitem-price:focus-within {
+    border-color: var(--color-primario);
+    box-shadow: 0 0 0 3px rgba(var(--color-marca-rgb), 0.14);
+}
+
+.rtm-freeitem-qty {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.rtm-btn-add.rtm-freeitem-add {
+    width: auto;
+    flex-shrink: 0;
+    padding: 0 22px;
+    white-space: nowrap;
 }
 
 .rtm-search-wrap {
