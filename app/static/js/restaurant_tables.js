@@ -804,6 +804,30 @@
             notify('La mesa seleccionada no tiene una cuenta abierta.', 'warning');
             return;
         }
+
+        // Datos del facturador (adquiriente DIAN): solo si la venta se factura.
+        const feChecked = document.getElementById('rtmFacturarFE')?.checked || false;
+        const feData = {};
+        if (feChecked) {
+            const nombre = (document.getElementById('rtmFeNombre')?.value || '').trim();
+            const doc = (document.getElementById('rtmFeDoc')?.value || '').trim();
+            const email = (document.getElementById('rtmFeEmail')?.value || '').trim();
+            const faltan = [];
+            if (!nombre) faltan.push('nombre o razón social');
+            if (!doc) faltan.push('número de documento');
+            if (email.indexOf('@') === -1) faltan.push('email válido');
+            if (faltan.length) {
+                notify('Para emitir la factura electrónica falta: ' + faltan.join(', ') +
+                       '. Si esta venta no lleva factura, desmarca el check.', 'warning');
+                return;
+            }
+            feData.cliente_nombre = nombre;
+            feData.cliente_tipo_doc = document.getElementById('rtmFeTipoDoc')?.value || 'CC';
+            feData.cliente_documento = doc;
+            feData.cliente_email = email;
+            feData.cliente_telefono = (document.getElementById('rtmFeTel')?.value || '').trim();
+        }
+
         const paymentSelect = elements.closePaymentMethod || modal.payment;
         let paymentMethod = paymentSelect?.value || 'EFECTIVO';
 
@@ -861,7 +885,8 @@
         try {
             const result = await jsonRequest(endpointForTable(endpoints.closeAccountBase, table.id), {
                 payment_method: paymentMethod,
-                facturar_electronicamente: document.getElementById('rtmFacturarFE')?.checked || false,
+                facturar_electronicamente: feChecked,
+                ...feData,
             });
             await refreshData(table.id);
             notify(`Cobro registrado. Total final: ${money(result.total)}.`, 'success');
@@ -1321,6 +1346,15 @@
         if (modal.addPanel)  modal.addPanel.hidden = true;
         const freePanel = document.getElementById('rtmFreeItemPanel');
         if (freePanel) freePanel.hidden = true;
+        // Reset del bloque de factura electrónica (datos del facturador)
+        const feCheckR = document.getElementById('rtmFacturarFE');
+        if (feCheckR) feCheckR.checked = false;
+        const fePanelR = document.getElementById('rtmFePanel');
+        if (fePanelR) fePanelR.hidden = true;
+        ['rtmFeNombre', 'rtmFeDoc', 'rtmFeEmail', 'rtmFeTel'].forEach(function (id) {
+            const el = document.getElementById(id); if (el) el.value = '';
+        });
+        const feTd = document.getElementById('rtmFeTipoDoc'); if (feTd) feTd.value = 'CC';
         if (modal.search)    modal.search.value = '';
         if (modal.catBar) {
             modal.catBar.querySelectorAll('.rtm-cat-btn').forEach((b) => b.classList.remove('is-active'));
@@ -1484,6 +1518,16 @@
                 if (e.key === 'Enter') { e.preventDefault(); modalAddFreeItem(); }
             });
         });
+
+        // Datos del facturador: aparecen solo al marcar "Facturar electrónicamente"
+        const feCheck = document.getElementById('rtmFacturarFE');
+        const fePanel = document.getElementById('rtmFePanel');
+        if (feCheck && fePanel) {
+            feCheck.addEventListener('change', function () {
+                fePanel.hidden = !this.checked;
+                if (this.checked) { document.getElementById('rtmFeNombre')?.focus(); }
+            });
+        }
 
         modal.stateButtons.forEach((btn) => {
             btn.addEventListener('click', async function () {

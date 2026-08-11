@@ -1931,6 +1931,60 @@ header.collapsed ~ .rtm-overlay {
     color: var(--color-blanco, #fff);
 }
 
+/* Fila de comensales sola (el nombre del cliente se movió al panel FE) */
+.rtm-client-row-solo {
+    grid-template-columns: 150px;
+}
+
+/* Panel "Datos del facturador" (adquiriente DIAN): aparece bajo el check FE */
+.rtm-fe-panel {
+    display: grid;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 12px;
+    border: 1.5px dashed rgba(var(--color-marca-rgb), 0.38);
+    border-radius: 12px;
+    background: rgba(var(--color-marca-rgb), 0.05);
+    animation: rtm-fade-in 0.18s ease;
+}
+
+.rtm-fe-panel[hidden] { display: none; }
+
+.rtm-fe-hint {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-primario);
+}
+
+.rtm-fe-panel input,
+.rtm-fe-panel select {
+    width: 100%;
+    padding: 9px 11px;
+    border: 1.5px solid var(--color-gris-borde);
+    border-radius: 10px;
+    background: var(--color-blanco);
+    font: inherit;
+    color: var(--rt-text);
+    outline: none;
+}
+
+.rtm-fe-panel input:focus,
+.rtm-fe-panel select:focus {
+    border-color: var(--color-primario);
+    box-shadow: 0 0 0 3px rgba(var(--color-marca-rgb), 0.14);
+}
+
+.rtm-fe-row2 {
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    gap: 8px;
+}
+
 @keyframes rtm-slide-up {
     from { transform: translateY(24px); opacity: 0; }
     to   { transform: translateY(0);    opacity: 1; }

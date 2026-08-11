@@ -135,6 +135,39 @@ _RESTAURANT_TABLES_DEFAULTS_REPAIRED = False
 _RESTAURANT_ORDER_DEFAULTS_REPAIRED = False
 _RESTAURANT_CONSUMPTION_DEFAULTS_REPAIRED = False
 _ACCOUNTING_MOVEMENTS_DEFAULTS_REPAIRED = False
+_FE_CUSTOMER_COLUMNS_ENSURED = False
+
+# Campos del adquiriente para factura electrónica que se guardan en la orden.
+_FE_CUSTOMER_COLUMNS = {
+    'cliente_tipo_doc':  'VARCHAR(10)',
+    'cliente_documento': 'VARCHAR(40)',
+    'cliente_email':     'VARCHAR(160)',
+    'cliente_telefono':  'VARCHAR(40)',
+}
+
+
+def _ensure_fe_customer_columns():
+    """Agrega (idempotente) las columnas del adquiriente FE a
+    restaurant_table_orders. `cliente_nombre` ya existe; estas son las extra
+    que la factura electrónica necesita (tipo/nº documento, email, teléfono)."""
+    global _FE_CUSTOMER_COLUMNS_ENSURED
+    if _FE_CUSTOMER_COLUMNS_ENSURED:
+        return
+    try:
+        with get_db_cursor() as cur:
+            for col, ddl in _FE_CUSTOMER_COLUMNS.items():
+                cur.execute(
+                    f"ALTER TABLE restaurant_table_orders "
+                    f"ADD COLUMN IF NOT EXISTS {col} {ddl}"
+                )
+        # Las columnas cambiaron: invalidar los cachés de introspección para que
+        # _table_has_column las vea al guardar/leer.
+        _table_has_column.cache_clear()
+        _get_table_columns.cache_clear()
+        _FE_CUSTOMER_COLUMNS_ENSURED = True
+    except Exception:
+        # No bloquear el módulo si falla; el guardado de FE usa _table_has_column.
+        pass
 
 
 def _repair_restaurant_tables_defaults():
@@ -326,6 +359,7 @@ def _ensure_module_schema():
     _repair_restaurant_tables_defaults()
     _repair_restaurant_table_orders_defaults()
     _repair_restaurant_table_consumptions_defaults()
+    _ensure_fe_customer_columns()
     return status
 
 
@@ -1277,6 +1311,32 @@ def update_consumption_state(consumption_id, new_state):
     return total
 
 
+def _save_fe_customer(cur, order_id, payload):
+    """Guarda en la orden los datos del adquiriente para factura electrónica
+    (nombre + tipo/nº documento, email, teléfono). Solo escribe las columnas
+    presentes y los valores no vacíos — no pisa datos con cadenas en blanco."""
+    payload = payload or {}
+    fe_fields = {
+        'cliente_nombre':    (payload.get('cliente_nombre') or '').strip(),
+        'cliente_tipo_doc':  (payload.get('cliente_tipo_doc') or '').strip().upper(),
+        'cliente_documento': (payload.get('cliente_documento') or '').strip(),
+        'cliente_email':     (payload.get('cliente_email') or '').strip(),
+        'cliente_telefono':  (payload.get('cliente_telefono') or '').strip(),
+    }
+    sets, vals = [], []
+    for col, val in fe_fields.items():
+        if val and _table_has_column('restaurant_table_orders', col):
+            sets.append(f"{col} = %s")
+            vals.append(val)
+    if not sets:
+        return
+    vals.append(order_id)
+    cur.execute(
+        f"UPDATE restaurant_table_orders SET {', '.join(sets)}, updated_at = NOW() WHERE id = %s",
+        tuple(vals),
+    )
+
+
 def close_table_order(user_id, table_id, payload=None):
     """Cierra la cuenta abierta de una mesa y la libera."""
     _ensure_module_schema()
@@ -1338,6 +1398,10 @@ def close_table_order(user_id, table_id, payload=None):
                     updated_at = NOW()
                 WHERE id = %s
             """, (user_id, total, order['id']))
+
+        # Adquiriente para factura electrónica (si el cobro trae los datos del
+        # facturador). Se guarda en la orden y lo lee construir_json_restaurante.
+        _save_fe_customer(cur, order['id'], payload)
 
         accounting = _create_accounting_movement(
             cur,

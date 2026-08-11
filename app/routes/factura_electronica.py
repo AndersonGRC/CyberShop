@@ -550,9 +550,12 @@ def _emitir_a_dian(tabla: str, registro_id: int, payload: dict | None) -> dict:
 def construir_json_restaurante(order_id: int) -> dict | None:
     """Convierte una orden de mesa cerrada (restaurant_table_orders) al JSON DIAN."""
     with get_db_cursor(dict_cursor=True) as cur:
+        # SELECT * a propósito: las columnas del adquiriente (cliente_tipo_doc,
+        # cliente_documento, cliente_email, cliente_telefono) se agregan de forma
+        # aditiva y puede que un tenant aún no las tenga. Con dict_cursor, las
+        # claves ausentes se resuelven con .get() -> None en vez de reventar.
         cur.execute(
-            """SELECT cliente_nombre, total_acumulado, payment_method, factura_dian_id
-               FROM restaurant_table_orders WHERE id = %s""", (order_id,))
+            """SELECT * FROM restaurant_table_orders WHERE id = %s""", (order_id,))
         orden = cur.fetchone()
         if not orden:
             return None
@@ -573,12 +576,32 @@ def construir_json_restaurante(order_id: int) -> dict | None:
             "impuesto_iva":    19,   # el micro lo pone en 0 si el emisor es No responsable de IVA
         })
     metodo = METODO_PAGO_MAP.get(str(orden.get('payment_method') or '').upper(), '10')
+
+    # Adquiriente real capturado al cobrar (mismo criterio que el POS): tipo de
+    # documento mapeado, email obligatorio para la DIAN (fallback al del negocio),
+    # y documento por defecto 222222222222 (consumidor final).
+    tipo_doc = TIPO_DOC_MAP.get(str(orden.get('cliente_tipo_doc') or '').strip().upper(), 'CC')
+    email = (orden.get('cliente_email') or '').strip()
+    if '@' not in email:
+        try:
+            from services.public_site_service import get_public_contact_destination_email
+            email = (get_public_contact_destination_email() or '').strip()
+        except Exception:
+            email = ''
+    if '@' not in email:
+        email = 'facturacion@empresa.co'
+    documento = str(orden.get('cliente_documento') or '').strip() or '222222222222'
+
     return {
         "referencia_pedido": f"REST-{order_id}",
         "cliente": {
-            "tipo_persona": "natural", "tipo_documento": "CC", "numero_documento": "0",
-            "nombre": orden.get('cliente_nombre') or 'Consumidor Final',
-            "email": "facturacion@empresa.co", "telefono": "", "direccion": "",
+            "tipo_persona":     "juridica" if tipo_doc == 'NIT' else "natural",
+            "tipo_documento":   tipo_doc,
+            "numero_documento": documento,
+            "nombre":           orden.get('cliente_nombre') or 'Consumidor Final',
+            "email":            email,
+            "telefono":         orden.get('cliente_telefono') or '',
+            "direccion":        "",
             "municipio_codigo": "11001",
         },
         "items": items, "metodo_pago": metodo, "moneda": "COP",

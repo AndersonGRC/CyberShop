@@ -442,12 +442,9 @@
                     <span id="rtmOrderCode" class="rtm-order-pill">Sin cuenta</span>
                 </div>
 
-                <!-- Info cliente -->
-                <div class="rtm-client-row">
-                    <label class="rtm-mini-label">
-                        Cliente
-                        <input id="rtmClientName" type="text" placeholder="Nombre del cliente">
-                    </label>
+                <!-- Comensales (el nombre del cliente ya no se pide aquí: solo se
+                     solicita si la venta se factura electrónicamente → panel bajo el check). -->
+                <div class="rtm-client-row rtm-client-row-solo">
                     <label class="rtm-mini-label">
                         Comensales
                         <input id="rtmDinings" type="number" min="1" value="1">
@@ -478,10 +475,28 @@
                     </label>
 
                     {% if fe_habilitada %}
-                    <label class="rtm-mini-label" style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+                    <label class="rtm-mini-label rtm-fe-check" style="display:flex;align-items:center;gap:8px;margin-top:6px;">
                         <input type="checkbox" id="rtmFacturarFE" style="width:auto;">
                         <span><i class="fas fa-file-invoice"></i> Facturar electrónicamente (DIAN)</span>
                     </label>
+
+                    <!-- Datos del facturador (adquiriente DIAN): solo aparecen al marcar el check.
+                         Se envían al portal tributario al cobrar (construir_json_restaurante). -->
+                    <div id="rtmFePanel" class="rtm-fe-panel" hidden>
+                        <div class="rtm-fe-hint"><i class="fas fa-user-tag"></i> Datos del facturador (obligatorios para la factura)</div>
+                        <input id="rtmFeNombre" type="text" placeholder="Nombre / Razón social" autocomplete="off">
+                        <div class="rtm-fe-row2">
+                            <select id="rtmFeTipoDoc" title="Tipo de documento">
+                                <option value="CC">C.C.</option>
+                                <option value="NIT">NIT</option>
+                                <option value="CE">C.E.</option>
+                                <option value="PASS">Pasaporte</option>
+                            </select>
+                            <input id="rtmFeDoc" type="text" inputmode="numeric" placeholder="Número de documento" autocomplete="off">
+                        </div>
+                        <input id="rtmFeEmail" type="email" placeholder="Email (donde llega la factura)" autocomplete="off">
+                        <input id="rtmFeTel" type="text" inputmode="tel" placeholder="Teléfono (opcional)" autocomplete="off">
+                    </div>
                     {% endif %}
 
                     <!-- Cambio de estado rápido -->
