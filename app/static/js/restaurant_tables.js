@@ -1340,6 +1340,7 @@
 
         updateModalHeader(table);
         renderModalConsumptions(table);
+        setMobileTab('order');   // en móvil cada mesa abre mostrando la Cuenta
 
         // Resetear panel de añadir
         state.selectedProduct = null;
@@ -1588,12 +1589,30 @@
         });
     }
 
+    /* Pestañas móviles: alternan Cuenta / Agregar (solo tienen efecto visual dentro
+       del @media de teléfono; en escritorio/tablet la barra está oculta). */
+    function setMobileTab(which) {
+        const body = document.querySelector('.rtm-body');
+        if (!body) return;
+        body.classList.toggle('mtab-catalog', which === 'catalog');
+        document.querySelectorAll('.rtm-mtab[data-mtab]').forEach(function (b) {
+            b.classList.toggle('is-active', b.dataset.mtab === which);
+        });
+    }
+    function initMobileTabs() {
+        document.querySelectorAll('.rtm-mtab[data-mtab]').forEach(function (b) {
+            b.addEventListener('click', function () { setMobileTab(this.dataset.mtab); });
+        });
+        document.getElementById('rtmCloseButtonM')?.addEventListener('click', closeTableModal);
+    }
+
     // Inicializar modal una vez
     if (state.viewMode === 'service') {
         buildCategoryBar();
         renderModalProducts();
         bindModalEvents();
         initOrderResizer();
+        initMobileTabs();
     }
 
     function bindEvents() {

@@ -1931,6 +1931,10 @@ header.collapsed ~ .rtm-overlay {
     color: var(--color-blanco, #fff);
 }
 
+/* Barra de pestañas móvil (Cuenta / Agregar): oculta en escritorio y tablet;
+   se activa solo en el @media de teléfono (≤768px). */
+.rtm-mtabs { display: none; }
+
 /* Fila de comensales sola (el nombre del cliente se movió al panel FE) */
 .rtm-client-row-solo {
     grid-template-columns: 150px;
@@ -3026,6 +3030,108 @@ header.collapsed ~ .rtm-overlay {
     }
 }
 
+/* ===== Teléfono: modal de mesa con pestañas Cuenta / Agregar (pantalla completa) ===== */
+@media (max-width: 768px) {
+    /* Contención dura del ancho: nada se desborda horizontalmente */
+    .rtm-overlay,
+    .rtm-dialog { overflow-x: hidden; }
+
+    /* Barra de pestañas + cerrar */
+    .rtm-mtabs {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 10px;
+        background: var(--color-blanco);
+        border-bottom: 1px solid var(--rt-line);
+        flex-shrink: 0;
+    }
+    .rtm-mtab {
+        flex: 1;
+        min-width: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        height: 46px;
+        border: 1.5px solid var(--rt-line);
+        border-radius: 12px;
+        background: var(--rt-soft);
+        color: var(--rt-muted);
+        font-weight: 800;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+    .rtm-mtab.is-active {
+        background: linear-gradient(135deg, var(--color-primario-oscuro), var(--color-primario));
+        border-color: var(--color-primario);
+        color: var(--color-blanco);
+        box-shadow: 0 6px 16px rgba(var(--color-marca-rgb), 0.22);
+    }
+    .rtm-mtab-close {
+        flex-shrink: 0;
+        width: 46px;
+        height: 46px;
+        border: none;
+        border-radius: 12px;
+        background: rgba(9, 28, 90, 0.10);
+        color: var(--color-primario-oscuro);
+        font-size: 1.05rem;
+        cursor: pointer;
+    }
+
+    /* Un solo panel a la vez, ocupando toda la altura disponible */
+    .rtm-body {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr);
+        overflow: hidden;
+    }
+    .rtm-order-col,
+    .rtm-catalog-col {
+        min-width: 0;
+        grid-column: 1;
+        grid-row: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        min-height: 0;
+    }
+    .rtm-catalog-col { display: none; }
+    .rtm-body.mtab-catalog .rtm-order-col { display: none; }
+    .rtm-body.mtab-catalog .rtm-catalog-col { display: flex; }
+
+    /* La barra de pestañas ya trae el cerrar; ocultamos los controles internos
+       redundantes (la ✕ del catálogo y el toggle de menú: en móvil el sidebar
+       ya está oculto). */
+    .rtm-dialog-close,
+    .rtm-menu-toggle { display: none; }
+
+    /* Textos largos: que envuelvan en vez de desbordar */
+    .rtm-fe-hint,
+    .rtm-catalog-head-title,
+    .rtm-section-title {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    /* Chips de resumen: fila compacta de 3 (no apilados a ancho completo) */
+    .rtm-table-summary-meta {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+    }
+    .rtm-summary-chip { padding: 8px 10px; }
+
+    /* Catálogo a pantalla completa: su grid ya no está limitado en alto */
+    .rtm-product-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        max-height: none;
+        gap: 10px;
+    }
+
+    /* El resizer no aplica en móvil */
+    .rtm-resizer { display: none; }
+}
+
 @media (max-width: 480px) {
     .rtm-header {
         padding: 12px 14px;
@@ -3058,10 +3164,15 @@ header.collapsed ~ .rtm-overlay {
     }
 
     .rtm-product-grid {
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
         gap: 10px;
         padding: 10px 12px;
     }
+
+    /* Pestañas y chips un poco más compactos en teléfonos pequeños */
+    .rtm-mtab { height: 44px; font-size: 0.9rem; }
+    .rtm-table-summary-meta { gap: 6px; }
+    .rtm-summary-chip { padding: 7px 8px; }
 
     .rtm-product-name {
         font-size: 0.85rem;

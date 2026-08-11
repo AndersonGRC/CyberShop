@@ -400,6 +400,19 @@
      ══════════════════════════════════════════════════════════════ -->
 <div id="rtTableModal" class="rtm-overlay" role="dialog" aria-modal="true" aria-labelledby="rtmTableTitle" hidden>
     <div class="rtm-dialog">
+        <!-- Selector de pestañas SOLO en móvil: alterna Cuenta / Agregar a pantalla completa -->
+        <div class="rtm-mtabs" role="tablist" aria-label="Vista de la mesa">
+            <button class="rtm-mtab is-active" data-mtab="order" type="button" role="tab">
+                <i class="fas fa-receipt"></i> Cuenta
+            </button>
+            <button class="rtm-mtab" data-mtab="catalog" type="button" role="tab">
+                <i class="fas fa-utensils"></i> Agregar
+            </button>
+            <button id="rtmCloseButtonM" class="rtm-mtab-close" type="button" aria-label="Cerrar">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
         <!-- ── Cuerpo principal ───────────────────────────────── -->
         <div class="rtm-body">
 
