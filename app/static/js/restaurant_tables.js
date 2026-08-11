@@ -1544,11 +1544,56 @@
         });
     }
 
+    /* Ancho AJUSTABLE de la columna de la cuenta: agarrador arrastrable + memoria.
+       Mín/máx acotados para no romper la estética ni los formularios. */
+    function initOrderResizer() {
+        const body = document.querySelector('.rtm-body');
+        const resizer = document.getElementById('rtmResizer');
+        if (!body || !resizer) return;
+        const MIN = 280, MAX = 640, KEY = 'rtm_order_width';
+
+        const saved = parseInt(localStorage.getItem(KEY) || '', 10);
+        if (saved >= MIN && saved <= MAX) {
+            body.style.setProperty('--rtm-order-w', saved + 'px');
+        }
+
+        let dragging = false;
+        function onMove(e) {
+            if (!dragging) return;
+            const rect = body.getBoundingClientRect();
+            let w = e.clientX - rect.left;
+            w = Math.max(MIN, Math.min(MAX, w));
+            body.style.setProperty('--rtm-order-w', w + 'px');
+        }
+        function onUp() {
+            if (!dragging) return;
+            dragging = false;
+            body.classList.remove('is-resizing');
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+            const cur = parseInt(getComputedStyle(body).getPropertyValue('--rtm-order-w'), 10);
+            if (cur >= MIN && cur <= MAX) localStorage.setItem(KEY, String(cur));
+        }
+        resizer.addEventListener('pointerdown', function (e) {
+            e.preventDefault();
+            dragging = true;
+            body.classList.add('is-resizing');
+            window.addEventListener('pointermove', onMove);
+            window.addEventListener('pointerup', onUp);
+        });
+        // Doble clic = restablecer al ancho por defecto
+        resizer.addEventListener('dblclick', function () {
+            body.style.removeProperty('--rtm-order-w');
+            localStorage.removeItem(KEY);
+        });
+    }
+
     // Inicializar modal una vez
     if (state.viewMode === 'service') {
         buildCategoryBar();
         renderModalProducts();
         bindModalEvents();
+        initOrderResizer();
     }
 
     function bindEvents() {

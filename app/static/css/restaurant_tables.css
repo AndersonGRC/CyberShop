@@ -2099,11 +2099,66 @@ header.collapsed ~ .rtm-overlay {
 /* ── Cuerpo ───────────────────────────────────────────────────── */
 
 .rtm-body {
+    position: relative;
     display: grid;
-    grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+    /* ancho de la columna izquierda AJUSTABLE por el usuario (resizer + localStorage);
+       si no hay preferencia, cae a 360px. */
+    grid-template-columns: var(--rtm-order-w, 400px) minmax(0, 1fr);
     gap: 0;
     flex: 1;
     overflow: hidden;
+}
+
+.rtm-body.is-resizing {
+    user-select: none;
+    cursor: col-resize;
+}
+
+/* Agarrador para ampliar/reducir la columna de la cuenta (arrastrable) */
+.rtm-resizer {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: var(--rtm-order-w, 400px);
+    width: 14px;
+    transform: translateX(-50%);
+    z-index: 7;
+    cursor: col-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+}
+
+.rtm-resizer::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: transparent;
+    transition: background 0.15s ease;
+}
+
+.rtm-resizer:hover::before,
+.rtm-body.is-resizing .rtm-resizer::before {
+    background: rgba(var(--color-marca-rgb), 0.35);
+}
+
+.rtm-resizer-grip {
+    width: 7px;
+    height: 48px;
+    border-radius: 7px;
+    background: rgba(var(--color-marca-rgb), 0.16);
+    border: 1px solid rgba(var(--color-marca-rgb), 0.28);
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.rtm-resizer:hover .rtm-resizer-grip,
+.rtm-body.is-resizing .rtm-resizer-grip {
+    background: var(--color-primario);
+    border-color: var(--color-primario);
+    transform: scaleY(1.12);
 }
 
 /* ── Columna izquierda: cuenta ────────────────────────────────── */
@@ -2947,6 +3002,9 @@ header.collapsed ~ .rtm-overlay {
         grid-template-rows: auto 1fr;
         overflow-y: auto;
     }
+
+    /* En móvil el modal es de una sola columna: el resizer no aplica */
+    .rtm-resizer { display: none; }
 
     .rtm-order-col {
         border-right: none;
