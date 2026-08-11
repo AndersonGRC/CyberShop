@@ -1319,6 +1319,8 @@
         // Resetear panel de añadir
         state.selectedProduct = null;
         if (modal.addPanel)  modal.addPanel.hidden = true;
+        const freePanel = document.getElementById('rtmFreeItemPanel');
+        if (freePanel) freePanel.hidden = true;
         if (modal.search)    modal.search.value = '';
         if (modal.catBar) {
             modal.catBar.querySelectorAll('.rtm-cat-btn').forEach((b) => b.classList.remove('is-active'));
@@ -1369,6 +1371,39 @@
         }
     }
 
+    async function modalAddFreeItem() {
+        const table = getSelectedTable();
+        if (!table) { notify('Selecciona una mesa.', 'warning'); return; }
+        const desc = (document.getElementById('rtmFreeItemDesc')?.value || '').trim();
+        const precio = Number(document.getElementById('rtmFreeItemPrice')?.value || 0);
+        const qty = Number(document.getElementById('rtmFreeItemQty')?.value || 1);
+        if (!desc) { notify('Escribe una descripción para el ítem libre.', 'warning'); return; }
+        if (!(precio > 0)) { notify('El precio del ítem libre debe ser mayor a cero.', 'warning'); return; }
+
+        try {
+            await jsonRequest(endpointForTable(endpoints.addConsumptionBase, table.id), {
+                descripcion: desc,
+                precio_unitario: precio,
+                cantidad: qty,
+                notas: document.getElementById('rtmFreeItemNotes')?.value || '',
+                cliente_nombre: modal.clientName?.value || '',
+                comensales: Number(modal.dinings?.value || 1),
+            });
+            const dEl = document.getElementById('rtmFreeItemDesc'); if (dEl) dEl.value = '';
+            const pEl = document.getElementById('rtmFreeItemPrice'); if (pEl) pEl.value = '';
+            const qEl = document.getElementById('rtmFreeItemQty'); if (qEl) qEl.value = 1;
+            const nEl = document.getElementById('rtmFreeItemNotes'); if (nEl) nEl.value = '';
+            const panel = document.getElementById('rtmFreeItemPanel'); if (panel) panel.hidden = true;
+
+            await refreshData(table.id);
+            const updated = getSelectedTable();
+            renderModalConsumptions(updated);
+            updateModalHeader(updated);
+        } catch (error) {
+            notify(error.message, 'error');
+        }
+    }
+
     async function modalChargeAccount() {
         await closeSelectedAccount();
         closeTableModal();
@@ -1405,6 +1440,29 @@
         modal.addBtn?.addEventListener('click', modalAddConsumption);
         modal.chargeBtn?.addEventListener('click', modalChargeAccount);
         modal.cancelBtn?.addEventListener('click', modalCancelAccount);
+
+        // Ítem libre (producto no registrado, precio digitado)
+        document.getElementById('rtmFreeItemToggle')?.addEventListener('click', function () {
+            const panel = document.getElementById('rtmFreeItemPanel');
+            if (!panel) return;
+            panel.hidden = !panel.hidden;
+            if (!panel.hidden) {
+                if (modal.addPanel) modal.addPanel.hidden = true;   // evita confusión con el panel de producto
+                document.getElementById('rtmFreeItemDesc')?.focus();
+                panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        });
+        document.getElementById('rtmFreeQtyMinus')?.addEventListener('click', function () {
+            const el = document.getElementById('rtmFreeItemQty');
+            const current = Number(el?.value || 1);
+            if (el && current > 1) el.value = current - 1;
+        });
+        document.getElementById('rtmFreeQtyPlus')?.addEventListener('click', function () {
+            const el = document.getElementById('rtmFreeItemQty');
+            const current = Number(el?.value || 1);
+            if (el) el.value = current + 1;
+        });
+        document.getElementById('rtmFreeItemAdd')?.addEventListener('click', modalAddFreeItem);
 
         modal.stateButtons.forEach((btn) => {
             btn.addEventListener('click', async function () {

@@ -428,7 +428,6 @@ def get_product_catalog():
                        COALESCE(g.nombre, 'Sin categoría') AS genero_nombre
                 FROM productos p
                 LEFT JOIN generos g ON g.id = p.genero_id
-                WHERE p.stock > 0
                 ORDER BY g.nombre ASC, p.nombre ASC
             """)
             return cur.fetchall()
@@ -1157,9 +1156,9 @@ def add_consumption(user_id, table_id, payload):
             if not product:
                 raise ValueError('Producto no encontrado.')
             stock_actual = int(product['stock'] or 0)
-            if stock_actual < cantidad:
-                raise ValueError(f"Stock insuficiente para '{product['nombre']}'. Disponible: {stock_actual}.")
-
+            # Restaurante: NUNCA se bloquea la venta por stock. El inventario se
+            # descuenta y puede quedar en 0/negativo (decisión de negocio: muchos
+            # platos no llevan control de stock). Lo no registrado va por ítem libre.
             descripcion = product['nombre']
             precio_unitario = float(product['precio'] or 0)
             subtotal = round(precio_unitario * cantidad, 2)

@@ -400,10 +400,6 @@
      ══════════════════════════════════════════════════════════════ -->
 <div id="rtTableModal" class="rtm-overlay" role="dialog" aria-modal="true" aria-labelledby="rtmTableTitle" hidden>
     <div class="rtm-dialog">
-        <button id="rtmCloseButton" class="rtm-dialog-close" type="button" aria-label="Cerrar">
-            <i class="fas fa-times"></i>
-        </button>
-
         <!-- ── Cuerpo principal ───────────────────────────────── -->
         <div class="rtm-body">
 
@@ -517,8 +513,11 @@
 
             <!-- Columna derecha: catálogo por categorías -->
             <section class="rtm-catalog-col">
-                <div class="rtm-section-title">
-                    <i class="fas fa-book-open"></i> Agregar platos
+                <div class="rtm-catalog-head">
+                    <span class="rtm-catalog-head-title"><i class="fas fa-book-open"></i> Agregar platos</span>
+                    <button id="rtmCloseButton" class="rtm-dialog-close" type="button" aria-label="Cerrar">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
 
                 <!-- Filtro por categoría -->
@@ -533,6 +532,38 @@
                 <div class="rtm-search-wrap">
                     <i class="fas fa-search rtm-search-icon"></i>
                     <input id="rtmProductSearch" type="text" placeholder="Buscar plato o bebida...">
+                </div>
+
+                <!-- Acceso claro a Ítem libre (vender algo no registrado, precio manual) -->
+                <button id="rtmFreeItemToggle" class="rtm-freeitem-btn" type="button"
+                        title="Vender algo que no está en el catálogo (precio manual)">
+                    <i class="fas fa-pen"></i> Ítem libre — no registrado
+                </button>
+
+                <!-- Panel de ítem libre (se despliega al pulsar el botón) -->
+                <div id="rtmFreeItemPanel" class="rtm-add-panel" hidden>
+                    <label class="rtm-notes-label" style="margin:0;">
+                        <i class="fas fa-tag"></i>
+                        <input id="rtmFreeItemDesc" type="text" placeholder="Descripción (ej: Almuerzo del día)"
+                               style="width:100%;">
+                    </label>
+                    <div class="rtm-add-controls">
+                        <label class="rtm-mini-label" style="flex:1;">
+                            Precio
+                            <input id="rtmFreeItemPrice" type="number" min="0" step="any" value=""
+                                   placeholder="0" class="rtm-qty-input" style="width:100%;">
+                        </label>
+                        <button id="rtmFreeQtyMinus" class="rtm-qty-btn" type="button"><i class="fas fa-minus"></i></button>
+                        <input id="rtmFreeItemQty" type="number" min="1" value="1" class="rtm-qty-input">
+                        <button id="rtmFreeQtyPlus" class="rtm-qty-btn" type="button"><i class="fas fa-plus"></i></button>
+                    </div>
+                    <label class="rtm-notes-label">
+                        <i class="fas fa-comment-alt"></i>
+                        <textarea id="rtmFreeItemNotes" rows="2" placeholder="Notas (opcional)"></textarea>
+                    </label>
+                    <button id="rtmFreeItemAdd" class="rtm-btn-add" type="button">
+                        <i class="fas fa-plus-circle"></i> Añadir ítem libre
+                    </button>
                 </div>
 
                 <!-- Grid de productos -->
