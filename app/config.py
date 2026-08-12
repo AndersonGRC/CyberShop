@@ -22,7 +22,7 @@ class Config:
     # clientes, código compartido → todos ven la misma = la última desplegada).
     #   A = cambio radical de plataforma · B = módulo nuevo grande
     #   C = estabilización / mejora · D = correcciones y ajustes de UI
-    APP_VERSION = "1.0.3.0"
+    APP_VERSION = "1.0.3.1"
 
     # --- General / Sesion ---
     # SECURITY M2: Sin fallback débil — falla explícitamente si no está configurado
