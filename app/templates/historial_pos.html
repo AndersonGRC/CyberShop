@@ -351,14 +351,15 @@
     {% endwith %}
 
     {% if ventas|length > 0 %}
+    <!-- Resumen que refleja SIEMPRE el filtro aplicado (medio de pago / estado / búsqueda) -->
     <div class="hist-resumen">
         <div class="stat-card">
-            <div class="stat-num">{{ num_activas }}</div>
-            <div class="stat-label">Ventas Activas</div>
+            <div class="stat-num" id="stat-count">{{ num_activas }}</div>
+            <div class="stat-label" id="stat-count-label">Ventas activas</div>
         </div>
         <div class="stat-card" style="background:#28a745">
-            <div class="stat-num">${{ "{:,.0f}".format(total_activas) }}</div>
-            <div class="stat-label">Ingresos Totales</div>
+            <div class="stat-num" id="stat-total">${{ "{:,.0f}".format(total_activas) }}</div>
+            <div class="stat-label" id="stat-total-label">Total activas</div>
         </div>
     </div>
 
@@ -383,7 +384,7 @@
             <label>Estado</label>
             <select id="filtro-estado" onchange="filtrarHistorial()">
                 <option value="">Todas</option>
-                <option value="activa">Activas</option>
+                <option value="activa" selected>Activas</option>
                 <option value="anulada">Anuladas</option>
             </select>
         </div>
@@ -403,7 +404,7 @@
         </thead>
         <tbody>
             {% for v in ventas %}
-            <tr data-metodo="{{ v.metodo_pago }}" data-buscar="{{ v.numero_venta }} {{ v.cliente_nombre or '' }}" data-estado="{{ v.estado|default('activa') }}" class="{% if v.estado == 'anulada' %}fila-anulada{% endif %}">
+            <tr data-metodo="{{ v.metodo_pago }}" data-total="{{ v.total }}" data-buscar="{{ v.numero_venta }} {{ v.cliente_nombre or '' }}" data-estado="{{ v.estado or 'activa' }}" class="{% if v.estado == 'anulada' %}fila-anulada{% endif %}">
                 <td data-label="No. Venta"><strong>{{ v.numero_venta }}</strong>{% if v.estado == 'anulada' %} <span class="badge-anulada">ANULADA</span>{% endif %}</td>
                 <td data-label="Fecha">{{ v.fecha.strftime('%Y-%m-%d %H:%M') }}</td>
                 <td data-label="Cliente">{{ v.cliente_nombre or 'Consumidor Final' }}</td>
@@ -580,6 +581,7 @@
         const estado = document.getElementById('filtro-estado').value;
         const filas = document.querySelectorAll('#tabla-historial tbody tr');
 
+        let count = 0, suma = 0;
         filas.forEach(fila => {
             const textoBuscar = (fila.dataset.buscar || '').toLowerCase();
             const metodoFila = fila.dataset.metodo || '';
@@ -587,9 +589,34 @@
             const coincideBuscar = !buscar || textoBuscar.includes(buscar);
             const coincideMetodo = !metodo || metodoFila === metodo;
             const coincideEstado = !estado || estadoFila === estado;
-            fila.style.display = (coincideBuscar && coincideMetodo && coincideEstado) ? '' : 'none';
+            const visible = coincideBuscar && coincideMetodo && coincideEstado;
+            fila.style.display = visible ? '' : 'none';
+            if (visible) {
+                count++;
+                suma += parseFloat(fila.dataset.total || '0') || 0;
+            }
         });
+
+        // El resumen (conteo + total) SIEMPRE refleja lo filtrado: así se ve, p. ej.,
+        // cuánto entró por Efectivo o el total de las anuladas sin contar a mano.
+        const cEl = document.getElementById('stat-count');
+        if (cEl) cEl.textContent = count;
+        const tEl = document.getElementById('stat-total');
+        if (tEl) tEl.textContent = '$' + Math.round(suma).toLocaleString('es-CO');
+
+        // Etiquetas dinámicas según el filtro activo
+        const estTxt = estado === 'anulada' ? 'anuladas'
+                     : estado === 'activa'  ? 'activas'
+                     : 'mostradas';
+        const metTxt = metodo ? (metodo.charAt(0) + metodo.slice(1).toLowerCase()) : '';
+        const lblCount = document.getElementById('stat-count-label');
+        if (lblCount) lblCount.textContent = 'Ventas ' + estTxt;
+        const lblTotal = document.getElementById('stat-total-label');
+        if (lblTotal) lblTotal.textContent = 'Total ' + estTxt + (metTxt ? ' · ' + metTxt : '');
     }
+
+    // Aplicar el filtro por defecto al cargar (deja el resumen coherente con lo visible)
+    document.addEventListener('DOMContentLoaded', filtrarHistorial);
 
     // Auto-abrir detalle cuando se llega desde contabilidad: /admin/pos/historial?venta=ID
     document.addEventListener('DOMContentLoaded', function() {
