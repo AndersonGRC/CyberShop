@@ -1220,8 +1220,12 @@
             card.dataset.productCat = product.genero_nombre || 'Sin categoría';
 
             const imageSrc = resolveProductImage(product.imagen);
+            // Si la imagen falla (ruta rota / archivo ausente, p.ej. el
+            // producto_default.png inexistente), caemos al ícono en vez de dejar
+            // el marcador de imagen rota. Combinado con grid-auto-rows:max-content
+            // en el CSS, la tarjeta nunca colapsa.
             const imgHtml = imageSrc
-                ? `<img src="${imageSrc}" alt="${product.nombre}" loading="lazy">`
+                ? `<img src="${imageSrc}" alt="${product.nombre}" loading="lazy" onerror="this.parentElement.innerHTML='<i class=&quot;fas fa-utensils&quot;></i>'">`
                 : `<i class="fas fa-utensils"></i>`;
 
             card.innerHTML = `

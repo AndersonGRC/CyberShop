@@ -2718,6 +2718,11 @@ header.collapsed ~ .rtm-overlay {
     padding: 14px 16px 8px;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    /* max-content evita que la fila (y con ella la tarjeta, que tiene
+       overflow:hidden → min-height:auto=0) colapse si una imagen de producto
+       falla al cargar. Sin esto, un <img> roto (0x0) hunde toda la tarjeta a
+       ~2px y los productos quedan invisibles. */
+    grid-auto-rows: max-content;
     gap: 14px;
     align-content: start;
 }
