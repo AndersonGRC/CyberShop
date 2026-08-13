@@ -394,7 +394,7 @@ def _parse_float(value, default=None, minimum=None, maximum=None, field='valor')
 def _minutes_between(start_dt, end_dt=None):
     if not start_dt:
         return 0
-    end_dt = end_dt or datetime.utcnow()
+    end_dt = end_dt or datetime.now()
     if hasattr(start_dt, 'tzinfo') and start_dt.tzinfo is not None:
         start_dt = start_dt.replace(tzinfo=None)
     delta = end_dt - start_dt
@@ -546,7 +546,7 @@ def list_floor_tables(area=None):
             for row in cur.fetchall():
                 consumptions_map.setdefault(row['order_id'], []).append(row)
 
-    now = datetime.utcnow()
+    now = datetime.now()
     normalized = []
     summary = _empty_summary()
 
@@ -709,7 +709,7 @@ def list_restaurant_reports(filters=None):
         total = float(row.get('total_acumulado') or 0)
         status_value = row.get('estado')
         accounting_status = row.get('accounting_status') or 'pendiente'
-        duration_minutes = _minutes_between(row.get('opened_at'), row.get('closed_at') or row.get('cancelled_at') or datetime.utcnow())
+        duration_minutes = _minutes_between(row.get('opened_at'), row.get('closed_at') or row.get('cancelled_at') or datetime.now())
         row['total_acumulado'] = total
         row['duration_minutes'] = duration_minutes
         row['payment_method_label'] = PAYMENT_METHODS.get(row.get('payment_method') or '', row.get('payment_method') or 'Sin definir')

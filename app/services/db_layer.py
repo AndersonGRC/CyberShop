@@ -39,6 +39,13 @@ _pools = {}                 # key -> ThreadedConnectionPool (por proceso)
 _pools_lock = threading.Lock()
 
 
+# Zona horaria de la sesión de BD: los defaults CURRENT_TIMESTAMP/now() y funciones
+# de fecha se evalúan en esta zona. El servidor está en UTC, así que se fuerza a
+# Colombia para que las fechas se registren en hora local.
+_APP_TZ = os.getenv('APP_TIMEZONE', 'America/Bogota')
+_TZ_OPTION = f'-c timezone={_APP_TZ}'
+
+
 def _dsn_tenant(db_name):
     return dict(
         dbname   = db_name,
@@ -46,6 +53,7 @@ def _dsn_tenant(db_name):
         password = os.getenv('DB_PASSWORD', ''),
         host     = os.getenv('DB_HOST', 'localhost'),
         port     = os.getenv('DB_PORT', '5432'),
+        options  = _TZ_OPTION,
     )
 
 
@@ -56,6 +64,7 @@ def _dsn_control_plane():
         password = os.getenv('CONTROL_PLANE_DB_PASSWORD', os.getenv('DB_PASSWORD', '')),
         host     = os.getenv('CONTROL_PLANE_DB_HOST',  os.getenv('DB_HOST', 'localhost')),
         port     = os.getenv('CONTROL_PLANE_DB_PORT',  os.getenv('DB_PORT', '5432')),
+        options  = _TZ_OPTION,
     )
 
 

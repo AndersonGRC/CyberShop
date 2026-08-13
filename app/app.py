@@ -8,6 +8,14 @@ blueprints de rutas. Ejecutar con ``python app.py``.
 
 import os
 import logging
+import time as _time
+
+# Zona horaria de la app: Colombia. El servidor corre en UTC, así que sin esto
+# datetime.now() y los logs quedarían 5h adelantados. Se fija ANTES de cualquier
+# uso de datetime para que todo el proceso opere en hora local (America/Bogota).
+os.environ['TZ'] = os.getenv('APP_TIMEZONE', 'America/Bogota')
+if hasattr(_time, 'tzset'):
+    _time.tzset()
 
 # Permite que oauthlib acepte scopes equivalentes devueltos por Google
 # (e.g. "profile" vs "https://www.googleapis.com/auth/userinfo.profile")
