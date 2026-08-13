@@ -203,6 +203,17 @@ for _h in logging.getLogger().handlers:      # que el root (basicConfig) tambien
 app.logger.setLevel(logging.INFO)
 
 
+# --- Sesión web duradera: inactividad deslizante (5h por defecto) ---
+# Sin marcar la sesión como permanente, PERMANENT_SESSION_LIFETIME no aplica y
+# la cookie es de navegador (muere al cerrar/reciclar la pestaña) — lo que se
+# percibía como "se cerró por inactividad". Con esto la cookie recibe Max-Age y,
+# junto a SESSION_REFRESH_EACH_REQUEST, se renueva en cada request (deslizante).
+@app.before_request
+def _hacer_sesion_permanente():
+    from flask import session
+    session.permanent = True
+
+
 # --- Request-ID: identifica cada request en logs y en la respuesta ---
 @app.before_request
 def _assign_request_id():

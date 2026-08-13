@@ -22,7 +22,7 @@ class Config:
     # clientes, código compartido → todos ven la misma = la última desplegada).
     #   A = cambio radical de plataforma · B = módulo nuevo grande
     #   C = estabilización / mejora · D = correcciones y ajustes de UI
-    APP_VERSION = "1.0.3.4"
+    APP_VERSION = "1.0.3.5"
 
     # --- General / Sesion ---
     # SECURITY M2: Sin fallback débil — falla explícitamente si no está configurado
@@ -33,7 +33,14 @@ class Config:
     SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'false').lower() == 'true'
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
-    PERMANENT_SESSION_LIFETIME = 3600  # 1 hora
+    # Duración de la sesión web. Configurable por instancia vía .env
+    # (SESSION_LIFETIME_SECONDS) para override/rollback sin tocar código.
+    # 18000 = 5 h. Es INACTIVIDAD DESLIZANTE: con SESSION_REFRESH_EACH_REQUEST
+    # cada request renueva la ventana, así que un usuario activo no se cae.
+    # Requiere que la sesión sea permanente (session.permanent=True en app.py);
+    # sin eso este valor no aplica y la cookie muere al cerrar el navegador.
+    PERMANENT_SESSION_LIFETIME = int(os.getenv('SESSION_LIFETIME_SECONDS', '18000'))  # 5 h
+    SESSION_REFRESH_EACH_REQUEST = True
     MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50 MB max upload
 
     # --- Meta Pixel + Conversions API ---
