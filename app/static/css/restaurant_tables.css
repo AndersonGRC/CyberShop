@@ -507,6 +507,60 @@
 .rt-sync-sin_contabilidad,
 .rt-sync-no_aplica { background: var(--rt-state-cuenta-bg); color: var(--rt-state-cuenta-text); }
 
+/* ── Bar inferior de estados (vista atender más limpia) ───────── */
+.rt-state-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+    margin: 0 22px 20px;
+    padding: 11px 16px;
+    border-radius: 18px;
+    background: var(--rt-soft, #f4f7fc);
+    border: 1px solid var(--rt-line);
+    font-size: 0.82rem;
+    color: var(--color-texto, #333);
+}
+
+.rt-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-weight: 600;
+}
+
+.rt-legend-item strong { font-weight: 800; }
+.rt-legend-item i { font-size: 0.66rem; }
+
+.rt-legend-item.is-highlight {
+    background: var(--color-blanco, #fff);
+    border: 1px solid var(--rt-line);
+    padding: 4px 12px;
+    border-radius: 999px;
+    box-shadow: 0 2px 8px rgba(var(--color-marca-rgb), 0.06);
+}
+
+.rt-dot-disponible { color: var(--rt-state-disponible-text); }
+.rt-dot-ocupada    { color: var(--rt-state-ocupada-text); }
+.rt-dot-reservada  { color: var(--rt-state-reservada-text); }
+.rt-dot-cuenta     { color: var(--rt-state-cuenta-text); }
+.rt-dot-pendiente  { color: var(--color-primario); }
+
+/* Chip de caja: el cobro de mesas se ancla a una caja abierta */
+.rt-caja-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 14px;
+    border-radius: 999px;
+    font-weight: 800;
+    font-size: 0.8rem;
+    margin-right: auto;
+}
+
+.rt-caja-chip.is-open   { background: var(--rt-state-disponible-bg); color: var(--rt-state-disponible-text); }
+.rt-caja-chip.is-closed { background: var(--rt-state-ocupada-bg); color: var(--rt-state-ocupada-text); }
+
 .rt-floorboard {
     position: relative;
     min-height: clamp(560px, 68vh, 820px);
@@ -2596,9 +2650,10 @@ header.collapsed ~ .rtm-overlay {
     gap: 8px;
     margin: 0 18px 8px;
     padding: 11px 16px;
-    border: 1.6px dashed var(--color-primario);
-    background: rgba(var(--color-marca-rgb), 0.06);
-    color: var(--color-primario);
+    /* Verde unificado con el POS (botón pagar / éxito) */
+    border: 1.6px solid var(--color-exito);
+    background: var(--color-exito);
+    color: var(--color-blanco, #fff);
     border-radius: 14px;
     font-weight: 800;
     font-size: 0.88rem;
@@ -2608,7 +2663,8 @@ header.collapsed ~ .rtm-overlay {
 }
 
 .rtm-freeitem-btn:hover {
-    background: var(--color-primario);
+    background: var(--color-exito-hover);
+    border-color: var(--color-exito-hover);
     color: var(--color-blanco, #fff);
 }
 

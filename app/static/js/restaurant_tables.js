@@ -226,7 +226,9 @@
 
         const data = await response.json().catch(() => ({}));
         if (!response.ok || data.success === false) {
-            throw new Error(data.error || 'Operación no disponible.');
+            const err = new Error(data.error || 'Operación no disponible.');
+            err.data = data;  // p.ej. { caja_cerrada: true } para ofrecer abrir caja
+            throw err;
         }
         return data;
     }
@@ -250,7 +252,9 @@
 
         const data = await response.json().catch(() => ({}));
         if (!response.ok || data.success === false) {
-            throw new Error(data.error || 'Operación no disponible.');
+            const err = new Error(data.error || 'Operación no disponible.');
+            err.data = data;  // p.ej. { caja_cerrada: true } para ofrecer abrir caja
+            throw err;
         }
         return data;
     }
@@ -901,7 +905,7 @@
             }
         }
 
-        try {
+        const enviarCobro = async () => {
             const result = await jsonRequest(endpointForTable(endpoints.closeAccountBase, table.id), {
                 payment_method: paymentMethod,
                 facturar_electronicamente: feChecked,
@@ -909,8 +913,62 @@
             });
             await refreshData(table.id);
             notify(`Cobro registrado. Total final: ${money(result.total)}.`, 'success');
+        };
+
+        try {
+            await enviarCobro();
         } catch (error) {
+            // Cobro anclado a caja: si no hay caja abierta, ofrecer abrirla y reintentar.
+            if (error.data && error.data.caja_cerrada) {
+                const abierta = await abrirCajaInline();
+                if (abierta) {
+                    try { await enviarCobro(); }
+                    catch (err2) { notify(err2.message, 'error'); }
+                }
+                return;
+            }
             notify(error.message, 'error');
+        }
+    }
+
+    async function abrirCajaInline() {
+        if (!endpoints.abrirCaja) {
+            notify('Abre la caja desde el POS para poder cobrar.', 'warning');
+            return false;
+        }
+        const res = await Swal.fire({
+            icon: 'info',
+            title: 'Abre la caja para cobrar',
+            text: 'Las ventas de mesas hacen parte del arqueo del turno. Indica la base en efectivo.',
+            input: 'number',
+            inputLabel: 'Base inicial en efectivo',
+            inputValue: 0,
+            showCancelButton: true,
+            confirmButtonText: 'Abrir caja',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: window.BRAND_COLOR_BTN || '#122C94',
+            inputValidator: (v) => (v === '' || Number(v) < 0 ? 'Escribe la base (0 o más).' : null),
+        });
+        if (!res.isConfirmed) return false;
+        try {
+            const r = await fetch(endpoints.abrirCaja, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ base: res.value }),
+            });
+            const d = await r.json().catch(() => ({}));
+            if (!d.success) throw new Error(d.error || 'No se pudo abrir la caja.');
+            const chip = document.getElementById('rtCajaChip');
+            if (chip) {
+                chip.classList.remove('is-closed');
+                chip.classList.add('is-open');
+                chip.innerHTML = '<i class="fas fa-cash-register"></i> Caja abierta';
+            }
+            notify('Caja abierta. Registrando el cobro…', 'success');
+            return true;
+        } catch (e) {
+            notify(e.message || 'No se pudo abrir la caja.', 'error');
+            return false;
         }
     }
 

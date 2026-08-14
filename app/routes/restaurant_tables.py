@@ -87,6 +87,8 @@ def _restaurant_context(*, view_mode, page_title, page_description, area=None, r
     if view_mode == 'reports':
         report_data = list_restaurant_reports(report_filters or request.args.to_dict())
 
+    caja_activa, caja_abierta = _caja_estado()
+
     return {
         'datosApp': datosApp,
         'floor_data': floor_data,
@@ -104,6 +106,8 @@ def _restaurant_context(*, view_mode, page_title, page_description, area=None, r
         'can_charge_tables': current_role in RESTAURANT_CHARGE,
         'can_cancel_tables': current_role in RESTAURANT_CANCEL,
         'is_waiter_only': current_role == ROL_MESERO,
+        'caja_activa': caja_activa,
+        'caja_abierta': caja_abierta,
 }
 
 
@@ -274,12 +278,34 @@ def restaurant_consumption_remove(consumption_id):
 @module_required(MODULE_RESTAURANT_TABLES)
 def restaurant_table_close(table_id):
     payload = request.get_json(silent=True) or request.form.to_dict()
+    # Cobro anclado a caja: si el módulo Caja está activo y no hay caja abierta,
+    # no se cobra (mismo comportamiento que el POS → el front ofrece abrir caja).
+    caja_activa, caja_abierta = _caja_estado()
+    if caja_activa and not caja_abierta:
+        return jsonify({'success': False, 'caja_cerrada': True,
+                        'error': 'Debes abrir la caja para cobrar la mesa.'}), 409
     try:
-        result = close_table_order(session.get('usuario_id'), table_id, payload)
+        result = close_table_order(
+            session.get('usuario_id'), table_id, payload,
+            caja_sesion_id=(caja_abierta['id'] if caja_abierta else None))
         _facturar_orden_si_aplica(result.get('order_id'), payload)
         return jsonify({'success': True, **result})
     except Exception as exc:
         return _json_error(str(exc), 400)
+
+
+def _caja_estado():
+    """Devuelve (caja_activa, caja_abierta) de forma tolerante. Caja es un módulo
+    opcional; cuando está activo, el COBRO de mesas se ancla a una caja abierta
+    (igual que el POS)."""
+    try:
+        from tenant_features import MODULE_CAJA, is_module_active
+        from routes.caja import get_caja_abierta
+        if not is_module_active(MODULE_CAJA):
+            return False, None
+        return True, get_caja_abierta()
+    except Exception:
+        return False, None
 
 
 def _fe_habilitada():

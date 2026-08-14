@@ -1401,8 +1401,13 @@ def _save_fe_customer(cur, order_id, payload):
     )
 
 
-def close_table_order(user_id, table_id, payload=None):
-    """Cierra la cuenta abierta de una mesa y la libera."""
+def close_table_order(user_id, table_id, payload=None, caja_sesion_id=None):
+    """Cierra la cuenta abierta de una mesa y la libera.
+
+    Además de la contabilidad ('venta_restaurante'), registra la venta en
+    `ventas_pos` (+ `detalle_venta_pos`) para UNIFICARLA con las ventas diarias:
+    así aparece en el historial del POS y suma en el arqueo del turno cuando se
+    pasa `caja_sesion_id`. No crea una 2ª contabilidad (sin doble conteo)."""
     _ensure_module_schema()
     payload = payload or {}
     payment_method = (payload.get('payment_method') or 'EFECTIVO').strip().upper()
@@ -1480,6 +1485,13 @@ def close_table_order(user_id, table_id, payload=None):
         )
         _sync_accounting_fields(cur, order['id'], status=accounting['status'], income_movement_id=accounting['movement_id'])
 
+        # Unificar con las ventas diarias: registrar en ventas_pos (+ detalle).
+        # Con caja_sesion_id, el arqueo del turno la incluye; también sale en el
+        # historial del POS marcada como "Mesa {codigo}". Contabilidad ya quedó
+        # arriba (venta_restaurante), así que NO se registra otra vez.
+        venta_pos_id = _registrar_venta_pos_desde_mesa(
+            cur, order, total, payment_method, user_id, caja_sesion_id)
+
         cur.execute("""
             UPDATE restaurant_tables
             SET estado = 'disponible', updated_at = NOW()
@@ -1493,7 +1505,64 @@ def close_table_order(user_id, table_id, payload=None):
             'total': total,
             'payment_method': payment_method,
             'accounting_status': accounting['status'],
+            'venta_pos_id': venta_pos_id,
         }
+
+
+def _registrar_venta_pos_desde_mesa(cur, order, total, payment_method, user_id, caja_sesion_id):
+    """Inserta la venta de la mesa en ventas_pos + detalle_venta_pos (mismo modelo
+    que el POS) para unificarla con las ventas diarias. Devuelve el id (o None)."""
+    if not _table_has_column('ventas_pos', 'numero_venta'):
+        return None
+
+    cur.execute("""
+        SELECT producto_id, descripcion, cantidad, precio_unitario, subtotal
+        FROM restaurant_table_consumptions
+        WHERE order_id = %s
+        ORDER BY id ASC
+    """, (order['id'],))
+    consumos = cur.fetchall()
+
+    hoy = datetime.now().strftime('%Y%m%d')
+    cur.execute("SELECT COUNT(*) AS n FROM ventas_pos WHERE numero_venta LIKE %s",
+                (f'MESA-{hoy}-%',))
+    seq = int(cur.fetchone()['n']) + 1
+    numero_venta = f"MESA-{hoy}-{seq:04d}"
+
+    cols = ['numero_venta', 'cliente_nombre', 'metodo_pago', 'total', 'notas', 'usuario_id']
+    vals = [numero_venta, order.get('cliente_nombre') or 'Consumidor final',
+            payment_method, total, f"Mesa {order['codigo']}", user_id]
+    if _table_has_column('ventas_pos', 'subtotal'):
+        cols.insert(3, 'subtotal'); vals.insert(3, total)
+    if _table_has_column('ventas_pos', 'estado'):
+        cols.append('estado'); vals.append('activa')
+    if caja_sesion_id and _table_has_column('ventas_pos', 'caja_sesion_id'):
+        cols.append('caja_sesion_id'); vals.append(caja_sesion_id)
+
+    cur.execute(
+        f"INSERT INTO ventas_pos ({', '.join(cols)}) "
+        f"VALUES ({', '.join(['%s'] * len(cols))}) RETURNING id",
+        tuple(vals))
+    venta_pos_id = cur.fetchone()['id']
+
+    has_costo = _table_has_column('detalle_venta_pos', 'costo_unitario')
+    for c in consumos:
+        if has_costo:
+            cur.execute("""
+                INSERT INTO detalle_venta_pos
+                    (venta_id, producto_id, descripcion, cantidad, precio_unitario, subtotal, costo_unitario)
+                VALUES (%s, %s, %s, %s, %s, %s, COALESCE((SELECT costo FROM productos WHERE id = %s), 0))
+            """, (venta_pos_id, c['producto_id'], c['descripcion'], c['cantidad'],
+                  c['precio_unitario'], c['subtotal'], c['producto_id']))
+        else:
+            cur.execute("""
+                INSERT INTO detalle_venta_pos
+                    (venta_id, producto_id, descripcion, cantidad, precio_unitario, subtotal)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (venta_pos_id, c['producto_id'], c['descripcion'], c['cantidad'],
+                  c['precio_unitario'], c['subtotal']))
+
+    return venta_pos_id
 
 
 def cancel_open_table_order(user_id, table_id, payload=None):

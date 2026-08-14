@@ -45,7 +45,7 @@
     </section>
     {% endif %}
 
-    {% if view_mode != 'reports' %}
+    {% if view_mode == 'builder' %}
     <section class="rt-summary-grid" id="rtSummaryGrid">
         <article class="rt-stat-card rt-stat-neutral">
             <span>Total mesas</span>
@@ -212,6 +212,21 @@
                 {% endfor %}
             </div>
             <div id="restaurantFloor" class="rt-floorboard"></div>
+
+            <!-- Detalles de estado (parte inferior): plano limpio arriba, resumen abajo -->
+            <div class="rt-state-legend">
+                {% if caja_activa %}
+                <span class="rt-caja-chip {{ 'is-open' if caja_abierta else 'is-closed' }}" id="rtCajaChip">
+                    <i class="fas fa-cash-register"></i>
+                    {{ 'Caja abierta' if caja_abierta else 'Caja cerrada' }}
+                </span>
+                {% endif %}
+                <span class="rt-legend-item"><i class="fas fa-circle rt-dot-disponible"></i> Disponibles <strong data-summary="disponibles">{{ floor_data.summary.disponibles or 0 }}</strong></span>
+                <span class="rt-legend-item"><i class="fas fa-circle rt-dot-ocupada"></i> Ocupadas <strong data-summary="ocupadas">{{ floor_data.summary.ocupadas or 0 }}</strong></span>
+                <span class="rt-legend-item is-highlight"><i class="fas fa-circle rt-dot-reservada"></i> Reservadas <strong data-summary="reservadas">{{ floor_data.summary.reservadas or 0 }}</strong></span>
+                <span class="rt-legend-item is-highlight"><i class="fas fa-circle rt-dot-cuenta"></i> Cuenta solicitada <strong data-summary="cuenta_solicitada">{{ floor_data.summary.cuenta_solicitada or 0 }}</strong></span>
+                <span class="rt-legend-item"><i class="fas fa-utensils rt-dot-pendiente"></i> Pendientes <strong data-summary="pendientes">{{ floor_data.summary.pendientes or 0 }}</strong></span>
+            </div>
         </section>
     </div>
     {% else %}
@@ -640,7 +655,12 @@ window.RESTAURANT_PAGE = {
     floorData: {{ floor_data | tojson }},
     products: {{ products | tojson }},
     reportData: {{ report_data | default({}, true) | tojson }},
+    caja: {
+        activa: {{ (caja_activa | default(false)) | tojson }},
+        abierta: {{ ((caja_abierta is defined and caja_abierta is not none)) | tojson }},
+    },
     endpoints: {
+        abrirCaja: {{ url_for('caja.abrir_caja') | tojson }},
         data: {{ url_for('restaurant_tables.restaurant_tables_data') | tojson }},
         layout: {{ url_for('restaurant_tables.restaurant_tables_layout_save') | tojson }},
         deleteTableBase: {{ url_for('restaurant_tables.restaurant_tables_layout_delete', table_id=0) | replace('/0', '/__TABLE_ID__') | tojson }},
