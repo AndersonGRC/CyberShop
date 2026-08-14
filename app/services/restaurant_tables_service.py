@@ -458,6 +458,7 @@ def get_product_catalog():
             cur.execute("""
                 SELECT p.id, p.nombre, p.precio, p.stock,
                        p.imagen,
+                       p.referencia,
                        p.genero_id,
                        COALESCE(g.nombre, 'Sin categoría') AS genero_nombre
                 FROM productos p
@@ -1309,6 +1310,69 @@ def update_consumption_state(consumption_id, new_state):
 
         total = _refresh_order_total(cur, row['order_id'])
     return total
+
+
+def remove_consumption(user_id, consumption_id):
+    """Remueve un consumo NO servido de la cuenta (corrección de error humano).
+
+    Reglas:
+    - Un consumo ya 'servido' NO se puede remover (se defiende en server).
+    - Si tenía producto asociado, revierte el stock (ENTRADA) reusando el mismo
+      patrón que la cancelación de cuenta. Los ítems libres no tocan stock.
+    - Borra la fila y recalcula el total de la orden. Todo atómico (get_db_cursor).
+    """
+    _ensure_module_schema()
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute("""
+            SELECT c.id, c.order_id, c.table_id, c.producto_id,
+                   c.cantidad, c.estado, c.descripcion,
+                   t.codigo AS table_codigo
+            FROM restaurant_table_consumptions c
+            LEFT JOIN restaurant_tables t ON t.id = c.table_id
+            WHERE c.id = %s
+            FOR UPDATE OF c
+        """, (consumption_id,))
+        item = cur.fetchone()
+        if not item:
+            raise ValueError('Consumo no encontrado.')
+        if item['estado'] == 'servido':
+            raise ValueError('No puedes remover un producto ya servido.')
+
+        producto_id = item.get('producto_id')
+        cantidad = int(item.get('cantidad') or 0)
+        if producto_id:
+            cur.execute("""
+                SELECT stock
+                FROM productos
+                WHERE id = %s
+                FOR UPDATE
+            """, (producto_id,))
+            product = cur.fetchone()
+            if product:
+                stock_actual = int(product['stock'] or 0)
+                stock_nuevo = stock_actual + cantidad
+                cur.execute("""
+                    UPDATE productos
+                    SET stock = %s
+                    WHERE id = %s
+                """, (stock_nuevo, producto_id))
+                _record_inventory_log(
+                    cur,
+                    producto_id,
+                    'ENTRADA',
+                    cantidad,
+                    stock_actual,
+                    stock_nuevo,
+                    f"Remoción consumo mesa {item.get('table_codigo')} / orden {item['order_id']}",
+                    user_id,
+                )
+
+        cur.execute(
+            "DELETE FROM restaurant_table_consumptions WHERE id = %s",
+            (consumption_id,))
+        total = _refresh_order_total(cur, item['order_id'])
+
+    return {'order_id': item['order_id'], 'total_acumulado': total}
 
 
 def _save_fe_customer(cur, order_id, payload):

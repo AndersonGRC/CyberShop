@@ -38,6 +38,7 @@ from services.restaurant_tables_service import (
     list_floor_tables,
     list_restaurant_reports,
     update_consumption_state,
+    remove_consumption,
     update_table_state,
     upsert_table_layout,
 )
@@ -251,6 +252,18 @@ def restaurant_consumption_state_change(consumption_id):
             (payload.get('estado') or '').strip(),
         )
         return jsonify({'success': True, 'total_acumulado': total})
+    except Exception as exc:
+        return _json_error(str(exc), 400)
+
+
+@restaurant_tables_bp.route('/admin/restaurante/consumos/<int:consumption_id>/remover', methods=['POST'])
+@rol_requerido(RESTAURANT_OPERATIONAL)
+@module_required(MODULE_RESTAURANT_TABLES)
+def restaurant_consumption_remove(consumption_id):
+    """Remueve un consumo NO servido (corrección de error humano)."""
+    try:
+        result = remove_consumption(session.get('usuario_id'), consumption_id)
+        return jsonify({'success': True, **result})
     except Exception as exc:
         return _json_error(str(exc), 400)
 

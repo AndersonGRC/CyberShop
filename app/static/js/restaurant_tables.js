@@ -798,6 +798,25 @@
         }
     }
 
+    async function removeConsumption(consumptionId) {
+        const table = getSelectedTable();
+        if (!table) return;
+
+        const result = await confirmAction(
+            '¿Remover este producto de la cuenta? Si tenía stock, se devuelve al inventario.',
+            { icon: 'warning', confirmText: 'Sí, remover' }
+        );
+        if (!result.isConfirmed) return;
+
+        try {
+            await jsonRequest(endpointForConsumption(endpoints.consumptionRemoveBase, consumptionId), {});
+            await refreshData(table.id);
+            notify('Producto removido de la cuenta.', 'success');
+        } catch (error) {
+            notify(error.message, 'error');
+        }
+    }
+
     async function closeSelectedAccount() {
         const table = getSelectedTable();
         if (!table || !table.open_order) {
@@ -1218,6 +1237,7 @@
             card.dataset.productName = product.nombre;
             card.dataset.productPrice = product.precio;
             card.dataset.productCat = product.genero_nombre || 'Sin categoría';
+            card.dataset.productRef = product.referencia || '';
 
             const imageSrc = resolveProductImage(product.imagen);
             // Si la imagen falla (ruta rota / archivo ausente, p.ej. el
@@ -1262,7 +1282,10 @@
         const allCats = !cat || cat === 'all';
         modal.productGrid?.querySelectorAll('.rtm-product-card').forEach((card) => {
             const matchCat = allCats || card.dataset.productCat === cat;
-            const matchSearch = !searchTerm || card.dataset.productName.toLowerCase().includes(searchTerm);
+            const ref = (card.dataset.productRef || '').toLowerCase();
+            const matchSearch = !searchTerm
+                || card.dataset.productName.toLowerCase().includes(searchTerm)
+                || ref.includes(searchTerm);
             card.classList.toggle('is-hidden', !(matchCat && matchSearch));
         });
     }
@@ -1288,6 +1311,11 @@
                 actionHtml = `<button class="rtm-ci-action" type="button" data-consumption-id="${item.id}" data-next-state="servido"><i class="fas fa-check"></i> Servido</button>`;
             }
 
+            // Remover: solo mientras NO esté servido (corrección de error humano).
+            const removeHtml = item.estado === 'servido'
+                ? ''
+                : `<button class="rtm-ci-remove" type="button" data-consumption-id="${item.id}" title="Remover de la cuenta"><i class="fas fa-trash-alt"></i></button>`;
+
             return `
                 <article class="rtm-consumption-item">
                     <div class="rtm-ci-info">
@@ -1300,7 +1328,7 @@
                     </div>
                     <div class="rtm-ci-right">
                         <span class="rtm-ci-price">${money(item.subtotal)}</span>
-                        ${actionHtml}
+                        <div class="rtm-ci-btns">${actionHtml}${removeHtml}</div>
                     </div>
                 </article>
             `;
@@ -1312,6 +1340,12 @@
                 const updated = getSelectedTable();
                 renderModalConsumptions(updated);
                 updateModalHeader(updated);
+            });
+        });
+
+        modal.list.querySelectorAll('.rtm-ci-remove').forEach((btn) => {
+            btn.addEventListener('click', function () {
+                removeConsumption(Number(this.dataset.consumptionId));
             });
         });
     }
@@ -1464,6 +1498,41 @@
         modal.search?.addEventListener('input', function () {
             const activeCat = modal.catBar?.querySelector('.rtm-cat-btn.is-active')?.dataset.cat || 'all';
             filterModalProducts(activeCat, this.value);
+        });
+
+        // Scanner de código de barras: el lector teclea la referencia + Enter.
+        // Si hay match EXACTO de referencia, se selecciona ese producto (abre el
+        // panel de añadir). Si no hay exacto pero el filtro dejó una sola tarjeta
+        // visible, se selecciona esa. Igual que el POS, pero 100% client-side.
+        modal.search?.addEventListener('keydown', function (e) {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            const term = (this.value || '').trim();
+            if (!term) return;
+
+            const termLc = term.toLowerCase();
+            let target = null;
+            const exact = state.products.find(
+                (p) => String(p.referencia || '').trim().toLowerCase() === termLc
+            );
+            if (exact) {
+                target = modal.productGrid?.querySelector(
+                    `.rtm-product-card[data-product-id="${exact.id}"]`
+                );
+            }
+            if (!target) {
+                const visibles = modal.productGrid
+                    ? modal.productGrid.querySelectorAll('.rtm-product-card:not(.is-hidden)')
+                    : [];
+                if (visibles.length === 1) target = visibles[0];
+            }
+            if (target) {
+                target.click();
+                target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                this.value = '';
+                const activeCat = modal.catBar?.querySelector('.rtm-cat-btn.is-active')?.dataset.cat || 'all';
+                filterModalProducts(activeCat, '');
+            }
         });
 
         modal.qtyMinus?.addEventListener('click', function () {

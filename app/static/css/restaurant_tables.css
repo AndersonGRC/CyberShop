@@ -2403,6 +2403,30 @@ header.collapsed ~ .rtm-overlay {
     background: rgba(var(--color-marca-rgb), 0.12);
 }
 
+/* Fila de acciones del consumo (avanzar estado + remover) */
+.rtm-ci-btns {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Botón remover consumo (corrección de error humano; solo si no está servido) */
+.rtm-ci-remove {
+    border: 1px solid var(--color-peligro-tinte-hover, #ffcdd2);
+    border-radius: 10px;
+    padding: 5px 9px;
+    font-size: 0.72rem;
+    cursor: pointer;
+    background: var(--color-peligro-tinte, #ffebee);
+    color: var(--color-eliminar, #d32f2f);
+    transition: background 0.15s, color 0.15s;
+}
+
+.rtm-ci-remove:hover {
+    background: var(--color-eliminar, #d32f2f);
+    color: #fff;
+}
+
 /* ── Footer de la orden ───────────────────────────────────────── */
 
 .rtm-order-footer {
