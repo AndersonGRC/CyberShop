@@ -2933,8 +2933,8 @@ header.collapsed ~ .rtm-overlay {
 }
 
 /* Botón "+ Agregar" visible siempre — el atajo más intuitivo */
-.rtm-product-thumb::after {
-    content: "+";
+/* Botón "+" REAL sobre la tarjeta: 1 clic = +1 a la cuenta (atajo, menos pasos). */
+.rtm-quick-add {
     position: absolute;
     bottom: 10px;
     right: 10px;
@@ -2946,17 +2946,33 @@ header.collapsed ~ .rtm-overlay {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.5rem;
+    font-size: 1.05rem;
     font-weight: 900;
     line-height: 1;
     box-shadow: 0 6px 16px rgba(var(--color-marca-rgb), 0.4);
-    transition: transform 0.18s ease, background 0.18s ease;
-    pointer-events: none;
+    transition: transform 0.14s ease, background 0.14s ease;
+    cursor: pointer;
+    pointer-events: auto;
+    z-index: 3;
 }
 
-.rtm-product-card:hover .rtm-product-thumb::after {
-    transform: scale(1.12);
+.rtm-product-card:hover .rtm-quick-add,
+.rtm-quick-add:hover,
+.rtm-quick-add:focus-visible {
+    transform: scale(1.14);
     background: var(--color-primario-oscuro);
+    outline: none;
+}
+
+.rtm-quick-add:active {
+    transform: scale(0.9);
+}
+
+/* Pulso del destino (total/pestaña Cuenta) al recibir un producto. */
+.rt-cart-hit { animation: rtCartHit 0.4s ease; }
+@keyframes rtCartHit {
+    0%, 100% { transform: scale(1); }
+    40% { transform: scale(1.16); }
 }
 
 .rtm-product-info {
@@ -3316,10 +3332,10 @@ header.collapsed ~ .rtm-overlay {
         font-size: 1rem;
     }
 
-    .rtm-product-thumb::after {
+    .rtm-quick-add {
         width: 34px;
         height: 34px;
-        font-size: 1.25rem;
+        font-size: 0.95rem;
         bottom: 8px;
         right: 8px;
     }

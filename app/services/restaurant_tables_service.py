@@ -1164,6 +1164,10 @@ def add_consumption(user_id, table_id, payload):
     descripcion = (payload.get('descripcion') or '').strip()
     notas = (payload.get('notas') or '').strip() or None
     cantidad = _parse_int(payload.get('cantidad'), default=1, minimum=1, maximum=100, field='cantidad')
+    # merge=True (quick-add del catálogo): si ya hay una línea PENDIENTE del mismo
+    # producto en la cuenta, suma la cantidad en vez de crear otra línea (comportamiento
+    # de carrito: cada "+" incrementa). Sin notas propias para no pisar las existentes.
+    merge = bool(payload.get('merge'))
 
     with get_db_cursor(dict_cursor=True) as cur:
         cur.execute("""
@@ -1221,7 +1225,28 @@ def add_consumption(user_id, table_id, payload):
                 raise ValueError('El precio del consumo debe ser mayor a cero.')
             subtotal = round(precio_unitario * cantidad, 2)
 
-        if _table_has_column('restaurant_table_consumptions', 'tenant_id'):
+        # Quick-add con merge: incrementar la línea pendiente del mismo producto.
+        existing_id = None
+        if merge and producto_id:
+            cur.execute("""
+                SELECT id FROM restaurant_table_consumptions
+                WHERE order_id = %s AND producto_id = %s AND estado = 'pendiente'
+                ORDER BY id DESC LIMIT 1
+            """, (order_id, producto_id))
+            row = cur.fetchone()
+            if row:
+                existing_id = row['id']
+                cur.execute("""
+                    UPDATE restaurant_table_consumptions
+                    SET cantidad = cantidad + %s,
+                        subtotal = subtotal + %s,
+                        updated_at = NOW()
+                    WHERE id = %s
+                """, (cantidad, subtotal, existing_id))
+
+        if existing_id is not None:
+            consumption_id = existing_id
+        elif _table_has_column('restaurant_table_consumptions', 'tenant_id'):
             cur.execute("""
                 INSERT INTO restaurant_table_consumptions (
                     tenant_id, order_id, table_id, producto_id, descripcion,
@@ -1234,6 +1259,7 @@ def add_consumption(user_id, table_id, payload):
                 RETURNING id
             """, (order_id, order_id, table_id, producto_id, descripcion,
                   cantidad, precio_unitario, subtotal, notas, user_id))
+            consumption_id = cur.fetchone()['id']
         else:
             cur.execute("""
                 INSERT INTO restaurant_table_consumptions (
@@ -1244,7 +1270,7 @@ def add_consumption(user_id, table_id, payload):
                 RETURNING id
             """, (order_id, table_id, producto_id, descripcion,
                   cantidad, precio_unitario, subtotal, notas, user_id))
-        consumption_id = cur.fetchone()['id']
+            consumption_id = cur.fetchone()['id']
         total = _refresh_order_total(cur, order_id)
 
         cur.execute("""

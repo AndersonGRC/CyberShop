@@ -1307,7 +1307,7 @@
                 : `<i class="fas fa-utensils"></i>`;
 
             card.innerHTML = `
-                <div class="rtm-product-thumb">${imgHtml}</div>
+                <div class="rtm-product-thumb">${imgHtml}<span class="rtm-quick-add" role="button" tabindex="0" aria-label="Añadir uno a la cuenta"><i class="fas fa-plus"></i></span></div>
                 <div class="rtm-product-info">
                     <div class="rtm-product-name">${product.nombre}</div>
                     <div class="rtm-product-cat">${product.genero_nombre || ''}</div>
@@ -1330,6 +1330,15 @@
                 if (modal.addPanel) modal.addPanel.hidden = false;
                 modal.addPanel?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             });
+
+            // Atajo "+" en la tarjeta: añade 1 directo a la cuenta (sin abrir el panel)
+            // + animación de vuelo al carrito. Reduce pasos para atender más rápido.
+            const quickBtn = card.querySelector('.rtm-quick-add');
+            if (quickBtn) {
+                const fireQuick = (e) => { e.preventDefault(); e.stopPropagation(); quickAddProduct(product, card); };
+                quickBtn.addEventListener('click', fireQuick);
+                quickBtn.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') fireQuick(e); });
+            }
 
             modal.productGrid.appendChild(card);
         });
@@ -1469,6 +1478,91 @@
         modal.overlay.hidden = true;
         document.body.style.overflow = '';
         state.selectedProduct = null;
+    }
+
+    // ── Quick-add: 1 clic en el "+" de la tarjeta = +1 a la cuenta ─────────
+    let quickRefreshTimer = null;
+    function scheduleQuickRefresh(tableId) {
+        clearTimeout(quickRefreshTimer);
+        quickRefreshTimer = setTimeout(async () => {
+            await refreshData(tableId);
+            const updated = getSelectedTable();
+            renderModalConsumptions(updated);
+            updateModalHeader(updated);
+        }, 350);
+    }
+
+    async function quickAddProduct(product, cardEl) {
+        const table = getSelectedTable();
+        if (!table) { notify('Selecciona una mesa.', 'warning'); return; }
+        flyToCart(cardEl);  // animación inmediata (optimista), no espera al server
+        try {
+            await jsonRequest(endpointForTable(endpoints.addConsumptionBase, table.id), {
+                product_id: product.id,
+                cantidad: 1,
+                merge: true,
+            });
+            scheduleQuickRefresh(table.id);  // refresco agrupado (soporta clics rápidos)
+        } catch (error) {
+            notify(error.message, 'error');
+        }
+    }
+
+    // Destino de la animación: en móvil, la pestaña "Cuenta"; en escritorio, el total del pie.
+    function cartTarget() {
+        const mtab = document.querySelector('.rtm-mtab[data-mtab="order"]');
+        if (window.innerWidth <= 768 && mtab && mtab.offsetParent !== null) return mtab;
+        return modal.footerTotal || modal.list || modal.total || null;
+    }
+
+    // Vuelo ligero al carrito (Web Animations API, compuesto por GPU: transform/opacity).
+    function flyToCart(cardEl) {
+        if (!cardEl || typeof cardEl.animate !== 'function') return;
+        const target = cartTarget();
+        if (!target) return;
+        const thumb = cardEl.querySelector('.rtm-product-thumb') || cardEl;
+        const o = thumb.getBoundingClientRect();
+        const d = target.getBoundingClientRect();
+        if (!o.width || !d.width) return;
+
+        const SIZE = 44;
+        const fly = document.createElement('div');
+        Object.assign(fly.style, {
+            position: 'fixed', zIndex: '99999',
+            top: `${o.top + o.height / 2 - SIZE / 2}px`,
+            left: `${o.left + o.width / 2 - SIZE / 2}px`,
+            width: `${SIZE}px`, height: `${SIZE}px`,
+            borderRadius: '12px', overflow: 'hidden', pointerEvents: 'none',
+            boxShadow: '0 8px 22px rgba(0,0,0,0.28)', willChange: 'transform, opacity',
+            background: 'var(--color-primario, #122C94)', color: '#fff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900',
+        });
+        const srcImg = cardEl.querySelector('.rtm-product-thumb img');
+        if (srcImg && (srcImg.currentSrc || srcImg.src)) {
+            const im = document.createElement('img');
+            im.src = srcImg.currentSrc || srcImg.src;
+            Object.assign(im.style, { width: '100%', height: '100%', objectFit: 'cover' });
+            fly.appendChild(im);
+        } else {
+            fly.innerHTML = '<i class="fas fa-plus"></i>';
+        }
+        document.body.appendChild(fly);
+
+        const sCX = o.left + o.width / 2, sCY = o.top + o.height / 2;
+        const eCX = d.left + d.width / 2, eCY = d.top + d.height / 2;
+        const arcX = (sCX + eCX) / 2 - sCX, arcY = Math.min(sCY, eCY) - 90 - sCY;
+        const anim = fly.animate([
+            { transform: 'translate(0,0) scale(1)', opacity: 1 },
+            { transform: `translate(${arcX}px, ${arcY}px) scale(0.6)`, opacity: 0.9, offset: 0.5 },
+            { transform: `translate(${eCX - sCX}px, ${eCY - sCY}px) scale(0.12)`, opacity: 0 },
+        ], { duration: 650, easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)', fill: 'forwards' });
+        anim.onfinish = () => {
+            fly.remove();
+            target.classList.remove('rt-cart-hit');
+            void target.offsetWidth;
+            target.classList.add('rt-cart-hit');
+            setTimeout(() => target.classList.remove('rt-cart-hit'), 400);
+        };
     }
 
     async function modalAddConsumption() {
