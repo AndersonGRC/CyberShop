@@ -8,6 +8,7 @@
 
 {% block body %}
 <div class="rt-shell" data-view-mode="{{ view_mode }}">
+    {% if view_mode != 'service' %}
     <section class="rt-hero rt-hero-{{ view_mode }}">
         <div class="rt-hero-copy">
             <span class="rt-kicker">Restaurant Tables</span>
@@ -31,6 +32,7 @@
             {% endif %}
         </div>
     </section>
+    {% endif %}
 
     {% if not is_waiter_only %}
     {% include "_restaurant_tables_nav.html" %}
@@ -226,6 +228,25 @@
                 <span class="rt-legend-item is-highlight"><i class="fas fa-circle rt-dot-reservada"></i> Reservadas <strong data-summary="reservadas">{{ floor_data.summary.reservadas or 0 }}</strong></span>
                 <span class="rt-legend-item is-highlight"><i class="fas fa-circle rt-dot-cuenta"></i> Cuenta solicitada <strong data-summary="cuenta_solicitada">{{ floor_data.summary.cuenta_solicitada or 0 }}</strong></span>
                 <span class="rt-legend-item"><i class="fas fa-utensils rt-dot-pendiente"></i> Pendientes <strong data-summary="pendientes">{{ floor_data.summary.pendientes or 0 }}</strong></span>
+            </div>
+
+            <!-- Título + acciones al PIE del mapa (tope limpio, directo al plano) -->
+            <div class="rt-service-footer">
+                <div class="rt-service-footer-copy">
+                    <span class="rt-kicker">Restaurant Tables</span>
+                    <h2>{{ page_title }}</h2>
+                    <p>{{ page_description }}</p>
+                </div>
+                <div class="rt-service-footer-actions">
+                    <button id="rtRefreshButton" class="rt-btn rt-btn-secondary" type="button">
+                        <i class="fas fa-sync-alt"></i> Refrescar
+                    </button>
+                    {% if not is_waiter_only %}
+                    <button id="rtNewTableButton" class="rt-btn rt-btn-primary" type="button">
+                        <i class="fas fa-plus-circle"></i> Crear mesa
+                    </button>
+                    {% endif %}
+                </div>
             </div>
         </section>
     </div>

@@ -561,6 +561,55 @@
 .rt-caja-chip.is-open   { background: var(--rt-state-disponible-bg); color: var(--rt-state-disponible-text); }
 .rt-caja-chip.is-closed { background: var(--rt-state-ocupada-bg); color: var(--rt-state-ocupada-text); }
 
+/* Título + acciones al pie del mapa (el tope queda limpio, directo al plano) */
+.rt-service-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin: 0 22px 22px;
+    padding: 16px 20px;
+    border-radius: 20px;
+    background: var(--color-blanco, #fff);
+    border: 1px solid var(--rt-line);
+}
+
+.rt-service-footer-copy h2 {
+    margin: 3px 0 4px;
+    font-size: 1.15rem;
+    color: var(--color-primario);
+}
+
+.rt-service-footer-copy .rt-kicker { font-size: 0.68rem; }
+
+.rt-service-footer-copy p {
+    margin: 0;
+    color: var(--color-texto-muted, #68778f);
+    font-size: 0.85rem;
+}
+
+.rt-service-footer-actions {
+    display: flex;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+/* Los botones base están pensados para el hero OSCURO (blanco sobre azul).
+   En el footer claro los re-estilamos para que contrasten. */
+.rt-service-footer .rt-btn-primary {
+    background: var(--color-primario);
+    color: var(--color-blanco, #fff);
+    box-shadow: 0 6px 16px rgba(var(--color-marca-rgb), 0.22);
+}
+
+.rt-service-footer .rt-btn-secondary {
+    background: var(--color-fondo-form, #f4f7fc);
+    color: var(--color-primario);
+    border: 1px solid var(--rt-line);
+    backdrop-filter: none;
+}
+
 .rt-floorboard {
     position: relative;
     min-height: clamp(560px, 68vh, 820px);
