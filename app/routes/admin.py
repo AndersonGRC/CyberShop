@@ -76,6 +76,27 @@ def _table_has_column(table_name, column_name):
     return exists
 
 
+_VENTAS_POS_ORIGEN_ENSURED = False
+
+
+def _ensure_ventas_pos_origen(cur):
+    """Idempotente: agrega `origen` a ventas_pos ('pos'|'mesa') + backfill desde el
+    prefijo del número de venta (MESA-* = mesa). Habilita los reportes por canal.
+    ventas_pos es espejo operativo de contabilidad (no se suman); esto solo etiqueta
+    cada fila por su canal para el Historial POS y el consolidado."""
+    global _VENTAS_POS_ORIGEN_ENSURED
+    if _VENTAS_POS_ORIGEN_ENSURED:
+        return
+    try:
+        cur.execute("ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS origen VARCHAR(20)")
+        cur.execute("UPDATE ventas_pos SET origen = CASE WHEN numero_venta LIKE 'MESA-%' "
+                    "THEN 'mesa' ELSE 'pos' END WHERE origen IS NULL")
+        _COLUMN_EXISTS_CACHE.pop(('ventas_pos', 'origen'), None)
+        _VENTAS_POS_ORIGEN_ENSURED = True
+    except Exception:
+        pass
+
+
 # Opciones (listas) de campos opcionales de producto — todo tiene un default seguro.
 OPCIONES_IMPUESTO = [('excluido', 'Excluido (sin IVA)'), ('0', 'IVA 0%'),
                      ('5', 'IVA 5%'), ('19', 'IVA 19%')]
@@ -2152,6 +2173,9 @@ def procesar_venta_pos():
         if caja_abierta and _table_has_column('ventas_pos', 'caja_sesion_id'):
             sales_columns.append('caja_sesion_id')
             sales_values.append(caja_abierta['id'])
+        if _table_has_column('ventas_pos', 'origen'):
+            sales_columns.append('origen')
+            sales_values.append('pos')
 
         cur.execute(f"""
             INSERT INTO ventas_pos ({", ".join(sales_columns)})
@@ -2213,34 +2237,108 @@ def procesar_venta_pos():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+def _historial_pos_filtros():
+    """Lee rango de fechas (default: mes actual) + origen desde la query."""
+    hoy = datetime.now().date()
+    date_from = (request.args.get('date_from') or hoy.replace(day=1).isoformat()).strip()
+    date_to = (request.args.get('date_to') or hoy.isoformat()).strip()
+    origen_f = (request.args.get('origen') or '').strip().lower()
+    return date_from, date_to, (origen_f if origen_f in ('pos', 'mesa') else '')
+
+
+# Expresión de origen tolerante: usa la columna si existe, si no la deriva del prefijo.
+_ORIGEN_EXPR = ("COALESCE(origen, CASE WHEN numero_venta LIKE 'MESA-%%' "
+                "THEN 'mesa' ELSE 'pos' END)")
+
+
 @admin_bp.route('/admin/pos/historial')
 @rol_requerido(POS_OPERATIONAL)
 def historial_pos():
-    """Historial de ventas POS."""
+    """Historial de ventas POS (incluye mesas). Rango de fechas + filtro por origen.
+
+    ventas_pos es el espejo operativo de las ventas (POS web + mesas); reconcilia
+    1:1 con contabilidad y NO se suma a ella (ver reporte consolidado)."""
     datosApp = get_data_app()
+    date_from, date_to, origen_f = _historial_pos_filtros()
     ventas = []
     try:
         with get_db_cursor(dict_cursor=True) as cur:
-            if _table_has_column('ventas_pos', 'facturar_electronicamente'):
-                cur.execute("""
-                    SELECT *, COALESCE(facturar_electronicamente, FALSE) AS facturar_electronicamente
-                    FROM ventas_pos
-                    ORDER BY fecha DESC
-                """)
-            else:
-                cur.execute("""
-                    SELECT *, FALSE AS facturar_electronicamente
-                    FROM ventas_pos
-                    ORDER BY fecha DESC
-                """)
+            _ensure_ventas_pos_origen(cur)
+            fe_expr = ("COALESCE(facturar_electronicamente, FALSE)"
+                       if _table_has_column('ventas_pos', 'facturar_electronicamente') else "FALSE")
+            where = ["DATE(fecha) BETWEEN %s AND %s"]
+            params = [date_from, date_to]
+            if origen_f:
+                where.append(_ORIGEN_EXPR + " = %s")
+                params.append(origen_f)
+            cur.execute(f"""
+                SELECT *, {fe_expr} AS facturar_electronicamente,
+                       {_ORIGEN_EXPR} AS origen_calc
+                FROM ventas_pos
+                WHERE {' AND '.join(where)}
+                ORDER BY fecha DESC
+            """, tuple(params))
             ventas = cur.fetchall()
     except Exception as e:
-        flash(f'Error cargando historial: Revisa el log para más detalles.', 'error')
+        current_app.logger.error(f"historial_pos: {e}")
+        flash('Error cargando historial: Revisa el log para más detalles.', 'error')
     ventas_activas = [v for v in ventas if v.get('estado', 'activa') != 'anulada']
     total_activas = sum(float(v['total']) for v in ventas_activas)
+    total_pos = sum(float(v['total']) for v in ventas_activas if v.get('origen_calc') == 'pos')
+    total_mesa = sum(float(v['total']) for v in ventas_activas if v.get('origen_calc') == 'mesa')
     return render_template('historial_pos.html', datosApp=datosApp, ventas=ventas,
                            can_void_pos=session.get('rol_id') in POS_DELETE,
-                           total_activas=total_activas, num_activas=len(ventas_activas))
+                           total_activas=total_activas, num_activas=len(ventas_activas),
+                           total_pos=total_pos, total_mesa=total_mesa,
+                           date_from=date_from, date_to=date_to, origen_f=origen_f)
+
+
+@admin_bp.route('/admin/pos/historial/export')
+@rol_requerido(POS_OPERATIONAL)
+def exportar_historial_pos():
+    """CSV del historial POS respetando rango de fechas, origen y estado."""
+    date_from, date_to, origen_f = _historial_pos_filtros()
+    estado_f = (request.args.get('estado') or '').strip().lower()
+    rows = []
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            _ensure_ventas_pos_origen(cur)
+            where = ["DATE(fecha) BETWEEN %s AND %s"]
+            params = [date_from, date_to]
+            if origen_f:
+                where.append(_ORIGEN_EXPR + " = %s")
+                params.append(origen_f)
+            if estado_f in ('activa', 'anulada'):
+                where.append("COALESCE(estado, 'activa') = %s")
+                params.append(estado_f)
+            cur.execute(f"""
+                SELECT numero_venta, fecha, {_ORIGEN_EXPR} AS origen_calc, cliente_nombre,
+                       metodo_pago, COALESCE(estado, 'activa') AS estado, total
+                FROM ventas_pos
+                WHERE {' AND '.join(where)}
+                ORDER BY fecha DESC
+            """, tuple(params))
+            rows = cur.fetchall()
+    except Exception as e:
+        current_app.logger.error(f"exportar_historial_pos: {e}")
+
+    si = io.StringIO()
+    si.write('﻿')  # BOM para que Excel muestre bien las tildes
+    cw = csv.writer(si, delimiter=';')
+    cw.writerow(['No. Venta', 'Fecha', 'Origen', 'Cliente', 'Metodo', 'Estado', 'Total'])
+    for r in rows:
+        cw.writerow([
+            r['numero_venta'],
+            r['fecha'].strftime('%Y-%m-%d %H:%M') if r.get('fecha') else '',
+            'Mesa' if r['origen_calc'] == 'mesa' else 'POS',
+            r['cliente_nombre'] or 'Consumidor Final',
+            r['metodo_pago'] or '',
+            r['estado'],
+            f"{float(r['total'] or 0):.0f}",
+        ])
+    filename = f"historial_pos_{date_from}_a_{date_to}.csv"
+    return Response(si.getvalue(), mimetype='text/csv; charset=utf-8',
+                    headers={'Content-Disposition': f'attachment;filename={filename}'})
 
 
 @admin_bp.route('/admin/pos/detalle/<int:id>')

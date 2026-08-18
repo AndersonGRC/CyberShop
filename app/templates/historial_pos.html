@@ -111,6 +111,19 @@
         background: #e60023;
     }
 
+    .badge-origen {
+        padding: 3px 9px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        color: white;
+        background: #122C94;
+        font-weight: 700;
+    }
+
+    .badge-origen.mesa {
+        background: #c05600;
+    }
+
     .btn-ver {
         padding: 6px 12px;
         border: none;
@@ -350,6 +363,38 @@
     {% endif %}
     {% endwith %}
 
+    <!-- Periodo (servidor): limita el rango; los demás filtros son instantáneos -->
+    <form method="GET" class="hist-filters" style="margin-bottom:12px">
+        <div>
+            <label>Desde</label>
+            <input type="date" name="date_from" id="per-from" value="{{ date_from }}">
+        </div>
+        <div>
+            <label>Hasta</label>
+            <input type="date" name="date_to" id="per-to" value="{{ date_to }}">
+        </div>
+        <input type="hidden" name="origen" value="{{ origen_f }}">
+        <div>
+            <label>&nbsp;</label>
+            <button type="submit" class="btn-ver"><i class="fas fa-filter"></i> Aplicar</button>
+        </div>
+        <div>
+            <label>&nbsp;</label>
+            <span>
+                <button type="button" class="btn-ver" style="background:#6c757d" onclick="setPeriodo('hoy')">Hoy</button>
+                <button type="button" class="btn-ver" style="background:#6c757d" onclick="setPeriodo('semana')">Semana</button>
+                <button type="button" class="btn-ver" style="background:#6c757d" onclick="setPeriodo('mes')">Mes</button>
+            </span>
+        </div>
+        <div style="margin-left:auto">
+            <label>&nbsp;</label>
+            <a class="btn-pos-link" style="background:#1D6F42"
+               href="{{ url_for('admin.exportar_historial_pos') }}?date_from={{ date_from }}&date_to={{ date_to }}&origen={{ origen_f }}">
+                <i class="fas fa-file-excel"></i> Exportar
+            </a>
+        </div>
+    </form>
+
     {% if ventas|length > 0 %}
     <!-- Resumen que refleja SIEMPRE el filtro aplicado (medio de pago / estado / búsqueda) -->
     <div class="hist-resumen">
@@ -361,6 +406,16 @@
             <div class="stat-num" id="stat-total">${{ "{:,.0f}".format(total_activas) }}</div>
             <div class="stat-label" id="stat-total-label">Total activas</div>
         </div>
+        {% if total_mesa and total_mesa > 0 %}
+        <div class="stat-card" style="background:#122C94">
+            <div class="stat-num" id="stat-total-pos">${{ "{:,.0f}".format(total_pos) }}</div>
+            <div class="stat-label">Total POS</div>
+        </div>
+        <div class="stat-card" style="background:#c05600">
+            <div class="stat-num" id="stat-total-mesa">${{ "{:,.0f}".format(total_mesa) }}</div>
+            <div class="stat-label">Total Mesas</div>
+        </div>
+        {% endif %}
     </div>
 
     <div class="hist-filters">
@@ -388,6 +443,16 @@
                 <option value="anulada">Anuladas</option>
             </select>
         </div>
+        {% if total_mesa and total_mesa > 0 %}
+        <div>
+            <label>Origen</label>
+            <select id="filtro-origen" onchange="filtrarHistorial()">
+                <option value="">Todos</option>
+                <option value="pos">POS</option>
+                <option value="mesa">Mesa</option>
+            </select>
+        </div>
+        {% endif %}
     </div>
 
     <table class="hist-table" id="tabla-historial">
@@ -395,6 +460,7 @@
             <tr>
                 <th>No. Venta</th>
                 <th>Fecha</th>
+                {% if total_mesa and total_mesa > 0 %}<th>Origen</th>{% endif %}
                 <th>Cliente</th>
                 <th>Metodo</th>
                 <th>FE</th>
@@ -404,9 +470,10 @@
         </thead>
         <tbody>
             {% for v in ventas %}
-            <tr data-metodo="{{ v.metodo_pago }}" data-total="{{ v.total }}" data-buscar="{{ v.numero_venta }} {{ v.cliente_nombre or '' }}" data-estado="{{ v.estado or 'activa' }}" class="{% if v.estado == 'anulada' %}fila-anulada{% endif %}">
+            <tr data-metodo="{{ v.metodo_pago }}" data-total="{{ v.total }}" data-buscar="{{ v.numero_venta }} {{ v.cliente_nombre or '' }}" data-estado="{{ v.estado or 'activa' }}" data-origen="{{ v.origen_calc }}" class="{% if v.estado == 'anulada' %}fila-anulada{% endif %}">
                 <td data-label="No. Venta"><strong>{{ v.numero_venta }}</strong>{% if v.estado == 'anulada' %} <span class="badge-anulada">ANULADA</span>{% endif %}</td>
                 <td data-label="Fecha">{{ v.fecha.strftime('%Y-%m-%d %H:%M') }}</td>
+                {% if total_mesa and total_mesa > 0 %}<td data-label="Origen"><span class="badge-origen {{ v.origen_calc }}">{{ 'Mesa' if v.origen_calc == 'mesa' else 'POS' }}</span></td>{% endif %}
                 <td data-label="Cliente">{{ v.cliente_nombre or 'Consumidor Final' }}</td>
                 <td data-label="Metodo"><span class="badge-metodo {{ v.metodo_pago }}">{{ v.metodo_pago }}</span></td>
                 <td data-label="FE">{% if v.facturar_electronicamente %}<strong>Si</strong>{% else %}No{% endif %}</td>
@@ -575,27 +642,54 @@
         });
     }
 
+    // Presets de periodo (recargan del servidor con el rango elegido)
+    function setPeriodo(tipo) {
+        const hoy = new Date();
+        let from = new Date(hoy);
+        if (tipo === 'semana') { from.setDate(hoy.getDate() - 6); }
+        else if (tipo === 'mes') { from = new Date(hoy.getFullYear(), hoy.getMonth(), 1); }
+        const fmt = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        const fromEl = document.getElementById('per-from');
+        const toEl = document.getElementById('per-to');
+        fromEl.value = fmt(from);
+        toEl.value = fmt(hoy);
+        fromEl.form.submit();
+    }
+
     function filtrarHistorial() {
         const buscar = document.getElementById('filtro-buscar').value.toLowerCase();
         const metodo = document.getElementById('filtro-metodo').value;
         const estado = document.getElementById('filtro-estado').value;
+        const origenSel = document.getElementById('filtro-origen');
+        const origen = origenSel ? origenSel.value : '';
         const filas = document.querySelectorAll('#tabla-historial tbody tr');
 
-        let count = 0, suma = 0;
+        let count = 0, suma = 0, sumaPos = 0, sumaMesa = 0;
         filas.forEach(fila => {
             const textoBuscar = (fila.dataset.buscar || '').toLowerCase();
             const metodoFila = fila.dataset.metodo || '';
             const estadoFila = fila.dataset.estado || 'activa';
+            const origenFila = fila.dataset.origen || 'pos';
             const coincideBuscar = !buscar || textoBuscar.includes(buscar);
             const coincideMetodo = !metodo || metodoFila === metodo;
             const coincideEstado = !estado || estadoFila === estado;
-            const visible = coincideBuscar && coincideMetodo && coincideEstado;
+            const coincideOrigen = !origen || origenFila === origen;
+            const visible = coincideBuscar && coincideMetodo && coincideEstado && coincideOrigen;
             fila.style.display = visible ? '' : 'none';
             if (visible) {
                 count++;
-                suma += parseFloat(fila.dataset.total || '0') || 0;
+                const t = parseFloat(fila.dataset.total || '0') || 0;
+                suma += t;
+                if (estadoFila !== 'anulada') {
+                    if (origenFila === 'mesa') sumaMesa += t; else sumaPos += t;
+                }
             }
         });
+
+        const posEl = document.getElementById('stat-total-pos');
+        if (posEl) posEl.textContent = '$' + Math.round(sumaPos).toLocaleString('es-CO');
+        const mesaEl = document.getElementById('stat-total-mesa');
+        if (mesaEl) mesaEl.textContent = '$' + Math.round(sumaMesa).toLocaleString('es-CO');
 
         // El resumen (conteo + total) SIEMPRE refleja lo filtrado: así se ve, p. ej.,
         // cuánto entró por Efectivo o el total de las anuladas sin contar a mano.

@@ -1611,6 +1611,8 @@ def _registrar_venta_pos_desde_mesa(cur, order, total, payment_method, user_id, 
         cols.append('estado'); vals.append('activa')
     if caja_sesion_id and _table_has_column('ventas_pos', 'caja_sesion_id'):
         cols.append('caja_sesion_id'); vals.append(caja_sesion_id)
+    if _table_has_column('ventas_pos', 'origen'):
+        cols.append('origen'); vals.append('mesa')
 
     cur.execute(
         f"INSERT INTO ventas_pos ({', '.join(cols)}) "
