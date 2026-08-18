@@ -39,6 +39,7 @@ from services.restaurant_tables_service import (
     list_restaurant_reports,
     update_consumption_state,
     remove_consumption,
+    set_consumption_quantity,
     update_table_state,
     upsert_table_layout,
 )
@@ -267,6 +268,20 @@ def restaurant_consumption_remove(consumption_id):
     """Remueve un consumo NO servido (corrección de error humano)."""
     try:
         result = remove_consumption(session.get('usuario_id'), consumption_id)
+        return jsonify({'success': True, **result})
+    except Exception as exc:
+        return _json_error(str(exc), 400)
+
+
+@restaurant_tables_bp.route('/admin/restaurante/consumos/<int:consumption_id>/cantidad', methods=['POST'])
+@rol_requerido(RESTAURANT_OPERATIONAL)
+@module_required(MODULE_RESTAURANT_TABLES)
+def restaurant_consumption_quantity(consumption_id):
+    """Fija la cantidad de un consumo NO servido (sumar/restar/fijar)."""
+    payload = request.get_json(silent=True) or request.form.to_dict()
+    try:
+        result = set_consumption_quantity(
+            session.get('usuario_id'), consumption_id, payload.get('cantidad'))
         return jsonify({'success': True, **result})
     except Exception as exc:
         return _json_error(str(exc), 400)

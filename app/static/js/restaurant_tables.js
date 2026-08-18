@@ -815,7 +815,33 @@
         try {
             await jsonRequest(endpointForConsumption(endpoints.consumptionRemoveBase, consumptionId), {});
             await refreshData(table.id);
+            // Re-render inmediato para que el ítem desaparezca sin recargar la página.
+            const updated = getSelectedTable();
+            renderModalConsumptions(updated);
+            updateModalHeader(updated);
             notify('Producto removido de la cuenta.', 'success');
+        } catch (error) {
+            notify(error.message, 'error');
+        }
+    }
+
+    // Ajuste de cantidad en la línea de la cuenta (−/+/escribir el total).
+    const qtyTimers = {};
+    function commitQuantity(consumptionId, qty) {
+        clearTimeout(qtyTimers[consumptionId]);
+        qtyTimers[consumptionId] = setTimeout(() => setConsumptionQuantity(consumptionId, qty), 400);
+    }
+
+    async function setConsumptionQuantity(consumptionId, newQty) {
+        const table = getSelectedTable();
+        if (!table) return;
+        const q = Math.min(999, Math.max(1, parseInt(newQty, 10) || 1));
+        try {
+            await jsonRequest(endpointForConsumption(endpoints.consumptionQtyBase, consumptionId), { cantidad: q });
+            await refreshData(table.id);
+            const updated = getSelectedTable();
+            renderModalConsumptions(updated);
+            updateModalHeader(updated);
         } catch (error) {
             notify(error.message, 'error');
         }
@@ -1302,12 +1328,14 @@
             // producto_default.png inexistente), caemos al ícono en vez de dejar
             // el marcador de imagen rota. Combinado con grid-auto-rows:max-content
             // en el CSS, la tarjeta nunca colapsa.
+            // onerror con this.outerHTML: reemplaza SOLO la <img> rota por el ícono,
+            // sin borrar el botón "+" (que es hermano dentro del thumb).
             const imgHtml = imageSrc
-                ? `<img src="${imageSrc}" alt="${product.nombre}" loading="lazy" onerror="this.parentElement.innerHTML='<i class=&quot;fas fa-utensils&quot;></i>'">`
+                ? `<img src="${imageSrc}" alt="${product.nombre}" loading="lazy" onerror="this.outerHTML='<i class=&quot;fas fa-utensils&quot;></i>'">`
                 : `<i class="fas fa-utensils"></i>`;
 
             card.innerHTML = `
-                <div class="rtm-product-thumb">${imgHtml}<span class="rtm-quick-add" role="button" tabindex="0" aria-label="Añadir uno a la cuenta"><i class="fas fa-plus"></i></span></div>
+                <div class="rtm-product-thumb">${imgHtml}<span class="rtm-quick-add" role="button" tabindex="0" aria-label="Añadir uno a la cuenta">+</span></div>
                 <div class="rtm-product-info">
                     <div class="rtm-product-name">${product.nombre}</div>
                     <div class="rtm-product-cat">${product.genero_nombre || ''}</div>
@@ -1383,12 +1411,21 @@
                 ? ''
                 : `<button class="rtm-ci-remove" type="button" data-consumption-id="${item.id}" title="Remover de la cuenta"><i class="fas fa-trash-alt"></i></button>`;
 
+            // Cantidad: stepper editable (−/número/+) si NO está servido; estático si sí.
+            const qtyHtml = item.estado === 'servido'
+                ? `<span class="rtm-ci-qtystatic"><i class="fas fa-layer-group"></i> ${item.cantidad} und</span>`
+                : `<div class="rtm-ci-qty" role="group" aria-label="Cantidad">
+                        <button class="rtm-ciq-btn" type="button" data-consumption-id="${item.id}" data-delta="-1" aria-label="Restar uno">−</button>
+                        <input class="rtm-ciq-input" type="number" min="1" max="999" value="${item.cantidad}" data-consumption-id="${item.id}" aria-label="Cantidad">
+                        <button class="rtm-ciq-btn" type="button" data-consumption-id="${item.id}" data-delta="1" aria-label="Sumar uno">+</button>
+                   </div>`;
+
             return `
                 <article class="rtm-consumption-item">
                     <div class="rtm-ci-info">
                         <div class="rtm-ci-name">${item.descripcion}</div>
                         <div class="rtm-ci-tags">
-                            <span><i class="fas fa-layer-group"></i> ${item.cantidad} und</span>
+                            ${qtyHtml}
                             <span class="rt-state-badge ${item.estado === 'pendiente' ? 'reservada' : item.estado === 'preparando' ? 'ocupada' : 'disponible'}">${item.estado_label}</span>
                         </div>
                         ${item.notas ? `<div class="rtm-ci-notes">${item.notas}</div>` : ''}
@@ -1413,6 +1450,26 @@
         modal.list.querySelectorAll('.rtm-ci-remove').forEach((btn) => {
             btn.addEventListener('click', function () {
                 removeConsumption(Number(this.dataset.consumptionId));
+            });
+        });
+
+        // Stepper de cantidad: −/+ ajustan al instante (optimista) y confirman
+        // con un pequeño retardo; escribir el número también lo fija.
+        modal.list.querySelectorAll('.rtm-ciq-btn').forEach((btn) => {
+            btn.addEventListener('click', function () {
+                const input = this.parentElement.querySelector('.rtm-ciq-input');
+                if (!input) return;
+                const cur = Math.max(1, parseInt(input.value, 10) || 1);
+                const next = Math.min(999, Math.max(1, cur + Number(this.dataset.delta)));
+                input.value = next;
+                commitQuantity(Number(this.dataset.consumptionId), next);
+            });
+        });
+        modal.list.querySelectorAll('.rtm-ciq-input').forEach((inp) => {
+            inp.addEventListener('change', function () {
+                const q = Math.min(999, Math.max(1, parseInt(this.value, 10) || 1));
+                this.value = q;
+                commitQuantity(Number(this.dataset.consumptionId), q);
             });
         });
     }

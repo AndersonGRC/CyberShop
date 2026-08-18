@@ -1401,6 +1401,53 @@ def remove_consumption(user_id, consumption_id):
     return {'order_id': item['order_id'], 'total_acumulado': total}
 
 
+def set_consumption_quantity(user_id, consumption_id, new_qty):
+    """Fija la cantidad de un consumo NO servido (sumar/restar/fijar sin ir uno a
+    uno). Ajusta el stock por el delta (SALIDA si sube, ENTRADA si baja) y
+    recalcula el subtotal. new_qty entre 1 y 999."""
+    _ensure_module_schema()
+    new_qty = _parse_int(new_qty, default=1, minimum=1, maximum=999, field='cantidad')
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute("""
+            SELECT id, order_id, producto_id, cantidad, precio_unitario, estado
+            FROM restaurant_table_consumptions
+            WHERE id = %s
+            FOR UPDATE
+        """, (consumption_id,))
+        item = cur.fetchone()
+        if not item:
+            raise ValueError('Consumo no encontrado.')
+        if item['estado'] == 'servido':
+            raise ValueError('No puedes cambiar la cantidad de un producto ya servido.')
+
+        old_qty = int(item['cantidad'] or 0)
+        delta = new_qty - old_qty
+        producto_id = item.get('producto_id')
+        if delta != 0 and producto_id:
+            cur.execute("SELECT stock FROM productos WHERE id = %s FOR UPDATE", (producto_id,))
+            product = cur.fetchone()
+            if product:
+                stock_actual = int(product['stock'] or 0)
+                stock_nuevo = stock_actual - delta  # delta>0 descuenta; delta<0 devuelve
+                cur.execute("UPDATE productos SET stock = %s WHERE id = %s", (stock_nuevo, producto_id))
+                _record_inventory_log(
+                    cur, producto_id,
+                    'SALIDA' if delta > 0 else 'ENTRADA',
+                    abs(delta), stock_actual, stock_nuevo,
+                    f"Ajuste cantidad consumo #{consumption_id} / orden {item['order_id']}",
+                    user_id)
+
+        precio = float(item['precio_unitario'] or 0)
+        cur.execute("""
+            UPDATE restaurant_table_consumptions
+            SET cantidad = %s, subtotal = %s, updated_at = NOW()
+            WHERE id = %s
+        """, (new_qty, round(precio * new_qty, 2), consumption_id))
+        total = _refresh_order_total(cur, item['order_id'])
+
+    return {'order_id': item['order_id'], 'total_acumulado': total, 'cantidad': new_qty}
+
+
 def _save_fe_customer(cur, order_id, payload):
     """Guarda en la orden los datos del adquiriente para factura electrónica
     (nombre + tipo/nº documento, email, teléfono). Solo escribe las columnas

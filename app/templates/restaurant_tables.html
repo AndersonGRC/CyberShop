@@ -689,6 +689,7 @@ window.RESTAURANT_PAGE = {
         addConsumptionBase: {{ url_for('restaurant_tables.restaurant_table_add_consumption', table_id=0) | replace('/0/', '/__TABLE_ID__/') | tojson }},
         consumptionStateBase: {{ url_for('restaurant_tables.restaurant_consumption_state_change', consumption_id=0) | replace('/0/', '/__CONSUMPTION_ID__/') | tojson }},
         consumptionRemoveBase: {{ url_for('restaurant_tables.restaurant_consumption_remove', consumption_id=0) | replace('/0/', '/__CONSUMPTION_ID__/') | tojson }},
+        consumptionQtyBase: {{ url_for('restaurant_tables.restaurant_consumption_quantity', consumption_id=0) | replace('/0/', '/__CONSUMPTION_ID__/') | tojson }},
         closeAccountBase: {{ url_for('restaurant_tables.restaurant_table_close', table_id=0) | replace('/0/', '/__TABLE_ID__/') | tojson }},
         cancelOpenBase: {{ url_for('restaurant_tables.restaurant_table_cancel_open', table_id=0) | replace('/0/', '/__TABLE_ID__/') | tojson }},
         cancelClosedBase: {{ url_for('restaurant_tables.restaurant_closed_order_cancel', order_id=0) | replace('/0/', '/__ORDER_ID__/') | tojson }},
