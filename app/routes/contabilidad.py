@@ -446,6 +446,115 @@ def dashboard():
 
 
 # ─────────────────────────────────────────────────────────
+# CONSOLIDADO DE VENTAS (todos los canales, sin duplicar)
+# ─────────────────────────────────────────────────────────
+
+# Cada venta es UN movimiento de ingreso etiquetado por canal. ventas_pos y las
+# órdenes de mesa son espejos operativos (no se suman). Por eso el consolidado
+# (total) y el diferencial (por canal) salen SOLO de aquí, sin duplicar.
+VENTA_CATEGORIAS = ['venta_pos', 'venta_restaurante', 'pedido_online', 'cuenta_cobro']
+CANAL_LABEL = {
+    'venta_pos': 'POS',
+    'venta_restaurante': 'Mesas',
+    'pedido_online': 'Tienda online',
+    'cuenta_cobro': 'Cuentas de cobro',
+}
+
+
+def _ventas_consolidado_filtros():
+    hoy = date.today()
+    agrup = (request.args.get('agrupacion') or 'dia').strip().lower()
+    if agrup not in ('dia', 'semana', 'mes'):
+        agrup = 'dia'
+    date_from = (request.args.get('date_from') or hoy.replace(day=1).isoformat()).strip()
+    date_to = (request.args.get('date_to') or hoy.isoformat()).strip()
+    try:
+        date.fromisoformat(date_from)
+        date.fromisoformat(date_to)
+    except ValueError:
+        date_from, date_to = hoy.replace(day=1).isoformat(), hoy.isoformat()
+    return agrup, date_from, date_to
+
+
+def _ventas_consolidado_data(agrup, date_from, date_to):
+    trunc = {'dia': 'day', 'semana': 'week', 'mes': 'month'}[agrup]
+    por_canal, serie = [], []
+    total_general, total_cnt = 0.0, 0
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("""
+                SELECT categoria, COALESCE(SUM(monto),0) AS total, COUNT(*) AS cnt
+                FROM contabilidad_movimientos
+                WHERE tipo='ingreso' AND categoria = ANY(%s)
+                  AND fecha BETWEEN %s AND %s
+                GROUP BY categoria ORDER BY total DESC
+            """, (VENTA_CATEGORIAS, date_from, date_to))
+            for r in cur.fetchall():
+                t = float(r['total'])
+                por_canal.append({'categoria': r['categoria'],
+                                  'label': CANAL_LABEL.get(r['categoria'], r['categoria']),
+                                  'total': t, 'cnt': int(r['cnt'])})
+                total_general += t
+                total_cnt += int(r['cnt'])
+
+            cur.execute("""
+                SELECT DATE_TRUNC(%s, fecha)::date AS periodo, categoria,
+                       COALESCE(SUM(monto),0) AS total, COUNT(*) AS cnt
+                FROM contabilidad_movimientos
+                WHERE tipo='ingreso' AND categoria = ANY(%s)
+                  AND fecha BETWEEN %s AND %s
+                GROUP BY periodo, categoria ORDER BY periodo
+            """, (trunc, VENTA_CATEGORIAS, date_from, date_to))
+            buckets = {}
+            for r in cur.fetchall():
+                p = r['periodo'].isoformat()
+                b = buckets.setdefault(p, {'periodo': p, 'total': 0.0, 'cnt': 0})
+                b[r['categoria']] = float(r['total'])
+                b['total'] += float(r['total'])
+                b['cnt'] += int(r['cnt'])
+            serie = [buckets[k] for k in sorted(buckets)]
+    except Exception as e:
+        app.logger.error(f"ventas_consolidado: {e}")
+    ticket = round(total_general / total_cnt, 2) if total_cnt else 0
+    return por_canal, serie, total_general, total_cnt, ticket
+
+
+@contabilidad_bp.route('/admin/contabilidad/ventas')
+@rol_requerido(ADMIN_CONTADOR)
+def ventas_consolidado():
+    """Consolidado de ventas de TODOS los canales (POS, mesas, online, cuentas de
+    cobro) por día/semana/mes, sin duplicar (una fuente = contabilidad)."""
+    datosApp = get_data_app()
+    agrup, date_from, date_to = _ventas_consolidado_filtros()
+    por_canal, serie, total_general, total_cnt, ticket = _ventas_consolidado_data(agrup, date_from, date_to)
+    return render_template('contabilidad_ventas.html',
+                           datosApp=datosApp, agrupacion=agrup,
+                           date_from=date_from, date_to=date_to,
+                           por_canal=por_canal, serie=serie,
+                           total_general=total_general, total_cnt=total_cnt,
+                           ticket=ticket, canales=VENTA_CATEGORIAS, canal_label=CANAL_LABEL)
+
+
+@contabilidad_bp.route('/admin/contabilidad/ventas/export')
+@rol_requerido(ADMIN_CONTADOR)
+def ventas_consolidado_export():
+    agrup, date_from, date_to = _ventas_consolidado_filtros()
+    _, serie, total_general, total_cnt, _tk = _ventas_consolidado_data(agrup, date_from, date_to)
+    output = io.StringIO()
+    output.write('﻿')  # BOM para Excel
+    w = csv.writer(output, delimiter=';')
+    w.writerow(['Periodo'] + [CANAL_LABEL[c] for c in VENTA_CATEGORIAS] + ['Total', 'N Ventas'])
+    for row in serie:
+        w.writerow([row['periodo']] + [f"{float(row.get(c, 0)):.0f}" for c in VENTA_CATEGORIAS] +
+                   [f"{row['total']:.0f}", row['cnt']])
+    w.writerow([])
+    w.writerow(['TOTAL'] + ['' for _ in VENTA_CATEGORIAS] + [f"{total_general:.0f}", total_cnt])
+    filename = f"ventas_consolidado_{date_from}_a_{date_to}.csv"
+    return Response(output.getvalue(), mimetype='text/csv; charset=utf-8',
+                    headers={'Content-Disposition': f'attachment;filename={filename}'})
+
+
+# ─────────────────────────────────────────────────────────
 # MOVIMIENTOS
 # ─────────────────────────────────────────────────────────
 

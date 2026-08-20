@@ -1,0 +1,116 @@
+{% extends './plantillaapp.html' %}
+
+{% block titulo %}Consolidado de Ventas{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+    .cv-container { padding: 20px; background: rgba(255,255,255,0.97); border-radius: 8px; margin: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+    .cv-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 6px; }
+    .cv-header h2 { color: var(--color-primario-oscuro, #091C5A); margin: 0; }
+    .cv-nota { font-size: 0.82rem; color: #555; background: #eef3ff; border-left: 4px solid var(--color-primario, #122C94); padding: 8px 12px; border-radius: 6px; margin: 8px 0 16px; }
+    .cv-filtros { display: flex; gap: 14px; align-items: end; flex-wrap: wrap; margin-bottom: 16px; }
+    .cv-filtros label { font-weight: 600; font-size: 0.82rem; color: #555; display: block; margin-bottom: 3px; }
+    .cv-filtros input, .cv-filtros select { padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem; }
+    .cv-btn { padding: 9px 16px; border: none; border-radius: 5px; cursor: pointer; font-size: 0.9rem; color: #fff; background: var(--color-primario, #122C94); text-decoration: none; display: inline-block; }
+    .cv-btn.ghost { background: #6c757d; }
+    .cv-btn.exp { background: #1D6F42; }
+    .cv-cards { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
+    .cv-card { flex: 1; min-width: 160px; padding: 16px; border-radius: 10px; color: #fff; }
+    .cv-card .n { font-size: 1.5rem; font-weight: 800; }
+    .cv-card .l { font-size: 0.8rem; opacity: 0.9; margin-top: 3px; }
+    .cv-card.total { background: #091C5A; }
+    .cv-card.ticket { background: #28a745; }
+    .cv-card.cnt { background: #6c757d; }
+    .cv-card.pos { background: #122C94; }
+    .cv-card.mesas { background: #c05600; }
+    .cv-card.online { background: #6f42c1; }
+    .cv-card.cobro { background: #17a2b8; }
+    .cv-table { width: 100%; border-collapse: collapse; }
+    .cv-table th, .cv-table td { padding: 10px 12px; border-bottom: 1px solid #eee; text-align: right; }
+    .cv-table th:first-child, .cv-table td:first-child { text-align: left; }
+    .cv-table th { background: var(--color-primario-oscuro, #091C5A); color: #fff; font-size: 0.8rem; text-transform: uppercase; }
+    .cv-table tfoot td { font-weight: 800; border-top: 2px solid #091C5A; }
+    .cv-empty { text-align: center; padding: 40px; color: #888; }
+</style>
+{% endblock %}
+
+{% block body %}
+{% set activos = por_canal | map(attribute='categoria') | list %}
+{% set canal_class = {'venta_pos':'pos','venta_restaurante':'mesas','pedido_online':'online','cuenta_cobro':'cobro'} %}
+<div class="cv-container">
+    <div class="cv-header">
+        <h2><i class="fas fa-chart-line"></i> Consolidado de Ventas</h2>
+        <a href="{{ url_for('contabilidad.dashboard') }}" class="cv-btn ghost"><i class="fas fa-arrow-left"></i> Contabilidad</a>
+    </div>
+    <div class="cv-nota">
+        <i class="fas fa-shield-alt"></i> Consolidado <strong>sin duplicar</strong>: cada venta cuenta
+        una sola vez. POS y mesas son espejos operativos del Historial POS; aquí se reconcilian por canal.
+    </div>
+
+    <form method="GET" class="cv-filtros">
+        <div>
+            <label>Agrupar por</label>
+            <select name="agrupacion">
+                <option value="dia"    {% if agrupacion=='dia' %}selected{% endif %}>Día</option>
+                <option value="semana" {% if agrupacion=='semana' %}selected{% endif %}>Semana</option>
+                <option value="mes"    {% if agrupacion=='mes' %}selected{% endif %}>Mes</option>
+            </select>
+        </div>
+        <div><label>Desde</label><input type="date" name="date_from" value="{{ date_from }}"></div>
+        <div><label>Hasta</label><input type="date" name="date_to" value="{{ date_to }}"></div>
+        <div><label>&nbsp;</label><button type="submit" class="cv-btn"><i class="fas fa-filter"></i> Aplicar</button></div>
+        <div style="margin-left:auto"><label>&nbsp;</label>
+            <a class="cv-btn exp" href="{{ url_for('contabilidad.ventas_consolidado_export') }}?agrupacion={{ agrupacion }}&date_from={{ date_from }}&date_to={{ date_to }}">
+                <i class="fas fa-file-excel"></i> Exportar
+            </a>
+        </div>
+    </form>
+
+    <div class="cv-cards">
+        <div class="cv-card total"><div class="n">${{ "{:,.0f}".format(total_general) }}</div><div class="l">Ventas del rango (todos los canales)</div></div>
+        <div class="cv-card ticket"><div class="n">${{ "{:,.0f}".format(ticket) }}</div><div class="l">Ticket promedio</div></div>
+        <div class="cv-card cnt"><div class="n">{{ total_cnt }}</div><div class="l">N.º de ventas</div></div>
+        {% for pc in por_canal %}
+        <div class="cv-card {{ canal_class.get(pc.categoria,'pos') }}">
+            <div class="n">${{ "{:,.0f}".format(pc.total) }}</div>
+            <div class="l">{{ pc.label }} · {{ pc.cnt }} vta(s)</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if serie and serie|length > 0 %}
+    <table class="cv-table">
+        <thead>
+            <tr>
+                <th>Periodo</th>
+                {% for c in canales %}{% if c in activos %}<th>{{ canal_label[c] }}</th>{% endif %}{% endfor %}
+                <th>Total</th>
+                <th>N.º</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in serie %}
+            <tr>
+                <td>{{ row.periodo }}</td>
+                {% for c in canales %}{% if c in activos %}<td>${{ "{:,.0f}".format(row.get(c, 0)) }}</td>{% endif %}{% endfor %}
+                <td><strong>${{ "{:,.0f}".format(row.total) }}</strong></td>
+                <td>{{ row.cnt }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td>TOTAL</td>
+                {% for c in canales %}{% if c in activos %}
+                <td>${{ "{:,.0f}".format(por_canal | selectattr('categoria','equalto',c) | map(attribute='total') | sum) }}</td>
+                {% endif %}{% endfor %}
+                <td>${{ "{:,.0f}".format(total_general) }}</td>
+                <td>{{ total_cnt }}</td>
+            </tr>
+        </tfoot>
+    </table>
+    {% else %}
+    <div class="cv-empty"><i class="fas fa-chart-line" style="font-size:2.5rem"></i><p>No hay ventas en el rango seleccionado.</p></div>
+    {% endif %}
+</div>
+{% endblock %}
