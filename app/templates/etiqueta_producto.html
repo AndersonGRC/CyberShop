@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Etiqueta · {{ etiqueta.nombre }}</title>
+<style>
+  :root { --lbl-w: 62mm; --lbl-h: 40mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { font-family: Arial, Helvetica, sans-serif; background: #f4f6fb; color: #111; }
+
+  /* Barra de herramientas (no se imprime) */
+  .toolbar {
+    position: sticky; top: 0; z-index: 5;
+    display: flex; align-items: center; flex-wrap: wrap; gap: 12px;
+    padding: 12px 18px; background: #fff; border-bottom: 1px solid #e5e9f2;
+  }
+  .toolbar h1 { font-size: 15px; margin: 0; font-weight: 800; color: #122C94; }
+  .toolbar .sp { flex: 1 1 auto; }
+  .hint { font-size: 12px; color: #667; display: flex; align-items: center; gap: 6px; }
+  .hint input { width: 62px; padding: 5px 6px; border: 1px solid #cdd6e6; border-radius: 6px; font-size: 13px; }
+  .btn { border: 0; border-radius: 8px; padding: 9px 16px; font-weight: 700; cursor: pointer; font-size: 13px; }
+  .btn-print { background: #122C94; color: #fff; }
+  .btn-ghost { background: #eef1f8; color: #122C94; }
+
+  /* Hoja de etiquetas */
+  .sheet { padding: 16px; display: flex; flex-wrap: wrap; gap: 4mm; align-content: flex-start; }
+  .label {
+    width: var(--lbl-w); height: var(--lbl-h);
+    border: 1px dashed #cdd6e6; border-radius: 6px;
+    padding: 2.5mm 2mm; background: #fff; overflow: hidden;
+    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+    text-align: center; break-inside: avoid;
+  }
+  .label .nombre {
+    font-size: 10pt; font-weight: 800; line-height: 1.06; width: 100%;
+    max-height: 2.3em; overflow: hidden;
+  }
+  .label .bc { display: flex; align-items: center; justify-content: center; }
+  .label .bc svg { display: block; }
+  .label .codigo {
+    font-size: 7pt; letter-spacing: 1px; color: #333; margin-top: -0.5mm;
+    font-family: "Courier New", monospace;
+  }
+  .label .precio { font-size: 16pt; font-weight: 900; color: #000; line-height: 1; }
+  .label .nobc { font-size: 8pt; color: #b00; padding: 4mm 0; }
+
+  @media print {
+    .toolbar { display: none; }
+    body { background: #fff; }
+    .sheet { padding: 0; gap: 0; }
+    .label { border: 0; }
+    @page { margin: 8mm; }
+  }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <h1>🏷️ Etiquetas de producto</h1>
+    <label class="hint">Cantidad
+      <input id="qty" type="number" min="1" max="200" value="{{ cantidad }}">
+    </label>
+    <button class="btn btn-ghost" onclick="aplicarCantidad()">Aplicar</button>
+    <span class="hint">Impresión láser · nombre arriba, código al centro, precio abajo</span>
+    <span class="sp"></span>
+    <button class="btn btn-ghost" onclick="window.close()">Cerrar</button>
+    <button class="btn btn-print" onclick="window.print()">🖨️ Imprimir</button>
+  </div>
+
+  <div class="sheet">
+    {% for _ in range(cantidad) %}
+    <div class="label">
+      <div class="nombre">{{ etiqueta.nombre }}</div>
+      {% if etiqueta.svg %}
+      <div class="bc">{{ etiqueta.svg | safe }}</div>
+      <div class="codigo">{{ etiqueta.codigo }}</div>
+      {% else %}
+      <div class="nobc">Este producto no tiene código de barras / referencia.</div>
+      {% endif %}
+      <div class="precio">{{ etiqueta.precio }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <script>
+    function aplicarCantidad() {
+      var n = Math.max(1, Math.min(200, parseInt(document.getElementById('qty').value, 10) || 1));
+      var u = new URL(location.href);
+      u.searchParams.set('cantidad', n);
+      location.href = u.toString();
+    }
+    document.getElementById('qty').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); aplicarCantidad(); }
+    });
+  </script>
+</body>
+</html>

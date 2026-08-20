@@ -2530,6 +2530,108 @@ def buscar_producto_barcode():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Etiquetas de código de barras (Code128) para impresión láser
+# ─────────────────────────────────────────────────────────────────────────────
+def _codigo_barras_svg(value, *, bar_height=52.0, target_width=176.0, min_bar_width=0.7):
+    """Devuelve un <svg> Code128 (vector, sin JS ni dependencias externas) listo
+    para incrustar inline en la etiqueta. reportlab calcula el dígito de control,
+    por lo que la pistola lo lee sin dificultad. Ajusta el ancho de barra para que
+    el código quepa en la etiqueta SIN distorsionar el aspecto (clave para el lector)."""
+    value = (value or '').strip()
+    if not value:
+        return ''
+    try:
+        from reportlab.graphics.barcode import createBarcodeDrawing
+        from reportlab.graphics import renderSVG
+    except Exception as e:  # pragma: no cover
+        current_app.logger.error(f"reportlab no disponible para código de barras: {e}")
+        return ''
+    d = createBarcodeDrawing('Code128', value=value, barHeight=bar_height,
+                             barWidth=1.0, humanReadable=False, quiet=True)
+    if d.width > target_width:
+        bw = max(min_bar_width, target_width / d.width)
+        d = createBarcodeDrawing('Code128', value=value, barHeight=bar_height,
+                                 barWidth=bw, humanReadable=False, quiet=True)
+    svg = renderSVG.drawToString(d)
+    i = svg.find('<svg')
+    return svg[i:] if i != -1 else svg
+
+
+def _formato_precio_cop(valor):
+    """Formato de precio para la etiqueta: '$12.500' (estilo COP, sin decimales)."""
+    try:
+        return "$" + "{:,.0f}".format(round(float(valor or 0))).replace(",", ".")
+    except Exception:
+        return "$0"
+
+
+def _generar_referencia_unica():
+    """Genera una referencia (código de barras) única para productos sin código.
+    Formato compacto 'CS' + base36 del timestamp + 1 char aleatorio => corto,
+    legible y único. La unicidad se verifica contra productos.referencia."""
+    import time
+    import random
+    alfa = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
+    def _b36(n):
+        s = ''
+        while n:
+            s = alfa[n % 36] + s
+            n //= 36
+        return s or '0'
+
+    cand = 'CS' + _b36(int(time.time() * 10) % (36 ** 6)) + alfa[random.randrange(36)]
+    for _ in range(20):
+        try:
+            with get_db_cursor(dict_cursor=True) as cur:
+                cur.execute(
+                    "SELECT 1 FROM productos WHERE UPPER(TRIM(referencia)) = UPPER(%s) LIMIT 1",
+                    (cand,))
+                if not cur.fetchone():
+                    return cand
+        except Exception:
+            return cand
+        cand = 'CS' + _b36(int(time.time() * 10) % (36 ** 6)) + alfa[random.randrange(36)] + alfa[random.randrange(36)]
+    return cand
+
+
+@admin_bp.route('/admin/productos/generar-codigo')
+@rol_requerido(CATALOG_OPERATIONAL)
+def generar_codigo_producto():
+    """Devuelve (JSON) un código de barras/referencia único generado por el sistema,
+    para cuando el producto no trae un código propio. GET => sin fricción de CSRF."""
+    return jsonify({'success': True, 'codigo': _generar_referencia_unica()})
+
+
+@admin_bp.route('/admin/productos/<int:id>/etiqueta')
+@rol_requerido(CATALOG_OPERATIONAL)
+def etiqueta_producto(id):
+    """Página imprimible (impresora láser) de la etiqueta de un producto:
+    nombre arriba, código de barras Code128 al centro y precio abajo.
+    `cantidad` = número de copias (1 = etiqueta individual; N = hoja de etiquetas)."""
+    cantidad = request.args.get('cantidad', 1, type=int)
+    cantidad = max(1, min(cantidad or 1, 200))
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT id, nombre, precio, referencia FROM productos WHERE id = %s", (id,))
+            p = cur.fetchone()
+    except Exception as e:
+        current_app.logger.error(f"Error cargando producto para etiqueta: {e}")
+        p = None
+    if not p:
+        flash('Producto no encontrado para generar la etiqueta.', 'warning')
+        return redirect(url_for('admin.editar_productos'))
+    codigo = (p['referencia'] or '').strip()
+    etiqueta = {
+        'nombre': p['nombre'],
+        'precio': _formato_precio_cop(p['precio']),
+        'codigo': codigo,
+        'svg': _codigo_barras_svg(codigo) if codigo else '',
+    }
+    return render_template('etiqueta_producto.html', etiqueta=etiqueta, cantidad=cantidad)
+
+
 # --- Gestion de Generos ---
 
 @admin_bp.route('/admin/generos')

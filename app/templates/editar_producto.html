@@ -538,8 +538,18 @@ input:checked + .toggle-slider:before { transform: translateX(22px); }
         </div>
 
         <div class="form-group">
-            <label for="referencia"><i class="fas fa-barcode"></i> Referencia</label>
-            <input type="text" id="referencia" name="referencia" value="{{ producto['referencia'] }}" required>
+            <label for="referencia"><i class="fas fa-barcode"></i> Referencia / Código de barras</label>
+            <div style="display:flex; gap:8px; align-items:stretch; flex-wrap:wrap;">
+                <input type="text" id="referencia" name="referencia" value="{{ producto['referencia'] }}" required style="flex:1; min-width:160px;">
+                <button type="button" id="btn-gen-codigo" title="Generar un código único (Code128)"
+                    style="white-space:nowrap; border:0; border-radius:8px; padding:0 14px; font-weight:700; cursor:pointer; background:#122C94; color:#fff;">
+                    <i class="fas fa-wand-magic-sparkles"></i> Generar
+                </button>
+                <a href="{{ url_for('admin.etiqueta_producto', id=producto['id']) }}" target="_blank" rel="noopener"
+                    style="white-space:nowrap; display:inline-flex; align-items:center; gap:6px; text-decoration:none; border-radius:8px; padding:0 14px; font-weight:700; background:#f5f3ff; color:#6d28d9; border:1px solid #ddd6fe;">
+                    <i class="fas fa-barcode"></i> Imprimir etiqueta
+                </a>
+            </div>
         </div>
 
         <div class="form-group">
@@ -586,6 +596,22 @@ input:checked + .toggle-slider:before { transform: translateX(22px); }
 
 {% block scripts %}
 <script>
+// Generar un código de barras único cuando el producto no trae uno.
+(function () {
+    const btn = document.getElementById('btn-gen-codigo');
+    const input = document.getElementById('referencia');
+    if (!btn || !input) return;
+    btn.addEventListener('click', function () {
+        const prev = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        fetch("{{ url_for('admin.generar_codigo_producto') }}", { headers: { 'Accept': 'application/json' } })
+            .then(r => r.json())
+            .then(d => { if (d && d.codigo) { input.value = d.codigo; input.focus(); } })
+            .catch(() => {})
+            .finally(() => { btn.disabled = false; btn.innerHTML = prev; });
+    });
+})();
 {% if 'ai_assistant' in active_modules %}
 /* ── Botones IA en formulario de producto (editar) ───────── */
 (function () {

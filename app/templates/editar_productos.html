@@ -170,6 +170,8 @@ input:checked + .toggle-slider:before { transform: translateX(22px); }
 .btn-tbl:hover { transform: translateY(-1px); }
 .btn-tbl--edit   { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
 .btn-tbl--edit:hover { background: #dbeafe; }
+.btn-tbl--print  { background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; }
+.btn-tbl--print:hover { background: #ede9fe; }
 .btn-tbl--delete { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
 .btn-tbl--delete:hover { background: #fee2e2; }
 .btn-tbl--save   { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
@@ -363,9 +365,14 @@ input:checked + .toggle-slider:before { transform: translateX(22px); }
                             {% endif %}
                         </td>
                         <td data-label="Acción">
-                            <a href="{{ url_for('admin.editar_producto', id=p.id) }}" class="btn-tbl btn-tbl--edit">
-                                <i class="fas fa-pen"></i> Editar
-                            </a>
+                            <div class="tbl-actions">
+                                <a href="{{ url_for('admin.editar_producto', id=p.id) }}" class="btn-tbl btn-tbl--edit">
+                                    <i class="fas fa-pen"></i> Editar
+                                </a>
+                                <a href="{{ url_for('admin.etiqueta_producto', id=p.id) }}" target="_blank" rel="noopener" class="btn-tbl btn-tbl--print" title="Imprimir etiqueta con código de barras">
+                                    <i class="fas fa-barcode"></i> Etiqueta
+                                </a>
+                            </div>
                         </td>
                     </tr>
                     {% else %}

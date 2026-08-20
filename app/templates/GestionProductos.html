@@ -467,8 +467,15 @@ input:checked + .toggle-slider:before { transform: translateX(22px); }
                 </select>
             </div>
             <div class="form-group">
-                <label for="referencia"><i class="fas fa-barcode"></i> Referencia</label>
-                <input type="text" id="referencia" name="referencia" placeholder="Ej: CAM-001-NEG" required>
+                <label for="referencia"><i class="fas fa-barcode"></i> Referencia / Código de barras</label>
+                <div style="display:flex; gap:8px; align-items:stretch;">
+                    <input type="text" id="referencia" name="referencia" placeholder="Ej: CAM-001-NEG" required style="flex:1; min-width:0;">
+                    <button type="button" id="btn-gen-codigo" title="Generar un código único (Code128)"
+                        style="white-space:nowrap; border:0; border-radius:8px; padding:0 14px; font-weight:700; cursor:pointer; background:#122C94; color:#fff;">
+                        <i class="fas fa-wand-magic-sparkles"></i> Generar
+                    </button>
+                </div>
+                <small style="opacity:.6">Si el producto no trae código de barras, genera uno; luego podrás imprimir la etiqueta desde <em>Editar productos</em>.</small>
             </div>
             <div class="form-group">
                 <label for="genero_id"><i class="fas fa-layer-group"></i> Género / Categoría</label>
@@ -780,6 +787,23 @@ input:checked + .toggle-slider:before { transform: translateX(22px); }
 
     btnPrev.addEventListener('click', () => irA(idx - 1));
     btnNext.addEventListener('click', () => irA(idx + 1));
+})();
+
+// Generar un código de barras único cuando el producto no trae uno.
+(function () {
+    const btn = document.getElementById('btn-gen-codigo');
+    const input = document.getElementById('referencia');
+    if (!btn || !input) return;
+    btn.addEventListener('click', function () {
+        const prev = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        fetch("{{ url_for('admin.generar_codigo_producto') }}", { headers: { 'Accept': 'application/json' } })
+            .then(r => r.json())
+            .then(d => { if (d && d.codigo) { input.value = d.codigo; input.focus(); } })
+            .catch(() => {})
+            .finally(() => { btn.disabled = false; btn.innerHTML = prev; });
+    });
 })();
 </script>
 {% endblock %}
