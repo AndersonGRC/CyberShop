@@ -6,7 +6,7 @@ Eso permite apagar el modulo o retirarlo sin introducir acoplamientos
 directos con otras rutas del ERP.
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from functools import lru_cache
 
 from database import get_db_cursor
@@ -749,15 +749,43 @@ def list_restaurant_reports(filters=None):
         for key, total in sorted(top_tables.items(), key=lambda item: item[1], reverse=True)[:5]
     ]
 
+    # Serie por periodo (día/semana/mes) de las ventas CERRADAS del restaurante.
+    # Es el diferencial operativo: reconcilia 1:1 con 'venta_restaurante' del
+    # consolidado de contabilidad (mismas ventas, no se suman entre sí).
+    agrupacion = (filters.get('agrupacion') or 'dia').strip().lower()
+    if agrupacion not in ('dia', 'semana', 'mes'):
+        agrupacion = 'dia'
+    serie_map = {}
+    for row in orders:
+        if row.get('estado') != 'cerrada':
+            continue
+        ref = row.get('closed_at') or row.get('opened_at')
+        if not ref:
+            continue
+        d = ref.date() if hasattr(ref, 'date') else ref
+        if agrupacion == 'semana':
+            key = (d - timedelta(days=d.weekday())).isoformat()
+        elif agrupacion == 'mes':
+            key = d.replace(day=1).isoformat()
+        else:
+            key = d.isoformat()
+        b = serie_map.setdefault(key, {'periodo': key, 'ventas': 0, 'ingresos': 0.0})
+        b['ventas'] += 1
+        b['ingresos'] += float(row.get('total_acumulado') or 0)
+    serie = [serie_map[k] for k in sorted(serie_map)]
+
     return {
         'summary': summary,
         'orders': orders,
+        'serie': serie,
+        'agrupacion': agrupacion,
         'areas': _build_area_options([{'area': row['area']} for row in orders]),
         'filters': {
             'date_from': date_from,
             'date_to': date_to,
             'area': area,
             'status': status,
+            'agrupacion': agrupacion,
         },
         'payment_breakdown': payment_items,
         'top_tables': top_table_items,

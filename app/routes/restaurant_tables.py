@@ -7,7 +7,7 @@ Separa:
  - Reportes y anulaciones de ventas
 """
 
-from flask import Blueprint, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, jsonify, redirect, render_template, request, url_for, Response
 from flask import current_app as app
 from flask import session, flash
 
@@ -182,6 +182,37 @@ def restaurant_tables_reports():
         return redirect(url_for('restaurant_tables.restaurant_tables_reports'))
 
     return render_template('restaurant_tables.html', **context)
+
+
+@restaurant_tables_bp.route('/admin/restaurante/mesas/reportes/export')
+@rol_requerido(RESTAURANT_ACCESS)
+@module_required(MODULE_RESTAURANT_TABLES)
+def restaurant_tables_reports_export():
+    """CSV del reporte de mesas (serie por periodo + detalle de órdenes)."""
+    import csv
+    import io
+    data = list_restaurant_reports(request.args.to_dict())
+    output = io.StringIO()
+    output.write('﻿')  # BOM para Excel
+    w = csv.writer(output, delimiter=';')
+    w.writerow([f"Ventas restaurante por {data.get('agrupacion', 'dia')}"])
+    w.writerow(['Periodo', 'Ventas', 'Ingresos'])
+    for row in data.get('serie', []):
+        w.writerow([row['periodo'], row['ventas'], f"{row['ingresos']:.0f}"])
+    w.writerow([])
+    w.writerow(['Orden', 'Mesa', 'Area', 'Estado', 'Total', 'Pago', 'Cierre'])
+    for o in data.get('orders', []):
+        cierre = o.get('closed_at') or o.get('cancelled_at') or o.get('opened_at')
+        w.writerow([
+            o.get('id'), o.get('codigo_mesa'), o.get('area') or '',
+            o.get('estado'), f"{float(o.get('total_acumulado') or 0):.0f}",
+            o.get('payment_method_label') or o.get('payment_method') or '',
+            cierre.strftime('%Y-%m-%d %H:%M') if hasattr(cierre, 'strftime') else '',
+        ])
+    f = data.get('filters', {})
+    filename = f"reporte_mesas_{f.get('date_from', '')}_a_{f.get('date_to', '')}.csv"
+    return Response(output.getvalue(), mimetype='text/csv; charset=utf-8',
+                    headers={'Content-Disposition': f'attachment;filename={filename}'})
 
 
 @restaurant_tables_bp.route('/admin/restaurante/mesas/data')

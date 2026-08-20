@@ -279,6 +279,14 @@
                     <option value="cancelada" {% if report_data.filters.status == 'cancelada' %}selected{% endif %}>Cancelada</option>
                 </select>
             </label>
+            <label>
+                Agrupar por
+                <select name="agrupacion">
+                    <option value="dia"    {% if report_data.filters.agrupacion == 'dia' %}selected{% endif %}>Día</option>
+                    <option value="semana" {% if report_data.filters.agrupacion == 'semana' %}selected{% endif %}>Semana</option>
+                    <option value="mes"    {% if report_data.filters.agrupacion == 'mes' %}selected{% endif %}>Mes</option>
+                </select>
+            </label>
             <div class="rt-report-filter-actions">
                 <button class="rt-btn rt-btn-primary" type="submit">
                     <i class="fas fa-filter"></i> Filtrar
@@ -286,9 +294,36 @@
                 <a class="rt-btn rt-btn-ghost" href="{{ url_for('restaurant_tables.restaurant_tables_reports') }}">
                     <i class="fas fa-undo"></i> Limpiar
                 </a>
+                <a class="rt-btn rt-btn-secondary"
+                   href="{{ url_for('restaurant_tables.restaurant_tables_reports_export') }}?date_from={{ report_data.filters.date_from }}&date_to={{ report_data.filters.date_to }}&area={{ report_data.filters.area }}&status={{ report_data.filters.status }}&agrupacion={{ report_data.filters.agrupacion }}">
+                    <i class="fas fa-file-excel"></i> Exportar
+                </a>
             </div>
         </form>
     </section>
+
+    {% if report_data.serie and report_data.serie|length > 0 %}
+    <section class="rt-panel-card">
+        <div class="rt-panel-heading">
+            <h3><i class="fas fa-calendar-alt"></i> Ventas por {{ report_data.agrupacion }}</h3>
+            <span class="rt-panel-sub">Diferencial del restaurante (reconcilia con "Mesas" del consolidado)</span>
+        </div>
+        <table class="rt-report-table">
+            <thead>
+                <tr><th>Periodo</th><th>Ventas</th><th>Ingresos</th></tr>
+            </thead>
+            <tbody>
+                {% for row in report_data.serie %}
+                <tr>
+                    <td data-label="Periodo">{{ row.periodo }}</td>
+                    <td data-label="Ventas">{{ row.ventas }}</td>
+                    <td data-label="Ingresos">${{ '{:,.0f}'.format(row.ingresos) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+    {% endif %}
 
     <section class="rt-summary-grid rt-summary-grid-reports">
         <article class="rt-stat-card rt-stat-success">
