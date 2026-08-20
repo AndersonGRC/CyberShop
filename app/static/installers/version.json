@@ -1,8 +1,8 @@
 {
-  "latest": "1.0.0.3",
+  "latest": "1.0.0.4",
   "min_required": "0.0.0",
   "download_url": "/static/installers/CyberShopSetup_base.exe",
-  "checksum_sha256": "f9e329f2e863e359fd02d138ff98d32a8afd002773092c4219d2963d6fc74e75",
-  "release_notes": "Tablas de Contabilidad (plantillas/cierres) con filas mas altas y botones comodos. Mejoras de interfaz.",
-  "updated_at": "2026-06-21T21:09:36.206239+00:00"
+  "checksum_sha256": "522a9fa209e56ed39dbcc46294a49b3b3086f62a8a48ab116a3d3449fab851f2",
+  "release_notes": "Asistente IA en el escritorio: chat de tu negocio, sugerencia de compras (que reponer esta semana), roles personalizados y mejoras de nomina. Varias mejoras de interfaz.",
+  "updated_at": "2026-08-20T13:30:05.668140+00:00"
 }
