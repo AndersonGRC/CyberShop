@@ -557,6 +557,7 @@ input:checked + .toggle-slider:before { transform: translateX(22px); }
     </div>{# /form-card__body #}
     </div>{# /form-card #}
 </section>
+{% include '_barcode_modal.html' %}
 {% endblock %}
 
 {% block scripts %}
@@ -800,7 +801,7 @@ input:checked + .toggle-slider:before { transform: translateX(22px); }
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         fetch("{{ url_for('admin.generar_codigo_producto') }}", { headers: { 'Accept': 'application/json' } })
             .then(r => r.json())
-            .then(d => { if (d && d.codigo) { input.value = d.codigo; input.focus(); } })
+            .then(d => { if (d && d.codigo) { input.value = d.codigo; abrirBcModal(d.codigo); } })
             .catch(() => {})
             .finally(() => { btn.disabled = false; btn.innerHTML = prev; });
     });

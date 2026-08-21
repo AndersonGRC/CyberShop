@@ -1,0 +1,69 @@
+{# Popup de previsualización + impresión del código de barras (Code128).
+   Requiere admin.codigo_barras_svg y admin.etiqueta_producto_libre.
+   Uso: {% include '_barcode_modal.html' %} en el body y llamar abrirBcModal(codigo). #}
+<style>
+.bcm-overlay { position: fixed; inset: 0; background: rgba(13,27,84,.45); display: none;
+    align-items: center; justify-content: center; z-index: 9999; padding: 16px; }
+.bcm-card { background: #fff; border-radius: 16px; max-width: 460px; width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,.3); overflow: hidden; }
+.bcm-head { display: flex; align-items: center; justify-content: space-between;
+    padding: 15px 20px; background: #122C94; color: #fff; }
+.bcm-head b { font-size: 1rem; }
+.bcm-x { background: transparent; border: 0; color: #fff; font-size: 1.15rem; cursor: pointer; line-height: 1; }
+.bcm-body { padding: 22px 20px; text-align: center; }
+.bcm-preview { min-height: 96px; display: flex; align-items: center; justify-content: center;
+    padding: 12px; background: #fff; border: 1px solid #eef1f8; border-radius: 10px; }
+.bcm-preview svg { max-width: 100%; height: auto; }
+.bcm-code { margin-top: 10px; font-family: "Courier New", monospace; font-weight: 700;
+    letter-spacing: 2px; color: #0d1b54; font-size: 1.05rem; }
+.bcm-hint { margin: 12px 0 0; font-size: .82rem; color: #667085; line-height: 1.4; }
+.bcm-foot { display: flex; gap: 10px; justify-content: flex-end; padding: 14px 20px; border-top: 1px solid #f0f3f8; }
+.bcm-btn { border: 0; border-radius: 9px; padding: 10px 18px; font-weight: 700; cursor: pointer; font-size: .9rem; }
+.bcm-ghost { background: #eef1f8; color: #122C94; }
+.bcm-print { background: #122C94; color: #fff; }
+</style>
+<div id="bcm-overlay" class="bcm-overlay" onclick="if(event.target===this)cerrarBcModal()">
+  <div class="bcm-card">
+    <div class="bcm-head"><b>🏷️ Código de barras</b>
+      <button type="button" class="bcm-x" onclick="cerrarBcModal()" aria-label="Cerrar">✕</button></div>
+    <div class="bcm-body">
+      <div id="bcm-preview" class="bcm-preview"></div>
+      <div id="bcm-code" class="bcm-code"></div>
+      <p class="bcm-hint">Es un código de barras Code128 real: la pistola lo lee al escanear.
+        Usa <b>Imprimir</b> para ajustar el formato en tu impresora.</p>
+    </div>
+    <div class="bcm-foot">
+      <button type="button" class="bcm-btn bcm-ghost" onclick="cerrarBcModal()">Cerrar</button>
+      <button type="button" class="bcm-btn bcm-print" id="bcm-print">🖨️ Imprimir etiqueta</button>
+    </div>
+  </div>
+</div>
+<script>
+function cerrarBcModal() {
+    var o = document.getElementById('bcm-overlay');
+    if (o) o.style.display = 'none';
+}
+function abrirBcModal(codigo) {
+    codigo = (codigo || '').trim();
+    if (!codigo) return;
+    var o = document.getElementById('bcm-overlay');
+    document.getElementById('bcm-code').textContent = codigo;
+    var prev = document.getElementById('bcm-preview');
+    prev.innerHTML = '<span style="color:#98a2b3">Generando…</span>';
+    fetch("{{ url_for('admin.codigo_barras_svg') }}?codigo=" + encodeURIComponent(codigo))
+        .then(function (r) { return r.text(); })
+        .then(function (svg) { prev.innerHTML = svg || '<span style="color:#b00">Sin vista</span>'; })
+        .catch(function () { prev.innerHTML = '<span style="color:#b00">No se pudo generar la vista</span>'; });
+    document.getElementById('bcm-print').onclick = function () {
+        var nombreEl = document.querySelector('[name=nombre]');
+        var precioEl = document.querySelector('[name=precio]');
+        var u = new URL("{{ url_for('admin.etiqueta_producto_libre') }}", location.origin);
+        u.searchParams.set('codigo', codigo);
+        if (nombreEl && nombreEl.value) u.searchParams.set('nombre', nombreEl.value);
+        if (precioEl && precioEl.value) u.searchParams.set('precio', precioEl.value);
+        window.open(u.toString(), '_blank');
+    };
+    o.style.display = 'flex';
+}
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') cerrarBcModal(); });
+</script>

@@ -2632,6 +2632,35 @@ def etiqueta_producto(id):
     return render_template('etiqueta_producto.html', etiqueta=etiqueta, cantidad=cantidad)
 
 
+@admin_bp.route('/admin/productos/codigo-barras.svg')
+@rol_requerido(CATALOG_OPERATIONAL)
+def codigo_barras_svg():
+    """Devuelve SOLO el código de barras (Code128) de `codigo` como SVG, para
+    previsualizarlo en el popup tras generar/escribir un código."""
+    codigo = (request.args.get('codigo') or '').strip()
+    svg = _codigo_barras_svg(codigo, bar_height=60.0, target_width=260.0) if codigo else ''
+    return Response(svg, mimetype='image/svg+xml')
+
+
+@admin_bp.route('/admin/productos/etiqueta-libre')
+@rol_requerido(CATALOG_OPERATIONAL)
+def etiqueta_producto_libre():
+    """Página imprimible de etiqueta a partir de valores sueltos (código, nombre,
+    precio) — sirve para imprimir ANTES de guardar el producto (desde el popup)."""
+    codigo = (request.args.get('codigo') or '').strip()
+    nombre = (request.args.get('nombre') or '').strip() or 'Producto'
+    precio = request.args.get('precio', type=float)
+    cantidad = request.args.get('cantidad', 1, type=int)
+    cantidad = max(1, min(cantidad or 1, 200))
+    etiqueta = {
+        'nombre': nombre,
+        'precio': _formato_precio_cop(precio or 0),
+        'codigo': codigo,
+        'svg': _codigo_barras_svg(codigo) if codigo else '',
+    }
+    return render_template('etiqueta_producto.html', etiqueta=etiqueta, cantidad=cantidad)
+
+
 # --- Gestion de Generos ---
 
 @admin_bp.route('/admin/generos')
