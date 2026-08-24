@@ -1,6 +1,8 @@
-{# Popup de previsualización + impresión del código de barras (Code128).
+{# Popup de etiqueta (vista + impresión directa) del código de barras Code128.
    Requiere admin.codigo_barras_svg y admin.etiqueta_producto_libre.
-   Uso: {% include '_barcode_modal.html' %} en el body y llamar abrirBcModal(codigo). #}
+   Uso: {% include '_barcode_modal.html' %} en el body.
+   - bcmValidarCampos(): exige nombre y precio (para el botón Generar).
+   - abrirBcModal(codigo): muestra la etiqueta (nombre/código/precio) e imprime. #}
 <style>
 .bcm-overlay { position: fixed; inset: 0; background: rgba(13,27,84,.45); display: none;
     align-items: center; justify-content: center; z-index: 9999; padding: 16px; }
@@ -10,35 +12,54 @@
     padding: 15px 20px; background: #122C94; color: #fff; }
 .bcm-head b { font-size: 1rem; }
 .bcm-x { background: transparent; border: 0; color: #fff; font-size: 1.15rem; cursor: pointer; line-height: 1; }
-.bcm-body { padding: 22px 20px; text-align: center; }
-.bcm-preview { min-height: 96px; display: flex; align-items: center; justify-content: center;
-    padding: 12px; background: #fff; border: 1px solid #eef1f8; border-radius: 10px; }
-.bcm-preview svg { max-width: 100%; height: auto; }
-.bcm-code { margin-top: 10px; font-family: "Courier New", monospace; font-weight: 700;
-    letter-spacing: 2px; color: #0d1b54; font-size: 1.05rem; }
+.bcm-body { padding: 22px 20px 8px; }
+
+/* Etiqueta (así se ve y se imprime): nombre arriba, código al centro, precio abajo */
+.bcm-label { width: 64mm; max-width: 100%; margin: 0 auto; padding: 4mm 3mm;
+    border: 1px dashed #cdd6e6; border-radius: 8px; background: #fff; text-align: center;
+    display: flex; flex-direction: column; align-items: center; gap: 1.5mm; }
+.bcm-l-nombre { font-size: 11pt; font-weight: 800; line-height: 1.05; color: #111; width: 100%;
+    overflow-wrap: anywhere; }
+.bcm-l-bc { display: flex; align-items: center; justify-content: center; min-height: 62px; width: 100%; }
+.bcm-l-bc svg { max-width: 100%; height: auto; }
+.bcm-l-code { font-family: "Courier New", monospace; font-weight: 700; letter-spacing: 1px;
+    font-size: 8pt; color: #333; }
+.bcm-l-precio { font-size: 17pt; font-weight: 900; color: #000; }
+
 .bcm-warn { margin: 14px 0 0; font-size: .82rem; color: #92400e; line-height: 1.4;
-    background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 9px 11px; }
-.bcm-hint { margin: 9px 0 0; font-size: .8rem; color: #667085; line-height: 1.4; }
-.bcm-foot { display: flex; gap: 10px; justify-content: flex-end; padding: 14px 20px; border-top: 1px solid #f0f3f8; }
-.bcm-btn { border: 0; border-radius: 9px; padding: 10px 18px; font-weight: 700; cursor: pointer; font-size: .9rem; }
+    background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 9px 11px; text-align: center; }
+.bcm-foot { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;
+    padding: 14px 20px; border-top: 1px solid #f0f3f8; }
+.bcm-btn { border: 0; border-radius: 9px; padding: 10px 16px; font-weight: 700; cursor: pointer; font-size: .9rem; }
 .bcm-ghost { background: #eef1f8; color: #122C94; }
 .bcm-print { background: #122C94; color: #fff; }
+
+/* Al imprimir desde el popup: mostrar SOLO la etiqueta (se activa con .bcm-printing en <body>). */
+@media print {
+  body.bcm-printing * { visibility: hidden !important; }
+  body.bcm-printing #bcm-label, body.bcm-printing #bcm-label * { visibility: visible !important; }
+  body.bcm-printing #bcm-overlay { position: static !important; display: block !important;
+      background: none !important; padding: 0 !important; }
+  body.bcm-printing #bcm-label { position: fixed; left: 0; top: 0; margin: 0; border: 0 !important; }
+}
 </style>
 <div id="bcm-overlay" class="bcm-overlay" onclick="if(event.target===this)cerrarBcModal()">
   <div class="bcm-card">
-    <div class="bcm-head"><b>🏷️ Código de barras</b>
+    <div class="bcm-head"><b>🏷️ Etiqueta del producto</b>
       <button type="button" class="bcm-x" onclick="cerrarBcModal()" aria-label="Cerrar">✕</button></div>
     <div class="bcm-body">
-      <div id="bcm-preview" class="bcm-preview"></div>
-      <div id="bcm-code" class="bcm-code"></div>
-      <p class="bcm-warn">⚠️ La pistola <b>no lee desde la pantalla</b> (los lectores láser
-        necesitan papel). <b>Imprime la etiqueta</b> y escanea el papel.</p>
-      <p class="bcm-hint">Es un código de barras Code128 real y escaneable. Usa <b>Imprimir</b>
-        para ajustar el formato de tu impresora.</p>
+      <div id="bcm-label" class="bcm-label">
+        <div class="bcm-l-nombre" id="bcm-l-nombre"></div>
+        <div class="bcm-l-bc" id="bcm-preview"></div>
+        <div class="bcm-l-code" id="bcm-code"></div>
+        <div class="bcm-l-precio" id="bcm-l-precio"></div>
+      </div>
+      <p class="bcm-warn">⚠️ La pistola <b>no lee desde la pantalla</b>. <b>Imprime</b> la etiqueta y escanea el papel.</p>
     </div>
     <div class="bcm-foot">
       <button type="button" class="bcm-btn bcm-ghost" onclick="cerrarBcModal()">Cerrar</button>
-      <button type="button" class="bcm-btn bcm-print" id="bcm-print">🖨️ Imprimir etiqueta</button>
+      <button type="button" class="bcm-btn bcm-ghost" id="bcm-mas" title="Cantidad / hoja de etiquetas">⚙️ Más opciones</button>
+      <button type="button" class="bcm-btn bcm-print" id="bcm-print">🖨️ Imprimir</button>
     </div>
   </div>
 </div>
@@ -47,10 +68,36 @@ function cerrarBcModal() {
     var o = document.getElementById('bcm-overlay');
     if (o) o.style.display = 'none';
 }
+function bcmCampos() {
+    var n = document.querySelector('[name=nombre]');
+    var p = document.querySelector('[name=precio]');
+    return { nombreEl: n, precioEl: p,
+             nombre: n ? n.value.trim() : '', precio: p ? p.value.trim() : '' };
+}
+function bcmAviso(msg, el) {
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({ icon: 'warning', text: msg, confirmButtonColor: '#122C94' });
+    } else { alert(msg); }
+    if (el) el.focus();
+}
+// Exige nombre y precio antes de generar el código / imprimir la etiqueta.
+function bcmValidarCampos() {
+    var c = bcmCampos();
+    if (!c.nombre) { bcmAviso('Escribe el NOMBRE del producto antes de generar el código de barras.', c.nombreEl); return false; }
+    if (!c.precio || parseFloat(c.precio) <= 0) { bcmAviso('Escribe el PRECIO del producto antes de generar el código de barras.', c.precioEl); return false; }
+    return true;
+}
+function bcmFormatoPrecio(v) {
+    var n = Math.round(parseFloat(v));
+    if (isNaN(n)) return '$0';
+    return '$' + n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
 function abrirBcModal(codigo) {
     codigo = (codigo || '').trim();
     if (!codigo) return;
-    var o = document.getElementById('bcm-overlay');
+    var c = bcmCampos();
+    document.getElementById('bcm-l-nombre').textContent = c.nombre || 'Producto';
+    document.getElementById('bcm-l-precio').textContent = bcmFormatoPrecio(c.precio);
     document.getElementById('bcm-code').textContent = codigo;
     var prev = document.getElementById('bcm-preview');
     prev.innerHTML = '<span style="color:#98a2b3">Generando…</span>';
@@ -59,15 +106,18 @@ function abrirBcModal(codigo) {
         .then(function (svg) { prev.innerHTML = svg || '<span style="color:#b00">Sin vista</span>'; })
         .catch(function () { prev.innerHTML = '<span style="color:#b00">No se pudo generar la vista</span>'; });
     document.getElementById('bcm-print').onclick = function () {
-        var nombreEl = document.querySelector('[name=nombre]');
-        var precioEl = document.querySelector('[name=precio]');
+        document.body.classList.add('bcm-printing');
+        window.print();
+    };
+    document.getElementById('bcm-mas').onclick = function () {
         var u = new URL("{{ url_for('admin.etiqueta_producto_libre') }}", location.origin);
         u.searchParams.set('codigo', codigo);
-        if (nombreEl && nombreEl.value) u.searchParams.set('nombre', nombreEl.value);
-        if (precioEl && precioEl.value) u.searchParams.set('precio', precioEl.value);
+        if (c.nombre) u.searchParams.set('nombre', c.nombre);
+        if (c.precio) u.searchParams.set('precio', c.precio);
         window.open(u.toString(), '_blank');
     };
-    o.style.display = 'flex';
+    document.getElementById('bcm-overlay').style.display = 'flex';
 }
+window.addEventListener('afterprint', function () { document.body.classList.remove('bcm-printing'); });
 document.addEventListener('keydown', function (e) { if (e.key === 'Escape') cerrarBcModal(); });
 </script>

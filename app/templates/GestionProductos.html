@@ -796,6 +796,7 @@ input:checked + .toggle-slider:before { transform: translateX(22px); }
     const input = document.getElementById('referencia');
     if (!btn || !input) return;
     btn.addEventListener('click', function () {
+        if (!bcmValidarCampos()) return;
         const prev = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
