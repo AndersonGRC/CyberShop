@@ -16,7 +16,9 @@
 .bcm-preview svg { max-width: 100%; height: auto; }
 .bcm-code { margin-top: 10px; font-family: "Courier New", monospace; font-weight: 700;
     letter-spacing: 2px; color: #0d1b54; font-size: 1.05rem; }
-.bcm-hint { margin: 12px 0 0; font-size: .82rem; color: #667085; line-height: 1.4; }
+.bcm-warn { margin: 14px 0 0; font-size: .82rem; color: #92400e; line-height: 1.4;
+    background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 9px 11px; }
+.bcm-hint { margin: 9px 0 0; font-size: .8rem; color: #667085; line-height: 1.4; }
 .bcm-foot { display: flex; gap: 10px; justify-content: flex-end; padding: 14px 20px; border-top: 1px solid #f0f3f8; }
 .bcm-btn { border: 0; border-radius: 9px; padding: 10px 18px; font-weight: 700; cursor: pointer; font-size: .9rem; }
 .bcm-ghost { background: #eef1f8; color: #122C94; }
@@ -29,8 +31,10 @@
     <div class="bcm-body">
       <div id="bcm-preview" class="bcm-preview"></div>
       <div id="bcm-code" class="bcm-code"></div>
-      <p class="bcm-hint">Es un código de barras Code128 real: la pistola lo lee al escanear.
-        Usa <b>Imprimir</b> para ajustar el formato en tu impresora.</p>
+      <p class="bcm-warn">⚠️ La pistola <b>no lee desde la pantalla</b> (los lectores láser
+        necesitan papel). <b>Imprime la etiqueta</b> y escanea el papel.</p>
+      <p class="bcm-hint">Es un código de barras Code128 real y escaneable. Usa <b>Imprimir</b>
+        para ajustar el formato de tu impresora.</p>
     </div>
     <div class="bcm-foot">
       <button type="button" class="bcm-btn bcm-ghost" onclick="cerrarBcModal()">Cerrar</button>

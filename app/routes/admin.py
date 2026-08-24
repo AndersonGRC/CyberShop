@@ -2638,7 +2638,7 @@ def codigo_barras_svg():
     """Devuelve SOLO el código de barras (Code128) de `codigo` como SVG, para
     previsualizarlo en el popup tras generar/escribir un código."""
     codigo = (request.args.get('codigo') or '').strip()
-    svg = _codigo_barras_svg(codigo, bar_height=60.0, target_width=260.0) if codigo else ''
+    svg = _codigo_barras_svg(codigo, bar_height=76.0, target_width=340.0) if codigo else ''
     return Response(svg, mimetype='image/svg+xml')
 
 
