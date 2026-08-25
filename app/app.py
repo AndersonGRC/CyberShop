@@ -415,19 +415,27 @@ def _plan_expiry_info():
         from database import get_db_cursor
         with get_db_cursor(dict_cursor=True) as cur:
             cur.execute("SELECT clave, valor FROM cliente_config "
-                        "WHERE clave IN ('plan_vence','plan_avisos_off')")
+                        "WHERE clave IN ('plan_vence','plan_avisos_off','plan_aviso_forzar')")
             filas = {r['clave']: r['valor'] for r in cur.fetchall()}
-        off = str(filas.get('plan_avisos_off', '')).strip().lower() in ('true', '1', 'yes', 'on', 'si')
+        _truthy = ('true', '1', 'yes', 'on', 'si')
+        off = str(filas.get('plan_avisos_off', '')).strip().lower() in _truthy
+        forzar = str(filas.get('plan_aviso_forzar', '')).strip().lower() in _truthy
         vence = (filas.get('plan_vence') or '').strip()
-        if not off and vence:
-            hasta = _date.fromisoformat(vence[:10])
-            dias = (hasta - _date.today()).days
-            if 0 <= dias <= 3:
-                data = {'dias': dias, 'hasta': hasta.strftime('%d/%m/%Y'),
-                        'estado': 'por_vencer', 'mora': 0}
-            elif -90 <= dias < 0:
-                data = {'dias': dias, 'hasta': hasta.strftime('%d/%m/%Y'),
-                        'estado': 'vencido', 'mora': -dias}
+        if not off:
+            hasta = None
+            dias = None
+            if vence:
+                hasta = _date.fromisoformat(vence[:10])
+                dias = (hasta - _date.today()).days
+            hasta_txt = hasta.strftime('%d/%m/%Y') if hasta else None
+            if dias is not None and -90 <= dias < 0:
+                data = {'dias': dias, 'hasta': hasta_txt, 'estado': 'vencido', 'mora': -dias}
+            elif dias is not None and 0 <= dias <= 3:
+                data = {'dias': dias, 'hasta': hasta_txt, 'estado': 'por_vencer', 'mora': 0}
+            elif forzar:
+                # Activación manual "mostrar siempre": recordatorio suave (con fecha si la hay).
+                data = {'dias': dias if dias is not None else 0, 'hasta': hasta_txt,
+                        'estado': 'recordatorio', 'mora': 0}
     except Exception:
         data = None
     _PLAN_CACHE['ts'] = _time.time()
