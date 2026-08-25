@@ -51,14 +51,19 @@ def _sincronizar_desde_panel(compras):
             return 0
         with control_plane_cursor(dict_cursor=True) as cur:
             cur.execute(
-                "SELECT tenant_id, proxima_fecha FROM tenant_billing "
-                "WHERE tenant_id = ANY(%s) AND proxima_fecha IS NOT NULL",
+                "SELECT tenant_id, proxima_fecha, dias_suspension, auto_suspender "
+                "FROM tenant_billing WHERE tenant_id = ANY(%s)",
                 ([c['tenant_id'] for c in con_tenant],),
             )
-            panel = {int(r['tenant_id']): r['proxima_fecha'] for r in cur.fetchall()}
+            panel = {int(r['tenant_id']): r for r in cur.fetchall()}
         ajustes = 0
         for c in con_tenant:
-            fecha_panel = panel.get(int(c['tenant_id']))
+            fila = panel.get(int(c['tenant_id']))
+            # Plazo de suspensión y switch, POR CLIENTE (los fija el operador en fADMIN).
+            if fila is not None:
+                c['dias_suspension_cfg'] = fila.get('dias_suspension')
+                c['auto_suspender_cfg'] = fila.get('auto_suspender')
+            fecha_panel = fila['proxima_fecha'] if fila else None
             if fecha_panel and c['proximo_pago'] and fecha_panel > c['proximo_pago']:
                 with get_db_cursor() as cur:
                     cur.execute(
@@ -91,11 +96,15 @@ def main():
         generar_email_trial_recordatorio)
 
     hoy = date.today()
-    auto_dias = int(getattr(Config, 'AUTO_SUSPENDER_DIAS', 0) or 0)
+    # AUTO_SUSPENDER_DIAS actúa como INTERRUPTOR MAESTRO (>0 = auto-suspensión ON).
+    # El PLAZO en días lo decide el operador POR CLIENTE (tenant_billing.dias_suspension);
+    # si no lo fijó, se usa DEFAULT_GRACE.
+    master_on = int(getattr(Config, 'AUTO_SUSPENDER_DIAS', 0) or 0) > 0
+    DEFAULT_GRACE = 30
     operador = Config.MAIL_USERNAME
     compras = pcs.compras_para_recordatorio()
     print(f"[{hoy}] {len(compras)} compras activas con fecha de cobro "
-          f"(auto-suspensión: {'OFF' if auto_dias == 0 else f'{auto_dias} días'})")
+          f"(auto-suspensión: {'OFF' if not master_on else f'ON, plazo por cliente (default {DEFAULT_GRACE}d)'})")
     _sincronizar_desde_panel(compras)
 
     resumen_vencidos = []
@@ -139,9 +148,13 @@ def main():
                     pcs.marcar_recordatorio(c['id'], etapa[0])
             continue
 
-        # ── Suspensión automática (opcional) ──
-        if auto_dias > 0 and dias <= -auto_dias and not c['suspendida_por_pago']:
-            print(f"  [SUSPENDER] {c['dominio']} ({-dias} días vencido)")
+        # ── Suspensión automática (plazo POR CLIENTE + switch por cliente) ──
+        _g = c.get('dias_suspension_cfg')
+        grace = int(_g) if _g else DEFAULT_GRACE
+        _flag = c.get('auto_suspender_cfg')
+        auto_susp_tenant = True if _flag is None else bool(_flag)
+        if master_on and auto_susp_tenant and dias <= -grace and not c['suspendida_por_pago']:
+            print(f"  [SUSPENDER] {c['dominio']} ({-dias} días vencido, plazo {grace}d)")
             try:
                 from services.master_client import suspender_tenant
                 if c['tenant_id']:
