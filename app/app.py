@@ -399,9 +399,13 @@ def _trial_banner_info():
 
 
 def _plan_expiry_info():
-    """{'dias': N, 'hasta': 'dd/mm/aaaa'} si el plan vence en ≤ 3 días y los
-    avisos NO están silenciados; None si no. El maestro sincroniza 'plan_vence'
-    y 'plan_avisos_off' al cliente_config del tenant (ver billing_service)."""
+    """Aviso de vencimiento del plan para el panel admin. Devuelve None o un dict:
+      - 'por_vencer': el plan vence en ≤ 3 días (dias 0..3).
+      - 'vencido':    el plan YA venció / está en mora (dias < 0), hasta que pague
+                      o lo suspendan (se muestra dentro de una ventana razonable).
+    'estado' distingue ambos; 'mora' = días vencido (>0 solo en 'vencido').
+    El maestro sincroniza 'plan_vence' y 'plan_avisos_off' al cliente_config del
+    tenant (ver billing_service.sync_billing_to_tenant)."""
     import time as _time
     from datetime import date as _date
     if _time.time() - _PLAN_CACHE['ts'] < 600:
@@ -419,7 +423,11 @@ def _plan_expiry_info():
             hasta = _date.fromisoformat(vence[:10])
             dias = (hasta - _date.today()).days
             if 0 <= dias <= 3:
-                data = {'dias': dias, 'hasta': hasta.strftime('%d/%m/%Y')}
+                data = {'dias': dias, 'hasta': hasta.strftime('%d/%m/%Y'),
+                        'estado': 'por_vencer', 'mora': 0}
+            elif -90 <= dias < 0:
+                data = {'dias': dias, 'hasta': hasta.strftime('%d/%m/%Y'),
+                        'estado': 'vencido', 'mora': -dias}
     except Exception:
         data = None
     _PLAN_CACHE['ts'] = _time.time()
