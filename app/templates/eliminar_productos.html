@@ -349,11 +349,14 @@ input:checked + .toggle-slider:before { transform: translateX(22px); }
                         <td style="font-weight:700;color:#0f1728;" data-label="Nombre">{{ producto[2] }}</td>
                         <td style="font-weight:700;color:#122C94;" data-label="Precio">${{ "{:,.0f}".format(producto[3]) }}</td>
                         <td data-label="Acción">
-                            <a href="{{ url_for('admin.eliminar_producto', id=producto[0]) }}"
-                               class="btn-tbl btn-tbl--delete"
-                               onclick="return confirmDel(event, this, '{{ producto[2]|e }}')">
-                                <i class="fas fa-trash"></i> Eliminar
-                            </a>
+                            <form method="POST" action="{{ url_for('admin.eliminar_producto', id=producto[0]) }}"
+                                  data-product-name="{{ producto[2]|e }}"
+                                  style="margin:0;" onsubmit="return confirmDel(event, this)">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn-tbl btn-tbl--delete">
+                                    <i class="fas fa-trash"></i> Eliminar
+                                </button>
+                            </form>
                         </td>
                     </tr>
                     {% else %}
@@ -411,7 +414,9 @@ input:checked + .toggle-slider:before { transform: translateX(22px); }
                         <td style="font-weight:700;color:#122C94;" data-label="Precio">${{ "{:,.0f}".format(producto[3]) }}</td>
                         <td data-label="Acción">
                             <form method="POST" action="{{ url_for('admin.reactivar_producto', id=producto[0]) }}"
-                                  style="margin:0;" onsubmit="return confirmReact(event, this, '{{ producto[2]|e }}')">
+                                  data-product-name="{{ producto[2]|e }}"
+                                  style="margin:0;" onsubmit="return confirmReact(event, this)">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn-tbl btn-tbl--save">
                                     <i class="fas fa-rotate-left"></i> Reactivar
                                 </button>
@@ -427,11 +432,12 @@ input:checked + .toggle-slider:before { transform: translateX(22px); }
 
 </section>
 <script>
-function confirmReact(e, form, nombre) {
+function confirmReact(e, form) {
     e.preventDefault();
+    var nombre = form.dataset.productName || 'este producto';
     Swal.fire({
         title: '¿Reactivar producto?',
-        html: 'Vas a reactivar <strong>"' + nombre + '"</strong>.<br>Volverá a estar visible en la tienda y las listas.',
+        text: 'Vas a reactivar "' + nombre + '". Volverá a estar visible en la tienda y las listas.',
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#166534',
@@ -453,12 +459,12 @@ function filterDel() {
     });
     document.getElementById('del-count').textContent = n + ' producto' + (n !== 1 ? 's' : '');
 }
-function confirmDel(e, link, nombre) {
+function confirmDel(e, form) {
     e.preventDefault();
-    var destino = link.getAttribute('href');
+    var nombre = form.dataset.productName || 'este producto';
     Swal.fire({
         title: '¿Eliminar producto?',
-        html: 'Vas a eliminar <strong>"' + nombre + '"</strong>.<br>Esta acción <strong>no se puede deshacer</strong>.',
+        text: 'Vas a eliminar "' + nombre + '". Esta acción no se puede deshacer.',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#dc2626',
@@ -466,7 +472,7 @@ function confirmDel(e, link, nombre) {
         confirmButtonText: '<i class="fas fa-trash"></i> Sí, eliminar',
         cancelButtonText: 'Cancelar',
         reverseButtons: true
-    }).then(function(r) { if (r.isConfirmed) window.location.href = destino; });
+    }).then(function(r) { if (r.isConfirmed) form.submit(); });
     return false;
 }
 </script>

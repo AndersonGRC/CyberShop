@@ -890,7 +890,7 @@ def eliminar_productos():
                            productos=productos, archivados=archivados)
 
 
-@admin_bp.route('/eliminar-producto/<int:id>', methods=['GET', 'POST'])
+@admin_bp.route('/eliminar-producto/<int:id>', methods=['POST'])
 @rol_requerido(CATALOG_DELETE)
 def eliminar_producto(id):
     """Elimina un producto del catalogo por su ID."""
