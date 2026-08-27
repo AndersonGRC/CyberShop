@@ -447,9 +447,10 @@ def _plan_expiry_info():
             elif dias is not None and 0 <= dias <= 3:
                 data = {'dias': dias, 'hasta': hasta_txt, 'estado': 'por_vencer', 'mora': 0}
             elif forzar:
-                # Activación manual "mostrar siempre": recordatorio suave (con fecha si la hay).
+                # Activación manual "mostrar siempre": suscripción al día → banda
+                # verde con el estado de la suscripción (fecha/días si los hay).
                 data = {'dias': dias if dias is not None else 0, 'hasta': hasta_txt,
-                        'estado': 'recordatorio', 'mora': 0}
+                        'estado': 'activa', 'mora': 0}
     except Exception:
         data = None
     _PLAN_CACHE['ts'] = _time.time()

@@ -106,8 +106,9 @@
         {% endif %}
 
         {% if plan_aviso %}
-        {# Aviso de vencimiento/mora del plan: BANDA de lado a lado entre header y contenido
-           (no pop-up). Amarilla para por_vencer/recordatorio, roja para vencido. #}
+        {# Estado de la suscripción del plan: BANDA de lado a lado entre header y contenido
+           (no pop-up). Solo aparece cerca del vencimiento (≤3 días), en mora, o forzada.
+           Verde = activa · Amarilla = por vencer · Roja = vencida. #}
         <style>
         .plan-aviso-banner { display:flex; align-items:center; gap:12px; flex-wrap:wrap;
             margin:-36px -32px 24px;            /* banda de lado a lado: cancela el padding de <main> */
@@ -121,24 +122,26 @@
         .plan-aviso-banner .pa-x { background:transparent; border:0; font-size:20px; line-height:1;
             cursor:pointer; opacity:.55; color:inherit; padding:0 4px; }
         .plan-aviso-banner .pa-x:hover { opacity:1; }
-        .plan-aviso--por_vencer, .plan-aviso--recordatorio {
+        .plan-aviso--por_vencer {
             background:linear-gradient(90deg,#fef9c3,#fde68a); border-bottom:2px solid #f2c94c; color:#7a5c00; }
         .plan-aviso--vencido {
             background:linear-gradient(90deg,#fee2e2,#fecaca); border-bottom:2px solid #f5a3a3; color:#8a1c1c; }
+        .plan-aviso--activa {
+            background:linear-gradient(90deg,#dcfce7,#bbf7d0); border-bottom:2px solid #86c99a; color:#14663a; }
         </style>
         <div id="plan-aviso-banner" data-estado="{{ plan_aviso.estado }}"
              class="plan-aviso-banner plan-aviso--{{ plan_aviso.estado }}">
-            <span class="pa-ic">{% if plan_aviso.estado == 'vencido' %}⛔{% elif plan_aviso.estado == 'por_vencer' %}📣{% else %}🔔{% endif %}</span>
+            <span class="pa-ic">{% if plan_aviso.estado == 'vencido' %}⛔{% elif plan_aviso.estado == 'por_vencer' %}📣{% elif plan_aviso.estado == 'activa' %}✅{% else %}🔔{% endif %}</span>
             <span class="pa-msg">
                 {% if plan_aviso.estado == 'vencido' %}
-                Tu plan está <b>VENCIDO</b>{% if plan_aviso.mora %} (hace {{ plan_aviso.mora }} día{{ 's' if plan_aviso.mora != 1 else '' }}){% endif %}{% if plan_aviso.hasta %} — venció el {{ plan_aviso.hasta }}{% endif %}. Realiza el pago para no interrumpir tu operación.
+                <b>Suscripción VENCIDA</b>{% if plan_aviso.mora %} hace {{ plan_aviso.mora }} día{{ 's' if plan_aviso.mora != 1 else '' }}{% endif %}{% if plan_aviso.hasta %} — venció el {{ plan_aviso.hasta }}{% endif %}. Regulariza el pago para no perder el servicio.
                 {% elif plan_aviso.estado == 'por_vencer' %}
-                Tu plan está <b>próximo a vencer</b>{% if plan_aviso.dias > 1 %} (faltan {{ plan_aviso.dias }} días){% elif plan_aviso.dias == 1 %} (falta 1 día){% else %} (vence hoy){% endif %}{% if plan_aviso.hasta %} — vence el {{ plan_aviso.hasta }}{% endif %}. Realiza tu pago para no interrumpir el servicio.
+                Tu plan <b>vence {% if plan_aviso.dias > 1 %}en {{ plan_aviso.dias }} días{% elif plan_aviso.dias == 1 %}mañana{% else %}hoy{% endif %}</b>{% if plan_aviso.hasta %} ({{ plan_aviso.hasta }}){% endif %}. Realiza tu pago para no interrumpir el servicio.
                 {% else %}
                 {% if plan_aviso.hasta %}
-                <b>Recordatorio:</b> tu plan vence el <b>{{ plan_aviso.hasta }}</b>{% if plan_aviso.dias > 1 %} (faltan {{ plan_aviso.dias }} días){% elif plan_aviso.dias == 1 %} (falta 1 día){% elif plan_aviso.dias == 0 %} (vence hoy){% endif %}. Mantén tu pago al día para no interrumpir el servicio.
+                <b>Suscripción ACTIVA</b> · próximo pago <b>{{ plan_aviso.hasta }}</b>{% if plan_aviso.dias > 1 %} (faltan {{ plan_aviso.dias }} días){% elif plan_aviso.dias == 1 %} (falta 1 día){% elif plan_aviso.dias == 0 %} (vence hoy){% endif %}.
                 {% else %}
-                <b>Recordatorio:</b> tu plan está <b>activo</b> — sin fecha de vencimiento programada.
+                <b>Suscripción activa</b> — sin fecha de vencimiento programada.
                 {% endif %}
                 {% endif %}
             </span>
