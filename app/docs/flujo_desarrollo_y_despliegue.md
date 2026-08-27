@@ -11,7 +11,8 @@
 - **Un solo código COMPARTIDO** — repo `AndersonGRC/CyberShop` en `/var/www/CyberShop`. Todas
   las instancias corren el mismo código; se diferencian por su `.env` y su base de datos.
 - **Una instancia por cliente** — `cybershop@<slug>.service` (puerto propio); el cliente primario
-  corre como `cybershop.service`. Cada cliente carga el código nuevo **al reiniciar su instancia**.
+  corre como `cybershop.service`. Cada cliente carga el código nuevo al hacer **`reload` graceful**
+  (código/plantillas) o `restart` (env/venv/unit) de su instancia.
 - **Panel de administración** — repo `AndersonGRC/Cybershop_innovation` en `/var/www/CyberShopAdmin`
   (`admin.cybershopcol.com`). Desde aquí se crean clientes y se les **llevan las actualizaciones**.
 - **Dos caras del app:**
@@ -55,13 +56,14 @@ Las actualizaciones deben **COMPLEMENTAR, no AFECTAR** a cada cliente:
 4. **Lleva la actualización a cada cliente** — panel `admin.cybershopcol.com` → tenant → pestaña
    **Técnico**:
    - **⬆ Actualizar app (después del login)** — el uso normal. Trae el código (con *gate*), migra
-     su BD (aditivo) y reinicia su instancia. **Se BLOQUEA** si el push tocó archivos del sitio
+     su BD (aditivo) y recarga su instancia. **Se BLOQUEA** si el push tocó archivos del sitio
      público (te dice cuáles) y no aplica nada.
    - **🌐 Deploy completo (incluye público)** — úsalo **solo** cuando quieras publicar también los
      cambios del sitio público.
 
-> El código es global: al pulsar el botón para un cliente, se hace `git pull` (sirve a todos) y se
-> reinicia **esa** instancia. Repite por cada cliente que quieras actualizar.
+> El código es global: al pulsar el botón para un cliente, se hace `git pull` (queda disponible para
+> todos) y se recarga **esa** instancia. El operador debe ser siempre el canario; no actualizar un
+> cliente hasta que el smoke del operador haya pasado.
 
 ---
 
@@ -122,4 +124,21 @@ sin desfases. En su lugar, el deploy **detecta** si traería archivos del **siti
 - [ ] Por cliente: **Actualizar app** (o **Deploy completo** si el cambio público es intencional).
 - [ ] Verificar que la marca/datos del cliente quedaron intactos.
 - [ ] Nunca `git add` de `app/static/media/**` (medios de clientes).
+
+---
+
+## 8. Despliegue sin caída: canario y rollout escalonado
+
+1. Guardar el commit actual del servidor y comprobar el estado de Git/overrides.
+2. Aplicar primero cualquier migración aditiva e idempotente; el código anterior debe tolerarla.
+3. Hacer `git merge --ff-only origin/master` una sola vez.
+4. Ejecutar `systemctl reload cybershop.service` y comprobar: servicio activo, home 200,
+   ruta protegida 302, request en curso sin 502 y journal sin errores nuevos.
+5. Solo entonces recargar clientes activos en lotes pequeños, con smoke por tenant/lote.
+6. Detener el rollout ante el primer fallo. Publicar un commit de reversión sobre `master`,
+   aplicarlo con `merge --ff-only` y recargar únicamente el canario antes de continuar.
+
+`reload` es seguro para cambios Python/Jinja/estáticos porque gunicorn recibe SIGHUP. Usar
+`restart` cuando cambien dependencias del venv, variables de entorno o unidades systemd; esos
+cambios requieren una ventana controlada y el mismo orden canario → lotes.
 

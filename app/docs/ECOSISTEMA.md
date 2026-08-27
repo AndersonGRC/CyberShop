@@ -40,7 +40,7 @@
   (puerto/subdominio/dominio por cliente), `sync_api_keys`, `admin_users`.
 - **Aislamiento**: cada cliente tiene su **BD propia** (`cyber_tNNN`) y su
   **instancia propia** (puerto distinto). El código es uno solo: actualizar a
-  todos = `git pull` + reiniciar instancias.
+  todos = `git pull` + `reload` graceful escalonado de las instancias.
 - **Backups**: cron diario 3:30am (`/usr/local/bin/cybershop-backup.sh`) de
   todas las BDs a `/var/backups/cybershop/` con rotación de 7 días.
 - **Seguridad**: ufw deny-by-default, fail2ban, HSTS, panel maestro con PIN +
@@ -96,18 +96,18 @@ Un pago de plan mensual crea la tienda y notifica, sin intervención:
 ## 4. Flujos de actualización (DEV → GitHub → PROD)
 
 Regla de oro: **desarrollar y probar en local primero**, luego `git push`, y
-en el servidor `git pull` (+ restart). Nunca editar directo en producción.
+en el servidor `git pull` + canario + `reload` graceful escalonado. Nunca editar directo en producción.
 
 | Qué cambias | Cómo se actualiza producción |
 |---|---|
-| App web (CyberShop) | `cd /var/www/CyberShop && git pull` → `systemctl restart cybershop` (y `cybershop@*` si hay instancias de clientes) |
+| App web (CyberShop) | `git pull` → migración aditiva previa si aplica → `systemctl reload cybershop.service` como canario → smoke → `reload` de `cybershop@*` en lotes |
 | Maestro | `cd /var/www/CyberShopAdmin && sudo -u www-data git pull` → `systemctl restart cybershop-admin` |
 | Esquema de BD de clientes | Migración **aditiva** en `CyberShopAdmin/migrations/tenant/` → `tools/migrate_tenants.py` (idempotente, no toca datos) |
 | Escritorio | `build_installer.bat` → subir `CyberShopSetup_base.exe` a `static/installers/` del servidor (NO viaja por git) + bump de `version.json` para el auto-update |
 
 ### 4.1. Tres capas: qué se actualiza a todos y qué es por cliente
 
-El código es **compartido**: un cambio llega a TODOS al hacer `git pull` + restart. Lo que diverge por cliente NO vive en el código compartido, sino en estas capas:
+El código es **compartido**: un cambio queda disponible para TODOS al hacer `git pull`; cada instancia lo carga al hacer `reload`/`restart`. Lo que diverge por cliente NO vive en el código compartido, sino en estas capas:
 
 | Capa | Qué es | Regla de actualización |
 |---|---|---|
@@ -123,9 +123,21 @@ Para personalizar el **sitio público** de UN cliente sin afectar a otros y sin 
 
 - Carpeta **fuera del repo**: `/var/www/cybershop-overrides/<slug>/{templates,static}` (la crea el provisioning del maestro; `git pull` nunca la toca).
 - La app del cliente la engancha vía `INSTANCE_OVERRIDES_DIR` (env de su instancia): un `ChoiceLoader` de Jinja y una vista `static` propia hacen que **sus** plantillas/estáticos **pisen** a los compartidos **solo para él**. Si no hay archivo override, cae a lo compartido (así los fixes globales siguen llegando). Ver `app.py` y `config.py`.
-- **Regla de oro**: las personalizaciones a medida JAMÁS se editan dentro de `/var/www/CyberShop`; van en la carpeta de overrides del cliente. Tras colocarlas, `systemctl restart cybershop@<slug>` (o botón "Actualizar a última versión" en el maestro).
+- **Regla de oro**: las personalizaciones a medida JAMÁS se editan dentro de `/var/www/CyberShop`; van en la carpeta de overrides del cliente. Tras colocarlas, usar `systemctl reload cybershop@<slug>` si solo cambian archivos; usar `restart` únicamente si cambia env/venv/unit (o el botón "Actualizar a última versión" en el maestro).
 
 **Contrato de datos del sitio público** (para que los themes a medida sobrevivan a las actualizaciones): las plantillas son **solo presentación** y consumen un modelo estable que provee el backend compartido — variables de contexto como `brand_config`, `config_global`, `active_modules`, y el contenido `public_site_*` (publicaciones, novedades, servicios, productos). Un arreglo de **lógica/datos** llega a todos (incluidos los de theme propio) porque vive en el backend, no en la plantilla. Cambios a ese contrato deben ser **retrocompatibles**.
+
+### 4.3. Canario, rollout y reversión
+
+- Para código y plantillas, `cybershop@.service` dispone de `ExecReload` con SIGHUP: usar
+  `systemctl reload`, que levanta workers nuevos y deja terminar las peticiones en curso.
+- `restart` es obligatorio cuando cambia el venv, el `EnvironmentFile` o el unit systemd.
+- El primer objetivo siempre es `cybershop.service` (operador). Verificar home 200, una ruta
+  protegida con 302 y ausencia de errores nuevos en journal antes de tocar clientes.
+- Recargar clientes activos en lotes pequeños, verificando cada lote. Ante el primer fallo,
+  detenerse; no continuar con los demás tenants.
+- Guardar el commit previo y preparar un commit de reversión que sea descendiente de `master`,
+  para aplicarlo con `merge --ff-only` sin pisar overrides locales del servidor.
 
 ## 5. Documentación por proyecto
 
