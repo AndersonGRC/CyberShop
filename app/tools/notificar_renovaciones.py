@@ -102,7 +102,10 @@ def main():
     master_on = int(getattr(Config, 'AUTO_SUSPENDER_DIAS', 0) or 0) > 0
     DEFAULT_GRACE = 30
     operador = Config.MAIL_USERNAME
-    compras = pcs.compras_para_recordatorio()
+    # dict() por fila: las filas de RealDictCursor NO admiten claves nuevas
+    # (RealDictRow lanza KeyError al asignar), y el puente panel→motor agrega
+    # 'dias_suspension_cfg'/'auto_suspender_cfg'. Convertir evita romper el puente.
+    compras = [dict(c) for c in pcs.compras_para_recordatorio()]
     print(f"[{hoy}] {len(compras)} compras activas con fecha de cobro "
           f"(auto-suspensión: {'OFF' if not master_on else f'ON, plazo por cliente (default {DEFAULT_GRACE}d)'})")
     _sincronizar_desde_panel(compras)
