@@ -377,7 +377,7 @@ def _trial_banner_info():
     """{'dias': N, 'url': ...} si la instancia está en prueba gratis; None si no."""
     import time as _time
     from datetime import date as _date
-    if _time.time() - _TRIAL_CACHE['ts'] < 600:
+    if _time.time() - _TRIAL_CACHE['ts'] < 60:
         return _TRIAL_CACHE['data']
     data = None
     try:
@@ -408,7 +408,7 @@ def _plan_expiry_info():
     tenant (ver billing_service.sync_billing_to_tenant)."""
     import time as _time
     from datetime import date as _date
-    if _time.time() - _PLAN_CACHE['ts'] < 600:
+    if _time.time() - _PLAN_CACHE['ts'] < 60:
         return _PLAN_CACHE['data']
     data = None
     try:
