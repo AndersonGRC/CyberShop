@@ -18,11 +18,21 @@ cambio no está terminado. Aplica a todos los productos y clientes (incl. CyberS
 python app.py  # Starts Flask dev server on http://0.0.0.0:5001
 ```
 
-There is no formal build system, test suite, or linter configured. Dependencies are managed via pip:
+Dependencies are managed via pip (fuente única en la raíz del repo; `app/requirements.txt` delega con `-r ../requirements.txt`):
 
 ```bash
 pip install -r requirements.txt
 ```
+
+**Sí hay pruebas** (`pytest`) en `app/tests/` — `conftest.py` **bloquea** correr contra cualquier BD que no sea `cyber_t002`/`cybershop_test` (la suite escribe/limpia datos). Ejecutar en el servidor con el venv de prod:
+
+```bash
+DB_NAME=cyber_t002 env/bin/python -m pytest tests/ -q
+```
+
+Aún no hay linter ni CI configurado.
+
+**Despliegue sin caída:** los cambios de código/plantilla se aplican con `systemctl reload` (gunicorn recarga graceful vía rolling reload, sin cortar); `restart` queda para cambios de env/venv/unit. Canario en el operador + smoke + lotes. Ver `CONTEXTO_IA_SERVIDOR.md` y `OPCIONES_DE_MEJORA.md` (HA-01).
 
 ## Architecture
 
