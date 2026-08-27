@@ -421,6 +421,20 @@ def _plan_expiry_info():
         off = str(filas.get('plan_avisos_off', '')).strip().lower() in _truthy
         forzar = str(filas.get('plan_aviso_forzar', '')).strip().lower() in _truthy
         vence = (filas.get('plan_vence') or '').strip()
+        if not vence:
+            # Fallback autoritativo: si el maestro aún no sincronizó 'plan_vence' al
+            # cliente_config, leer la próxima fecha directo del control plane (misma
+            # fuente que usa el sync). Read-only, fail-open. El operador (tenant 1)
+            # normalmente no tiene fecha → se queda vacío (recordatorio sin fecha).
+            try:
+                with _cp_cursor_susp(dict_cursor=True) as _cpc:
+                    _cpc.execute("SELECT proxima_fecha FROM tenant_billing WHERE tenant_id = %s",
+                                 (_INSTANCE_TENANT_ID,))
+                    _r = _cpc.fetchone()
+                if _r and _r.get('proxima_fecha'):
+                    vence = _r['proxima_fecha'].isoformat()
+            except Exception:
+                pass
         if not off:
             hasta = None
             dias = None

@@ -110,7 +110,12 @@
            (no pop-up). Amarilla para por_vencer/recordatorio, roja para vencido. #}
         <style>
         .plan-aviso-banner { display:flex; align-items:center; gap:12px; flex-wrap:wrap;
-            padding:11px 18px; font-size:14px; font-weight:600; line-height:1.35; }
+            margin:-36px -32px 24px;            /* banda de lado a lado: cancela el padding de <main> */
+            padding:13px 32px; font-size:14px; font-weight:600; line-height:1.35;
+            box-shadow:0 3px 8px rgba(0,0,0,.05); }
+        @media (max-width:768px) {
+            .plan-aviso-banner { margin:-18px -14px 18px; padding:11px 14px; }
+        }
         .plan-aviso-banner .pa-ic { font-size:18px; line-height:1; }
         .plan-aviso-banner .pa-msg { flex:1; min-width:200px; }
         .plan-aviso-banner .pa-x { background:transparent; border:0; font-size:20px; line-height:1;
@@ -130,7 +135,11 @@
                 {% elif plan_aviso.estado == 'por_vencer' %}
                 Tu plan está <b>próximo a vencer</b>{% if plan_aviso.dias > 1 %} (faltan {{ plan_aviso.dias }} días){% elif plan_aviso.dias == 1 %} (falta 1 día){% else %} (vence hoy){% endif %}{% if plan_aviso.hasta %} — vence el {{ plan_aviso.hasta }}{% endif %}. Realiza tu pago para no interrumpir el servicio.
                 {% else %}
-                <b>Recordatorio</b> del estado de tu plan{% if plan_aviso.hasta %} — vence el {{ plan_aviso.hasta }}{% if plan_aviso.dias > 0 %} (faltan {{ plan_aviso.dias }} días){% endif %}{% endif %}.
+                {% if plan_aviso.hasta %}
+                <b>Recordatorio:</b> tu plan vence el <b>{{ plan_aviso.hasta }}</b>{% if plan_aviso.dias > 1 %} (faltan {{ plan_aviso.dias }} días){% elif plan_aviso.dias == 1 %} (falta 1 día){% elif plan_aviso.dias == 0 %} (vence hoy){% endif %}. Mantén tu pago al día para no interrumpir el servicio.
+                {% else %}
+                <b>Recordatorio:</b> tu plan está <b>activo</b> — sin fecha de vencimiento programada.
+                {% endif %}
                 {% endif %}
             </span>
             <button type="button" id="plan-aviso-cerrar" class="pa-x" aria-label="Cerrar aviso" title="Ocultar hoy">&times;</button>
