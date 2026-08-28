@@ -1,0 +1,61 @@
+{% extends "crm_base.html" %}
+
+{% block crm_content %}
+<div class="crm-page-head">
+    <div>
+        <h1 class="crm-h1">Búsqueda</h1>
+        <p class="crm-sub">Resultados para “{{ q_global }}” en contactos, oportunidades y tickets.</p>
+    </div>
+</div>
+
+<section class="grid-2">
+    <article class="card">
+        <div class="card-head"><h3><i class="fas fa-address-book"></i> Contactos</h3></div>
+        <div class="card-body">
+            {% for c in resultados.contactos %}
+            <div class="row-item">
+                <div class="avatar">{{ c.nombre|iniciales }}</div>
+                <div class="grow">
+                    <div class="r-title"><a href="{{ url_for('crm.crm_contacto_ver', id=c.id) }}">{{ c.nombre }}</a></div>
+                    <div class="r-meta">{{ c.empresa or 'Sin empresa' }} · {{ c.email or 'Sin email' }}</div>
+                </div>
+            </div>
+            {% else %}
+            <div class="empty">No hay coincidencias.</div>
+            {% endfor %}
+        </div>
+    </article>
+
+    <article class="card">
+        <div class="card-head"><h3><i class="fas fa-ticket"></i> Tickets</h3></div>
+        <div class="card-body">
+            {% for t in resultados.tickets %}
+            <div class="row-item">
+                <div class="grow">
+                    <div class="r-title">{{ t.asunto }}</div>
+                    <div class="r-meta">{{ t.estado }} · {{ t.fecha_creacion.strftime('%d/%m/%y') if t.fecha_creacion else '—' }}</div>
+                </div>
+            </div>
+            {% else %}
+            <div class="empty">No hay tickets coincidentes.</div>
+            {% endfor %}
+        </div>
+    </article>
+</section>
+
+<article class="card" style="margin-top:16px">
+    <div class="card-head"><h3><i class="fas fa-bullseye"></i> Oportunidades</h3></div>
+    <div class="card-body">
+        {% for o in resultados.oportunidades %}
+        <div class="row-item">
+            <div class="grow">
+                <div class="r-title"><a href="{{ url_for('crm.oportunidad_editar', id=o.id) }}">{{ o.titulo }}</a></div>
+                <div class="r-meta">{{ o.contacto_nombre }} · {{ o.etapa }} · ${{ '{:,.0f}'.format(o.monto_estimado or 0) }}</div>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty">No hay oportunidades coincidentes.</div>
+        {% endfor %}
+    </div>
+</article>
+{% endblock %}

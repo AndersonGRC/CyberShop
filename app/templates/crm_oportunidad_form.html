@@ -75,6 +75,18 @@
                 </div>
             </div>
 
+            <div class="form-row">
+                <div class="col-md-4 form-group">
+                    <label>Línea de negocio</label>
+                    <select name="linea_negocio" class="form-control">
+                        <option value="">—</option>
+                        {% for l in (lineas or []) %}
+                        <option value="{{ l }}" {% if oportunidad and oportunidad.linea_negocio == l %}selected{% endif %}>{{ l }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
             <div class="form-group">
                 <label>Descripción</label>
                 <textarea name="descripcion" class="form-control" rows="3">{{ oportunidad.descripcion if oportunidad else '' }}</textarea>

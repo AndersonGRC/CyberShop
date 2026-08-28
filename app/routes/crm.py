@@ -7,12 +7,13 @@ registro de actividades/seguimientos y tareas pendientes.
 
 import os
 from datetime import datetime, date
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, current_app as app
 from helpers_gmail import enviar_email_gmail
 from werkzeug.utils import secure_filename
 from database import get_db_cursor
 from helpers import get_data_app
 from security import registrar_guard_permiso, rol_requerido, ADMIN_STAFF
+from tenant_features import MODULE_CRM, get_current_tenant_id, is_module_active
 
 crm_bp = Blueprint('crm', __name__, url_prefix='/admin/crm')
 
@@ -22,6 +23,138 @@ registrar_guard_permiso(crm_bp, 'crm')
 
 UPLOAD_DIR = os.path.join('static', 'crm', 'fotos')
 ALLOWED_EXT = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
+
+# ── CRM v2 ────────────────────────────────────────────────────────────────
+# Etiquetas COMERCIALES del pipeline. Las CLAVES internas NO cambian (para no
+# romper las automatizaciones cotización→oportunidad ni el drag&drop).
+ETAPAS_COMERCIALES = {
+    'prospecto':   'Nuevo',
+    'calificado':  'Contactado',
+    'propuesta':   'Cotización',
+    'negociacion': 'Negociación',
+    'ganada':      'Ganado',
+    'perdida':     'Perdida',
+}
+# Columnas activas del tablero (perdida = colapsable / filtro).
+ETAPAS_ACTIVAS = ['prospecto', 'calificado', 'propuesta', 'negociacion', 'ganada']
+LINEAS_NEGOCIO = ['POS', 'Software', 'Hardware', 'Servicio']
+DIAS_ESTANCADA = 7  # días sin movimiento para marcar "Sin movimiento"
+
+_CRM_V2_READY = False
+
+
+def _ensure_crm_v2_schema():
+    """Auto-sana el esquema CRM v2 (aditivo e idempotente). Una vez por proceso;
+    tolera cualquier fallo (fail-open) para no tumbar el módulo."""
+    global _CRM_V2_READY
+    if _CRM_V2_READY:
+        return
+    try:
+        with get_db_cursor() as cur:
+            cur.execute("ALTER TABLE crm_oportunidades ADD COLUMN IF NOT EXISTS linea_negocio VARCHAR(40)")
+            cur.execute("ALTER TABLE tickets_soporte ADD COLUMN IF NOT EXISTS crm_contacto_id INTEGER "
+                        "REFERENCES crm_contactos(id) ON DELETE SET NULL")
+            cur.execute("CREATE INDEX IF NOT EXISTS idx_tickets_crm_contacto ON tickets_soporte(crm_contacto_id)")
+        _CRM_V2_READY = True
+    except Exception:
+        pass
+
+
+@crm_bp.before_request
+def _crm_v2_guard():
+    _ensure_crm_v2_schema()
+
+
+@crm_bp.before_request
+def _crm_module_guard():
+    tenant_id = get_current_tenant_id()
+    if is_module_active(MODULE_CRM, tenant_id):
+        return None
+    if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': False, 'error': 'module_disabled', 'module_code': MODULE_CRM}), 403
+    flash('El modulo CRM no esta activo para este tenant.', 'warning')
+    return redirect(url_for('admin.dashboard_admin'))
+
+
+def _iniciales(nombre):
+    partes = [p for p in str(nombre or '').split() if p]
+    if not partes:
+        return '??'
+    if len(partes) == 1:
+        return partes[0][:2].upper()
+    return (partes[0][0] + partes[-1][0]).upper()
+
+
+@crm_bp.app_template_filter('iniciales')
+def _filtro_iniciales(n):
+    return _iniciales(n)
+
+
+@crm_bp.app_template_filter('avatarcolor')
+def _filtro_avatarcolor(uid):
+    try:
+        return 'a%d' % ((int(uid) % 6) + 1)
+    except Exception:
+        return 'a1'
+
+
+def _tu_dia_senales(cur, hoy):
+    """Calcula las señales prioritarias del día (reglas deterministas). Devuelve
+    (tarjetas, senales_texto). Cada bloque es independiente y fail-open."""
+    tarjetas, senales = [], []
+    # S1 — tarea más vencida
+    try:
+        cur.execute("""
+            SELECT t.id, t.titulo, t.fecha_limite, c.id AS contacto_id,
+                   (CURRENT_DATE - t.fecha_limite) AS dias
+              FROM crm_tareas t JOIN crm_contactos c ON t.contacto_id = c.id
+             WHERE t.estado = 'pendiente' AND t.fecha_limite < CURRENT_DATE
+             ORDER BY t.fecha_limite ASC LIMIT 1""")
+        r = cur.fetchone()
+        if r:
+            d = r['dias']
+            tarjetas.append({
+                'icon': 'clock', 'tag': 'Vencida hace %d día%s' % (d, 's' if d != 1 else ''),
+                'msg': r['titulo'],
+                'actions': [
+                    {'label': 'Completar', 'kind': 'post', 'url': url_for('crm.crm_tarea_completar', id=r['id'])},
+                    {'label': 'Ver contacto', 'kind': 'link', 'url': url_for('crm.crm_contacto_ver', id=r['contacto_id'])},
+                ]})
+            senales.append('Tarea "%s" vencida hace %d días' % (r['titulo'], d))
+    except Exception:
+        pass
+    # S2 — pedidos aprobados por facturar (últimos 30 días)
+    try:
+        cur.execute("""
+            SELECT COUNT(*) AS n, COALESCE(SUM(monto_total),0) AS monto FROM pedidos
+             WHERE estado_pago = 'APROBADO'
+               AND fecha_creacion >= CURRENT_DATE - INTERVAL '30 days'""")
+        r = cur.fetchone()
+        if r and r['n']:
+            tarjetas.append({
+                'icon': 'file-invoice', 'tag': '%d pedido%s por facturar' % (r['n'], 's' if r['n'] != 1 else ''),
+                'msg': '$%s en pedidos aprobados este mes por revisar' % '{:,.0f}'.format(float(r['monto'] or 0)),
+                'actions': [{'label': 'Revisar pedidos', 'kind': 'link', 'url': url_for('admin.gestion_pedidos')}]})
+            senales.append('%d pedidos aprobados por facturar' % r['n'])
+    except Exception:
+        pass
+    # S3 — oportunidades estancadas (sin movimiento > N días)
+    try:
+        cur.execute("""
+            SELECT COUNT(*) AS n FROM crm_oportunidades
+             WHERE etapa NOT IN ('ganada','perdida')
+               AND (CURRENT_DATE - updated_at::date) > %s""", (DIAS_ESTANCADA,))
+        n = cur.fetchone()['n']
+        if n:
+            tarjetas.append({
+                'icon': 'bullseye', 'tag': 'Sin movimiento',
+                'msg': '%d oportunidad%s lleva%s más de %d días sin contacto' % (
+                    n, 'es' if n != 1 else '', 'n' if n != 1 else '', DIAS_ESTANCADA),
+                'actions': [{'label': 'Ver pipeline', 'kind': 'link', 'url': url_for('crm.pipeline', estancadas='1')}]})
+            senales.append('%d oportunidades estancadas' % n)
+    except Exception:
+        pass
+    return tarjetas, senales
 
 
 def _sync_google_calendar(tabla, registro_id, usuario_id, summary, description, start_date, end_date, invitados_raw):
@@ -89,6 +222,18 @@ def _eliminar_foto(foto_path):
 @crm_bp.route('/')
 @rol_requerido(ADMIN_STAFF)
 def crm_dashboard():
+    saludo = 'CRM'
+    try:
+        correo = session.get('email')
+        if correo:
+            with get_db_cursor(dict_cursor=True) as cur:
+                cur.execute("SELECT nombre FROM usuarios WHERE email = %s LIMIT 1", (correo,))
+                fila = cur.fetchone()
+                if fila and fila.get('nombre'):
+                    saludo = fila['nombre'].split()[0]
+    except Exception:
+        pass
+
     with get_db_cursor(dict_cursor=True) as cur:
         # Conteo por tipo
         cur.execute("""
@@ -112,6 +257,38 @@ def crm_dashboard():
         """)
         tareas_hoy = cur.fetchone()['total']
 
+        cur.execute("""
+            SELECT COUNT(*) AS total
+              FROM crm_oportunidades
+             WHERE etapa NOT IN ('ganada', 'perdida')
+               AND (CURRENT_DATE - updated_at::date) > %s
+        """, (DIAS_ESTANCADA,))
+        oportunidades_estancadas = cur.fetchone()['total']
+
+        cur.execute("""
+            SELECT COUNT(*) AS total, COALESCE(SUM(monto_estimado), 0) AS monto
+              FROM crm_oportunidades
+             WHERE etapa NOT IN ('ganada', 'perdida')
+        """)
+        pipeline_activo = cur.fetchone()
+
+        cur.execute("""
+            SELECT COUNT(*) AS total, COALESCE(SUM(monto_estimado), 0) AS monto
+              FROM crm_oportunidades
+             WHERE etapa = 'ganada'
+               AND DATE_PART('month', COALESCE(fecha_cierre_real, updated_at)) = DATE_PART('month', CURRENT_DATE)
+               AND DATE_PART('year', COALESCE(fecha_cierre_real, updated_at)) = DATE_PART('year', CURRENT_DATE)
+        """)
+        ganado_mes = cur.fetchone()
+
+        cur.execute("""
+            SELECT COUNT(*) AS total
+              FROM pedidos
+             WHERE estado_pago = 'APROBADO'
+               AND fecha_creacion >= CURRENT_DATE - INTERVAL '30 days'
+        """)
+        pedidos_por_facturar = cur.fetchone()['total']
+
         # Actividades recientes (10)
         cur.execute("""
             SELECT a.*, c.nombre AS contacto_nombre, c.tipo AS contacto_tipo
@@ -133,22 +310,136 @@ def crm_dashboard():
         """)
         proximas_tareas = cur.fetchall()
 
+        # Señales reales del día (mismas reglas que /tu-dia) → tarjetas accionables
+        tarjetas, _senales = _tu_dia_senales(cur, date.today())
+
+        # Distribución del pipeline activo por etapa (para barras reales)
+        cur.execute("""
+            SELECT etapa, COALESCE(SUM(monto_estimado), 0) AS monto
+              FROM crm_oportunidades
+             WHERE etapa NOT IN ('ganada', 'perdida')
+             GROUP BY etapa
+        """)
+        pipe_dist = {r['etapa']: float(r['monto'] or 0) for r in cur.fetchall()}
+
+        # Meta comercial mensual (configurable en cliente_config; default 3M)
+        meta_mes = 3000000.0
+        try:
+            cur.execute("SELECT valor FROM cliente_config WHERE clave = 'crm_meta_mensual' LIMIT 1")
+            mrow = cur.fetchone()
+            if mrow and mrow.get('valor'):
+                meta_mes = float(str(mrow['valor']).replace(',', '').replace('$', '').strip() or 3000000)
+        except Exception:
+            pass
+
     # Construir dict de conteos
     conteos = {r['tipo']: r['total'] for r in conteos_raw}
     total_contactos = sum(conteos.values())
 
+    # Barras reales del pipeline (proporción por etapa activa)
+    pipe_total = float(pipeline_activo['monto'] or 0) or 1.0
+    _colores = {'prospecto': '#9aa2b6', 'calificado': '#3d7ea6',
+                'propuesta': '#e0952b', 'negociacion': '#4b57c4'}
+    barras = []
+    for k in ('prospecto', 'calificado', 'propuesta', 'negociacion'):
+        m = pipe_dist.get(k, 0)
+        if m > 0:
+            barras.append({'w': round(m / pipe_total * 100, 1), 'c': _colores[k]})
+
+    ganado_monto = float(ganado_mes['monto'] or 0)
+    meta_pct = int(min(100, round(ganado_monto / meta_mes * 100))) if meta_mes else 0
+
     from helpers_google import session_user_tiene_google
     return render_template(
         'crm_dashboard.html',
+        crm_active='inicio',
+        crm_active_label='Inicio',
+        saludo=saludo,
         conteos=conteos,
         total_contactos=total_contactos,
         tareas_vencidas=tareas_vencidas,
         tareas_hoy=tareas_hoy,
+        oportunidades_estancadas=oportunidades_estancadas,
+        pipeline_activo=pipeline_activo,
+        ganado_mes=ganado_mes,
+        pedidos_por_facturar=pedidos_por_facturar,
         actividades_recientes=actividades_recientes,
         proximas_tareas=proximas_tareas,
+        tarjetas=tarjetas,
+        barras=barras,
+        meta_mes=meta_mes,
+        meta_pct=meta_pct,
         hoy=date.today(),
         google_conectado=session_user_tiene_google(),
     )
+
+
+@crm_bp.route('/buscar')
+@rol_requerido(ADMIN_STAFF)
+def buscar():
+    q = (request.args.get('q') or '').strip()
+    if not q:
+        return redirect(url_for('crm.crm_dashboard'))
+    like = f"%{q}%"
+    resultados = {'contactos': [], 'tickets': [], 'oportunidades': []}
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute("""
+            SELECT id, nombre, empresa, email
+              FROM crm_contactos
+             WHERE activo = TRUE
+               AND (nombre ILIKE %s OR empresa ILIKE %s OR email ILIKE %s)
+             ORDER BY nombre
+             LIMIT 10
+        """, (like, like, like))
+        resultados['contactos'] = cur.fetchall()
+
+        cur.execute("""
+            SELECT id, asunto, estado, fecha_creacion
+              FROM tickets_soporte
+             WHERE asunto ILIKE %s
+             ORDER BY fecha_creacion DESC
+             LIMIT 10
+        """, (like,))
+        resultados['tickets'] = cur.fetchall()
+
+        cur.execute("""
+            SELECT o.id, o.titulo, o.etapa, o.monto_estimado, c.nombre AS contacto_nombre
+              FROM crm_oportunidades o
+              JOIN crm_contactos c ON o.contacto_id = c.id
+             WHERE o.titulo ILIKE %s OR c.nombre ILIKE %s OR c.empresa ILIKE %s
+             ORDER BY o.updated_at DESC
+             LIMIT 10
+        """, (like, like, like))
+        resultados['oportunidades'] = cur.fetchall()
+
+    return render_template(
+        'crm_buscar.html',
+        crm_active='inicio',
+        crm_active_label='Búsqueda',
+        q_global=q,
+        resultados=resultados,
+    )
+
+
+@crm_bp.route('/tu-dia', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+def tu_dia():
+    try:
+        from services.ai_service import narrar_tu_dia
+    except Exception:
+        narrar_tu_dia = None
+
+    with get_db_cursor(dict_cursor=True) as cur:
+        tarjetas, senales = _tu_dia_senales(cur, date.today())
+
+    narracion = ''
+    if narrar_tu_dia:
+        try:
+            narracion = narrar_tu_dia(senales)
+        except Exception:
+            narracion = ''
+
+    return jsonify({'ok': True, 'tarjetas': tarjetas, 'senales': senales, 'narracion': narracion})
 
 
 # ------------------------------------------------------------------
@@ -805,12 +1096,19 @@ ETAPAS_OPORTUNIDAD = [
 @crm_bp.route('/pipeline')
 @rol_requerido(ADMIN_STAFF)
 def pipeline():
-    """Kanban del pipeline de oportunidades, agrupado por etapa."""
+    """Kanban comercial del pipeline. Etiquetas comerciales, filtros
+    (responsable / línea de negocio / sin movimiento) y días sin movimiento."""
     filtro_asignado = request.args.get('asignado', '')
+    filtro_linea = request.args.get('linea', '')
+    solo_estancadas = request.args.get('estancadas', '') in ('1', 'true', 'on')
+    vista = request.args.get('vista', 'tablero')            # tablero | tabla | calendario
+    incluir_perdidas = request.args.get('perdidas', '') in ('1', 'true', 'on')
+
     with get_db_cursor(dict_cursor=True) as cur:
         sql = """
-            SELECT o.*, c.nombre AS contacto_nombre, c.tipo AS contacto_tipo,
-                   u.nombre AS asignado_nombre
+            SELECT o.*, c.nombre AS contacto_nombre, c.empresa AS contacto_empresa,
+                   c.tipo AS contacto_tipo, u.nombre AS asignado_nombre,
+                   GREATEST(0, (CURRENT_DATE - o.updated_at::date)) AS dias_sin_mov
               FROM crm_oportunidades o
               JOIN crm_contactos c ON o.contacto_id = c.id
               LEFT JOIN usuarios u ON o.asignado_a = u.id
@@ -818,8 +1116,12 @@ def pipeline():
         """
         params = []
         if filtro_asignado and filtro_asignado.isdigit():
-            sql += " AND o.asignado_a = %s"
-            params.append(int(filtro_asignado))
+            sql += " AND o.asignado_a = %s"; params.append(int(filtro_asignado))
+        if filtro_linea:
+            sql += " AND o.linea_negocio = %s"; params.append(filtro_linea)
+        if solo_estancadas:
+            sql += " AND (CURRENT_DATE - o.updated_at::date) > %s AND o.etapa NOT IN ('ganada','perdida')"
+            params.append(DIAS_ESTANCADA)
         sql += " ORDER BY o.updated_at DESC"
         cur.execute(sql, tuple(params))
         oportunidades = cur.fetchall()
@@ -827,19 +1129,32 @@ def pipeline():
         cur.execute("SELECT id, nombre FROM usuarios WHERE estado='habilitado' ORDER BY nombre")
         usuarios = cur.fetchall()
 
-    columnas = {e[0]: {'label': e[1], 'items': [], 'total': 0} for e in ETAPAS_OPORTUNIDAD}
+    etapas_col = list(ETAPAS_ACTIVAS)
+    if incluir_perdidas:
+        etapas_col.append('perdida')
+    columnas = {k: {'label': ETAPAS_COMERCIALES.get(k, k), 'items': [], 'total': 0}
+                for k in etapas_col}
+    activas_total, activas_n, estancadas_n = 0.0, 0, 0
     for o in oportunidades:
         col = columnas.get(o['etapa'])
         if col is not None:
             col['items'].append(o)
             col['total'] += float(o['monto_estimado'] or 0)
+        if o['etapa'] not in ('ganada', 'perdida'):
+            activas_total += float(o['monto_estimado'] or 0)
+            activas_n += 1
+            if (o.get('dias_sin_mov') or 0) > DIAS_ESTANCADA:
+                estancadas_n += 1
 
     return render_template(
         'crm_pipeline.html',
-        etapas=ETAPAS_OPORTUNIDAD,
-        columnas=columnas,
-        usuarios=usuarios,
-        filtro_asignado=filtro_asignado,
+        crm_active='pipeline', crm_active_label='Pipeline',
+        etapas_col=etapas_col, columnas=columnas, oportunidades=oportunidades,
+        usuarios=usuarios, lineas=LINEAS_NEGOCIO, etapas_label=ETAPAS_COMERCIALES,
+        filtro_asignado=filtro_asignado, filtro_linea=filtro_linea,
+        solo_estancadas=solo_estancadas, incluir_perdidas=incluir_perdidas, vista=vista,
+        activas_total=activas_total, activas_n=activas_n, estancadas_n=estancadas_n,
+        dias_estancada=DIAS_ESTANCADA,
     )
 
 
@@ -861,6 +1176,7 @@ def oportunidad_crear(contacto_id=None):
         fecha_cierre_est = request.form.get('fecha_cierre_est') or None
         descripcion = (request.form.get('descripcion') or '').strip() or None
         fuente = request.form.get('fuente') or None
+        linea_negocio = (request.form.get('linea_negocio') or '').strip() or None
 
         if not titulo or not c_id:
             flash('Título y contacto son obligatorios.', 'warning')
@@ -870,11 +1186,11 @@ def oportunidad_crear(contacto_id=None):
                 cur.execute("""
                     INSERT INTO crm_oportunidades
                         (contacto_id, titulo, descripcion, monto_estimado, probabilidad,
-                         etapa, fuente, asignado_a, fecha_cierre_est)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                         etapa, fuente, asignado_a, fecha_cierre_est, linea_negocio)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                     RETURNING id
                 """, (c_id, titulo, descripcion, monto, prob, etapa, fuente,
-                      asignado_a, fecha_cierre_est))
+                      asignado_a, fecha_cierre_est, linea_negocio))
                 new_id = cur.fetchone()['id']
             flash('Oportunidad creada.', 'success')
             return redirect(url_for('crm.oportunidad_editar', id=new_id))
@@ -898,7 +1214,7 @@ def oportunidad_crear(contacto_id=None):
     return render_template(
         'crm_oportunidad_form.html', modo='crear', oportunidad=None,
         contactos=contactos, usuarios=usuarios, etapas=ETAPAS_OPORTUNIDAD,
-        preselect_contacto=preselect,
+        lineas=LINEAS_NEGOCIO, preselect_contacto=preselect,
     )
 
 
@@ -915,13 +1231,14 @@ def oportunidad_editar(id):
         descripcion = (request.form.get('descripcion') or '').strip() or None
         motivo_perdida = (request.form.get('motivo_perdida') or '').strip()[:160] or None
         fuente = request.form.get('fuente') or None
+        linea_negocio = (request.form.get('linea_negocio') or '').strip() or None
         try:
             with get_db_cursor() as cur:
                 sets = ['titulo=%s','descripcion=%s','monto_estimado=%s','probabilidad=%s',
                         'etapa=%s','fuente=%s','asignado_a=%s','fecha_cierre_est=%s',
-                        'motivo_perdida=%s','updated_at=NOW()']
+                        'motivo_perdida=%s','linea_negocio=%s','updated_at=NOW()']
                 vals = [titulo, descripcion, monto, prob, etapa, fuente,
-                        asignado_a, fecha_cierre_est, motivo_perdida]
+                        asignado_a, fecha_cierre_est, motivo_perdida, linea_negocio]
                 if etapa in ('ganada','perdida'):
                     sets.append('fecha_cierre_real=COALESCE(fecha_cierre_real, CURRENT_DATE)')
                 vals.append(id)
@@ -957,7 +1274,7 @@ def oportunidad_editar(id):
     return render_template(
         'crm_oportunidad_form.html', modo='editar', oportunidad=op,
         contactos=contactos, usuarios=usuarios, etapas=ETAPAS_OPORTUNIDAD,
-        preselect_contacto=None,
+        lineas=LINEAS_NEGOCIO, preselect_contacto=None,
     )
 
 

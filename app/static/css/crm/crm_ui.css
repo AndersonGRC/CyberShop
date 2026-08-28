@@ -1,0 +1,226 @@
+/* ==========================================================================
+   crm_ui.css — Sistema de diseño moderno del CRM (CyberShop)
+   Todo va scopeado bajo .crm2 para NO chocar con Bootstrap 4 / SB-Admin que
+   carga el layout admin. Usa las variables de marca (variables.css) con
+   fallbacks seguros por si algún tenant no las tuviera.
+   ========================================================================== */
+
+.crm2 {
+    --c-primario: var(--color-primario, #1e2b6f);
+    --c-primario-osc: var(--color-primario-oscuro, #12205a);
+    --c-tinta: #14233f;
+    --c-texto: #2b3350;
+    --c-suave: #6b7391;
+    --c-linea: #e6e8ef;
+    --c-linea-2: #eef0f5;
+    --c-fondo: #f6f7fb;
+    --c-blanco: #ffffff;
+    --c-ok: #1f9d57;
+    --c-ok-bg: #e7f7ee;
+    --c-warn: #c98a00;
+    --c-warn-bg: #fef6e0;
+    --c-danger: #d64545;
+    --c-danger-bg: #fdeaea;
+    --r-sm: 8px;
+    --r-md: 12px;
+    --r-lg: 16px;
+    --sombra: 0 1px 2px rgba(20,35,63,.04), 0 2px 8px rgba(20,35,63,.05);
+    --sombra-hover: 0 6px 20px rgba(20,35,63,.10);
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    color: var(--c-texto);
+    -webkit-font-smoothing: antialiased;
+}
+.crm2 *, .crm2 *::before, .crm2 *::after { box-sizing: border-box; }
+.crm2 a { color: inherit; text-decoration: none; }
+
+/* ── Encabezado de sección + subnav ────────────────────────────────────── */
+.crm2 .crm-topbar { display:flex; align-items:center; justify-content:space-between;
+    gap:14px; flex-wrap:wrap; margin-bottom:18px; }
+.crm2 .crm-breadcrumb { font-size:.82rem; color:var(--c-suave); font-weight:600;
+    display:flex; align-items:center; gap:7px; }
+.crm2 .crm-breadcrumb b { color:var(--c-tinta); }
+.crm2 .crm-search { position:relative; flex:1; max-width:440px; min-width:180px; }
+.crm2 .crm-search input { width:100%; border:1px solid var(--c-linea); background:var(--c-blanco);
+    border-radius:10px; padding:9px 14px 9px 38px; font-size:.9rem; color:var(--c-texto);
+    outline:none; transition:border-color .15s, box-shadow .15s; }
+.crm2 .crm-search input:focus { border-color:var(--c-primario);
+    box-shadow:0 0 0 3px rgba(30,43,111,.10); }
+.crm2 .crm-search .crm-search-ic { position:absolute; left:13px; top:50%;
+    transform:translateY(-50%); color:var(--c-suave); font-size:.9rem; }
+.crm2 .crm-search kbd { position:absolute; right:10px; top:50%; transform:translateY(-50%);
+    font-size:.68rem; color:var(--c-suave); background:var(--c-fondo);
+    border:1px solid var(--c-linea); border-radius:5px; padding:1px 6px; }
+
+.crm2 .crm-subnav { display:flex; gap:4px; background:var(--c-blanco); border:1px solid var(--c-linea);
+    border-radius:12px; padding:4px; margin-bottom:22px; width:max-content; max-width:100%;
+    overflow-x:auto; }
+.crm2 .crm-subnav a { padding:8px 16px; border-radius:9px; font-size:.86rem; font-weight:600;
+    color:var(--c-suave); white-space:nowrap; display:flex; align-items:center; gap:7px; }
+.crm2 .crm-subnav a:hover { color:var(--c-tinta); background:var(--c-fondo); }
+.crm2 .crm-subnav a.active { color:var(--c-blanco); background:var(--c-primario); }
+
+/* ── Títulos ───────────────────────────────────────────────────────────── */
+.crm2 .crm-h1 { font-size:1.9rem; font-weight:800; color:var(--c-tinta); margin:0 0 4px; letter-spacing:-.02em; }
+.crm2 .crm-sub { color:var(--c-suave); font-size:.9rem; margin:0; }
+.crm2 .crm-page-head { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-bottom:20px; }
+
+/* ── Botones ───────────────────────────────────────────────────────────── */
+.crm2 .crm-btn { display:inline-flex; align-items:center; gap:8px; border:1px solid transparent;
+    border-radius:10px; padding:9px 16px; font-size:.86rem; font-weight:700; cursor:pointer;
+    transition:transform .08s, box-shadow .15s, background .15s; white-space:nowrap; }
+.crm2 .crm-btn:active { transform:translateY(1px); }
+.crm2 .crm-btn-primary { background:var(--c-primario); color:#fff; }
+.crm2 .crm-btn-primary:hover { background:var(--c-primario-osc); box-shadow:0 4px 14px rgba(30,43,111,.25); }
+.crm2 .crm-btn-ghost { background:var(--c-blanco); border-color:var(--c-linea); color:var(--c-tinta); }
+.crm2 .crm-btn-ghost:hover { background:var(--c-fondo); }
+.crm2 .crm-btn-sm { padding:6px 12px; font-size:.8rem; border-radius:8px; }
+.crm2 .crm-btn-light { background:rgba(255,255,255,.16); color:#fff; }
+.crm2 .crm-btn-light:hover { background:rgba(255,255,255,.26); }
+
+/* ── Segmented toggle (Hoy/Semana/Mes) ─────────────────────────────────── */
+.crm2 .crm-seg { display:inline-flex; background:var(--c-blanco); border:1px solid var(--c-linea);
+    border-radius:10px; padding:3px; }
+.crm2 .crm-seg a { padding:6px 15px; border-radius:8px; font-size:.82rem; font-weight:700; color:var(--c-suave); }
+.crm2 .crm-seg a.active { background:var(--c-primario); color:#fff; }
+
+/* ── Panel "Tu día" ────────────────────────────────────────────────────── */
+.crm2 .tudia { background:linear-gradient(135deg,var(--c-primario),var(--c-primario-osc));
+    border-radius:var(--r-lg); padding:22px; color:#fff; margin-bottom:22px; }
+.crm2 .tudia-head { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+.crm2 .tudia-ic { width:38px; height:38px; border-radius:10px; background:rgba(255,255,255,.16);
+    display:flex; align-items:center; justify-content:center; font-size:1.05rem; }
+.crm2 .tudia-title { font-weight:800; font-size:1.05rem; line-height:1.1; }
+.crm2 .tudia-desc { font-size:.82rem; opacity:.8; }
+.crm2 .tudia-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; }
+.crm2 .tudia-card { background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.14);
+    border-radius:var(--r-md); padding:16px; display:flex; flex-direction:column; }
+.crm2 .tudia-tag { font-size:.68rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
+    opacity:.85; display:flex; align-items:center; gap:6px; margin-bottom:8px; }
+.crm2 .tudia-msg { font-size:.95rem; font-weight:600; line-height:1.3; margin-bottom:14px; flex:1; }
+.crm2 .tudia-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.crm2 .tudia-empty { font-size:.9rem; opacity:.85; }
+
+/* ── KPI cards ─────────────────────────────────────────────────────────── */
+.crm2 .kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px; margin-bottom:22px; }
+.crm2 .kpi { background:var(--c-blanco); border:1px solid var(--c-linea); border-radius:var(--r-md);
+    padding:18px; box-shadow:var(--sombra); }
+.crm2 .kpi.alert { border-color:#f3c6c6; box-shadow:0 0 0 1px #f3c6c6; }
+.crm2 .kpi-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.crm2 .kpi-label { font-size:.7rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--c-suave); }
+.crm2 .kpi-ic { color:var(--c-suave); font-size:.95rem; }
+.crm2 .kpi-value { font-size:1.85rem; font-weight:800; color:var(--c-tinta); letter-spacing:-.02em; line-height:1; }
+.crm2 .kpi-value .mini { font-size:.85rem; font-weight:700; color:var(--c-suave); }
+.crm2 .kpi-foot { font-size:.78rem; color:var(--c-suave); margin-top:10px; }
+.crm2 .kpi-foot a { color:var(--c-primario); font-weight:700; }
+.crm2 .kpi-up { color:var(--c-ok); font-weight:700; }
+/* barras de segmento (breakdown / pipeline por etapa) */
+.crm2 .kpi-bars { display:flex; gap:3px; margin-top:12px; height:8px; border-radius:6px; overflow:hidden; background:var(--c-linea-2); }
+.crm2 .kpi-bars span { display:block; height:100%; }
+.crm2 .kpi-dots { display:flex; gap:12px; flex-wrap:wrap; margin-top:10px; font-size:.74rem; color:var(--c-suave); }
+.crm2 .kpi-dots i { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:5px; }
+/* barra de progreso (meta) */
+.crm2 .kpi-progress { height:8px; border-radius:6px; background:var(--c-linea-2); overflow:hidden; margin-top:12px; }
+.crm2 .kpi-progress > span { display:block; height:100%; background:var(--c-ok); border-radius:6px; }
+
+/* ── Cards genéricas (Actividad / Tareas) ──────────────────────────────── */
+.crm2 .grid-2 { display:grid; grid-template-columns:1.3fr 1fr; gap:16px; }
+.crm2 .card { background:var(--c-blanco); border:1px solid var(--c-linea); border-radius:var(--r-md);
+    box-shadow:var(--sombra); overflow:hidden; }
+.crm2 .card-head { display:flex; align-items:center; justify-content:space-between;
+    padding:15px 18px; border-bottom:1px solid var(--c-linea-2); }
+.crm2 .card-head h3 { margin:0; font-size:.98rem; font-weight:800; color:var(--c-tinta); display:flex; align-items:center; gap:9px; }
+.crm2 .card-head .pill { font-size:.72rem; font-weight:700; color:var(--c-suave); background:var(--c-fondo); border-radius:20px; padding:3px 10px; }
+.crm2 .card-body { padding:6px 0; }
+.crm2 .row-item { display:flex; align-items:center; gap:12px; padding:11px 18px; border-bottom:1px solid var(--c-linea-2); }
+.crm2 .row-item:last-child { border-bottom:0; }
+.crm2 .row-item .grow { flex:1; min-width:0; }
+.crm2 .row-item .r-title { font-weight:700; color:var(--c-tinta); font-size:.9rem; }
+.crm2 .row-item .r-meta { font-size:.78rem; color:var(--c-suave); }
+.crm2 .row-item .r-amount { font-weight:800; color:var(--c-tinta); font-size:.9rem; }
+.crm2 .empty { text-align:center; color:var(--c-suave); font-size:.88rem; padding:26px; }
+
+/* ── Avatares ──────────────────────────────────────────────────────────── */
+.crm2 .avatar { width:26px; height:26px; border-radius:50%; background:var(--c-primario); color:#fff;
+    display:inline-flex; align-items:center; justify-content:center; font-size:.68rem; font-weight:800;
+    flex-shrink:0; border:2px solid #fff; }
+.crm2 .avatar.a1{background:#4b57c4}.crm2 .avatar.a2{background:#2e9e6b}.crm2 .avatar.a3{background:#c98a00}
+.crm2 .avatar.a4{background:#c0567a}.crm2 .avatar.a5{background:#3d7ea6}.crm2 .avatar.a6{background:#7a5cc4}
+
+/* ── Chips (línea de negocio / tags / estado) ──────────────────────────── */
+.crm2 .chip { display:inline-flex; align-items:center; gap:5px; font-size:.7rem; font-weight:700;
+    border-radius:20px; padding:3px 10px; background:var(--c-fondo); color:var(--c-suave); }
+.crm2 .chip-line { background:#eef1fb; color:#3a49a8; }
+.crm2 .chip-line[data-l="Software"]{background:#eef0ff;color:#4b45c4}
+.crm2 .chip-line[data-l="Hardware"]{background:#eef1f5;color:#556074}
+.crm2 .chip-line[data-l="Servicio"]{background:#fdf1de;color:#a5730a}
+.crm2 .chip-line[data-l="POS"]{background:#e7f0fb;color:#2f6bb0}
+.crm2 .chip-stale { background:var(--c-danger-bg); color:var(--c-danger); }
+.crm2 .chip-days { background:var(--c-fondo); color:var(--c-suave); }
+.crm2 .chip-days.warn { background:var(--c-danger-bg); color:var(--c-danger); }
+
+/* ── Prioridad tareas ──────────────────────────────────────────────────── */
+.crm2 .prio { width:9px; height:9px; border-radius:50%; display:inline-block; }
+.crm2 .prio.alta{background:var(--c-danger)}.crm2 .prio.media{background:var(--c-warn)}.crm2 .prio.baja{background:var(--c-suave)}
+.crm2 .task-check { width:18px; height:18px; border:2px solid var(--c-linea); border-radius:5px; flex-shrink:0; }
+.crm2 .badge-venc { font-size:.68rem; font-weight:800; color:var(--c-danger); background:var(--c-danger-bg); border-radius:6px; padding:2px 7px; }
+
+/* ── Pipeline (tabs + filtros + board) ─────────────────────────────────── */
+.crm2 .pipe-tabs { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:18px; }
+.crm2 .pipe-tab { display:inline-flex; align-items:center; gap:7px; padding:8px 14px; border-radius:10px;
+    border:1px solid var(--c-linea); background:var(--c-blanco); font-size:.83rem; font-weight:700; color:var(--c-suave); cursor:pointer; }
+.crm2 .pipe-tab.active { background:var(--c-primario); color:#fff; border-color:var(--c-primario); }
+.crm2 .pipe-filter { display:inline-flex; align-items:center; gap:7px; padding:8px 14px; border-radius:10px;
+    border:1px solid var(--c-linea); background:var(--c-blanco); font-size:.83rem; font-weight:700; color:var(--c-suave); }
+.crm2 .pipe-filter.on { border-color:var(--c-primario); color:var(--c-primario); box-shadow:0 0 0 2px rgba(30,43,111,.08); }
+.crm2 .pipe-filter select { border:0; background:transparent; font:inherit; color:inherit; outline:none; cursor:pointer; }
+
+.crm2 .board { display:flex; gap:14px; overflow-x:auto; padding-bottom:12px; align-items:flex-start; }
+.crm2 .col { background:var(--c-fondo); border:1px solid var(--c-linea); border-radius:var(--r-md);
+    width:288px; min-width:288px; display:flex; flex-direction:column; max-height:calc(100vh - 300px); }
+.crm2 .col-top { border-top:3px solid var(--c-suave); border-radius:var(--r-md) var(--r-md) 0 0; padding:13px 14px; }
+.crm2 .col-top .c-name { display:flex; align-items:center; gap:8px; font-weight:800; color:var(--c-tinta); font-size:.92rem; }
+.crm2 .col-top .c-dot { width:9px; height:9px; border-radius:50%; }
+.crm2 .col-top .c-count { margin-left:auto; font-size:.74rem; font-weight:800; color:var(--c-suave); background:var(--c-blanco); border-radius:20px; padding:1px 9px; }
+.crm2 .col-top .c-total { font-size:1.02rem; font-weight:800; color:var(--c-tinta); margin-top:4px; }
+.crm2 .col-body { padding:10px; overflow-y:auto; flex:1; min-height:80px; }
+.crm2 .col-body.drop { background:rgba(30,43,111,.06); }
+/* colores por etapa (borde superior + dot) */
+.crm2 .col[data-k="prospecto"]   .col-top{border-top-color:#9aa2b6}.crm2 .col[data-k="prospecto"]   .c-dot{background:#9aa2b6}
+.crm2 .col[data-k="calificado"]  .col-top{border-top-color:#3d7ea6}.crm2 .col[data-k="calificado"]  .c-dot{background:#3d7ea6}
+.crm2 .col[data-k="propuesta"]   .col-top{border-top-color:#e0952b}.crm2 .col[data-k="propuesta"]   .c-dot{background:#e0952b}
+.crm2 .col[data-k="negociacion"] .col-top{border-top-color:#4b57c4}.crm2 .col[data-k="negociacion"] .c-dot{background:#4b57c4}
+.crm2 .col[data-k="ganada"]      .col-top{border-top-color:#1f9d57}.crm2 .col[data-k="ganada"]      .c-dot{background:#1f9d57}
+.crm2 .col[data-k="perdida"]     .col-top{border-top-color:#d64545}.crm2 .col[data-k="perdida"]     .c-dot{background:#d64545}
+
+.crm2 .opp { background:var(--c-blanco); border:1px solid var(--c-linea); border-radius:10px;
+    padding:12px; margin-bottom:10px; cursor:grab; box-shadow:0 1px 2px rgba(20,35,63,.04); transition:box-shadow .15s, transform .08s; }
+.crm2 .opp:hover { box-shadow:var(--sombra-hover); transform:translateY(-1px); }
+.crm2 .opp.dragging { opacity:.4; }
+.crm2 .opp .o-title { font-weight:800; color:var(--c-tinta); font-size:.9rem; line-height:1.2; }
+.crm2 .opp .o-contact { font-size:.78rem; color:var(--c-suave); margin-top:3px; }
+.crm2 .opp .o-amount { font-weight:800; color:var(--c-tinta); font-size:1.02rem; margin-top:9px; }
+.crm2 .opp .o-foot { display:flex; align-items:center; gap:8px; margin-top:10px; }
+.crm2 .opp .o-foot .spacer { flex:1; }
+.crm2 .col-empty { text-align:center; color:var(--c-suave); font-size:.8rem; opacity:.7; padding:14px 0; }
+.crm2 .col-add { text-align:center; font-size:.8rem; font-weight:700; color:var(--c-suave);
+    border:1px dashed var(--c-linea); border-radius:8px; padding:8px; margin-top:2px; display:block; }
+.crm2 .col-add:hover { color:var(--c-primario); border-color:var(--c-primario); }
+
+/* ── Tabla del pipeline ────────────────────────────────────────────────── */
+.crm2 .ptable { width:100%; border-collapse:collapse; background:var(--c-blanco);
+    border:1px solid var(--c-linea); border-radius:var(--r-md); overflow:hidden; }
+.crm2 .ptable th { text-align:left; font-size:.72rem; text-transform:uppercase; letter-spacing:.05em;
+    color:var(--c-suave); padding:12px 14px; border-bottom:1px solid var(--c-linea); background:var(--c-fondo); }
+.crm2 .ptable td { padding:12px 14px; border-bottom:1px solid var(--c-linea-2); font-size:.86rem; }
+.crm2 .ptable tr:last-child td { border-bottom:0; }
+.crm2 .ptable tr:hover td { background:var(--c-fondo); }
+
+/* ── Utilidades ────────────────────────────────────────────────────────── */
+.crm2 .hidden { display:none !important; }
+.crm2 .muted { color:var(--c-suave); }
+.crm2 .nowrap { white-space:nowrap; }
+
+@media (max-width: 900px) {
+    .crm2 .grid-2 { grid-template-columns:1fr; }
+    .crm2 .crm-h1 { font-size:1.5rem; }
+}

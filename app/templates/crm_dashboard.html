@@ -1,253 +1,147 @@
-{% extends "public/layout_admin.html" %}
+{% extends "crm_base.html" %}
 
-{% block title %}CRM — Dashboard{% endblock %}
+{% block crm_content %}
+<div class="crm-page-head">
+    <div>
+        <h1 class="crm-h1">Inicio</h1>
+        <p class="crm-sub">Hola, {{ saludo }}. {{ hoy.strftime('%d/%m/%Y') }}. Revisa primero lo que impacta ventas hoy.</p>
+    </div>
+    <div class="crm-seg">
+        <a class="active" href="{{ url_for('crm.crm_dashboard') }}">Hoy</a>
+        <a href="{{ url_for('crm.crm_tareas_lista') }}">Tareas</a>
+        <a href="{{ url_for('crm.pipeline') }}">Pipeline</a>
+    </div>
+</div>
 
-{% block LinkAdicional %}
-{{ super() }}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/crm/crm_dashboard.css') }}">
-{% endblock %}
-
-{% block content %}
-<div class="container-fluid">
-    <h1 class="h3 mb-4 text-gray-800">Dashboard CRM</h1>
-
-    <!-- Stat cards -->
-    <div class="row">
-        <!-- Total contactos -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card crm-stat-card shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="crm-stat-label">Total Contactos</div>
-                            <div class="crm-stat-valor mt-1">{{ total_contactos }}</div>
-                            <div class="small text-muted mt-1">
-                                {% for tipo, n in conteos.items() %}
-                                <span class="badge badge-crm-{{ tipo }} mr-1">{{ tipo }}: {{ n }}</span>
-                                {% endfor %}
-                            </div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-address-book fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tareas vencidas -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card crm-stat-card vencidas shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="crm-stat-label">Tareas Vencidas</div>
-                            <div class="crm-stat-valor mt-1">
-                                {{ tareas_vencidas }}
-                                {% if tareas_vencidas > 0 %}
-                                <span class="badge badge-danger ml-1">!</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tareas para hoy -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card crm-stat-card hoy shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="crm-stat-label">Tareas para Hoy</div>
-                            <div class="crm-stat-valor mt-1">
-                                {{ tareas_hoy }}
-                                {% if tareas_hoy > 0 %}
-                                <span class="badge badge-warning text-dark ml-1">hoy</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-calendar-day fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Acción rápida -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card crm-stat-card accion shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="crm-stat-label">Acción Rápida</div>
-                            <a href="{{ url_for('crm.crm_contacto_crear') }}"
-                               class="btn btn-sm btn-primary shadow-sm mt-2">
-                                <i class="fas fa-plus fa-sm"></i> Nuevo Contacto
-                            </a>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-user-plus fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div><!-- /row stat cards -->
-
-    <div class="row">
-        <!-- Actividades recientes -->
-        <div class="col-xl-7 mb-4">
-            <div class="card shadow">
-                <div class="card-header py-3 d-flex align-items-center justify-content-between">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-comments mr-1"></i>Actividades Recientes
-                    </h6>
-                    <a href="{{ url_for('crm.crm_contactos_lista') }}" class="btn btn-sm btn-outline-primary">
-                        Ver Contactos
-                    </a>
-                </div>
-                <div class="card-body p-0">
-                    {% if actividades_recientes %}
-                    <div class="table-responsive">
-                        <table class="table table-sm crm-table-reciente mb-0">
-                            <thead>
-                                <tr>
-                                    <th class="col-tipo-act">Tipo</th>
-                                    <th>Contacto</th>
-                                    <th>Asunto</th>
-                                    <th>Fecha</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for a in actividades_recientes %}
-                                {% set iconos = {
-                                    'llamada': 'phone', 'email': 'envelope',
-                                    'reunion': 'handshake', 'whatsapp': 'whatsapp',
-                                    'visita': 'map-marker-alt', 'nota': 'sticky-note', 'otro': 'ellipsis-h'
-                                } %}
-                                <tr>
-                                    <td class="col-tipo-act crm-icono-tipo">
-                                        <i class="fas fa-{{ iconos.get(a.tipo, 'circle') }}"
-                                           title="{{ a.tipo|capitalize }}"></i>
-                                    </td>
-                                    <td>
-                                        <a href="{{ url_for('crm.crm_contacto_ver', id=a.contacto_id) }}">
-                                            {{ a.contacto_nombre }}
-                                        </a>
-                                        <br>
-                                        <span class="badge badge-crm-{{ a.contacto_tipo }} small">
-                                            {{ a.contacto_tipo|capitalize }}
-                                        </span>
-                                    </td>
-                                    <td class="small font-weight-bold">{{ a.asunto }}</td>
-                                    <td class="small text-muted">
-                                        {{ a.fecha_actividad.strftime('%d/%m/%y') if a.fecha_actividad else '—' }}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <p class="text-center text-muted py-4 mb-0">Sin actividades registradas.</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
-        <!-- Próximas tareas -->
-        <div class="col-xl-5 mb-4">
-            <div class="card shadow">
-                <div class="card-header py-3 d-flex align-items-center justify-content-between">
-                    <h6 class="m-0 font-weight-bold text-warning">
-                        <i class="fas fa-tasks mr-1"></i>Próximas Tareas
-                    </h6>
-                    <a href="{{ url_for('crm.crm_tareas_lista') }}" class="btn btn-sm btn-outline-warning">
-                        Ver todas
-                    </a>
-                </div>
-                <div class="card-body p-0">
-                    {% if proximas_tareas %}
-                    <div class="table-responsive">
-                        <table class="table table-sm crm-table-reciente mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Prioridad</th>
-                                    <th>Tarea</th>
-                                    <th>Contacto</th>
-                                    <th>Límite</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for t in proximas_tareas %}
-                                {% set vencida = t.fecha_limite and t.fecha_limite < hoy %}
-                                <tr {% if vencida %}class="crm-row-vencida"{% endif %}>
-                                    <td>
-                                        <span class="badge badge-prioridad-{{ t.prioridad }}">
-                                            {{ t.prioridad[0]|upper }}
-                                        </span>
-                                    </td>
-                                    <td class="small font-weight-bold">{{ t.titulo }}</td>
-                                    <td class="small">
-                                        <a href="{{ url_for('crm.crm_contacto_ver', id=t.contacto_id) }}">
-                                            {{ t.contacto_nombre }}
-                                        </a>
-                                    </td>
-                                    <td>
-                                        {% if t.fecha_limite %}
-                                        <span class="small {% if vencida %}crm-fecha-vencida{% elif t.fecha_limite == hoy %}crm-fecha-hoy{% endif %}">
-                                            {{ t.fecha_limite.strftime('%d/%m/%y') }}
-                                        </span>
-                                        {% else %}<span class="text-muted small">—</span>{% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <p class="text-center text-muted py-4 mb-0">Sin tareas pendientes.</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div><!-- /row tablas -->
-
-    <!-- Google Calendar -->
-    <div class="row">
-        <div class="col-12 mb-4">
-            <div class="card shadow">
-                <div class="card-header py-3 d-flex align-items-center justify-content-between">
-                    <h6 class="m-0 font-weight-bold text-danger">
-                        <i class="fab fa-google mr-1"></i>Google Calendar
-                    </h6>
-                </div>
-                <div class="card-body">
-                    {% if google_conectado %}
-                    <p class="text-success mb-2">
-                        <i class="fas fa-check-circle mr-1"></i>
-                        Tu cuenta de Google Calendar está conectada. Las tareas y actividades con fecha se sincronizarán automáticamente.
-                    </p>
-                    <form action="{{ url_for('google.desconectar') }}" method="POST" class="d-inline">
-                        <button class="btn btn-sm btn-outline-danger">
-                            <i class="fab fa-google mr-1"></i>Desconectar Google Calendar
-                        </button>
-                    </form>
-                    {% else %}
-                    <p class="text-muted mb-2">Conecta tu Google Calendar para sincronizar tareas y actividades automáticamente.</p>
-                    <a href="{{ url_for('google.autorizar') }}" class="btn btn-sm btn-outline-primary">
-                        <i class="fab fa-google mr-1"></i>Conectar Google Calendar
-                    </a>
-                    {% endif %}
-                </div>
+<section class="tudia">
+    <div class="tudia-head">
+        <div class="tudia-ic"><i class="fas fa-wand-magic-sparkles"></i></div>
+        <div>
+            <div class="tudia-title">Tu día</div>
+            <div class="tudia-desc" id="tudia-narracion">
+                {% if tarjetas %}{{ tarjetas|length }} asunto{{ 's' if tarjetas|length != 1 else '' }} necesita{{ 'n' if tarjetas|length != 1 else '' }} tu atención hoy.{% else %}Lo que el CRM haría primero si fuera por él.{% endif %}
             </div>
         </div>
     </div>
-</div>
+    {% if tarjetas %}
+    <div class="tudia-grid">
+        {% for c in tarjetas %}
+        <article class="tudia-card">
+            <div class="tudia-tag"><i class="fas fa-{{ c.icon }}"></i> {{ c.tag }}</div>
+            <div class="tudia-msg">{{ c.msg }}</div>
+            <div class="tudia-actions">
+                {% for a in c.actions %}
+                    {% if a.kind == 'post' %}
+                    <form method="post" action="{{ a.url }}" style="display:inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="crm-btn crm-btn-sm crm-btn-light">{{ a.label }}</button>
+                    </form>
+                    {% else %}
+                    <a class="crm-btn crm-btn-sm crm-btn-light" href="{{ a.url }}">{{ a.label }}</a>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="tudia-empty"><i class="fas fa-circle-check"></i> Todo al día: sin tareas vencidas, pedidos por facturar ni oportunidades estancadas.</div>
+    {% endif %}
+</section>
+
+<section class="kpi-grid">
+    <article class="kpi">
+        <div class="kpi-top"><span class="kpi-label">Total contactos</span><i class="fas fa-address-book kpi-ic"></i></div>
+        <div class="kpi-value">{{ total_contactos }}</div>
+        <div class="kpi-dots">
+            {% for tipo, n in conteos.items() %}
+            <span><i style="background:#3d7ea6"></i>{{ tipo }}: {{ n }}</span>
+            {% endfor %}
+        </div>
+    </article>
+
+    <article class="kpi">
+        <div class="kpi-top"><span class="kpi-label">Pipeline activo</span><i class="fas fa-bullseye kpi-ic"></i></div>
+        <div class="kpi-value">${{ '{:,.0f}'.format(pipeline_activo.monto or 0) }}</div>
+        <div class="kpi-foot">{{ pipeline_activo.total }} oportunidades en juego</div>
+        <div class="kpi-bars">
+            {% for b in barras %}<span style="width:{{ b.w }}%;background:{{ b.c }}"></span>{% endfor %}
+        </div>
+    </article>
+
+    <article class="kpi alert">
+        <div class="kpi-top"><span class="kpi-label">Tareas vencidas</span><i class="fas fa-triangle-exclamation kpi-ic"></i></div>
+        <div class="kpi-value">{{ tareas_vencidas }}</div>
+        <div class="kpi-foot"><a href="{{ url_for('crm.crm_tareas_lista') }}">Resolver pendientes</a></div>
+    </article>
+
+    <article class="kpi">
+        <div class="kpi-top"><span class="kpi-label">Ganado del mes</span><i class="fas fa-trophy kpi-ic"></i></div>
+        <div class="kpi-value">${{ '{:,.0f}'.format(ganado_mes.monto or 0) }}</div>
+        <div class="kpi-foot">{{ meta_pct }}% de la meta · ${{ '{:,.0f}'.format(meta_mes) }} · {{ ganado_mes.total }} cierre{{ 's' if ganado_mes.total != 1 else '' }}</div>
+        <div class="kpi-progress"><span style="width:{{ meta_pct }}%"></span></div>
+    </article>
+</section>
+
+<section class="grid-2">
+    <article class="card">
+        <div class="card-head">
+            <h3><i class="fas fa-clock"></i> Actividad reciente</h3>
+            <span class="pill">{{ actividades_recientes|length }}</span>
+        </div>
+        <div class="card-body">
+            {% for a in actividades_recientes %}
+            <div class="row-item">
+                <div class="avatar {{ a.contacto_id|avatarcolor }}">{{ a.contacto_nombre|iniciales }}</div>
+                <div class="grow">
+                    <div class="r-title">{{ a.asunto }}</div>
+                    <div class="r-meta">{{ a.contacto_nombre }} · {{ a.contacto_tipo|capitalize }}</div>
+                </div>
+                <div class="r-meta nowrap">{{ a.fecha_actividad.strftime('%d/%m/%y') if a.fecha_actividad else '—' }}</div>
+            </div>
+            {% else %}
+            <div class="empty">Sin actividades registradas.</div>
+            {% endfor %}
+        </div>
+    </article>
+
+    <article class="card">
+        <div class="card-head">
+            <h3><i class="fas fa-list-check"></i> Próximas tareas</h3>
+            <span class="pill">{{ proximas_tareas|length }}</span>
+        </div>
+        <div class="card-body">
+            {% for t in proximas_tareas %}
+            <div class="row-item">
+                <span class="task-check"></span>
+                <div class="grow">
+                    <div class="r-title">{{ t.titulo }}</div>
+                    <div class="r-meta">{{ t.contacto_nombre }}</div>
+                </div>
+                <div class="r-meta nowrap">{{ t.fecha_limite.strftime('%d/%m/%y') if t.fecha_limite else '—' }}</div>
+            </div>
+            {% else %}
+            <div class="empty">Sin tareas pendientes.</div>
+            {% endfor %}
+        </div>
+    </article>
+</section>
+{% endblock %}
+
+{% block crm_scripts %}
+<script>
+(function () {
+    var el = document.getElementById('tudia-narracion');
+    if (!el) return;
+    var CSRF = '{{ csrf_token() }}';
+    fetch('{{ url_for("crm.tu_dia") }}', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'csrf_token=' + encodeURIComponent(CSRF)
+    })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) { if (d && d.narracion) { el.textContent = d.narracion; } })
+    .catch(function () {});
+})();
+</script>
 {% endblock %}

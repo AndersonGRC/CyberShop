@@ -1,110 +1,167 @@
-{% extends "public/layout_admin.html" %}
-{% block content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/crm/crm_pipeline.css') }}">
+{% extends "crm_base.html" %}
+{% set etapa_dot = {
+    'prospecto':'#9aa2b6','calificado':'#3d7ea6','propuesta':'#e0952b',
+    'negociacion':'#4b57c4','ganada':'#1f9d57','perdida':'#d64545'} %}
 
-<div class="container-fluid py-4">
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
-        <h1 class="h3 mb-0"><i class="fas fa-bullseye text-warning"></i> Pipeline de oportunidades</h1>
-        <div class="d-flex gap-2">
-            <form method="get" class="form-inline mr-2">
-                <select name="asignado" class="form-control form-control-sm mr-2" onchange="this.form.submit()">
-                    <option value="">Todos los vendedores</option>
-                    {% for u in usuarios %}
-                    <option value="{{ u.id }}" {% if filtro_asignado == u.id|string %}selected{% endif %}>{{ u.nombre }}</option>
-                    {% endfor %}
-                </select>
-            </form>
-            <a href="{{ url_for('crm.oportunidad_crear') }}" class="btn btn-sm btn-warning">
-                <i class="fas fa-plus"></i> Nueva oportunidad
-            </a>
-        </div>
+{% macro opp_card(o) %}
+<div class="opp" draggable="true" data-id="{{ o.id }}">
+    <div class="o-title"><a href="{{ url_for('crm.oportunidad_editar', id=o.id) }}">{{ o.titulo }}</a></div>
+    <div class="o-contact">{{ o.contacto_empresa or o.contacto_nombre }}</div>
+    <div class="o-amount">{{ ('$' ~ '{:,.0f}'.format(o.monto_estimado)) if o.monto_estimado else '—' }}</div>
+    <div class="o-foot">
+        {% if o.linea_negocio %}<span class="chip chip-line" data-l="{{ o.linea_negocio }}">{{ o.linea_negocio }}</span>{% endif %}
+        <span class="spacer"></span>
+        {% if o.etapa not in ('ganada','perdida') %}
+        <span class="chip chip-days {{ 'warn' if o.dias_sin_mov > dias_estancada }}"><i class="far fa-clock"></i> {{ o.dias_sin_mov }} d</span>
+        {% endif %}
+        {% if o.asignado_nombre %}<span class="avatar {{ o.asignado_a|avatarcolor }}" title="{{ o.asignado_nombre }}">{{ o.asignado_nombre|iniciales }}</span>{% endif %}
+    </div>
+</div>
+{% endmacro %}
+
+{% block crm_content %}
+<div class="crm-page-head">
+    <div>
+        <h1 class="crm-h1">Pipeline de ventas</h1>
+        <p class="crm-sub">{{ activas_n }} oportunidad{{ 'es' if activas_n != 1 else '' }} activa{{ 's' if activas_n != 1 else '' }} · <b>${{ '{:,.0f}'.format(activas_total) }}</b> en juego</p>
+    </div>
+    <a href="{{ url_for('crm.oportunidad_crear') }}" class="crm-btn crm-btn-primary"><i class="fas fa-plus"></i> Nueva oportunidad</a>
+</div>
+
+<div class="pipe-tabs">
+    <a href="{{ url_for('crm.pipeline', vista='tablero', asignado=filtro_asignado, linea=filtro_linea, estancadas='1' if solo_estancadas else '') }}"    class="pipe-tab {{ 'active' if vista == 'tablero' }}"><i class="fas fa-columns"></i> Tablero</a>
+    <a href="{{ url_for('crm.pipeline', vista='tabla', asignado=filtro_asignado, linea=filtro_linea, estancadas='1' if solo_estancadas else '') }}"      class="pipe-tab {{ 'active' if vista == 'tabla' }}"><i class="fas fa-table-list"></i> Tabla</a>
+    <a href="{{ url_for('crm.pipeline', vista='calendario', asignado=filtro_asignado, linea=filtro_linea, estancadas='1' if solo_estancadas else '') }}" class="pipe-tab {{ 'active' if vista == 'calendario' }}"><i class="fas fa-calendar-days"></i> Calendario</a>
+
+    <form method="get" style="display:contents">
+        <input type="hidden" name="vista" value="{{ vista }}">
+        <span class="pipe-filter {{ 'on' if filtro_asignado }}">
+            <i class="fas fa-user"></i>
+            <select name="asignado" onchange="this.form.submit()">
+                <option value="">Responsable</option>
+                {% for u in usuarios %}<option value="{{ u.id }}" {{ 'selected' if filtro_asignado == u.id|string }}>{{ u.nombre }}</option>{% endfor %}
+            </select>
+        </span>
+        <span class="pipe-filter {{ 'on' if filtro_linea }}">
+            <i class="fas fa-tag"></i>
+            <select name="linea" onchange="this.form.submit()">
+                <option value="">Línea de negocio</option>
+                {% for l in lineas %}<option value="{{ l }}" {{ 'selected' if filtro_linea == l }}>{{ l }}</option>{% endfor %}
+            </select>
+        </span>
+        {% if solo_estancadas %}<input type="hidden" name="estancadas" value="1">{% endif %}
+    </form>
+
+    <a href="{{ url_for('crm.pipeline', vista=vista, asignado=filtro_asignado, linea=filtro_linea, estancadas='' if solo_estancadas else '1') }}"
+       class="pipe-filter {{ 'on' if solo_estancadas }}"><i class="far fa-clock"></i> Sin movimiento{% if estancadas_n %} · {{ estancadas_n }}{% endif %}</a>
+</div>
+
+{% if vista == 'tabla' %}
+    {# ── Vista Tabla ── #}
+    <div style="overflow-x:auto">
+    <table class="ptable">
+        <thead><tr><th>Oportunidad</th><th>Contacto</th><th>Etapa</th><th>Línea</th><th>Monto</th><th>Responsable</th><th>Sin mov.</th></tr></thead>
+        <tbody>
+        {% for o in oportunidades %}
+            <tr>
+                <td><a href="{{ url_for('crm.oportunidad_editar', id=o.id) }}" style="font-weight:700;color:var(--c-tinta)">{{ o.titulo }}</a></td>
+                <td class="muted">{{ o.contacto_empresa or o.contacto_nombre }}</td>
+                <td><span class="chip"><i style="width:8px;height:8px;border-radius:50%;background:{{ etapa_dot.get(o.etapa,'#9aa2b6') }}"></i> {{ etapas_label.get(o.etapa, o.etapa) }}</span></td>
+                <td>{% if o.linea_negocio %}<span class="chip chip-line" data-l="{{ o.linea_negocio }}">{{ o.linea_negocio }}</span>{% else %}—{% endif %}</td>
+                <td class="nowrap" style="font-weight:800;color:var(--c-tinta)">{{ ('$' ~ '{:,.0f}'.format(o.monto_estimado)) if o.monto_estimado else '—' }}</td>
+                <td>{% if o.asignado_nombre %}<span class="avatar {{ o.asignado_a|avatarcolor }}">{{ o.asignado_nombre|iniciales }}</span> {{ o.asignado_nombre }}{% else %}<span class="muted">—</span>{% endif %}</td>
+                <td>{% if o.etapa not in ('ganada','perdida') %}<span class="chip chip-days {{ 'warn' if o.dias_sin_mov > dias_estancada }}">{{ o.dias_sin_mov }} d</span>{% else %}—{% endif %}</td>
+            </tr>
+        {% else %}
+            <tr><td colspan="7" class="empty">Sin oportunidades con estos filtros.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
     </div>
 
-    <div class="pipeline-board">
-        {% for etapa_key, etapa_label in etapas %}
-        {% set col = columnas[etapa_key] %}
-        <div class="pipeline-col" data-etapa="{{ etapa_key }}">
-            <div class="pipeline-col-header">
-                <span class="badge badge-{{ {'ganada':'success','perdida':'danger','propuesta':'info','negociacion':'primary','calificado':'secondary','prospecto':'light'}.get(etapa_key,'secondary') }}">{{ etapa_label }}</span>
-                <small class="text-muted">{{ col['items']|length }} · ${{ "{:,.0f}".format(col['total']) }}</small>
+{% elif vista == 'calendario' %}
+    {# ── Vista Calendario (agenda por fecha de cierre estimada) ── #}
+    <div class="card"><div class="card-body">
+    {% set con_fecha = oportunidades|selectattr('fecha_cierre_est')|list %}
+    {% if con_fecha %}
+        {% for o in con_fecha|sort(attribute='fecha_cierre_est') %}
+        <div class="row-item">
+            <div style="text-align:center;min-width:54px">
+                <div style="font-size:1.3rem;font-weight:800;color:var(--c-tinta);line-height:1">{{ o.fecha_cierre_est.strftime('%d') }}</div>
+                <div class="muted" style="font-size:.7rem;text-transform:uppercase">{{ o.fecha_cierre_est.strftime('%b') }}</div>
             </div>
-            <div class="pipeline-col-body" data-etapa-drop="{{ etapa_key }}">
-                {% for o in col['items'] %}
-                <div class="pipeline-card" draggable="true" data-id="{{ o.id }}">
-                    <div class="pipeline-card-title">
-                        <a href="{{ url_for('crm.oportunidad_editar', id=o.id) }}">{{ o.titulo }}</a>
-                    </div>
-                    <div class="pipeline-card-contact">
-                        <i class="fas fa-user"></i>
-                        <a href="{{ url_for('crm.crm_contacto_ver', id=o.contacto_id) }}">{{ o.contacto_nombre }}</a>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center mt-2">
-                        <strong>${{ "{:,.0f}".format(o.monto_estimado) if o.monto_estimado else '—' }}</strong>
-                        <span class="badge badge-light">{{ o.probabilidad }}%</span>
-                    </div>
-                    {% if o.asignado_nombre %}
-                    <small class="text-muted d-block mt-1"><i class="fas fa-user-tie"></i> {{ o.asignado_nombre }}</small>
-                    {% endif %}
-                </div>
-                {% else %}
-                <div class="pipeline-empty text-center text-muted small py-3">Vacío</div>
-                {% endfor %}
+            <div class="grow">
+                <div class="r-title"><a href="{{ url_for('crm.oportunidad_editar', id=o.id) }}">{{ o.titulo }}</a></div>
+                <div class="r-meta">{{ o.contacto_empresa or o.contacto_nombre }} · {{ etapas_label.get(o.etapa, o.etapa) }}</div>
+            </div>
+            <div class="r-amount nowrap">{{ ('$' ~ '{:,.0f}'.format(o.monto_estimado)) if o.monto_estimado else '' }}</div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty">Ninguna oportunidad tiene fecha de cierre estimada.</div>
+    {% endif %}
+    </div></div>
+
+{% else %}
+    {# ── Vista Tablero (kanban) ── #}
+    <div class="board" id="board">
+        {% for k in etapas_col %}
+        {% set col = columnas[k] %}
+        <div class="col" data-k="{{ k }}">
+            <div class="col-top">
+                <div class="c-name"><span class="c-dot"></span> {{ col.label }} <span class="c-count">{{ col['items']|length }}</span></div>
+                <div class="c-total">${{ '{:,.0f}'.format(col['total']) }}</div>
+            </div>
+            <div class="col-body" data-drop="{{ k }}">
+                {% for o in col['items'] %}{{ opp_card(o) }}{% else %}<div class="col-empty">Vacío</div>{% endfor %}
+                <a href="{{ url_for('crm.oportunidad_crear') }}" class="col-add"><i class="fas fa-plus"></i> Agregar</a>
             </div>
         </div>
         {% endfor %}
     </div>
-</div>
+    {% if not incluir_perdidas %}
+    <div style="margin-top:12px">
+        <a href="{{ url_for('crm.pipeline', vista='tablero', asignado=filtro_asignado, linea=filtro_linea, estancadas='1' if solo_estancadas else '', perdidas='1') }}" class="crm-btn crm-btn-ghost crm-btn-sm"><i class="fas fa-eye"></i> Mostrar perdidas</a>
+    </div>
+    {% endif %}
+{% endif %}
+{% endblock %}
 
-<style>
-.pipeline-board { display: grid; grid-template-columns: repeat(6, minmax(200px, 1fr)); gap: 14px; overflow-x: auto; }
-.pipeline-col { background: #f5f7fb; border-radius: 12px; display: flex; flex-direction: column; min-height: 400px; }
-.pipeline-col-header { padding: 12px 14px; border-bottom: 1px solid #e3e6f0; display: flex; justify-content: space-between; align-items: center; }
-.pipeline-col-body { padding: 10px; flex: 1; min-height: 200px; }
-.pipeline-col-body.drop-target { background: #fff3cd; border-radius: 8px; }
-.pipeline-card { background: #fff; border: 1px solid #e3e6f0; border-radius: 8px; padding: 10px; margin-bottom: 8px; cursor: grab; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-.pipeline-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); transform: translateY(-1px); }
-.pipeline-card.dragging { opacity: 0.4; }
-.pipeline-card-title a { color: #14233f; font-weight: 700; text-decoration: none; }
-.pipeline-card-contact { font-size: 0.82rem; margin-top: 4px; }
-.pipeline-card-contact a { color: #5a5c69; }
-.pipeline-empty { opacity: 0.5; }
-</style>
-
+{% block crm_scripts %}
 <script>
-(function(){
-    const CSRF = '{{ csrf_token() }}';
-    let dragged = null;
-    document.querySelectorAll('.pipeline-card').forEach(card => {
-        card.addEventListener('dragstart', e => {
-            dragged = card;
-            card.classList.add('dragging');
+(function () {
+    var board = document.getElementById('board');
+    if (!board) return;
+    var CSRF = '{{ csrf_token() }}';
+    var dragged = null;
+    board.querySelectorAll('.opp').forEach(function (card) {
+        card.addEventListener('dragstart', function (e) {
+            dragged = card; card.classList.add('dragging');
             e.dataTransfer.setData('text/plain', card.dataset.id);
         });
-        card.addEventListener('dragend', () => {
-            dragged && dragged.classList.remove('dragging');
+        card.addEventListener('dragend', function () {
+            if (dragged) dragged.classList.remove('dragging');
             dragged = null;
         });
     });
-    document.querySelectorAll('[data-etapa-drop]').forEach(col => {
-        col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('drop-target'); });
-        col.addEventListener('dragleave', () => col.classList.remove('drop-target'));
-        col.addEventListener('drop', async e => {
-            e.preventDefault();
-            col.classList.remove('drop-target');
+    board.querySelectorAll('[data-drop]').forEach(function (zone) {
+        zone.addEventListener('dragover', function (e) { e.preventDefault(); zone.classList.add('drop'); });
+        zone.addEventListener('dragleave', function () { zone.classList.remove('drop'); });
+        zone.addEventListener('drop', async function (e) {
+            e.preventDefault(); zone.classList.remove('drop');
             if (!dragged) return;
-            const id = dragged.dataset.id;
-            const etapa = col.dataset.etapaDrop;
-            col.appendChild(dragged);
+            var id = dragged.dataset.id, etapa = zone.dataset.drop;
+            var addBtn = zone.querySelector('.col-add');
+            zone.insertBefore(dragged, addBtn || null);
             try {
-                const r = await fetch(`/admin/crm/oportunidades/${id}/etapa`, {
+                var r = await fetch('/admin/crm/oportunidades/' + id + '/etapa', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': CSRF},
-                    body: `etapa=${etapa}&csrf_token=${encodeURIComponent(CSRF)}`
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': CSRF },
+                    body: 'etapa=' + encodeURIComponent(etapa) + '&csrf_token=' + encodeURIComponent(CSRF)
                 });
-                if (!r.ok) alert('No se pudo mover la oportunidad.');
-            } catch (err) {
-                alert('Error de red.');
-            }
+                if (!r.ok) { alert('No se pudo mover la oportunidad.'); location.reload(); }
+                else { setTimeout(function () { location.reload(); }, 250); }
+            } catch (err) { alert('Error de red.'); location.reload(); }
         });
     });
 })();

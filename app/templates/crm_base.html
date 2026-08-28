@@ -1,0 +1,40 @@
+{% extends "plantillaapp.html" %}
+{# Base moderna del CRM. Extiende el admin (sidebar) pero NO carga Bootstrap 4,
+   para tener control total del diseño. Cada página CRM hereda de aquí, define
+   {% block crm_content %} y el route pasa crm_active = inicio|pipeline|contactos|tareas. #}
+
+{% block titulo %}CRM · CyberShop{% endblock %}
+
+{% block LinkAdicional %}
+{{ super() if super }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/crm/crm_ui.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="crm2">
+
+    <div class="crm-topbar">
+        <div class="crm-breadcrumb">
+            <i class="fas fa-users-gear"></i> CRM <i class="fas fa-chevron-right" style="font-size:.62rem"></i>
+            <b>{{ crm_active_label or 'Inicio' }}</b>
+        </div>
+        <form class="crm-search" method="get" action="{{ url_for('crm.buscar') }}">
+            <i class="fas fa-search crm-search-ic"></i>
+            <input type="search" name="q" value="{{ q_global or '' }}"
+                   placeholder="Buscar contactos, pedidos o tickets" autocomplete="off">
+        </form>
+    </div>
+
+    <nav class="crm-subnav">
+        <a href="{{ url_for('crm.crm_dashboard') }}"      class="{{ 'active' if crm_active == 'inicio' }}"><i class="fas fa-house"></i> Inicio</a>
+        <a href="{{ url_for('crm.pipeline') }}"           class="{{ 'active' if crm_active == 'pipeline' }}"><i class="fas fa-bullseye"></i> Pipeline</a>
+        <a href="{{ url_for('crm.crm_contactos_lista') }}" class="{{ 'active' if crm_active == 'contactos' }}"><i class="fas fa-address-book"></i> Contactos</a>
+        <a href="{{ url_for('crm.crm_tareas_lista') }}"    class="{{ 'active' if crm_active == 'tareas' }}"><i class="fas fa-list-check"></i> Tareas</a>
+    </nav>
+
+    {% block crm_content %}{% endblock %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}{% block crm_scripts %}{% endblock %}{% endblock %}

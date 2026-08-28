@@ -755,3 +755,24 @@ def sugerir_respuesta(mensaje_cliente, asunto=''):
             f"\n\n«{mensaje_cliente}»\n\nRedacta una respuesta breve y cordial"
             " que el negocio pueda enviar. Solo el texto de la respuesta.")
     return _chat(system, user, max_tokens=300)
+
+
+def narrar_tu_dia(senales):
+    """CRM · panel 'Tu día'. Recibe una lista de señales (strings) y devuelve UNA
+    frase corta priorizando qué atender hoy. Fail-open: '' si la IA no responde."""
+    senales = [str(s).strip() for s in (senales or []) if str(s).strip()]
+    if not senales:
+        return ''
+    try:
+        if not ia_disponible():
+            return ''
+        system = ("Eres el asistente comercial de un CRM. En UNA sola frase breve "
+                  "(máx 20 palabras), en español, con tono cercano y accionable, di qué "
+                  "conviene atender primero hoy. No saludes ni uses listas ni comillas.")
+        texto, err = _chat(system, "Señales de hoy:\n" + '\n'.join('- ' + s for s in senales),
+                           max_tokens=80, temperature=0.5)
+        if err or not texto:
+            return ''
+        return texto.strip().strip('"').strip()[:200]
+    except Exception:
+        return ''
