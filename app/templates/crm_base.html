@@ -7,7 +7,7 @@
 
 {% block LinkAdicional %}
 {{ super() if super }}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/crm/crm_ui.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/crm/crm_ui.css') }}?v={{ config.APP_VERSION }}">
 {% endblock %}
 
 {% block body %}

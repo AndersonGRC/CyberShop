@@ -220,7 +220,65 @@
 .crm2 .muted { color:var(--c-suave); }
 .crm2 .nowrap { white-space:nowrap; }
 
+/* ── Responsive ────────────────────────────────────────────────────────── */
 @media (max-width: 900px) {
-    .crm2 .grid-2 { grid-template-columns:1fr; }
-    .crm2 .crm-h1 { font-size:1.5rem; }
+    .crm2 .grid-2 { grid-template-columns: 1fr; }
+}
+
+/* Tablet / móvil grande */
+@media (max-width: 768px) {
+    .crm2 .crm-topbar { flex-direction: column; align-items: stretch; gap: 10px; }
+    .crm2 .crm-search { max-width: none; }
+    .crm2 .crm-subnav { margin-bottom: 16px; }
+
+    .crm2 .crm-page-head { flex-direction: column; align-items: stretch; gap: 12px; }
+    .crm2 .crm-page-head > .crm-btn,
+    .crm2 .crm-page-head .crm-btn-primary { width: 100%; justify-content: center; }
+    .crm2 .crm-h1 { font-size: 1.5rem; }
+
+    /* Segmentado (Hoy/Tareas/Pipeline) a lo ancho */
+    .crm2 .crm-seg { width: 100%; }
+    .crm2 .crm-seg a { flex: 1; text-align: center; }
+
+    .crm2 .kpi-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+    .crm2 .tudia { padding: 16px; }
+    .crm2 .tudia-grid { gap: 12px; }
+
+    /* Pipeline: columnas tipo "swipe" (una a la vez, con snap) */
+    .crm2 .board { gap: 12px; scroll-snap-type: x mandatory;
+        scroll-padding-left: 14px; -webkit-overflow-scrolling: touch; }
+    .crm2 .col { width: min(86vw, 300px); min-width: min(86vw, 300px);
+        max-height: none; scroll-snap-align: start; }
+    .crm2 .col-body { overflow: visible; }
+}
+
+/* Teléfono */
+@media (max-width: 560px) {
+    .crm2 .crm-h1 { font-size: 1.3rem; }
+    .crm2 .crm-sub { font-size: .85rem; }
+
+    .crm2 .kpi-grid { grid-template-columns: 1fr; }
+    .crm2 .kpi { padding: 15px; }
+    .crm2 .kpi-value { font-size: 1.6rem; }
+    .crm2 .kpi-value .mini { font-size: .8rem; }
+
+    .crm2 .tudia { padding: 15px; }
+    .crm2 .tudia-card { padding: 14px; }
+    .crm2 .tudia-msg { font-size: .9rem; }
+    .crm2 .tudia-actions { gap: 6px; }
+    .crm2 .tudia-actions .crm-btn { flex: 1; justify-content: center; }
+
+    .crm2 .row-item { padding: 10px 14px; gap: 10px; }
+    .crm2 .card-head { padding: 13px 14px; }
+    .crm2 .card-head h3 { font-size: .92rem; }
+    .crm2 .opp { padding: 11px; }
+
+    /* Filtros del pipeline apilados y usables al tacto */
+    .crm2 .pipe-tabs { flex-wrap: wrap; gap: 6px; }
+    .crm2 .pipe-tab { flex: 1 1 auto; justify-content: center; }
+    .crm2 .pipe-filter { flex: 1 1 100%; justify-content: space-between; }
+    .crm2 .pipe-filter select { flex: 1; text-align: right; }
+
+    /* Tabla del pipeline: un poco más compacta */
+    .crm2 .ptable th, .crm2 .ptable td { padding: 10px; font-size: .8rem; }
 }
