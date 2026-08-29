@@ -16,10 +16,10 @@
 
     <link rel="shortcut icon" href="{{ brand_config.empresa_logo_url or url_for('static', filename='img/Logo.PNG') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/Menuapp.css') }}">
-    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css">
+    <!-- Font Awesome 5.15.3 AUTO-HOSPEDADO (mismo dominio): inmune a bloqueos de CDN/adblock/red.
+         Reemplaza los 3 CDNs externos que dejaban el admin sin íconos. -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='fa/css/all.min.css') }}?v={{ config.APP_VERSION }}">
     <link href="https://fonts.googleapis.com/css?family=Dancing+Script|Raleway:500,600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
     <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
     <script src="{{ url_for('static', filename='js/sweetalert2.min.js') }}"></script>
 </head>
