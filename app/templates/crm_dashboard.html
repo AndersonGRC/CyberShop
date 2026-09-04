@@ -15,7 +15,7 @@
 
 <section class="tudia">
     <div class="tudia-head">
-        <div class="tudia-ic"><i class="fas fa-wand-magic-sparkles"></i></div>
+        <div class="tudia-ic"><i class="fas fa-magic"></i></div>
         <div>
             <div class="tudia-title">Tu día</div>
             <div class="tudia-desc" id="tudia-narracion">
@@ -45,7 +45,7 @@
         {% endfor %}
     </div>
     {% else %}
-    <div class="tudia-empty"><i class="fas fa-circle-check"></i> Todo al día: sin tareas vencidas, pedidos por facturar ni oportunidades estancadas.</div>
+    <div class="tudia-empty"><i class="fas fa-check-circle"></i> Todo al día: sin tareas vencidas, pedidos por facturar ni oportunidades estancadas.</div>
     {% endif %}
 </section>
 
@@ -70,7 +70,7 @@
     </article>
 
     <article class="kpi alert">
-        <div class="kpi-top"><span class="kpi-label">Tareas vencidas</span><i class="fas fa-triangle-exclamation kpi-ic"></i></div>
+        <div class="kpi-top"><span class="kpi-label">Tareas vencidas</span><i class="fas fa-exclamation-triangle kpi-ic"></i></div>
         <div class="kpi-value">{{ tareas_vencidas }}</div>
         <div class="kpi-foot"><a href="{{ url_for('crm.crm_tareas_lista') }}">Resolver pendientes</a></div>
     </article>
@@ -107,7 +107,7 @@
 
     <article class="card">
         <div class="card-head">
-            <h3><i class="fas fa-list-check"></i> Próximas tareas</h3>
+            <h3><i class="fas fa-tasks"></i> Próximas tareas</h3>
             <span class="pill">{{ proximas_tareas|length }}</span>
         </div>
         <div class="card-body">

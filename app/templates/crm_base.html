@@ -15,7 +15,7 @@
 
     <div class="crm-topbar">
         <div class="crm-breadcrumb">
-            <i class="fas fa-users-gear"></i> CRM <i class="fas fa-chevron-right" style="font-size:.62rem"></i>
+            <i class="fas fa-users-cog"></i> CRM <i class="fas fa-chevron-right" style="font-size:.62rem"></i>
             <b>{{ crm_active_label or 'Inicio' }}</b>
         </div>
         <form class="crm-search" method="get" action="{{ url_for('crm.buscar') }}">
@@ -26,10 +26,10 @@
     </div>
 
     <nav class="crm-subnav">
-        <a href="{{ url_for('crm.crm_dashboard') }}"      class="{{ 'active' if crm_active == 'inicio' }}"><i class="fas fa-house"></i> Inicio</a>
+        <a href="{{ url_for('crm.crm_dashboard') }}"      class="{{ 'active' if crm_active == 'inicio' }}"><i class="fas fa-home"></i> Inicio</a>
         <a href="{{ url_for('crm.pipeline') }}"           class="{{ 'active' if crm_active == 'pipeline' }}"><i class="fas fa-bullseye"></i> Pipeline</a>
         <a href="{{ url_for('crm.crm_contactos_lista') }}" class="{{ 'active' if crm_active == 'contactos' }}"><i class="fas fa-address-book"></i> Contactos</a>
-        <a href="{{ url_for('crm.crm_tareas_lista') }}"    class="{{ 'active' if crm_active == 'tareas' }}"><i class="fas fa-list-check"></i> Tareas</a>
+        <a href="{{ url_for('crm.crm_tareas_lista') }}"    class="{{ 'active' if crm_active == 'tareas' }}"><i class="fas fa-tasks"></i> Tareas</a>
     </nav>
 
     {% block crm_content %}{% endblock %}

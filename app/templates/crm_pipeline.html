@@ -30,8 +30,8 @@
 
 <div class="pipe-tabs">
     <a href="{{ url_for('crm.pipeline', vista='tablero', asignado=filtro_asignado, linea=filtro_linea, estancadas='1' if solo_estancadas else '') }}"    class="pipe-tab {{ 'active' if vista == 'tablero' }}"><i class="fas fa-columns"></i> Tablero</a>
-    <a href="{{ url_for('crm.pipeline', vista='tabla', asignado=filtro_asignado, linea=filtro_linea, estancadas='1' if solo_estancadas else '') }}"      class="pipe-tab {{ 'active' if vista == 'tabla' }}"><i class="fas fa-table-list"></i> Tabla</a>
-    <a href="{{ url_for('crm.pipeline', vista='calendario', asignado=filtro_asignado, linea=filtro_linea, estancadas='1' if solo_estancadas else '') }}" class="pipe-tab {{ 'active' if vista == 'calendario' }}"><i class="fas fa-calendar-days"></i> Calendario</a>
+    <a href="{{ url_for('crm.pipeline', vista='tabla', asignado=filtro_asignado, linea=filtro_linea, estancadas='1' if solo_estancadas else '') }}"      class="pipe-tab {{ 'active' if vista == 'tabla' }}"><i class="fas fa-th-list"></i> Tabla</a>
+    <a href="{{ url_for('crm.pipeline', vista='calendario', asignado=filtro_asignado, linea=filtro_linea, estancadas='1' if solo_estancadas else '') }}" class="pipe-tab {{ 'active' if vista == 'calendario' }}"><i class="fas fa-calendar-alt"></i> Calendario</a>
 
     <form method="get" style="display:contents">
         <input type="hidden" name="vista" value="{{ vista }}">
