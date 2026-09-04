@@ -61,6 +61,32 @@ RESTAURANT_ACCESS = ADMIN_STAFF + [role for role in ADMIN_CONTADOR if role not i
 # Acceso operativo (atender mesas, tomar pedidos): incluye mesero y cajero
 RESTAURANT_SERVICE_ACCESS = list(set(RESTAURANT_ACCESS + RESTAURANT_OPERATIONAL))
 
+# ── Modo simple del restaurante (flag por-cliente en cliente_config) ──────────
+# 'agregar productos -> cobrar mesa', sin cocina ni tiempos. Se activa por cliente
+# desde fADMIN. Cache por proceso (cada gunicorn sirve un solo tenant). Fail-open
+# a False = modo completo actual (no afecta a nadie hasta activarlo).
+_RT_SIMPLE_CACHE = {'v': None, 'exp': 0.0}
+
+
+def restaurante_modo_simple():
+    import time as _t
+    now = _t.time()
+    if _RT_SIMPLE_CACHE['exp'] > now and _RT_SIMPLE_CACHE['v'] is not None:
+        return _RT_SIMPLE_CACHE['v']
+    val = False
+    try:
+        from database import get_db_cursor
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT valor FROM cliente_config WHERE clave = 'restaurante_modo_simple' LIMIT 1")
+            row = cur.fetchone()
+            if row:
+                val = str(row.get('valor') or '').strip().lower() in ('true', '1', 'yes', 'on', 'si')
+    except Exception:
+        val = False
+    _RT_SIMPLE_CACHE['v'] = val
+    _RT_SIMPLE_CACHE['exp'] = now + 60
+    return val
+
 
 def _json_error(message, status=400):
     return jsonify({'success': False, 'error': message}), status
@@ -109,6 +135,7 @@ def _restaurant_context(*, view_mode, page_title, page_description, area=None, r
         'is_waiter_only': current_role == ROL_MESERO,
         'caja_activa': caja_activa,
         'caja_abierta': caja_abierta,
+        'restaurante_simple': restaurante_modo_simple(),
 }
 
 

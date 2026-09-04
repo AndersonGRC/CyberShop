@@ -1204,6 +1204,17 @@ def config():
         )
         permissions = {}
 
+    # Modo simple del restaurante (flag por-cliente en cliente_config). Fail-open a False.
+    restaurante_simple = False
+    try:
+        with tenant_cursor(db_name=g.sync_db_name, dict_cursor=True) as cur:
+            cur.execute("SELECT valor FROM cliente_config WHERE clave = 'restaurante_modo_simple' LIMIT 1")
+            _rsimple = cur.fetchone()
+            if _rsimple:
+                restaurante_simple = str(_rsimple.get('valor') or '').strip().lower() in ('true', '1', 'yes', 'on', 'si')
+    except Exception:
+        restaurante_simple = False
+
     return jsonify({
         'tenant_slug':   g.sync_tenant_slug,
         'tenant_nombre': nombre,
@@ -1211,6 +1222,7 @@ def config():
         'estado':        estado,
         'modules':       modules,
         'permissions':   permissions,
+        'restaurante_simple': restaurante_simple,
         'server_time':   _now_iso(),
     })
 

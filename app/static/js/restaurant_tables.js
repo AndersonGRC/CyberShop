@@ -4,6 +4,7 @@
     const products = page.products || [];
     const endpoints = page.endpoints || {};
     const viewMode = page.viewMode || 'service';
+    const SIMPLE = !!page.simple;  // modo simple del restaurante: agregar -> cobrar (sin cocina/tiempos)
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
     const state = {
@@ -148,6 +149,9 @@
     function getKitchenStatus(order) {
         if (!order) {
             return 'Sin orden';
+        }
+        if (SIMPLE) {
+            return (order.total_items > 0) ? 'Lista para cobrar' : 'Sin orden';
         }
         if (order.pending_count > 0) {
             return `${order.pending_count} pendientes`;
@@ -562,7 +566,9 @@
 
         elements.consumptionList.innerHTML = order.consumptions.map((item) => {
             let actionHtml = '<span class="rt-note">Servicio finalizado</span>';
-            if (item.estado === 'pendiente') {
+            if (SIMPLE) {
+                actionHtml = '';
+            } else if (item.estado === 'pendiente') {
                 actionHtml = `<button class="rt-consumption-action" type="button" data-consumption-id="${item.id}" data-next-state="preparando">Pasar a cocina</button>`;
             } else if (item.estado === 'preparando') {
                 actionHtml = `<button class="rt-consumption-action" type="button" data-consumption-id="${item.id}" data-next-state="servido">Marcar servido</button>`;
@@ -576,7 +582,7 @@
                     </div>
                     <div class="rt-consumption-tags">
                         <span><i class="fas fa-layer-group"></i> ${item.cantidad} und</span>
-                        <span><i class="fas fa-fire-alt"></i> ${item.estado_label}</span>
+                        ${SIMPLE ? '' : `<span><i class="fas fa-fire-alt"></i> ${item.estado_label}</span>`}
                         <span><i class="fas fa-tag"></i> ${money(item.precio_unitario)}</span>
                     </div>
                     ${item.notas ? `<div class="rt-note">${item.notas}</div>` : ''}
@@ -1400,19 +1406,21 @@
 
         modal.list.innerHTML = order.consumptions.map((item) => {
             let actionHtml = '<span class="rt-note">Servido</span>';
-            if (item.estado === 'pendiente') {
+            if (SIMPLE) {
+                actionHtml = '';  // sin flujo de cocina en modo simple
+            } else if (item.estado === 'pendiente') {
                 actionHtml = `<button class="rtm-ci-action" type="button" data-consumption-id="${item.id}" data-next-state="preparando"><i class="fas fa-fire-alt"></i> Cocina</button>`;
             } else if (item.estado === 'preparando') {
                 actionHtml = `<button class="rtm-ci-action" type="button" data-consumption-id="${item.id}" data-next-state="servido"><i class="fas fa-check"></i> Servido</button>`;
             }
 
-            // Remover: solo mientras NO esté servido (corrección de error humano).
-            const removeHtml = item.estado === 'servido'
+            // Remover: siempre en modo simple (corrección de error); en modo completo, solo si NO está servido.
+            const removeHtml = (!SIMPLE && item.estado === 'servido')
                 ? ''
                 : `<button class="rtm-ci-remove" type="button" data-consumption-id="${item.id}" title="Remover de la cuenta"><i class="fas fa-trash-alt"></i></button>`;
 
-            // Cantidad: stepper editable (−/número/+) si NO está servido; estático si sí.
-            const qtyHtml = item.estado === 'servido'
+            // Cantidad: stepper editable (−/número/+); estático solo si está servido (modo completo).
+            const qtyHtml = (!SIMPLE && item.estado === 'servido')
                 ? `<span class="rtm-ci-qtystatic"><i class="fas fa-layer-group"></i> ${item.cantidad} und</span>`
                 : `<div class="rtm-ci-qty" role="group" aria-label="Cantidad">
                         <button class="rtm-ciq-btn" type="button" data-consumption-id="${item.id}" data-delta="-1" aria-label="Restar uno">−</button>
@@ -1426,7 +1434,9 @@
                         <div class="rtm-ci-name">${item.descripcion}</div>
                         <div class="rtm-ci-tags">
                             ${qtyHtml}
-                            <span class="rt-state-badge ${item.estado === 'pendiente' ? 'reservada' : item.estado === 'preparando' ? 'ocupada' : 'disponible'}">${item.estado_label}</span>
+                            ${SIMPLE
+                                ? '<span class="rt-state-badge disponible">Entregado</span>'
+                                : `<span class="rt-state-badge ${item.estado === 'pendiente' ? 'reservada' : item.estado === 'preparando' ? 'ocupada' : 'disponible'}">${item.estado_label}</span>`}
                         </div>
                         ${item.notas ? `<div class="rtm-ci-notes">${item.notas}</div>` : ''}
                     </div>

@@ -594,9 +594,11 @@
                         <button class="rtm-state-btn rtm-state-ocupada" data-next-state="ocupada" type="button">
                             <i class="fas fa-user-check"></i> Ocupada
                         </button>
+                        {% if not restaurante_simple %}
                         <button class="rtm-state-btn rtm-state-cuenta" data-next-state="cuenta_solicitada" type="button">
                             <i class="fas fa-hand-holding-usd"></i> Solicitar cuenta
                         </button>
+                        {% endif %}
                     </div>
 
                     <!-- Acciones principales -->
@@ -708,6 +710,7 @@
 <script>
 window.RESTAURANT_PAGE = {
     viewMode: {{ view_mode | tojson }},
+    simple: {{ restaurante_simple | default(false) | tojson }},
     floorData: {{ floor_data | tojson }},
     products: {{ products | tojson }},
     reportData: {{ report_data | default({}, true) | tojson }},
