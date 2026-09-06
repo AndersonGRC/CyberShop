@@ -3,7 +3,7 @@
 {% block titulo %}{{ page_title }} | {{ datosApp.titulo }}{% endblock %}
 
 {% block LinkAdicional %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/restaurant_tables.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/restaurant_tables.css') }}?v={{ config.APP_VERSION }}">
 {% endblock %}
 
 {% block body %}

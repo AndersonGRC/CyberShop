@@ -1764,6 +1764,17 @@
     }
 }
 
+/* De-saturación en tablet (≤1080px): menos elementos por fila y más aire, para
+   que "Atender mesas" no se vea recargado. El plano conserva su comportamiento. */
+@media (max-width: 1080px) {
+    .rt-module-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .rt-module-link { padding: 14px 12px 12px; }
+    .rt-module-link small { display: none; }   /* solo título + ícono: nav más limpio */
+    .rt-legend { gap: 6px 10px; }
+    .rt-legend-item { font-size: 0.82rem; font-weight: 600; }
+    .rt-hero { gap: 12px; }
+}
+
 /* Móvil (≤768px) */
 @media (max-width: 768px) {
     .rt-shell {
