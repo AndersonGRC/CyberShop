@@ -1851,6 +1851,51 @@ def _apply_restaurant_op(cur, payload):
             raise ValueError('Consumo no encontrado.')
         return int(row['id'])
 
+    if op == 'remove_consumption':
+        # Remoción de un consumo (corrección de error). Localiza por remote id o,
+        # si el add aún no confirmaba, por el uuid del add en el ledger. Restaura
+        # el stock que add_consumption descontó. Idempotente (si ya no existe).
+        cid = payload.get('consumption_id')
+        if not cid:
+            u = (payload.get('target_uuid') or '').strip()
+            if u:
+                _ensure_restaurant_ledger(cur)
+                cur.execute('SELECT remote_id FROM sync_restaurant_applied_ops WHERE client_op_uuid = %s', (u,))
+                r = cur.fetchone()
+                cid = r['remote_id'] if r else None
+        if not cid:
+            raise _DuplicateError(0)  # nada que remover → idempotente
+        cid = int(cid)
+        cur.execute("""
+            SELECT id, order_id, estado, producto_id, cantidad
+              FROM restaurant_table_consumptions WHERE id = %s
+        """, (cid,))
+        row = cur.fetchone()
+        if not row:
+            raise _DuplicateError(0)  # ya removido → idempotente
+        if row['estado'] == 'servido':
+            raise ValueError('No puedes remover un producto ya servido.')
+        order_id = int(row['order_id'])
+        if row.get('producto_id'):
+            try:
+                pid = int(row['producto_id']); qty = int(row['cantidad'] or 0)
+                cur.execute('SELECT stock FROM productos WHERE id = %s FOR UPDATE', (pid,))
+                pr = cur.fetchone()
+                if pr and qty > 0:
+                    s0 = int(pr['stock'] or 0); s1 = s0 + qty
+                    cur.execute('UPDATE productos SET stock = %s WHERE id = %s', (s1, pid))
+                    uid = _resolve_usuario_id(cur, payload)
+                    cur.execute("""
+                        INSERT INTO inventario_log
+                            (producto_id, tipo, cantidad, stock_anterior, stock_nuevo, motivo, usuario_id)
+                        VALUES (%s, 'ENTRADA', %s, %s, %s, %s, %s)
+                    """, (pid, qty, s0, s1, f"Reverso de consumo removido / orden {order_id}", uid))
+            except Exception:
+                pass
+        cur.execute("DELETE FROM restaurant_table_consumptions WHERE id = %s", (cid,))
+        _restaurant_refresh_total(cur, order_id)
+        return cid
+
     if op == 'set_table_state':
         table_id = int(payload['table_id'])
         new_state = (payload.get('estado') or '').strip()
