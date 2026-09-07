@@ -2750,6 +2750,35 @@ header.collapsed ~ .rtm-overlay {
     color: var(--color-primario);
 }
 
+/* Desplegar todas las categorías cuando la barra se desborda (muchas categorías) */
+.rtm-category-wrap { position: relative; }
+.rtm-category-bar.expanded {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    padding-right: 52px;   /* deja aire para el botón-flecha en la 1ª fila */
+}
+.rtm-category-toggle {
+    position: absolute;
+    top: 9px;
+    right: 10px;
+    z-index: 3;
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    border: 1.5px solid var(--rt-line);
+    border-radius: 999px;
+    background: var(--color-blanco);
+    color: var(--color-primario);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: -16px 0 14px -6px var(--color-blanco);  /* fade: insinúa que hay más */
+}
+.rtm-category-toggle:hover { border-color: var(--color-primario); }
+.rtm-category-toggle i { transition: transform 0.2s ease; }
+.rtm-category-bar.expanded ~ .rtm-category-toggle i { transform: rotate(180deg); }
+
 /* Acceso claro a "Ítem libre": botón propio (discontinuo) debajo del buscador,
    para que quede evidente dónde vender algo NO registrado con precio manual. */
 .rtm-freeitem-btn {

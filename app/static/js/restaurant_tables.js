@@ -1262,6 +1262,7 @@
         footerTotal:  document.getElementById('rtmFooterTotal'),
         payment:      document.getElementById('rtmPaymentMethod'),
         catBar:       document.getElementById('rtmCategoryBar'),
+        catToggle:    document.getElementById('rtmCategoryToggle'),
         search:       document.getElementById('rtmProductSearch'),
         productGrid:  document.getElementById('rtmProductGrid'),
         addPanel:     document.getElementById('rtmAddPanel'),
@@ -1314,6 +1315,28 @@
                 filterModalProducts(this.dataset.cat, modal.search?.value || '');
             });
         });
+
+        // Botón-flecha para "desplegar" todas las categorías cuando la barra se
+        // desborda (muchas categorías). Al expandir, la barra pasa a varias filas.
+        if (modal.catToggle) {
+            modal.catBar.classList.remove('expanded');
+            if (!modal.catToggle._wired) {
+                modal.catToggle.addEventListener('click', function () {
+                    modal.catBar.classList.toggle('expanded');
+                    updateCatToggle();
+                });
+                modal.catToggle._wired = true;
+            }
+            requestAnimationFrame(updateCatToggle);
+        }
+    }
+
+    function updateCatToggle() {
+        // Muestra la flecha solo si hay desborde (o si ya está expandida).
+        if (!modal.catToggle || !modal.catBar) return;
+        const expanded = modal.catBar.classList.contains('expanded');
+        const overflow = modal.catBar.scrollWidth > modal.catBar.clientWidth + 4;
+        modal.catToggle.hidden = !(expanded || overflow);
     }
 
     function renderModalProducts() {

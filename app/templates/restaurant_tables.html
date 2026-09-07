@@ -627,11 +627,17 @@
                 </div>
 
                 <!-- Filtro por categoría -->
-                <div id="rtmCategoryBar" class="rtm-category-bar">
-                    <button class="rtm-cat-btn is-active" data-cat="all" type="button">
-                        <i class="fas fa-th"></i> Todos
+                <div class="rtm-category-wrap">
+                    <div id="rtmCategoryBar" class="rtm-category-bar">
+                        <button class="rtm-cat-btn is-active" data-cat="all" type="button">
+                            <i class="fas fa-th"></i> Todos
+                        </button>
+                        <!-- JS inyecta botones de categorías aquí -->
+                    </div>
+                    <button id="rtmCategoryToggle" class="rtm-category-toggle" type="button" hidden
+                            aria-label="Ver todas las categorías" title="Ver todas las categorías">
+                        <i class="fas fa-chevron-down"></i>
                     </button>
-                    <!-- JS inyecta botones de categorías aquí -->
                 </div>
 
                 <!-- Búsqueda -->
