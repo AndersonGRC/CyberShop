@@ -740,5 +740,5 @@ window.RESTAURANT_PAGE = {
     }
 };
 </script>
-<script src="{{ url_for('static', filename='js/restaurant_tables.js') }}"></script>
+<script src="{{ url_for('static', filename='js/restaurant_tables.js') }}?v={{ config.APP_VERSION }}"></script>
 {% endblock %}
