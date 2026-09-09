@@ -98,6 +98,106 @@ def _municipio_codigo(ciudad: str) -> str:
     return MUNICIPIO_MAP.get(ciudad.lower().strip(), '11001')
 
 
+# Unidad de medida de CyberShop → código UNECE Rec 20 que espera la DIAN.
+UNIDAD_DIAN_MAP = {
+    'unidad': 'EA',  'docena': 'DZN', 'kilo': 'KGM',
+    'gramo':  'GRM', 'libra':  'LBR', 'litro': 'LTR',
+}
+
+# En CyberShop el precio del producto es el precio FINAL: ni el carrito ni el POS
+# suman IVA encima (`productos.impuesto` es metadato tributario, no entra en el
+# cobro). El microservicio, en cambio, calcula total = base × (1 + iva). Si le
+# mandamos el precio cobrado junto con iva=19, la factura sale 19% por encima de
+# lo que el cliente pagó — por eso se DESCOMPONE en base + IVA en vez de sumar.
+# Se deja conmutable por si algún cliente carga precios sin IVA.
+FE_PRECIO_INCLUYE_IVA = os.getenv('FE_PRECIO_INCLUYE_IVA', 'true').lower() == 'true'
+
+
+def _iva_pct(impuesto_raw) -> int:
+    """`productos.impuesto` ('excluido'|'0'|'5'|'19') → porcentaje entero.
+
+    'excluido' y cualquier valor desconocido → 0, que es el default de la
+    columna (migración 0004). Así un tenant que nunca configuró IVA no factura
+    un impuesto que jamás cobró (antes iba 19 fijo para todos los productos).
+    """
+    valor = str(impuesto_raw or '').strip().lower()
+    return int(valor) if valor in ('0', '5', '19') else 0
+
+
+def _unidad_dian(unidad_raw) -> str:
+    return UNIDAD_DIAN_MAP.get(str(unidad_raw or '').strip().lower(), 'EA')
+
+
+def _base_gravable(valor_cobrado, iva_pct: int) -> float:
+    """Precio cobrado (IVA incluido) → base gravable, redondeada a 2 decimales."""
+    from decimal import Decimal, ROUND_HALF_UP
+    valor = Decimal(str(valor_cobrado or 0))
+    if iva_pct and FE_PRECIO_INCLUYE_IVA:
+        valor = valor / (Decimal(1) + Decimal(iva_pct) / Decimal(100))
+    return float(valor.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
+
+
+def _construir_items(filas, campo_desc: str) -> list:
+    """Convierte líneas de venta al formato de ítems del microservicio.
+
+    Preserva lo que REALMENTE se vendió: IVA real del producto, descuento
+    implícito (cuando `subtotal` no cuadra con cantidad × precio), unidad de
+    medida y código de referencia. Antes se mandaba descuento 0, IVA 19 y
+    unidad EA fijos para todo, así que la factura no reflejaba la venta.
+    """
+    items = []
+    for fila in filas:
+        fila     = dict(fila)
+        cantidad = int(fila.get('cantidad') or 1)
+        iva      = _iva_pct(fila.get('impuesto'))
+        precio   = float(fila.get('precio_unitario') or 0)
+
+        # Descuento implícito: la diferencia entre el bruto y el subtotal real
+        # de la línea. `subtotal` se leía de la BD y se descartaba.
+        bruto     = precio * cantidad
+        subtotal  = fila.get('subtotal')
+        subtotal  = float(subtotal) if subtotal is not None else bruto
+        descuento = max(0.0, round(bruto - subtotal, 2))
+
+        item = {
+            "descripcion":     fila.get(campo_desc) or 'Producto',
+            "cantidad":        cantidad,
+            "precio_unitario": _base_gravable(precio, iva),
+            "descuento":       _base_gravable(descuento, iva),
+            "codigo_unidad":   _unidad_dian(fila.get('unidad_medida')),
+            "impuesto_iva":    iva,
+        }
+        codigo = str(fila.get('referencia') or '').strip()
+        if codigo:
+            # xml_builder lo usa como SellersItemIdentification/ID; sin esto
+            # todas las líneas salían como ITEM-001, ITEM-002…
+            item["codigo"] = codigo
+        items.append(item)
+    return items
+
+
+def _email_adquiriente(email_crudo) -> str:
+    """Correo del comprador con respaldo. La DIAN rechaza la factura si va vacío.
+
+    Cae al correo de contacto del negocio cuando la venta no capturó uno (típico
+    en mostrador), y solo como último recurso a un genérico.
+    """
+    email = str(email_crudo or '').strip()
+    if '@' in email:
+        return email
+    try:
+        from services.public_site_service import get_public_contact_destination_email
+        email = (get_public_contact_destination_email() or '').strip()
+    except Exception:
+        email = ''
+    return email if '@' in email else 'facturacion@empresa.co'
+
+
+def _documento_adquiriente(documento_crudo) -> str:
+    """Documento del comprador. Consumidor final = 222222222222 (no '0')."""
+    return str(documento_crudo or '').strip() or '222222222222'
+
+
 def construir_json_generico(pedido_id: int) -> dict | None:
     """
     Lee un pedido de CyberShop y lo convierte al formato JSON genérico
@@ -128,12 +228,27 @@ def construir_json_generico(pedido_id: int) -> dict | None:
         if not pedido:
             return None
 
+        # `detalle_pedidos` no guarda producto_id, así que el IVA/unidad reales
+        # se recuperan emparejando por nombre. Es lo único que hay; si el
+        # producto ya no existe o cambió de nombre, los COALESCE dejan el
+        # default seguro (sin IVA, unidad EA) en vez de inventar un 19%.
+        tiene_iva = _table_has_column('productos', 'impuesto')
+        sel_extra = (", pr.impuesto, pr.unidad_medida"
+                     if tiene_iva else
+                     ", 'excluido' AS impuesto, 'unidad' AS unidad_medida")
         cur.execute(
-            """SELECT dp.producto_nombre,
+            f"""SELECT dp.producto_nombre,
                       dp.cantidad,
                       dp.precio_unitario,
-                      dp.subtotal
+                      dp.subtotal,
+                      pr.referencia
+                      {sel_extra}
                FROM detalle_pedidos dp
+               LEFT JOIN LATERAL (
+                   SELECT p2.* FROM productos p2
+                   WHERE p2.nombre = dp.producto_nombre
+                   ORDER BY p2.id LIMIT 1
+               ) pr ON TRUE
                WHERE dp.pedido_id = %s
                ORDER BY dp.id""",
             (pedido_id,)
@@ -145,19 +260,9 @@ def construir_json_generico(pedido_id: int) -> dict | None:
     tipo_doc = TIPO_DOC_MAP.get(
         str(pedido.get('cliente_tipo_documento') or 'CC').upper(), 'CC'
     )
-    numero_doc = pedido.get('cliente_documento') or '0'
+    numero_doc = _documento_adquiriente(pedido.get('cliente_documento'))
 
-    items = []
-    for item in items_db:
-        item = dict(item)
-        items.append({
-            "descripcion":     item['producto_nombre'],
-            "cantidad":        int(item['cantidad']),
-            "precio_unitario": float(item['precio_unitario']),
-            "descuento":       0,
-            "codigo_unidad":   "EA",
-            "impuesto_iva":    19,  # IVA estándar Colombia
-        })
+    items = _construir_items(items_db, 'producto_nombre')
 
     metodo_pago = METODO_PAGO_MAP.get(
         str(pedido.get('metodo_pago', '')).upper(), '48'
@@ -166,11 +271,12 @@ def construir_json_generico(pedido_id: int) -> dict | None:
     return {
         "referencia_pedido": pedido['referencia_pedido'],
         "cliente": {
-            "tipo_persona":     "natural",
+            # Una compra con NIT es una empresa: iba como persona natural.
+            "tipo_persona":     "juridica" if tipo_doc == 'NIT' else "natural",
             "tipo_documento":   tipo_doc,
             "numero_documento": numero_doc,
             "nombre":           pedido.get('cliente_nombre') or 'Consumidor Final',
-            "email":            pedido.get('cliente_email') or '',
+            "email":            _email_adquiriente(pedido.get('cliente_email')),
             "telefono":         pedido.get('cliente_telefono') or '',
             "direccion":        pedido.get('direccion_envio') or '',
             "municipio_codigo": _municipio_codigo(pedido.get('ciudad')),
@@ -206,12 +312,21 @@ def construir_json_pos(venta_id: int) -> dict | None:
         if not venta:
             return None
 
+        # A diferencia de detalle_pedidos, aquí sí hay producto_id: el IVA y la
+        # unidad reales salen por join directo (sin emparejar por nombre).
+        tiene_iva = _table_has_column('productos', 'impuesto')
+        sel_extra = (", pr.impuesto, pr.unidad_medida"
+                     if tiene_iva else
+                     ", 'excluido' AS impuesto, 'unidad' AS unidad_medida")
         cur.execute(
-            """SELECT d.descripcion,
+            f"""SELECT d.descripcion,
                       d.cantidad,
                       d.precio_unitario,
-                      d.subtotal
+                      d.subtotal,
+                      pr.referencia
+                      {sel_extra}
                FROM detalle_venta_pos d
+               LEFT JOIN productos pr ON pr.id = d.producto_id
                WHERE d.venta_id = %s
                ORDER BY d.id""",
             (venta_id,)
@@ -220,17 +335,7 @@ def construir_json_pos(venta_id: int) -> dict | None:
 
     venta = dict(venta)
 
-    items = []
-    for item in items_db:
-        item = dict(item)
-        items.append({
-            "descripcion":     item['descripcion'],
-            "cantidad":        int(item['cantidad']),
-            "precio_unitario": float(item['precio_unitario']),
-            "descuento":       0,
-            "codigo_unidad":   "EA",
-            "impuesto_iva":    19,
-        })
+    items = _construir_items(items_db, 'descripcion')
 
     metodo_pago = METODO_PAGO_MAP.get(
         str(venta.get('metodo_pago', '')).upper(), '10'  # efectivo por defecto en POS
@@ -242,21 +347,8 @@ def construir_json_pos(venta_id: int) -> dict | None:
         str(venta.get('cliente_tipo_doc') or '').strip().upper(), 'CC'
     )
 
-    # La DIAN exige correo del adquiriente y rechaza la factura si va vacío (422).
-    # En una venta de mostrador casi nunca se pide, así que se cae al correo del
-    # negocio para que la emisión no se caiga por un dato que el cajero no tiene.
-    email = (venta.get('cliente_email') or '').strip()
-    if '@' not in email:
-        try:
-            from services.public_site_service import get_public_contact_destination_email
-            email = (get_public_contact_destination_email() or '').strip()
-        except Exception:
-            email = ''
-    if '@' not in email:
-        email = 'facturacion@empresa.co'
-
-    # Consumidor final: la DIAN espera 222222222222, no '0'.
-    documento = str(venta.get('cliente_documento') or '').strip() or '222222222222'
+    email     = _email_adquiriente(venta.get('cliente_email'))
+    documento = _documento_adquiriente(venta.get('cliente_documento'))
 
     return {
         "referencia_pedido": venta['numero_venta'],
@@ -559,22 +651,22 @@ def construir_json_restaurante(order_id: int) -> dict | None:
         orden = cur.fetchone()
         if not orden:
             return None
+        tiene_iva = _table_has_column('productos', 'impuesto')
+        sel_extra = (", pr.impuesto, pr.unidad_medida"
+                     if tiene_iva else
+                     ", 'excluido' AS impuesto, 'unidad' AS unidad_medida")
         cur.execute(
-            """SELECT descripcion, cantidad, precio_unitario, subtotal
-               FROM restaurant_table_consumptions WHERE order_id = %s ORDER BY id""", (order_id,))
+            f"""SELECT c.descripcion, c.cantidad, c.precio_unitario, c.subtotal,
+                      pr.referencia {sel_extra}
+               FROM restaurant_table_consumptions c
+               LEFT JOIN productos pr ON pr.id = c.producto_id
+               WHERE c.order_id = %s ORDER BY c.id""", (order_id,))
         items_db = cur.fetchall()
 
     orden = dict(orden)
-    items = []
-    for it in (dict(x) for x in items_db):
-        items.append({
-            "descripcion":     it.get('descripcion') or 'Consumo',
-            "cantidad":        int(it.get('cantidad') or 1),
-            "precio_unitario": float(it.get('precio_unitario') or 0),
-            "descuento":       0,
-            "codigo_unidad":   "EA",
-            "impuesto_iva":    19,   # el micro lo pone en 0 si el emisor es No responsable de IVA
-        })
+    # Antes iba IVA 19 fijo para todo consumo: en un restaurante con productos
+    # excluidos eso factura un impuesto que el comensal nunca pagó.
+    items = _construir_items(items_db, 'descripcion')
     metodo = METODO_PAGO_MAP.get(str(orden.get('payment_method') or '').upper(), '10')
 
     # Adquiriente real capturado al cobrar (mismo criterio que el POS): tipo de
@@ -619,9 +711,14 @@ def emitir_factura_restaurante(order_id: int) -> dict:
 def construir_json_cuenta_cobro(cuenta_id: int) -> dict | None:
     """Convierte una cuenta de cobro (cuentas_cobro) al JSON DIAN."""
     with get_db_cursor(dict_cursor=True) as cur:
+        # cliente_email es opcional según la antigüedad del tenant.
+        sel_mail = (", cliente_email"
+                    if _table_has_column('cuentas_cobro', 'cliente_email')
+                    else ", NULL AS cliente_email")
         cur.execute(
-            """SELECT consecutivo, cliente_nombre, cliente_nit, cliente_direccion,
+            f"""SELECT consecutivo, cliente_nombre, cliente_nit, cliente_direccion,
                       cliente_telefono, cliente_ciudad, total, factura_dian_id
+                      {sel_mail}
                FROM cuentas_cobro WHERE id = %s""", (cuenta_id,))
         cuenta = cur.fetchone()
         if not cuenta:
@@ -648,9 +745,11 @@ def construir_json_cuenta_cobro(cuenta_id: int) -> dict | None:
         "referencia_pedido": cuenta.get('consecutivo') or f"CC-{cuenta_id}",
         "cliente": {
             "tipo_persona": "juridica" if tipo_doc == 'NIT' else "natural",
-            "tipo_documento": tipo_doc, "numero_documento": nit or '0',
+            "tipo_documento": tipo_doc,
+            "numero_documento": _documento_adquiriente(nit),
             "nombre": cuenta.get('cliente_nombre') or 'Cliente',
-            "email": "facturacion@empresa.co", "telefono": cuenta.get('cliente_telefono') or '',
+            "email": _email_adquiriente(cuenta.get('cliente_email')),
+            "telefono": cuenta.get('cliente_telefono') or '',
             "direccion": cuenta.get('cliente_direccion') or '',
             "municipio_codigo": _municipio_codigo(cuenta.get('cliente_ciudad')),
         },
@@ -670,8 +769,11 @@ def construir_json_cotizacion(cotizacion_id: int) -> dict | None:
     """Convierte una cotización (cotizaciones) al JSON DIAN."""
     with get_db_cursor(dict_cursor=True) as cur:
         cur.execute(
-            """SELECT cliente_nombre, cliente_documento, cliente_direccion,
+            # Opcionales según la antigüedad del tenant.
+            f"""SELECT cliente_nombre, cliente_documento, cliente_direccion,
                       cliente_ciudad, cliente_telefono, total, factura_dian_id
+                      {", cliente_email" if _table_has_column('cotizaciones', 'cliente_email') else ", NULL AS cliente_email"}
+                      {", cliente_tipo_doc" if _table_has_column('cotizaciones', 'cliente_tipo_doc') else ", NULL AS cliente_tipo_doc"}
                FROM cotizaciones WHERE id = %s""", (cotizacion_id,))
         cot = cur.fetchone()
         if not cot:
@@ -695,14 +797,22 @@ def construir_json_cotizacion(cotizacion_id: int) -> dict | None:
             "codigo_unidad":   "EA",
             "impuesto_iva":    float(it.get('iva_porc') or 0),
         })
-    doc = (cot.get('cliente_documento') or '').strip()
+    doc = _documento_adquiriente(cot.get('cliente_documento'))
+    # El tipo de documento iba fijo en 'CC': una cotización a empresa salía como
+    # persona natural con cédula. Si el tenant no tiene la columna, se mantiene
+    # el comportamiento anterior (CC) en vez de adivinar.
+    tipo_doc = TIPO_DOC_MAP.get(
+        str(cot.get('cliente_tipo_doc') or '').strip().upper(), 'CC'
+    )
     return {
         "referencia_pedido": f"COT-{cotizacion_id}",
         "cliente": {
-            "tipo_persona": "natural", "tipo_documento": "CC",
-            "numero_documento": doc or '0',
+            "tipo_persona": "juridica" if tipo_doc == 'NIT' else "natural",
+            "tipo_documento": tipo_doc,
+            "numero_documento": doc,
             "nombre": cot.get('cliente_nombre') or 'Cliente',
-            "email": "facturacion@empresa.co", "telefono": cot.get('cliente_telefono') or '',
+            "email": _email_adquiriente(cot.get('cliente_email')),
+            "telefono": cot.get('cliente_telefono') or '',
             "direccion": cot.get('cliente_direccion') or '',
             "municipio_codigo": _municipio_codigo(cot.get('cliente_ciudad')),
         },
