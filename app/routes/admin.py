@@ -3183,6 +3183,78 @@ def facturacion_dian():
     return redirect(f"{dian_base}/auto-login?token={token}&ts={ts}")
 
 
+@admin_bp.route('/admin/facturacion-dian/bandeja')
+@rol_requerido(ADMIN_CONTADOR)
+def facturacion_bandeja():
+    """Bandeja de facturación electrónica dentro del panel del cliente.
+
+    Hasta ahora el único acceso era el SSO que saca al portal tributario, así
+    que el dueño del negocio no tenía forma de ver qué está por salir a la DIAN
+    ni de reversarlo sin cambiar de aplicación.
+    """
+    from routes.factura_electronica import (
+        facturacion_habilitada, listar_facturas_dian, obtener_politica_envio,
+    )
+    datosApp = get_data_app()
+    if not facturacion_habilitada():
+        return render_template('facturacion_bloqueada.html', datosApp=datosApp)
+
+    estado = (request.args.get('estado') or '').strip().upper() or None
+    listado = listar_facturas_dian(estado=estado, limite=100)
+    politica = obtener_politica_envio()
+
+    return render_template(
+        'facturacion_bandeja.html',
+        datosApp=datosApp,
+        documentos=listado.get('items') or [],
+        error_listado=listado.get('error'),
+        politica=politica if not politica.get('error') else {},
+        error_politica=politica.get('error'),
+        estado_filtro=estado or '',
+    )
+
+
+@admin_bp.route('/admin/facturacion-dian/bandeja/<factura_id>/reversar', methods=['POST'])
+@rol_requerido(ADMIN_CONTADOR)
+def facturacion_reversar(factura_id):
+    """Reversa un documento que todavía no salió a la DIAN."""
+    from routes.factura_electronica import facturacion_habilitada, cancelar_factura_dian
+    if not facturacion_habilitada():
+        abort(403)
+
+    res = cancelar_factura_dian(factura_id)
+    if res.get('error'):
+        # El portal responde 409 cuando ya salió o el plazo venció: no es un
+        # fallo del sistema sino el límite real de la reversa.
+        flash(f"No se pudo reversar: {res['error']}", 'error')
+    else:
+        flash('Documento reversado. No se enviará a la DIAN.', 'success')
+    return redirect(url_for('admin.facturacion_bandeja'))
+
+
+@admin_bp.route('/admin/facturacion-dian/politica', methods=['POST'])
+@rol_requerido(ADMIN_CONTADOR)
+def facturacion_politica():
+    """Guarda la política de envío (modo de aprobación y ventana de reversa)."""
+    from routes.factura_electronica import facturacion_habilitada, guardar_politica_envio
+    if not facturacion_habilitada():
+        abort(403)
+
+    modo = (request.form.get('modo_aprobacion') or '').strip().lower()
+    try:
+        grace = int(request.form.get('grace_minutos') or 0)
+    except ValueError:
+        flash('La ventana de reversa debe ser un número de minutos.', 'error')
+        return redirect(url_for('admin.facturacion_bandeja'))
+
+    res = guardar_politica_envio(modo, grace)
+    if res.get('error'):
+        flash(f"No se pudo guardar la política: {res['error']}", 'error')
+    else:
+        flash('Política de envío actualizada.', 'success')
+    return redirect(url_for('admin.facturacion_bandeja'))
+
+
 @admin_bp.route('/admin/pos/<int:venta_id>/facturar', methods=['POST'])
 @rol_requerido(ADMIN_CONTADOR)
 def facturar_venta_pos(venta_id):

@@ -1,0 +1,326 @@
+{% extends './plantillaapp.html' %}
+
+{% block titulo %}Bandeja de Facturación Electrónica{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+    .fe-wrap { padding: 24px 20px; max-width: 1180px; margin: 0 auto; }
+    .fe-titulo {
+        display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+        margin-bottom: 6px;
+    }
+    .fe-titulo h2 {
+        margin: 0; font-size: 1.5rem;
+        color: var(--color-primario-oscuro, #091C5A);
+    }
+    .fe-sub { color: #666; font-size: .92rem; margin: 0 0 22px; }
+
+    .fe-card {
+        background: #fff; border-radius: 12px; padding: 22px 24px;
+        box-shadow: var(--marca-sombra-card, 0 4px 18px rgba(0,0,0,.08));
+        margin-bottom: 22px;
+    }
+    .fe-card h3 {
+        margin: 0 0 4px; font-size: 1.05rem;
+        color: var(--color-primario, #122C94);
+    }
+    .fe-card .fe-ayuda { color: #777; font-size: .86rem; margin: 0 0 18px; }
+
+    /* ── Política de envío ── */
+    .fe-opcion {
+        display: block; border: 1px solid #e4e4e4; border-radius: 8px;
+        padding: 12px 14px; margin-bottom: 10px; cursor: pointer;
+        transition: border-color .15s, background .15s;
+    }
+    .fe-opcion:hover { border-color: var(--marca-tinte-medio, #c7d0ef); }
+    .fe-opcion input { margin-right: 8px; }
+    .fe-opcion.activa {
+        border-color: var(--color-primario, #122C94);
+        background: var(--marca-tinte-leve, #eef1fb);
+    }
+    .fe-opcion b { color: var(--color-primario-oscuro, #091C5A); }
+    .fe-opcion span { display: block; color: #666; font-size: .85rem; margin-top: 3px; }
+
+    .fe-grace { margin: 14px 0 18px; }
+    .fe-grace label { font-weight: 600; font-size: .9rem; color: #444; }
+    .fe-grace input {
+        width: 110px; padding: 8px 10px; margin-left: 10px;
+        border: 1px solid #d5d5d5; border-radius: 6px;
+    }
+    .fe-grace input:focus {
+        outline: none; border-color: var(--color-primario, #122C94);
+        box-shadow: 0 0 0 3px var(--marca-focus-ring, rgba(18,44,148,.15));
+    }
+    .fe-grace small { display: block; color: #888; margin-top: 6px; font-size: .82rem; }
+
+    .fe-btn {
+        padding: 10px 22px; border: none; border-radius: 6px; cursor: pointer;
+        background: var(--color-primario, #122C94); color: #fff; font-weight: 600;
+    }
+    .fe-btn:hover { background: var(--color-primario-oscuro, #091C5A); }
+
+    /* ── Filtros ── */
+    .fe-filtros { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    .fe-filtro {
+        padding: 6px 14px; border-radius: 20px; text-decoration: none;
+        font-size: .85rem; font-weight: 600; border: 1px solid #e0e0e0; color: #555;
+        background: #fff;
+    }
+    .fe-filtro.activo {
+        background: var(--color-primario, #122C94); color: #fff;
+        border-color: var(--color-primario, #122C94);
+    }
+
+    /* ── Tabla ── */
+    .fe-tabla-wrap { overflow-x: auto; }
+    table.fe-tabla { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    table.fe-tabla th {
+        text-align: left; padding: 11px 12px; font-size: .78rem;
+        text-transform: uppercase; letter-spacing: .03em; color: #fff;
+        background: var(--color-primario, #122C94); white-space: nowrap;
+    }
+    table.fe-tabla td {
+        padding: 11px 12px; border-bottom: 1px solid #eee; vertical-align: middle;
+    }
+    table.fe-tabla tr:hover td { background: #fafbff; }
+
+    .fe-badge {
+        display: inline-block; padding: 3px 10px; border-radius: 12px;
+        font-size: .75rem; font-weight: 700; white-space: nowrap;
+    }
+    .fe-badge.PENDIENTE  { background: #fff4d6; color: #8a6100; }
+    .fe-badge.PROCESANDO { background: #e2ecff; color: #1d4ea8; }
+    .fe-badge.ACEPTADA   { background: #e2f5e6; color: #1c7a33; }
+    .fe-badge.RECHAZADA,
+    .fe-badge.ERROR      { background: #fde8e8; color: #a01b1b; }
+    .fe-badge.CANCELADA  { background: #eee; color: #666; }
+
+    .fe-cuenta { font-weight: 700; color: #8a6100; white-space: nowrap; }
+    .fe-cuenta.vencido { color: #1d4ea8; }
+    .fe-aprobacion { font-weight: 700; color: #a01b1b; white-space: nowrap; }
+    .fe-motivo {
+        display: block; color: #a01b1b; font-size: .8rem; margin-top: 4px;
+        max-width: 320px;
+    }
+    .fe-ref { color: #666; font-size: .82rem; }
+
+    .fe-btn-rev {
+        padding: 6px 14px; border: 1px solid var(--color-eliminar, #c0392b);
+        background: var(--color-peligro-tinte, #ffebee);
+        color: var(--color-eliminar, #c0392b);
+        border-radius: 6px; font-size: .82rem; font-weight: 600; cursor: pointer;
+        white-space: nowrap;
+    }
+    .fe-btn-rev:hover { background: var(--color-peligro-tinte-hover, #ffcdd2); }
+    .fe-no-rev { color: #aaa; font-size: .82rem; }
+
+    .fe-aviso {
+        padding: 12px 16px; border-radius: 8px; font-size: .88rem;
+        margin-bottom: 18px; border-left: 4px solid;
+    }
+    .fe-aviso.error  { background: #fde8e8; color: #7d1515; border-color: #c0392b; }
+    .fe-aviso.manual { background: #fff4d6; color: #6b4b00; border-color: #e0a800; }
+    .fe-vacio { text-align: center; padding: 42px 20px; color: #999; }
+    .fe-vacio i { font-size: 2.4rem; display: block; margin-bottom: 12px; color: #ccc; }
+
+    @media (max-width: 640px) {
+        .fe-wrap { padding: 16px 12px; }
+        .fe-card { padding: 18px 15px; }
+        table.fe-tabla { font-size: .84rem; }
+    }
+</style>
+{% endblock %}
+
+{% block contenido %}
+<div class="fe-wrap">
+
+    <div class="fe-titulo">
+        <h2><i class="fas fa-file-invoice-dollar"></i>&nbsp; Facturación Electrónica</h2>
+        <a href="{{ url_for('admin.facturacion_dian') }}" class="fe-filtro">
+            <i class="fas fa-external-link-alt"></i>&nbsp; Abrir portal tributario
+        </a>
+    </div>
+    <p class="fe-sub">
+        Documentos camino a la DIAN. Mientras un documento no haya salido puedes
+        <strong>reversarlo</strong> desde aquí.
+    </p>
+
+    {% if error_politica or error_listado %}
+    <div class="fe-aviso error">
+        <i class="fas fa-exclamation-triangle"></i>&nbsp;
+        No se pudo hablar con el servicio de facturación:
+        {{ error_politica or error_listado }}
+    </div>
+    {% endif %}
+
+    <!-- ── Política de envío ─────────────────────────────────────────── -->
+    {% if politica %}
+    {% set modo = politica.modo_aprobacion or 'automatico' %}
+    <div class="fe-card">
+        <h3><i class="fas fa-sliders-h"></i>&nbsp; Cuándo se envía a la DIAN</h3>
+        <p class="fe-ayuda">
+            Define si los documentos salen solos y cuánto tiempo tienes para reversarlos.
+        </p>
+
+        {% if modo == 'manual' %}
+        <div class="fe-aviso manual">
+            <i class="fas fa-hand-paper"></i>&nbsp;
+            <strong>Modo manual activo:</strong> ningún documento sale a la DIAN sin que
+            tú lo apruebes. Se acumulan en la bandeja esperando tu visto bueno.
+        </div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('admin.facturacion_politica') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <label class="fe-opcion {% if modo == 'manual' %}activa{% endif %}">
+                <input type="radio" name="modo_aprobacion" value="manual"
+                       {% if modo == 'manual' %}checked{% endif %}>
+                <b>Manual — nada sale sin mi aprobación</b>
+                <span>Cada documento espera tu visto bueno. Tú decides cuáles aprobar o reversar.</span>
+            </label>
+
+            <label class="fe-opcion {% if modo != 'manual' %}activa{% endif %}">
+                <input type="radio" name="modo_aprobacion" value="automatico"
+                       {% if modo != 'manual' %}checked{% endif %}>
+                <b>Automático con espera</b>
+                <span>Salen solos al vencer la espera. Durante ese tiempo puedes reversarlos.</span>
+            </label>
+
+            <div class="fe-grace">
+                <label for="grace_minutos">Espera antes del envío:</label>
+                <input type="number" id="grace_minutos" name="grace_minutos" min="0" max="10080"
+                       value="{{ politica.grace_minutos if politica.grace_minutos is not none else 60 }}">
+                <small>
+                    Minutos. Es la ventana para reversar: 60 = 1 hora, 1440 = 1 día, 10080 = 1 semana.
+                    Solo aplica en modo automático.
+                </small>
+            </div>
+
+            <button type="submit" class="fe-btn">
+                <i class="fas fa-save"></i>&nbsp; Guardar política
+            </button>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- ── Bandeja ───────────────────────────────────────────────────── -->
+    <div class="fe-card">
+        <h3><i class="fas fa-inbox"></i>&nbsp; Documentos</h3>
+        <p class="fe-ayuda">Los más recientes primero (hasta 100).</p>
+
+        <div class="fe-filtros">
+            {% set filtros = [('', 'Todos'), ('PENDIENTE', 'Por salir'),
+                              ('ACEPTADA', 'Aceptadas'), ('RECHAZADA', 'Rechazadas'),
+                              ('ERROR', 'Con error'), ('CANCELADA', 'Reversadas')] %}
+            {% for valor, etiqueta in filtros %}
+            <a class="fe-filtro {% if estado_filtro == valor %}activo{% endif %}"
+               href="{{ url_for('admin.facturacion_bandeja') }}{% if valor %}?estado={{ valor }}{% endif %}">
+                {{ etiqueta }}
+            </a>
+            {% endfor %}
+        </div>
+
+        {% if documentos %}
+        <div class="fe-tabla-wrap">
+            <table class="fe-tabla">
+                <thead>
+                    <tr>
+                        <th>Estado</th>
+                        <th>Número</th>
+                        <th>Origen</th>
+                        <th>Creado</th>
+                        <th>Sale en</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for d in documentos %}
+                    <tr>
+                        <td>
+                            <span class="fe-badge {{ d.estado }}">{{ d.estado }}</span>
+                            {% if d.error_mensaje %}
+                            <span class="fe-motivo" title="{{ d.error_mensaje }}">
+                                {{ d.error_mensaje[:120] }}{% if d.error_mensaje|length > 120 %}…{% endif %}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>{{ d.numero_factura or '—' }}</td>
+                        <td class="fe-ref">{{ d.referencia_pedido or '—' }}</td>
+                        <td class="fe-ref">{{ (d.creado_en or '')[:16]|replace('T', ' ') }}</td>
+                        <td>
+                            {% if d.estado == 'PENDIENTE' and d.requiere_aprobacion %}
+                                <span class="fe-aprobacion">
+                                    <i class="fas fa-hand-paper"></i> Espera tu aprobación
+                                </span>
+                            {% elif d.estado == 'PENDIENTE' and d.procesar_en %}
+                                <span class="fe-cuenta" data-sale-en="{{ d.procesar_en }}">…</span>
+                            {% else %}
+                                <span class="fe-no-rev">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if d.cancelable %}
+                            <form method="POST" style="margin:0"
+                                  action="{{ url_for('admin.facturacion_reversar', factura_id=d.id) }}"
+                                  onsubmit="return confirm('¿Reversar este documento? No se enviará a la DIAN.')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="fe-btn-rev">
+                                    <i class="fas fa-undo"></i>&nbsp; Reversar
+                                </button>
+                            </form>
+                            {% else %}
+                            <span class="fe-no-rev">
+                                {% if d.estado == 'ACEPTADA' %}Ya en la DIAN{% else %}No reversable{% endif %}
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% elif not error_listado %}
+        <div class="fe-vacio">
+            <i class="fas fa-inbox"></i>
+            No hay documentos{% if estado_filtro %} en este estado{% endif %}.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+/* Cuenta atrás de los documentos que salen solos. El servidor manda la hora de
+   envío en ISO; el navegador la compara con su reloj, así que no hace falta
+   recargar para ver cuánto queda. Los que esperan aprobación no llevan cuenta:
+   no salen nunca por sí solos. */
+(function () {
+    var marcas = document.querySelectorAll('[data-sale-en]');
+    if (!marcas.length) return;
+
+    function pintar() {
+        var ahora = Date.now();
+        marcas.forEach(function (el) {
+            var destino = new Date(el.getAttribute('data-sale-en')).getTime();
+            if (isNaN(destino)) { el.textContent = '—'; return; }
+            var resta = Math.floor((destino - ahora) / 1000);
+            if (resta <= 0) {
+                el.textContent = 'Enviando…';
+                el.classList.add('vencido');
+                return;
+            }
+            var d = Math.floor(resta / 86400),
+                h = Math.floor((resta % 86400) / 3600),
+                m = Math.floor((resta % 3600) / 60),
+                s = resta % 60;
+            el.textContent = d ? (d + 'd ' + h + 'h')
+                           : h ? (h + 'h ' + m + 'm')
+                               : (m + 'm ' + s + 's');
+        });
+    }
+
+    pintar();
+    setInterval(pintar, 1000);
+})();
+</script>
+{% endblock %}

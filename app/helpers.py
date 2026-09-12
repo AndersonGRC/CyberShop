@@ -345,7 +345,10 @@ def get_data_app():
         },
         {
             "nombre": "Facturación DIAN",
-            "url": "admin.facturacion_dian",
+            # Entra a la bandeja del propio panel (ver qué está por salir y
+            # reversarlo). El SSO al portal tributario queda a un clic desde
+            # dentro; antes el menú sacaba directo de la aplicación.
+            "url": "admin.facturacion_bandeja",
             "icono": "file-invoice",
             "module_code": MODULE_FACTURACION_ELECTRONICA,
             "permiso": ("facturacion_electronica", "ver"),

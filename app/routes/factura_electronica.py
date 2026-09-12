@@ -531,6 +531,63 @@ def consultar_estado_factura(factura_id: str) -> dict:
         return {"error": str(e)}
 
 
+# ── Bandeja y política de envío (panel del cliente) ──────────────────────────
+
+def _dian_call(metodo: str, ruta: str, *, payload=None, params=None,
+               timeout: int = 12) -> dict:
+    """Llamada al microservicio con la API key del tenant.
+
+    Centraliza el manejo de error, que hasta ahora cada función de emisión
+    repetía por su cuenta. Devuelve SIEMPRE un dict: ante fallo, {'error': …},
+    para que el panel pueda mostrar el motivo en vez de romperse.
+    """
+    if not DIAN_API_KEY:
+        return {'error': 'Facturación electrónica no configurada'}
+    try:
+        resp = requests.request(
+            metodo, f"{DIAN_SERVICE_URL}{ruta}",
+            headers={'X-API-Key': DIAN_API_KEY},
+            json=payload, params=params, timeout=timeout,
+        )
+        datos = resp.json() if resp.content else {}
+        if resp.status_code >= 400:
+            return {'error': (datos.get('error') if isinstance(datos, dict) else None)
+                             or f"HTTP {resp.status_code}"}
+        return datos if isinstance(datos, dict) else {'items': datos}
+    except Exception as e:
+        logger.error(f"Error llamando al servicio DIAN {metodo} {ruta}: {e}")
+        return {'error': str(e)}
+
+
+def listar_facturas_dian(estado: str = None, limite: int = 50) -> dict:
+    """Documentos del tenant en el microservicio, recientes primero.
+
+    Cada ítem trae `cancelable`, que el portal calcula en SQL: es TRUE mientras
+    el documento no haya salido a la DIAN (dentro del plazo de gracia, o
+    esperando aprobación manual).
+    """
+    params = {'limite': limite}
+    if estado:
+        params['estado'] = estado
+    return _dian_call('GET', '/facturas', params=params)
+
+
+def cancelar_factura_dian(factura_id: str) -> dict:
+    """Reversa un documento que aún no se envió a la DIAN."""
+    return _dian_call('POST', f"/facturas/{factura_id}/cancelar")
+
+
+def obtener_politica_envio() -> dict:
+    """Política de envío vigente: modo_aprobacion + grace_minutos."""
+    return _dian_call('GET', '/config-envio')
+
+
+def guardar_politica_envio(modo: str, grace_minutos: int) -> dict:
+    return _dian_call('PUT', '/config-envio',
+                      payload={'modo_aprobacion': modo,
+                               'grace_minutos': grace_minutos})
+
+
 def _guardar_factura_id_en_pedido(pedido_id: int, factura_dian_id: str):
     """Guarda el UUID de factura DIAN en la tabla pedidos."""
     if not factura_dian_id:
