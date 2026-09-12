@@ -120,6 +120,14 @@
         }).format(Number(value || 0));
     }
 
+    /* Los nombres de ítem se interpolan en HTML y un "ítem libre" los escribe el
+       personal a mano, así que cualquier < o & rompería el marcado. */
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
     function endpointForTable(template, tableId) {
         return template.replace('__TABLE_ID__', String(tableId));
     }
@@ -1277,6 +1285,14 @@
         cancelBtn:    document.getElementById('rtmCancelButton'),
         closeBtn:     document.getElementById('rtmCloseButton'),
         stateButtons: Array.from(document.querySelectorAll('.rtm-state-btn')),
+        // Paso de cobro: el total y el medio de pago ya no están en la venta
+        chargeStep:   document.getElementById('rtmChargeStep'),
+        chargeBack:   document.getElementById('rtmChargeBack'),
+        chargeOk:     document.getElementById('rtmChargeConfirm'),
+        chargeItems:  document.getElementById('rtmChargeItems'),
+        chargeTable:  document.getElementById('rtmChargeTableName'),
+        statesToggle: document.getElementById('rtmStatesToggle'),
+        quickStates:  document.getElementById('rtmQuickStates'),
     };
 
     // Categorías únicas de los productos (calculadas una vez)
@@ -1422,7 +1438,7 @@
             modal.list.innerHTML = `
                 <div class="rtm-empty-order">
                     <i class="fas fa-utensils"></i>
-                    <p>Aún no hay consumos.<br>Selecciona platos a la derecha.</p>
+                    <p>Aún no hay consumos.<br>Toca un plato para agregarlo.</p>
                 </div>`;
             return;
         }
@@ -1454,7 +1470,7 @@
             return `
                 <article class="rtm-consumption-item">
                     <div class="rtm-ci-info">
-                        <div class="rtm-ci-name">${item.descripcion}</div>
+                        <div class="rtm-ci-name">${escapeHtml(item.descripcion)}</div>
                         <div class="rtm-ci-tags">
                             ${qtyHtml}
                             ${SIMPLE
@@ -1535,7 +1551,12 @@
 
         updateModalHeader(table);
         renderModalConsumptions(table);
-        setMobileTab('order');   // en móvil cada mesa abre mostrando la Cuenta
+        setModalStep('sale');    // cada mesa abre en modo venta, nunca en el cobro
+        setMobileTab('catalog'); // y mostrando los platos: agregar es lo frecuente
+        // Estados de la mesa plegados: no compiten con la venta.
+        if (modal.quickStates) modal.quickStates.hidden = true;
+        modal.statesToggle?.setAttribute('aria-expanded', 'false');
+        modal.statesToggle?.classList.remove('is-open');
 
         // Resetear panel de añadir
         state.selectedProduct = null;
@@ -1565,6 +1586,8 @@
 
     function closeTableModal() {
         if (!modal.overlay) return;
+        // Volver a venta al cerrar: si no, la próxima mesa abriría en el cobro.
+        setModalStep('sale');
         modal.overlay.hidden = true;
         document.body.style.overflow = '';
         state.selectedProduct = null;
@@ -1719,8 +1742,39 @@
         }
     }
 
+    /* El modal tiene dos pasos. Mientras se vende no se muestra el total: el
+       mesero solo agrega platos. El monto, el medio de pago y la factura
+       electrónica aparecen al pulsar "Cobrar mesa", que es cuando importan. */
+    function setModalStep(step) {
+        const cobrando = (step === 'charge');
+        if (modal.chargeStep) modal.chargeStep.hidden = !cobrando;
+        modal.overlay?.classList.toggle('is-charging', cobrando);
+        if (!cobrando) return;
+
+        const table = getSelectedTable();
+        const order = table?.open_order || null;
+        if (modal.chargeTable) {
+            modal.chargeTable.textContent = table?.nombre
+                || (table?.codigo ? `la mesa ${table.codigo}` : 'la mesa');
+        }
+        // Resumen de lo consumido, para confirmar contra lo que pidió el cliente.
+        if (modal.chargeItems) {
+            const items = order?.consumptions || [];
+            modal.chargeItems.innerHTML = items.length
+                ? items.map((c) => `
+                    <div class="rtm-charge-item">
+                        <span class="rtm-charge-item-qty">${c.cantidad}×</span>
+                        <span class="rtm-charge-item-name">${escapeHtml(c.descripcion || '')}</span>
+                        <span class="rtm-charge-item-sub">${money(c.subtotal)}</span>
+                    </div>`).join('')
+                : '<p class="rtm-charge-empty">La mesa no tiene consumos.</p>';
+        }
+        modal.chargeStep?.querySelector('.rtm-charge-card')?.scrollTo({ top: 0 });
+    }
+
     async function modalChargeAccount() {
         await closeSelectedAccount();
+        setModalStep('sale');
         closeTableModal();
     }
 
@@ -1734,7 +1788,9 @@
 
         modal.closeBtn?.addEventListener('click', closeTableModal);
         modal.overlay?.addEventListener('click', function (e) {
-            if (e.target === modal.overlay) closeTableModal();
+            if (e.target !== modal.overlay) return;
+            if (modal.chargeStep && !modal.chargeStep.hidden) setModalStep('sale');
+            else closeTableModal();
         });
 
         modal.search?.addEventListener('input', function () {
@@ -1788,8 +1844,19 @@
         });
 
         modal.addBtn?.addEventListener('click', modalAddConsumption);
-        modal.chargeBtn?.addEventListener('click', modalChargeAccount);
+        // "Cobrar mesa" ya no cobra de una: abre el paso de cobro, donde se ve el
+        // total y se elige el medio de pago. Confirmar ahí es lo que cobra.
+        modal.chargeBtn?.addEventListener('click', function () { setModalStep('charge'); });
+        modal.chargeBack?.addEventListener('click', function () { setModalStep('sale'); });
+        modal.chargeOk?.addEventListener('click', modalChargeAccount);
         modal.cancelBtn?.addEventListener('click', modalCancelAccount);
+
+        modal.statesToggle?.addEventListener('click', function () {
+            const oculto = modal.quickStates?.hidden;
+            if (modal.quickStates) modal.quickStates.hidden = !oculto;
+            this.setAttribute('aria-expanded', String(!!oculto));
+            this.classList.toggle('is-open', !!oculto);
+        });
 
         // Ítem libre (producto no registrado, precio digitado)
         document.getElementById('rtmFreeItemToggle')?.addEventListener('click', function () {
@@ -1856,7 +1923,11 @@
 
         // ESC cierra el modal
         document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape' && !modal.overlay?.hidden) closeTableModal();
+            if (e.key !== 'Escape' || modal.overlay?.hidden) return;
+            // Escape sale del cobro primero: cerrar todo de golpe perdería el paso
+            // y obligaría a reabrir la mesa.
+            if (modal.chargeStep && !modal.chargeStep.hidden) setModalStep('sale');
+            else closeTableModal();
         });
     }
 

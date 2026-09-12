@@ -3429,3 +3429,181 @@ header.collapsed ~ .rtm-overlay {
         right: 8px;
     }
 }
+
+/* =====================================================================
+   VENTA EN DOS PASOS — el modal de mesa vende primero, cobra después
+   ---------------------------------------------------------------------
+   Mientras se agregan platos NO se muestra el total: el mesero solo
+   vende. El monto, el medio de pago y la factura electrónica viven en el
+   paso de cobro, que se superpone al pulsar "Cobrar mesa". Así se evita
+   saltar de pantalla en pantalla para una sola venta.
+   ===================================================================== */
+
+/* El total acumulado no se muestra durante la venta (el paso de cobro
+   tiene el suyo, grande). El nodo sigue en el DOM porque el JS lo pinta. */
+.rtm-chip-total { display: none; }
+
+/* ── Estados de la mesa, plegados ───────────────────────────────────── */
+.rtm-states-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 10px;
+    padding: 9px 12px;
+    background: transparent;
+    border: 1px dashed var(--rt-line);
+    border-radius: 8px;
+    color: var(--rt-muted);
+    font-size: .86rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.rtm-states-toggle:hover { border-style: solid; color: var(--rt-text); }
+.rtm-states-caret { margin-left: auto; transition: transform .18s ease; }
+.rtm-states-toggle.is-open .rtm-states-caret { transform: rotate(180deg); }
+
+/* ── Paso de cobro ─────────────────────────────────────────────────── */
+.rtm-charge-step {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    background: rgba(15, 23, 42, .55);
+    backdrop-filter: blur(2px);
+}
+
+.rtm-charge-card {
+    width: 100%;
+    max-width: 460px;
+    max-height: 100%;
+    overflow-y: auto;
+    background: var(--rt-card);
+    border-radius: 14px;
+    padding: 20px 22px 22px;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, .28);
+}
+
+.rtm-charge-head {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+.rtm-charge-head h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    color: var(--rt-text);
+}
+.rtm-charge-back {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 13px;
+    background: var(--rt-soft);
+    border: none;
+    border-radius: 20px;
+    color: var(--rt-muted);
+    font-size: .84rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.rtm-charge-back:hover { background: var(--rt-line); color: var(--rt-text); }
+
+/* El total aparece AQUÍ y en grande: es el dato que se necesita al cobrar. */
+.rtm-charge-total {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+    border-radius: 12px;
+    background: var(--rt-soft);
+}
+.rtm-charge-total > span {
+    font-size: .88rem;
+    font-weight: 600;
+    color: var(--rt-muted);
+}
+.rtm-charge-total > strong {
+    font-size: 1.9rem;
+    line-height: 1;
+    color: var(--rt-accent);
+}
+
+/* Resumen de lo consumido: para cotejar contra lo que pidió el cliente. */
+.rtm-charge-items {
+    max-height: 190px;
+    overflow-y: auto;
+    margin-bottom: 14px;
+}
+.rtm-charge-item {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 10px;
+    padding: 7px 2px;
+    border-bottom: 1px solid var(--rt-line);
+    font-size: .88rem;
+}
+.rtm-charge-item:last-child { border-bottom: none; }
+.rtm-charge-item-qty { font-weight: 700; color: var(--rt-accent); }
+.rtm-charge-item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rtm-charge-item-sub { font-weight: 600; color: var(--rt-muted); }
+.rtm-charge-empty {
+    margin: 0;
+    padding: 14px 2px;
+    color: var(--rt-muted);
+    font-size: .88rem;
+}
+
+.rtm-charge-fields {
+    display: grid;
+    grid-template-columns: 1fr 1.4fr;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.rtm-charge-step .rtm-fe-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0 8px;
+}
+.rtm-charge-step .rtm-fe-check input { width: auto; }
+
+.rtm-btn-charge-confirm {
+    width: 100%;
+    margin-top: 6px;
+    padding: 14px;
+    font-size: 1.02rem;
+}
+
+/* ── Tablet: el catálogo va ARRIBA ──────────────────────────────────────
+   Apilado, la cuenta quedaba primero y había que recorrerla entera para
+   llegar a los platos. Agregar es lo frecuente, así que va primero. */
+@media (max-width: 1080px) {
+    .rtm-catalog-col { order: 1; }
+    .rtm-order-col   { order: 2; border-bottom: none; border-top: 1px solid var(--rt-line); }
+    .rtm-charge-card { max-width: 520px; }
+}
+
+/* ── Teléfono: el cobro ocupa la pantalla ──────────────────────────── */
+@media (max-width: 768px) {
+    .rtm-charge-step { padding: 0; }
+    .rtm-charge-card {
+        max-width: none;
+        height: 100%;
+        max-height: 100%;
+        border-radius: 0;
+        padding: 16px 16px 24px;
+    }
+    .rtm-charge-fields { grid-template-columns: 1fr; }
+    .rtm-charge-total > strong { font-size: 1.7rem; }
+    /* Botón de confirmar siempre alcanzable con el pulgar */
+    .rtm-btn-charge-confirm { padding: 16px; font-size: 1.05rem; }
+}
