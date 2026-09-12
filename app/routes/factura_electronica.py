@@ -106,10 +106,15 @@ UNIDAD_DIAN_MAP = {
 
 # En CyberShop el precio del producto es el precio FINAL: ni el carrito ni el POS
 # suman IVA encima (`productos.impuesto` es metadato tributario, no entra en el
-# cobro). El microservicio, en cambio, calcula total = base × (1 + iva). Si le
-# mandamos el precio cobrado junto con iva=19, la factura sale 19% por encima de
-# lo que el cliente pagó — por eso se DESCOMPONE en base + IVA en vez de sumar.
-# Se deja conmutable por si algún cliente carga precios sin IVA.
+# cobro). El microservicio, en cambio, calcula total = base × (1 + iva), así que
+# necesita saberlo para descomponer en vez de sumar.
+#
+# La descomposición la hace EL PORTAL, no aquí: solo él sabe si el emisor es
+# responsable de IVA (régimen 48) y por tanto si el impuesto se aplica. Si
+# dividiéramos aquí, un emisor de régimen 49 —al que el portal le fuerza IVA 0—
+# terminaría facturando 19% por DEBAJO de lo cobrado. Este módulo no lleva
+# lógica tributaria (ver docstring del archivo); solo declara el hecho.
+# Conmutable por si algún cliente carga precios sin IVA.
 FE_PRECIO_INCLUYE_IVA = os.getenv('FE_PRECIO_INCLUYE_IVA', 'true').lower() == 'true'
 
 
@@ -126,15 +131,6 @@ def _iva_pct(impuesto_raw) -> int:
 
 def _unidad_dian(unidad_raw) -> str:
     return UNIDAD_DIAN_MAP.get(str(unidad_raw or '').strip().lower(), 'EA')
-
-
-def _base_gravable(valor_cobrado, iva_pct: int) -> float:
-    """Precio cobrado (IVA incluido) → base gravable, redondeada a 2 decimales."""
-    from decimal import Decimal, ROUND_HALF_UP
-    valor = Decimal(str(valor_cobrado or 0))
-    if iva_pct and FE_PRECIO_INCLUYE_IVA:
-        valor = valor / (Decimal(1) + Decimal(iva_pct) / Decimal(100))
-    return float(valor.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
 
 
 def _construir_items(filas, campo_desc: str) -> list:
@@ -162,10 +158,12 @@ def _construir_items(filas, campo_desc: str) -> list:
         item = {
             "descripcion":     fila.get(campo_desc) or 'Producto',
             "cantidad":        cantidad,
-            "precio_unitario": _base_gravable(precio, iva),
-            "descuento":       _base_gravable(descuento, iva),
+            "precio_unitario": precio,
+            "descuento":       descuento,
             "codigo_unidad":   _unidad_dian(fila.get('unidad_medida')),
             "impuesto_iva":    iva,
+            # El portal descompone base + IVA solo si el impuesto aplica.
+            "precio_incluye_iva": FE_PRECIO_INCLUYE_IVA,
         }
         codigo = str(fila.get('referencia') or '').strip()
         if codigo:
