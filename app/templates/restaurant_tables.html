@@ -798,30 +798,42 @@
                     <strong id="rtmFooterTotal">$0</strong>
                 </div>
 
-                <div id="rtmChargeItems" class="rtm-charge-items"></div>
+                {#- Cobro en UN paso: sin segunda confirmación, sin lista de consumos y
+                    sin comensales (ya se vieron al vender). Los controles originales
+                    (#rtmPaymentMethod, #rtmFacturarFE, #rtmDinings) siguen en el DOM
+                    ocultos porque el JS de cobro los lee; los botones los sincronizan. -#}
+                <input id="rtmDinings" type="hidden" value="1">
 
-                <div class="rtm-charge-fields">
-                    <label class="rtm-mini-label">
-                        Comensales
-                        <input id="rtmDinings" type="number" min="1" value="1">
-                    </label>
-                    <label class="rtm-mini-label rtm-payment-label">
-                        Medio de pago
-                        <select id="rtmPaymentMethod">
-                            {% for key, label in payment_methods.items() %}
-                            <option value="{{ key }}">{{ label }}</option>
-                            {% endfor %}
-                        </select>
-                    </label>
+                <div class="rtm-charge-group">
+                    <span class="rtm-charge-label">Medio de pago</span>
+                    <div class="rtm-seg rtm-seg-pago" role="radiogroup" aria-label="Medio de pago">
+                        {% for key, label in payment_methods.items() %}
+                        <button type="button" class="rtm-seg-btn" role="radio" aria-checked="false"
+                                data-pago="{{ key }}">{{ label }}</button>
+                        {% endfor %}
+                    </div>
+                    <select id="rtmPaymentMethod" hidden aria-hidden="true" tabindex="-1">
+                        {% for key, label in payment_methods.items() %}
+                        <option value="{{ key }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
 
                 {% if fe_habilitada %}
-                <label class="rtm-mini-label rtm-fe-check">
-                    <input type="checkbox" id="rtmFacturarFE">
-                    <span><i class="fas fa-file-invoice"></i> Facturar electrónicamente (DIAN)</span>
-                </label>
+                {#- Solo con el módulo de facturación electrónica activo. Sin el módulo
+                    no se muestra y el backend tampoco factura (_facturar_orden_si_aplica). -#}
+                <div class="rtm-charge-group">
+                    <span class="rtm-charge-label">¿Requiere factura electrónica?</span>
+                    <div class="rtm-seg rtm-seg-fe" role="radiogroup" aria-label="Requiere factura electrónica">
+                        <button type="button" class="rtm-seg-btn" role="radio" aria-checked="true" data-fe="no">No</button>
+                        <button type="button" class="rtm-seg-btn" role="radio" aria-checked="false" data-fe="si">
+                            <i class="fas fa-file-invoice"></i> Sí
+                        </button>
+                    </div>
+                    <input type="checkbox" id="rtmFacturarFE" hidden aria-hidden="true" tabindex="-1">
+                </div>
 
-                <!-- Datos del facturador (adquiriente DIAN): solo aparecen al marcar el check.
+                <!-- Datos del facturador (adquiriente DIAN): solo aparecen con "Sí".
                      Se envían al portal tributario al cobrar (construir_json_restaurante). -->
                 <div id="rtmFePanel" class="rtm-fe-panel" hidden>
                     <div class="rtm-fe-hint"><i class="fas fa-user-tag"></i> Datos del facturador (obligatorios para la factura)</div>
@@ -841,7 +853,7 @@
                 {% endif %}
 
                 <button id="rtmChargeConfirm" class="rtm-btn-charge rtm-btn-charge-confirm" type="button">
-                    <i class="fas fa-check-circle"></i> Confirmar cobro
+                    <i class="fas fa-check-circle"></i> <span id="rtmChargeConfirmText">Cobrar</span>
                 </button>
             </div>
         </div>

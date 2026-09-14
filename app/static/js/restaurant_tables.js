@@ -861,11 +861,16 @@
         }
     }
 
-    async function closeSelectedAccount() {
+    /* opts.rapido (modo sencillo): el panel de cobro YA es la confirmación, así
+       que no se abre un segundo diálogo con total/cocina/cuenta, y el aviso de
+       éxito no bloquea. Devuelve true solo si el cobro quedó registrado, para
+       que quien llama no cierre la mesa si faltaron datos o hubo un error. */
+    async function closeSelectedAccount(opts) {
+        const rapido = !!(opts && opts.rapido);
         const table = getSelectedTable();
         if (!table || !table.open_order) {
             notify('La mesa seleccionada no tiene una cuenta abierta.', 'warning');
-            return;
+            return false;
         }
 
         // Datos del facturador (adquiriente DIAN): solo si la venta se factura.
@@ -880,9 +885,16 @@
             if (!doc) faltan.push('número de documento');
             if (email.indexOf('@') === -1) faltan.push('email válido');
             if (faltan.length) {
+                if (rapido) {
+                    // Sin diálogo: aviso breve y cursor directo al primer dato que falta.
+                    toastNotify('Para la factura falta: ' + faltan.join(', ') + '.', 'warning');
+                    const primero = !nombre ? 'rtmFeNombre' : (!doc ? 'rtmFeDoc' : 'rtmFeEmail');
+                    document.getElementById(primero)?.focus();
+                    return false;
+                }
                 notify('Para emitir la factura electrónica falta: ' + faltan.join(', ') +
                        '. Si esta venta no lleva factura, desmarca el check.', 'warning');
-                return;
+                return false;
             }
             feData.cliente_nombre = nombre;
             feData.cliente_tipo_doc = document.getElementById('rtmFeTipoDoc')?.value || 'CC';
@@ -894,7 +906,9 @@
         const paymentSelect = elements.closePaymentMethod || modal.payment;
         let paymentMethod = paymentSelect?.value || 'EFECTIVO';
 
-        if (window.Swal) {
+        if (rapido) {
+            // El panel de cobro ya mostró el total y el medio de pago: se cobra directo.
+        } else if (window.Swal) {
             const optionsHtml = Array.from(paymentSelect?.options || [])
                 .map((option) => `<option value="${option.value}" ${option.value === paymentMethod ? 'selected' : ''}>${option.textContent}</option>`)
                 .join('');
@@ -932,7 +946,7 @@
                 preConfirm: () => document.getElementById('rtSwalPaymentMethod')?.value || paymentMethod,
             });
             if (!result.isConfirmed) {
-                return;
+                return false;
             }
             paymentMethod = result.value || paymentMethod;
             if (paymentSelect) {
@@ -941,7 +955,7 @@
         } else {
             const confirmed = await confirmAction(`Cobrar la cuenta abierta de ${table.nombre}?`);
             if (!confirmed.isConfirmed) {
-                return;
+                return false;
             }
         }
 
@@ -952,22 +966,26 @@
                 ...feData,
             });
             await refreshData(table.id);
-            notify(`Cobro registrado. Total final: ${money(result.total)}.`, 'success');
+            const msg = `Cobro registrado. Total final: ${money(result.total)}.`;
+            if (rapido) toastNotify(msg, 'success');   // no obliga a pulsar "Aceptar"
+            else notify(msg, 'success');
         };
 
         try {
             await enviarCobro();
+            return true;
         } catch (error) {
             // Cobro anclado a caja: si no hay caja abierta, ofrecer abrirla y reintentar.
             if (error.data && error.data.caja_cerrada) {
                 const abierta = await abrirCajaInline();
                 if (abierta) {
-                    try { await enviarCobro(); }
+                    try { await enviarCobro(); return true; }
                     catch (err2) { notify(err2.message, 'error'); }
                 }
-                return;
+                return false;
             }
             notify(error.message, 'error');
+            return false;
         }
     }
 
@@ -1289,7 +1307,7 @@
         chargeStep:   document.getElementById('rtmChargeStep'),
         chargeBack:   document.getElementById('rtmChargeBack'),
         chargeOk:     document.getElementById('rtmChargeConfirm'),
-        chargeItems:  document.getElementById('rtmChargeItems'),
+        chargeOkText: document.getElementById('rtmChargeConfirmText'),
         chargeTable:  document.getElementById('rtmChargeTableName'),
         statesToggle: document.getElementById('rtmStatesToggle'),
         quickStates:  document.getElementById('rtmQuickStates'),
@@ -1775,25 +1793,45 @@
             modal.chargeTable.textContent = table?.nombre
                 || (table?.codigo ? `la mesa ${table.codigo}` : 'la mesa');
         }
-        // Resumen de lo consumido, para confirmar contra lo que pidió el cliente.
-        if (modal.chargeItems) {
-            const items = order?.consumptions || [];
-            modal.chargeItems.innerHTML = items.length
-                ? items.map((c) => `
-                    <div class="rtm-charge-item">
-                        <span class="rtm-charge-item-qty">${c.cantidad}×</span>
-                        <span class="rtm-charge-item-name">${escapeHtml(c.descripcion || '')}</span>
-                        <span class="rtm-charge-item-sub">${money(c.subtotal)}</span>
-                    </div>`).join('')
-                : '<p class="rtm-charge-empty">La mesa no tiene consumos.</p>';
+        // Los botones reflejan el estado de los controles reales (select/checkbox).
+        marcarSegmento('.rtm-seg-pago', 'pago', modal.payment?.value || 'EFECTIVO');
+        marcarSegmento('.rtm-seg-fe', 'fe', document.getElementById('rtmFacturarFE')?.checked ? 'si' : 'no');
+        if (modal.chargeOkText) {
+            modal.chargeOkText.textContent = order ? `Cobrar ${money(order.total_acumulado)}` : 'Cobrar';
         }
         modal.chargeStep?.querySelector('.rtm-charge-card')?.scrollTo({ top: 0 });
     }
 
+    function marcarSegmento(grupo, attr, valor) {
+        document.querySelectorAll(`${grupo} .rtm-seg-btn`).forEach((b) => {
+            const activo = b.dataset[attr] === valor;
+            b.classList.toggle('is-active', activo);
+            b.setAttribute('aria-checked', String(activo));
+        });
+    }
+
     async function modalChargeAccount() {
-        await closeSelectedAccount();
-        setModalStep('sale');
-        closeTableModal();
+        if (!SIMPLE) {
+            await closeSelectedAccount();
+            setModalStep('sale');
+            closeTableModal();
+            return;
+        }
+        // Modo sencillo: un toque cobra. El botón se bloquea mientras viaja la
+        // petición, así un doble toque no registra dos cobros de la misma mesa.
+        const boton = modal.chargeOk;
+        if (boton?.disabled) return;
+        if (boton) boton.disabled = true;
+        try {
+            // Si faltan datos de la factura o falla el cobro, la mesa sigue abierta
+            // con lo que ya se escribió, en vez de cerrarse y perderlo.
+            if (await closeSelectedAccount({ rapido: true })) {
+                setModalStep('sale');
+                closeTableModal();
+            }
+        } finally {
+            if (boton) boton.disabled = false;
+        }
     }
 
     async function modalCancelAccount() {
@@ -1933,6 +1971,23 @@
                 if (this.checked) { document.getElementById('rtmFeNombre')?.focus(); }
             });
         }
+
+        // Modo sencillo: medio de pago y "¿requiere factura?" con botones de un
+        // toque. Escriben en el select/checkbox reales, que es lo que lee el cobro.
+        document.querySelectorAll('.rtm-seg-pago .rtm-seg-btn').forEach((b) => {
+            b.addEventListener('click', function () {
+                if (modal.payment) modal.payment.value = this.dataset.pago;
+                marcarSegmento('.rtm-seg-pago', 'pago', this.dataset.pago);
+            });
+        });
+        document.querySelectorAll('.rtm-seg-fe .rtm-seg-btn').forEach((b) => {
+            b.addEventListener('click', function () {
+                if (!feCheck) return;
+                feCheck.checked = (this.dataset.fe === 'si');
+                feCheck.dispatchEvent(new Event('change'));   // muestra/oculta los datos
+                marcarSegmento('.rtm-seg-fe', 'fe', feCheck.checked ? 'si' : 'no');
+            });
+        });
 
         modal.stateButtons.forEach((btn) => {
             btn.addEventListener('click', async function () {
