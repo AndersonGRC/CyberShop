@@ -593,7 +593,7 @@
                         ${SIMPLE ? '' : `<span><i class="fas fa-fire-alt"></i> ${item.estado_label}</span>`}
                         <span><i class="fas fa-tag"></i> ${money(item.precio_unitario)}</span>
                     </div>
-                    ${item.notas ? `<div class="rt-note">${item.notas}</div>` : ''}
+                    ${item.notas ? `<div class="rt-note">${escapeHtml(item.notas)}</div>` : ''}
                     <div class="rt-consumption-actions">
                         <span class="rt-note">#${item.id}</span>
                         ${actionHtml}
@@ -1293,6 +1293,7 @@
         chargeTable:  document.getElementById('rtmChargeTableName'),
         statesToggle: document.getElementById('rtmStatesToggle'),
         quickStates:  document.getElementById('rtmQuickStates'),
+        simpleBar:    document.getElementById('rtmSimpleActions'),
     };
 
     // Categorías únicas de los productos (calculadas una vez)
@@ -1438,7 +1439,7 @@
             modal.list.innerHTML = `
                 <div class="rtm-empty-order">
                     <i class="fas fa-utensils"></i>
-                    <p>Aún no hay consumos.<br>Toca un plato para agregarlo.</p>
+                    <p>Aún no hay consumos.<br>${SIMPLE ? 'Toca un plato para agregarlo.' : 'Selecciona platos a la derecha.'}</p>
                 </div>`;
             return;
         }
@@ -1477,7 +1478,7 @@
                                 ? '<span class="rt-state-badge disponible">Entregado</span>'
                                 : `<span class="rt-state-badge ${item.estado === 'pendiente' ? 'reservada' : item.estado === 'preparando' ? 'ocupada' : 'disponible'}">${item.estado_label}</span>`}
                         </div>
-                        ${item.notas ? `<div class="rtm-ci-notes">${item.notas}</div>` : ''}
+                        ${item.notas ? `<div class="rtm-ci-notes">${escapeHtml(item.notas)}</div>` : ''}
                     </div>
                     <div class="rtm-ci-right">
                         <span class="rtm-ci-price">${money(item.subtotal)}</span>
@@ -1541,6 +1542,21 @@
         if (modal.clientName) modal.clientName.value    = order?.cliente_nombre || '';
         if (modal.dinings)    modal.dinings.value       = order?.comensales || 1;
         if (modal.payment)    modal.payment.value       = order?.payment_method || 'EFECTIVO';
+        syncSimpleActions(table);
+    }
+
+    /* Modo sencillo: "Cobrar mesa" solo existe cuando hay algo que cobrar, y
+       "Anular la cuenta" solo cuando hay una cuenta abierta. Una mesa libre abre
+       sin ningún botón de cobro. Se llama en cada refresco de la mesa (agregar,
+       quitar, cambiar cantidad), así que el botón aparece con el primer plato. */
+    function syncSimpleActions(table) {
+        if (!SIMPLE) return;
+        const order = table?.open_order || null;
+        const hayConsumos = !!(order && order.consumptions && order.consumptions.length);
+        if (modal.simpleBar) modal.simpleBar.hidden = !hayConsumos;
+        if (modal.cancelBtn) modal.cancelBtn.hidden = !order;
+        // Si se quitó el último plato estando en el cobro, no queda nada que cobrar.
+        if (!hayConsumos && modal.chargeStep && !modal.chargeStep.hidden) setModalStep('sale');
     }
 
     function openTableModal(tableId) {
@@ -1551,8 +1567,10 @@
 
         updateModalHeader(table);
         renderModalConsumptions(table);
-        setModalStep('sale');    // cada mesa abre en modo venta, nunca en el cobro
-        setMobileTab('catalog'); // y mostrando los platos: agregar es lo frecuente
+        setModalStep('sale');    // cada mesa abre vendiendo, nunca en el cobro
+        // En celular: el modo sencillo abre en los platos (agregar es lo frecuente);
+        // el completo conserva su comportamiento de abrir en la Cuenta.
+        setMobileTab(SIMPLE ? 'catalog' : 'order');
         // Estados de la mesa plegados: no compiten con la venta.
         if (modal.quickStates) modal.quickStates.hidden = true;
         modal.statesToggle?.setAttribute('aria-expanded', 'false');
@@ -1844,9 +1862,13 @@
         });
 
         modal.addBtn?.addEventListener('click', modalAddConsumption);
-        // "Cobrar mesa" ya no cobra de una: abre el paso de cobro, donde se ve el
-        // total y se elige el medio de pago. Confirmar ahí es lo que cobra.
-        modal.chargeBtn?.addEventListener('click', function () { setModalStep('charge'); });
+        // Modo sencillo: "Cobrar mesa" abre el paso de cobro (total, medio de pago,
+        // factura) y confirmar ahí es lo que cobra. Modo completo: cobra directo,
+        // como siempre.
+        modal.chargeBtn?.addEventListener('click', function () {
+            if (SIMPLE) setModalStep('charge');
+            else modalChargeAccount();
+        });
         modal.chargeBack?.addEventListener('click', function () { setModalStep('sale'); });
         modal.chargeOk?.addEventListener('click', modalChargeAccount);
         modal.cancelBtn?.addEventListener('click', modalCancelAccount);

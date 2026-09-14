@@ -2913,6 +2913,9 @@ header.collapsed ~ .rtm-overlay {
 }
 
 .rtm-search-wrap input {
+    /* El modal vive fuera de .rt-shell y no hereda su border-box: con
+       width:100% + padding el buscador se salía por la derecha. */
+    box-sizing: border-box;
     width: 100%;
     padding: 10px 12px 10px 36px;
     border: 1.5px solid var(--color-gris-borde);
@@ -3439,9 +3442,48 @@ header.collapsed ~ .rtm-overlay {
    saltar de pantalla en pantalla para una sola venta.
    ===================================================================== */
 
-/* El total acumulado no se muestra durante la venta (el paso de cobro
-   tiene el suyo, grande). El nodo sigue en el DOM porque el JS lo pinta. */
-.rtm-chip-total { display: none; }
+/* El atributo `hidden` tiene que ocultar SIEMPRE dentro del modal. Sin esta
+   regla, cualquier clase con display:flex/grid le gana al estilo del navegador:
+   así el paso de cobro quedaba visible al abrir la mesa ("pide cobrar") y
+   "Seguir vendiendo" no tenía efecto. */
+.rtm-overlay [hidden] { display: none !important; }
+
+/* Los componentes nuevos del modo sencillo usan border-box: el modal está
+   fuera de .rt-shell (que es quien lo declara) y con width:100% + padding los
+   campos del cobro se desbordaban. Acotado a lo nuevo para no alterar el
+   modo completo. */
+.rtm-charge-step,
+.rtm-charge-step *,
+.rtm-simple-actions,
+.rtm-simple-actions *,
+.rtm-simple-options,
+.rtm-simple-options * { box-sizing: border-box; }
+.rtm-charge-fields input,
+.rtm-charge-fields select { width: 100%; min-width: 0; }
+
+/* ── Modo sencillo: barra de Cobrar ─────────────────────────────────────
+   Un solo botón, fuera de las columnas, para que se vea tanto en la vista de
+   platos como en la de consumos. Solo aparece si la mesa tiene qué cobrar. */
+.rtm-simple-actions {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: flex-end;
+    padding: 12px 18px;
+    border-top: 1px solid var(--rt-line);
+    background: var(--rt-card);
+}
+.rtm-simple-actions .rtm-btn-charge {
+    min-width: 240px;
+    font-size: 1rem;
+}
+
+.rtm-simple-options {
+    display: grid;
+    gap: 8px;
+    margin-top: 8px;
+}
+.rtm-simple-options .rtm-quick-states { grid-template-columns: repeat(3, 1fr); }
+.rtm-simple-options .rtm-btn-cancel { width: 100%; }
 
 /* ── Estados de la mesa, plegados ───────────────────────────────────── */
 .rtm-states-toggle {
@@ -3467,7 +3509,9 @@ header.collapsed ~ .rtm-overlay {
 .rtm-charge-step {
     position: absolute;
     inset: 0;
-    z-index: 5;
+    /* Por encima del agarrador de columnas (.rtm-resizer, z-index 7), que si
+       no se dibujaba sobre la tarjeta de cobro. */
+    z-index: 20;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -3583,17 +3627,20 @@ header.collapsed ~ .rtm-overlay {
     font-size: 1.02rem;
 }
 
-/* ── Tablet: el catálogo va ARRIBA ──────────────────────────────────────
+/* ── Tablet (solo modo sencillo): el catálogo va ARRIBA ─────────────────
    Apilado, la cuenta quedaba primero y había que recorrerla entera para
-   llegar a los platos. Agregar es lo frecuente, así que va primero. */
+   llegar a los platos. El modo completo conserva su orden. */
 @media (max-width: 1080px) {
-    .rtm-catalog-col { order: 1; }
-    .rtm-order-col   { order: 2; border-bottom: none; border-top: 1px solid var(--rt-line); }
+    .rtm-overlay.is-simple .rtm-catalog-col { order: 1; }
+    .rtm-overlay.is-simple .rtm-order-col   { order: 2; border-bottom: none; border-top: 1px solid var(--rt-line); }
     .rtm-charge-card { max-width: 520px; }
 }
 
 /* ── Teléfono: el cobro ocupa la pantalla ──────────────────────────── */
 @media (max-width: 768px) {
+    /* Botón de cobrar a lo ancho y alcanzable con el pulgar */
+    .rtm-simple-actions { padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); }
+    .rtm-simple-actions .rtm-btn-charge { width: 100%; min-width: 0; padding: 15px; }
     .rtm-charge-step { padding: 0; }
     .rtm-charge-card {
         max-width: none;
