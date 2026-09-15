@@ -316,6 +316,260 @@ def pedidos_por_despachar(**_):
 
 # ── Catálogo de herramientas (lo que la IA puede elegir) ───────
 # code -> (función, descripción para la IA, params permitidos)
+# ── Análisis estadístico (tendencias y segmentos) ──────────────
+# Las cifras las calcula services/estadistica.py (Python determinista); la IA
+# solo las explica. Cada resultado trae 'confiabilidad' para que la respuesta
+# no afirme más de lo que los datos sostienen.
+_DIAS_SEMANA = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo']
+
+
+def _columnas(cur, tabla):
+    cur.execute("SELECT column_name FROM information_schema.columns "
+                "WHERE table_schema = 'public' AND table_name = %s", (tabla,))
+    return {r[0] for r in cur.fetchall()}
+
+
+def _analizar_tendencia(por_dia, hoy, dias):
+    """Análisis puro (sin BD) de la serie diaria de ventas. `por_dia` =
+    {fecha: total}. Separado de la consulta para poder probarlo."""
+    from datetime import timedelta
+    from services import estadistica as est
+
+    if not por_dia:
+        return {'confiabilidad': 'insuficiente',
+                'conclusion': f'No hay ventas registradas en los últimos {dias} días.'}
+    # La serie empieza en la primera venta del período: si el negocio arrancó
+    # hace poco, los ceros de antes inventarían una tendencia al alza.
+    inicio = max(min(por_dia), hoy - timedelta(days=dias))
+    fechas = [inicio + timedelta(days=i) for i in range((hoy - inicio).days)]
+    ys = [float(por_dia.get(f, 0.0)) for f in fechas]
+    dias_con_ventas = sum(1 for y in ys if y > 0)
+    base = {'dias_analizados': len(ys), 'dias_con_ventas': dias_con_ventas,
+            'desde': fechas[0].isoformat() if fechas else None}
+    if len(ys) < 14 or dias_con_ventas < 7:
+        return {**base, 'confiabilidad': 'insuficiente',
+                'conclusion': ('Aún no hay suficientes días con ventas para medir una tendencia '
+                               '(se necesitan al menos 14 días y 7 con ventas).')}
+
+    reg = est.regresion_lineal(list(range(len(ys))), ys)
+    promedio = sum(ys) / len(ys)
+    r2 = reg['r2']
+    cambio_semanal = reg['pendiente'] * 7
+    pct_semanal = (cambio_semanal / promedio * 100) if promedio > 0 else 0.0
+    direccion = 'estable' if abs(pct_semanal) < 2 else ('al alza' if pct_semanal > 0 else 'a la baja')
+
+    if r2 >= 0.5:
+        confiabilidad = 'alta'
+        conclusion = (f'Tendencia confiable {direccion}: la recta explica el {r2:.0%} de la '
+                      f'variación de las ventas diarias (R² = {r2:.2f}).')
+    elif r2 >= 0.25:
+        confiabilidad = 'media'
+        conclusion = (f'Hay una tendencia {direccion} pero débil (R² = {r2:.2f}): las ventas '
+                      f'varían mucho de un día a otro; tómala con cautela.')
+    else:
+        confiabilidad = 'baja'
+        conclusion = (f'No hay una tendencia clara (R² = {r2:.2f}): las ventas suben y bajan '
+                      f'sin una dirección definida. No conviene proyectar.')
+
+    proyeccion = None
+    if confiabilidad == 'alta':
+        n = len(ys)
+        proyeccion = formatear_moneda(sum(max(0.0, reg['intercepto'] + reg['pendiente'] * (n + i))
+                                          for i in range(7)))
+
+    # Día de la semana (promedio, incluye días sin venta): patrón descriptivo.
+    por_dia_semana = {}
+    for f, y in zip(fechas, ys):
+        por_dia_semana.setdefault(f.weekday(), []).append(y)
+    promedios = {d: sum(v) / len(v) for d, v in por_dia_semana.items() if len(v) >= 2}
+    mejor = max(promedios, key=promedios.get) if promedios else None
+    peor = min(promedios, key=promedios.get) if promedios else None
+
+    ultimos7, previos7 = sum(ys[-7:]), sum(ys[-14:-7])
+    return {
+        **base,
+        'promedio_diario': formatear_moneda(promedio),
+        'direccion': direccion,
+        'cambio_semanal_del_promedio_diario': f'{pct_semanal:+.1f}%',
+        'r2': round(r2, 2),
+        'confiabilidad': confiabilidad,
+        'conclusion': conclusion,
+        'proyeccion_7_dias': proyeccion,
+        'nota_proyeccion': (None if proyeccion else
+                            'Sin proyección: solo se proyecta cuando la tendencia es confiable (R² ≥ 0.5).'),
+        'mejor_dia_semana': _DIAS_SEMANA[mejor] if mejor is not None else None,
+        'peor_dia_semana': _DIAS_SEMANA[peor] if peor is not None else None,
+        'ultimos_7_dias': formatear_moneda(ultimos7),
+        '7_dias_anteriores': formatear_moneda(previos7),
+        'metodo': 'Regresión lineal sobre las ventas diarias de los 3 canales (web, POS y escritorio).',
+    }
+
+
+def tendencia_ventas(dias=90, **_):
+    """Tendencia de las ventas diarias (3 canales) con R² y proyección solo si
+    es confiable. Consulta SOLO la BD del tenant actual."""
+    d = max(28, min(int(dias or 90), 365))
+    with get_db_cursor(dict_cursor=True) as cur:
+        partes = [f"""SELECT DATE(fecha_creacion) d, monto_total t FROM pedidos
+                      WHERE {_PEDIDO_PAGADO} AND fecha_creacion >= CURRENT_DATE - INTERVAL '{d} days'"""]
+        if _existe(cur, 'ventas_pos'):
+            partes.append(f"""SELECT DATE(fecha) d, total t FROM ventas_pos
+                WHERE COALESCE(estado,'completada') <> 'anulada'
+                  AND fecha >= CURRENT_DATE - INTERVAL '{d} days'""")
+        if _existe(cur, 'pos_desktop_sales'):
+            partes.append(f"""SELECT DATE(created_at_local) d, total t FROM pos_desktop_sales
+                WHERE created_at_local >= CURRENT_DATE - INTERVAL '{d} days'""")
+        # El día en curso va incompleto: excluirlo evita una falsa caída al final.
+        cur.execute("SELECT d, SUM(t) total FROM (" + " UNION ALL ".join(partes) +
+                    ") x WHERE d < CURRENT_DATE GROUP BY d")
+        por_dia = {r['d']: float(r['total'] or 0) for r in cur.fetchall()}
+        cur.execute("SELECT CURRENT_DATE AS hoy")
+        hoy = cur.fetchone()['hoy']
+    return _analizar_tendencia(por_dia, hoy, d)
+
+
+_CLAVES_ANONIMAS = {'mostrador', 'consumidor final', 'sin nombre', 'cliente', 'cliente mostrador',
+                    'general', 'varios', '222222222222', '0'}
+
+
+def _analizar_segmentos(clientes, hoy):
+    """Análisis puro (sin BD). `clientes` = [(ultima_fecha, compras, total)].
+    Segmenta por RFM (recencia, frecuencia, monto) con k-means; k por el método
+    del codo. Devuelve SOLO agregados: ningún dato personal."""
+    import math
+    from services import estadistica as est
+
+    n = len(clientes)
+    if n < 12:
+        return {'clientes_identificados': n, 'confiabilidad': 'insuficiente',
+                'conclusion': ('Se necesitan al menos 12 clientes identificados (con documento, correo '
+                               f'o nombre en sus compras) para agruparlos con confianza; hay {n}.')}
+
+    recencia = [max(0, (hoy - (u.date() if hasattr(u, 'date') else u)).days) for u, _, _ in clientes]
+    compras = [int(c) for _, c, _ in clientes]
+    montos = [float(m) for _, _, m in clientes]
+    # log1p: frecuencia y monto tienen colas largas (pocos clientes muy grandes)
+    puntos = est.estandarizar([[r, math.log1p(c), math.log1p(m)]
+                               for r, c, m in zip(recencia, compras, montos)])
+
+    k_max = max(3, min(6, n // 4))
+    modelos = {k: est.kmeans(puntos, k) for k in range(1, k_max + 1)}
+    inercias = {k: m['inercia'] for k, m in modelos.items()}
+    k_codo = max(2, est.elegir_k_codo(inercias))
+    # El codo solo tiende a quedarse corto cuando la primera caída de la inercia
+    # es muy grande (aplana el resto de la curva). Se valida con la silueta entre
+    # sus vecinos y se elige el k que mejor separa; empate → el menor.
+    siluetas = {}
+    if n <= 2000:
+        for kk in sorted({k_codo - 1, k_codo, k_codo + 1}):
+            if 2 <= kk <= k_max:
+                siluetas[kk] = est.silueta(puntos, modelos[kk]['etiquetas'])
+    validas = {kk: s for kk, s in siluetas.items() if s is not None}
+    k = max(validas, key=lambda kk: (round(validas[kk], 3), -kk)) if validas else k_codo
+    etiquetas = modelos[k]['etiquetas']
+    sil = validas.get(k)
+
+    # Umbrales para nombrar los grupos. No se usa la mediana de compras: si la
+    # mayoría compró una sola vez da 1 y "frecuente" sería verdadero para todos.
+    med_r = est.mediana(recencia)
+    media_c = sum(compras) / n
+    media_m = sum(montos) / n
+    umbral_reciente = max(med_r, 30)          # ≤ 30 días siempre cuenta como reciente
+    umbral_frecuente = max(2.0, media_c)      # más de una compra y sobre el promedio
+    total_ventas = sum(montos) or 1.0
+    segmentos, usados = [], {}
+    for g in range(k):
+        idx = [i for i, e in enumerate(etiquetas) if e == g]
+        if not idx:
+            continue
+        r_g = est.mediana([recencia[i] for i in idx])
+        c_g = sum(compras[i] for i in idx) / len(idx)
+        m_g = est.mediana([montos[i] for i in idx])
+        reciente, frecuente, alto = r_g <= umbral_reciente, c_g >= umbral_frecuente, m_g >= media_m
+        if reciente and frecuente and alto:
+            nombre, accion = 'Clientes fieles (VIP)', 'Cuídalos: atención preferente, beneficios o preventas.'
+        elif reciente and not frecuente:
+            nombre, accion = 'Nuevos o recientes', 'Invítalos a una segunda compra con un incentivo.'
+        elif not reciente and (frecuente or alto):
+            nombre, accion = 'En riesgo (compraban y dejaron de venir)', 'Contáctalos con una oferta de regreso.'
+        elif not reciente:
+            nombre, accion = 'Ocasionales o inactivos', 'Campañas masivas de bajo costo.'
+        else:
+            nombre, accion = 'Regulares', 'Mantén el contacto y ofrece novedades.'
+        usados[nombre] = usados.get(nombre, 0) + 1
+        if usados[nombre] > 1:
+            nombre = f'{nombre} (grupo {usados[nombre]})'
+        ventas_g = sum(montos[i] for i in idx)
+        segmentos.append({
+            'segmento': nombre,
+            'clientes': len(idx),
+            'porcentaje_clientes': f'{len(idx) / n:.0%}',
+            'porcentaje_ventas': f'{ventas_g / total_ventas:.0%}',
+            'compras_promedio': round(c_g, 1),
+            'ticket_promedio': formatear_moneda(ventas_g / max(1, sum(compras[i] for i in idx))),
+            'dias_desde_ultima_compra_mediana': int(r_g),
+            'accion_sugerida': accion,
+        })
+    segmentos.sort(key=lambda s: -int(s['porcentaje_ventas'].rstrip('%')))
+
+    if sil is None:
+        confiabilidad, conclusion = 'media', 'Segmentación calculada (demasiados clientes para medir la separación).'
+    elif sil >= 0.5:
+        confiabilidad, conclusion = 'alta', f'Los grupos están bien diferenciados (silueta = {sil:.2f}).'
+    elif sil >= 0.25:
+        confiabilidad, conclusion = 'media', f'Los grupos se distinguen, con algo de solapamiento (silueta = {sil:.2f}).'
+    else:
+        confiabilidad, conclusion = 'baja', (f'Los clientes se parecen mucho entre sí (silueta = {sil:.2f}): '
+                                             'los grupos son orientativos.')
+    return {
+        'clientes_identificados': n,
+        'segmentos': segmentos,
+        'confiabilidad': confiabilidad,
+        'conclusion': conclusion,
+        'metodo': {
+            'algoritmo': 'k-means sobre recencia, frecuencia y monto (RFM) estandarizados',
+            'k_elegido': k,
+            'criterio_k': 'método del codo sobre la inercia, validado con la silueta',
+            'k_por_codo': k_codo,
+            'inercia_por_k': {str(kk): round(v, 1) for kk, v in inercias.items()},
+            'silueta_por_k': {str(kk): round(v, 2) for kk, v in validas.items()},
+            'silueta': round(sil, 2) if sil is not None else None,
+            'nota': 'Clientes identificados por documento, correo o nombre en sus compras; no se exponen datos personales.',
+        },
+    }
+
+
+def segmentos_clientes(**_):
+    """Segmentación de clientes (RFM + k-means + codo). SOLO BD del tenant."""
+    fuentes = [('pedidos', 'fecha_creacion', 'monto_total', _PEDIDO_PAGADO)]
+    with get_db_cursor(dict_cursor=True) as cur:
+        if _existe(cur, 'ventas_pos'):
+            fuentes.append(('ventas_pos', 'fecha', 'total', "COALESCE(estado,'completada') <> 'anulada'"))
+        partes = []
+        for tabla, col_fecha, col_monto, filtro in fuentes:
+            cols = _columnas(cur, tabla)
+            claves = []
+            if 'cliente_documento' in cols:
+                claves.append(r"NULLIF(REGEXP_REPLACE(cliente_documento, '\D', '', 'g'), '')")
+            if 'cliente_email' in cols:
+                claves.append("NULLIF(LOWER(TRIM(cliente_email)), '')")
+            if 'cliente_nombre' in cols:
+                claves.append("NULLIF(LOWER(TRIM(cliente_nombre)), '')")
+            if claves:
+                partes.append(f"SELECT COALESCE({', '.join(claves)}) clave, {col_fecha} fecha, "
+                              f"{col_monto} monto FROM {tabla} WHERE {filtro}")
+        if not partes:
+            return _analizar_segmentos([], None)
+        anonimas = ", ".join("'" + c + "'" for c in sorted(_CLAVES_ANONIMAS))
+        cur.execute("SELECT MAX(fecha) ultima, COUNT(*) compras, SUM(monto) total FROM (" +
+                    " UNION ALL ".join(partes) + f") x WHERE clave IS NOT NULL AND clave NOT IN ({anonimas}) "
+                    "AND monto > 0 GROUP BY clave")
+        clientes = [(r['ultima'], r['compras'], float(r['total'] or 0)) for r in cur.fetchall()]
+        cur.execute("SELECT CURRENT_DATE AS hoy")
+        hoy = cur.fetchone()['hoy']
+    return _analizar_segmentos(clientes, hoy)
+
+
 TOOLS = {
     'ventas_periodo':      (ventas_periodo,      "Ventas e ingresos de un período (hoy, semana, mes).", ['periodo']),
     'top_productos':       (top_productos,       "Productos más vendidos en un período.", ['periodo', 'limite']),
@@ -326,6 +580,8 @@ TOOLS = {
     'resumen_inventario':  (resumen_inventario,  "Tamaño y valor del inventario.", []),
     'conteo_general':      (conteo_general,      "Números generales: productos, categorías, clientes, pedidos.", []),
     'pedidos_por_despachar':(pedidos_por_despachar, "Pedidos web pagados pendientes de enviar.", []),
+    'tendencia_ventas':    (tendencia_ventas,    "Tendencia de las ventas en el tiempo: si suben, bajan o están estables, qué tan confiable es (R²), proyección de 7 días y mejor día de la semana.", []),
+    'segmentos_clientes':  (segmentos_clientes,  "Agrupa a los clientes en segmentos (fieles, nuevos, en riesgo, ocasionales) con análisis estadístico, para saber a quién cuidar o recuperar.", []),
 }
 
 
@@ -357,7 +613,12 @@ Si te los piden, niégate amablemente y ofrece lo que sí puedes mostrar.
 
 REGLA DE PERÍODOS: 'hoy', 'esta semana' y 'este mes' son rangos del calendario
 actual. Si un período da 0 ventas pero el negocio tiene ventas históricas,
-acláralo (no afirmes que "nunca ha vendido")."""
+acláralo (no afirmes que "nunca ha vendido").
+
+REGLA DE CONFIABILIDAD: las tendencias y los segmentos traen el campo
+'confiabilidad'. Si es 'baja' o 'insuficiente', dilo claramente y NO hagas
+proyecciones ni afirmaciones fuertes; explica la conclusión en palabras simples
+(no hace falta nombrar R² ni k-means salvo que te lo pregunten)."""
 
 
 def ejecutar(code, params):

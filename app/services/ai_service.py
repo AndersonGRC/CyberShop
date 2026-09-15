@@ -475,6 +475,8 @@ _ETIQUETA_HERRAMIENTA = {
     'resumen_inventario':    'tu inventario',
     'conteo_general':        'los números generales de tu negocio',
     'pedidos_por_despachar': 'tus pedidos por despachar',
+    'tendencia_ventas':      'la tendencia de tus ventas',
+    'segmentos_clientes':    'el comportamiento de tus clientes',
 }
 
 
@@ -570,8 +572,9 @@ def _plan_chat_pasos(pregunta, anunciar=True):
                 f"El dueño preguntó: «{pregunta}». No tienes una herramienta ni permiso "
                 "para responder eso con datos. Responde breve y amable; si es un dato "
                 "sensible niégate, y en todo caso indícale qué SÍ puedes consultar "
-                "(ventas, productos más vendidos, stock bajo, inventario, clientes, "
-                "pedidos por despachar, estado del catálogo)."),
+                "(ventas, tendencia de ventas, productos más vendidos, stock bajo, "
+                "inventario, clientes y sus segmentos, pedidos por despachar, estado "
+                "del catálogo)."),
             'max_tokens': 220, 'datos': None, 'herramienta': None,
         })
         return
