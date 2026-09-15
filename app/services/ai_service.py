@@ -689,6 +689,21 @@ def _parsear_herramientas(raw):
     return elegidas[:_MAX_HERRAMIENTAS]
 
 
+def _resolver_codigo(code, permitidos):
+    """El modelo a veces escribe el nombre casi bien ('restaurant_ahora' por
+    'restaurante_ahora') y se perdía la consulta entera. Se corrige SOLO contra
+    las herramientas que este usuario puede usar, así que la corrección nunca
+    sirve de atajo para saltarse un permiso."""
+    import difflib
+    limpio = lambda c: re.sub(r'[^a-z]', '', (c or '').lower())  # noqa: E731
+    equivalentes = {limpio(c): c for c in permitidos}
+    clave = limpio(code)
+    if clave in equivalentes:
+        return equivalentes[clave]
+    cercanos = difflib.get_close_matches(clave, list(equivalentes), n=1, cutoff=0.85)
+    return equivalentes[cercanos[0]] if cercanos else None
+
+
 def _fecha_hoy():
     """Fecha de la BD (la misma que usan los filtros de período), no la del
     servidor web, que puede ir en UTC y adelantarse un día por la noche."""
@@ -772,7 +787,9 @@ def _plan_chat_pasos(pregunta, anunciar=True, historial=None, contexto=None):
         "\nResponde SOLO un JSON válido: {\"tools\":[{\"tool\":\"<code>\",\"params\":{...}}]}. "
         "params puede incluir 'periodo' (hoy|ayer|semana|semana_anterior|mes|mes_anterior|anio|todo), "
         "'desde' y 'hasta' (AAAA-MM-DD, para fechas concretas como «en agosto»), 'limite' "
-        "(número) o 'umbral' (número) según aplique. Si el usuario NO menciona un período "
+        "(número), 'umbral' (número) y los parámetros propios que cada herramienta pide entre "
+        "paréntesis (por ejemplo «cliente» con el nombre tal como lo dijo el usuario). "
+        "Si el usuario NO menciona un período "
         "concreto, usa 'todo' (histórico). Usa más de una herramienta solo si la pregunta pide "
         "cosas distintas o una comparación (este mes contra el anterior = la misma herramienta "
         "dos veces con períodos distintos). Si es una pregunta de seguimiento, completa lo que "
@@ -784,8 +801,15 @@ def _plan_chat_pasos(pregunta, anunciar=True, historial=None, contexto=None):
     if err:
         yield ('error', err)
         return
-    elegidas = [(code, params) for code, params in _parsear_herramientas(raw)
-                if code in tools.REGISTRO]
+    permitidos = [h.code for h in disponibles]
+    elegidas = []
+    for code, params in _parsear_herramientas(raw):
+        if code in tools.REGISTRO:
+            elegidas.append((code, params))      # existe: el permiso se revisa al ejecutar
+            continue
+        real = _resolver_codigo(code, permitidos)
+        if real:
+            elegidas.append((real, params))
 
     if not elegidas:
         # Pregunta fuera del alcance de los datos (o dato sensible): responde

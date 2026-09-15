@@ -22,6 +22,7 @@ from services.ia_datos.base import (
     PERIODOS, REGISTRO, Herramienta, Rango, _periodo, rango_desde_params, registrar,
 )
 from services.ia_datos import caja as _caj
+from services.ia_datos import comercial as _com
 from services.ia_datos import finanzas as _fin
 from services.ia_datos import inventario as _inv
 from services.ia_datos import restaurante as _res
@@ -91,6 +92,32 @@ registrar('restaurante_desempeno', _res.restaurante_desempeno,
           ['periodo'], etiqueta='el desempeño de tu restaurante', dominio='restaurante',
           modulos=('restaurant_tables',), permiso='restaurant_tables')
 
+# ── Comercial (CRM, cotizaciones, clientes, reseñas) ──────────
+registrar('crm_pipeline', _com.crm_pipeline,
+          "Negocios y oportunidades en curso del CRM: cuánto hay por etapa, cuánto se espera cerrar, ganados y perdidos, y qué cierra pronto.",
+          [], etiqueta='tus negocios en curso', dominio='comercial',
+          modulos=('crm',), permiso='crm')
+registrar('crm_seguimiento', _com.crm_seguimiento,
+          "A quién hay que atender hoy: tareas vencidas o del día por responsable y clientes sin contacto hace más de un mes.",
+          [], etiqueta='tus tareas y seguimientos', dominio='comercial',
+          modulos=('crm',), permiso='crm')
+registrar('cotizaciones_estado', _com.cotizaciones_estado,
+          "Cotizaciones de un período: cuántas, por cuánto, cuántas se aprobaron y cuáles llevan días sin respuesta.",
+          ['periodo'], etiqueta='tus cotizaciones', dominio='comercial',
+          modulos=('quotes',), permiso='quotes')
+registrar('cuentas_cobro_periodo', _com.cuentas_cobro_periodo,
+          "Cuentas de cobro emitidas en un período y a qué clientes.",
+          ['periodo'], etiqueta='tus cuentas de cobro', dominio='comercial',
+          modulos=('billing',), permiso='billing')
+registrar('cliente_historial', _com.cliente_historial,
+          "Historial de compras de UN cliente por su nombre: cuántas veces compró, cuánto, cuándo fue la última vez y qué se lleva.",
+          ['cliente'], etiqueta='el historial de ese cliente', dominio='clientes',
+          permiso='orders')
+registrar('resenas_estado', _com.resenas_estado,
+          "Reseñas de los clientes: calificación promedio, cuáles faltan por aprobar o responder y los productos peor calificados.",
+          [], etiqueta='las reseñas de tus clientes', dominio='comercial',
+          permiso='content')
+
 # Compatibilidad: code -> (función, descripción, params permitidos)
 TOOLS = {h.code: (h.fn, h.descripcion, list(h.params)) for h in REGISTRO.values()}
 
@@ -107,9 +134,16 @@ def permitidas(contexto=None):
 
 
 def catalogo_para_prompt(herramientas=None):
-    """Texto del catálogo de herramientas para el prompt de selección."""
+    """Texto del catálogo para el prompt de selección. Las herramientas que
+    piden un nombre (cliente, empleado, producto…) lo anuncian: sin eso el
+    modelo elegía bien la herramienta pero llamaba sin el dato."""
     hs = list(REGISTRO.values()) if herramientas is None else herramientas
-    return "\n".join(f"- {h.code}: {h.descripcion}" for h in hs)
+    lineas = []
+    for h in hs:
+        propios = [p for p in h.params if p in _PARAMS_TEXTO]
+        extra = f" (requiere el parámetro «{'», «'.join(propios)}» con el nombre)" if propios else ''
+        lineas.append(f"- {h.code}: {h.descripcion}{extra}")
+    return "\n".join(lineas)
 
 
 def sanear_params(h, params):

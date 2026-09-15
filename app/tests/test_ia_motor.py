@@ -175,6 +175,25 @@ def test_parsear_herramientas_formatos():
     assert len(p(json.dumps({'tools': [{'tool': f't{i}'} for i in range(6)]}))) == ai._MAX_HERRAMIENTAS
 
 
+def test_nombre_casi_correcto_se_corrige_sin_saltarse_permisos():
+    permitidos = ['restaurante_ahora', 'ventas_periodo', 'caja_estado']
+    assert ai._resolver_codigo('restaurant_ahora', permitidos) == 'restaurante_ahora'
+    assert ai._resolver_codigo('Ventas_Periodo', permitidos) == 'ventas_periodo'
+    assert ai._resolver_codigo('ventasperiodo', permitidos) == 'ventas_periodo'
+    # No se parece a nada permitido, o es de otra herramienta: no se inventa una
+    assert ai._resolver_codigo('finanzas_periodo', permitidos) is None
+    assert ai._resolver_codigo('el clima', permitidos) is None
+    assert ai._resolver_codigo('', permitidos) is None
+
+
+def test_catalogo_anuncia_los_parametros_con_nombre():
+    """Sin esto el modelo elegía la herramienta pero la llamaba sin el nombre."""
+    h = Herramienta('cliente_historial', lambda **_: {}, 'Historial de un cliente.', ('cliente',))
+    texto = ia_datos.catalogo_para_prompt([h, Herramienta('ventas_periodo', lambda **_: {}, 'Ventas.', ('periodo',))])
+    assert '- cliente_historial: Historial de un cliente. (requiere el parámetro «cliente» con el nombre)' in texto
+    assert texto.rstrip().endswith('- ventas_periodo: Ventas.')      # periodo no se anuncia aparte
+
+
 def test_json_roto_del_modelo_no_pierde_la_consulta():
     """El modelo a veces cierra mal el JSON; antes se perdían todas las
     herramientas y la pregunta quedaba sin datos."""
