@@ -3,17 +3,29 @@
 from database import get_db_cursor
 from helpers import formatear_moneda
 
-from services.ia_datos.base import _PEDIDO_PAGADO, _existe
+from services.ia_datos.base import _PEDIDO_PAGADO, _columnas, _existe
 
 
 def productos_bajo_stock(umbral=5, **_):
-    """Productos con stock bajo o agotados."""
+    """Productos con stock bajo o agotados. Cuando el producto tiene definido su
+    propio stock mínimo, ese manda: un producto que se vende por cajas puede
+    estar bajo con 20 unidades."""
     u = max(0, min(int(umbral or 5), 1000))
     with get_db_cursor(dict_cursor=True) as cur:
-        cur.execute("SELECT nombre, stock FROM productos WHERE stock <= %s ORDER BY stock ASC LIMIT 30", (u,))
+        usa_minimo = 'stock_minimo' in _columnas(cur, 'productos')
+        limite = 'GREATEST(%s, COALESCE(stock_minimo, 0))' if usa_minimo else '%s'
+        campos = 'nombre, stock' + (', COALESCE(stock_minimo, 0) AS minimo' if usa_minimo else '')
+        cur.execute(f"SELECT {campos} FROM productos WHERE stock <= {limite} ORDER BY stock ASC LIMIT 30", (u,))
         filas = cur.fetchall()
-    return {'umbral': u, 'cantidad': len(filas),
-            'productos': [{'nombre': r['nombre'], 'stock': int(r['stock'])} for r in filas]}
+    productos = []
+    for r in filas:
+        item = {'nombre': r['nombre'], 'stock': int(r['stock'])}
+        if usa_minimo and int(r['minimo'] or 0) > 0:
+            item['stock_minimo'] = int(r['minimo'])
+        productos.append(item)
+    return {'umbral': u, 'cantidad': len(filas), 'productos': productos,
+            'criterio': (f'Stock igual o menor a {u}, o al mínimo definido en cada producto.'
+                         if usa_minimo else f'Stock igual o menor a {u}.')}
 
 
 def sugerencia_reorden(**_):

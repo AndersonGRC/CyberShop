@@ -25,6 +25,7 @@ from services.ia_datos import caja as _caj
 from services.ia_datos import comercial as _com
 from services.ia_datos import finanzas as _fin
 from services.ia_datos import inventario as _inv
+from services.ia_datos import operacion as _ope
 from services.ia_datos import restaurante as _res
 from services.ia_datos import ventas as _ven
 
@@ -49,7 +50,7 @@ registrar('catalogo_pendiente', _inv.catalogo_pendiente,
           "Qué falta por completar en el catálogo (sin descripción, imagen o categoría).",
           [], etiqueta='el estado de tu catálogo', dominio='inventario')
 registrar('resumen_inventario', _inv.resumen_inventario,
-          "Tamaño y valor del inventario.",
+          "Cuánto vale TODO el inventario y cuántas unidades hay en total (sin distinguir si rotan o no).",
           [], etiqueta='tu inventario', dominio='inventario')
 registrar('conteo_general', _ven.conteo_general,
           "Números generales: productos, categorías, clientes, pedidos.",
@@ -117,6 +118,40 @@ registrar('resenas_estado', _com.resenas_estado,
           "Reseñas de los clientes: calificación promedio, cuáles faltan por aprobar o responder y los productos peor calificados.",
           [], etiqueta='las reseñas de tus clientes', dominio='comercial',
           permiso='content')
+
+# ── Operación (inventario, pedidos, soporte, facturación) ─────
+registrar('inventario_sin_rotacion', _ope.inventario_sin_rotacion,
+          "SOLO los productos que no se venden hace meses: cuáles son y cuánta plata está detenida o dormida en ellos.",
+          [], etiqueta='los productos que no rotan', dominio='inventario',
+          permiso='inventory')
+registrar('movimientos_inventario', _ope.movimientos_inventario,
+          "Movimientos de inventario de un período: entradas, salidas y ajustes, con sus motivos (mermas, daños, correcciones).",
+          ['periodo'], etiqueta='los movimientos de tu inventario', dominio='inventario',
+          permiso='inventory')
+registrar('producto_detalle', _ope.producto_detalle,
+          "Ficha de UN producto por su nombre: precio, stock, cuánto se vendió en 90 días, cuándo fue su última venta, si se agota pronto y cómo lo califican.",
+          ['producto'], etiqueta='la ficha de ese producto', dominio='inventario',
+          permiso='inventory')
+registrar('pedidos_estado', _ope.pedidos_estado,
+          "Pedidos de la tienda web por estado de pago y envío, y los pagados que llevan más de 48 horas sin despachar.",
+          ['periodo'], etiqueta='el estado de tus pedidos', dominio='pedidos',
+          permiso='orders')
+registrar('soporte_estado', _ope.soporte_estado,
+          "Tickets de soporte: abiertos, sin respuesta del negocio y los más antiguos.",
+          [], etiqueta='tus tickets de soporte', dominio='operacion',
+          modulos=('support',), permiso='support')
+registrar('fe_pendiente', _ope.fe_pendiente,
+          "Facturación electrónica: qué ventas ya tienen factura y cuáles no (solo consulta, no emite nada).",
+          ['periodo'], etiqueta='tu facturación electrónica', dominio='operacion',
+          modulos=('facturacion_electronica',), permiso='facturacion_electronica')
+registrar('cupones_desempeno', _ope.cupones_desempeno,
+          "Cupones de descuento: cuántos se usaron, cuánto descuento se entregó y cuáles son los más usados.",
+          ['periodo'], etiqueta='tus cupones', dominio='operacion',
+          modulos=('coupons',), permiso='coupons')
+registrar('deseos_demanda', _ope.deseos_demanda,
+          "Productos que los clientes guardan en su lista de deseos, sobre todo los agotados: demanda que se está perdiendo.",
+          [], etiqueta='las listas de deseos de tus clientes', dominio='operacion',
+          modulos=('wishlist',), permiso='wishlist')
 
 # Compatibilidad: code -> (función, descripción, params permitidos)
 TOOLS = {h.code: (h.fn, h.descripcion, list(h.params)) for h in REGISTRO.values()}
