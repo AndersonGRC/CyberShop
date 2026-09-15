@@ -235,7 +235,10 @@ function generarResumenIA() {
     var token = document.querySelector('meta[name="csrf-token"]');
     btn.disabled = true;
     var original = btn.textContent;
-    btn.textContent = '✦ Pensando…';
+    btn.textContent = '✦ Analizando…';
+    // Las frases van en el recuadro del resumen (donde aparecerá el resultado),
+    // no en el botón: una frase larga lo deformaría.
+    var espera = window.IAEspera ? IAEspera.iniciar(txt) : null;
     fetch("{{ url_for('ia.resumen_negocio') }}", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json',
@@ -244,6 +247,7 @@ function generarResumenIA() {
     })
     .then(function (r) { return r.json(); })
     .then(function (data) {
+        if (espera) espera.detener();
         if (data.ok) {
             txt.textContent = data.resumen;
             if (fecha && data.generado) fecha.textContent = 'generado ' + data.generado.replace('T', ' a las ').slice(0, 19);
@@ -254,6 +258,7 @@ function generarResumenIA() {
         }
     })
     .catch(function () {
+        if (espera) espera.detener();
         txt.textContent = 'Error de conexión. Intenta de nuevo.';
         btn.textContent = original;
     })

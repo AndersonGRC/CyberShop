@@ -3,7 +3,7 @@
 {% block titulo %}Asistente IA | {{ datosApp.titulo }}{% endblock %}
 
 {% block LinkAdicional %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/ia_gemini.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ia_gemini.css') }}?v={{ config.APP_VERSION }}">
 {% endblock %}
 
 {% block body %}
@@ -300,14 +300,27 @@
         return wrap;
     }
 
+    /* Burbuja de espera: puntos animados + frase de la fase en curso. En frío la
+       respuesta puede tardar más de un minuto; solo con los puntos parecía
+       colgado. La frase la informa el servidor (eventos 'estado') y, si hay
+       silencio, IAEspera la va renovando con el tiempo. */
     function addThinking() {
         const wrap = document.createElement('div');
         wrap.className = 'gem-chat-msg gem-chat-msg--ia';
         wrap.innerHTML = '<span class="gem-chat-ava">✦</span>' +
-            '<div class="gem-chat-bubble gem-chat-thinking"><span></span><span></span><span></span></div>';
+            '<div class="gem-chat-bubble gem-chat-thinking" role="status" aria-live="polite">' +
+            '<div class="gem-chat-dots" aria-hidden="true"><span></span><span></span><span></span></div>' +
+            '<div class="gem-chat-fase"></div></div>';
         chatLog.appendChild(wrap);
         chatLog.scrollTop = chatLog.scrollHeight;
+        const fase = wrap.querySelector('.gem-chat-fase');
+        wrap._espera = window.IAEspera ? IAEspera.iniciar(fase) : null;
         return wrap;
+    }
+
+    function quitarThinking(thinking) {
+        if (thinking._espera) thinking._espera.detener();
+        thinking.remove();
     }
 
     /* Respaldo sin streaming (respuesta completa) — se usa si el stream
@@ -320,11 +333,11 @@
         })
         .then(function (r) { return r.json(); })
         .then(function (data) {
-            thinking.remove();
+            quitarThinking(thinking);
             addMsg(data.ok ? data.respuesta : (data.error || 'No pude responder eso ahora.'), 'ia');
         })
         .catch(function () {
-            thinking.remove();
+            quitarThinking(thinking);
             addMsg('Error de conexión. Intenta de nuevo.', 'ia');
         })
         .finally(alTerminar);
@@ -351,9 +364,15 @@
         let acumulado = '';
 
         function procesarEvento(ev) {
-            if (ev.e === 'delta') {
+            if (ev.e === 'estado') {
+                /* Fase real del servidor: "Consultando tus ventas…", etc. */
+                if (!bubble && thinking._espera) {
+                    thinking._espera.fase(ev.d);
+                    chatLog.scrollTop = chatLog.scrollHeight;
+                }
+            } else if (ev.e === 'delta') {
                 if (!bubble) {
-                    thinking.remove();
+                    quitarThinking(thinking);
                     bubble = addMsg('', 'ia').querySelector('.gem-chat-bubble');
                 }
                 acumulado += ev.d;
@@ -363,7 +382,7 @@
                 if (bubble) {
                     /* ya había texto: se conserva y no se muestra el error */
                 } else {
-                    thinking.remove();
+                    quitarThinking(thinking);
                     addMsg(ev.d || 'No pude responder eso ahora.', 'ia');
                     bubble = true; /* evita el fallback duplicado */
                 }

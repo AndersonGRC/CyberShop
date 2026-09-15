@@ -22,6 +22,8 @@
     <link href="https://fonts.googleapis.com/css?family=Dancing+Script|Raleway:500,600&display=swap" rel="stylesheet">
     <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
     <script src="{{ url_for('static', filename='js/sweetalert2.min.js') }}"></script>
+    <!-- Frases de espera de la IA ("Estamos procesando los datos…"), compartidas por todo el admin -->
+    <script src="{{ url_for('static', filename='js/ia_espera.js') }}?v={{ config.APP_VERSION }}"></script>
 </head>
 
 <body class="{% block body_class %}admin-layout{% endblock %}">

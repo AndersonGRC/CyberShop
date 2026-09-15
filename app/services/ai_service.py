@@ -464,17 +464,78 @@ def generar_seo(nombre, descripcion=''):
     return {'meta_title': meta_title, 'meta_description': meta_desc}, None
 
 
+# Cómo se nombra cada herramienta al avisarle al usuario qué se está consultando.
+_ETIQUETA_HERRAMIENTA = {
+    'ventas_periodo':        'tus ventas',
+    'top_productos':         'tus productos más vendidos',
+    'top_clientes':          'tus mejores clientes',
+    'productos_bajo_stock':  'el stock de tus productos',
+    'sugerencia_reorden':    'el ritmo de venta y tu inventario',
+    'catalogo_pendiente':    'el estado de tu catálogo',
+    'resumen_inventario':    'tu inventario',
+    'conteo_general':        'los números generales de tu negocio',
+    'pedidos_por_despachar': 'tus pedidos por despachar',
+}
+
+
+def _modelo_en_memoria(modelo):
+    """True/False si Ollama ya tiene el modelo cargado; None si no se puede
+    saber (proveedor cloud sin /api/ps, red lenta). Solo sirve para AVISARLE al
+    usuario que la primera respuesta tardará: nunca bloquea la consulta."""
+    base = (current_app.config.get('AI_BASE_URL') or '').strip().rstrip('/')
+    if not base:
+        return None
+    key = (current_app.config.get('AI_API_KEY') or '').strip()
+    headers = {'Authorization': f'Bearer {key}'} if key else {}
+    try:
+        r = requests.get(f'{base}/api/ps', headers=headers, timeout=(2, 2))
+        if r.status_code != 200:
+            return None
+        nombres = set()
+        for m in (r.json() or {}).get('models', []):
+            nombres.update({m.get('name'), m.get('model')})
+        return modelo in nombres or f'{modelo}:latest' in nombres
+    except Exception:
+        return None
+
+
 def _plan_chat(pregunta):
+    """Pasos 1 y 2 del chat del negocio sin anuncios de progreso (la usa la
+    respuesta completa, p. ej. el POS de escritorio). Devuelve (plan, None) o
+    (None, err); ver _plan_chat_pasos."""
+    for evento, dato in _plan_chat_pasos(pregunta, anunciar=False):
+        if evento == 'plan':
+            return dato, None
+        if evento == 'error':
+            return None, dato
+    return None, 'No pude preparar la respuesta.'
+
+
+def _plan_chat_pasos(pregunta, anunciar=True):
     """Pasos 1 y 2 del chat del negocio (comunes a la variante normal y a la
     streaming): la IA elige UNA herramienta de solo-lectura (JSON estricto) y
-    la ejecutamos contra la BD del tenant. Devuelve (plan, None) o (None, err),
-    donde plan = {system, user, max_tokens, datos, herramienta} deja lista la
-    redacción final (paso 3)."""
+    la ejecutamos contra la BD del tenant.
+
+    Es un generador para poder contarle al usuario en qué va mientras espera:
+    en frío la primera respuesta puede tardar más de un minuto y, sin avisos,
+    el chat parecía colgado. Emite:
+      ('estado', texto) — fase en curso (solo si anunciar=True)
+      ('plan', plan)    — {system, user, max_tokens, datos, herramienta}
+      ('error', texto)  — fin sin plan
+    """
     import services.ai_tools as tools
 
     pregunta = (pregunta or '').strip()
     if not pregunta:
-        return None, 'Escribe una pregunta.'
+        yield ('error', 'Escribe una pregunta.')
+        return
+
+    if anunciar:
+        yield ('estado', 'Estamos procesando tu pregunta…')
+        primario = current_app.config.get('AI_MODEL') or 'qwen2.5:7b'
+        if _modelo_en_memoria(primario) is False:
+            yield ('estado', 'Estamos preparando el motor de análisis. '
+                             'La primera consulta tarda un poco más; enseguida seguimos…')
 
     # Paso 1: selección de herramienta (la IA NO escribe SQL, solo elige nombre+params)
     sel_system = (
@@ -489,7 +550,8 @@ def _plan_chat(pregunta):
     )
     raw, err = _chat(sel_system, pregunta, max_tokens=120, temperature=0)
     if err:
-        return None, err
+        yield ('error', err)
+        return
     code, params = None, {}
     try:
         m = re.search(r'\{.*\}', raw, re.S)
@@ -502,7 +564,7 @@ def _plan_chat(pregunta):
     if not code or code == 'ninguna' or code not in tools.TOOLS:
         # Pregunta fuera del alcance de los datos (o dato sensible): responde
         # con honestidad y recuerda los límites del contexto.
-        return {
+        yield ('plan', {
             'system': _contexto_tenant() + "\n" + tools.CONTEXTO_DATOS,
             'user': (
                 f"El dueño preguntó: «{pregunta}». No tienes una herramienta ni permiso "
@@ -511,9 +573,12 @@ def _plan_chat(pregunta):
                 "(ventas, productos más vendidos, stock bajo, inventario, clientes, "
                 "pedidos por despachar, estado del catálogo)."),
             'max_tokens': 220, 'datos': None, 'herramienta': None,
-        }, None
+        })
+        return
 
     # Paso 2: ejecutar la herramienta (consulta real, tenant-scoped)
+    if anunciar:
+        yield ('estado', f"Consultando {_ETIQUETA_HERRAMIENTA.get(code, 'los datos de tu negocio')}…")
     try:
         datos = tools.ejecutar(code, params)
     except Exception as exc:  # noqa: BLE001
@@ -521,10 +586,14 @@ def _plan_chat(pregunta):
             current_app.logger.warning(f'IA tool {code} falló: {exc}')
         except Exception:
             pass
-        return None, 'No pude consultar esos datos en este momento.'
+        yield ('error', 'No pude consultar esos datos en este momento.')
+        return
+
+    if anunciar:
+        yield ('estado', 'Iniciamos el análisis de los datos…')
 
     # Paso 3 (preparado): redacción con los datos reales
-    return {
+    yield ('plan', {
         'system': (_contexto_tenant() +
                    " Responde la pregunta del dueño usando ÚNICAMENTE los datos que "
                    "te doy (son reales, de su tienda). Sé claro y breve, en español, "
@@ -532,7 +601,7 @@ def _plan_chat(pregunta):
         'user': (f"Pregunta: «{pregunta}»\nDatos reales de su tienda (JSON):\n"
                  f"{json.dumps(datos, ensure_ascii=False)}\n\nRedacta la respuesta."),
         'max_tokens': 350, 'datos': datos, 'herramienta': code,
-    }, None
+    })
 
 
 def responder_chat(pregunta):
@@ -553,17 +622,28 @@ def responder_chat_stream(pregunta):
     """Variante STREAMING del chat del negocio. Los pasos 1-2 (elegir
     herramienta + consulta real) no se pueden streamear; solo la redacción
     final se emite palabra a palabra. Generador de eventos (tuplas):
+      ('estado', texto)                — fase en curso, para que la espera no
+                                         parezca un cuelgue (puede repetirse)
       ('meta',  {herramienta, datos})  — una vez, antes del texto
       ('delta', fragmento)             — texto incremental
       ('fin',   texto_completo)        — cierre normal
       ('error', mensaje)               — cierre con error (puede llegar sin deltas)
     Mantiene el fallback de modelo: si el primario falla ANTES de emitir texto,
     reintenta con AI_MODEL_FALLBACK. Si falla a mitad, lo emitido se conserva."""
-    plan, err = _plan_chat(pregunta)
-    if err:
-        yield ('error', err)
+    plan = None
+    for evento, dato in _plan_chat_pasos(pregunta):
+        if evento == 'estado':
+            yield ('estado', dato)
+        elif evento == 'error':
+            yield ('error', dato)
+            return
+        elif evento == 'plan':
+            plan = dato
+    if plan is None:
+        yield ('error', 'No pude preparar la respuesta.')
         return
     yield ('meta', {'herramienta': plan['herramienta'], 'datos': plan['datos']})
+    yield ('estado', 'Pronto te entregaremos el resultado…')
 
     primario = current_app.config.get('AI_MODEL') or 'qwen2.5:7b'
     fallback = (current_app.config.get('AI_MODEL_FALLBACK') or '').strip()
@@ -581,6 +661,7 @@ def responder_chat_stream(pregunta):
                     f"→ intentando {fallback}")
             except Exception:
                 pass
+            yield ('estado', 'Seguimos con el motor de respaldo para no hacerte esperar más…')
             try:
                 for frag in _chat_stream_una_vez(fallback, plan['system'], plan['user'],
                                                  plan['max_tokens'], 0.7):

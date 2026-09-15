@@ -219,7 +219,7 @@ input:checked + .toggle-slider:before { transform: translateX(22px); }
 </style>
 
 {% if 'ai_assistant' in active_modules %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/ia_gemini.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ia_gemini.css') }}?v={{ config.APP_VERSION }}">
 {% endif %}
 <style>
 /* ── Carrusel admin (editar) ─────────────────────────────────── */
@@ -626,13 +626,21 @@ input:checked + .toggle-slider:before { transform: translateX(22px); }
         ? document.querySelector('meta[name="csrf-token"]').getAttribute('content')
         : '';
 
+    // Frases de espera mientras la IA trabaja ("Estamos procesando los datos…").
+    // Cualquier estado nuevo (resultado, error u otra espera) corta la anterior.
+    var esperaIA = null;
     function setStatus(msg, tipo, shimmer) {
         if (!statusEl) return;
+        if (esperaIA) { esperaIA.detener(); esperaIA = null; }
         statusEl.classList.remove('ia-shimmer', 'ia-status-ok', 'ia-status-error');
         if (shimmer) {
-            statusEl.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> ' + msg;
             statusEl.classList.add('ia-shimmer');
             statusEl.style.color = '';
+            if (window.IAEspera) {
+                esperaIA = IAEspera.iniciar(statusEl, { icono: '<i class="fas fa-circle-notch fa-spin"></i> ', primera: msg });
+            } else {
+                statusEl.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> ' + msg;
+            }
         } else if (tipo === 'error') {
             statusEl.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + msg;
             statusEl.classList.add('ia-status-error');

@@ -704,14 +704,28 @@
     background: linear-gradient(74deg, #122C94, #29A9E2);
 }
 /* "pensando" (tres puntos) */
-.gem-chat-thinking { display: inline-flex; gap: 5px; align-items: center; }
-.gem-chat-thinking span {
+.gem-chat-thinking { display: inline-flex; gap: 10px; align-items: center; }
+/* Los puntos van en su propio contenedor: la burbuja ahora también lleva la
+   frase de la fase ("Iniciamos el análisis de los datos…"), que no debe
+   heredar el estilo de punto. */
+.gem-chat-dots { display: inline-flex; gap: 5px; align-items: center; flex-shrink: 0; }
+.gem-chat-dots span {
     width: 7px; height: 7px; border-radius: 50%;
     background: linear-gradient(74deg,#122C94, #1C3FAE, #29A9E2);
     animation: gem-think 1.2s ease-in-out infinite;
 }
-.gem-chat-thinking span:nth-child(2) { animation-delay: .2s; }
-.gem-chat-thinking span:nth-child(3) { animation-delay: .4s; }
+.gem-chat-dots span:nth-child(2) { animation-delay: .2s; }
+.gem-chat-dots span:nth-child(3) { animation-delay: .4s; }
+.gem-chat-fase {
+    font-size: .92em;
+    font-style: italic;
+    opacity: .85;
+    animation: gem-fase-entra .35s ease;
+}
+@keyframes gem-fase-entra {
+    from { opacity: 0; transform: translateY(2px); }
+    to   { opacity: .85; transform: none; }
+}
 @keyframes gem-think {
     0%, 100% { opacity: .3; transform: translateY(0); }
     50%       { opacity: 1;  transform: translateY(-4px); }

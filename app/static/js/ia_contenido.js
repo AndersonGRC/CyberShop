@@ -32,6 +32,8 @@
 
     function setStatus(el, msg, tipo) {
         if (!el) return;
+        // Un estado nuevo (resultado o error) corta las frases de espera de ese formulario.
+        if (el._esperaIA) { el._esperaIA.detener(); el._esperaIA = null; }
         el.className = 'ia-content-status' +
             (tipo === 'error' ? ' ia-status-error' : (msg ? ' ia-status-ok' : ''));
         el.innerHTML = msg
@@ -80,7 +82,18 @@
         }
 
         setBusy(btn, true);
-        setStatus(statusEl, accion === 'mejorar' ? 'Mejorando...' : 'Generando...', '');
+        // Frases de espera ("Estamos procesando los datos…") en vez de un texto fijo.
+        if (statusEl && window.IAEspera) {
+            setStatus(statusEl, '', '');
+            statusEl.className = 'ia-content-status';
+            statusEl.style.display = 'inline-flex';
+            statusEl._esperaIA = IAEspera.iniciar(statusEl, {
+                icono: '<i class="fas fa-circle-notch fa-spin"></i> ',
+                primera: accion === 'mejorar' ? 'Mejorando el texto…' : 'Generando el texto…'
+            });
+        } else {
+            setStatus(statusEl, accion === 'mejorar' ? 'Mejorando...' : 'Generando...', '');
+        }
 
         fetch('/admin/ia/contenido', {
             method: 'POST',
