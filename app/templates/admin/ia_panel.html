@@ -44,6 +44,7 @@
 
         <div class="gem-chat-sugerencias" id="gem-chat-sug">
             <button class="gem-chip" type="button">¿Cuánto vendí este mes?</button>
+            <button class="gem-chip" type="button">¿Vendí más que el mes pasado?</button>
             <button class="gem-chip" type="button">¿Qué productos tienen poco stock?</button>
             <button class="gem-chip" type="button">¿Qué le falta a mi catálogo?</button>
             <button class="gem-chip" type="button">¿Cuál es mi mejor producto?</button>
@@ -131,6 +132,35 @@
             <!-- Mensaje de resultado/error -->
             <div class="gem-msg" id="ia-masivo-msg"></div>
         </div>
+
+        {% if session.get('rol_id') in [1, 2] %}
+        <!-- Tarjeta: Uso del asistente (solo dueño) -->
+        <div class="gem-card ia-uso-card">
+            <div class="gem-card-header">
+                <h2 class="gem-card-title">
+                    <span class="gem-sparkle-sm">✦</span>
+                    Uso del asistente <small class="ia-uso-dias">últimos 30 días</small>
+                </h2>
+                <button type="button" id="btn-uso-actualizar" class="gem-btn-ghost">
+                    <i class="fas fa-sync-alt"></i> Actualizar
+                </button>
+            </div>
+            <div class="ia-uso-stats">
+                <div><span class="ia-uso-num" id="ia-uso-total">–</span><span class="ia-uso-label">consultas</span></div>
+                <div><span class="ia-uso-num" id="ia-uso-ok">–</span><span class="ia-uso-label">respondidas bien</span></div>
+                <div><span class="ia-uso-num" id="ia-uso-ms">–</span><span class="ia-uso-label">tiempo típico</span></div>
+            </div>
+            <h3 class="ia-uso-subtitulo">Lo que más consultan</h3>
+            <ul class="ia-uso-lista" id="ia-uso-herramientas"></ul>
+            <h3 class="ia-uso-subtitulo">Preguntas que aún no sé responder</h3>
+            <p class="ia-uso-ayuda">Indican qué datos faltan conectar a la IA.</p>
+            <ul class="ia-uso-lista" id="ia-uso-sin-respuesta"></ul>
+            <div id="ia-uso-sensibles-wrap" hidden>
+                <h3 class="ia-uso-subtitulo">Consultas de información sensible</h3>
+                <ul class="ia-uso-lista" id="ia-uso-sensibles"></ul>
+            </div>
+        </div>
+        {% endif %}
 
     </div><!-- /ia-grid -->
 
@@ -284,6 +314,17 @@
     const chatSend  = document.getElementById('gem-chat-send');
     const chatSug   = document.getElementById('gem-chat-sug');
     let chatBusy = false;
+    /* Memoria corta: los últimos intercambios viajan con cada pregunta para que
+       "¿y el mes pasado?" se entienda. Vive solo en esta página. */
+    const MAX_HISTORIAL = 4;
+    const historial = [];
+
+    function recordar(pregunta, respuesta, herramienta) {
+        if (!respuesta) return;
+        historial.push({ pregunta: pregunta, respuesta: String(respuesta).slice(0, 300),
+                         herramienta: herramienta || '' });
+        while (historial.length > MAX_HISTORIAL) historial.shift();
+    }
 
     function addMsg(texto, quien) {
         const wrap = document.createElement('div');
@@ -325,16 +366,17 @@
 
     /* Respaldo sin streaming (respuesta completa) — se usa si el stream
        falla antes de pintar el primer fragmento (proxy viejo, red rara). */
-    function preguntarSinStream(texto, thinking, alTerminar) {
+    function preguntarSinStream(texto, previo, thinking, alTerminar) {
         fetch('/admin/ia/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-            body: JSON.stringify({ pregunta: texto })
+            body: JSON.stringify({ pregunta: texto, historial: previo })
         })
         .then(function (r) { return r.json(); })
         .then(function (data) {
             quitarThinking(thinking);
             addMsg(data.ok ? data.respuesta : (data.error || 'No pude responder eso ahora.'), 'ia');
+            if (data.ok) recordar(texto, data.respuesta, data.herramienta);
         })
         .catch(function () {
             quitarThinking(thinking);
@@ -352,6 +394,9 @@
         addMsg(texto, 'user');
         const thinking = addThinking();
         chatSend.disabled = true;
+        const previo = historial.slice();   /* lo anterior a esta pregunta */
+        let herramienta = '';
+        let fallo = false;
 
         function terminar() {
             chatBusy = false;
@@ -370,6 +415,8 @@
                     thinking._espera.fase(ev.d);
                     chatLog.scrollTop = chatLog.scrollHeight;
                 }
+            } else if (ev.e === 'meta') {
+                herramienta = (ev.d && ev.d.herramienta) || '';
             } else if (ev.e === 'delta') {
                 if (!bubble) {
                     quitarThinking(thinking);
@@ -379,6 +426,7 @@
                 bubble.textContent = acumulado;
                 chatLog.scrollTop = chatLog.scrollHeight;
             } else if (ev.e === 'error') {
+                fallo = true;
                 if (bubble) {
                     /* ya había texto: se conserva y no se muestra el error */
                 } else {
@@ -392,7 +440,7 @@
         fetch('/admin/ia/chat-stream', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-            body: JSON.stringify({ pregunta: texto })
+            body: JSON.stringify({ pregunta: texto, historial: previo })
         })
         .then(function (r) {
             if (!r.ok || !r.body) throw new Error('sin stream');
@@ -418,18 +466,78 @@
         .then(function () {
             if (!bubble) {
                 /* stream terminó sin producir nada: respaldo clásico */
-                preguntarSinStream(texto, thinking, terminar);
+                preguntarSinStream(texto, previo, thinking, terminar);
             } else {
+                if (!fallo) recordar(texto, acumulado, herramienta);
                 terminar();
             }
         })
         .catch(function () {
             if (!bubble) {
-                preguntarSinStream(texto, thinking, terminar);
+                preguntarSinStream(texto, previo, thinking, terminar);
             } else {
                 terminar();
             }
         });
+    }
+
+    /* ── Uso del asistente (solo dueño) ────────────────────────── */
+    const usoCard = document.querySelector('.ia-uso-card');
+
+    function llenarLista(ul, items, pintar, vacio) {
+        ul.innerHTML = '';
+        if (!items || !items.length) {
+            const li = document.createElement('li');
+            li.className = 'ia-uso-vacio';
+            li.textContent = vacio;
+            ul.appendChild(li);
+            return;
+        }
+        items.forEach(function (it) {
+            const li = document.createElement('li');
+            pintar(li, it);
+            ul.appendChild(li);
+        });
+    }
+
+    function fechaCorta(iso) {
+        return String(iso || '').replace('T', ' ').slice(0, 16);
+    }
+
+    function cargarUso() {
+        fetch('/admin/ia/consultas?dias=30', { headers: { 'X-CSRFToken': csrfToken } })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+            if (!d.ok) return;
+            document.getElementById('ia-uso-total').textContent = d.total;
+            document.getElementById('ia-uso-ok').textContent =
+                d.total ? Math.round(100 * d.correctas / d.total) + '%' : '–';
+            document.getElementById('ia-uso-ms').textContent =
+                d.ms_mediana == null ? '–' : (d.ms_mediana / 1000).toFixed(1) + ' s';
+            llenarLista(document.getElementById('ia-uso-herramientas'), d.herramientas, function (li, it) {
+                li.textContent = it.etiqueta + ' — ' + it.veces + (it.veces === 1 ? ' vez' : ' veces');
+            }, 'Aún no hay consultas.');
+            llenarLista(document.getElementById('ia-uso-sin-respuesta'), d.preguntas_sin_respuesta, function (li, it) {
+                const f = document.createElement('span');
+                f.className = 'ia-uso-fecha';
+                f.textContent = fechaCorta(it.fecha);
+                li.appendChild(f);
+                li.appendChild(document.createTextNode(' «' + it.pregunta + '»'));
+            }, 'Ninguna por ahora.');
+            const sens = document.getElementById('ia-uso-sensibles-wrap');
+            sens.hidden = !(d.sensibles && d.sensibles.length);
+            llenarLista(document.getElementById('ia-uso-sensibles'), d.sensibles, function (li, it) {
+                const tipo = { nomina: 'la nómina' }[it.tipo] || it.tipo;
+                li.textContent = fechaCorta(it.fecha) + ' · ' + it.usuario + ' consultó ' + tipo +
+                    (it.objetivo ? ' de ' + it.objetivo : '');
+            }, '');
+        })
+        .catch(function () { /* la tarjeta es informativa: sin datos no se rompe el panel */ });
+    }
+
+    if (usoCard) {
+        cargarUso();
+        document.getElementById('btn-uso-actualizar').addEventListener('click', cargarUso);
     }
 
     if (chatForm) {

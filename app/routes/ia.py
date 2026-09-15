@@ -11,7 +11,7 @@ import json
 from flask import (Blueprint, request, jsonify, render_template, Response,
                    stream_with_context)
 
-from security import registrar_guard_permiso, rol_requerido, ADMIN_STAFF
+from security import registrar_guard_permiso, rol_requerido, ADMIN_FULL, ADMIN_STAFF
 from database import get_db_cursor
 from helpers import get_data_app
 import services.ai_service as ai
@@ -141,10 +141,22 @@ def chat():
     if g:
         return g
     d = request.get_json(silent=True) or {}
-    res, err = ai.responder_chat(d.get('pregunta', ''))
+    res, err = ai.responder_chat(d.get('pregunta', ''), historial=d.get('historial'))
     if err:
         return jsonify({'ok': False, 'error': err}), 400
     return jsonify({'ok': True, **res})
+
+
+@ia_bp.route('/consultas')
+@rol_requerido(ADMIN_FULL)
+def consultas():
+    """Uso del asistente, preguntas que aún no sabe responder y consultas
+    sensibles recientes (solo dueño). Lee ia_consultas del tenant actual."""
+    try:
+        dias = int(request.args.get('dias', 30))
+    except (TypeError, ValueError):
+        dias = 30
+    return jsonify({'ok': True, **ai.resumen_consultas(dias)})
 
 
 @ia_bp.route('/resumen-negocio', methods=['POST'])
@@ -173,11 +185,12 @@ def chat_stream():
         return g
     d = request.get_json(silent=True) or {}
     pregunta = d.get('pregunta', '')
+    historial = d.get('historial')
 
     def gen():
         # stream_with_context mantiene vivo el request (get_db_cursor del
         # tenant sigue resolviendo dentro del generador).
-        for evento, dato in ai.responder_chat_stream(pregunta):
+        for evento, dato in ai.responder_chat_stream(pregunta, historial=historial):
             if evento == 'latido':
                 # Comentario SSE: el navegador lo ignora, pero Cloudflare y nginx ven
                 # tráfico y no cortan mientras el modelo carga en frío (1-3 min).

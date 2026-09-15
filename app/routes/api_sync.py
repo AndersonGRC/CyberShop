@@ -1269,7 +1269,11 @@ def ai_chat():
     if not pregunta:
         return jsonify({'success': False, 'error': 'Escribe una pregunta.'}), 400
     import services.ai_service as ai
-    resultado, error = ai.responder_chat(pregunta)
+    from services.ai_tools import Contexto
+    # La llave de sync identifica al negocio, no al usuario del escritorio: por eso
+    # este canal solo recibe las herramientas que no exigen un permiso de rol.
+    resultado, error = ai.responder_chat(pregunta, historial=data.get('historial'),
+                                         contexto=Contexto(canal='escritorio'))
     if error:
         return jsonify({'success': False, 'error': error}), 200
     return jsonify({'success': True, **(resultado or {})})

@@ -15,6 +15,7 @@ import json
 import re
 import threading
 import time
+from datetime import datetime
 
 import requests
 from flask import current_app
@@ -510,22 +511,6 @@ def generar_seo(nombre, descripcion=''):
     return {'meta_title': meta_title, 'meta_description': meta_desc}, None
 
 
-# Cómo se nombra cada herramienta al avisarle al usuario qué se está consultando.
-_ETIQUETA_HERRAMIENTA = {
-    'ventas_periodo':        'tus ventas',
-    'top_productos':         'tus productos más vendidos',
-    'top_clientes':          'tus mejores clientes',
-    'productos_bajo_stock':  'el stock de tus productos',
-    'sugerencia_reorden':    'el ritmo de venta y tu inventario',
-    'catalogo_pendiente':    'el estado de tu catálogo',
-    'resumen_inventario':    'tu inventario',
-    'conteo_general':        'los números generales de tu negocio',
-    'pedidos_por_despachar': 'tus pedidos por despachar',
-    'tendencia_ventas':      'la tendencia de tus ventas',
-    'segmentos_clientes':    'el comportamiento de tus clientes',
-}
-
-
 def _modelo_en_memoria(modelo):
     """True/False si Ollama ya tiene el modelo cargado; None si no se puede
     saber (proveedor cloud sin /api/ps, red lenta). Solo sirve para AVISARLE al
@@ -610,11 +595,94 @@ def _esperar_motor_bloqueando(modelo, espera_max):
         return fin.value
 
 
-def _plan_chat(pregunta):
+# ── Chat del negocio ───────────────────────────────────────────
+_MAX_HERRAMIENTAS = 3        # por pregunta (p. ej. "ventas del mes y qué reponer")
+_MAX_HISTORIAL = 4           # intercambios previos que se tienen en cuenta
+_DIAS_SEMANA = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo']
+
+
+def _sanear_historial(historial):
+    """Últimos intercambios que manda el panel, para entender preguntas de
+    seguimiento («¿y el mes pasado?»). Vienen del navegador: se recortan y solo se
+    usan como texto de contexto; no dan acceso a nada (los permisos se revisan
+    igual en cada herramienta)."""
+    if not isinstance(historial, list):
+        return []
+    limpio = []
+    for turno in historial[-_MAX_HISTORIAL:]:
+        if not isinstance(turno, dict):
+            continue
+        pregunta = str(turno.get('pregunta') or '').strip()[:300]
+        if pregunta:
+            limpio.append({'pregunta': pregunta,
+                           'respuesta': str(turno.get('respuesta') or '').strip()[:300],
+                           'herramienta': str(turno.get('herramienta') or '').strip()[:80]})
+    return limpio
+
+
+def _texto_historial(historial):
+    if not historial:
+        return ''
+    lineas = ['CONVERSACIÓN RECIENTE (úsala solo para entender preguntas de seguimiento):']
+    for turno in historial:
+        usada = f" [herramienta: {turno['herramienta']}]" if turno['herramienta'] else ''
+        lineas.append(f"- Dueño: «{turno['pregunta']}»{usada}")
+        if turno['respuesta']:
+            lineas.append(f"  Asistente: «{turno['respuesta']}»")
+    return '\n'.join(lineas)
+
+
+def _parsear_herramientas(raw):
+    """[(code, params)] de la respuesta del enrutador. Acepta el formato nuevo
+    {"tools":[{tool, params}]} y el anterior {"tool":..., "params":...}."""
+    try:
+        m = re.search(r'\{.*\}', raw or '', re.S)
+        data = json.loads(m.group(0)) if m else {}
+    except Exception:
+        return []
+    if not isinstance(data, dict):
+        return []
+    if isinstance(data.get('tools'), list):
+        items = data['tools']
+    elif data.get('tool'):
+        items = [{'tool': data.get('tool'), 'params': data.get('params')}]
+    else:
+        items = []
+    elegidas, vistas = [], set()
+    for item in items:
+        if isinstance(item, str):
+            item = {'tool': item}
+        if not isinstance(item, dict):
+            continue
+        code = str(item.get('tool') or '').strip()
+        params = item.get('params') if isinstance(item.get('params'), dict) else {}
+        firma = (code, json.dumps(params, sort_keys=True, default=str))
+        if not code or code == 'ninguna' or firma in vistas:
+            continue
+        vistas.add(firma)
+        elegidas.append((code, params))
+    return elegidas[:_MAX_HERRAMIENTAS]
+
+
+def _fecha_hoy():
+    """Fecha de la BD (la misma que usan los filtros de período), no la del
+    servidor web, que puede ir en UTC y adelantarse un día por la noche."""
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT CURRENT_DATE AS hoy, LOCALTIMESTAMP AS ahora")
+            r = cur.fetchone()
+            return r['hoy'], r['ahora']
+    except Exception:
+        ahora = datetime.now()
+        return ahora.date(), ahora
+
+
+def _plan_chat(pregunta, historial=None, contexto=None):
     """Pasos 1 y 2 del chat del negocio sin anuncios de progreso (la usa la
     respuesta completa, p. ej. el POS de escritorio). Devuelve (plan, None) o
     (None, err); ver _plan_chat_pasos."""
-    for evento, dato in _plan_chat_pasos(pregunta, anunciar=False):
+    for evento, dato in _plan_chat_pasos(pregunta, anunciar=False, historial=historial,
+                                         contexto=contexto):
         if evento == 'plan':
             return dato, None
         if evento == 'error':
@@ -622,16 +690,18 @@ def _plan_chat(pregunta):
     return None, 'No pude preparar la respuesta.'
 
 
-def _plan_chat_pasos(pregunta, anunciar=True):
+def _plan_chat_pasos(pregunta, anunciar=True, historial=None, contexto=None):
     """Pasos 1 y 2 del chat del negocio (comunes a la variante normal y a la
-    streaming): la IA elige UNA herramienta de solo-lectura (JSON estricto) y
-    la ejecutamos contra la BD del tenant.
+    streaming): la IA elige de 1 a 3 herramientas de solo-lectura (JSON
+    estricto) entre las que quien pregunta puede usar, y las ejecutamos contra
+    la BD del tenant.
 
     Es un generador para poder contarle al usuario en qué va mientras espera:
     en frío la primera respuesta puede tardar más de un minuto y, sin avisos,
     el chat parecía colgado. Emite:
       ('estado', texto) — fase en curso (solo si anunciar=True)
-      ('plan', plan)    — {system, user, max_tokens, datos, herramienta}
+      ('plan', plan)    — {system, user, max_tokens, datos, herramienta,
+                           herramientas, sensible, objetivo}
       ('error', texto)  — fin sin plan
     """
     import services.ai_tools as tools
@@ -660,56 +730,77 @@ def _plan_chat_pasos(pregunta, anunciar=True):
                     return
             yield ('estado', 'El motor de análisis está listo. Seguimos con tu pregunta…')
 
-    # Paso 1: selección de herramienta (la IA NO escribe SQL, solo elige nombre+params)
+    ctx = contexto or tools.contexto_actual()
+    disponibles = tools.permitidas(ctx)
+    conversacion = _texto_historial(_sanear_historial(historial))
+    previo = f'{conversacion}\n\n' if conversacion else ''
+    hoy, ahora = _fecha_hoy()
+
+    # Paso 1: selección de herramientas (la IA NO escribe SQL, solo elige nombres+params).
+    # Solo ve las que este usuario puede usar: lo demás ni aparece en su lista.
     sel_system = (
         tools.CONTEXTO_DATOS + "\n\n"
-        "Eres un enrutador. Dada la pregunta de un dueño de tienda, elige UNA "
-        "herramienta de esta lista para responderla:\n" + tools.catalogo_para_prompt() +
-        "\nResponde SOLO un JSON válido: {\"tool\":\"<code>\",\"params\":{...}}. "
-        "params puede incluir 'periodo' (hoy|semana|mes|todo), 'limite' (número) o "
-        "'umbral' (número) según aplique. Si el usuario NO menciona un período "
-        "concreto (hoy/semana/mes), usa 'todo' (histórico). Si piden datos "
-        "sensibles o algo sin herramienta, usa {\"tool\":\"ninguna\"}. Solo el JSON."
+        f"Hoy es {_DIAS_SEMANA[hoy.weekday()]} {hoy.isoformat()}.\n"
+        "Eres un enrutador. Dada la pregunta de un dueño de negocio, elige las "
+        f"herramientas MÍNIMAS (de 1 a {_MAX_HERRAMIENTAS}) de esta lista para responderla:\n" +
+        tools.catalogo_para_prompt(disponibles) +
+        "\nResponde SOLO un JSON válido: {\"tools\":[{\"tool\":\"<code>\",\"params\":{...}}]}. "
+        "params puede incluir 'periodo' (hoy|ayer|semana|semana_anterior|mes|mes_anterior|anio|todo), "
+        "'desde' y 'hasta' (AAAA-MM-DD, para fechas concretas como «en agosto»), 'limite' "
+        "(número) o 'umbral' (número) según aplique. Si el usuario NO menciona un período "
+        "concreto, usa 'todo' (histórico). Usa más de una herramienta solo si la pregunta pide "
+        "cosas distintas o una comparación (este mes contra el anterior = la misma herramienta "
+        "dos veces con períodos distintos). Si es una pregunta de seguimiento, completa lo que "
+        "falta con la conversación reciente. Si piden datos sensibles o algo sin herramienta, "
+        "responde {\"tools\":[]}. Solo el JSON."
     )
-    raw, err = _chat(sel_system, pregunta, max_tokens=120, temperature=0)
+    sel_user = f"{previo}Pregunta actual: «{pregunta}»" if conversacion else pregunta
+    raw, err = _chat(sel_system, sel_user, max_tokens=220, temperature=0)
     if err:
         yield ('error', err)
         return
-    code, params = None, {}
-    try:
-        m = re.search(r'\{.*\}', raw, re.S)
-        data = json.loads(m.group(0)) if m else {}
-        code = data.get('tool')
-        params = data.get('params') or {}
-    except Exception:
-        code = None
+    elegidas = [(code, params) for code, params in _parsear_herramientas(raw)
+                if code in tools.REGISTRO]
 
-    if not code or code == 'ninguna' or code not in tools.TOOLS:
+    if not elegidas:
         # Pregunta fuera del alcance de los datos (o dato sensible): responde
         # con honestidad y recuerda los límites del contexto.
+        puede = '; '.join(h.etiqueta for h in disponibles) or 'la información general de tu negocio'
         yield ('plan', {
             'system': _contexto_tenant() + "\n" + tools.CONTEXTO_DATOS,
-            'user': (
+            'user': previo + (
                 f"El dueño preguntó: «{pregunta}». No tienes una herramienta ni permiso "
                 "para responder eso con datos. Responde breve y amable; si es un dato "
-                "sensible niégate, y en todo caso indícale qué SÍ puedes consultar "
-                "(ventas, tendencia de ventas, productos más vendidos, stock bajo, "
-                "inventario, clientes y sus segmentos, pedidos por despachar, estado "
-                "del catálogo)."),
+                "sensible niégate, y en todo caso indícale qué SÍ puedes consultar: "
+                f"{puede}."),
             'max_tokens': 220, 'datos': None, 'herramienta': None,
+            'herramientas': [], 'sensible': None, 'objetivo': None,
         })
         return
 
-    # Paso 2: ejecutar la herramienta (consulta real, tenant-scoped)
-    if anunciar:
-        yield ('estado', f"Consultando {_ETIQUETA_HERRAMIENTA.get(code, 'los datos de tu negocio')}…")
-    try:
-        datos = tools.ejecutar(code, params)
-    except Exception as exc:  # noqa: BLE001
+    # Paso 2: ejecutar las herramientas (consultas reales, tenant-scoped). ejecutar()
+    # vuelve a revisar el permiso por si el modelo nombró una que no estaba en su lista.
+    resultados, usadas, fallidas, sensibles, objetivos = {}, [], 0, set(), []
+    for code, params in elegidas:
+        h = tools.REGISTRO[code]
+        if anunciar:
+            yield ('estado', f"Consultando {h.etiqueta}…")
         try:
-            current_app.logger.warning(f'IA tool {code} falló: {exc}')
-        except Exception:
-            pass
+            datos = tools.ejecutar(code, params, ctx)
+        except Exception as exc:  # noqa: BLE001
+            try:
+                current_app.logger.warning(f'IA tool {code} falló: {exc}')
+            except Exception:
+                pass
+            fallidas += 1
+            datos = {'error': 'No se pudo consultar este dato en este momento.'}
+        clave = code if code not in resultados else f'{code}_{usadas.count(code) + 1}'
+        resultados[clave] = datos
+        usadas.append(code)
+        if h.sensible and not (isinstance(datos, dict) and datos.get('denegado')):
+            sensibles.add(h.sensible)
+            objetivos.extend(str(v) for k, v in params.items() if k in ('empleado', 'cliente') and v)
+    if fallidas == len(elegidas):
         yield ('error', 'No pude consultar esos datos en este momento.')
         return
 
@@ -717,34 +808,157 @@ def _plan_chat_pasos(pregunta, anunciar=True):
         yield ('estado', 'Iniciamos el análisis de los datos…')
 
     # Paso 3 (preparado): redacción con los datos reales
+    unica = len(resultados) == 1
+    datos = next(iter(resultados.values())) if unica else resultados
+    agrupados = '' if unica else ', agrupados por herramienta'
     yield ('plan', {
         'system': (_contexto_tenant() +
                    " Responde la pregunta del dueño usando ÚNICAMENTE los datos que "
                    "te doy (son reales, de su tienda). Sé claro y breve, en español, "
                    "con las cifras exactas. No inventes nada que no esté en los datos."),
-        'user': (f"Pregunta: «{pregunta}»\nDatos reales de su tienda (JSON):\n"
-                 f"{json.dumps(datos, ensure_ascii=False)}\n\nRedacta la respuesta."),
-        'max_tokens': 350, 'datos': datos, 'herramienta': code,
+        'user': (f"{previo}Pregunta: «{pregunta}»\n"
+                 f"Datos reales de su tienda, consultados el {ahora:%Y-%m-%d %H:%M}{agrupados} (JSON):\n"
+                 f"{json.dumps(datos, ensure_ascii=False, default=str)}\n\nRedacta la respuesta."),
+        'max_tokens': 350 if unica else 550,
+        'datos': datos,
+        'herramienta': ','.join(dict.fromkeys(usadas)),
+        'herramientas': usadas,
+        'sensible': ','.join(sorted(sensibles)) or None,
+        'objetivo': '; '.join(dict.fromkeys(objetivos))[:120] or None,
     })
 
 
-def responder_chat(pregunta):
+# ── Registro de consultas del chat ─────────────────────────────
+# Solo datos técnicos (qué herramientas, si salió bien, cuánto tardó), nunca la
+# respuesta ni las cifras. La pregunta se guarda únicamente cuando la IA no tenía
+# herramienta para contestarla, para saber qué datos faltan conectar; ese texto
+# se borra a los 90 días. Las filas no se borran: también son la auditoría de las
+# consultas sensibles (quién consultó nómina y de quién).
+_DDL_IA_CONSULTAS = """
+CREATE TABLE IF NOT EXISTS ia_consultas (
+    id BIGSERIAL PRIMARY KEY,
+    creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    usuario_id INTEGER,
+    rol_id INTEGER,
+    canal VARCHAR(20) NOT NULL DEFAULT 'web',
+    herramientas TEXT[] NOT NULL DEFAULT '{}',
+    ok BOOLEAN NOT NULL DEFAULT TRUE,
+    error VARCHAR(300),
+    ms INTEGER,
+    sensible VARCHAR(40),
+    objetivo VARCHAR(120),
+    pregunta_sin_herramienta VARCHAR(200)
+);
+CREATE INDEX IF NOT EXISTS idx_ia_consultas_creado_en ON ia_consultas (creado_en);
+"""
+_IA_CONSULTAS_LISTA = set()   # tenants con la tabla ya verificada (por proceso)
+_IA_CONSULTAS_PURGA = {}      # tenant -> día de la última limpieza de preguntas
+
+
+def _registrar_consulta(ctx, pregunta, plan, error, inicio):
+    """Nunca rompe el chat: si la BD no deja registrar, solo queda en el log."""
+    try:
+        tenant = get_current_tenant_id()
+        herramientas = list((plan or {}).get('herramientas') or [])
+        sin_herramienta = None
+        if plan is not None and not herramientas and not error:
+            sin_herramienta = (pregunta or '').strip()[:200] or None
+        try:
+            usuario = int(ctx.usuario_id) if ctx.usuario_id is not None else None
+        except (TypeError, ValueError):
+            usuario = None
+        with get_db_cursor() as cur:
+            if tenant not in _IA_CONSULTAS_LISTA:
+                cur.execute(_DDL_IA_CONSULTAS)
+                _IA_CONSULTAS_LISTA.add(tenant)
+            cur.execute(
+                """INSERT INTO ia_consultas (usuario_id, rol_id, canal, herramientas, ok, error, ms,
+                                             sensible, objetivo, pregunta_sin_herramienta)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                (usuario, ctx.rol_id, ctx.canal, herramientas, not error,
+                 (str(error)[:300] if error else None), int((time.time() - inicio) * 1000),
+                 (plan or {}).get('sensible'), (plan or {}).get('objetivo'), sin_herramienta))
+            hoy = datetime.now().date()
+            if _IA_CONSULTAS_PURGA.get(tenant) != hoy:
+                cur.execute("""UPDATE ia_consultas SET pregunta_sin_herramienta = NULL
+                               WHERE pregunta_sin_herramienta IS NOT NULL
+                                 AND creado_en < NOW() - INTERVAL '90 days'""")
+                _IA_CONSULTAS_PURGA[tenant] = hoy
+    except Exception as exc:  # noqa: BLE001
+        try:
+            current_app.logger.warning(f'IA: no se pudo registrar la consulta: {exc}')
+        except Exception:
+            pass
+
+
+def resumen_consultas(dias=30):
+    """Uso del asistente en los últimos `dias`, preguntas que aún no sabe
+    responder y consultas sensibles recientes. Para el dueño (panel IA)."""
+    import services.ai_tools as tools
+    dias = max(1, min(int(dias or 30), 365))
+    vacio = {'dias': dias, 'total': 0, 'correctas': 0, 'ms_mediana': None, 'sin_herramienta': 0,
+             'herramientas': [], 'preguntas_sin_respuesta': [], 'sensibles': []}
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT to_regclass('public.ia_consultas') AS t")
+            if cur.fetchone()['t'] is None:
+                return vacio
+            cur.execute("""SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE ok) AS correctas,
+                                  PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ms) AS ms_mediana,
+                                  COUNT(*) FILTER (WHERE ok AND cardinality(herramientas) = 0) AS sin_herramienta
+                           FROM ia_consultas WHERE creado_en >= NOW() - make_interval(days => %s)""", (dias,))
+            r = cur.fetchone()
+            cur.execute("""SELECT h, COUNT(*) AS n FROM ia_consultas, unnest(herramientas) AS h
+                           WHERE creado_en >= NOW() - make_interval(days => %s)
+                           GROUP BY h ORDER BY n DESC LIMIT 10""", (dias,))
+            usos = [{'herramienta': x['h'],
+                     'etiqueta': (tools.REGISTRO[x['h']].etiqueta if x['h'] in tools.REGISTRO else x['h']),
+                     'veces': int(x['n'])} for x in cur.fetchall()]
+            cur.execute("""SELECT creado_en, pregunta_sin_herramienta FROM ia_consultas
+                           WHERE pregunta_sin_herramienta IS NOT NULL
+                           ORDER BY creado_en DESC LIMIT 30""")
+            preguntas = [{'fecha': x['creado_en'].isoformat(timespec='minutes'),
+                          'pregunta': x['pregunta_sin_herramienta']} for x in cur.fetchall()]
+            cur.execute("""SELECT c.creado_en, c.sensible, c.objetivo, COALESCE(u.nombre, 'Usuario ' || c.usuario_id::text) AS usuario
+                           FROM ia_consultas c LEFT JOIN usuarios u ON u.id = c.usuario_id
+                           WHERE c.sensible IS NOT NULL ORDER BY c.creado_en DESC LIMIT 30""")
+            sensibles = [{'fecha': x['creado_en'].isoformat(timespec='minutes'), 'tipo': x['sensible'],
+                          'objetivo': x['objetivo'], 'usuario': x['usuario']} for x in cur.fetchall()]
+    except Exception as exc:  # noqa: BLE001
+        try:
+            current_app.logger.warning(f'IA: resumen de consultas falló: {exc}')
+        except Exception:
+            pass
+        return vacio
+    return {'dias': dias, 'total': int(r['total']), 'correctas': int(r['correctas']),
+            'ms_mediana': int(r['ms_mediana']) if r['ms_mediana'] is not None else None,
+            'sin_herramienta': int(r['sin_herramienta']), 'herramientas': usos,
+            'preguntas_sin_respuesta': preguntas, 'sensibles': sensibles}
+
+
+def responder_chat(pregunta, historial=None, contexto=None):
     """Asistente conversacional del negocio (respuesta completa, sin streaming
     — la usa el desktop y queda de respaldo para el panel web).
-    Devuelve (dict {respuesta, datos, herramienta}, None) o (None, mensaje_error)."""
-    plan, err = _plan_chat(pregunta)
+    Devuelve (dict {respuesta, datos, herramienta, herramientas}, None) o
+    (None, mensaje_error)."""
+    import services.ai_tools as tools
+    inicio = time.time()
+    ctx = contexto or tools.contexto_actual()
+    plan, err = _plan_chat(pregunta, historial, ctx)
     if err:
+        _registrar_consulta(ctx, pregunta, None, err, inicio)
         return None, err
     resp, err3 = _chat(plan['system'], plan['user'], max_tokens=plan['max_tokens'])
+    _registrar_consulta(ctx, pregunta, plan, err3, inicio)
     if err3:
         return None, err3
-    return {'respuesta': resp, 'datos': plan['datos'],
-            'herramienta': plan['herramienta']}, None
+    return {'respuesta': resp, 'datos': plan['datos'], 'herramienta': plan['herramienta'],
+            'herramientas': plan['herramientas']}, None
 
 
-def responder_chat_stream(pregunta):
+def responder_chat_stream(pregunta, historial=None, contexto=None):
     """Variante STREAMING del chat del negocio. Los pasos 1-2 (elegir
-    herramienta + consulta real) no se pueden streamear; solo la redacción
+    herramientas + consulta real) no se pueden streamear; solo la redacción
     final se emite palabra a palabra. Generador de eventos (tuplas):
       ('estado', texto)                — fase en curso, para que la espera no
                                          parezca un cuelgue (puede repetirse)
@@ -754,19 +968,36 @@ def responder_chat_stream(pregunta):
       ('error', mensaje)               — cierre con error (puede llegar sin deltas)
     Mantiene el fallback de modelo: si el primario falla ANTES de emitir texto,
     reintenta con AI_MODEL_FALLBACK. Si falla a mitad, lo emitido se conserva."""
+    import services.ai_tools as tools
+    inicio = time.time()
+    ctx = contexto or tools.contexto_actual()
+    resultado = {'plan': None, 'error': 'La consulta se interrumpió antes de terminar.'}
+    try:
+        for evento in _responder_chat_stream(pregunta, historial, ctx, resultado):
+            yield evento
+    finally:
+        # También si el navegador cierra a mitad (GeneratorExit): queda registrada.
+        _registrar_consulta(ctx, pregunta, resultado['plan'], resultado['error'], inicio)
+
+
+def _responder_chat_stream(pregunta, historial, ctx, resultado):
     plan = None
-    for evento, dato in _plan_chat_pasos(pregunta):
+    for evento, dato in _plan_chat_pasos(pregunta, historial=historial, contexto=ctx):
         if evento in ('estado', 'latido'):
             yield (evento, dato)
         elif evento == 'error':
+            resultado['error'] = dato
             yield ('error', dato)
             return
         elif evento == 'plan':
             plan = dato
     if plan is None:
-        yield ('error', 'No pude preparar la respuesta.')
+        resultado['error'] = 'No pude preparar la respuesta.'
+        yield ('error', resultado['error'])
         return
-    yield ('meta', {'herramienta': plan['herramienta'], 'datos': plan['datos']})
+    resultado['plan'] = plan
+    yield ('meta', {'herramienta': plan['herramienta'], 'herramientas': plan['herramientas'],
+                    'datos': plan['datos']})
     yield ('estado', 'Pronto te entregaremos el resultado…')
 
     primario = current_app.config.get('AI_MODEL') or 'qwen2.5:7b'
@@ -792,11 +1023,14 @@ def responder_chat_stream(pregunta):
                     partes.append(frag)
                     yield ('delta', frag)
             except _ErrorIA as e2:
+                resultado['error'] = e2.mensaje
                 yield ('error', e2.mensaje)
                 return
         else:
+            resultado['error'] = e.mensaje
             yield ('error', e.mensaje)
             return
+    resultado['error'] = None
     yield ('fin', ''.join(partes).strip())
 
 
