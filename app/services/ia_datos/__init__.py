@@ -21,7 +21,10 @@ from services.ia_datos.acceso import permitidas as _permitidas
 from services.ia_datos.base import (
     PERIODOS, REGISTRO, Herramienta, Rango, _periodo, rango_desde_params, registrar,
 )
+from services.ia_datos import caja as _caj
+from services.ia_datos import finanzas as _fin
 from services.ia_datos import inventario as _inv
+from services.ia_datos import restaurante as _res
 from services.ia_datos import ventas as _ven
 
 
@@ -59,6 +62,34 @@ registrar('tendencia_ventas', _ven.tendencia_ventas,
 registrar('segmentos_clientes', _ven.segmentos_clientes,
           "Agrupa a los clientes en segmentos (fieles, nuevos, en riesgo, ocasionales) con análisis estadístico, para saber a quién cuidar o recuperar.",
           [], etiqueta='el comportamiento de tus clientes', dominio='clientes')
+registrar('patron_horario', _ven.patron_horario,
+          "A qué horas y qué días de la semana se vende más o menos.",
+          ['periodo'], etiqueta='tus horas y días de más venta', dominio='ventas')
+
+# ── Dinero (requieren módulo y permiso) ───────────────────────
+registrar('finanzas_periodo', _fin.finanzas_periodo,
+          "Ingresos, egresos y UTILIDAD (ganancia) de un período, con los gastos por concepto y la comparación con el período anterior.",
+          ['periodo'], etiqueta='tus ingresos, gastos y utilidad', dominio='finanzas',
+          modulos=('accounting',), permiso='accounting')
+registrar('margenes_productos', _fin.margenes_productos,
+          "Cuánto deja cada producto (precio menos costo): los más y menos rentables y los vendidos por debajo del costo.",
+          ['periodo', 'limite'], etiqueta='el margen de tus productos', dominio='finanzas',
+          permiso='accounting')
+registrar('caja_estado', _caj.caja_estado,
+          "Estado de la caja: turno abierto, cuánto efectivo debería haber y los últimos cuadres con faltantes o sobrantes.",
+          [], etiqueta='el estado de tu caja', dominio='caja',
+          modulos=('caja',), permiso='caja')
+registrar('metodos_pago', _caj.metodos_pago,
+          "Con qué le pagan los clientes: efectivo, tarjeta, transferencias, y cuánto pesa cada medio.",
+          ['periodo'], etiqueta='tus medios de pago', dominio='caja', permiso='pos')
+registrar('restaurante_ahora', _res.restaurante_ahora,
+          "Cómo está el salón AHORA: mesas ocupadas o libres, cuentas abiertas, cuánto llevan consumido y cuáles se demoran.",
+          [], etiqueta='el estado de tus mesas', dominio='restaurante',
+          modulos=('restaurant_tables',), permiso='restaurant_tables')
+registrar('restaurante_desempeno', _res.restaurante_desempeno,
+          "Cómo le fue al restaurante en un período: mesas atendidas, ticket por mesa y por persona, duración, horas pico, platos más pedidos y anulaciones.",
+          ['periodo'], etiqueta='el desempeño de tu restaurante', dominio='restaurante',
+          modulos=('restaurant_tables',), permiso='restaurant_tables')
 
 # Compatibilidad: code -> (función, descripción, params permitidos)
 TOOLS = {h.code: (h.fn, h.descripcion, list(h.params)) for h in REGISTRO.values()}
@@ -130,9 +161,16 @@ CONTEXTO_DATOS = """MAPA DE DATOS DEL NEGOCIO (lo que puedes saber de esta tiend
 - Ventas por 3 canales: tienda web (pedidos pagados), POS de mostrador (web) y
   POS de escritorio (app). Cuando hables de "ventas" considera los 3 canales.
 - Clientes registrados, pedidos y su estado de envío, inventario y su valor.
+- Según el plan y el cargo de quien pregunta, también: contabilidad (ingresos,
+  egresos y utilidad), costos y márgenes por producto, caja (turno, cuadres,
+  medios de pago) y restaurante (mesas, tickets, horarios, platos).
 
 QUÉ PUEDES CONSULTAR: solo a través de tus herramientas. Si no hay una
 herramienta para algo, dilo con honestidad; NO inventes datos ni cifras.
+
+DIFERENCIA IMPORTANTE: "ventas" es lo que entró por vender; "utilidad" o
+"ganancia" es lo que queda después de los gastos y sale de la contabilidad. No
+uses una por la otra.
 
 DATOS SENSIBLES — NUNCA los entregues ni intentes consultarlos: contraseñas o
 hashes, datos de tarjetas o medios de pago, tokens/credenciales/llaves API,

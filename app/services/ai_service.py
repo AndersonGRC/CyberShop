@@ -632,6 +632,28 @@ def _texto_historial(historial):
     return '\n'.join(lineas)
 
 
+_RE_CODE = re.compile(r'"tool"\s*:\s*"([a-z_]+)"|"([a-z_]+)"\s*:\s*\{\s*"params"')
+_RE_PARAM = re.compile(r'"(periodo|desde|hasta|limite|umbral|producto|cliente|empleado)"\s*:\s*"?([\w-]+)"?')
+
+
+def _reparar_herramientas(raw):
+    """Rescata las herramientas cuando el modelo devuelve un JSON inválido
+    (p. ej. mezcla una clave dentro de la lista). Sin esto se perdía la consulta
+    entera. Los nombres se validan igual contra el catálogo más adelante."""
+    texto = raw or ''
+    encontrados = []
+    for m in _RE_CODE.finditer(texto):
+        code = m.group(1) or m.group(2)
+        # Los parámetros de ese bloque: hasta donde empieza la siguiente herramienta
+        siguiente = _RE_CODE.search(texto, m.end())
+        trozo = texto[m.end():siguiente.start() if siguiente else len(texto)]
+        params = {}
+        for k, v in _RE_PARAM.findall(trozo):
+            params[k] = int(v) if v.isdigit() else v
+        encontrados.append((code, params))
+    return encontrados
+
+
 def _parsear_herramientas(raw):
     """[(code, params)] de la respuesta del enrutador. Acepta el formato nuevo
     {"tools":[{tool, params}]} y el anterior {"tool":..., "params":...}."""
@@ -639,7 +661,10 @@ def _parsear_herramientas(raw):
         m = re.search(r'\{.*\}', raw or '', re.S)
         data = json.loads(m.group(0)) if m else {}
     except Exception:
-        return []
+        data = None
+    if data is None:
+        items = [{'tool': c, 'params': p} for c, p in _reparar_herramientas(raw)]
+        data = {'tools': items} if items else {}
     if not isinstance(data, dict):
         return []
     if isinstance(data.get('tools'), list):

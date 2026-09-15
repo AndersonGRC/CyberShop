@@ -41,13 +41,24 @@ def contexto_actual():
     return Contexto(rol_id=rol, usuario_id=session.get('usuario_id'), canal=CANAL_WEB)
 
 
+def _modulo_activo(code):
+    """¿El plan del cliente incluye este módulo? Fuera de un request (cron o
+    scripts) no hay sesión de la que sacar el tenant, así que se resuelve con el
+    tenant por defecto de la instancia; si tampoco se puede, se niega."""
+    from tenant_features import is_module_active
+    try:
+        return bool(is_module_active(code))
+    except Exception:
+        try:
+            from tenant_features import get_default_tenant_id
+            return bool(is_module_active(code, tenant_id=get_default_tenant_id()))
+        except Exception:
+            return False
+
+
 def puede_usar(h, ctx):
     if h.modulos:
-        from tenant_features import is_module_active
-        try:
-            if not all(is_module_active(m) for m in h.modulos):
-                return False
-        except Exception:
+        if not all(_modulo_activo(m) for m in h.modulos):
             return False
     publica = h.permiso is None and h.sensible is None
     if ctx.canal == CANAL_ESCRITORIO:

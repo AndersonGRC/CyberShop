@@ -58,6 +58,50 @@ def test_sanear_params_alias_rango_y_numeros():
     assert ia_datos.sanear_params(h, 'no es dict') == {'limite': 5}
 
 
+@pytest.mark.parametrize('periodo,desde,hasta', [
+    ('hoy', date(2026, 9, 15), date(2026, 9, 15)),
+    ('ayer', date(2026, 9, 14), date(2026, 9, 14)),
+    ('semana', date(2026, 9, 14), date(2026, 9, 15)),          # lunes a hoy
+    ('semana_anterior', date(2026, 9, 7), date(2026, 9, 13)),
+    ('mes', date(2026, 9, 1), date(2026, 9, 15)),
+    ('mes_anterior', date(2026, 8, 1), date(2026, 8, 31)),
+    ('anio', date(2026, 1, 1), date(2026, 9, 15)),
+])
+def test_fechas_reales_de_cada_periodo(periodo, desde, hasta):
+    assert base.rango_efectivo(date(2026, 9, 15), periodo) == (desde, hasta)
+    assert base.rango_efectivo(date(2026, 9, 15), 'todo') == (None, date(2026, 9, 15))
+
+
+def test_periodo_anterior_comparable():
+    hoy = date(2026, 9, 15)
+    # "este mes" va del 1 a hoy: se compara con el MISMO tramo del mes pasado, no con 15 días sueltos
+    assert base.rango_anterior(*base.rango_efectivo(hoy, 'mes'), 'mes') == (date(2026, 8, 1), date(2026, 8, 15))
+    assert base.rango_anterior(*base.rango_efectivo(hoy, 'anio'), 'anio') == (date(2025, 1, 1), date(2025, 9, 15))
+    assert base.rango_anterior(*base.rango_efectivo(hoy, 'semana'), 'semana') == (date(2026, 9, 12), date(2026, 9, 13))
+    assert base.rango_anterior(date(2026, 8, 1), date(2026, 8, 31)) == (date(2026, 7, 1), date(2026, 7, 31))
+    assert base.rango_anterior(None, hoy, 'todo') == (None, None)
+
+
+def test_cambio_porcentual():
+    assert base.cambio_pct(120, 100) == '+20%'
+    assert base.cambio_pct(80, 100) == '-20%'
+    assert base.cambio_pct(0, 0) is None
+    assert base.cambio_pct(50, 0) == 'sin base de comparación (antes no hubo)'
+    assert base.cambio_pct(-50, -100) == '+50%'      # menos pérdida es mejora
+    assert base.cambio_pct('x', 1) is None
+
+
+def test_valor_anormal_solo_con_datos_suficientes():
+    from services import estadistica as est
+    estables = [100, 102, 98, 101, 99, 100, 103]
+    assert est.z_score(100, estables[:5]) is None                 # pocos días
+    assert est.z_score(100, [100] * 8) is None                    # sin variación
+    assert abs(est.z_score(101, estables)) < 2                    # día normal
+    assert est.z_score(40, estables) < -2                         # caída anormal
+    assert est.z_score(160, estables) > 2                         # pico anormal
+    assert est.desviacion_estandar([5]) is None
+
+
 # ── Permisos por rol y canal ───────────────────────────────────
 @pytest.fixture
 def matriz(monkeypatch):
@@ -129,6 +173,18 @@ def test_parsear_herramientas_formatos():
     assert p('{"tools":["a","a",{"tool":"a","params":{"periodo":"mes_anterior"}}]}') == \
         [('a', {}), ('a', {'periodo': 'mes_anterior'})]
     assert len(p(json.dumps({'tools': [{'tool': f't{i}'} for i in range(6)]}))) == ai._MAX_HERRAMIENTAS
+
+
+def test_json_roto_del_modelo_no_pierde_la_consulta():
+    """El modelo a veces cierra mal el JSON; antes se perdían todas las
+    herramientas y la pregunta quedaba sin datos."""
+    roto = ('{"tools":[{"tool":"ventas_periodo","params":{"periodo":"mes"}},'
+            '"finanzas_periodo":{"params":{"periodo":"mes"}}]}')
+    assert ai._parsear_herramientas(roto) == [('ventas_periodo', {'periodo': 'mes'}),
+                                              ('finanzas_periodo', {'periodo': 'mes'})]
+    assert ai._parsear_herramientas('{"tools":[{"tool":"top_productos","params":{"limite":3}}') == \
+        [('top_productos', {'limite': 3})]
+    assert ai._parsear_herramientas('lo siento, no entiendo') == []
 
 
 def test_historial_se_recorta_y_valida():

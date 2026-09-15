@@ -294,6 +294,47 @@ def tendencia_ventas(dias=90, **_):
     return _analizar_tendencia(por_dia, hoy, d)
 
 
+def patron_horario(periodo='mes', **_):
+    """A qué horas y qué días vende más (los 3 canales). Sirve para decidir
+    turnos, promociones en horas flojas y horarios de atención."""
+    p = _periodo(periodo)
+    with get_db_cursor(dict_cursor=True) as cur:
+        partes = [f"""SELECT fecha_creacion AS f, monto_total AS t FROM pedidos
+                      WHERE {_PEDIDO_PAGADO} AND {_sql_periodo(p, 'fecha_creacion')}"""]
+        if _existe(cur, 'ventas_pos'):
+            partes.append(f"""SELECT fecha AS f, total AS t FROM ventas_pos
+                WHERE COALESCE(estado,'completada') <> 'anulada' AND {_sql_periodo(p, 'fecha')}""")
+        if _existe(cur, 'pos_desktop_sales'):
+            partes.append(f"""SELECT created_at_local AS f, total AS t FROM pos_desktop_sales
+                WHERE {_sql_periodo(p, 'created_at_local')}""")
+        union = " UNION ALL ".join(partes)
+        cur.execute("SELECT EXTRACT(HOUR FROM f)::int AS hora, COUNT(*) n, COALESCE(SUM(t),0) total "
+                    f"FROM ({union}) x GROUP BY 1 ORDER BY 1")
+        horas = [{'hora': f"{r['hora']:02d}:00", 'ventas': int(r['n']),
+                  'monto': formatear_moneda(float(r['total'])), '_t': float(r['total'])}
+                 for r in cur.fetchall()]
+        cur.execute("SELECT EXTRACT(ISODOW FROM f)::int AS dia, COUNT(*) n, COALESCE(SUM(t),0) total "
+                    f"FROM ({union}) x GROUP BY 1 ORDER BY 1")
+        dias = [{'dia': _DIAS_SEMANA[r['dia'] - 1], 'ventas': int(r['n']),
+                 'monto': formatear_moneda(float(r['total'])), '_t': float(r['total'])}
+                for r in cur.fetchall()]
+    if not horas:
+        return {'periodo': _label_periodo(p), 'confiabilidad': 'insuficiente',
+                'conclusion': 'No hubo ventas en ese período.'}
+    mejores = sorted(horas, key=lambda h: -h['_t'])[:3]
+    mejor_dia = max(dias, key=lambda d: d['_t'])
+    peor_dia = min(dias, key=lambda d: d['_t'])
+    limpiar = [{k: v for k, v in x.items() if k != '_t'} for x in horas]
+    return {
+        'periodo': _label_periodo(p),
+        'por_hora': limpiar,
+        'horas_de_mayor_venta': [{k: v for k, v in h.items() if k != '_t'} for h in mejores],
+        'por_dia_de_la_semana': [{k: v for k, v in d.items() if k != '_t'} for d in dias],
+        'mejor_dia': mejor_dia['dia'], 'peor_dia': peor_dia['dia'],
+        'nota': 'Se usa la hora de la venta en los 3 canales (web, mostrador y escritorio).',
+    }
+
+
 _CLAVES_ANONIMAS = {'mostrador', 'consumidor final', 'sin nombre', 'cliente', 'cliente mostrador',
                     'general', 'varios', '222222222222', '0'}
 

@@ -177,3 +177,27 @@ def mediana(valores):
     if n == 0:
         return None
     return v[n // 2] if n % 2 else (v[n // 2 - 1] + v[n // 2]) / 2
+
+def desviacion_estandar(valores):
+    """Desviación estándar muestral (n-1). None con menos de 2 datos."""
+    v = [float(x) for x in valores]
+    if len(v) < 2:
+        return None
+    media = sum(v) / len(v)
+    return math.sqrt(sum((x - media) ** 2 for x in v) / (len(v) - 1))
+
+
+def z_score(valor, historico, minimo=6):
+    """A cuántas desviaciones está `valor` del promedio de `historico`.
+
+    Sirve para avisar de un día raro (ventas muy bajas o muy altas) sin fijar
+    umbrales a dedo. Devuelve None si hay pocos datos o si todos son iguales
+    (sin variación no hay con qué comparar). |z| >= 2 se considera anormal.
+    """
+    v = [float(x) for x in historico]
+    if len(v) < minimo:
+        return None
+    s = desviacion_estandar(v)
+    if not s:
+        return None
+    return (float(valor) - sum(v) / len(v)) / s
