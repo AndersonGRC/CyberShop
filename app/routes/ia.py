@@ -178,6 +178,11 @@ def chat_stream():
         # stream_with_context mantiene vivo el request (get_db_cursor del
         # tenant sigue resolviendo dentro del generador).
         for evento, dato in ai.responder_chat_stream(pregunta):
+            if evento == 'latido':
+                # Comentario SSE: el navegador lo ignora, pero Cloudflare y nginx ven
+                # tráfico y no cortan mientras el modelo carga en frío (1-3 min).
+                yield ": latido\n\n"
+                continue
             yield f"data: {json.dumps({'e': evento, 'd': dato}, ensure_ascii=False)}\n\n"
 
     return Response(stream_with_context(gen()), mimetype='text/event-stream',

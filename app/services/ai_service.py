@@ -13,6 +13,7 @@ AISLAMIENTO POR CLIENTE (requisito de seguridad):
 import hashlib
 import json
 import re
+import threading
 import time
 
 import requests
@@ -168,21 +169,37 @@ def _chat_una_vez(model, system, user, max_tokens, temperature):
         'max_tokens': int(max_tokens) + 1200,
         'stream': False,
     }
-    try:
-        # (connect, read): falla en 5s si el servidor de IA está apagado, pero
-        # da margen amplio a la generación (cold-start del modelo puede tardar).
-        r = requests.post(f'{base}/v1/chat/completions', json=payload,
-                          headers=headers, timeout=(5, read_timeout))
-    except requests.ConnectTimeout:
-        return None, ('red', 'El servidor de IA no responde (¿tu equipo está apagado o desconectado?).')
-    except requests.Timeout:
-        return None, ('modelo', 'La IA tardó demasiado en responder. Intenta de nuevo.')
-    except requests.RequestException as exc:
+    r = None
+    for intento in range(_INTENTOS_CONEXION):
         try:
-            current_app.logger.warning(f'IA error de red: {exc}')
-        except Exception:
-            pass
-        return None, ('red', 'No se pudo conectar con el servidor de IA. Intenta más tarde.')
+            # (connect, read): falla en 5s si el servidor de IA está apagado, pero
+            # da margen amplio a la generación (cold-start del modelo puede tardar).
+            r = requests.post(f'{base}/v1/chat/completions', json=payload,
+                              headers=headers, timeout=(5, read_timeout))
+            break
+        except requests.ConnectTimeout:
+            # Sin respuesta de red: el PC está apagado o el túnel caído. Reintentar no ayuda.
+            return None, ('red', 'El servidor de IA no responde (¿tu equipo está apagado o desconectado?).')
+        except requests.Timeout:
+            return None, ('modelo', 'La IA tardó demasiado en responder. Intenta de nuevo.')
+        except requests.ConnectionError as exc:
+            # Conexión rechazada o cortada sin respuesta: el PC está encendido pero
+            # Ollama se está (re)iniciando —su vigilancia lo relanza en ~25 s—.
+            # Antes se rendía al primer intento ("No se pudo conectar…").
+            try:
+                current_app.logger.warning(f'IA error de conexión (intento {intento + 1}): {exc}')
+            except Exception:
+                pass
+            if intento < _INTENTOS_CONEXION - 1:
+                time.sleep(_PAUSA_CONEXION_S)
+                continue
+            return None, ('red', 'El servidor de IA se está reiniciando. Intenta de nuevo en un minuto.')
+        except requests.RequestException as exc:
+            try:
+                current_app.logger.warning(f'IA error de red: {exc}')
+            except Exception:
+                pass
+            return None, ('red', 'No se pudo conectar con el servidor de IA. Intenta más tarde.')
     if r.status_code != 200:
         try:
             current_app.logger.warning(f'IA HTTP {r.status_code} ({model}): {r.text[:200]}')
@@ -233,25 +250,42 @@ def _chat_stream_una_vez(model, system, user, max_tokens, temperature):
         'max_tokens': int(max_tokens) + 1200,
         'stream': True,
     }
-    try:
-        r = requests.post(f'{base}/v1/chat/completions', json=payload,
-                          headers=headers, stream=True, timeout=(5, read_timeout))
-    except requests.ConnectTimeout:
-        raise _ErrorIA('red', 'El servidor de IA no responde (¿tu equipo está apagado o desconectado?).')
-    except requests.Timeout:
-        raise _ErrorIA('modelo', 'La IA tardó demasiado en responder. Intenta de nuevo.')
-    except requests.RequestException as exc:
+    r = None
+    for intento in range(_INTENTOS_CONEXION):
         try:
-            current_app.logger.warning(f'IA error de red (stream): {exc}')
-        except Exception:
-            pass
-        raise _ErrorIA('red', 'No se pudo conectar con el servidor de IA. Intenta más tarde.')
+            r = requests.post(f'{base}/v1/chat/completions', json=payload,
+                              headers=headers, stream=True, timeout=(5, read_timeout))
+            break
+        except requests.ConnectTimeout:
+            raise _ErrorIA('red', 'El servidor de IA no responde (¿tu equipo está apagado o desconectado?).')
+        except requests.Timeout:
+            raise _ErrorIA('modelo', 'La IA tardó demasiado en responder. Intenta de nuevo.')
+        except requests.ConnectionError as exc:
+            # Mismo criterio que _chat_una_vez: Ollama reiniciándose → reintentar un poco.
+            try:
+                current_app.logger.warning(f'IA error de conexión (stream, intento {intento + 1}): {exc}')
+            except Exception:
+                pass
+            if intento < _INTENTOS_CONEXION - 1:
+                time.sleep(_PAUSA_CONEXION_S)
+                continue
+            raise _ErrorIA('red', 'El servidor de IA se está reiniciando. Intenta de nuevo en un minuto.')
+        except requests.RequestException as exc:
+            try:
+                current_app.logger.warning(f'IA error de red (stream): {exc}')
+            except Exception:
+                pass
+            raise _ErrorIA('red', 'No se pudo conectar con el servidor de IA. Intenta más tarde.')
     if r.status_code != 200:
         try:
             current_app.logger.warning(f'IA HTTP {r.status_code} stream ({model}): {r.text[:200]}')
         except Exception:
             pass
         raise _ErrorIA('modelo', 'El servidor de IA devolvió un error. Intenta más tarde.')
+    # Ollama responde `text/event-stream` SIN charset y requests asume ISO-8859-1
+    # para text/*: "¡Hola! Sí, información" llegaba como "Â¡Hola! SÃ­, informaciÃ³n".
+    # El JSON de la variante sin streaming no tenía el problema (r.json() usa UTF-8).
+    r.encoding = 'utf-8'
     emitio = False
     try:
         for linea in r.iter_lines(decode_unicode=True):
@@ -281,16 +315,28 @@ def _chat_stream_una_vez(model, system, user, max_tokens, temperature):
         raise _ErrorIA('modelo', 'La IA no devolvió contenido. Intenta de nuevo.')
 
 
-def _chat(system, user, max_tokens=400, temperature=0.7):
+def _chat(system, user, max_tokens=400, temperature=0.7, espera_frio=45):
     """Llamada de chat con FALLBACK automático de modelo: si el primario
     (AI_MODEL, p.ej. gpt-oss:20b) falla por memoria/timeout/error del server,
     reintenta UNA vez con AI_MODEL_FALLBACK (p.ej. qwen2.5:7b) — el usuario
-    recibe respuesta en vez de un error. Devuelve (texto, None) o (None, msg)."""
+    recibe respuesta en vez de un error. Devuelve (texto, None) o (None, msg).
+
+    espera_frio: segundos máximos a esperar si el modelo está sin cargar. Quien
+    llama mientras se arma una página (p. ej. "Tu día" del CRM) pasa 0: se pide
+    la carga y se responde al instante, sin colgar la página."""
     ok, motivo = estado_ia()
     if not ok:
         return None, motivo
     primario = current_app.config.get('AI_MODEL') or 'qwen2.5:7b'
     fallback = (current_app.config.get('AI_MODEL_FALLBACK') or '').strip()
+
+    # Motor en frío: espera acotada. Estas respuestas no envían nada hasta el final
+    # y nginx corta a los 60 s (Cloudflare a los 100 s); pasados 45 s se contesta que
+    # el motor se está preparando —ya quedó cargando— en vez de morir con un 504.
+    # No se salta al modelo de respaldo: cargarlo a la vez peleaba por el disco y
+    # alargaba las dos cargas.
+    if not _esperar_motor_bloqueando(primario, espera_max=espera_frio):
+        return None, MSG_MOTOR_PREPARANDO
 
     texto, err = _chat_una_vez(primario, system, user, max_tokens, temperature)
     if texto is not None:
@@ -501,6 +547,69 @@ def _modelo_en_memoria(modelo):
         return None
 
 
+# ── Motor en frío ──────────────────────────────────────────────
+# Tras encender el PC de IA, o tras 30 min sin uso, el modelo no está en memoria y
+# cargarlo tarda de 1 a 3 minutos. Cloudflare corta a los 100 s y nginx a los 60 s
+# si la respuesta no envía nada, así que una consulta que solo esperara la carga
+# moría con 504/524 y el cliente veía "No se pudo conectar con el servidor de IA".
+# Ahora se pide la carga apenas se detecta el frío y se espera en tramos cortos.
+_INTENTOS_CONEXION = 3       # conexión rechazada/cortada: Ollama reiniciándose
+_PAUSA_CONEXION_S = 5
+_CALENTANDO = {}             # modelo -> instante del último pedido de carga (por proceso)
+_CALENTAR_CADA_S = 120
+MSG_MOTOR_PREPARANDO = ('El motor de IA se está preparando: la primera consulta después de encender '
+                        'el equipo, o de un rato sin uso, tarda de 1 a 3 minutos. Intenta de nuevo en un momento.')
+
+
+def _pedir_carga(modelo):
+    """Pide a Ollama cargar el modelo sin bloquear (hilo aparte). No fija
+    keep_alive: rige el del servidor (30 min), así no queda cargado para siempre."""
+    ahora = time.time()
+    if ahora - _CALENTANDO.get(modelo, 0) < _CALENTAR_CADA_S:
+        return
+    _CALENTANDO[modelo] = ahora
+    base = (current_app.config.get('AI_BASE_URL') or '').strip().rstrip('/')
+    key = (current_app.config.get('AI_API_KEY') or '').strip()
+    headers = {'Authorization': f'Bearer {key}'} if key else {}
+
+    def _cargar():
+        try:
+            requests.post(f'{base}/api/generate', json={'model': modelo},
+                          headers=headers, timeout=(5, 600))
+        except Exception:
+            pass
+
+    threading.Thread(target=_cargar, name=f'ia-calentar-{modelo}', daemon=True).start()
+
+
+def _esperar_motor(modelo, espera_max, intervalo=5):
+    """Generador que espera a que el modelo esté en memoria. Mientras carga emite
+    None cada `intervalo` s (el chat lo convierte en latido para que el proxy no
+    corte) y al terminar devuelve True si quedó listo o False si se agotó la
+    espera. Si el estado no se puede saber (proveedor sin /api/ps), sale True."""
+    if _modelo_en_memoria(modelo) is not False:
+        return True
+    _pedir_carga(modelo)
+    fin = time.time() + espera_max
+    while time.time() < fin:
+        yield None
+        time.sleep(intervalo)
+        if _modelo_en_memoria(modelo) is not False:
+            return True
+        _pedir_carga(modelo)   # si Ollama se reinició a mitad, vuelve a pedir la carga
+    return False
+
+
+def _esperar_motor_bloqueando(modelo, espera_max):
+    """Variante sin latidos para las respuestas completas (sin streaming)."""
+    gen = _esperar_motor(modelo, espera_max)
+    try:
+        while True:
+            next(gen)
+    except StopIteration as fin:
+        return fin.value
+
+
 def _plan_chat(pregunta):
     """Pasos 1 y 2 del chat del negocio sin anuncios de progreso (la usa la
     respuesta completa, p. ej. el POS de escritorio). Devuelve (plan, None) o
@@ -538,6 +647,18 @@ def _plan_chat_pasos(pregunta, anunciar=True):
         if _modelo_en_memoria(primario) is False:
             yield ('estado', 'Estamos preparando el motor de análisis. '
                              'La primera consulta tarda un poco más; enseguida seguimos…')
+            # Se espera la carga ANTES de preguntarle al modelo, con latidos cada 5 s:
+            # sin ellos Cloudflare/nginx cortaban la conexión a los 60-100 s de silencio.
+            espera = _esperar_motor(primario, espera_max=300)
+            try:
+                while True:
+                    next(espera)
+                    yield ('latido', None)
+            except StopIteration as fin:
+                if not fin.value:
+                    yield ('error', MSG_MOTOR_PREPARANDO)
+                    return
+            yield ('estado', 'El motor de análisis está listo. Seguimos con tu pregunta…')
 
     # Paso 1: selección de herramienta (la IA NO escribe SQL, solo elige nombre+params)
     sel_system = (
@@ -635,8 +756,8 @@ def responder_chat_stream(pregunta):
     reintenta con AI_MODEL_FALLBACK. Si falla a mitad, lo emitido se conserva."""
     plan = None
     for evento, dato in _plan_chat_pasos(pregunta):
-        if evento == 'estado':
-            yield ('estado', dato)
+        if evento in ('estado', 'latido'):
+            yield (evento, dato)
         elif evento == 'error':
             yield ('error', dato)
             return
@@ -853,8 +974,11 @@ def narrar_tu_dia(senales):
         system = ("Eres el asistente comercial de un CRM. En UNA sola frase breve "
                   "(máx 20 palabras), en español, con tono cercano y accionable, di qué "
                   "conviene atender primero hoy. No saludes ni uses listas ni comillas.")
+        # espera_frio=0: se llama mientras se arma la página del CRM. Con el motor
+        # en frío, antes la colgaba hasta que el proxy cortaba; ahora pide la carga
+        # y la página sale al instante (la frase aparece en la siguiente visita).
         texto, err = _chat(system, "Señales de hoy:\n" + '\n'.join('- ' + s for s in senales),
-                           max_tokens=80, temperature=0.5)
+                           max_tokens=80, temperature=0.5, espera_frio=0)
         if err or not texto:
             return ''
         return texto.strip().strip('"').strip()[:200]
