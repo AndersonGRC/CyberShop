@@ -25,6 +25,7 @@ from services.ia_datos import caja as _caj
 from services.ia_datos import comercial as _com
 from services.ia_datos import finanzas as _fin
 from services.ia_datos import inventario as _inv
+from services.ia_datos import nomina as _nom
 from services.ia_datos import operacion as _ope
 from services.ia_datos import restaurante as _res
 from services.ia_datos import ventas as _ven
@@ -152,6 +153,16 @@ registrar('deseos_demanda', _ope.deseos_demanda,
           "Productos que los clientes guardan en su lista de deseos, sobre todo los agotados: demanda que se está perdiendo.",
           [], etiqueta='las listas de deseos de tus clientes', dominio='operacion',
           modulos=('wishlist',), permiso='wishlist')
+
+# ── Nómina (SENSIBLE: solo dueño y contador, y queda auditada) ─
+registrar('nomina_resumen', _nom.nomina_resumen,
+          "Cuánto cuesta la nómina en un período: devengado, deducciones, neto pagado, aportes del empleador, provisiones y costo por cargo.",
+          ['periodo'], etiqueta='el costo de tu nómina', dominio='nomina',
+          modulos=('payroll',), permiso='payroll', sensible='nomina')
+registrar('nomina_empleado', _nom.nomina_empleado,
+          "Datos de pago de UN empleado por su nombre: cargo, antigüedad, salario base, su última liquidación y sus provisiones.",
+          ['empleado'], etiqueta='la nómina de ese empleado', dominio='nomina',
+          modulos=('payroll',), permiso='payroll', sensible='nomina')
 
 # Compatibilidad: code -> (función, descripción, params permitidos)
 TOOLS = {h.code: (h.fn, h.descripcion, list(h.params)) for h in REGISTRO.values()}
