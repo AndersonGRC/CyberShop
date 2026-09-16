@@ -275,6 +275,91 @@ def cupones_desempeno(periodo='mes', **_):
             'nota': None if usos else 'Nadie usó cupones en ese período.'}
 
 
+_CLAVES_ANONIMAS = ('mostrador', 'consumidor final', 'sin nombre', 'cliente', 'cliente mostrador',
+                    'general', 'varios', '222222222222', '0')
+
+
+def ventas_con_cliente(cur, dias=90):
+    """(identificadas, totales) de los últimos `dias`. Una venta cuenta como
+    identificada si tiene documento, correo o un nombre que no sea genérico."""
+    anonimas = ', '.join('%s' for _ in _CLAVES_ANONIMAS)
+    ident, total = 0, 0
+    if _existe(cur, 'ventas_pos'):
+        cols = _columnas(cur, 'ventas_pos')
+        claves = []
+        if 'cliente_documento' in cols:
+            claves.append(r"NULLIF(REGEXP_REPLACE(cliente_documento, '\D', '', 'g'), '')")
+        if 'cliente_email' in cols:
+            claves.append("NULLIF(LOWER(TRIM(cliente_email)), '')")
+        if 'cliente_nombre' in cols:
+            claves.append("NULLIF(LOWER(TRIM(cliente_nombre)), '')")
+        clave = f"COALESCE({', '.join(claves)})" if claves else 'NULL'
+        cur.execute(f"""SELECT COUNT(*) AS total,
+                               COUNT(*) FILTER (WHERE {clave} IS NOT NULL
+                                                AND {clave} NOT IN ({anonimas})) AS ident
+                        FROM ventas_pos
+                        WHERE COALESCE(estado, 'completada') <> 'anulada'
+                          AND fecha >= CURRENT_DATE - INTERVAL '{int(dias)} days'""", _CLAVES_ANONIMAS)
+        r = cur.fetchone()
+        ident += int(r['ident'] or 0)
+        total += int(r['total'] or 0)
+    cur.execute(f"""SELECT COUNT(*) AS total,
+                           COUNT(*) FILTER (WHERE COALESCE(NULLIF(TRIM(cliente_email), ''),
+                                                           NULLIF(TRIM(cliente_documento), '')) IS NOT NULL) AS ident
+                    FROM pedidos WHERE {_PEDIDO_PAGADO}
+                      AND fecha_creacion >= CURRENT_DATE - INTERVAL '{int(dias)} days'""")
+    r = cur.fetchone()
+    return ident + int(r['ident'] or 0), total + int(r['total'] or 0)
+
+
+def calidad_datos(**_):
+    """Qué le falta a los datos para que la IA y los reportes sirvan mejor:
+    ventas sin cliente, productos sin costo, catálogo incompleto."""
+    with get_db_cursor(dict_cursor=True) as cur:
+        ident, total = ventas_con_cliente(cur)
+        cols = _columnas(cur, 'productos')
+        cur.execute("SELECT COUNT(*) AS n FROM productos")
+        productos = int(cur.fetchone()['n'] or 0)
+        sin_costo = None
+        if 'costo' in cols:
+            cur.execute("SELECT COUNT(*) AS n FROM productos WHERE COALESCE(costo, 0) <= 0")
+            sin_costo = int(cur.fetchone()['n'] or 0)
+        cur.execute("""SELECT COUNT(*) FILTER (WHERE descripcion IS NULL OR TRIM(descripcion) = '') AS sin_desc,
+                              COUNT(*) FILTER (WHERE genero_id IS NULL) AS sin_cat FROM productos""")
+        cat = cur.fetchone()
+        sin_minimo = None
+        if 'stock_minimo' in cols:
+            cur.execute("SELECT COUNT(*) AS n FROM productos WHERE COALESCE(stock_minimo, 0) <= 0")
+            sin_minimo = int(cur.fetchone()['n'] or 0)
+
+    pct = (ident / total * 100) if total else 0
+    pendientes = []
+    if total and pct < 20:
+        pendientes.append(f'Solo el {pct:.0f}% de tus ventas registra quién compró: sin eso no puedo '
+                          'agrupar clientes ni decirte a quién recuperar. Pide el nombre o el documento al cobrar.')
+    if sin_costo:
+        pendientes.append(f'{sin_costo} de {productos} productos no tienen costo cargado: sin costo no hay '
+                          'margen real ni utilidad por producto.')
+    if cat['sin_desc']:
+        pendientes.append(f"{int(cat['sin_desc'])} productos sin descripción (la IA puede escribirlas).")
+    if cat['sin_cat']:
+        pendientes.append(f"{int(cat['sin_cat'])} productos sin categoría: las comparaciones por categoría salen incompletas.")
+    if sin_minimo:
+        pendientes.append(f'{sin_minimo} productos sin stock mínimo definido: el aviso de "hay que reponer" '
+                          'usa un umbral general en vez del tuyo.')
+    return {
+        'ventas_analizadas_90_dias': total,
+        'ventas_con_cliente_identificado': ident,
+        'porcentaje_con_cliente': f'{pct:.0f}%' if total else None,
+        'productos': productos, 'productos_sin_costo': sin_costo,
+        'productos_sin_descripcion': int(cat['sin_desc']), 'productos_sin_categoria': int(cat['sin_cat']),
+        'productos_sin_stock_minimo': sin_minimo,
+        'que_conviene_completar': pendientes,
+        'conclusion': ('Tus datos están completos para lo que la IA necesita.' if not pendientes else
+                       'Completar esto hace que las respuestas y los reportes sean más útiles.'),
+    }
+
+
 def deseos_demanda(**_):
     """Qué productos guardan los clientes en su lista de deseos, sobre todo los
     que están agotados: demanda que se está perdiendo."""

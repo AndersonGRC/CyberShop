@@ -149,6 +149,9 @@ registrar('fe_pendiente', _ope.fe_pendiente,
           "Facturación electrónica: qué ventas ya tienen factura y cuáles no (solo consulta, no emite nada).",
           ['periodo'], etiqueta='tu facturación electrónica', dominio='operacion',
           modulos=('facturacion_electronica',), permiso='facturacion_electronica')
+registrar('calidad_datos', _ope.calidad_datos,
+          "Qué le falta a los datos del negocio para que la IA y los reportes sirvan mejor: ventas sin cliente identificado, productos sin costo, catálogo incompleto.",
+          [], etiqueta='la calidad de tus datos', dominio='general')
 registrar('cupones_desempeno', _ope.cupones_desempeno,
           "Cupones de descuento: cuántos se usaron, cuánto descuento se entregó y cuáles son los más usados.",
           ['periodo'], etiqueta='tus cupones', dominio='operacion',

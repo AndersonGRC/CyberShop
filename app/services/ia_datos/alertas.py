@@ -225,8 +225,30 @@ def _facturacion(cur):
                     modulos=('facturacion_electronica',), permiso='facturacion_electronica')] if n else []
 
 
+def _datos_incompletos(cur):
+    """Sin cliente en la venta no hay segmentación posible; sin costo no hay margen."""
+    from services.ia_datos.operacion import ventas_con_cliente
+    fuera = []
+    ident, total = ventas_con_cliente(cur, 90)
+    if total >= 30 and (ident / total) < 0.2:
+        fuera.append(_alerta('ventas_sin_cliente', 'info',
+                             f'Solo el {ident / total * 100:.0f}% de tus ventas registra quién compró',
+                             'Pedir el nombre o el documento al cobrar te permite saber quién vuelve y a quién '
+                             'recuperar.', '/admin/pos', permiso='orders'))
+    if 'costo' in _columnas(cur, 'productos'):
+        cur.execute("""SELECT COUNT(*) FILTER (WHERE COALESCE(costo, 0) <= 0) AS sin, COUNT(*) AS total
+                       FROM productos""")
+        r = cur.fetchone()
+        if int(r['total'] or 0) and int(r['sin'] or 0) > int(r['total']) * 0.3:
+            fuera.append(_alerta('productos_sin_costo', 'info',
+                                 f"{int(r['sin'])} productos no tienen costo cargado",
+                                 'Sin costo no puedo calcular tu margen ni tu ganancia por producto.',
+                                 '/admin/productos', permiso='inventory'))
+    return fuera
+
+
 _REGLAS = (_stock, _ventas_de_ayer, _pedidos, _caja, _restaurante, _crm, _cotizaciones, _resenas,
-           _soporte, _facturacion)
+           _soporte, _facturacion, _datos_incompletos)
 
 
 def _calcular():

@@ -801,6 +801,17 @@ def _plan_chat_pasos(pregunta, anunciar=True, historial=None, contexto=None):
     if err:
         yield ('error', err)
         return
+    if not _parsear_herramientas(raw):
+        # A veces el modelo contesta "ninguna" a preguntas que sí puede resolver
+        # (medido con el modelo real). Se insiste UNA vez, sin aflojar la regla de
+        # los datos sensibles: si de verdad no aplica, vuelve a responder vacío.
+        reintento, err2 = _chat(
+            sel_system,
+            f"{sel_user}\n\nAntes respondiste sin herramientas. Si la pregunta se puede responder con "
+            "alguna de la lista, elígela ahora. Si pide datos sensibles o algo que no está en la lista, "
+            "responde {\"tools\":[]} otra vez.", max_tokens=220, temperature=0)
+        if not err2 and _parsear_herramientas(reintento):
+            raw = reintento
     permitidos = [h.code for h in disponibles]
     elegidas = []
     for code, params in _parsear_herramientas(raw):

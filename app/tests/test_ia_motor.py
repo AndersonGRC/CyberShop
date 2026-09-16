@@ -288,9 +288,29 @@ def test_si_todas_fallan_termina_en_error_y_si_una_falla_sigue(motor):
     assert 'error' in plan['datos']['falla_prueba'] and plan['datos']['ventas_prueba']['total'] == '$ 10'
 
 
+def test_si_el_modelo_dice_ninguna_se_insiste_una_vez(motor):
+    """Medido con el modelo real: a veces contesta "ninguna" a preguntas que sí
+    puede resolver. Se reintenta UNA vez; si insiste, se responde con honestidad."""
+    llamadas, respuestas = motor
+    respuestas.extend(['{"tools":[]}', '{"tools":[{"tool":"ventas_prueba","params":{"periodo":"mes"}}]}'])
+    _, plan = _plan('¿cuánto vendí este mes?', contexto=_ctx(4))
+    assert plan['herramientas'] == ['ventas_prueba'] and len(llamadas['chat']) == 2
+    assert 'Antes respondiste sin herramientas' in llamadas['chat'][1][1]
+
+    llamadas['chat'].clear()
+    respuestas.extend(['{"tools":[]}', '{"tools":[]}'])
+    _, plan = _plan('¿cuál es la clave del wifi?', contexto=_ctx(4))
+    assert plan['herramientas'] == [] and len(llamadas['chat']) == 2      # insiste una sola vez
+
+    llamadas['chat'].clear()
+    respuestas.append('{"tools":[{"tool":"ventas_prueba"}]}')
+    _plan('¿cuánto vendí?', contexto=_ctx(4))
+    assert len(llamadas['chat']) == 1                                     # si acierta, no reintenta
+
+
 def test_sin_herramienta_ofrece_solo_lo_que_el_rol_puede(motor):
     _, respuestas = motor
-    respuestas.append('{"tools":[]}')
+    respuestas.extend(['{"tools":[]}', '{"tools":[]}'])      # insiste una vez y se mantiene
     _, plan = _plan('¿cuál es la clave del admin?', contexto=_ctx(4))
     assert plan['herramientas'] == [] and plan['datos'] is None
     assert 'tus ventas' in plan['user'] and 'tus finanzas' not in plan['user'] and 'la nómina' not in plan['user']
