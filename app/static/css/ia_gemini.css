@@ -854,3 +854,30 @@
 @media (max-width: 480px) {
     .ia-uso-stats { grid-template-columns: 1fr; }
 }
+
+.ia-correo-fila {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0;
+    font-size: 0.88rem;
+    flex-wrap: wrap;
+}
+
+.ia-correo-fila input[type="text"] {
+    width: 100%;
+    margin-top: 4px;
+}
+
+.ia-correo-vista {
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: rgba(18, 44, 148, 0.04);
+    border-radius: 10px;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    max-height: 320px;
+    overflow-y: auto;
+}

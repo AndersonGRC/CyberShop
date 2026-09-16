@@ -159,6 +159,36 @@ def consultas():
     return jsonify({'ok': True, **ai.resumen_consultas(dias)})
 
 
+@ia_bp.route('/alertas')
+@rol_requerido(ADMIN_STAFF)
+def alertas():
+    """Alertas del negocio para el dashboard. NO usa el modelo de IA: salen
+    aunque el servidor de IA esté apagado, y solo las que el cargo puede ver."""
+    from services.ia_datos.alertas import alertas_negocio
+    refrescar = request.args.get('refrescar') == '1'
+    return jsonify({'ok': True, **alertas_negocio(refrescar=refrescar)})
+
+
+@ia_bp.route('/resumen-correo', methods=['GET', 'POST'])
+@rol_requerido(ADMIN_FULL)
+def resumen_correo():
+    """Interruptor del resumen diario por correo (solo dueño). GET devuelve la
+    configuración; POST la guarda; POST con prueba=true arma el correo sin enviarlo."""
+    from services.ia_resumen_correo import enviar_diario, guardar_config, leer_config
+    if request.method == 'GET':
+        return jsonify({'ok': True, **leer_config()})
+    d = request.get_json(silent=True) or {}
+    if d.get('prueba'):
+        res = enviar_diario(prueba=True)
+        return jsonify({'ok': True, 'asunto': res.get('asunto'), 'texto': res.get('texto'),
+                        'destinos': res.get('destinos')})
+    destinos = d.get('destinos')
+    if isinstance(destinos, str):
+        destinos = destinos.split(',')
+    config = guardar_config(activo=d.get('activo'), destinos=destinos)
+    return jsonify({'ok': True, **config})
+
+
 @ia_bp.route('/resumen-negocio', methods=['POST'])
 @rol_requerido(ADMIN_STAFF)
 def resumen_negocio():

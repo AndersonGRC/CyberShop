@@ -21,6 +21,7 @@ from services.ia_datos.acceso import permitidas as _permitidas
 from services.ia_datos.base import (
     PERIODOS, REGISTRO, Herramienta, Rango, _periodo, rango_desde_params, registrar,
 )
+from services.ia_datos import alertas as _ale
 from services.ia_datos import caja as _caj
 from services.ia_datos import comercial as _com
 from services.ia_datos import finanzas as _fin
@@ -65,6 +66,9 @@ registrar('tendencia_ventas', _ven.tendencia_ventas,
 registrar('segmentos_clientes', _ven.segmentos_clientes,
           "Agrupa a los clientes en segmentos (fieles, nuevos, en riesgo, ocasionales) con análisis estadístico, para saber a quién cuidar o recuperar.",
           [], etiqueta='el comportamiento de tus clientes', dominio='clientes')
+registrar('alertas_negocio', _ale.alertas_negocio,
+          "Qué conviene atender HOY: stock agotado, caja sin cerrar, mesas abiertas, pedidos sin despachar, tareas vencidas, ventas anormales y demás avisos.",
+          [], etiqueta='las alertas de tu negocio', dominio='general')
 registrar('patron_horario', _ven.patron_horario,
           "A qué horas y qué días de la semana se vende más o menos.",
           ['periodo'], etiqueta='tus horas y días de más venta', dominio='ventas')

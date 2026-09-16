@@ -68,6 +68,20 @@
     {% endif %}
 
     {% if ia_activa %}
+    <!-- ── Alertas del negocio (se calculan sin el modelo de IA) ── -->
+    <section class="surface-card" id="alertasCard" style="padding:18px 22px; margin-bottom:18px; border-left:4px solid #e0a800;" hidden>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <h3 style="margin:0; font-size:1em; color:#444;">⚠ Qué atender hoy</h3>
+            <span id="alertasResumen" style="font-size:0.78em; color:#999;"></span>
+            <button type="button" id="btnAlertas" style="margin-left:auto; background:transparent; color:#7c3aed;
+                    border:1px solid #d6c8f5; border-radius:8px; padding:6px 14px; font-size:0.82em;
+                    font-weight:700; cursor:pointer;">Actualizar</button>
+        </div>
+        <ul id="alertasLista" style="list-style:none; margin:10px 0 0; padding:0; font-size:0.9em;"></ul>
+    </section>
+    {% endif %}
+
+    {% if ia_activa %}
     <!-- ── Resumen ejecutivo IA (caché 1h; generar es bajo demanda) ── -->
     <section class="surface-card" style="padding:18px 22px; margin-bottom:18px; border-left:4px solid #7c3aed;">
         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
@@ -228,6 +242,69 @@
 
 {% if ia_activa %}
 <script>
+/* ── Alertas del negocio: salen de consultas, no del modelo de IA ── */
+(function () {
+    var card = document.getElementById('alertasCard');
+    if (!card) return;
+    var lista = document.getElementById('alertasLista');
+    var resumen = document.getElementById('alertasResumen');
+    var boton = document.getElementById('btnAlertas');
+    var colores = { alta: '#dc3545', media: '#e0a800', info: '#0d6efd' };
+
+    function pintar(data) {
+        lista.innerHTML = '';
+        if (!data.cantidad) {
+            card.hidden = false;
+            resumen.textContent = 'sin pendientes';
+            var ok = document.createElement('li');
+            ok.style.color = '#666';
+            ok.textContent = data.nota || 'Todo en orden por ahora.';
+            lista.appendChild(ok);
+            return;
+        }
+        resumen.textContent = data.urgentes ? data.urgentes + ' urgente(s) de ' + data.cantidad
+                                            : data.cantidad + ' aviso(s)';
+        data.alertas.forEach(function (a) {
+            var li = document.createElement('li');
+            li.style.cssText = 'padding:8px 0; border-bottom:1px solid #eee; display:flex; gap:8px; align-items:flex-start;';
+            var punto = document.createElement('span');
+            punto.textContent = '●';
+            punto.style.color = colores[a.nivel] || '#888';
+            var cuerpo = document.createElement('div');
+            var titulo = document.createElement('strong');
+            titulo.textContent = a.titulo;
+            cuerpo.appendChild(titulo);
+            if (a.detalle) {
+                var d = document.createElement('div');
+                d.style.cssText = 'color:#666; font-size:0.92em;';
+                d.textContent = a.detalle;
+                cuerpo.appendChild(d);
+            }
+            if (a.enlace) {
+                var link = document.createElement('a');
+                link.href = a.enlace;
+                link.textContent = 'Ver';
+                link.style.cssText = 'font-size:0.85em; color:#7c3aed; font-weight:600;';
+                cuerpo.appendChild(link);
+            }
+            li.appendChild(punto);
+            li.appendChild(cuerpo);
+            lista.appendChild(li);
+        });
+        card.hidden = false;
+    }
+
+    function cargar(refrescar) {
+        fetch('/admin/ia/alertas' + (refrescar ? '?refrescar=1' : ''))
+            .then(function (r) { return r.json(); })
+            .then(function (d) { if (d.ok) pintar(d); })
+            .catch(function () { /* el tablero sigue funcionando sin alertas */ });
+    }
+
+    boton.addEventListener('click', function () { cargar(true); });
+    cargar(false);
+})();
+
 function generarResumenIA() {
     var btn = document.getElementById('btnResumenIA');
     var txt = document.getElementById('resumenIATexto');

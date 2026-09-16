@@ -134,6 +134,29 @@
         </div>
 
         {% if session.get('rol_id') in [1, 2] %}
+        <!-- Tarjeta: Resumen diario por correo (solo dueño) -->
+        <div class="gem-card">
+            <div class="gem-card-header">
+                <h2 class="gem-card-title"><span class="gem-sparkle-sm">✦</span> Resumen diario por correo</h2>
+            </div>
+            <p class="ia-uso-ayuda">Cada mañana, un correo con las ventas de ayer y lo que conviene atender.
+                Si el servidor de IA está apagado, el correo igual sale con los datos.</p>
+            <label class="ia-correo-fila">
+                <input type="checkbox" id="ia-correo-activo">
+                <span>Enviarme el resumen todos los días</span>
+            </label>
+            <label class="ia-correo-fila">
+                <span class="ia-uso-label">Enviar a (separa con comas; vacío = dueños del negocio)</span>
+                <input type="text" id="ia-correo-destinos" class="gem-chat-input" placeholder="correo@ejemplo.com">
+            </label>
+            <div class="gem-btn-row">
+                <button type="button" id="btn-correo-guardar" class="gem-btn-primary">Guardar</button>
+                <button type="button" id="btn-correo-prueba" class="gem-btn-ghost">Ver cómo se vería</button>
+            </div>
+            <div class="gem-msg" id="ia-correo-msg"></div>
+            <pre id="ia-correo-vista" class="ia-correo-vista" hidden></pre>
+        </div>
+
         <!-- Tarjeta: Uso del asistente (solo dueño) -->
         <div class="gem-card ia-uso-card">
             <div class="gem-card-header">
@@ -538,6 +561,62 @@
     if (usoCard) {
         cargarUso();
         document.getElementById('btn-uso-actualizar').addEventListener('click', cargarUso);
+    }
+
+    /* ── Resumen diario por correo (solo dueño) ────────────────── */
+    const correoActivo = document.getElementById('ia-correo-activo');
+
+    function correoMsg(tipo, texto) {
+        const caja = document.getElementById('ia-correo-msg');
+        caja.style.display = 'block';
+        caja.className = 'gem-msg gem-msg--' + tipo;
+        caja.textContent = texto;
+    }
+
+    if (correoActivo) {
+        const destinos = document.getElementById('ia-correo-destinos');
+        const vista = document.getElementById('ia-correo-vista');
+
+        fetch('/admin/ia/resumen-correo')
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (!d.ok) return;
+                correoActivo.checked = !!d.activo;
+                destinos.value = (d.destinos || []).join(', ');
+            })
+            .catch(function () { /* la tarjeta es opcional */ });
+
+        document.getElementById('btn-correo-guardar').addEventListener('click', function () {
+            fetch('/admin/ia/resumen-correo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ activo: correoActivo.checked, destinos: destinos.value })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                correoMsg(d.ok ? 'success' : 'error', d.ok
+                    ? (d.activo ? 'Listo: recibirás el resumen cada mañana.' : 'Resumen diario desactivado.')
+                    : 'No se pudo guardar.');
+            })
+            .catch(function () { correoMsg('error', 'No se pudo guardar.'); });
+        });
+
+        document.getElementById('btn-correo-prueba').addEventListener('click', function () {
+            correoMsg('success', 'Armando el resumen con tus datos…');
+            fetch('/admin/ia/resumen-correo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ prueba: true })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (!d.ok) return correoMsg('error', 'No se pudo generar la vista previa.');
+                correoMsg('success', 'Así se vería (no se envió nada). Asunto: ' + d.asunto);
+                vista.textContent = d.texto || '';
+                vista.hidden = false;
+            })
+            .catch(function () { correoMsg('error', 'No se pudo generar la vista previa.'); });
+        });
     }
 
     if (chatForm) {
