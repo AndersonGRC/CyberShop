@@ -328,11 +328,8 @@ def gmail_callback():
         ))
 
         # Guardar este usuario como remitente del sistema
-        cur.execute("""
-            INSERT INTO cliente_config (clave, valor, tipo, grupo)
-            VALUES ('gmail_usuario_id', %s, 'text', 'correo')
-            ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor
-        """, (str(usuario_id),))
+        from services.config_tenant import set_cliente_config
+        set_cliente_config(cur, 'gmail_usuario_id', str(usuario_id), tipo='text', grupo='correo')
 
     flash('Gmail conectado exitosamente para notificaciones.', 'success')
     return redirect(url_for('admin.configuracion_cliente'))

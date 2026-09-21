@@ -49,21 +49,20 @@ def guardar_config(activo=None, destinos=None):
     if destinos is not None:
         limpios = [c.strip() for c in destinos if c and '@' in c]
         cambios[CLAVE_DESTINOS] = ', '.join(limpios[:5])
+    from services.config_tenant import set_cliente_config
     with get_db_cursor() as cur:
         for clave, valor in cambios.items():
-            cur.execute("""INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion)
-                           VALUES (%s, %s, 'texto', 'sistema', 'Resumen diario del negocio por correo')
-                           ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor""", (clave, valor))
+            set_cliente_config(cur, clave, valor,
+                               descripcion='Resumen diario del negocio por correo')
     return leer_config()
 
 
 def _marcar_enviado(hoy):
     try:
+        from services.config_tenant import set_cliente_config
         with get_db_cursor() as cur:
-            cur.execute("""INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion)
-                           VALUES (%s, %s, 'texto', 'sistema', 'Último envío del resumen diario')
-                           ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor""",
-                        (CLAVE_ULTIMO, hoy.isoformat()))
+            set_cliente_config(cur, CLAVE_ULTIMO, hoy.isoformat(),
+                               descripcion='Último envío del resumen diario')
     except Exception as exc:  # noqa: BLE001
         current_app.logger.warning(f'resumen diario: no se pudo marcar el envío: {exc}')
 

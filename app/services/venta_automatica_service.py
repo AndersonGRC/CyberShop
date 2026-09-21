@@ -125,17 +125,11 @@ def _sembrar_datos_trial(compra):
         from services.db_layer import tenant_cursor
         db_name = f"cyber_t{int(compra['tenant_id'])}"
         url = f"https://cybershopcol.com/renovar/{compra['token_renovacion']}"
+        from services.config_tenant import set_cliente_config
         with tenant_cursor(db_name=db_name) as cur:
             for clave, valor in (('trial_hasta', str(compra['proximo_pago'])),
                                  ('trial_renovar_url', url)):
-                cur.execute(
-                    """
-                    INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion)
-                    VALUES (%s, %s, 'texto', 'sistema', 'Prueba gratis (auto)')
-                    ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor
-                    """,
-                    (clave, valor),
-                )
+                set_cliente_config(cur, clave, valor, descripcion='Prueba gratis (auto)')
     except Exception as exc:  # noqa: BLE001 — el banner es cosmético, no romper
         try:
             current_app.logger.warning(f"trial: no se pudo sembrar banner: {exc}")

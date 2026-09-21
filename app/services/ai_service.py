@@ -1153,14 +1153,12 @@ def resumen_ejecutivo(force=False):
 
     ahora = datetime.now().isoformat(timespec='seconds')
     try:
+        from services.config_tenant import set_cliente_config
         with get_db_cursor() as cur:
             for clave, valor in (('ia_resumen_negocio', texto),
                                  ('ia_resumen_negocio_ts', ahora)):
-                cur.execute(
-                    """INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion)
-                       VALUES (%s, %s, 'texto', 'sistema', 'Resumen IA del dashboard (auto)')
-                       ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor""",
-                    (clave, valor))
+                set_cliente_config(cur, clave, valor,
+                                   descripcion='Resumen IA del dashboard (auto)')
     except Exception:
         pass  # el caché es cosmético: si no se pudo guardar, igual respondemos
     return {'resumen': texto, 'generado': ahora, 'cache': False}, None

@@ -17,6 +17,7 @@ import os
 import uuid
 
 from database import get_db_cursor
+from services.config_tenant import set_cliente_config, set_config_seccion
 
 
 def _bool_text(value):
@@ -811,27 +812,11 @@ def _upsert_cliente_config(key, value):
 
     _ensure_cliente_config_table()
     with get_db_cursor() as cur:
-        cur.execute(
-            """
-            INSERT INTO cliente_config (clave, valor, tipo, grupo, descripcion, orden)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            ON CONFLICT (clave)
-            DO UPDATE SET
-                valor = EXCLUDED.valor,
-                tipo = EXCLUDED.tipo,
-                grupo = EXCLUDED.grupo,
-                descripcion = EXCLUDED.descripcion,
-                orden = EXCLUDED.orden
-            """,
-            (
-                key,
-                value,
-                field['type'],
-                field['group'],
-                field['description'],
-                field['order'],
-            ),
-        )
+        # Guardado tolerante: hay BD de clientes sin la restricción única sobre
+        # `clave`, donde ON CONFLICT falla. Ver services/config_tenant.py.
+        set_cliente_config(cur, key, value, tipo=field['type'], grupo=field['group'],
+                           descripcion=field['description'], orden=field['order'],
+                           actualizar_meta=True)
 
 
 def _upsert_config_seccion(key, enabled):
@@ -841,17 +826,7 @@ def _upsert_config_seccion(key, enabled):
 
     _ensure_config_secciones_table()
     with get_db_cursor() as cur:
-        cur.execute(
-            """
-            INSERT INTO config_secciones (clave, valor, descripcion)
-            VALUES (%s, %s, %s)
-            ON CONFLICT (clave)
-            DO UPDATE SET
-                valor = EXCLUDED.valor,
-                descripcion = EXCLUDED.descripcion
-            """,
-            (key, _bool_text(enabled), field['description']),
-        )
+        set_config_seccion(cur, key, _bool_text(enabled), field['description'])
 
 
 def _upsert_public_site_setting(key, value):
