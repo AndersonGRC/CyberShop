@@ -8,7 +8,7 @@ ai_service arma el contexto solo desde esa BD.
 
 import json
 
-from flask import (Blueprint, request, jsonify, render_template, Response,
+from flask import (Blueprint, current_app, request, jsonify, render_template, Response,
                    stream_with_context)
 
 from security import registrar_guard_permiso, rol_requerido, ADMIN_FULL, ADMIN_STAFF
@@ -175,18 +175,24 @@ def resumen_correo():
     """Interruptor del resumen diario por correo (solo dueño). GET devuelve la
     configuración; POST la guarda; POST con prueba=true arma el correo sin enviarlo."""
     from services.ia_resumen_correo import enviar_diario, guardar_config, leer_config
-    if request.method == 'GET':
-        return jsonify({'ok': True, **leer_config()})
-    d = request.get_json(silent=True) or {}
-    if d.get('prueba'):
-        res = enviar_diario(prueba=True)
-        return jsonify({'ok': True, 'asunto': res.get('asunto'), 'texto': res.get('texto'),
-                        'destinos': res.get('destinos')})
-    destinos = d.get('destinos')
-    if isinstance(destinos, str):
-        destinos = destinos.split(',')
-    config = guardar_config(activo=d.get('activo'), destinos=destinos)
-    return jsonify({'ok': True, **config})
+    try:
+        if request.method == 'GET':
+            return jsonify({'ok': True, **leer_config()})
+        d = request.get_json(silent=True) or {}
+        if d.get('prueba'):
+            res = enviar_diario(prueba=True)
+            return jsonify({'ok': True, 'asunto': res.get('asunto'), 'texto': res.get('texto'),
+                            'destinos': res.get('destinos')})
+        destinos = d.get('destinos')
+        if isinstance(destinos, str):
+            destinos = destinos.split(',')
+        config = guardar_config(activo=d.get('activo'), destinos=destinos)
+        return jsonify({'ok': True, **config})
+    except Exception as exc:  # noqa: BLE001
+        # Antes un fallo aquí daba 500 y el panel solo decía "no se pudo guardar":
+        # ahora el motivo viaja al panel y queda en el log del cliente.
+        current_app.logger.error(f'resumen-correo ({request.method}): {exc}', exc_info=True)
+        return jsonify({'ok': False, 'error': f'{type(exc).__name__}: {exc}'}), 200
 
 
 @ia_bp.route('/resumen-negocio', methods=['POST'])

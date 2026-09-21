@@ -92,7 +92,7 @@ def _parrafo_ia(datos):
                 'qué pasó y qué conviene atender hoy. Sin saludos, sin inventar cifras.\n\n'
                 + json.dumps(datos, ensure_ascii=False, default=str))
         texto, err = ai._chat(ai._contexto_tenant(), user, max_tokens=220, temperature=0.4,
-                              espera_frio=60)
+                              espera_frio=45)
         return None if err else texto
     except Exception as exc:  # noqa: BLE001
         current_app.logger.warning(f'resumen diario: sin párrafo de IA ({exc})')
@@ -185,7 +185,9 @@ def enviar_diario(forzar=False, prueba=False):
     if not destinos and not prueba:
         return {'enviado': False, 'motivo': 'No hay a quién enviarlo: configura un correo.'}
 
-    asunto, texto, html, datos = construir()
+    # En la vista previa NO se llama al modelo: armar el párrafo puede tardar más
+    # de lo que aguanta el proxy (nginx corta a los 60 s) y la previa fallaba.
+    asunto, texto, html, datos = construir(con_ia=not prueba)
     if prueba:
         return {'enviado': False, 'prueba': True, 'destinos': destinos, 'asunto': asunto,
                 'texto': texto, 'html': html}

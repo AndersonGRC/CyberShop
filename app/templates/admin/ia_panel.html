@@ -579,6 +579,7 @@
 
         fetch('/admin/ia/resumen-correo')
             .then(function (r) { return r.json(); })
+            .then(function (d) { if (!d.ok && d.error) correoMsg('error', 'No pude leer la configuración: ' + d.error); return d; })
             .then(function (d) {
                 if (!d.ok) return;
                 correoActivo.checked = !!d.activo;
@@ -596,9 +597,9 @@
             .then(function (d) {
                 correoMsg(d.ok ? 'success' : 'error', d.ok
                     ? (d.activo ? 'Listo: recibirás el resumen cada mañana.' : 'Resumen diario desactivado.')
-                    : 'No se pudo guardar.');
+                    : 'No se pudo guardar: ' + (d.error || 'el servidor no dio detalle.'));
             })
-            .catch(function () { correoMsg('error', 'No se pudo guardar.'); });
+            .catch(function (e) { correoMsg('error', 'No se pudo guardar: ' + e); });
         });
 
         document.getElementById('btn-correo-prueba').addEventListener('click', function () {
@@ -610,12 +611,13 @@
             })
             .then(function (r) { return r.json(); })
             .then(function (d) {
-                if (!d.ok) return correoMsg('error', 'No se pudo generar la vista previa.');
+                if (!d.ok) return correoMsg('error', 'No se pudo generar la vista previa: ' +
+                    (d.error || 'el servidor no dio detalle.'));
                 correoMsg('success', 'Así se vería (no se envió nada). Asunto: ' + d.asunto);
                 vista.textContent = d.texto || '';
                 vista.hidden = false;
             })
-            .catch(function () { correoMsg('error', 'No se pudo generar la vista previa.'); });
+            .catch(function (e) { correoMsg('error', 'No se pudo generar la vista previa: ' + e); });
         });
     }
 
