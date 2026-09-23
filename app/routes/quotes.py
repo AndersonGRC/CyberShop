@@ -321,16 +321,29 @@ def generar_cotizacion():
 @rol_requerido(ADMIN_STAFF)
 def ver_cotizaciones():
     """Lista las cotizaciones generadas."""
+    from services.cartera_service import soporta_cartera, sql_filtro, FILTROS
     datosApp = get_data_app()
     cotizaciones = []
+    cartera_ok = False
+    filtro_pago = request.args.get('pago') if request.args.get('pago') in FILTROS else None
     try:
         with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute("""
+            # Las columnas de cobro solo existen si el cliente ya actualizó:
+            # se consultan condicionalmente para no romper a quien no lo ha hecho.
+            cartera_ok = soporta_cartera(cur, 'cotizaciones')
+            extra = (", estado_pago, fecha_pago, nota_pago"
+                     if cartera_ok else
+                     ", NULL AS estado_pago, NULL AS fecha_pago, NULL AS nota_pago")
+            # Filtrar por cobro solo tiene sentido sobre lo aprobado: una
+            # cotización pendiente o rechazada no se le cobra a nadie.
+            donde = (f"WHERE COALESCE(estado, 'pendiente') = 'aprobada' AND {sql_filtro(filtro_pago)}"
+                     if (cartera_ok and filtro_pago) else "")
+            cur.execute(f"""
                 SELECT id, fecha, cliente_nombre, cliente_documento, total, pdf_path,
                        COALESCE(estado, 'pendiente') AS estado,
                        COALESCE(facturar_electronicamente, FALSE) AS facturar_electronicamente,
-                       factura_dian_id
-                FROM cotizaciones
+                       factura_dian_id{extra}
+                FROM cotizaciones {donde}
                 ORDER BY fecha DESC
             """)
             cotizaciones = cur.fetchall()
@@ -343,8 +356,18 @@ def ver_cotizaciones():
     except Exception:
         fe_habilitada = False
 
+    # El botón de cobro es del módulo de cuentas de cobro (dueño y contador por
+    # defecto). Un empleado ve el estado, pero no lo cambia.
+    try:
+        from services.permisos_service import tiene_permiso
+        puede_cobrar = tiene_permiso(session.get('rol_id'), 'billing', 'operar')
+    except Exception:
+        puede_cobrar = False
+
     return render_template('mis_cotizaciones.html', datosApp=datosApp,
-                           cotizaciones=cotizaciones, fe_habilitada=fe_habilitada)
+                           cotizaciones=cotizaciones, fe_habilitada=fe_habilitada,
+                           cartera_ok=cartera_ok, filtro_pago=filtro_pago,
+                           puede_cobrar=puede_cobrar)
 
 
 @quotes_bp.route('/admin/cotizar/<int:id>/fe', methods=['POST'])
@@ -419,6 +442,11 @@ def _aprobar_cotizacion_core(id):
 
         with get_db_cursor() as cur:
             cur.execute("UPDATE cotizaciones SET estado='aprobada' WHERE id=%s", (id,))
+
+        # Cartera: al aprobar queda "pendiente de pago" hasta que alguien
+        # registre el cobro. No toca contabilidad ni la aprobación en sí.
+        from services.cartera_service import marcar_pendiente_si_falta
+        marcar_pendiente_si_falta('cotizacion', id)
 
         # Registrar ingreso en contabilidad (upsert — no duplica si se re-aprueba)
         from routes.contabilidad import sincronizar_movimiento_referencia

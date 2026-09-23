@@ -176,6 +176,34 @@ def _cotizaciones(cur):
                     '/admin/cotizar', modulos=('quotes',), permiso='quotes')] if n else []
 
 
+def _cartera(cur):
+    """Cobros vencidos: aprobado, registrado en contabilidad y sin desembolsar.
+
+    Solo aplica a los negocios que ya llevan el estado de cobro (migración 0011).
+    """
+    fuera = []
+    plazo = "COALESCE(fecha_vencimiento, (fecha + INTERVAL '30 days'))::date"
+    for tabla, etiqueta, filtro in (
+            ('cuentas_cobro', 'cuenta(s) de cobro', 'TRUE'),
+            ('cotizaciones', 'cotización(es) aprobada(s)', "COALESCE(estado, 'pendiente') = 'aprobada'")):
+        if not (_existe(cur, tabla) and 'estado_pago' in _columnas(cur, tabla)):
+            continue
+        cur.execute(f"""SELECT COUNT(*) AS n, COALESCE(SUM(total), 0) AS total,
+                               MAX(CURRENT_DATE - {plazo}) AS mora
+                        FROM {tabla}
+                        WHERE {filtro} AND estado_pago = 'pendiente' AND {plazo} < CURRENT_DATE""")
+        r = cur.fetchone()
+        n = int(r['n'] or 0)
+        if n:
+            fuera.append(_alerta(f'cartera_vencida_{tabla}', 'media',
+                                 f'{n} {etiqueta} vencida(s) sin cobrar',
+                                 f"Suman {formatear_moneda(float(r['total'] or 0))} y la más atrasada "
+                                 f"lleva {int(r['mora'] or 0)} día(s).",
+                                 '/admin/cuenta_cobro/cartera',
+                                 modulos=('billing',), permiso='billing'))
+    return fuera
+
+
 def _resenas(cur):
     if not _existe(cur, 'producto_comentarios'):
         return []
@@ -247,8 +275,8 @@ def _datos_incompletos(cur):
     return fuera
 
 
-_REGLAS = (_stock, _ventas_de_ayer, _pedidos, _caja, _restaurante, _crm, _cotizaciones, _resenas,
-           _soporte, _facturacion, _datos_incompletos)
+_REGLAS = (_stock, _ventas_de_ayer, _pedidos, _caja, _restaurante, _crm, _cotizaciones, _cartera,
+           _resenas, _soporte, _facturacion, _datos_incompletos)
 
 
 def _calcular():

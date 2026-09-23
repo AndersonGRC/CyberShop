@@ -112,8 +112,13 @@ registrar('cotizaciones_estado', _com.cotizaciones_estado,
           ['periodo'], etiqueta='tus cotizaciones', dominio='comercial',
           modulos=('quotes',), permiso='quotes')
 registrar('cuentas_cobro_periodo', _com.cuentas_cobro_periodo,
-          "Cuentas de cobro emitidas en un período y a qué clientes.",
+          "Cuentas de cobro emitidas en un período, a qué clientes y cuáles siguen sin pagarse.",
           ['periodo'], etiqueta='tus cuentas de cobro', dominio='comercial',
+          modulos=('billing',), permiso='billing')
+registrar('cartera_pendiente', _com.cartera_pendiente,
+          "Cartera por cobrar: qué cotizaciones aprobadas y cuentas de cobro están aprobadas pero "
+          "todavía no las han pagado, cuánto suman, quién debe y qué está vencido.",
+          [], etiqueta='tu cartera por cobrar', dominio='comercial',
           modulos=('billing',), permiso='billing')
 registrar('cliente_historial', _com.cliente_historial,
           "Historial de compras de UN cliente por su nombre: cuántas veces compró, cuánto, cuándo fue la última vez y qué se lleva.",

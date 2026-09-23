@@ -8,7 +8,7 @@ para contratistas, con generacion de PDF y soporte para edicion/eliminacion.
 
 import os
 import locale
-from datetime import datetime
+from datetime import datetime, date
 from flask import Blueprint, render_template, request, Response, session, current_app as app, send_file, url_for, redirect, flash, jsonify
 from werkzeug.utils import secure_filename
 from xhtml2pdf import pisa
@@ -242,6 +242,13 @@ def guardar_generar_cuenta():
         except Exception as _e:
             app.logger.warning(f"No se pudo sincronizar contabilidad: {_e}")
 
+        # Cartera: una cuenta nueva nace "pendiente de pago" (el ingreso ya
+        # quedó en contabilidad, pero la plata todavía no entra). En una
+        # edición no se toca: pudo haberse marcado pagada antes.
+        if not request.form.get('cuenta_id'):
+            from services.cartera_service import marcar_pendiente_si_falta
+            marcar_pendiente_si_falta('cuenta_cobro', cuenta_id)
+
         # 2. Generar PDF
         # Convertir total a texto
         try:
@@ -382,14 +389,25 @@ def facturar_cuenta_cobro(id):
 @rol_requerido(ADMIN_CONTADOR)
 def listar_cuentas():
     """Lista el historial de cuentas de cobro generadas."""
+    from services.cartera_service import soporta_cartera, resumen_cartera, sql_filtro, FILTROS
     datosApp = get_data_app()
     cuentas = []
+    cartera_ok = False
+    filtro = request.args.get('pago') if request.args.get('pago') in FILTROS else None
     try:
         with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute("""
+            # Los clientes que aún no han actualizado no tienen las columnas de
+            # cobro: se consultan solo si existen, y la lista sale igual que antes.
+            cartera_ok = soporta_cartera(cur, 'cuentas_cobro')
+            extra = (", estado_pago, fecha_pago, nota_pago, "
+                     "COALESCE(fecha_vencimiento, (fecha + INTERVAL '30 days'))::date AS vence"
+                     if cartera_ok else
+                     ", NULL AS estado_pago, NULL AS fecha_pago, NULL AS nota_pago, NULL AS vence")
+            donde = f"WHERE {sql_filtro(filtro)}" if (cartera_ok and filtro) else ""
+            cur.execute(f"""
                 SELECT id, consecutivo, fecha, cliente_nombre, total, pdf_path,
-                       factura_dian_id
-                FROM cuentas_cobro ORDER BY fecha DESC, id DESC
+                       factura_dian_id{extra}
+                FROM cuentas_cobro {donde} ORDER BY fecha DESC, id DESC
             """)
             cuentas = cur.fetchall()
     except Exception as e:
@@ -402,4 +420,64 @@ def listar_cuentas():
         fe_habilitada = False
 
     return render_template('mis_cuentas_cobro.html', datosApp=datosApp,
-                           cuentas=cuentas, fe_habilitada=fe_habilitada)
+                           cuentas=cuentas, fe_habilitada=fe_habilitada,
+                           cartera_ok=cartera_ok, cartera=resumen_cartera() if cartera_ok else None,
+                           filtro_pago=filtro, puede_cobrar=_puede_cobrar(),
+                           hoy=date.today())
+
+
+# ── Cartera: qué está aprobado y todavía no lo han pagado ──────
+# Las tres rutas viven en este blueprint (módulo 'billing' = dueño y contador)
+# y no en el de cotizaciones, cuyo permiso 'ver' por defecto NO incluye al
+# contador: si la de cotizaciones estuviera allá, él no podría marcar cobros.
+#
+# Se protegen con @permiso_requerido (matriz del negocio) en vez de un rol fijo:
+# por defecto da dueño + contador, y si un negocio quiere delegar el cobro a
+# alguien más lo habilita desde su pantalla de Roles y Permisos, sin tocar código.
+
+def _puede_cobrar():
+    """¿Este usuario puede marcar pagos? (matriz del negocio, módulo cobros)."""
+    try:
+        from services.permisos_service import tiene_permiso
+        return tiene_permiso(session.get('rol_id'), 'billing', 'operar')
+    except Exception:
+        return False
+
+
+@billing_bp.route('/admin/cuenta_cobro/cartera')
+@permiso_requerido('billing', 'ver')
+def cartera():
+    """Cotizaciones aprobadas y cuentas de cobro con su estado de cobro."""
+    from services.cartera_service import documentos_cartera, resumen_cartera, FILTROS
+    datosApp = get_data_app()
+    filtro = request.args.get('pago') if request.args.get('pago') in FILTROS else None
+    return render_template('cartera.html', datosApp=datosApp,
+                           documentos=documentos_cartera(filtro),
+                           cartera=resumen_cartera(), filtro_pago=filtro,
+                           puede_cobrar=_puede_cobrar())
+
+
+def _marcar_y_volver(tipo, doc_id, destino):
+    from services.cartera_service import marcar_pago
+    ok, msg = marcar_pago(tipo, doc_id,
+                          request.form.get('estado'),
+                          nota=request.form.get('nota'))
+    flash(msg, 'success' if ok else 'warning')
+    volver = request.form.get('volver') or ''
+    if volver.startswith('/admin/'):
+        return redirect(volver)
+    return redirect(url_for(destino))
+
+
+@billing_bp.route('/admin/cuenta_cobro/cartera/cuenta/<int:id>/pago', methods=['POST'])
+@permiso_requerido('billing', 'operar')
+def marcar_pago_cuenta(id):
+    """Marca una cuenta de cobro como pendiente de pago o pagada."""
+    return _marcar_y_volver('cuenta_cobro', id, 'billing.listar_cuentas')
+
+
+@billing_bp.route('/admin/cuenta_cobro/cartera/cotizacion/<int:id>/pago', methods=['POST'])
+@permiso_requerido('billing', 'operar')
+def marcar_pago_cotizacion(id):
+    """Marca una cotización aprobada como pendiente de pago o pagada."""
+    return _marcar_y_volver('cotizacion', id, 'billing.cartera')

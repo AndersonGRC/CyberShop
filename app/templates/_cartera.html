@@ -1,0 +1,169 @@
+{# ============================================================
+   Cartera — piezas compartidas por cotizaciones, cuentas de cobro
+   y la pantalla de cartera.
+
+   Tres estados: sin dato (nadie lo ha revisado), pendiente de pago
+   (aprobado pero no desembolsado) y pagada.
+   ============================================================ #}
+
+{% macro estilos() %}
+<style>
+    .ct-badge {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 3px 9px; border-radius: 999px;
+        font-size: 0.72rem; font-weight: 700; white-space: nowrap;
+        letter-spacing: 0.02em;
+    }
+    .ct-badge.pendiente { background: #fff3cd; color: #8a6100; border: 1px solid #ffe08a; }
+    .ct-badge.vencida   { background: #f8d7da; color: #a11221; border: 1px solid #f1aeb5; }
+    .ct-badge.pagada    { background: #d1e7dd; color: #0f5132; border: 1px solid #a3cfbb; }
+    .ct-badge.sin-dato  { background: #f1f3f6; color: #6c757d; border: 1px solid #e0e4ea; }
+
+    .ct-acciones { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .ct-acciones form { display: inline; margin: 0; }
+
+    .ct-btn {
+        cursor: pointer; border-radius: 7px; padding: 5px 10px;
+        font-size: 0.76rem; font-weight: 600; white-space: nowrap;
+        display: inline-flex; align-items: center; gap: 5px;
+        border: 1px solid transparent; line-height: 1.2;
+    }
+    .ct-btn.pagar    { background: #198754; color: #fff; }
+    .ct-btn.pendiente{ background: #fff; color: #8a6100; border-color: #ffe08a; }
+    .ct-btn.deshacer { background: #fff; color: #6c757d; border-color: #e0e4ea; }
+    .ct-btn:hover    { filter: brightness(0.94); }
+
+    .ct-resumen {
+        display: flex; gap: 12px; flex-wrap: wrap;
+        margin-bottom: 16px;
+    }
+    .ct-resumen-item {
+        background: #fff; border: 1px solid rgba(18, 44, 148, 0.08);
+        border-radius: 12px; padding: 12px 16px; min-width: 150px; flex: 1 1 150px;
+        box-shadow: 0 2px 10px rgba(18, 44, 148, 0.05);
+    }
+    .ct-resumen-item .etq {
+        font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.05em; color: #7a8190;
+    }
+    .ct-resumen-item .val {
+        font-size: 1.25rem; font-weight: 800; color: var(--color-primario, #122C94);
+        margin-top: 2px; word-break: break-word;
+    }
+    .ct-resumen-item .sub { font-size: 0.75rem; color: #8a909c; }
+    .ct-resumen-item.alerta .val { color: #dc3545; }
+
+    .ct-filtros { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+    .ct-filtro {
+        text-decoration: none; padding: 6px 12px; border-radius: 999px;
+        font-size: 0.78rem; font-weight: 600; color: #55606f;
+        background: #f1f3f6; border: 1px solid #e0e4ea;
+    }
+    .ct-filtro.activo {
+        background: var(--color-primario, #122C94); color: #fff;
+        border-color: var(--color-primario, #122C94);
+    }
+
+    .ct-aviso {
+        background: #f1f3f6; border: 1px solid #e0e4ea; color: #55606f;
+        border-radius: 10px; padding: 10px 14px; font-size: 0.85rem;
+        margin-bottom: 14px;
+    }
+
+    @media (max-width: 768px) {
+        .ct-acciones { justify-content: flex-end; }
+        .ct-resumen-item { padding: 10px 12px; }
+        .ct-resumen-item .val { font-size: 1.05rem; }
+    }
+</style>
+{% endmacro %}
+
+
+{# Etiqueta del estado de cobro. `dias` = días de mora (0 = al día). #}
+{% macro badge(estado, dias=0) %}
+    {% if estado == 'pagada' %}
+        <span class="ct-badge pagada"><i class="fas fa-check-circle"></i> Pagada</span>
+    {% elif estado == 'pendiente' and dias and dias > 0 %}
+        <span class="ct-badge vencida" title="Vencida hace {{ dias }} día(s)">
+            <i class="fas fa-exclamation-circle"></i> Vencida · {{ dias }}d
+        </span>
+    {% elif estado == 'pendiente' %}
+        <span class="ct-badge pendiente"><i class="fas fa-clock"></i> Pendiente de pago</span>
+    {% else %}
+        <span class="ct-badge sin-dato" title="Nadie ha registrado si se pagó">Sin dato</span>
+    {% endif %}
+{% endmacro %}
+
+
+{# Botones para cambiar el estado. `tipo` = 'cotizacion' | 'cuenta_cobro'. #}
+{% macro acciones(tipo, doc_id, estado, puede_cobrar=False, volver='') %}
+{% if puede_cobrar %}
+{% set ruta = 'billing.marcar_pago_cotizacion' if tipo == 'cotizacion' else 'billing.marcar_pago_cuenta' %}
+<span class="ct-acciones">
+    {% if estado != 'pagada' %}
+    <form action="{{ url_for(ruta, id=doc_id) }}" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="estado" value="pagada">
+        <input type="hidden" name="volver" value="{{ volver }}">
+        <button type="submit" class="ct-btn pagar" title="El cliente ya pagó">
+            <i class="fas fa-hand-holding-usd"></i> Registrar pago
+        </button>
+    </form>
+    {% endif %}
+
+    {% if estado != 'pendiente' %}
+    <form action="{{ url_for(ruta, id=doc_id) }}" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="estado" value="pendiente">
+        <input type="hidden" name="volver" value="{{ volver }}">
+        <button type="submit" class="ct-btn pendiente" title="Aprobado, pero aún no lo han desembolsado">
+            <i class="fas fa-clock"></i> Pendiente
+        </button>
+    </form>
+    {% endif %}
+</span>
+{% endif %}
+{% endmacro %}
+
+
+{# Barra de filtros por estado de cobro. `ruta` = endpoint de la página. #}
+{% macro filtros(ruta, actual) %}
+<div class="ct-filtros">
+    <a class="ct-filtro {{ 'activo' if not actual }}" href="{{ url_for(ruta) }}">Todas</a>
+    <a class="ct-filtro {{ 'activo' if actual == 'pendiente' }}"
+       href="{{ url_for(ruta, pago='pendiente') }}">Pendientes de pago</a>
+    <a class="ct-filtro {{ 'activo' if actual == 'pagada' }}"
+       href="{{ url_for(ruta, pago='pagada') }}">Pagadas</a>
+    <a class="ct-filtro {{ 'activo' if actual == 'sin_dato' }}"
+       href="{{ url_for(ruta, pago='sin_dato') }}">Sin dato</a>
+</div>
+{% endmacro %}
+
+
+{# Tarjetas de totales. `datos` = services.cartera_service.resumen_cartera() #}
+{% macro resumen(datos) %}
+{% if datos and datos.disponible %}
+<div class="ct-resumen">
+    <div class="ct-resumen-item">
+        <div class="etq">Por cobrar</div>
+        <div class="val">{{ datos.pendiente_fmt }}</div>
+        <div class="sub">{{ datos.pendiente_n }} documento(s)</div>
+    </div>
+    <div class="ct-resumen-item {{ 'alerta' if datos.vencido_n }}">
+        <div class="etq">Vencido</div>
+        <div class="val">{{ datos.vencido_fmt }}</div>
+        <div class="sub">{{ datos.vencido_n }} documento(s)</div>
+    </div>
+    <div class="ct-resumen-item">
+        <div class="etq">Cobrado</div>
+        <div class="val">{{ datos.pagado_fmt }}</div>
+        <div class="sub">{{ datos.pagado_n }} documento(s)</div>
+    </div>
+    <div class="ct-resumen-item">
+        <div class="etq">Sin dato</div>
+        <div class="val">{{ datos.sin_dato_fmt }}</div>
+        <div class="sub">{{ datos.sin_dato_n }} sin revisar</div>
+    </div>
+</div>
+{% endif %}
+{% endmacro %}

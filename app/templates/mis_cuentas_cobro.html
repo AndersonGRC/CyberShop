@@ -1,8 +1,10 @@
 {% extends 'plantillaapp.html' %}
+{% import '_cartera.html' as cartera_ui %}
 
 {% block titulo %}Mis Cuentas de Cobro | {{ datosApp.titulo }}{% endblock %}
 
 {% block LinkAdicional %}
+{{ cartera_ui.estilos() }}
 <style>
     /* ============================================================
        MIS CUENTAS DE COBRO — responsive (tabla en desktop, cards en mobile)
@@ -275,6 +277,17 @@
     {% endif %}
     {% endwith %}
 
+    {% if cartera_ok %}
+        {{ cartera_ui.resumen(cartera) }}
+        {{ cartera_ui.filtros('billing.listar_cuentas', filtro_pago) }}
+        <div class="ct-aviso">
+            <i class="fas fa-info-circle"></i>
+            El estado de cobro es solo seguimiento: el ingreso ya quedó registrado en contabilidad
+            cuando se creó la cuenta. Marcar el pago no cambia ningún reporte.
+            <a href="{{ url_for('billing.cartera') }}">Ver toda la cartera</a>.
+        </div>
+    {% endif %}
+
     <div class="cc-card">
         <table class="cc-table">
             <thead>
@@ -283,6 +296,7 @@
                     <th>Fecha</th>
                     <th>Cliente</th>
                     <th>Total</th>
+                    <th>Cobro</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
@@ -293,6 +307,16 @@
                     <td data-label="Fecha">{{ c.fecha }}</td>
                     <td data-label="Cliente">{{ c.cliente_nombre }}</td>
                     <td data-label="Total">{{ c.total | default(0) }}</td>
+                    <td data-label="Cobro">
+                        {% if cartera_ok %}
+                            {% set mora = (hoy - c.vence).days if c.vence and c.estado_pago == 'pendiente' else 0 %}
+                            {{ cartera_ui.badge(c.estado_pago, mora) }}
+                            {{ cartera_ui.acciones('cuenta_cobro', c.id, c.estado_pago, puede_cobrar,
+                                                   url_for('billing.listar_cuentas', pago=filtro_pago)) }}
+                        {% else %}
+                            <span class="ct-badge sin-dato">—</span>
+                        {% endif %}
+                    </td>
                     <td data-label="Acciones" class="acciones cell-acciones">
                         <div class="cc-acciones-grid">
                             {% if c.pdf_path %}
@@ -332,7 +356,7 @@
                 </tr>
                 {% else %}
                 <tr class="cc-empty-row">
-                    <td colspan="5" class="cc-empty">No hay cuentas de cobro generadas.</td>
+                    <td colspan="6" class="cc-empty">No hay cuentas de cobro generadas.</td>
                 </tr>
                 {% endfor %}
             </tbody>

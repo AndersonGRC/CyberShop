@@ -1,0 +1,193 @@
+{% extends 'plantillaapp.html' %}
+{% import '_cartera.html' as cartera_ui %}
+
+{% block titulo %}Cartera por cobrar | {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+{{ cartera_ui.estilos() }}
+<style>
+    /* ============================================================
+       CARTERA — qué está aprobado y todavía no lo han pagado.
+       Tabla en computador, tarjetas en celular (mismo patrón que
+       el historial de cuentas de cobro).
+       ============================================================ */
+    .ca-wrap {
+        max-width: 1200px; margin: 0 auto; padding: 18px 18px 32px;
+        box-sizing: border-box; overflow-x: hidden;
+    }
+    .ca-wrap *, .ca-wrap *::before, .ca-wrap *::after { box-sizing: border-box; }
+
+    .ca-head {
+        display: flex; justify-content: space-between; align-items: center;
+        gap: 12px; margin-bottom: 18px; flex-wrap: wrap;
+    }
+    .ca-head .page-title {
+        font-size: 1.4rem; margin: 0; color: var(--color-secundario, #0e1b33);
+        display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .ca-head .page-title i { color: var(--color-primario, #122C94); }
+
+    .ca-alert { padding: 12px 16px; border-radius: 10px; margin-bottom: 14px; font-size: 0.9rem; }
+    .ca-alert.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .ca-alert.warning { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+    .ca-alert.danger  { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+    .ca-card {
+        background: #fff; border-radius: 14px; padding: 18px;
+        box-shadow: 0 2px 10px rgba(18, 44, 148, 0.06);
+        border: 1px solid rgba(18, 44, 148, 0.08);
+    }
+
+    .ca-table { width: 100%; border-collapse: collapse; }
+    .ca-table thead tr { background: #f4f6fa; border-bottom: 2px solid #e3e6ec; }
+    .ca-table th {
+        padding: 12px; font-size: 0.82rem; font-weight: 700;
+        color: #444; text-align: left; white-space: nowrap;
+    }
+    .ca-table td {
+        padding: 12px; border-bottom: 1px solid #ececec;
+        font-size: 0.9rem; color: #333; vertical-align: middle;
+    }
+    .ca-table tbody tr:hover { background: #fafbff; }
+    .ca-table .right { text-align: right; white-space: nowrap; }
+
+    .ca-tipo {
+        font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.04em; color: #7a8190; display: block;
+    }
+    .ca-numero { font-weight: 700; color: var(--color-primario, #122C94); }
+    .ca-nota { font-size: 0.78rem; color: #8a909c; display: block; margin-top: 2px; }
+
+    .ca-empty { text-align: center; padding: 30px 16px; color: #777; font-size: 0.95rem; }
+
+    @media (max-width: 860px) {
+        .ca-wrap { padding: 12px 10px 28px; }
+        .ca-head .page-title { font-size: 1.15rem; }
+        .ca-card { padding: 12px; background: transparent; border: none; box-shadow: none; }
+
+        .ca-table thead { display: none; }
+        .ca-table, .ca-table tbody, .ca-table tr, .ca-table td { display: block; width: 100%; }
+
+        .ca-table tbody tr {
+            background: #fff; border: 1px solid #e3e6ec; border-radius: 12px;
+            margin-bottom: 12px; padding: 14px;
+            box-shadow: 0 2px 6px rgba(18, 44, 148, 0.04);
+        }
+        .ca-table tbody tr:hover { background: #fff; }
+
+        .ca-table tbody td {
+            padding: 6px 0; border-bottom: none; display: flex;
+            justify-content: space-between; align-items: center; gap: 10px;
+            font-size: 0.88rem; text-align: right;
+        }
+        .ca-table tbody td::before {
+            content: attr(data-label); font-size: 0.7rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.04em; color: #777;
+            flex-shrink: 0; text-align: left;
+        }
+        .ca-table tbody td.ca-cell-doc {
+            display: block; text-align: left;
+            border-bottom: 1px dashed #e3e6ec; padding-bottom: 8px; margin-bottom: 4px;
+        }
+        .ca-table tbody td.ca-cell-doc::before { display: none; }
+        .ca-table tbody td.ca-cell-acciones {
+            display: block; border-top: 1px dashed #e3e6ec;
+            margin-top: 8px; padding-top: 10px;
+        }
+        .ca-table tbody td.ca-cell-acciones::before { display: none; }
+        .ca-empty-row td { justify-content: center; }
+        .ca-empty-row td::before { display: none; }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="ca-wrap">
+    <div class="ca-head">
+        <h1 class="page-title"><i class="fas fa-hand-holding-usd"></i> Cartera por cobrar</h1>
+        <a href="{{ url_for('billing.listar_cuentas') }}" class="ct-btn deshacer">
+            <i class="fas fa-arrow-left"></i> Cuentas de cobro
+        </a>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="ca-alert {{ 'success' if category == 'success' else ('danger' if category == 'danger' else 'warning') }}">
+        {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    {% if not cartera.disponible %}
+    <div class="ct-aviso">
+        <i class="fas fa-info-circle"></i>
+        Este negocio todavía no tiene el seguimiento de cobros. Actualiza la app desde el panel
+        de administración y vuelve a entrar aquí.
+    </div>
+    {% else %}
+
+    {{ cartera_ui.resumen(cartera) }}
+    {{ cartera_ui.filtros('billing.cartera', filtro_pago) }}
+
+    <div class="ct-aviso">
+        <i class="fas fa-info-circle"></i>
+        Esto es seguimiento de cobro, no contabilidad: el ingreso de cada documento ya quedó
+        registrado cuando se aprobó o se creó. Marcar el pago aquí no cambia ningún reporte.
+        <strong>Sin dato</strong> significa que nadie ha revisado ese documento todavía.
+    </div>
+
+    <div class="ca-card">
+        <table class="ca-table">
+            <thead>
+                <tr>
+                    <th>Documento</th>
+                    <th>Fecha</th>
+                    <th>Cliente</th>
+                    <th class="right">Total</th>
+                    <th>Estado de cobro</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in documentos %}
+                <tr>
+                    <td data-label="Documento" class="ca-cell-doc">
+                        <span class="ca-tipo">{{ d.etiqueta }}</span>
+                        <span class="ca-numero">{{ d.numero }}</span>
+                    </td>
+                    <td data-label="Fecha">{{ d.fecha.strftime('%d/%m/%Y') if d.fecha else '—' }}</td>
+                    <td data-label="Cliente">{{ d.cliente }}</td>
+                    <td data-label="Total" class="right">{{ d.total_fmt }}</td>
+                    <td data-label="Estado de cobro">
+                        {{ cartera_ui.badge(d.estado_pago, d.dias_mora) }}
+                        {% if d.estado_pago == 'pagada' and d.fecha_pago %}
+                        <span class="ca-nota">Cobrada el {{ d.fecha_pago.strftime('%d/%m/%Y') }}</span>
+                        {% elif d.estado_pago == 'pendiente' and d.vence %}
+                        <span class="ca-nota">Vence el {{ d.vence.strftime('%d/%m/%Y') }}</span>
+                        {% endif %}
+                        {% if d.nota_pago %}<span class="ca-nota">{{ d.nota_pago }}</span>{% endif %}
+                    </td>
+                    <td data-label="Acciones" class="ca-cell-acciones">
+                        {{ cartera_ui.acciones(d.tipo, d.id, d.estado_pago, puede_cobrar,
+                                               url_for('billing.cartera', pago=filtro_pago)) }}
+                    </td>
+                </tr>
+                {% else %}
+                <tr class="ca-empty-row">
+                    <td colspan="6" class="ca-empty">
+                        {% if filtro_pago %}
+                            No hay documentos en este estado.
+                        {% else %}
+                            No hay cotizaciones aprobadas ni cuentas de cobro todavía.
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

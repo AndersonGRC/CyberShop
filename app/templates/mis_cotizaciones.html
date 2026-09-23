@@ -1,8 +1,10 @@
 {% extends 'plantillaapp.html' %}
+{% import '_cartera.html' as cartera_ui %}
 
 {% block titulo %}Mis Cotizaciones | {{ datosApp.titulo }}{% endblock %}
 
 {% block LinkAdicional %}
+{{ cartera_ui.estilos() }}
 <style>
     /* ============================================================
        MIS COTIZACIONES — responsive (tabla en desktop, tarjetas en mobile)
@@ -330,6 +332,10 @@
       {% endfor %}
     {% endwith %}
 
+    {% if cartera_ok and puede_cobrar %}
+        {{ cartera_ui.filtros('quotes.ver_cotizaciones', filtro_pago) }}
+    {% endif %}
+
     <div class="mis-cot-card">
         {% if cotizaciones %}
         <!-- Barra de acción en bloque -->
@@ -393,6 +399,9 @@
                                     <i class="fas fa-clock"></i> Pendiente
                                 </span>
                             {% endif %}
+                            {% if cartera_ok and cot.estado == 'aprobada' %}
+                                <div style="margin-top:6px;">{{ cartera_ui.badge(cot.estado_pago) }}</div>
+                            {% endif %}
                             {% if fe_habilitada %}
                               {% if cot.factura_dian_id %}
                                 <span class="estado-badge aprobada" title="Facturada electrónicamente"><i class="fas fa-file-invoice-dollar"></i> FE</span>
@@ -432,6 +441,12 @@
                                 <a href="{{ url_for('quotes.editar_cotizacion', id=cot.id) }}" class="btn-act btn-editar">
                                     <i class="fas fa-edit"></i> Editar
                                 </a>
+                                {% endif %}
+
+                                {# Cobro: solo en las aprobadas, y solo para quien maneja cuentas de cobro #}
+                                {% if cartera_ok and cot.estado == 'aprobada' %}
+                                {{ cartera_ui.acciones('cotizacion', cot.id, cot.estado_pago, puede_cobrar,
+                                                       url_for('quotes.ver_cotizaciones', pago=filtro_pago)) }}
                                 {% endif %}
 
                                 <form action="{{ url_for('quotes.eliminar_cotizacion', id=cot.id) }}" method="POST"

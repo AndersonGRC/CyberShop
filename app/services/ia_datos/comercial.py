@@ -160,13 +160,15 @@ def cotizaciones_estado(periodo='mes', **_):
         viejas = [{'cliente': r['cliente_nombre'], 'monto': formatear_moneda(float(r['total'] or 0)),
                    'fecha': r['fecha'].isoformat() if hasattr(r['fecha'], 'isoformat') else str(r['fecha'])}
                   for r in cur.fetchall()]
+        cobro = _cobro_por_estado(cur, 'cotizaciones', _sql_periodo(p, 'fecha'),
+                                  f"{estado_sql} = 'aprobada'")
     n_total = sum(n for n, _ in totales.values())
     monto_total = sum(t for _, t in totales.values())
     aprobadas = totales.get('aprobada', (0, 0.0))
     if not n_total:
         return {'periodo': _label_periodo(p), 'confiabilidad': 'insuficiente',
                 'conclusion': 'No se hicieron cotizaciones en ese período.'}
-    return {
+    salida = {
         'periodo': _label_periodo(p), 'cotizaciones': n_total,
         'monto_cotizado': formatear_moneda(monto_total),
         'por_estado': por_estado,
@@ -174,10 +176,58 @@ def cotizaciones_estado(periodo='mes', **_):
         'tasa_de_aprobacion': f'{aprobadas[0] / n_total * 100:.0f}%',
         'pendientes_hace_mas_de_15_dias': viejas,
     }
+    if cobro:
+        salida['cobro_de_las_aprobadas'] = cobro
+    return salida
+
+
+# ── Cartera (estado de cobro) ──────────────────────────────────
+# La columna `estado_pago` la agrega la migración 0011. Los negocios que aún no
+# han actualizado no la tienen: por eso todo se consulta condicionalmente y, sin
+# ella, las herramientas responden como siempre.
+_PLAZO_DIAS = 30
+_VENCE_SQL = (f"COALESCE(fecha_vencimiento, (fecha + INTERVAL '{_PLAZO_DIAS} days'))::date")
+
+
+def _soporta_cobro(cur, tabla):
+    return 'estado_pago' in _columnas(cur, tabla)
+
+
+def _cobro_por_estado(cur, tabla, filtro_periodo='TRUE', filtro_extra='TRUE'):
+    """Reparto por estado de cobro. None si el negocio no tiene la columna."""
+    if not _soporta_cobro(cur, tabla):
+        return None
+    cur.execute(f"""
+        SELECT COUNT(*) FILTER (WHERE estado_pago = 'pendiente')       AS n_pend,
+               COALESCE(SUM(total) FILTER (WHERE estado_pago = 'pendiente'), 0) AS t_pend,
+               COUNT(*) FILTER (WHERE estado_pago = 'pagada')          AS n_pag,
+               COALESCE(SUM(total) FILTER (WHERE estado_pago = 'pagada'), 0)    AS t_pag,
+               COUNT(*) FILTER (WHERE estado_pago IS NULL)             AS n_sin,
+               COALESCE(SUM(total) FILTER (WHERE estado_pago IS NULL), 0)       AS t_sin,
+               COUNT(*) FILTER (WHERE estado_pago = 'pendiente' AND {_VENCE_SQL} < CURRENT_DATE) AS n_venc,
+               COALESCE(SUM(total) FILTER (
+                   WHERE estado_pago = 'pendiente' AND {_VENCE_SQL} < CURRENT_DATE), 0) AS t_venc
+        FROM {tabla} WHERE {filtro_periodo} AND {filtro_extra}
+    """)
+    r = cur.fetchone()
+    salida = {
+        'pendientes_de_pago': int(r['n_pend'] or 0),
+        'monto_por_cobrar': formatear_moneda(float(r['t_pend'] or 0)),
+        'vencidas': int(r['n_venc'] or 0),
+        'monto_vencido': formatear_moneda(float(r['t_venc'] or 0)),
+        'pagadas': int(r['n_pag'] or 0),
+        'monto_cobrado': formatear_moneda(float(r['t_pag'] or 0)),
+        'sin_revisar': int(r['n_sin'] or 0),
+        'monto_sin_revisar': formatear_moneda(float(r['t_sin'] or 0)),
+    }
+    if salida['sin_revisar']:
+        salida['nota_sin_revisar'] = ('"Sin revisar" son documentos a los que nadie les ha marcado '
+                                      'el cobro todavía: no se sabe si se pagaron o no.')
+    return salida
 
 
 def cuentas_cobro_periodo(periodo='mes', **_):
-    """Cuentas de cobro emitidas en el período y a quién."""
+    """Cuentas de cobro emitidas en el período, a quién, y cuáles siguen sin pagarse."""
     p = _periodo(periodo)
     with get_db_cursor(dict_cursor=True) as cur:
         if not _existe(cur, 'cuentas_cobro'):
@@ -191,17 +241,98 @@ def cuentas_cobro_periodo(periodo='mes', **_):
                         GROUP BY 1 ORDER BY total DESC LIMIT 10""")
         clientes = [{'cliente': x['cliente_nombre'], 'cuentas': int(x['n']),
                      'monto': formatear_moneda(float(x['total']))} for x in cur.fetchall()]
+        cobro = _cobro_por_estado(cur, 'cuentas_cobro', _sql_periodo(p, 'fecha'))
     n = int(r['n'] or 0)
     if not n:
         return {'periodo': _label_periodo(p), 'confiabilidad': 'insuficiente',
                 'conclusion': 'No se emitieron cuentas de cobro en ese período.'}
-    return {
+    salida = {
         'periodo': _label_periodo(p), 'cuentas_emitidas': n,
         'monto_emitido': formatear_moneda(float(r['total'])),
         'por_cliente': clientes,
-        'nota': ('El sistema no registra si cada cuenta de cobro ya fue pagada, así que no puedo '
-                 'decir cuánto está pendiente por cobrar.'),
     }
+    if cobro:
+        salida['cobro'] = cobro
+    else:
+        salida['nota'] = ('Este negocio todavía no lleva el estado de cobro de sus cuentas, así que '
+                          'no puedo decir cuánto está pendiente por cobrar.')
+    return salida
+
+
+def cartera_pendiente(**_):
+    """Qué está aprobado y todavía no han pagado: cuánto, de quién y qué está vencido.
+
+    Junta cotizaciones aprobadas y cuentas de cobro. No es contabilidad: el
+    ingreso de esos documentos ya está registrado; esto es el seguimiento del cobro.
+    """
+    fuentes = (('cotizaciones', 'Cotización aprobada', "COALESCE(estado, 'pendiente') = 'aprobada'",
+                "'COT ' || LPAD(id::text, 10, '0')"),
+               ('cuentas_cobro', 'Cuenta de cobro', 'TRUE', "COALESCE(consecutivo, 'CC-' || id::text)"))
+    total_pend = total_venc = 0.0
+    n_pend = n_venc = n_sin = 0
+    por_documento, deudores, vencidas = [], {}, []
+
+    with get_db_cursor(dict_cursor=True) as cur:
+        disponibles = [f for f in fuentes if _existe(cur, f[0]) and _soporta_cobro(cur, f[0])]
+        if not disponibles:
+            return {'confiabilidad': 'insuficiente',
+                    'conclusion': ('Este negocio todavía no lleva el estado de cobro de sus '
+                                   'cotizaciones y cuentas de cobro.')}
+        for tabla, etiqueta, filtro, numero in disponibles:
+            datos = _cobro_por_estado(cur, tabla, 'TRUE', filtro)
+            por_documento.append({'documento': etiqueta, **datos})
+            cur.execute(f"""SELECT COUNT(*) AS n, COALESCE(SUM(total), 0) AS t,
+                                   COUNT(*) FILTER (WHERE {_VENCE_SQL} < CURRENT_DATE) AS n_v,
+                                   COALESCE(SUM(total) FILTER (WHERE {_VENCE_SQL} < CURRENT_DATE), 0) AS t_v
+                            FROM {tabla} WHERE {filtro} AND estado_pago = 'pendiente'""")
+            r = cur.fetchone()
+            n_pend += int(r['n'] or 0)
+            total_pend += float(r['t'] or 0)
+            n_venc += int(r['n_v'] or 0)
+            total_venc += float(r['t_v'] or 0)
+
+            cur.execute(f"""SELECT COUNT(*) AS n FROM {tabla}
+                            WHERE {filtro} AND estado_pago IS NULL""")
+            n_sin += int(cur.fetchone()['n'] or 0)
+
+            cur.execute(f"""SELECT COALESCE(cliente_nombre, 'Sin nombre') AS cliente,
+                                   COUNT(*) AS n, COALESCE(SUM(total), 0) AS t
+                            FROM {tabla} WHERE {filtro} AND estado_pago = 'pendiente'
+                            GROUP BY 1""")
+            for x in cur.fetchall():
+                d = deudores.setdefault(x['cliente'], {'documentos': 0, 'monto': 0.0})
+                d['documentos'] += int(x['n'])
+                d['monto'] += float(x['t'] or 0)
+
+            cur.execute(f"""SELECT {numero} AS numero, COALESCE(cliente_nombre, 'Sin nombre') AS cliente,
+                                   COALESCE(total, 0) AS total,
+                                   (CURRENT_DATE - {_VENCE_SQL}) AS dias
+                            FROM {tabla}
+                            WHERE {filtro} AND estado_pago = 'pendiente'
+                              AND {_VENCE_SQL} < CURRENT_DATE
+                            ORDER BY dias DESC LIMIT 10""")
+            vencidas += [{'documento': etiqueta, 'numero': x['numero'], 'cliente': x['cliente'],
+                          'monto': formatear_moneda(float(x['total'] or 0)),
+                          'dias_de_mora': int(x['dias'] or 0)} for x in cur.fetchall()]
+
+    top = sorted(deudores.items(), key=lambda kv: kv[1]['monto'], reverse=True)[:10]
+    salida = {
+        'documentos_por_cobrar': n_pend,
+        'monto_por_cobrar': formatear_moneda(total_pend),
+        'documentos_vencidos': n_venc,
+        'monto_vencido': formatear_moneda(total_venc),
+        'quien_debe': [{'cliente': c, 'documentos': v['documentos'],
+                        'monto': formatear_moneda(v['monto'])} for c, v in top],
+        'lo_mas_vencido': sorted(vencidas, key=lambda x: x['dias_de_mora'], reverse=True)[:10],
+        'por_tipo_de_documento': por_documento,
+        'nota': (f'Sin fecha de vencimiento propia, se cuenta vencido a los {_PLAZO_DIAS} días. '
+                 'Esto es seguimiento de cobro: el ingreso ya está registrado en contabilidad.'),
+    }
+    if n_sin:
+        salida['documentos_sin_revisar'] = n_sin
+    if not n_pend:
+        salida['conclusion'] = 'No hay nada marcado como pendiente de cobro.'
+    return salida
 
 
 def cliente_historial(cliente='', **_):

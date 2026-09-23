@@ -200,6 +200,7 @@ def get_data_app():
                 {"nombre": "Mis Cotizaciones", "url": "quotes.ver_cotizaciones", "icono": "history", "module_code": MODULE_QUOTES, "permiso": ("quotes", "ver")},
                 {"nombre": "Nueva Cuenta de Cobro", "url": "billing.crear_cuenta", "icono": "file-invoice", "module_code": MODULE_BILLING, "permiso": ("billing", "operar")},
                 {"nombre": "Mis Cuentas de Cobro", "url": "billing.listar_cuentas", "icono": "folder-open", "module_code": MODULE_BILLING, "permiso": ("billing", "ver")},
+                {"nombre": "Cartera por Cobrar", "url": "billing.cartera", "icono": "hand-holding-usd", "module_code": MODULE_BILLING, "permiso": ("billing", "ver")},
                 {"nombre": "Cupones", "url": "cupones.gestion_cupones", "icono": "ticket-alt", "module_code": MODULE_COUPONS, "permiso": ("coupons", "ver")}
             ]
         },
