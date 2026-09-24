@@ -14,7 +14,7 @@ Así decide el asistente qué hacer con una pregunta:
 
 En todos los casos, los datos los pone la consulta: el modelo solo redacta con lo que recibe.
 
-**Capacidades registradas: 37**
+**Capacidades registradas: 42**
 
 ## Caja
 
@@ -22,6 +22,16 @@ En todos los casos, los datos los pone la consulta: el modelo solo redacta con l
 |---|---|---|---|---|---|---|
 | `caja_estado` | Estado de la caja: turno abierto, cuánto efectivo debería haber y los últimos cuadres con faltantes o sobrantes. | `en caja` · `arqueo` · `cierre de caja` · `cuadre de caja` | — | Panel | A · cualquiera | caja · módulo caja |
 | `metodos_pago` | Con qué le pagan los clientes: efectivo, tarjeta, transferencias, y cuánto pesa cada medio. | `metodos de pago` · `formas de pago` · `me estan pagando` · `como me pagan` · `cuanto en efectivo` · `efectivo o tarjeta` | periodo | Panel | A · cualquiera | pos |
+
+## Catalogo_publico
+
+| Función | Qué responde | Se dispara con | Parámetros | Canal | Motor | Permiso |
+|---|---|---|---|---|---|---|
+| `buscar_productos` | Busca productos del catálogo público por nombre o categoría, con precio y disponibilidad. | `tienen` · `tienes` · `venden` · `cuanto vale` · `cuanto cuesta` · `precio de` · `busco` · `estoy buscando` · `necesito` | texto, limite | Público | A · cualquiera | cualquiera del panel · módulo ai_public |
+| `categorias_publicas` | Qué categorías de producto maneja la tienda. | `que venden` · `que productos manejan` · `que categorias` · `que puedo comprar` | — | Público | A · cualquiera | cualquiera del panel · módulo ai_public |
+| `como_comprar` | Cómo se compra en este sitio: tienda en línea o por contacto. | `como compro` · `como puedo comprar` · `como hago el pedido` · `puedo comprar en linea` · `como pido` | — | Público | A · cualquiera | cualquiera del panel · módulo ai_public |
+| `datos_del_negocio` | Dirección, teléfono, WhatsApp, correo y horario del negocio. | `donde quedan` · `donde estan` · `direccion` · `telefono` · `whatsapp` · `como los contacto` · `a que hora` · `horario` · `abren` | — | Público | A · cualquiera | cualquiera del panel · módulo ai_public |
+| `servicios_publicos` | Servicios que presta el negocio, según su sitio. | `que servicios` · `prestan servicio` · `hacen mantenimiento` · `hacen instalacion` · `ofrecen` | — | Público | A · cualquiera | cualquiera del panel · módulo ai_public |
 
 ## Clientes
 
@@ -115,6 +125,18 @@ Las usa la prueba del enrutador: cada una debe caer en su función.
 - «¿Cuánto hay en caja?» → `caja_estado`
 - «¿Cómo va el arqueo de hoy?» → `caja_estado`
 - «¿Cómo me están pagando los clientes?» → `metodos_pago`
+- «¿Tienen gaseosa?» → `buscar_productos`
+- «¿Cuánto vale el jugo natural?» → `buscar_productos`
+- «Busco una camiseta» → `buscar_productos`
+- «¿Qué productos manejan?» → `categorias_publicas`
+- «¿Qué venden?» → `categorias_publicas`
+- «¿Cómo compro?» → `como_comprar`
+- «¿Puedo comprar en línea?» → `como_comprar`
+- «¿Dónde quedan?» → `datos_del_negocio`
+- «¿Cuál es el teléfono?» → `datos_del_negocio`
+- «¿A qué hora abren?» → `datos_del_negocio`
+- «¿Qué servicios prestan?» → `servicios_publicos`
+- «¿Hacen mantenimiento?» → `servicios_publicos`
 - «¿Qué ha comprado Ana Pérez?» → `cliente_historial`
 - «¿Qué tipos de clientes tengo?» → `segmentos_clientes`
 - «¿Quiénes son mis mejores clientes?» → `top_clientes`

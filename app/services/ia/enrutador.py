@@ -14,7 +14,9 @@ import re
 import unicodedata
 
 _CONECTORES = ('de ', 'del ', 'la ', 'el ', 'los ', 'las ', 'a ', 'mi ', 'mis ', 'un ', 'una ')
-_PARAMS_NOMBRE = ('cliente', 'producto', 'empleado')
+# Parámetros que se recortan de lo que viene DESPUÉS de la frase disparadora:
+# «¿qué ha comprado Ana Pérez?» → cliente='Ana Pérez'; «¿tienen gaseosa?» → texto='gaseosa'.
+_PARAMS_NOMBRE = ('cliente', 'producto', 'empleado', 'texto')
 
 # Más específico primero: «semana pasada» antes que «semana».
 _PERIODOS_TEXTO = (

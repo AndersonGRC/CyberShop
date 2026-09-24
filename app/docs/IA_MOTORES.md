@@ -25,6 +25,7 @@ misma pregunta de tienda y 80 tokens de respuesta:
 | Modelo | Tamaño | Dónde corre | Carga en frío | Palabras/s |
 |---|---|---|---|---|
 | `qwen2.5:7b` | 4,4 GB | **GPU, todo** | 38 s | **34,7** |
+| **`qwen2.5:14b-instruct-q4_K_M`** | 8,9 GB | **GPU, todo** | 46 s | **27,1** |
 | `qwen2.5-coder:14b` | 8,9 GB | **GPU, todo** | 58 s | **29,0** |
 | `gpt-oss-cyber` (el de hoy) | 13,1 GB | **85 % GPU, 15 % CPU** | 117 s | **12,5** |
 
@@ -44,8 +45,12 @@ misma pregunta de tienda y 80 tokens de respuesta:
 
 ### Decisión
 
-- **Nivel B**: un 14B en q4 (~9 GB). Candidato: `qwen2.5:14b-instruct-q4_K_M`.
-  Queda pendiente descargarlo y medirlo igual que los demás.
+- **Nivel B**: `qwen2.5:14b-instruct-q4_K_M`, ya descargado y medido. Cabe
+  completo en la tarjeta, carga en 46 s (2,5 veces más rápido que el actual) y
+  escribe a 27 palabras/s (2,2 veces más rápido). Respondió la prueba de tienda
+  con naturalidad y sin inventar cifras.
+  Para activarlo: `AI_MODEL=qwen2.5:14b-instruct-q4_K_M` en el
+  `.cybershop.conf` del servidor.
 - **Nivel C**: el mismo 14B con contexto largo (32K+). Subir el contexto pesa más
   que subir de modelo, y un modelo que no cabe pierde más de lo que gana.
 - `gpt-oss-cyber` se deja de usar para el chat. Sigue sirviendo para tareas sin

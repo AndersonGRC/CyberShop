@@ -22,6 +22,7 @@ igual, para que aparezca en el mapa.
 """
 
 PANEL = ('panel',)
+PUBLICO = ('publico',)
 
 INTENCIONES = {
     # ── Ventas ────────────────────────────────────────────────
@@ -259,5 +260,38 @@ INTENCIONES = {
                          'datos me faltan', 'falta por completar'),
         'ejemplos': ('¿Qué datos me faltan por completar?',),
         'canales': PANEL, 'motor': 'A',
+    },
+    # ── Sitio público (módulo ai_public) ──────────────────────
+    # Lo ÚNICO que ve un visitante anónimo. El canal está declarado aquí y en
+    # ninguna otra parte: si no dice 'publico', no se expone.
+    'buscar_productos': {
+        'disparadores': ('tienen', 'tienes', 'venden', 'cuanto vale', 'cuanto cuesta',
+                         'precio de', 'busco', 'estoy buscando', 'necesito'),
+        'ejemplos': ('¿Tienen gaseosa?', '¿Cuánto vale el jugo natural?', 'Busco una camiseta'),
+        'canales': PUBLICO, 'motor': 'A',
+    },
+    'categorias_publicas': {
+        'disparadores': ('que venden', 'que productos manejan', 'que categorias',
+                         'que puedo comprar'),
+        'ejemplos': ('¿Qué productos manejan?', '¿Qué venden?'),
+        'canales': PUBLICO, 'motor': 'A',
+    },
+    'servicios_publicos': {
+        'disparadores': ('que servicios', 'prestan servicio', 'hacen mantenimiento',
+                         'hacen instalacion', 'ofrecen'),
+        'ejemplos': ('¿Qué servicios prestan?', '¿Hacen mantenimiento?'),
+        'canales': PUBLICO, 'motor': 'A',
+    },
+    'datos_del_negocio': {
+        'disparadores': ('donde quedan', 'donde estan', 'direccion', 'telefono', 'whatsapp',
+                         'como los contacto', 'a que hora', 'horario', 'abren'),
+        'ejemplos': ('¿Dónde quedan?', '¿Cuál es el teléfono?', '¿A qué hora abren?'),
+        'canales': PUBLICO, 'motor': 'A',
+    },
+    'como_comprar': {
+        'disparadores': ('como compro', 'como puedo comprar', 'como hago el pedido',
+                         'puedo comprar en linea', 'como pido'),
+        'ejemplos': ('¿Cómo compro?', '¿Puedo comprar en línea?'),
+        'canales': PUBLICO, 'motor': 'A',
     },
 }

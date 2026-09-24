@@ -28,6 +28,7 @@ from services.ia_datos import finanzas as _fin
 from services.ia_datos import inventario as _inv
 from services.ia_datos import nomina as _nom
 from services.ia_datos import operacion as _ope
+from services.ia_datos import publico as _pub
 from services.ia_datos import restaurante as _res
 from services.ia_datos import ventas as _ven
 
@@ -176,6 +177,30 @@ registrar('nomina_empleado', _nom.nomina_empleado,
           ['empleado'], etiqueta='la nómina de ese empleado', dominio='nomina',
           modulos=('payroll',), permiso='payroll', sensible='nomina')
 
+# ── Sitio público (módulo ai_public) ───────────────────────────
+# SOLO estas se exponen al visitante anónimo, y solo si el módulo está activo.
+# El canal público es lista blanca cerrada: ver services/ia_datos/acceso.py.
+registrar('buscar_productos', _pub.buscar_productos,
+          "Busca productos del catálogo público por nombre o categoría, con precio y disponibilidad.",
+          ['texto', 'limite'], etiqueta='el catálogo', dominio='catalogo_publico',
+          modulos=('ai_public',))
+registrar('categorias_publicas', _pub.categorias,
+          "Qué categorías de producto maneja la tienda.",
+          [], etiqueta='las categorías de la tienda', dominio='catalogo_publico',
+          modulos=('ai_public',))
+registrar('servicios_publicos', _pub.servicios,
+          "Servicios que presta el negocio, según su sitio.",
+          [], etiqueta='los servicios del negocio', dominio='catalogo_publico',
+          modulos=('ai_public',))
+registrar('datos_del_negocio', _pub.datos_del_negocio,
+          "Dirección, teléfono, WhatsApp, correo y horario del negocio.",
+          [], etiqueta='los datos de contacto', dominio='catalogo_publico',
+          modulos=('ai_public',))
+registrar('como_comprar', _pub.como_comprar,
+          "Cómo se compra en este sitio: tienda en línea o por contacto.",
+          [], etiqueta='cómo comprar', dominio='catalogo_publico',
+          modulos=('ai_public',))
+
 # Con todas las capacidades registradas, se les pega la otra mitad de su
 # declaración: con qué palabras se piden, en qué canal valen y con qué motor
 # (services/ia/intenciones.py). Levanta si las dos listas se desfasan, para que
@@ -191,7 +216,7 @@ _ALIAS_PERIODO = {
     'mes_pasado': 'mes_anterior', 'historico': 'todo', 'histórico': 'todo', 'siempre': 'todo',
 }
 # Filtros de texto que algunas herramientas aceptan (búsqueda por nombre).
-_PARAMS_TEXTO = ('producto', 'cliente', 'empleado', 'categoria', 'canal', 'estado')
+_PARAMS_TEXTO = ('producto', 'cliente', 'empleado', 'categoria', 'canal', 'estado', 'texto')
 
 
 def permitidas(contexto=None):

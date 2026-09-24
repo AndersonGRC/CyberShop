@@ -11,6 +11,10 @@ from typing import Optional
 CANAL_WEB = 'web'
 CANAL_ESCRITORIO = 'escritorio'
 CANAL_SISTEMA = 'sistema'
+# Visitante anónimo del sitio público. NO se deduce de la sesión: lo declara
+# explícitamente la ruta del chat público. Es lista blanca cerrada: solo corre
+# lo que la capacidad declara para este canal (services/ia/intenciones.py).
+CANAL_PUBLICO = 'publico'
 
 # Datos sensibles → roles base que pueden verlos (super admin, propietario, contador).
 # Se mira el rol BASE: un rol personalizado derivado de Empleado no los ve aunque
@@ -60,6 +64,14 @@ def puede_usar(h, ctx):
     if h.modulos:
         if not all(_modulo_activo(m) for m in h.modulos):
             return False
+
+    # El sitio público es lista blanca CERRADA: no hereda de "no exige permiso",
+    # porque eso dejaría entrar a cualquier capacidad que se registre mañana sin
+    # pensar en el público. Tiene que estar declarada para este canal.
+    if ctx.canal == CANAL_PUBLICO:
+        from services.ia.registro import CANAL_PUBLICO as DECLARADA_PUBLICA
+        return DECLARADA_PUBLICA in getattr(h, 'canales', ()) and h.sensible is None
+
     publica = h.permiso is None and h.sensible is None
     if ctx.canal == CANAL_ESCRITORIO:
         return publica
