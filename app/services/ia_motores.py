@@ -57,7 +57,7 @@ CANAL_PUBLICO = 'publico'
 # Medido con el contador de tokens de la API: redactar una respuesta del sitio
 # cuesta ~US$0,0008, mientras que un artículo de blog pasa de US$0,02. La
 # diferencia entre pagar todo y pagar solo lo interactivo es de dos órdenes.
-TAREAS_CON_NUBE = {'chat_panel'}
+TAREAS_CON_NUBE = {'chat_panel', 'chat_publico'}
 TAREA_POR_DEFECTO = 'chat_panel'
 
 # Frases exactas con las que se pide el análisis profundo. Se comparan al inicio
@@ -67,13 +67,20 @@ CLAVES_PROFUNDO = ('/profundo', 'analisis profundo', 'analiza a fondo',
                    'informe detallado', 'analisis detallado', 'estudio detallado')
 
 _TTL_SALUD = 30           # s que se confía en el último chequeo
-_salud = {}               # base_url -> (instante, vivo)
+_salud = {}               # (BD, base_url) -> (instante, vivo)
+_sondeos_local_fallidos = {}  # BD -> sondeos reales consecutivos sin respuesta
 _semaforo_publico = None
 _semaforo_lock = threading.Lock()
 # Desde cuándo lleva caído el equipo del dueño. El respaldo que se cobra no entra
 # de inmediato: primero se le da tiempo a que vuelva (un reinicio de Ollama o un
 # corte de VPN no deben costar dinero).
-_local_caido_desde = {'ts': None}
+_local_caido_desde = {}       # nombre de BD -> inicio de caída (solo este proceso)
+
+
+def _reloj_clave():
+    """La BD efectiva, también en el endpoint central multi-tenant de sync."""
+    from database import _current_db_name
+    return _current_db_name()
 
 MSG_SIN_MOTOR = ('El redactor de IA no está disponible en este momento, así que te respondo '
                  'con los datos tal cual están.')
@@ -155,11 +162,15 @@ def vivo(motor, refrescar=False):
     if not motor or not motor.configurado:
         return False
     ahora = time.time()
-    visto = _salud.get(motor.base_url)
+    clave_db = _reloj_clave()
+    visto = _salud.get((clave_db, motor.base_url))
     if visto and not refrescar and ahora - visto[0] < _TTL_SALUD:
         return visto[1]
     estado = _consultar_vivo(motor)
-    _salud[motor.base_url] = (ahora, estado)
+    _salud[(clave_db, motor.base_url)] = (ahora, estado)
+    if motor.nivel == NIVEL_B:
+        _sondeos_local_fallidos[clave_db] = (
+            0 if estado else _sondeos_local_fallidos.get(clave_db, 0) + 1)
     return estado
 
 
@@ -234,14 +245,16 @@ def motor_para(perfil=PERFIL_NORMAL, canal=CANAL_PANEL, tarea=TAREA_POR_DEFECTO)
         return None, MSG_SIN_PROFUNDO     # NO degrada: avisa
 
     b = motor_configurado(NIVEL_B)
+    clave_reloj = _reloj_clave()
     if vivo(b):
-        _local_caido_desde['ts'] = None          # volvió: se borra el reloj
+        _local_caido_desde.pop(clave_reloj, None)  # volvió: se borra solo su reloj
+        _sondeos_local_fallidos.pop(clave_reloj, None)
         return b, 'tu equipo de IA'
 
     # El equipo del dueño no responde. Se anota desde cuándo.
-    if _local_caido_desde['ts'] is None:
-        _local_caido_desde['ts'] = time.time()
-    caido_hace = time.time() - _local_caido_desde['ts']
+    if clave_reloj not in _local_caido_desde:
+        _local_caido_desde[clave_reloj] = time.time()
+    caido_hace = time.time() - _local_caido_desde[clave_reloj]
 
     a = motor_configurado(NIVEL_A)               # modelo propio en el servidor, si lo hubiera
     if vivo(a):
@@ -261,6 +274,13 @@ def _respaldo_nube(canal, caido_hace, tarea=TAREA_POR_DEFECTO):
     if tarea not in TAREAS_CON_NUBE:
         # Nadie está esperando esta respuesta: que espere al equipo.
         return None, MSG_SIN_MOTOR
+
+    # La espera cronológica por sí sola no prueba una caída continua: exigimos
+    # además varios sondeos HTTP reales del PC, no varios mensajes atendidos
+    # por la caché de salud de 30 segundos.
+    minimo_sondeos = max(1, min(10, int(_cfg('AI_NUBE_FALLOS_LOCAL_MIN', 3))))
+    if _sondeos_local_fallidos.get(_reloj_clave(), 0) < minimo_sondeos:
+        return None, MSG_ESPERANDO_LOCAL
 
     espera = int(_cfg('AI_NUBE_ESPERA_LOCAL_S', 180))
     if caido_hace < espera:

@@ -5,8 +5,9 @@ Es el ÚLTIMO recurso, a propósito, y con tres frenos:
   1. **Tiempo**: no entra apenas el equipo deja de responder. Solo después de
      `AI_NUBE_ESPERA_LOCAL_S` (3 minutos por defecto) de caída continua. Un
      reinicio de Ollama o un corte de VPN no debe costar dinero.
-  2. **Presupuesto**: un tope mensual en dólares. Al llegar, se apaga sola y
-     el sistema sigue respondiendo con los datos armados en Python.
+  2. **Presupuesto**: un umbral local estimado en dólares. Al llegar, deja de
+     enviar nuevas solicitudes, pero peticiones concurrentes y redondeos pueden
+     superarlo; hace falta un límite de gasto adicional en Anthropic.
   3. **Alcance**: por defecto NO atiende al chat del sitio público. Ese chat ya
      responde bien sin modelo, y dejarlo abierto a internet con una API que se
      cobra por token es la forma más rápida de gastar sin darse cuenta.
@@ -24,15 +25,24 @@ import requests
 from flask import current_app
 
 from database import get_db_cursor
-from services.ia_datos.base import _existe
 
 API_URL = 'https://api.anthropic.com/v1/messages'
 VERSION_API = '2023-06-01'
+_MODELO_CON_PRECIO_VALIDADO = 'claude-haiku-4-5-20251001'
 
 # Errores por los que NO tiene sentido reintentar en un rato largo: falta saldo,
 # clave mala o cuenta bloqueada. Se guarda el motivo y se deja de llamar.
 _PAUSA_TRAS_FALLO_S = 1800          # 30 min
-_bloqueo = {'hasta': 0, 'motivo': None}
+_bloqueo = {}                 # nombre de BD -> {hasta, motivo}
+
+
+def _clave_bloqueo():
+    from database import _current_db_name
+    return _current_db_name()
+
+
+def _bloqueo_actual():
+    return _bloqueo.get(_clave_bloqueo()) or {'hasta': 0, 'motivo': None}
 
 _DDL_USO = """
 CREATE TABLE IF NOT EXISTS ia_uso_nube (
@@ -61,37 +71,46 @@ def _periodo():
 
 
 def configurada():
-    return bool(str(_cfg('AI_NUBE_API_KEY', '')).strip())
+    return (bool(str(_cfg('AI_NUBE_API_KEY', '')).strip()) and
+            str(_cfg('AI_NUBE_MODEL', _MODELO_CON_PRECIO_VALIDADO)) == _MODELO_CON_PRECIO_VALIDADO)
 
 
 # ── Contabilidad del gasto ─────────────────────────────────────
 def uso_del_mes():
     """{llamadas, tokens, costo_usd, tope_usd, restante_usd, aviso_enviado}."""
-    tope = float(_cfg('AI_NUBE_PRESUPUESTO_USD', 5) or 0)
+    tope = float(_cfg('AI_NUBE_PRESUPUESTO_USD', 0) or 0)
     base = {'periodo': _periodo(), 'llamadas': 0, 'tokens_entrada': 0, 'tokens_salida': 0,
-            'costo_usd': 0.0, 'tope_usd': tope, 'restante_usd': tope, 'aviso_enviado': False}
+            'costo_usd': 0.0, 'tope_usd': tope, 'restante_usd': tope, 'aviso_enviado': False,
+            'registro_disponible': False}
     try:
         with get_db_cursor(dict_cursor=True) as cur:
-            if not _existe(cur, 'ia_uso_nube'):
-                return base
+            cur.execute(_DDL_USO)
             cur.execute('SELECT * FROM ia_uso_nube WHERE periodo = %s', (_periodo(),))
             r = cur.fetchone()
+            base['registro_disponible'] = True
             if not r:
                 return base
             base.update(llamadas=int(r['llamadas']), tokens_entrada=int(r['tokens_entrada']),
                         tokens_salida=int(r['tokens_salida']), costo_usd=float(r['costo_usd']),
                         aviso_enviado=bool(r['aviso_enviado']))
             base['restante_usd'] = round(max(0.0, tope - base['costo_usd']), 4)
-    except Exception:
-        pass
+    except Exception as exc:
+        # Si no podemos leer el contador, gastar a ciegas incumpliría el
+        # presupuesto configurado. ``hay_presupuesto`` falla cerrado.
+        try:
+            current_app.logger.warning(f'IA nube: contador no disponible ({exc})')
+        except Exception:
+            pass
     return base
 
 
 def _costo(entrada, salida):
     """Costo estimado en dólares. Los precios son configurables porque cambian:
     revisar la página de precios de Anthropic y ajustar si hace falta."""
-    p_in = float(_cfg('AI_NUBE_PRECIO_ENTRADA_USD_MTOK', 1.0))
-    p_out = float(_cfg('AI_NUBE_PRECIO_SALIDA_USD_MTOK', 5.0))
+    # Precios mínimos verificados para Haiku 4.5. Un env viejo o mal escrito
+    # no puede subestimar el gasto del contador local.
+    p_in = max(1.0, float(_cfg('AI_NUBE_PRECIO_ENTRADA_USD_MTOK', 1.0)))
+    p_out = max(5.0, float(_cfg('AI_NUBE_PRECIO_SALIDA_USD_MTOK', 5.0)))
     return round((entrada / 1_000_000) * p_in + (salida / 1_000_000) * p_out, 6)
 
 
@@ -116,16 +135,18 @@ def _sumar_uso(entrada, salida):
             primera_del_mes = bool(r and int(r['llamadas']) == 1 and not r['aviso_enviado'])
     except Exception as exc:  # noqa: BLE001
         current_app.logger.warning(f'IA nube: no se pudo contar el uso ({exc})')
+        _bloquear('El respaldo en la nube se pausó porque no pudo registrar su costo.')
     if primera_del_mes:
         _avisar_cobro_iniciado()
     return costo
 
 
 def hay_presupuesto():
-    tope = float(_cfg('AI_NUBE_PRESUPUESTO_USD', 5) or 0)
+    tope = float(_cfg('AI_NUBE_PRESUPUESTO_USD', 0) or 0)
     if tope <= 0:
         return False
-    return uso_del_mes()['costo_usd'] < tope
+    uso = uso_del_mes()
+    return uso.get('registro_disponible', True) and uso['costo_usd'] < tope
 
 
 # ── Aviso por correo ───────────────────────────────────────────
@@ -168,16 +189,16 @@ def _avisar_cobro_iniciado():
 
 # ── Disponibilidad y llamada ───────────────────────────────────
 def _bloqueada():
-    return _bloqueo['hasta'] > time.time()
+    return _bloqueo_actual()['hasta'] > time.time()
 
 
 def motivo_bloqueo():
-    return _bloqueo['motivo'] if _bloqueada() else None
+    return _bloqueo_actual()['motivo'] if _bloqueada() else None
 
 
 def _bloquear(motivo):
-    _bloqueo['hasta'] = time.time() + _PAUSA_TRAS_FALLO_S
-    _bloqueo['motivo'] = motivo
+    _bloqueo[_clave_bloqueo()] = {'hasta': time.time() + _PAUSA_TRAS_FALLO_S,
+                                 'motivo': motivo}
     try:
         current_app.logger.warning(f'IA nube: pausada 30 min — {motivo}')
     except Exception:
@@ -197,15 +218,19 @@ def disponible(canal='panel'):
 def responder(sistema, usuario, max_tokens=None, temperature=0.4, timeout=25):
     """(texto, None) o (None, motivo). Nunca lanza."""
     if not configurada():
-        return None, 'El respaldo en la nube no está configurado.'
+        return None, ('El respaldo en la nube no está configurado o el modelo no tiene '
+                      'un precio validado para este límite de gasto.')
     if _bloqueada():
-        return None, _bloqueo['motivo']
+        return None, motivo_bloqueo()
     if not hay_presupuesto():
         return None, ('Se alcanzó el tope de gasto de IA de este mes. El asistente sigue '
                       'respondiendo con los datos del negocio.')
 
     modelo = str(_cfg('AI_NUBE_MODEL', 'claude-haiku-4-5-20251001'))
-    tope_tokens = int(max_tokens or _cfg('AI_NUBE_MAX_TOKENS', 300))
+    # El llamador puede pedir 350/550 tokens para una respuesta compleja,
+    # pero jamás debe sobrepasar el límite de gasto fijado para este cliente.
+    limite_configurado = max(1, int(_cfg('AI_NUBE_MAX_TOKENS', 220)))
+    tope_tokens = min(limite_configurado, max(1, int(max_tokens or limite_configurado)))
     try:
         r = requests.post(
             API_URL,
@@ -236,10 +261,10 @@ def responder(sistema, usuario, max_tokens=None, temperature=0.4, timeout=25):
                                              or r.status_code in (401, 403)):
         _bloquear('El respaldo en la nube no está disponible: revisa el saldo o la clave '
                   f'de la API ({detalle}).')
-        return None, _bloqueo['motivo']
+        return None, motivo_bloqueo()
     if r.status_code == 429:
         _bloquear('El respaldo en la nube está saturado; se reintenta más tarde.')
-        return None, _bloqueo['motivo']
+        return None, motivo_bloqueo()
     return None, f'El respaldo en la nube respondió {r.status_code}.'
 
 

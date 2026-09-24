@@ -36,6 +36,8 @@ def app_ia(monkeypatch):
 
     monkeypatch.setattr(mot, '_consultar_vivo', falso_vivo)
     monkeypatch.setattr(mot, '_salud', {})
+    monkeypatch.setattr(mot, '_sondeos_local_fallidos', {})
+    monkeypatch.setattr(mot, '_local_caido_desde', {})
     monkeypatch.setattr(mot, '_semaforo_publico', None)
     with app.app_context():
         yield {'app': app, 'encendidos': encendidos, 'llamadas': llamadas}

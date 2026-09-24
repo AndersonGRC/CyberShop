@@ -20,7 +20,7 @@ from datetime import datetime
 import requests
 from flask import current_app
 
-from database import get_db_cursor
+from database import _current_db_name, get_db_cursor
 from tenant_features import is_module_active, MODULE_AI, get_current_tenant_id
 
 
@@ -37,7 +37,7 @@ _CACHE_MAX = 500             # tope de entradas por instancia
 def _cache_key(funcion, *partes):
     base = '|'.join(str(p or '') for p in partes).lower().strip()
     h = hashlib.sha256(base.encode('utf-8')).hexdigest()[:24]
-    return f"{get_current_tenant_id()}:{funcion}:{h}"
+    return f"{_current_db_name()}:{get_current_tenant_id()}:{funcion}:{h}"
 
 
 def _cache_get(key):
@@ -800,6 +800,15 @@ def _plan_chat_pasos(pregunta, anunciar=True, historial=None, contexto=None):
 
     if anunciar:
         yield ('estado', 'Estamos procesando tu pregunta…')
+
+    ctx = contexto or tools.contexto_actual()
+    disponibles = tools.permitidas(ctx)
+    from services.ia.enrutador import enrutar_panel_seguro
+    ruta_segura = enrutar_panel_seguro(pregunta, disponibles, historial=historial)
+
+    # Las consultas inequívocas van directo a funciones fijas: no esperan a que
+    # cargue Ollama ni pagan un modelo en la nube solo para elegir herramienta.
+    if anunciar and not ruta_segura:
         primario = current_app.config.get('AI_MODEL') or 'qwen2.5:7b'
         if _modelo_en_memoria(primario) is False:
             yield ('estado', 'Estamos preparando el motor de análisis. '
@@ -817,8 +826,6 @@ def _plan_chat_pasos(pregunta, anunciar=True, historial=None, contexto=None):
                     return
             yield ('estado', 'El motor de análisis está listo. Seguimos con tu pregunta…')
 
-    ctx = contexto or tools.contexto_actual()
-    disponibles = tools.permitidas(ctx)
     conversacion = _texto_historial(_sanear_historial(historial))
     previo = f'{conversacion}\n\n' if conversacion else ''
     hoy, ahora = _fecha_hoy()
@@ -844,30 +851,35 @@ def _plan_chat_pasos(pregunta, anunciar=True, historial=None, contexto=None):
         "responde {\"tools\":[]}. Solo el JSON."
     )
     sel_user = f"{previo}Pregunta actual: «{pregunta}»" if conversacion else pregunta
-    raw, err = _chat(sel_system, sel_user, max_tokens=220, temperature=0)
-    if err:
-        yield ('error', err)
-        return
-    if not _parsear_herramientas(raw):
-        # A veces el modelo contesta "ninguna" a preguntas que sí puede resolver
-        # (medido con el modelo real). Se insiste UNA vez, sin aflojar la regla de
-        # los datos sensibles: si de verdad no aplica, vuelve a responder vacío.
-        reintento, err2 = _chat(
-            sel_system,
-            f"{sel_user}\n\nAntes respondiste sin herramientas. Si la pregunta se puede responder con "
-            "alguna de la lista, elígela ahora. Si pide datos sensibles o algo que no está en la lista, "
-            "responde {\"tools\":[]} otra vez.", max_tokens=220, temperature=0)
-        if not err2 and _parsear_herramientas(reintento):
-            raw = reintento
-    permitidos = [h.code for h in disponibles]
-    elegidas = []
-    for code, params in _parsear_herramientas(raw):
-        if code in tools.REGISTRO:
-            elegidas.append((code, params))      # existe: el permiso se revisa al ejecutar
-            continue
-        real = _resolver_codigo(code, permitidos)
-        if real:
-            elegidas.append((real, params))
+    if ruta_segura:
+        elegidas = ruta_segura
+        via = 'keyword'
+    else:
+        raw, err = _chat(sel_system, sel_user, max_tokens=220, temperature=0)
+        if err:
+            yield ('error', err)
+            return
+        if not _parsear_herramientas(raw):
+            # A veces el modelo contesta "ninguna" a preguntas que sí puede resolver
+            # (medido con el modelo real). Se insiste UNA vez, sin aflojar la regla de
+            # los datos sensibles: si de verdad no aplica, vuelve a responder vacío.
+            reintento, err2 = _chat(
+                sel_system,
+                f"{sel_user}\n\nAntes respondiste sin herramientas. Si la pregunta se puede responder con "
+                "alguna de la lista, elígela ahora. Si pide datos sensibles o algo que no está en la lista, "
+                "responde {\"tools\":[]} otra vez.", max_tokens=220, temperature=0)
+            if not err2 and _parsear_herramientas(reintento):
+                raw = reintento
+        permitidos = [h.code for h in disponibles]
+        elegidas = []
+        for code, params in _parsear_herramientas(raw):
+            if code in tools.REGISTRO:
+                elegidas.append((code, params))      # existe: el permiso se revisa al ejecutar
+                continue
+            real = _resolver_codigo(code, permitidos)
+            if real:
+                elegidas.append((real, params))
+        via = 'modelo'
 
     if not elegidas:
         # Pregunta fuera del alcance de los datos (o dato sensible): responde
@@ -882,6 +894,7 @@ def _plan_chat_pasos(pregunta, anunciar=True, historial=None, contexto=None):
                 f"{puede}."),
             'max_tokens': 220, 'datos': None, 'herramienta': None,
             'herramientas': [], 'sensible': None, 'objetivo': None,
+            'via': via, 'intencion': None,
         })
         return
 
@@ -932,6 +945,7 @@ def _plan_chat_pasos(pregunta, anunciar=True, historial=None, contexto=None):
         'herramientas': usadas,
         'sensible': ','.join(sorted(sensibles)) or None,
         'objetivo': '; '.join(dict.fromkeys(objetivos))[:120] or None,
+        'via': via, 'intencion': usadas[0] if len(set(usadas)) == 1 else 'multiple',
     })
 
 
@@ -969,7 +983,7 @@ _IA_CONSULTAS_PURGA = {}      # tenant -> día de la última limpieza de pregunt
 def _registrar_consulta(ctx, pregunta, plan, error, inicio):
     """Nunca rompe el chat: si la BD no deja registrar, solo queda en el log."""
     try:
-        tenant = get_current_tenant_id()
+        tenant = (_current_db_name(), get_current_tenant_id())
         herramientas = list((plan or {}).get('herramientas') or [])
         sin_herramienta = None
         if plan is not None and not herramientas and not error:
@@ -1050,6 +1064,40 @@ def resumen_consultas(dias=30):
             'preguntas_sin_respuesta': preguntas, 'sensibles': sensibles}
 
 
+def _respuesta_datos_sin_modelo(plan):
+    """Entrega el resultado autorizado sin inventar una explicación con IA.
+
+    La salida se acota explícitamente para no volcar tablas enormes al chat;
+    los valores originales siguen en ``plan['datos']`` para el cliente interno.
+    """
+    datos = plan.get('datos')
+    if datos is None:
+        return None
+
+    def acotar(valor, profundidad=0):
+        if profundidad >= 5:
+            return '[detalle anidado omitido]'
+        if isinstance(valor, dict):
+            pares = list(valor.items())
+            salida = {str(k): acotar(v, profundidad + 1) for k, v in pares[:30]}
+            if len(pares) > 30:
+                salida['registros_adicionales_omitidos'] = len(pares) - 30
+            return salida
+        if isinstance(valor, (list, tuple)):
+            salida = [acotar(v, profundidad + 1) for v in valor[:12]]
+            if len(valor) > 12:
+                salida.append({'registros_adicionales_omitidos': len(valor) - 12})
+            return salida
+        if isinstance(valor, str) and len(valor) > 500:
+            return valor[:500] + '… [texto abreviado]'
+        return valor
+
+    codigos = plan.get('herramientas') or []
+    titulo = ', '.join(dict.fromkeys(c.replace('_', ' ') for c in codigos)) or 'la consulta'
+    cuerpo = json.dumps(acotar(datos), ensure_ascii=False, indent=2, default=str)
+    return f'Datos verificados de {titulo} (sin redacción de IA):\n{cuerpo}'
+
+
 def responder_chat(pregunta, historial=None, contexto=None):
     """Asistente conversacional del negocio (respuesta completa, sin streaming
     — la usa el desktop y queda de respaldo para el panel web).
@@ -1062,7 +1110,21 @@ def responder_chat(pregunta, historial=None, contexto=None):
     if err:
         _registrar_consulta(ctx, pregunta, None, err, inicio)
         return None, err
-    resp, err3 = _chat(plan['system'], plan['user'], max_tokens=plan['max_tokens'])
+    from services import ia_motores as motores
+    motor, _ = motores.motor_para(plan.get('perfil', 'normal'),
+                                 plan.get('canal_motor', 'panel'))
+    directo = plan['datos'] is not None and (
+        motor is None or (motor.es_nube and plan.get('via') == 'keyword'))
+    if directo:
+        resp, err3 = _respuesta_datos_sin_modelo(plan), None
+        plan['motor'] = 'SQL'
+    else:
+        resp, err3 = _chat(plan['system'], plan['user'], max_tokens=plan['max_tokens'])
+        if err3 and plan['datos'] is not None:
+            resp, err3 = _respuesta_datos_sin_modelo(plan), None
+            plan['motor'] = 'SQL'
+        elif not err3 and motor is not None:
+            plan['motor'] = 'nube' if motor.es_nube else motor.nivel
     _registrar_consulta(ctx, pregunta, plan, err3, inicio)
     if err3:
         return None, err3
@@ -1117,6 +1179,14 @@ def _responder_chat_stream(pregunta, historial, ctx, resultado):
     from services import ia_motores as motores
     motor, motivo_motor = motores.motor_para(plan.get('perfil', 'normal'),
                                              plan.get('canal_motor', 'panel'))
+    if plan['datos'] is not None and (
+            motor is None or (motor.es_nube and plan.get('via') == 'keyword')):
+        texto = _respuesta_datos_sin_modelo(plan)
+        plan['motor'] = 'SQL'
+        resultado['error'] = None
+        yield ('delta', texto)
+        yield ('fin', texto)
+        return
     if motor is None:
         resultado['error'] = motivo_motor
         yield ('error', motivo_motor)
@@ -1126,15 +1196,25 @@ def _responder_chat_stream(pregunta, historial, ctx, resultado):
         texto, motivo = chat_con_motor(motor, plan['system'], plan['user'],
                                        plan['max_tokens'], 0.7)
         if not texto:
+            if plan['datos'] is not None:
+                directo = _respuesta_datos_sin_modelo(plan)
+                plan['motor'] = 'SQL'
+                resultado['error'] = None
+                yield ('delta', directo)
+                yield ('fin', directo)
+                return
             resultado['error'] = motivo
             yield ('error', motivo)
             return
         resultado['texto'] = texto
+        resultado['error'] = None
+        plan['motor'] = 'nube'
         yield ('delta', texto)
         yield ('fin', {'herramienta': plan['herramienta'], 'motor': 'nube'})
         return
 
     primario = motor.modelo or 'qwen2.5:7b'
+    plan['motor'] = motor.nivel
     fallback = ((current_app.config.get('AI_MODEL_FALLBACK') or '').strip()
                 if motor.nivel == motores.NIVEL_B else '')
     partes = []
@@ -1161,10 +1241,24 @@ def _responder_chat_stream(pregunta, historial, ctx, resultado):
                     partes.append(frag)
                     yield ('delta', frag)
             except _ErrorIA as e2:
+                if plan['datos'] is not None and not partes:
+                    directo = _respuesta_datos_sin_modelo(plan)
+                    plan['motor'] = 'SQL'
+                    resultado['error'] = None
+                    yield ('delta', directo)
+                    yield ('fin', directo)
+                    return
                 resultado['error'] = e2.mensaje
                 yield ('error', e2.mensaje)
                 return
         else:
+            if plan['datos'] is not None and not partes:
+                directo = _respuesta_datos_sin_modelo(plan)
+                plan['motor'] = 'SQL'
+                resultado['error'] = None
+                yield ('delta', directo)
+                yield ('fin', directo)
+                return
             resultado['error'] = e.mensaje
             yield ('error', e.mensaje)
             return

@@ -11,6 +11,7 @@ import pytest
 
 import services.ai_service as ai
 import services.ia_datos as ia_datos
+import services.ia.enrutador as enrutador
 from services.ia_datos import acceso, base
 from services.ia_datos.base import Herramienta, Rango
 
@@ -218,6 +219,10 @@ def test_historial_se_recorta_y_valida():
 def motor(flask_app, matriz, monkeypatch):
     """Chat con enrutador y redactor simulados y tres herramientas de prueba."""
     llamadas = {'chat': [], 'consultas': []}
+    # Este bloque ejercita la selección del LLM con herramientas simuladas.
+    # La ruta rápida se prueba aparte; dejarla activa elegiría ventas_periodo
+    # real por sus palabras clave y pediría una BD externa a estas pruebas.
+    monkeypatch.setattr(enrutador, 'enrutar_panel_seguro', lambda *_a, **_k: [])
 
     def ventas(periodo='todo', **_):
         llamadas['consultas'].append(periodo)
