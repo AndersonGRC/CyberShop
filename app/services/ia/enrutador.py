@@ -124,3 +124,57 @@ def enrutar(texto, capacidades):
                 return []                # sin el nombre la consulta no sirve: que decida el modelo
             params[p] = nombre
     return [(h.code, params)]
+
+
+def enrutar_panel_seguro(texto, capacidades, historial=None):
+    """Ruta rápida solo para preguntas inequívocas del panel.
+
+    El enrutador general sirve también al chat público y elige una coincidencia
+    por longitud. En el panel, responder sin modelo exige más cautela: una
+    comparación, una fecha que no sabemos interpretar o dos intenciones nunca
+    deben convertirse silenciosamente en una consulta distinta.
+    """
+    normal = normalizar((texto or '').strip())
+    if not normal:
+        return []
+    if historial and re.match(r'^[¿\s]*(?:y\b|ahora\b|tambien\b|lo mismo\b|ese\b|esa\b|esos\b|esas\b)', normal):
+        return []                         # este seguimiento requiere contexto
+    if re.search(r'\b(?:19|20)\d{2}\b|\b(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b', normal):
+        return []                         # fechas concretas: las interpreta el planificador
+    if re.search(r'\b(?:trimestre|quincena|ultimos?\s+\d+\s+dias?|entre\s+el\s+\d+|del\s+\d+\s+al\s+\d+)\b', normal):
+        return []
+    if re.search(r'\b(?:en efectivo|con tarjeta|por vendedor|por sucursal|por canal|en linea|en la web|por empleado)\b', normal):
+        return []                         # filtros que esta ruta no sabe aplicar
+
+    # Dos intenciones diferentes no se pueden reducir a la frase más larga.
+    coincidencias = {
+        h.code for h in capacidades
+        for disparador in h.disparadores
+        if normalizar(disparador) in normal
+    }
+    if len(coincidencias) != 1:
+        return []
+
+    # Detecta dos períodos independientes, respetando que «mes pasado» contiene
+    # «mes» y «semana pasada» puede contener «la semana».
+    menciones = []
+    for frase, periodo in sorted(_PERIODOS_TEXTO, key=lambda x: len(x[0]), reverse=True):
+        for match in re.finditer(re.escape(frase), normal):
+            tramo = (match.start(), match.end())
+            if not any(tramo[0] < fin and inicio < tramo[1] for inicio, fin, _ in menciones):
+                menciones.append((*tramo, periodo))
+    if len({p for _, _, p in menciones}) > 1:
+        return []
+
+    elegidas = enrutar(texto, capacidades)
+    if len(elegidas) != 1 or elegidas[0][0] not in coincidencias:
+        return []
+    code, params = elegidas[0]
+    h = next(c for c in capacidades if c.code == code)
+    if any(p in _PARAMS_NOMBRE for p in h.params) and menciones:
+        return []                         # evita incluir «este mes» en el nombre
+    if 'periodo' in h.params and 'periodo' not in params:
+        # El comparativo necesita una ventana finita; el resto sigue la regla
+        # del panel: sin fecha explícita, histórico completo.
+        params['periodo'] = 'mes' if code == 'comparativo_ventas' else 'todo'
+    return [(code, params)]

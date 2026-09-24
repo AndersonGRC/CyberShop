@@ -34,6 +34,18 @@ INTENCIONES = {
                      '¿Cómo estuvieron las ventas esta semana?'),
         'canales': PANEL, 'motor': 'A',
     },
+    'comparativo_ventas': {
+        'disparadores': ('compara mis ventas', 'comparacion de ventas', 'comparar ventas',
+                         'crecieron mis ventas', 'cayeron mis ventas', 'variacion de ventas'),
+        'ejemplos': ('¿Crecieron mis ventas este mes?', 'Compara mis ventas con el período anterior'),
+        'canales': PANEL, 'motor': 'A',
+    },
+    'ticket_promedio': {
+        'disparadores': ('ticket promedio', 'valor promedio por venta', 'promedio por venta',
+                         'venta promedio'),
+        'ejemplos': ('¿Cuál fue mi ticket promedio este mes?',),
+        'canales': PANEL, 'motor': 'A',
+    },
     'top_productos': {
         'disparadores': ('que se vende mas', 'producto mas vendido', 'productos mas vendidos',
                          'mas vendidos', 'lo que mas se vende', 'top de productos'),
@@ -110,6 +122,12 @@ INTENCIONES = {
         'ejemplos': ('¿Cuánto vale todo mi inventario?',),
         'canales': PANEL, 'motor': 'A',
     },
+    'inventario_por_categoria': {
+        'disparadores': ('inventario por categoria', 'stock por categoria',
+                         'existencias por categoria', 'agotados por categoria'),
+        'ejemplos': ('¿Cómo está mi inventario por categoría?',),
+        'canales': PANEL, 'motor': 'A',
+    },
     'inventario_sin_rotacion': {
         'disparadores': ('no se estan vendiendo', 'no se venden', 'no se vende', 'sin rotacion',
                          'productos quietos', 'lleva sin venderse', 'plata parada'),
@@ -152,6 +170,12 @@ INTENCIONES = {
         'disparadores': ('metodos de pago', 'formas de pago', 'me estan pagando', 'como me pagan',
                          'cuanto en efectivo', 'efectivo o tarjeta'),
         'ejemplos': ('¿Cómo me están pagando los clientes?',),
+        'canales': PANEL, 'motor': 'A',
+    },
+    'anulaciones_pos': {
+        'disparadores': ('anulaciones pos', 'ventas anuladas pos',
+                         'notas de credito pos', 'ventas anuladas del mostrador'),
+        'ejemplos': ('¿Cuántas anulaciones POS hubo este mes?',),
         'canales': PANEL, 'motor': 'A',
     },
 
@@ -278,7 +302,8 @@ INTENCIONES = {
     },
     'servicios_publicos': {
         'disparadores': ('que servicios', 'prestan servicio', 'hacen mantenimiento',
-                         'hacen instalacion', 'ofrecen'),
+                         'hacen instalacion', 'tienen servicio de', 'tienen servicio',
+                         'ofrecen'),
         'ejemplos': ('¿Qué servicios prestan?', '¿Hacen mantenimiento?'),
         'canales': PUBLICO, 'motor': 'A',
     },

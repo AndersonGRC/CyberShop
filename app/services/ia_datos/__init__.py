@@ -22,6 +22,7 @@ from services.ia_datos.base import (
     PERIODOS, REGISTRO, Herramienta, Rango, _periodo, rango_desde_params, registrar,
 )
 from services.ia_datos import alertas as _ale
+from services.ia_datos import analitica as _ana
 from services.ia_datos import caja as _caj
 from services.ia_datos import comercial as _com
 from services.ia_datos import finanzas as _fin
@@ -37,6 +38,12 @@ from services.ia_datos import ventas as _ven
 registrar('ventas_periodo', _ven.ventas_periodo,
           "Ventas e ingresos de un período (hoy, ayer, semana, mes, año o fechas).",
           ['periodo'], etiqueta='tus ventas', dominio='ventas')
+registrar('comparativo_ventas', _ana.comparativo_ventas,
+          "Compara cantidad y monto de ventas confirmadas de los tres canales con el período anterior de igual duración.",
+          ['periodo'], etiqueta='la comparación de tus ventas', dominio='ventas')
+registrar('ticket_promedio', _ana.ticket_promedio,
+          "Valor promedio por venta confirmada en los tres canales, distinto de la utilidad.",
+          ['periodo'], etiqueta='el ticket promedio', dominio='ventas')
 registrar('top_productos', _ven.top_productos,
           "Productos más vendidos en un período.",
           ['periodo', 'limite'], etiqueta='tus productos más vendidos', dominio='ventas')
@@ -55,6 +62,9 @@ registrar('catalogo_pendiente', _inv.catalogo_pendiente,
 registrar('resumen_inventario', _inv.resumen_inventario,
           "Cuánto vale TODO el inventario y cuántas unidades hay en total (sin distinguir si rotan o no).",
           [], etiqueta='tu inventario', dominio='inventario')
+registrar('inventario_por_categoria', _ana.inventario_por_categoria,
+          "Productos, unidades y agotados por categoría; valor del stock a precio de venta.",
+          [], etiqueta='el inventario por categoría', dominio='inventario', permiso='inventory')
 registrar('conteo_general', _ven.conteo_general,
           "Números generales: productos, categorías, clientes, pedidos.",
           [], etiqueta='los números generales de tu negocio', dominio='general')
@@ -90,6 +100,9 @@ registrar('caja_estado', _caj.caja_estado,
 registrar('metodos_pago', _caj.metodos_pago,
           "Con qué le pagan los clientes: efectivo, tarjeta, transferencias, y cuánto pesa cada medio.",
           ['periodo'], etiqueta='tus medios de pago', dominio='caja', permiso='pos')
+registrar('anulaciones_pos', _ana.anulaciones_pos,
+          "Cuántas notas de crédito POS se emitieron en un período y por cuánto; no incluye web ni escritorio.",
+          ['periodo'], etiqueta='tus anulaciones POS', dominio='caja', permiso='pos')
 registrar('restaurante_ahora', _res.restaurante_ahora,
           "Cómo está el salón AHORA: mesas ocupadas o libres, cuentas abiertas, cuánto llevan consumido y cuáles se demoran.",
           [], etiqueta='el estado de tus mesas', dominio='restaurante',

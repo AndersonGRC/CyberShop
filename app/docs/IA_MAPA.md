@@ -14,12 +14,13 @@ Así decide el asistente qué hacer con una pregunta:
 
 En todos los casos, los datos los pone la consulta: el modelo solo redacta con lo que recibe.
 
-**Capacidades registradas: 42**
+**Capacidades registradas: 46**
 
 ## Caja
 
 | Función | Qué responde | Se dispara con | Parámetros | Canal | Motor | Permiso |
 |---|---|---|---|---|---|---|
+| `anulaciones_pos` | Cuántas notas de crédito POS se emitieron en un período y por cuánto; no incluye web ni escritorio. | `anulaciones pos` · `ventas anuladas pos` · `notas de credito pos` · `ventas anuladas del mostrador` | periodo | Panel | A · cualquiera | pos |
 | `caja_estado` | Estado de la caja: turno abierto, cuánto efectivo debería haber y los últimos cuadres con faltantes o sobrantes. | `en caja` · `arqueo` · `cierre de caja` · `cuadre de caja` | — | Panel | A · cualquiera | caja · módulo caja |
 | `metodos_pago` | Con qué le pagan los clientes: efectivo, tarjeta, transferencias, y cuánto pesa cada medio. | `metodos de pago` · `formas de pago` · `me estan pagando` · `como me pagan` · `cuanto en efectivo` · `efectivo o tarjeta` | periodo | Panel | A · cualquiera | pos |
 
@@ -31,7 +32,7 @@ En todos los casos, los datos los pone la consulta: el modelo solo redacta con l
 | `categorias_publicas` | Qué categorías de producto maneja la tienda. | `que venden` · `que productos manejan` · `que categorias` · `que puedo comprar` | — | Público | A · cualquiera | cualquiera del panel · módulo ai_public |
 | `como_comprar` | Cómo se compra en este sitio: tienda en línea o por contacto. | `como compro` · `como puedo comprar` · `como hago el pedido` · `puedo comprar en linea` · `como pido` | — | Público | A · cualquiera | cualquiera del panel · módulo ai_public |
 | `datos_del_negocio` | Dirección, teléfono, WhatsApp, correo y horario del negocio. | `donde quedan` · `donde estan` · `direccion` · `telefono` · `whatsapp` · `como los contacto` · `a que hora` · `horario` · `abren` | — | Público | A · cualquiera | cualquiera del panel · módulo ai_public |
-| `servicios_publicos` | Servicios que presta el negocio, según su sitio. | `que servicios` · `prestan servicio` · `hacen mantenimiento` · `hacen instalacion` · `ofrecen` | — | Público | A · cualquiera | cualquiera del panel · módulo ai_public |
+| `servicios_publicos` | Servicios que presta el negocio, según su sitio. | `que servicios` · `prestan servicio` · `hacen mantenimiento` · `hacen instalacion` · `tienen servicio de` · `tienen servicio` · `ofrecen` | — | Público | A · cualquiera | cualquiera del panel · módulo ai_public |
 
 ## Clientes
 
@@ -72,6 +73,7 @@ En todos los casos, los datos los pone la consulta: el modelo solo redacta con l
 | Función | Qué responde | Se dispara con | Parámetros | Canal | Motor | Permiso |
 |---|---|---|---|---|---|---|
 | `catalogo_pendiente` | Qué falta por completar en el catálogo (sin descripción, imagen o categoría). | `le falta a mi catalogo` · `falta a mi catalogo` · `catalogo incompleto` · `sin descripcion` · `sin imagen` · `productos sin foto` | — | Panel | A · cualquiera | cualquiera del panel |
+| `inventario_por_categoria` | Productos, unidades y agotados por categoría; valor del stock a precio de venta. | `inventario por categoria` · `stock por categoria` · `existencias por categoria` · `agotados por categoria` | — | Panel | A · cualquiera | inventory |
 | `inventario_sin_rotacion` | SOLO los productos que no se venden hace meses: cuáles son y cuánta plata está detenida o dormida en ellos. | `no se estan vendiendo` · `no se venden` · `no se vende` · `sin rotacion` · `productos quietos` · `lleva sin venderse` · `plata parada` | — | Panel | B · mejor con el bueno | inventory |
 | `movimientos_inventario` | Movimientos de inventario de un período: entradas, salidas y ajustes, con sus motivos (mermas, daños, correcciones). | `movimientos de inventario` · `entradas y salidas` · `ajustes de inventario` | periodo | Panel | A · cualquiera | inventory |
 | `producto_detalle` | Ficha de UN producto por su nombre: precio, stock, cuánto se vendió en 90 días, cuándo fue su última venta, si se agota pronto y cómo lo califican. | `como va el producto` · `ficha del producto` · `detalle del producto` | producto | Panel | A · cualquiera | inventory |
@@ -113,8 +115,10 @@ En todos los casos, los datos los pone la consulta: el modelo solo redacta con l
 
 | Función | Qué responde | Se dispara con | Parámetros | Canal | Motor | Permiso |
 |---|---|---|---|---|---|---|
+| `comparativo_ventas` | Compara cantidad y monto de ventas confirmadas de los tres canales con el período anterior de igual duración. | `compara mis ventas` · `comparacion de ventas` · `comparar ventas` · `crecieron mis ventas` · `cayeron mis ventas` · `variacion de ventas` | periodo | Panel | A · cualquiera | cualquiera del panel |
 | `patron_horario` | A qué horas y qué días de la semana se vende más o menos. | `a que hora vendo` · `a que hora se vende` · `mejor hora` · `mejores horas` · `que dia se vende mas` · `mejor dia` · `horario de mas ventas` | periodo | Panel | A · cualquiera | cualquiera del panel |
 | `tendencia_ventas` | Tendencia de las ventas en el tiempo: si suben, bajan o están estables, qué tan confiable es (R²), proyección de 7 días y mejor día de la semana. | `tendencia` · `van subiendo` · `van bajando` · `estoy vendiendo mas` · `estoy vendiendo menos` · `como vamos` · `proyeccion` | — | Panel | B · mejor con el bueno | cualquiera del panel |
+| `ticket_promedio` | Valor promedio por venta confirmada en los tres canales, distinto de la utilidad. | `ticket promedio` · `valor promedio por venta` · `promedio por venta` · `venta promedio` | periodo | Panel | A · cualquiera | cualquiera del panel |
 | `top_productos` | Productos más vendidos en un período. | `que se vende mas` · `producto mas vendido` · `productos mas vendidos` · `mas vendidos` · `lo que mas se vende` · `top de productos` | periodo, limite | Panel | A · cualquiera | cualquiera del panel |
 | `ventas_periodo` | Ventas e ingresos de un período (hoy, ayer, semana, mes, año o fechas). | `cuanto vendi` · `cuanto vendimos` · `cuanto se vendio` · `cuanto he vendido` · `ventas de` · `ventas del` · `total de ventas` · `cuanto facture` · `como estuvieron las ventas` · `ingresos de` | periodo | Panel | A · cualquiera | cualquiera del panel |
 
@@ -122,6 +126,7 @@ En todos los casos, los datos los pone la consulta: el modelo solo redacta con l
 
 Las usa la prueba del enrutador: cada una debe caer en su función.
 
+- «¿Cuántas anulaciones POS hubo este mes?» → `anulaciones_pos`
 - «¿Cuánto hay en caja?» → `caja_estado`
 - «¿Cómo va el arqueo de hoy?» → `caja_estado`
 - «¿Cómo me están pagando los clientes?» → `metodos_pago`
@@ -155,6 +160,7 @@ Las usa la prueba del enrutador: cada una debe caer en su función.
 - «¿Qué datos me faltan por completar?» → `calidad_datos`
 - «Dame los números generales del negocio» → `conteo_general`
 - «¿Qué le falta a mi catálogo?» → `catalogo_pendiente`
+- «¿Cómo está mi inventario por categoría?» → `inventario_por_categoria`
 - «¿Qué productos no se están vendiendo?» → `inventario_sin_rotacion`
 - «¿Qué movimientos de inventario hubo este mes?» → `movimientos_inventario`
 - «¿Cómo va el producto Camiseta Azul?» → `producto_detalle`
@@ -172,10 +178,13 @@ Las usa la prueba del enrutador: cada una debe caer en su función.
 - «¿Qué pedidos tengo por despachar?» → `pedidos_por_despachar`
 - «¿Cómo van las mesas?» → `restaurante_ahora`
 - «¿Cómo le fue al restaurante esta semana?» → `restaurante_desempeno`
+- «¿Crecieron mis ventas este mes?» → `comparativo_ventas`
+- «Compara mis ventas con el período anterior» → `comparativo_ventas`
 - «¿A qué hora vendo más?» → `patron_horario`
 - «¿Cuál es mi mejor día de la semana?» → `patron_horario`
 - «¿Las ventas van subiendo o bajando?» → `tendencia_ventas`
 - «¿Cómo vamos este mes?» → `tendencia_ventas`
+- «¿Cuál fue mi ticket promedio este mes?» → `ticket_promedio`
 - «¿Qué es lo que más se vende?» → `top_productos`
 - «¿Cuáles fueron los 5 más vendidos del mes?» → `top_productos`
 - «¿Cuánto vendí hoy?» → `ventas_periodo`
