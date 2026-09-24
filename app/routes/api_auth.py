@@ -64,9 +64,9 @@ def login():
                 FROM   usuarios_globales u
                 JOIN   tenants          t  ON t.id  = u.tenant_id
                 JOIN   tenant_databases td ON td.tenant_id = u.tenant_id
-                WHERE  u.email = %s
+                WHERE  u.email = %s AND u.tenant_id = %s AND td.db_name = %s
                 ''',
-                (email,),
+                (email, g.current_tenant['id'], g.current_tenant['db_name']),
             )
             user = cur.fetchone()
     except Exception as exc:
@@ -154,9 +154,9 @@ def refresh():
                 FROM   refresh_tokens   rt
                 JOIN   usuarios_globales u  ON u.id  = rt.user_id
                 JOIN   tenant_databases  td ON td.tenant_id = u.tenant_id
-                WHERE  rt.token_hash = %s
+                WHERE  rt.token_hash = %s AND u.tenant_id = %s AND td.db_name = %s
                 ''',
-                (token_hash,),
+                (token_hash, g.current_tenant['id'], g.current_tenant['db_name']),
             )
             record = cur.fetchone()
 
@@ -258,9 +258,9 @@ def me():
                 FROM   usuarios_globales u
                 JOIN   tenants          t  ON t.id  = u.tenant_id
                 JOIN   tenant_databases td ON td.tenant_id = u.tenant_id
-                WHERE  u.id = %s
+                WHERE  u.id = %s AND u.tenant_id = %s AND td.db_name = %s
                 ''',
-                (g.current_user_id,),
+                (g.current_user_id, g.current_tenant['id'], g.current_tenant['db_name']),
             )
             user = cur.fetchone()
     except Exception:

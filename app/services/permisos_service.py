@@ -24,7 +24,7 @@ from functools import lru_cache
 
 from flask import current_app
 
-from database import get_db_cursor
+from database import _current_db_name, get_db_cursor
 from security import (
     ADMIN_CONTADOR,
     ADMIN_FULL,
@@ -118,10 +118,10 @@ MODULO_ICONOS = {
 
 
 # ─────────────────────────────────────────────────────────
-# Caché (patrón mono-tenant, como _get_module_config_rows)
+# Caché separada por base de datos y ventana de tiempo
 # ─────────────────────────────────────────────────────────
-@lru_cache(maxsize=1)
-def _load_estado(_bucket):
+@lru_cache(maxsize=64)
+def _load_estado(db_name, _bucket):
     """Carga completa de roles + overrides. `_bucket` cambia cada _CACHE_TTL seg
     para expirar solo (convergencia entre workers); invalidar_cache() fuerza.
 
@@ -162,7 +162,7 @@ def _load_estado(_bucket):
 
 
 def _estado():
-    return _load_estado(int(time.time() // _CACHE_TTL))
+    return _load_estado(_current_db_name(), int(time.time() // _CACHE_TTL))
 
 
 def invalidar_cache():

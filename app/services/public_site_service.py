@@ -16,7 +16,7 @@ from functools import lru_cache
 import os
 import uuid
 
-from database import get_db_cursor
+from database import _current_db_name, get_db_cursor
 from services.config_tenant import set_cliente_config, set_config_seccion
 
 
@@ -42,8 +42,8 @@ def _safe_int(value, default=0):
         return default
 
 
-@lru_cache(maxsize=32)
-def _table_exists(table_name):
+@lru_cache(maxsize=128)
+def _table_exists_in_db(db_name, table_name):
     try:
         with get_db_cursor(dict_cursor=True) as cur:
             cur.execute("SELECT to_regclass(%s) AS regclass_name", (f'public.{table_name}',))
@@ -53,8 +53,12 @@ def _table_exists(table_name):
         return False
 
 
+def _table_exists(table_name):
+    return _table_exists_in_db(_current_db_name(), table_name)
+
+
 def clear_public_site_cache():
-    _table_exists.cache_clear()
+    _table_exists_in_db.cache_clear()
 
 
 PUBLIC_SECTION_FIELDS = [

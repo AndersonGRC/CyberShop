@@ -11,7 +11,7 @@ información sensible y no debe aparecer en un panel compartido ni en un correo.
 
 import time
 
-from database import get_db_cursor
+from database import _current_db_name, get_db_cursor
 from helpers import formatear_moneda
 from tenant_features import get_current_tenant_id
 
@@ -298,7 +298,7 @@ def alertas_negocio(contexto=None, refrescar=False, **_):
     """Alertas visibles para quien pregunta, ordenadas por urgencia."""
     from services.ia_datos.acceso import contexto_actual
     ctx = contexto or contexto_actual()
-    clave = get_current_tenant_id()
+    clave = (_current_db_name(), get_current_tenant_id())
     guardado = _CACHE.get(clave)
     if refrescar or not guardado or time.time() > guardado[1]:
         guardado = (_calcular(), time.time() + _CACHE_TTL)

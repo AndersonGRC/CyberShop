@@ -7,9 +7,9 @@ Si todavia no existe, se mantiene compatibilidad con ``cliente_config``.
 
 from functools import lru_cache, wraps
 
-from flask import current_app, flash, g, jsonify, redirect, request, session, url_for
+from flask import current_app, flash, g, has_request_context, jsonify, redirect, request, session, url_for
 
-from database import get_db_cursor
+from database import _current_db_name, get_db_cursor
 
 
 LOCAL_TENANT_ID = 1
@@ -33,6 +33,7 @@ MODULE_RESTAURANT_TABLES = 'restaurant_tables'
 MODULE_FACTURACION_ELECTRONICA = 'facturacion_electronica'
 MODULE_SHARE = 'share'
 MODULE_AI = 'ai_assistant'
+MODULE_AI_ACTIONS = 'ai_actions'
 MODULE_AI_PUBLIC = 'ai_public'
 MODULE_BULK_UPLOAD = 'bulk_upload'
 
@@ -208,6 +209,16 @@ MODULE_DEFINITIONS = {
         'orden': 170,
         'is_core': False,
     },
+    MODULE_AI_ACTIONS: {
+        'nombre': 'Acciones operativas con IA',
+        'descripcion': 'Ajustes de inventario y cambios de contactos con confirmacion humana. '
+                       'Solo en el panel; apagado por defecto para cada cliente.',
+        'categoria': 'inteligencia',
+        'config_key': 'ia_acciones_habilitadas',
+        'default': False,
+        'orden': 172,
+        'is_core': False,
+    },
     MODULE_AI_PUBLIC: {
         'nombre': 'Chat del sitio',
         'descripcion': 'Chatbot con IA en el sitio publico: responde sobre productos, servicios, '
@@ -244,8 +255,8 @@ def _as_bool(value, default=False):
     return str(value).strip().lower() not in {'false', '0', 'no', 'off'}
 
 
-@lru_cache(maxsize=32)
-def _table_exists(table_name):
+@lru_cache(maxsize=128)
+def _table_exists_in_db(db_name, table_name):
     try:
         with get_db_cursor(dict_cursor=True) as cur:
             cur.execute("SELECT to_regclass(%s) AS regclass_name", (f'public.{table_name}',))
@@ -255,8 +266,12 @@ def _table_exists(table_name):
         return False
 
 
-@lru_cache(maxsize=64)
-def _table_has_column(table_name, column_name):
+def _table_exists(table_name):
+    return _table_exists_in_db(_current_db_name(), table_name)
+
+
+@lru_cache(maxsize=256)
+def _table_has_column_in_db(db_name, table_name, column_name):
     try:
         with get_db_cursor(dict_cursor=True) as cur:
             cur.execute("""
@@ -274,12 +289,16 @@ def _table_has_column(table_name, column_name):
         return False
 
 
+def _table_has_column(table_name, column_name):
+    return _table_has_column_in_db(_current_db_name(), table_name, column_name)
+
+
 def _feature_tables_ready():
     return _table_exists('saas_tenants') and _table_exists('saas_modules') and _table_exists('saas_tenant_modules')
 
 
-@lru_cache(maxsize=1)
-def _get_module_config_rows():
+@lru_cache(maxsize=32)
+def _get_module_config_rows_in_db(db_name):
     config_keys = sorted({
         meta['config_key']
         for meta in MODULE_DEFINITIONS.values()
@@ -301,10 +320,14 @@ def _get_module_config_rows():
         return {}
 
 
+def _get_module_config_rows():
+    return _get_module_config_rows_in_db(_current_db_name())
+
+
 def _clear_cache():
-    _table_exists.cache_clear()
-    _table_has_column.cache_clear()
-    _get_module_config_rows.cache_clear()
+    _table_exists_in_db.cache_clear()
+    _table_has_column_in_db.cache_clear()
+    _get_module_config_rows_in_db.cache_clear()
 
 
 def _get_module_meta(module_code):
@@ -428,6 +451,16 @@ def bind_session_tenant(usuario=None, user_id=None):
 
 
 def get_current_tenant_id():
+    if not has_request_context():
+        return get_default_tenant_id()
+
+    # Las rutas de sync son multi-tenant y se autentican con X-Sync-Key. Un
+    # navegador puede enviar además su cookie web de otro negocio: esa sesión
+    # nunca debe sustituir la identidad resuelta por la llave de sync.
+    sync_id = getattr(g, 'sync_tenant_id', None)
+    if sync_id and getattr(g, 'sync_db_name', None):
+        return sync_id
+
     tenant_id = session.get('tenant_id')
     if tenant_id:
         return tenant_id
