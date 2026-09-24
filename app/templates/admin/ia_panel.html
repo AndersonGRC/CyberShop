@@ -33,7 +33,9 @@
             </h2>
         </div>
         <p class="gem-chat-hint">Tu agente conoce solo TU negocio y responde según tu cargo:
-            ventas, productos, inventario, clientes, mesas, caja y ganancias.</p>
+            ventas, productos, inventario, clientes, mesas, caja y ganancias.
+            Si el administrador maestro habilita las acciones operativas, antes de ajustar inventario
+            o crear, editar o desactivar contactos te mostrará los cambios y te pedirá confirmación.</p>
 
         <div id="gem-chat-log" class="gem-chat-log">
             <div class="gem-chat-msg gem-chat-msg--ia">
@@ -49,6 +51,8 @@
             <button class="gem-chip" type="button">¿Qué le falta a mi catálogo?</button>
             <button class="gem-chip" type="button">¿Cuál es mi mejor producto?</button>
             <button class="gem-chip" type="button">¿Qué debo comprar esta semana?</button>
+            <button class="gem-chip" type="button">Crear contacto lead Ana Pérez, correo ana@ejemplo.com</button>
+            <button class="gem-chip" type="button">Fijar stock del producto 42 en 8 unidades, motivo: conteo físico</button>
         </div>
 
         <form id="gem-chat-form" class="gem-chat-form">
@@ -364,6 +368,125 @@
         return wrap;
     }
 
+    /* Una propuesta nunca se ejecuta por recibirla ni por escribir otra frase.
+       El servidor conserva el borrador y solo acepta su ID en la ruta de confirmación.
+       Todo dato del borrador se inserta como texto, nunca como HTML. */
+    function addPropuestaAccion(propuesta) {
+        if (!propuesta || !propuesta.id || !propuesta.resumen) {
+            addMsg('No pude mostrar una vista previa válida. No se realizó ningún cambio.', 'ia');
+            return false;
+        }
+
+        const wrap = document.createElement('div');
+        wrap.className = 'gem-chat-msg gem-chat-msg--ia';
+        const avatar = document.createElement('span');
+        avatar.className = 'gem-chat-ava';
+        avatar.textContent = '✦';
+        const card = document.createElement('section');
+        card.className = 'gem-action-preview';
+        card.setAttribute('aria-label', 'Vista previa de acción pendiente');
+
+        const title = document.createElement('h3');
+        title.className = 'gem-action-preview__title';
+        title.textContent = 'Acción pendiente de tu confirmación';
+        card.appendChild(title);
+
+        if (propuesta.tipo) {
+            const tipo = document.createElement('p');
+            tipo.className = 'gem-action-preview__type';
+            tipo.textContent = String(propuesta.tipo).replace(/_/g, ' ');
+            card.appendChild(tipo);
+        }
+
+        const resumen = document.createElement('p');
+        resumen.className = 'gem-action-preview__summary';
+        resumen.textContent = String(propuesta.resumen);
+        card.appendChild(resumen);
+
+        const detalles = propuesta.detalles;
+        if (detalles) {
+            const lista = document.createElement('ul');
+            lista.className = 'gem-action-preview__details';
+            const lineas = Array.isArray(detalles) ? detalles :
+                (typeof detalles === 'object' ? Object.entries(detalles).map(function (par) {
+                    return par[0] + ': ' + String(par[1]);
+                }) : [detalles]);
+            lineas.slice(0, 20).forEach(function (linea) {
+                const item = document.createElement('li');
+                item.textContent = String(linea);
+                lista.appendChild(item);
+            });
+            if (lista.childElementCount) card.appendChild(lista);
+        }
+
+        if (propuesta.vence_en) {
+            const vence = new Date(propuesta.vence_en);
+            if (!Number.isNaN(vence.getTime())) {
+                const expiracion = document.createElement('p');
+                expiracion.className = 'gem-action-preview__expiry';
+                expiracion.textContent = 'Válida hasta ' + vence.toLocaleString('es-CO') + '.';
+                card.appendChild(expiracion);
+            }
+        }
+
+        const aviso = document.createElement('p');
+        aviso.className = 'gem-action-preview__notice';
+        aviso.textContent = 'Revisa los datos. No se ha aplicado ningún cambio.';
+        card.appendChild(aviso);
+
+        const controls = document.createElement('div');
+        controls.className = 'gem-action-preview__controls';
+        const confirmar = document.createElement('button');
+        confirmar.type = 'button';
+        confirmar.className = 'gem-btn-primary';
+        confirmar.textContent = 'Confirmar y ejecutar';
+        const cancelar = document.createElement('button');
+        cancelar.type = 'button';
+        cancelar.className = 'gem-btn-ghost';
+        cancelar.textContent = 'Cancelar';
+        controls.appendChild(confirmar);
+        controls.appendChild(cancelar);
+        card.appendChild(controls);
+
+        const estado = document.createElement('p');
+        estado.className = 'gem-action-preview__status';
+        estado.setAttribute('role', 'status');
+        estado.setAttribute('aria-live', 'polite');
+        card.appendChild(estado);
+
+        function enviarDecision(decision) {
+            confirmar.disabled = true;
+            cancelar.disabled = true;
+            estado.textContent = decision === 'confirmar' ? 'Ejecutando la acción…' : 'Cancelando…';
+            fetch('/admin/ia/acciones/' + decision, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ propuesta_id: propuesta.id })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data.ok) throw new Error(data.error || 'No se pudo procesar la decisión.');
+                estado.textContent = data.mensaje || data.respuesta ||
+                    (decision === 'confirmar' ? 'Acción completada.' : 'Acción cancelada.');
+                card.classList.add(decision === 'confirmar' ? 'gem-action-preview--done' : 'gem-action-preview--cancelled');
+                aviso.textContent = decision === 'confirmar' ? 'Acción confirmada.' : 'No se aplicó ningún cambio.';
+            })
+            .catch(function (error) {
+                estado.textContent = error.message || 'Error de conexión. Intenta nuevamente.';
+                confirmar.disabled = false;
+                cancelar.disabled = false;
+            });
+        }
+        confirmar.addEventListener('click', function () { enviarDecision('confirmar'); });
+        cancelar.addEventListener('click', function () { enviarDecision('cancelar'); });
+
+        wrap.appendChild(avatar);
+        wrap.appendChild(card);
+        chatLog.appendChild(wrap);
+        chatLog.scrollTop = chatLog.scrollHeight;
+        return true;
+    }
+
     /* Burbuja de espera: puntos animados + frase de la fase en curso. En frío la
        respuesta puede tardar más de un minuto; solo con los puntos parecía
        colgado. La frase la informa el servidor (eventos 'estado') y, si hay
@@ -398,8 +521,16 @@
         .then(function (r) { return r.json(); })
         .then(function (data) {
             quitarThinking(thinking);
-            addMsg(data.ok ? data.respuesta : (data.error || 'No pude responder eso ahora.'), 'ia');
-            if (data.ok) recordar(texto, data.respuesta, data.herramienta);
+            if (data.ok && data.respuesta) {
+                addMsg(data.respuesta, 'ia');
+            } else if (!data.ok) {
+                addMsg(data.error || 'No pude responder eso ahora.', 'ia');
+            }
+            if (data.ok && data.propuesta_accion) {
+                addPropuestaAccion(data.propuesta_accion);
+            } else if (data.ok) {
+                recordar(texto, data.respuesta, data.herramienta);
+            }
         })
         .catch(function () {
             quitarThinking(thinking);
@@ -420,6 +551,7 @@
         const previo = historial.slice();   /* lo anterior a esta pregunta */
         let herramienta = '';
         let fallo = false;
+        let propuestaRecibida = false;
 
         function terminar() {
             chatBusy = false;
@@ -448,9 +580,12 @@
                 acumulado += ev.d;
                 bubble.textContent = acumulado;
                 chatLog.scrollTop = chatLog.scrollHeight;
+            } else if (ev.e === 'propuesta_accion') {
+                if (!bubble) quitarThinking(thinking);
+                propuestaRecibida = addPropuestaAccion(ev.d);
             } else if (ev.e === 'error') {
                 fallo = true;
-                if (bubble) {
+                if (bubble || propuestaRecibida) {
                     /* ya había texto: se conserva y no se muestra el error */
                 } else {
                     quitarThinking(thinking);
@@ -487,16 +622,16 @@
             return leer();
         })
         .then(function () {
-            if (!bubble) {
+            if (!bubble && !propuestaRecibida) {
                 /* stream terminó sin producir nada: respaldo clásico */
                 preguntarSinStream(texto, previo, thinking, terminar);
             } else {
-                if (!fallo) recordar(texto, acumulado, herramienta);
+                if (!fallo && !propuestaRecibida) recordar(texto, acumulado, herramienta);
                 terminar();
             }
         })
         .catch(function () {
-            if (!bubble) {
+            if (!bubble && !propuestaRecibida) {
                 preguntarSinStream(texto, previo, thinking, terminar);
             } else {
                 terminar();

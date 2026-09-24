@@ -881,3 +881,25 @@
     max-height: 320px;
     overflow-y: auto;
 }
+
+.gem-action-preview {
+    width: min(100%, 560px);
+    padding: 16px 18px;
+    border: 1px solid #f2c66d;
+    border-radius: 14px;
+    background: #fffaf0;
+    color: #202a3b;
+    box-shadow: 0 5px 22px rgba(24, 37, 61, 0.08);
+}
+
+.gem-action-preview__title { margin: 0 0 8px; font-size: 1rem; }
+.gem-action-preview__type { margin: 0 0 6px; text-transform: capitalize; font-size: .75rem; color: #775617; }
+.gem-action-preview__summary { margin: 0 0 9px; font-weight: 650; }
+.gem-action-preview__details { margin: 0 0 10px; padding-left: 20px; font-size: .83rem; overflow-wrap: anywhere; }
+.gem-action-preview__details li { margin-bottom: 4px; }
+.gem-action-preview__expiry, .gem-action-preview__notice { margin: 7px 0; font-size: .78rem; }
+.gem-action-preview__controls { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.gem-action-preview__controls button:disabled { opacity: .6; cursor: wait; }
+.gem-action-preview__status { margin: 10px 0 0; font-size: .83rem; font-weight: 600; }
+.gem-action-preview--done { border-color: #68ad75; background: #f3fbf4; }
+.gem-action-preview--cancelled { border-color: #adb5c2; background: #f5f6f8; }

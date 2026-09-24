@@ -141,6 +141,19 @@ def chat():
     if g:
         return g
     d = request.get_json(silent=True) or {}
+    from services import ia_acciones
+    pregunta = d.get('pregunta', '')
+    if ia_acciones.parece_operativa(pregunta):
+        try:
+            propuesta = ia_acciones.preparar(pregunta)
+            return jsonify({'ok': True, 'respuesta': 'Revisa los datos antes de confirmar.',
+                            'propuesta_accion': propuesta})
+        except ia_acciones.AccionError as exc:
+            return jsonify({'ok': False, 'error': str(exc)}), exc.status
+        except Exception:
+            current_app.logger.exception('No se pudo preparar la acción IA')
+            return jsonify({'ok': False, 'error': 'No se pudo preparar la acción. '
+                            'Verifica que el esquema del cliente esté actualizado.'}), 503
     res, err = ai.responder_chat(d.get('pregunta', ''), historial=d.get('historial'))
     if err:
         return jsonify({'ok': False, 'error': err}), 400
@@ -222,10 +235,22 @@ def chat_stream():
     d = request.get_json(silent=True) or {}
     pregunta = d.get('pregunta', '')
     historial = d.get('historial')
+    from services import ia_acciones
 
     def gen():
         # stream_with_context mantiene vivo el request (get_db_cursor del
         # tenant sigue resolviendo dentro del generador).
+        if ia_acciones.parece_operativa(pregunta):
+            try:
+                propuesta = ia_acciones.preparar(pregunta)
+                yield f"data: {json.dumps({'e': 'propuesta_accion', 'd': propuesta}, ensure_ascii=False)}\n\n"
+            except ia_acciones.AccionError as exc:
+                yield f"data: {json.dumps({'e': 'error', 'd': str(exc)}, ensure_ascii=False)}\n\n"
+            except Exception:
+                current_app.logger.exception('No se pudo preparar la acción IA')
+                mensaje = 'No se pudo preparar la acción. Verifica el esquema del cliente.'
+                yield f"data: {json.dumps({'e': 'error', 'd': mensaje}, ensure_ascii=False)}\n\n"
+            return
         for evento, dato in ai.responder_chat_stream(pregunta, historial=historial):
             if evento == 'latido':
                 # Comentario SSE: el navegador lo ignora, pero Cloudflare y nginx ven
@@ -238,6 +263,36 @@ def chat_stream():
                     headers={'Cache-Control': 'no-cache',
                              # nginx: no bufferizar el SSE (si no, llega en bloque)
                              'X-Accel-Buffering': 'no'})
+
+
+@ia_bp.route('/acciones/confirmar', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+def confirmar_accion():
+    """Única vía para escribir: ID de propuesta asociado a usuario y BD activos."""
+    from services import ia_acciones
+    d = request.get_json(silent=True) or {}
+    try:
+        res = ia_acciones.confirmar(d.get('propuesta_id'))
+        return jsonify(res), 200 if res['ok'] else 409
+    except ia_acciones.AccionError as exc:
+        return jsonify({'ok': False, 'error': str(exc)}), exc.status
+    except Exception:
+        current_app.logger.exception('No se pudo confirmar la acción IA')
+        return jsonify({'ok': False, 'error': 'No se realizó la acción. Intenta de nuevo.'}), 503
+
+
+@ia_bp.route('/acciones/cancelar', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+def cancelar_accion():
+    from services import ia_acciones
+    d = request.get_json(silent=True) or {}
+    try:
+        return jsonify(ia_acciones.cancelar(d.get('propuesta_id')))
+    except ia_acciones.AccionError as exc:
+        return jsonify({'ok': False, 'error': str(exc)}), exc.status
+    except Exception:
+        current_app.logger.exception('No se pudo cancelar la propuesta IA')
+        return jsonify({'ok': False, 'error': 'No se pudo cancelar la propuesta.'}), 503
 
 
 @ia_bp.route('/nombre', methods=['POST'])
