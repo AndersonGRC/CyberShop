@@ -176,6 +176,13 @@ registrar('nomina_empleado', _nom.nomina_empleado,
           ['empleado'], etiqueta='la nómina de ese empleado', dominio='nomina',
           modulos=('payroll',), permiso='payroll', sensible='nomina')
 
+# Con todas las capacidades registradas, se les pega la otra mitad de su
+# declaración: con qué palabras se piden, en qué canal valen y con qué motor
+# (services/ia/intenciones.py). Levanta si las dos listas se desfasan, para que
+# no aparezcan herramientas invisibles en el mapa ni al revés.
+from services.ia.registro import aplicar_intenciones as _aplicar_intenciones  # noqa: E402
+_aplicar_intenciones()
+
 # Compatibilidad: code -> (función, descripción, params permitidos)
 TOOLS = {h.code: (h.fn, h.descripcion, list(h.params)) for h in REGISTRO.values()}
 

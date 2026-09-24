@@ -6,9 +6,7 @@ solo elige el código de una herramienta y parámetros simples que se validan ac
 """
 
 from collections import namedtuple
-from dataclasses import dataclass, field
 from datetime import date, timedelta
-from typing import Callable, Optional, Tuple
 
 
 # ── Períodos ───────────────────────────────────────────────────
@@ -173,31 +171,10 @@ def _suma(cur, sql, cero=(0, 0)):
 
 
 # ── Registro de herramientas ───────────────────────────────────
-@dataclass(frozen=True)
-class Herramienta:
-    """Una consulta que la IA puede elegir.
-
-    modulos:  módulos del plan que deben estar activos (vacío = siempre).
-    permiso:  módulo de la matriz de permisos que el rol debe poder 'ver'
-              (None = basta con poder usar el asistente).
-    sensible: None, o 'nomina' para datos que solo ven dueño y contador.
-    etiqueta: cómo se nombra al avisar "Consultando {etiqueta}…".
-    """
-    code: str
-    fn: Callable
-    descripcion: str
-    params: Tuple[str, ...] = ()
-    etiqueta: str = 'los datos de tu negocio'
-    dominio: str = 'general'
-    modulos: Tuple[str, ...] = ()
-    permiso: Optional[str] = None
-    sensible: Optional[str] = None
-    extra: dict = field(default_factory=dict, compare=False)
-
-
-REGISTRO = {}
-
-
-def registrar(code, fn, descripcion, params=(), **kw):
-    REGISTRO[code] = Herramienta(code, fn, descripcion, tuple(params), **kw)
-    return REGISTRO[code]
+# Vive en services/ia/registro.py: es el registro ÚNICO del asistente, el mismo
+# que usan el enrutador por palabras clave y el mapa de docs/IA_MAPA.md. Se
+# reexporta aquí porque los módulos de dominio (y la fachada ai_tools) lo
+# importan desde este archivo desde siempre.
+from services.ia.registro import (  # noqa: E402,F401
+    REGISTRO, Capacidad, Herramienta, registrar,
+)
