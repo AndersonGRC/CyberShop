@@ -22,7 +22,7 @@ import time
 
 from flask import current_app
 
-from database import get_db_cursor
+from database import _current_db_name, get_db_cursor
 from services.ia.enrutador import enrutar
 from services.ia_datos.acceso import CANAL_PUBLICO, Contexto
 
@@ -245,7 +245,13 @@ def preparar(pregunta, historial=None):
 
     # 2) palabras clave → dato exacto
     reserva = None          # lo que dijo la herramienta si no tenía el dato completo
+    tema_informativo = any(palabra in _normalizar(texto) for palabra in (
+        'envio', 'entrega', 'domicilio', 'garantia', 'servicio', 'instalacion'))
     for code, params in enrutar(texto, permitidas):
+        if code == 'buscar_productos' and tema_informativo:
+            # «¿Cuánto cuesta el envío?» no es una búsqueda de un producto
+            # llamado "envío". La FAQ del negocio puede tener la respuesta.
+            break
         datos = tools.ejecutar(code, params, contexto)
         if not isinstance(datos, dict) or datos.get('denegado'):
             continue
@@ -291,16 +297,31 @@ def preparar(pregunta, historial=None):
 
 # ── Respuesta final (con redacción opcional del modelo) ────────
 def _clave_cache(plan):
-    huella = hashlib.sha256(
-        f"{_normalizar(plan['pregunta'])}||{plan['texto_base']}".encode('utf-8')).hexdigest()
+    """Clave de la caché, o None si no se puede fijar CON CERTEZA de qué
+    cliente es la pregunta.
+
+    Antes, si fallaba la resolución del tenant, la clave caía a "solo la
+    huella del texto": dos clientes distintos con la misma pregunta y el
+    mismo texto_base habrían compartido la respuesta redactada en caché.
+    Aquí se falla CERRADO: sin identidad confirmada, no se cachea (se
+    redacta de nuevo cada vez, que es más caro pero nunca mezcla clientes).
+    """
     try:
         from tenant_features import get_current_tenant_id
-        return f'{get_current_tenant_id()}:{huella[:32]}'
+        db_name = _current_db_name()
+        tenant_id = get_current_tenant_id()
     except Exception:
-        return huella[:32]
+        return None
+    if not db_name or not tenant_id:
+        return None
+    huella = hashlib.sha256(
+        f"{_normalizar(plan['pregunta'])}||{plan['texto_base']}".encode('utf-8')).hexdigest()
+    return f'{db_name}:{tenant_id}:{huella[:32]}'
 
 
 def _cache_leer(clave):
+    if clave is None:
+        return None
     fila = _CACHE.get(clave)
     if not fila:
         return None
@@ -312,6 +333,8 @@ def _cache_leer(clave):
 
 
 def _cache_guardar(clave, texto):
+    if clave is None:
+        return
     if len(_CACHE) >= _CACHE_MAX:
         for k in sorted(_CACHE, key=lambda x: _CACHE[x][1])[:_CACHE_MAX // 2]:
             _CACHE.pop(k, None)
