@@ -52,12 +52,18 @@ _TTL_SALUD = 30           # s que se confía en el último chequeo
 _salud = {}               # base_url -> (instante, vivo)
 _semaforo_publico = None
 _semaforo_lock = threading.Lock()
+# Desde cuándo lleva caído el equipo del dueño. El respaldo que se cobra no entra
+# de inmediato: primero se le da tiempo a que vuelva (un reinicio de Ollama o un
+# corte de VPN no deben costar dinero).
+_local_caido_desde = {'ts': None}
 
 MSG_SIN_MOTOR = ('El redactor de IA no está disponible en este momento, así que te respondo '
                  'con los datos tal cual están.')
 MSG_SIN_PROFUNDO = ('El análisis profundo corre en el equipo de IA y ahora está apagado. '
                     'Enciéndelo y vuelve a pedirlo, o pídemelo sin «a fondo» para una '
                     'respuesta normal.')
+MSG_ESPERANDO_LOCAL = ('El equipo de IA no está respondiendo. Te contesto con los datos tal cual '
+                       'mientras vuelve; si sigue apagado, en unos minutos entra el respaldo.')
 
 
 @dataclass(frozen=True)
@@ -68,15 +74,25 @@ class Motor:
     timeout: int
     etiqueta: str
     num_ctx: int = 0        # 0 = el que traiga el modelo
+    proveedor: str = 'ollama'   # 'ollama' (una máquina propia) | 'nube' (API que se cobra)
+
+    @property
+    def es_nube(self):
+        return self.proveedor == 'nube'
 
     @property
     def configurado(self):
+        if self.proveedor == 'nube':
+            return bool(self.modelo)
         return bool(self.base_url and self.modelo)
 
 
 def _cfg(clave, defecto=''):
+    """Ojo con el cero: `valor or defecto` convertía una espera de 0 segundos en
+    los 180 por defecto, y el respaldo nunca entraba."""
     try:
-        return (current_app.config.get(clave) or defecto)
+        valor = current_app.config.get(clave)
+        return defecto if valor in (None, '') else valor
     except Exception:
         return defecto
 
@@ -201,13 +217,41 @@ def motor_para(perfil=PERFIL_NORMAL, canal=CANAL_PANEL):
 
     b = motor_configurado(NIVEL_B)
     if vivo(b):
+        _local_caido_desde['ts'] = None          # volvió: se borra el reloj
         return b, 'tu equipo de IA'
 
-    a = motor_configurado(NIVEL_A)
+    # El equipo del dueño no responde. Se anota desde cuándo.
+    if _local_caido_desde['ts'] is None:
+        _local_caido_desde['ts'] = time.time()
+    caido_hace = time.time() - _local_caido_desde['ts']
+
+    a = motor_configurado(NIVEL_A)               # modelo propio en el servidor, si lo hubiera
     if vivo(a):
         return a, 'el modelo del servidor'
 
-    return None, MSG_SIN_MOTOR
+    return _respaldo_nube(canal, caido_hace)
+
+
+def _respaldo_nube(canal, caido_hace):
+    """Último recurso, y solo si de verdad hace falta: cuesta dinero por token."""
+    try:
+        from services import ia_nube
+    except Exception:
+        return None, MSG_SIN_MOTOR
+    if not ia_nube.configurada():
+        return None, MSG_SIN_MOTOR
+
+    espera = int(_cfg('AI_NUBE_ESPERA_LOCAL_S', 180))
+    if caido_hace < espera:
+        # Todavía no: se le da tiempo al equipo a volver.
+        return None, MSG_ESPERANDO_LOCAL
+    if not ia_nube.disponible(canal):
+        return None, (ia_nube.motivo_bloqueo() or MSG_SIN_MOTOR)
+
+    modelo = str(_cfg('AI_NUBE_MODEL', 'claude-haiku-4-5-20251001'))
+    return (Motor(NIVEL_A, '', modelo, int(_cfg('AI_NUBE_TIMEOUT', 25) or 25),
+                  'respaldo en la nube', proveedor='nube'),
+            'el respaldo en la nube (se cobra por uso)')
 
 
 def estado_motores():

@@ -330,6 +330,21 @@ def _chat_stream_una_vez(model, system, user, max_tokens, temperature,
         raise _ErrorIA('modelo', 'La IA no devolvió contenido. Intenta de nuevo.')
 
 
+def chat_con_motor(motor, system, user, max_tokens=400, temperature=0.7):
+    """Le habla al motor que sea: una máquina propia (Ollama) o el respaldo en la
+    nube. Devuelve (texto, None) o (None, motivo). Quien llama no tiene que saber
+    con cuál de los dos está hablando."""
+    if motor is None:
+        return None, 'Sin motor de IA disponible.'
+    if getattr(motor, 'es_nube', False):
+        from services import ia_nube
+        return ia_nube.responder(system, user, max_tokens=max_tokens,
+                                 temperature=temperature, timeout=motor.timeout)
+    texto, err = _chat_una_vez(motor.modelo, system, user, max_tokens, temperature,
+                               base_url=motor.base_url, timeout=motor.timeout)
+    return (texto, None) if texto is not None else (None, err[1])
+
+
 def _chat(system, user, max_tokens=400, temperature=0.7, espera_frio=45,
           perfil='normal', canal='panel'):
     """Llamada de chat con FALLBACK automático de modelo: si el primario
@@ -351,6 +366,10 @@ def _chat(system, user, max_tokens=400, temperature=0.7, espera_frio=45,
     motor, motivo_motor = motores.motor_para(perfil, canal)
     if motor is None:
         return None, motivo_motor
+    if motor.es_nube:
+        # La nube no se precalienta ni tiene modelo de respaldo: se llama y ya.
+        return chat_con_motor(motor, system, user, max_tokens, temperature)
+
     primario = motor.modelo or 'qwen2.5:7b'
     # El respaldo de modelo es de la máquina del dueño: no aplica a los demás.
     fallback = ((current_app.config.get('AI_MODEL_FALLBACK') or '').strip()
@@ -1102,6 +1121,19 @@ def _responder_chat_stream(pregunta, historial, ctx, resultado):
         resultado['error'] = motivo_motor
         yield ('error', motivo_motor)
         return
+    if motor.es_nube:
+        yield ('estado', 'Respondiendo con el respaldo en la nube…')
+        texto, motivo = chat_con_motor(motor, plan['system'], plan['user'],
+                                       plan['max_tokens'], 0.7)
+        if not texto:
+            resultado['error'] = motivo
+            yield ('error', motivo)
+            return
+        resultado['texto'] = texto
+        yield ('delta', texto)
+        yield ('fin', {'herramienta': plan['herramienta'], 'motor': 'nube'})
+        return
+
     primario = motor.modelo or 'qwen2.5:7b'
     fallback = ((current_app.config.get('AI_MODEL_FALLBACK') or '').strip()
                 if motor.nivel == motores.NIVEL_B else '')

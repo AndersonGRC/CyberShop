@@ -5,7 +5,7 @@ conteste**, sin depender de que una máquina esté encendida.
 
 | Nivel | Dónde vive | Para qué | Quién lo dispara |
 |---|---|---|---|
-| **A · Siempre** | Servidor (VPS), solo CPU | Chat público cuando el PC de IA está apagado. Respaldo de todo. | Cualquiera |
+| **A · Respaldo** | Nube (Anthropic), se cobra por token | Solo cuando el PC lleva minutos sin responder. | Solo el panel, por defecto |
 | **B · Bueno** | PC de IA, RTX 5070 Ti | Chat público con el PC encendido, y el asistente del panel. | Cualquiera, con tope |
 | **C · Profundo** | PC de IA, contexto largo | Informes, artículos, análisis pesados. | Solo el dueño, a propósito |
 
@@ -106,10 +106,45 @@ instante y con datos exactos, porque las respuestas las arma Python:
 
 Lo que aporta el modelo es **redactar** con naturalidad y encadenar. Por eso:
 
-- **Nivel A**: sin modelo por ahora. Respuestas armadas, siempre instantáneas.
+- **Nivel A**: sin modelo propio en la VPS. En su lugar, un **respaldo en la nube**
+  (ver abajo) que solo entra si el PC lleva minutos caído.
 - **Nivel B**: el 14B del PC, cuando está encendido, para redactar y conversar.
-- Si más adelante la VPS crece a 4 GB, el nivel A se activa sin tocar código:
-  basta con apuntar `AI_MOTOR_A_BASE_URL` al Ollama local del servidor.
+- Si más adelante la VPS crece a 4 GB, se le pone su propio modelo sin tocar
+  código: basta con apuntar `AI_MOTOR_A_BASE_URL` al Ollama local del servidor,
+  y pasa a tener prioridad sobre la nube.
+
+---
+
+## Respaldo en la nube (Anthropic) — el último recurso
+
+Existe para que el negocio no se quede sin asistente cuando el PC está apagado.
+Como **se cobra por token**, tiene tres frenos, y los tres importan:
+
+1. **Tiempo.** No entra apenas el equipo deja de responder: espera
+   `AI_NUBE_ESPERA_LOCAL_S` (3 minutos por defecto) de caída continua. Un
+   reinicio de Ollama o un corte de VPN no deben costar dinero. Si el equipo
+   vuelve, el reloj se reinicia.
+2. **Presupuesto.** Tope mensual en dólares (`AI_NUBE_PRESUPUESTO_USD`, US$ 5 por
+   defecto). Al llegar, se apaga sola y el sistema sigue respondiendo con los
+   datos armados en Python.
+3. **Alcance.** Por defecto **no atiende al chat del sitio público**
+   (`AI_NUBE_PARA_PUBLICO=false`). Ese chat ya responde bien sin modelo, y
+   dejarlo abierto a internet con una API que se cobra por token es la forma más
+   rápida de gastar sin darse cuenta.
+
+Cada llamada queda contada en `ia_uso_nube` (tokens y costo estimado), y la
+primera de cada mes dispara un correo avisando que empezó el cobro.
+
+**Si la cuenta se queda sin saldo** —o la clave es inválida— la API responde
+`credit balance is too low`. El sistema lo detecta, se apaga 30 minutos y deja de
+intentar en cada mensaje; el asistente sigue respondiendo con los datos.
+Verificado contra la API real.
+
+Modelo: `claude-haiku-4-5-20251001`, el más barato de la familia. Los precios por
+millón de tokens son configurables porque cambian: revisar la página de precios de
+Anthropic y ajustar `AI_NUBE_PRECIO_*` si hace falta.
+
+> **La clave va en `.cybershop.conf` del servidor, nunca en el código ni en git.**
 
 > La VPS está justa para lo que ya hace: 604 MB disponibles con swap en uso, para
 > 4 instancias más base de datos. Conviene tenerlo presente aunque no se toque el

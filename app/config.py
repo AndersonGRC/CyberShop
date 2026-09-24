@@ -22,7 +22,7 @@ class Config:
     # clientes, código compartido → todos ven la misma = la última desplegada).
     #   A = cambio radical de plataforma · B = módulo nuevo grande
     #   C = estabilización / mejora · D = correcciones y ajustes de UI
-    APP_VERSION = "1.0.22.0"
+    APP_VERSION = "1.0.23.0"
 
     # --- General / Sesion ---
     # SECURITY M2: Sin fallback débil — falla explícitamente si no está configurado
@@ -152,6 +152,25 @@ class Config:
     # en vez de hacer cola.
     AI_PUBLIC_MAX_CONCURRENCIA = int(os.getenv('AI_PUBLIC_MAX_CONCURRENCIA', '1'))
     AI_PUBLIC_TIMEOUT          = int(os.getenv('AI_PUBLIC_TIMEOUT', '12'))
+
+    # --- Respaldo en la nube (Anthropic) — ÚLTIMO recurso y se cobra por token ---
+    # Solo entra cuando el equipo de IA del dueño lleva AI_NUBE_ESPERA_LOCAL_S
+    # segundos sin responder (3 min por defecto): un reinicio de Ollama o un corte
+    # de VPN no deben costar dinero. Al llegar al tope mensual se apaga sola y el
+    # sistema sigue respondiendo con los datos armados en Python.
+    # La clave va en .cybershop.conf del servidor, NUNCA en el código.
+    AI_NUBE_API_KEY     = os.getenv('AI_NUBE_API_KEY', '')
+    AI_NUBE_MODEL       = os.getenv('AI_NUBE_MODEL', 'claude-haiku-4-5-20251001')
+    AI_NUBE_MAX_TOKENS  = int(os.getenv('AI_NUBE_MAX_TOKENS', '300'))
+    AI_NUBE_TIMEOUT     = int(os.getenv('AI_NUBE_TIMEOUT', '25'))
+    AI_NUBE_ESPERA_LOCAL_S = int(os.getenv('AI_NUBE_ESPERA_LOCAL_S', '180'))
+    AI_NUBE_PRESUPUESTO_USD = float(os.getenv('AI_NUBE_PRESUPUESTO_USD', '5'))
+    # El chat del sitio NO usa la nube por defecto: ya responde bien sin modelo, y
+    # abrirlo a internet con una API que se cobra por token es gastar sin control.
+    AI_NUBE_PARA_PUBLICO = os.getenv('AI_NUBE_PARA_PUBLICO', 'false').lower() == 'true'
+    # Precios por millón de tokens (confirmar en la página de precios de Anthropic).
+    AI_NUBE_PRECIO_ENTRADA_USD_MTOK = float(os.getenv('AI_NUBE_PRECIO_ENTRADA_USD_MTOK', '1.0'))
+    AI_NUBE_PRECIO_SALIDA_USD_MTOK  = float(os.getenv('AI_NUBE_PRECIO_SALIDA_USD_MTOK', '5.0'))
 
     GOOGLE_CLIENT_ID     = os.getenv('GOOGLE_CLIENT_ID')
     GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
