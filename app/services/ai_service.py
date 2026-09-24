@@ -907,7 +907,11 @@ CREATE TABLE IF NOT EXISTS ia_consultas (
     ms INTEGER,
     sensible VARCHAR(40),
     objetivo VARCHAR(120),
-    pregunta_sin_herramienta VARCHAR(200)
+    pregunta_sin_herramienta VARCHAR(200),
+    intencion VARCHAR(40),
+    via VARCHAR(20),
+    motor VARCHAR(4),
+    documentos BIGINT[]
 );
 CREATE INDEX IF NOT EXISTS idx_ia_consultas_creado_en ON ia_consultas (creado_en);
 """
@@ -933,11 +937,14 @@ def _registrar_consulta(ctx, pregunta, plan, error, inicio):
                 _IA_CONSULTAS_LISTA.add(tenant)
             cur.execute(
                 """INSERT INTO ia_consultas (usuario_id, rol_id, canal, herramientas, ok, error, ms,
-                                             sensible, objetivo, pregunta_sin_herramienta)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                                             sensible, objetivo, pregunta_sin_herramienta,
+                                             intencion, via, motor, documentos)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                 (usuario, ctx.rol_id, ctx.canal, herramientas, not error,
                  (str(error)[:300] if error else None), int((time.time() - inicio) * 1000),
-                 (plan or {}).get('sensible'), (plan or {}).get('objetivo'), sin_herramienta))
+                 (plan or {}).get('sensible'), (plan or {}).get('objetivo'), sin_herramienta,
+                 (plan or {}).get('intencion'), (plan or {}).get('via'),
+                 (plan or {}).get('motor'), list((plan or {}).get('documentos') or []) or None))
             hoy = datetime.now().date()
             if _IA_CONSULTAS_PURGA.get(tenant) != hoy:
                 cur.execute("""UPDATE ia_consultas SET pregunta_sin_herramienta = NULL
