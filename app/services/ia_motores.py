@@ -42,6 +42,24 @@ PERFIL_PROFUNDO = 'profundo'
 CANAL_PANEL = 'panel'
 CANAL_PUBLICO = 'publico'
 
+# ── Reparto de carga por TAREA ────────────────────────────────
+# El respaldo en la nube se cobra por token, así que no todas las tareas lo
+# merecen. La regla es simple: **solo paga la que tiene a una persona
+# esperando**. Lo demás espera a que el equipo del dueño vuelva.
+#
+#   chat_panel    el dueño está mirando la pantalla        → sí paga
+#   chat_publico  un visitante, pero ya responde sin modelo → no paga
+#   contenido     descripciones, SEO, nombres, etiquetas    → no paga, puede esperar
+#   articulo      textos largos: los más caros de todos     → no paga nunca
+#   resumen       corre de madrugada, sin nadie esperando   → no paga
+#   profundo      exige el equipo por definición            → no paga
+#
+# Medido con el contador de tokens de la API: redactar una respuesta del sitio
+# cuesta ~US$0,0008, mientras que un artículo de blog pasa de US$0,02. La
+# diferencia entre pagar todo y pagar solo lo interactivo es de dos órdenes.
+TAREAS_CON_NUBE = {'chat_panel'}
+TAREA_POR_DEFECTO = 'chat_panel'
+
 # Frases exactas con las que se pide el análisis profundo. Se comparan al inicio
 # del mensaje, sin tildes y en minúsculas. Lista corta a propósito: esto lo
 # decide el usuario, no una interpretación del modelo.
@@ -204,7 +222,7 @@ def turno_publico():
 
 
 # ── La decisión ────────────────────────────────────────────────
-def motor_para(perfil=PERFIL_NORMAL, canal=CANAL_PANEL):
+def motor_para(perfil=PERFIL_NORMAL, canal=CANAL_PANEL, tarea=TAREA_POR_DEFECTO):
     """(motor, motivo). motor=None significa responder sin redacción de IA."""
     if perfil == PERFIL_PROFUNDO and canal == CANAL_PUBLICO:
         perfil = PERFIL_NORMAL            # un visitante no dispara el profundo
@@ -229,16 +247,19 @@ def motor_para(perfil=PERFIL_NORMAL, canal=CANAL_PANEL):
     if vivo(a):
         return a, 'el modelo del servidor'
 
-    return _respaldo_nube(canal, caido_hace)
+    return _respaldo_nube(canal, caido_hace, tarea)
 
 
-def _respaldo_nube(canal, caido_hace):
+def _respaldo_nube(canal, caido_hace, tarea=TAREA_POR_DEFECTO):
     """Último recurso, y solo si de verdad hace falta: cuesta dinero por token."""
     try:
         from services import ia_nube
     except Exception:
         return None, MSG_SIN_MOTOR
     if not ia_nube.configurada():
+        return None, MSG_SIN_MOTOR
+    if tarea not in TAREAS_CON_NUBE:
+        # Nadie está esperando esta respuesta: que espere al equipo.
         return None, MSG_SIN_MOTOR
 
     espera = int(_cfg('AI_NUBE_ESPERA_LOCAL_S', 180))

@@ -346,7 +346,7 @@ def chat_con_motor(motor, system, user, max_tokens=400, temperature=0.7):
 
 
 def _chat(system, user, max_tokens=400, temperature=0.7, espera_frio=45,
-          perfil='normal', canal='panel'):
+          perfil='normal', canal='panel', tarea='chat_panel'):
     """Llamada de chat con FALLBACK automático de modelo: si el primario
     (AI_MODEL, p.ej. gpt-oss:20b) falla por memoria/timeout/error del server,
     reintenta UNA vez con AI_MODEL_FALLBACK (p.ej. qwen2.5:7b) — el usuario
@@ -363,7 +363,7 @@ def _chat(system, user, max_tokens=400, temperature=0.7, espera_frio=45,
     # si está encendido, el modelo del servidor si no, y nada si no hay ninguno
     # —en ese caso quien llama responde con los datos tal cual.
     from services import ia_motores as motores
-    motor, motivo_motor = motores.motor_para(perfil, canal)
+    motor, motivo_motor = motores.motor_para(perfil, canal, tarea)
     if motor is None:
         return None, motivo_motor
     if motor.es_nube:
@@ -417,7 +417,7 @@ def generar_descripcion(nombre, categoria='', keywords='', precio=None):
             f"{' Palabras clave: ' + keywords + '.' if keywords else ''}"
             " 2 o 3 frases, atractiva y orientada a la conversión. Solo el texto,"
             " sin títulos ni viñetas.")
-    texto, err = _chat(_contexto_tenant(), user, max_tokens=300)
+    texto, err = _chat(_contexto_tenant(), user, max_tokens=300, tarea='contenido')
     if texto:
         _cache_set(ckey, texto)
     return texto, err
@@ -483,7 +483,7 @@ def generar_articulo_blog(tema, keyword='', publico=''):
             "clave); segunda línea 'META: ...' (máx 155, invita al clic); "
             "tercera línea 'EXTRACTO: ...' (2 frases); luego una línea "
             "'CUERPO:' y a continuación el HTML del artículo.")
-    texto, err = _chat(system, user, max_tokens=2600, temperature=0.6)
+    texto, err = _chat(system, user, max_tokens=2600, temperature=0.6, tarea='articulo')
     if err:
         return None, err
 
@@ -545,7 +545,7 @@ def generar_seo(nombre, descripcion=''):
             f"{' (' + descripcion[:300] + ')' if descripcion else ''}, genera SEO."
             " Responde EXACTAMENTE en dos líneas:\nTITULO: <máx 60 caracteres>\n"
             "DESCRIPCION: <máx 155 caracteres>")
-    texto, err = _chat(_contexto_tenant(), user, max_tokens=180, temperature=0.5)
+    texto, err = _chat(_contexto_tenant(), user, max_tokens=180, temperature=0.5, tarea='contenido')
     if err:
         return None, err
     meta_title, meta_desc = nombre, ''
@@ -1225,7 +1225,7 @@ def resumen_ejecutivo(force=False):
             "empezando con «• », concretas y accionables (qué va bien, qué "
             "atender hoy, qué comprar o despachar). Usa las cifras exactas, no "
             "inventes nada y no saludes:\n\n" + json.dumps(datos, ensure_ascii=False))
-    texto, err = _chat(_contexto_tenant(), user, max_tokens=380, temperature=0.5)
+    texto, err = _chat(_contexto_tenant(), user, max_tokens=380, temperature=0.5, tarea='contenido')
     if err:
         return None, err
 
@@ -1316,7 +1316,8 @@ def traducir_texto(texto, idioma='inglés'):
     idioma = (idioma or 'inglés').strip()
     system = ("Eres un traductor profesional de e-commerce. Traduce con naturalidad, "
               "conservando el tono de venta. Devuelve SOLO la traducción.")
-    return _chat(system, f"Traduce al {idioma} este texto:\n\n{texto[:1200]}", max_tokens=500)
+    return _chat(system, f"Traduce al {idioma} este texto:\n\n{texto[:1200]}", max_tokens=500,
+                 tarea='contenido')
 
 
 def sugerir_respuesta(mensaje_cliente, asunto=''):
@@ -1329,7 +1330,7 @@ def sugerir_respuesta(mensaje_cliente, asunto=''):
     user = (f"Un cliente escribió{(' sobre «' + asunto + '»') if asunto else ''}:"
             f"\n\n«{mensaje_cliente}»\n\nRedacta una respuesta breve y cordial"
             " que el negocio pueda enviar. Solo el texto de la respuesta.")
-    return _chat(system, user, max_tokens=300)
+    return _chat(system, user, max_tokens=300, tarea='contenido')
 
 
 def narrar_tu_dia(senales):
@@ -1348,7 +1349,7 @@ def narrar_tu_dia(senales):
         # en frío, antes la colgaba hasta que el proxy cortaba; ahora pide la carga
         # y la página sale al instante (la frase aparece en la siguiente visita).
         texto, err = _chat(system, "Señales de hoy:\n" + '\n'.join('- ' + s for s in senales),
-                           max_tokens=80, temperature=0.5, espera_frio=0)
+                           max_tokens=80, temperature=0.5, espera_frio=0, tarea='contenido')
         if err or not texto:
             return ''
         return texto.strip().strip('"').strip()[:200]

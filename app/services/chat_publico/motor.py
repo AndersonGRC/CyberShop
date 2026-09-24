@@ -16,6 +16,7 @@ Si hay motor disponible y turno libre, el modelo la reescribe más natural, pero
 diga mejor. Por eso el bot no puede inventar un precio aunque el modelo falle.
 """
 
+import hashlib
 import re
 import time
 
@@ -28,6 +29,17 @@ from services.ia_datos.acceso import CANAL_PUBLICO, Contexto
 MAX_PREGUNTA = 300
 MAX_HISTORIAL = 4
 LIMITE_DOCS = 3
+
+# Las preguntas de un sitio público se repiten muchísimo («¿hacen domicilios?»,
+# «¿a qué hora abren?»). Redactarlas otra vez con el modelo es tiempo y —si está
+# atendiendo el respaldo en la nube— dinero, para decir exactamente lo mismo.
+#
+# La clave incluye los DATOS ya resueltos, no solo la pregunta: si cambia un
+# precio o se agota un producto, la clave cambia y la respuesta se vuelve a
+# redactar. Así la caché no puede servir algo desactualizado.
+_CACHE = {}
+_CACHE_TTL = 6 * 3600
+_CACHE_MAX = 200
 
 VIA_CORTESIA = 'cortesia'
 VIA_KEYWORD = 'keyword'
@@ -278,6 +290,34 @@ def preparar(pregunta, historial=None):
 
 
 # ── Respuesta final (con redacción opcional del modelo) ────────
+def _clave_cache(plan):
+    huella = hashlib.sha256(
+        f"{_normalizar(plan['pregunta'])}||{plan['texto_base']}".encode('utf-8')).hexdigest()
+    try:
+        from tenant_features import get_current_tenant_id
+        return f'{get_current_tenant_id()}:{huella[:32]}'
+    except Exception:
+        return huella[:32]
+
+
+def _cache_leer(clave):
+    fila = _CACHE.get(clave)
+    if not fila:
+        return None
+    texto, vence = fila
+    if vence < time.time():
+        _CACHE.pop(clave, None)
+        return None
+    return texto
+
+
+def _cache_guardar(clave, texto):
+    if len(_CACHE) >= _CACHE_MAX:
+        for k in sorted(_CACHE, key=lambda x: _CACHE[x][1])[:_CACHE_MAX // 2]:
+            _CACHE.pop(k, None)
+    _CACHE[clave] = (texto, time.time() + _CACHE_TTL)
+
+
 def _prompt(plan):
     cfg = plan['config']
     sistema = (
@@ -304,11 +344,18 @@ def responder(pregunta, historial=None, redactar=True):
     respuesta = plan['texto_base']
     motor_usado = None
 
+    cacheada = False
     if redactar and plan['via'] not in (VIA_CORTESIA, VIA_SIN_RESPUESTA, VIA_INTERNO):
+        clave = _clave_cache(plan)
+        guardada = _cache_leer(clave)
+        if guardada:
+            respuesta, cacheada = guardada, True
+    if redactar and not cacheada and plan['via'] not in (VIA_CORTESIA, VIA_SIN_RESPUESTA, VIA_INTERNO):
         from services import ia_motores as motores
         with motores.turno_publico() as hay_turno:
             if hay_turno:
-                motor, _ = motores.motor_para(motores.PERFIL_NORMAL, motores.CANAL_PUBLICO)
+                motor, _ = motores.motor_para(motores.PERFIL_NORMAL, motores.CANAL_PUBLICO,
+                                              tarea='chat_publico')
                 if motor is not None:
                     try:
                         import services.ai_service as ai
@@ -317,12 +364,14 @@ def responder(pregunta, historial=None, redactar=True):
                         if texto and not err:
                             respuesta = texto.strip()
                             motor_usado = motor.nivel
+                            _cache_guardar(_clave_cache(plan), respuesta)
                     except Exception as exc:  # noqa: BLE001
                         current_app.logger.warning(f'chat público: el modelo falló ({exc})')
 
     salida = {
         'respuesta': respuesta,
-        'via': plan['via'] if motor_usado is None else f"{plan['via']}+modelo",
+        'via': (f"{plan['via']}+cache" if cacheada else
+                plan['via'] if motor_usado is None else f"{plan['via']}+modelo"),
         'fuentes': plan['fuentes'],
         'escalar': plan['escalar'],
         'whatsapp': plan['config']['whatsapp'] if plan['escalar'] else None,

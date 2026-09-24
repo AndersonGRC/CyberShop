@@ -90,8 +90,11 @@ def _parrafo_ia(datos):
         user = ('Con estos datos REALES del negocio de AYER (JSON), escribe 2 o 3 frases para el dueño: '
                 'qué pasó y qué conviene atender hoy. Sin saludos, sin inventar cifras.\n\n'
                 + json.dumps(datos, ensure_ascii=False, default=str))
+        # tarea='resumen': corre de madrugada, sin nadie esperando, así que NO
+        # paga el respaldo en la nube. Si el equipo está apagado, el correo sale
+        # igual pero sin el párrafo redactado.
         texto, err = ai._chat(ai._contexto_tenant(), user, max_tokens=220, temperature=0.4,
-                              espera_frio=45)
+                              espera_frio=45, tarea='resumen')
         return None if err else texto
     except Exception as exc:  # noqa: BLE001
         current_app.logger.warning(f'resumen diario: sin párrafo de IA ({exc})')
