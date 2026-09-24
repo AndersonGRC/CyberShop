@@ -161,13 +161,15 @@ def _columnas(cur, tabla):
 
 
 def _suma(cur, sql, cero=(0, 0)):
-    """Ejecuta una suma; devuelve (n, total) o ceros si algo falla."""
-    try:
-        cur.execute(sql)
-        r = cur.fetchone()
-        return r['n'], float(r['t'])
-    except Exception:
-        return cero
+    """Ejecuta una suma y deja que un error de BD llegue al llamador.
+
+    `cero` se conserva en la firma por compatibilidad; solo una fuente POS
+    opcional *confirmada como ausente* puede aportar ceros. Ocultar un error SQL
+    aquí convertiría una consulta fallida en una cifra de ventas falsa.
+    """
+    cur.execute(sql)
+    r = cur.fetchone()
+    return r['n'], float(r['t'])
 
 
 # ── Registro de herramientas ───────────────────────────────────

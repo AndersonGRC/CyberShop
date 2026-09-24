@@ -14,7 +14,8 @@ from services.ia_datos.base import (
 
 def _ventas_en(cur, where_web, where_pos, where_desk):
     """Suma ventas de las 3 fuentes (web pagados + POS web + POS escritorio)
-    bajo los filtros de fecha dados, tolerando tablas ausentes."""
+    bajo los filtros de fecha dados. Solo las tablas POS opcionales ausentes
+    aportan cero; una consulta que falla propaga el error, no cifras parciales."""
     web_n, web_t = _suma(cur, f"SELECT COUNT(*) n, COALESCE(SUM(monto_total),0) t "
                               f"FROM pedidos WHERE {_PEDIDO_PAGADO} AND {where_web}")
     pos_n, pos_t = _suma(cur, f"SELECT COUNT(*) n, COALESCE(SUM(total),0) t FROM ventas_pos "
