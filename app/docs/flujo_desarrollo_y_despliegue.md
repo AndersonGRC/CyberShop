@@ -4,6 +4,11 @@
 > CyberShop y cómo se **replica a cada cliente** sin afectar lo suyo. Este flujo es
 > obligatorio para próximos desarrollos.
 
+> Para el lote actual de IA, leer además
+> [IA_ACTUALIZACION_CLIENTES.md](IA_ACTUALIZACION_CLIENTES.md): distingue el
+> código compartido de la migración y recarga por cliente, y enumera lo que
+> el botón no puede publicar.
+
 ---
 
 ## 1. Modelo (cómo está montado)
@@ -20,7 +25,7 @@
   - **DESPUÉS del login** = software interno (POS, admin, inventario, ventas, CRM, nómina,
     contabilidad…). Base: `templates/plantillaapp.html`.
 
-### Qué es de cada cliente (NUNCA lo toca un despliegue)
+### Qué pertenece a cada cliente (no se reemplaza con el merge de código)
 | Cosa | Dónde vive | Fuera del repo |
 |---|---|---|
 | Base de datos | PostgreSQL `cyber_t<id>` (una por cliente) | ✅ |
@@ -35,8 +40,10 @@
 
 Las actualizaciones deben **COMPLEMENTAR, no AFECTAR** a cada cliente:
 
-1. **Nunca tocar datos del cliente.** Su marca y su configuración viven en su BD/overrides, fuera
-   del repo → un `git pull` jamás los cambia.
+1. **No sobreescribir datos ni personalizaciones del cliente.** Su marca y su
+   configuración viven en su BD/overrides, fuera del repo; un `git merge` no
+   cambia esas filas, pero las migraciones y la sincronización de avisos del
+   botón sí escriben estructura/metadatos en la BD seleccionada.
 2. **Migraciones de BD SIEMPRE aditivas e idempotentes** — `CREATE TABLE IF NOT EXISTS`,
    `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`. **Jamás** `DROP`/`ALTER`
    destructivo. Van en `CyberShopAdmin/migrations/tenant/*.sql`.
@@ -57,13 +64,26 @@ Las actualizaciones deben **COMPLEMENTAR, no AFECTAR** a cada cliente:
    **Técnico**:
    - **⬆ Actualizar app (después del login)** — el uso normal. Trae el código (con *gate*), migra
      su BD (aditivo) y recarga su instancia. **Se BLOQUEA** si el push tocó archivos del sitio
-     público (te dice cuáles) y no aplica nada.
+     público de `PUBLIC_PATHS` (te dice cuáles) y no aplica nada.
    - **🌐 Deploy completo (incluye público)** — úsalo **solo** cuando quieras publicar también los
      cambios del sitio público.
+
+El maestro (`CyberShopAdmin`) y sus migraciones deben publicarse **por separado
+primero**; el botón del cliente no actualiza el maestro, el escritorio, env,
+venv ni units. Guardar integraciones exige reiniciar la instancia; el botón
+normal solo la recarga. El cliente primario tiene una configuración de entorno
+especial descrita en la guía de IA.
 
 > El código es global: al pulsar el botón para un cliente, se hace `git pull` (queda disponible para
 > todos) y se recarga **esa** instancia. El operador debe ser siempre el canario; no actualizar un
 > cliente hasta que el smoke del operador haya pasado.
+
+En la implementación actual, el orden exacto del botón es **integrar código
+global → migrar una BD → sincronizar aviso de cobro → recargar una instancia**.
+No hace rollback: si falla la migración o la recarga, el código global puede
+haber cambiado igualmente. Por eso las migraciones deben ser aditivas y el
+código compatible con bases aún no migradas. Verificar el estado real antes de
+reintentar o pasar al siguiente cliente.
 
 ---
 
@@ -81,6 +101,10 @@ sin desfases. En su lugar, el deploy **detecta** si traería archivos del **siti
   siempre** (por ejemplo, parches de seguridad).
 - Estado de git siempre limpio: el deploy hace `git merge --ff-only` completo **o nada** (nunca un
   checkout parcial que ensucie el árbol).
+
+El *gate* solo cubre las rutas de `PUBLIC_PATHS`; backend/estáticos compartidos
+pueden alterar el comportamiento del sitio público. No prometer aislamiento
+de código por cliente ni que su presentación no cambie en absoluto.
 
 ---
 
@@ -106,6 +130,10 @@ sin desfases. En su lugar, el deploy **detecta** si traería archivos del **siti
   `/usr/local/bin/cybershop-deploy-code.sh` con subcomandos `changes` (lista lo que cambiaría) y
   `apply` (`git merge --ff-only`), habilitado por `/etc/sudoers.d/cybershop-deploy` (www-data,
   **solo esos dos subcomandos**, `NOPASSWD`).
+- Ese script y su sudoers se referencian en el código, pero no están versionados
+  en estos repositorios. Antes de depender del botón, comprobar su instalación
+  y permisos en el VPS, además de `ExecReload` en el servicio principal y las
+  instancias; la auditoría local no puede confirmarlos.
 - `provisioning_service.deploy_code(include_public=False)` orquesta: `changes` → clasifica vs
   `PUBLIC_PATHS` → bloquea o `apply`. Devuelve `(status, msg)` con `status ∈
   {updated, uptodate, blocked, error}`.
@@ -121,6 +149,8 @@ sin desfases. En su lugar, el deploy **detecta** si traería archivos del **siti
 - [ ] ¿Estructura de BD nueva? → migración **aditiva** en `migrations/tenant/`.
 - [ ] ¿Página/CSS público nuevo? → agregar a `PUBLIC_PATHS`.
 - [ ] `git push origin master`.
+- [ ] Si cambió `CyberShopAdmin` o una migración tenant, publicar y reiniciar el
+  maestro primero; verificar que todos los SQL nuevos están allí.
 - [ ] Por cliente: **Actualizar app** (o **Deploy completo** si el cambio público es intencional).
 - [ ] Verificar que la marca/datos del cliente quedaron intactos.
 - [ ] Nunca `git add` de `app/static/media/**` (medios de clientes).
@@ -130,7 +160,9 @@ sin desfases. En su lugar, el deploy **detecta** si traería archivos del **siti
 ## 8. Despliegue sin caída: canario y rollout escalonado
 
 1. Guardar el commit actual del servidor y comprobar el estado de Git/overrides.
-2. Aplicar primero cualquier migración aditiva e idempotente; el código anterior debe tolerarla.
+2. En un despliegue **manual masivo**, aplicar primero cualquier migración
+   aditiva e idempotente; el código anterior debe tolerarla. El botón individual
+   sigue otro orden (código global antes de migrar la BD elegida; ver §3).
 3. Hacer `git merge --ff-only origin/master` una sola vez.
 4. Ejecutar `systemctl reload cybershop.service` y comprobar: servicio activo, home 200,
    ruta protegida 302, request en curso sin 502 y journal sin errores nuevos.

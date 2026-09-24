@@ -1,5 +1,9 @@
 # Mapa de archivos — Proyecto CyberShop
 
+> Este mapa general es histórico (última actualización: 19/05/2026) y no
+> refleja toda la IA añadida después. Para los archivos de IA y su estado
+> actual en el código local, consultar [IA_ARCHIVOS_Y_DEPENDENCIAS.md](IA_ARCHIVOS_Y_DEPENDENCIAS.md).
+
 Referencia "para qué sirve cada archivo", por módulo y archivos clave.
 Granularidad: cada `.py` de `routes/`, `services/`, `tools/` y la raíz; las
 carpetas grandes (`templates/`, `static/`) se describen por convención.

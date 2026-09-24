@@ -28,9 +28,11 @@ Estabilización → sube `C`. Cambio radical → sube `A`.
 
 ## Cómo saber si un cliente tiene la última versión
 
-- **Admin web**: el código es **compartido** → todos los clientes corren SIEMPRE
-  la misma versión (la última desplegada). El número del footer es informativo:
-  dice qué release está vivo. No hay "clientes desactualizados" en la web.
+- **Admin web**: el código en disco es **compartido**; el primer deploy lo cambia
+  para todos. Cada proceso debe recargarse o reiniciarse para cargar Python
+  nuevo, y cada BD puede llevar migraciones pendientes. El footer informa la
+  versión del proceso que atendió esa petición; no demuestra por sí solo que
+  todas las bases e instancias estén al día.
 - **POS Escritorio**: cada PC tiene su instalación. El auto-update compara la
   `APP_VERSION` instalada contra `version.json` del servidor. Ver el flujo de
   publicación en el pipeline del escritorio (`tools/publish_update.py`).

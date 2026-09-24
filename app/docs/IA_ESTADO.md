@@ -1,5 +1,9 @@
 # Asistente de IA: estado del trabajo, hallazgos y qué falta
 
+> Documento histórico de traspaso. Sus cifras de herramientas, estado de
+> trazabilidad y afirmaciones de despliegue no deben tomarse como estado
+> actual. Véase [inventario auditado el 24/09/2026](IA_ARCHIVOS_Y_DEPENDENCIAS.md).
+
 > **Para quien retome esto.** Documento de traspaso, escrito el 24/09/2026.
 > Dice qué está hecho, por qué está hecho así, qué se midió y qué queda.
 > Lo que está en el código no se repite aquí: se apunta a dónde mirar.
@@ -32,8 +36,10 @@ de eso, **ordenar cómo habla la IA** (era el pedido explícito del dueño).
 | **F8** | Pantalla de configuración del cliente | ❌ **falta** |
 | **F9** | «Qué preguntan y no sé responder» | ❌ **falta** (los datos ya se guardan) |
 
-**Nada de esto está desplegado todavía.** Está commiteado y publicado en GitHub,
-pero nadie ha pulsado «Actualizar app». Ver §7.
+**Estado histórico al escribir este traspaso; no verifica producción hoy.**
+Parte del trabajo posterior de IA y la migración `0015` siguen como cambios
+locales. Para el estado de publicación y el botón, usar
+[IA_ACTUALIZACION_CLIENTES.md](IA_ACTUALIZACION_CLIENTES.md).
 
 ---
 
@@ -66,7 +72,7 @@ services/ia/                 EL CEREBRO DE LA DECISIÓN (no consulta datos)
 services/ia_datos/           LAS CONSULTAS (SQL fijo, una por dominio)
   acceso.py                  quién puede usar qué. ⚠ aquí vive el candado del canal público
   publico.py                 las 5 capacidades del sitio público
-  ventas.py, finanzas.py...  las 37 del panel (sin cambios de SQL en todo este trabajo)
+  ventas.py, finanzas.py...  capacidades del panel (37 al escribir este traspaso)
 
 services/ia_rag/             EL ÍNDICE DE TEXTOS
   indexador.py               arma ia_documentos desde productos, FAQ, páginas y blog
@@ -78,14 +84,15 @@ services/chat_publico/       EL CHAT DEL SITIO (orquesta todo lo anterior)
 services/ai_service.py       el asistente del panel; ahora pide motor al selector
 
 tools/ia_mapa.py             genera docs/IA_MAPA.md
-tools/ia_foto_herramientas.py  foto de las 37 herramientas (antes/después de tocar algo)
+tools/ia_foto_herramientas.py  foto del catálogo (el comentario original decía 37)
 tools/ia_comparar_fotos.py   compara dos fotos ignorando lo que depende del reloj
 tools/ia_medir_modelos.py    mide modelos locales (GPU/CPU, carga, palabras/s)
 tools/ia_medir_tokens.py     cuenta tokens y costo por tipo de mensaje (NO gasta créditos)
 ```
 
-Migraciones (repo **CyberShopAdmin**): `0012` índice de textos · `0013` trazabilidad ·
-`0014` contador de gasto en la nube.
+Migraciones IA (repo **CyberShopAdmin**): `0010` consultas · `0012` índice de
+textos · `0013` trazabilidad · `0014` contador de gasto · `0015` acciones
+pendientes con confirmación. El inventario actual cuenta 46 capacidades.
 
 ---
 
@@ -241,6 +248,13 @@ preguntas frecuentes.
 
 ## 8. Cómo verificar lo que ya está
 
+Los conteos y comandos siguientes son del ensayo histórico, no del release
+actual. En la auditoría local del 24/09/2026 pasaron 193 pruebas de IA sin BD
+y 25 del maestro (1 omitida); 26 pruebas de acceso público quedaron bloqueadas
+al conectar PostgreSQL local, antes de sus aserciones. Ver
+[IA_ACTUALIZACION_CLIENTES.md](IA_ACTUALIZACION_CLIENTES.md) para la prueba
+canaria y la verificación por cliente.
+
 ```bash
 cd C:/Cybershop/CyberShop/app
 
@@ -252,7 +266,7 @@ DB_NAME=cybershop_test FLASK_SECRET_KEY=prueba \
 ... -m pytest tests/test_ia_registro.py tests/test_ia_rag.py tests/test_ia_motores.py \
               tests/test_ia_nube.py tests/test_chat_publico_acceso.py -q
 
-# ¿Las 37 herramientas siguen devolviendo lo mismo? (antes y después de tocar algo)
+# Foto histórica del catálogo (antes y después de tocar algo)
 python tools/ia_foto_herramientas.py antes.json
 #   ...cambios...
 python tools/ia_foto_herramientas.py despues.json
@@ -273,34 +287,27 @@ su fixture): encenderlo a mano si se va a probar el chat.
 
 ---
 
-## 9. Despliegue (cuando se decida)
+## 9. Despliegue (procedimiento actualizado)
 
-**Dos pasos, en este orden.** El primero se olvida siempre:
+Usar [IA_ACTUALIZACION_CLIENTES.md](IA_ACTUALIZACION_CLIENTES.md). El maestro
+debe publicarse primero porque aporta módulos y migraciones hasta `0015`.
+Después, «Actualizar app» integra el código web **compartido**, migra la BD
+del cliente elegido y recarga esa instancia. Si falla una migración, el código
+global pudo haber cambiado: no asumir que el cliente quedó intacto.
 
-1. **El maestro primero** — de ahí salen los módulos *y las migraciones*:
-   ```bash
-   cd /var/www/CyberShopAdmin && sudo -u www-data git pull && sudo systemctl restart cybershop-admin
-   ```
-2. Después, **«⬆ Actualizar app» en un solo cliente** (cybershop), revisar, y
-   luego el resto. Ese botón corre las migraciones `0011`–`0014`.
-
-Si se hace el paso 2 sin el 1, no se rompe nada: la app queda al día y en modo
-tolerante hasta que las migraciones existan.
-
-**Cambio de una línea, muy rentable**: en el `.cybershop.conf` del servidor,
-`AI_MODEL=qwen2.5:14b-instruct-q4_K_M` (el modelo ya está descargado en el PC).
-2,2 veces más rápido que lo que corre hoy.
-
-**Para activar el respaldo en la nube** hacen falta dos cosas: saldo en la cuenta
-de Anthropic y `AI_NUBE_API_KEY` en ese mismo archivo. La clave **nunca** va al
-código ni a git.
+El botón no configura ni activa Anthropic. El respaldo requiere clave válida,
+presupuesto local explícitamente mayor que US$0, tiempo/sondeos de caída,
+contabilización disponible y límites externos de gasto; cambios de env exigen
+reinicio. El cliente primario aún lee `.cybershop.conf` en vez del env que
+guarda el maestro. No incluir claves en Git ni en documentación.
 
 ---
 
 ## 10. Decisiones que esperan al dueño
 
 1. **¿Cargar créditos en Anthropic?** Sin saldo, el respaldo no puede responder.
-   Con los números medidos, US$ 5 al mes cubren ~6.000 mensajes del sitio.
+   Las cifras de mensajes/costo de la medición original son históricas; no son
+   una garantía de gasto ni una configuración activa del chat público.
 2. **¿Rotar la clave de la API?** Se compartió por chat.
 3. **¿Cambiar `AI_MODEL` al 14B?** Es configuración de producción; no se tocó.
 4. **¿Ampliar la VPS?** Hoy tiene 604 MB disponibles con swap en uso para cuatro

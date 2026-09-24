@@ -95,14 +95,16 @@ Un pago de plan mensual crea la tienda y notifica, sin intervención:
 
 ## 4. Flujos de actualización (DEV → GitHub → PROD)
 
-Regla de oro: **desarrollar y probar en local primero**, luego `git push`, y
-en el servidor `git pull` + canario + `reload` graceful escalonado. Nunca editar directo en producción.
+Regla de oro: **desarrollar y probar en local primero**, luego publicar el
+release de ambos repositorios implicados y hacer canario + `reload` escalonado.
+Nunca editar directo en producción. Para el botón de este lote de IA, ver
+[IA_ACTUALIZACION_CLIENTES.md](IA_ACTUALIZACION_CLIENTES.md).
 
 | Qué cambias | Cómo se actualiza producción |
 |---|---|
-| App web (CyberShop) | `git pull` → migración aditiva previa si aplica → `systemctl reload cybershop.service` como canario → smoke → `reload` de `cybershop@*` en lotes |
+| App web (CyberShop) | Vía manual coordinada: migración aditiva previa si hace falta → integrar código global → `reload` canario → smoke → `reload` en lotes. El botón individual integra código **antes** de migrar una BD; no son secuencias equivalentes. |
 | Maestro | `cd /var/www/CyberShopAdmin && sudo -u www-data git pull` → `systemctl restart cybershop-admin` |
-| Esquema de BD de clientes | Migración **aditiva** en `CyberShopAdmin/migrations/tenant/` → `tools/migrate_tenants.py` (idempotente, no toca datos) |
+| Esquema de BD de clientes | Migración **aditiva** en `CyberShopAdmin/migrations/tenant/`; el botón migra **una** BD, `tools/migrate_tenants.py` es la vía manual masiva. Cambian estructura y registro de migración, no se deben reescribir datos de negocio. |
 | Escritorio | `build_installer.bat` → subir `CyberShopSetup_base.exe` a `static/installers/` del servidor (NO viaja por git) + bump de `version.json` para el auto-update |
 
 ### 4.1. Tres capas: qué se actualiza a todos y qué es por cliente
@@ -112,10 +114,14 @@ El código es **compartido**: un cambio queda disponible para TODOS al hacer `gi
 | Capa | Qué es | Regla de actualización |
 |---|---|---|
 | **Lógica** | Python (rutas/servicios) + esquema BD + **panel `/admin`** | **Siempre global**: el fix/mejora llega a TODOS. El `/admin` es producto global (misma paleta CyberShop uniforme; solo conserva el **logo** de cada cliente). |
-| **Interfaz pública** | Plantillas + `static/` del **sitio público** | Base compartida **+ overrides por instancia** (ver 4.2). Aislados por cliente, nunca se propagan. |
-| **Datos** | `cliente_config`, `public_site_*`, módulos (`tenant_features`) | Por cliente, en su BD. Las actualizaciones de código **no** los tocan. |
+| **Interfaz pública** | Plantillas + `static/` del **sitio público** | Base compartida **+ overrides por instancia** (ver 4.2). Los overrides son individuales, pero cambios de base/backend/estáticos compartidos pueden propagarse. |
+| **Datos** | `cliente_config`, `public_site_*`, módulos (`tenant_features`) | Por cliente, en su BD. Un merge de código no reescribe esas filas; el botón sí aplica migraciones y sincroniza metadatos de cobro en la BD elegida. |
 
-**Principio rector**: todo arreglo del sistema (lógica + `/admin`) llega siempre a todos, **sin tocar la BD ni el sitio público** del cliente. Las features en desarrollo viajan a todos pero **se apagan por cliente** con un flag (módulo/sección) **default OFF**.
+**Principio rector**: el código compartido puede llegar a todos al primer
+merge, mientras migración, flags y recarga se controlan por cliente. No
+confundir eso con aislamiento de versiones de código. Las funciones en
+desarrollo deben permanecer apagadas por cliente por defecto y tolerar bases
+todavía sin migrar durante el despliegue.
 
 ### 4.2. Overrides de interfaz por instancia (theme a medida del sitio público)
 
@@ -123,14 +129,16 @@ Para personalizar el **sitio público** de UN cliente sin afectar a otros y sin 
 
 - Carpeta **fuera del repo**: `/var/www/cybershop-overrides/<slug>/{templates,static}` (la crea el provisioning del maestro; `git pull` nunca la toca).
 - La app del cliente la engancha vía `INSTANCE_OVERRIDES_DIR` (env de su instancia): un `ChoiceLoader` de Jinja y una vista `static` propia hacen que **sus** plantillas/estáticos **pisen** a los compartidos **solo para él**. Si no hay archivo override, cae a lo compartido (así los fixes globales siguen llegando). Ver `app.py` y `config.py`.
-- **Regla de oro**: las personalizaciones a medida JAMÁS se editan dentro de `/var/www/CyberShop`; van en la carpeta de overrides del cliente. Tras colocarlas, usar `systemctl reload cybershop@<slug>` si solo cambian archivos; usar `restart` únicamente si cambia env/venv/unit (o el botón "Actualizar a última versión" en el maestro).
+- **Regla de oro**: las personalizaciones a medida JAMÁS se editan dentro de `/var/www/CyberShop`; van en la carpeta de overrides del cliente. Tras colocarlas, usar `systemctl reload cybershop@<slug>` si solo cambian archivos; usar `restart` cuando cambia env/venv/unit. El botón «Actualizar app» del maestro hace `reload`, no `restart`.
 
 **Contrato de datos del sitio público** (para que los themes a medida sobrevivan a las actualizaciones): las plantillas son **solo presentación** y consumen un modelo estable que provee el backend compartido — variables de contexto como `brand_config`, `config_global`, `active_modules`, y el contenido `public_site_*` (publicaciones, novedades, servicios, productos). Un arreglo de **lógica/datos** llega a todos (incluidos los de theme propio) porque vive en el backend, no en la plantilla. Cambios a ese contrato deben ser **retrocompatibles**.
 
 ### 4.3. Canario, rollout y reversión
 
-- Para código y plantillas, `cybershop@.service` dispone de `ExecReload` con SIGHUP: usar
+- Para código y plantillas, la plantilla versionada `cybershop@.service` dispone de `ExecReload` con SIGHUP: usar
   `systemctl reload`, que levanta workers nuevos y deja terminar las peticiones en curso.
+- Confirmar en el VPS el `ExecReload` del servicio primario `cybershop.service`,
+  cuya definición no está en este repositorio.
 - `restart` es obligatorio cuando cambia el venv, el `EnvironmentFile` o el unit systemd.
 - El primer objetivo siempre es `cybershop.service` (operador). Verificar home 200, una ruta
   protegida con 302 y ausencia de errores nuevos en journal antes de tocar clientes.
