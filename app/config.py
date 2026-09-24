@@ -22,7 +22,7 @@ class Config:
     # clientes, código compartido → todos ven la misma = la última desplegada).
     #   A = cambio radical de plataforma · B = módulo nuevo grande
     #   C = estabilización / mejora · D = correcciones y ajustes de UI
-    APP_VERSION = "1.0.20.0"
+    APP_VERSION = "1.0.21.0"
 
     # --- General / Sesion ---
     # SECURITY M2: Sin fallback débil — falla explícitamente si no está configurado
@@ -135,6 +135,23 @@ class Config:
     # read timeout amplio: el cold-start del modelo (carga a VRAM) puede tardar.
     # El connect timeout es corto (fast-fail si la GPU está apagada) — ver ai_service.
     AI_TIMEOUT  = int(os.getenv('AI_TIMEOUT', '120'))
+
+    # --- Motores de IA por niveles (ver docs/IA_MOTORES.md) ---
+    # A = modelo pequeño SIEMPRE encendido. Hoy vacío: la VPS no tiene memoria
+    #     (604 MB libres). Cuando la tenga, basta con llenar estas dos claves.
+    # B = el equipo de IA del dueño: reutiliza AI_BASE_URL / AI_MODEL de arriba.
+    # C = el mismo equipo con contexto largo, solo para análisis pesados.
+    AI_MOTOR_A_BASE_URL = os.getenv('AI_MOTOR_A_BASE_URL', '')
+    AI_MOTOR_A_MODEL    = os.getenv('AI_MOTOR_A_MODEL', '')
+    AI_MOTOR_A_TIMEOUT  = int(os.getenv('AI_MOTOR_A_TIMEOUT', '30'))
+    AI_MOTOR_C_MODEL    = os.getenv('AI_MOTOR_C_MODEL', '')      # vacío = el mismo de B
+    AI_MOTOR_C_NUM_CTX  = int(os.getenv('AI_MOTOR_C_NUM_CTX', '0'))
+    AI_MOTOR_C_TIMEOUT  = int(os.getenv('AI_MOTOR_C_TIMEOUT', '600'))
+    # Tope del chat público: cuántas respuestas se generan a la vez y cuánto se
+    # espera. Pasado el tope, el visitante recibe la respuesta armada al instante
+    # en vez de hacer cola.
+    AI_PUBLIC_MAX_CONCURRENCIA = int(os.getenv('AI_PUBLIC_MAX_CONCURRENCIA', '1'))
+    AI_PUBLIC_TIMEOUT          = int(os.getenv('AI_PUBLIC_TIMEOUT', '12'))
 
     GOOGLE_CLIENT_ID     = os.getenv('GOOGLE_CLIENT_ID')
     GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')

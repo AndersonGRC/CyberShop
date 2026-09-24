@@ -65,12 +65,19 @@ def _cache_set(key, valor):
 
 
 # ── Disponibilidad ─────────────────────────────────────────────
+def _hay_algun_motor():
+    """¿Hay al menos un motor CONFIGURADO? (encendido o no: eso se mira al usarlo)"""
+    cfg = current_app.config
+    return bool((cfg.get('AI_BASE_URL') or '').strip() or
+                (cfg.get('AI_MOTOR_A_BASE_URL') or '').strip())
+
+
 def ia_disponible():
-    """True si el módulo IA está activo para este tenant Y hay endpoint."""
+    """True si el módulo IA está activo para este tenant Y hay algún motor."""
     try:
         if not is_module_active(MODULE_AI):
             return False
-        return bool((current_app.config.get('AI_BASE_URL') or '').strip())
+        return _hay_algun_motor()
     except Exception:
         return False
 
@@ -79,7 +86,7 @@ def estado_ia():
     """Diagnóstico para la UI: (disponible, motivo)."""
     if not is_module_active(MODULE_AI):
         return False, 'El módulo Asistente IA no está habilitado en tu plan.'
-    if not (current_app.config.get('AI_BASE_URL') or '').strip():
+    if not _hay_algun_motor():
         return False, 'La IA no está configurada (falta el servidor de IA). Contacta a soporte.'
     return True, 'Asistente IA activo.'
 
@@ -145,14 +152,17 @@ def _contexto_tenant():
 
 
 # ── Cliente OpenAI-compatible (stateless) ──────────────────────
-def _chat_una_vez(model, system, user, max_tokens, temperature):
+def _chat_una_vez(model, system, user, max_tokens, temperature, base_url=None, timeout=None):
     """Una llamada a /v1/chat/completions con UN modelo concreto.
     Devuelve (texto, None) o (None, (codigo, mensaje_amigable)) donde codigo
     distingue errores REINTENTABLES con otro modelo ('modelo') de los que no
-    ('red' = servidor apagado: cambiar de modelo no ayuda)."""
-    base = (current_app.config.get('AI_BASE_URL') or '').strip().rstrip('/')
+    ('red' = servidor apagado: cambiar de modelo no ayuda).
+
+    `base_url` y `timeout` los pone el selector de motores cuando la petición no
+    va al equipo de siempre; sin ellos se usa la configuración de toda la vida."""
+    base = (base_url or current_app.config.get('AI_BASE_URL') or '').strip().rstrip('/')
     key = (current_app.config.get('AI_API_KEY') or '').strip()
-    read_timeout = int(current_app.config.get('AI_TIMEOUT') or 120)
+    read_timeout = int(timeout or current_app.config.get('AI_TIMEOUT') or 120)
     headers = {'Content-Type': 'application/json'}
     if key:
         headers['Authorization'] = f'Bearer {key}'
@@ -228,15 +238,19 @@ class _ErrorIA(Exception):
         self.mensaje = mensaje
 
 
-def _chat_stream_una_vez(model, system, user, max_tokens, temperature):
+def _chat_stream_una_vez(model, system, user, max_tokens, temperature,
+                         base_url=None, timeout=None):
     """Generador: fragmentos de texto de /v1/chat/completions con stream=True.
     Si falla ANTES del primer fragmento lanza _ErrorIA (el caller decide si
     reintenta con el fallback). Si el stream se corta a MITAD, termina en
     silencio: el texto ya emitido se conserva en pantalla. Los deltas de
-    razonamiento (gpt-oss emite 'reasoning' antes del contenido) se descartan."""
-    base = (current_app.config.get('AI_BASE_URL') or '').strip().rstrip('/')
+    razonamiento (gpt-oss emite 'reasoning' antes del contenido) se descartan.
+
+    `base_url` y `timeout` los pone el selector de motores; sin ellos, el equipo
+    de siempre."""
+    base = (base_url or current_app.config.get('AI_BASE_URL') or '').strip().rstrip('/')
     key = (current_app.config.get('AI_API_KEY') or '').strip()
-    read_timeout = int(current_app.config.get('AI_TIMEOUT') or 120)
+    read_timeout = int(timeout or current_app.config.get('AI_TIMEOUT') or 120)
     headers = {'Content-Type': 'application/json'}
     if key:
         headers['Authorization'] = f'Bearer {key}'
@@ -316,7 +330,8 @@ def _chat_stream_una_vez(model, system, user, max_tokens, temperature):
         raise _ErrorIA('modelo', 'La IA no devolvió contenido. Intenta de nuevo.')
 
 
-def _chat(system, user, max_tokens=400, temperature=0.7, espera_frio=45):
+def _chat(system, user, max_tokens=400, temperature=0.7, espera_frio=45,
+          perfil='normal', canal='panel'):
     """Llamada de chat con FALLBACK automático de modelo: si el primario
     (AI_MODEL, p.ej. gpt-oss:20b) falla por memoria/timeout/error del server,
     reintenta UNA vez con AI_MODEL_FALLBACK (p.ej. qwen2.5:7b) — el usuario
@@ -328,18 +343,30 @@ def _chat(system, user, max_tokens=400, temperature=0.7, espera_frio=45):
     ok, motivo = estado_ia()
     if not ok:
         return None, motivo
-    primario = current_app.config.get('AI_MODEL') or 'qwen2.5:7b'
-    fallback = (current_app.config.get('AI_MODEL_FALLBACK') or '').strip()
+
+    # Quién atiende esta petición (ver services/ia_motores.py): el equipo de IA
+    # si está encendido, el modelo del servidor si no, y nada si no hay ninguno
+    # —en ese caso quien llama responde con los datos tal cual.
+    from services import ia_motores as motores
+    motor, motivo_motor = motores.motor_para(perfil, canal)
+    if motor is None:
+        return None, motivo_motor
+    primario = motor.modelo or 'qwen2.5:7b'
+    # El respaldo de modelo es de la máquina del dueño: no aplica a los demás.
+    fallback = ((current_app.config.get('AI_MODEL_FALLBACK') or '').strip()
+                if motor.nivel == motores.NIVEL_B else '')
 
     # Motor en frío: espera acotada. Estas respuestas no envían nada hasta el final
     # y nginx corta a los 60 s (Cloudflare a los 100 s); pasados 45 s se contesta que
     # el motor se está preparando —ya quedó cargando— en vez de morir con un 504.
     # No se salta al modelo de respaldo: cargarlo a la vez peleaba por el disco y
     # alargaba las dos cargas.
-    if not _esperar_motor_bloqueando(primario, espera_max=espera_frio):
+    # Solo aplica al equipo del dueño: el del servidor se deja siempre cargado.
+    if motor.nivel == motores.NIVEL_B and not _esperar_motor_bloqueando(primario, espera_max=espera_frio):
         return None, MSG_MOTOR_PREPARANDO
 
-    texto, err = _chat_una_vez(primario, system, user, max_tokens, temperature)
+    texto, err = _chat_una_vez(primario, system, user, max_tokens, temperature,
+                               base_url=motor.base_url, timeout=motor.timeout)
     if texto is not None:
         return texto, None
     codigo, mensaje = err
@@ -349,7 +376,8 @@ def _chat(system, user, max_tokens=400, temperature=0.7, espera_frio=45):
                 f"IA fallback: {primario} falló ({mensaje[:60]}) → intentando {fallback}")
         except Exception:
             pass
-        texto, err2 = _chat_una_vez(fallback, system, user, max_tokens, temperature)
+        texto, err2 = _chat_una_vez(fallback, system, user, max_tokens, temperature,
+                                    base_url=motor.base_url, timeout=motor.timeout)
         if texto is not None:
             return texto, None
         mensaje = err2[1]
@@ -1067,12 +1095,21 @@ def _responder_chat_stream(pregunta, historial, ctx, resultado):
                     'datos': plan['datos']})
     yield ('estado', 'Pronto te entregaremos el resultado…')
 
-    primario = current_app.config.get('AI_MODEL') or 'qwen2.5:7b'
-    fallback = (current_app.config.get('AI_MODEL_FALLBACK') or '').strip()
+    from services import ia_motores as motores
+    motor, motivo_motor = motores.motor_para(plan.get('perfil', 'normal'),
+                                             plan.get('canal_motor', 'panel'))
+    if motor is None:
+        resultado['error'] = motivo_motor
+        yield ('error', motivo_motor)
+        return
+    primario = motor.modelo or 'qwen2.5:7b'
+    fallback = ((current_app.config.get('AI_MODEL_FALLBACK') or '').strip()
+                if motor.nivel == motores.NIVEL_B else '')
     partes = []
     try:
         for frag in _chat_stream_una_vez(primario, plan['system'], plan['user'],
-                                         plan['max_tokens'], 0.7):
+                                         plan['max_tokens'], 0.7,
+                                         base_url=motor.base_url, timeout=motor.timeout):
             partes.append(frag)
             yield ('delta', frag)
     except _ErrorIA as e:
@@ -1086,7 +1123,9 @@ def _responder_chat_stream(pregunta, historial, ctx, resultado):
             yield ('estado', 'Seguimos con el motor de respaldo para no hacerte esperar más…')
             try:
                 for frag in _chat_stream_una_vez(fallback, plan['system'], plan['user'],
-                                                 plan['max_tokens'], 0.7):
+                                                 plan['max_tokens'], 0.7,
+                                                 base_url=motor.base_url,
+                                                 timeout=motor.timeout):
                     partes.append(frag)
                     yield ('delta', frag)
             except _ErrorIA as e2:
