@@ -56,32 +56,56 @@ misma pregunta de tienda y 80 tokens de respuesta:
 
 ---
 
-## Medición del servidor — PENDIENTE
+## Medición del servidor — 23/09/2026: NO alcanza para un modelo
 
-El nivel A vive en la VPS y convive con los gunicorn de todos los clientes, así
-que primero hay que ver cuánto margen hay:
+**VPS**: Ubuntu 24.04, 2 núcleos (AMD EPYC 9474F), **1,9 GB de RAM**, 48 GB de
+disco (35 libres). Sirve al mismo tiempo: el sitio principal, 3 instancias de
+clientes (`cyceconsultores`, `ppn-t001`), el panel maestro, PostgreSQL, Redis y
+fail2ban.
 
-```bash
-ssh -p 2222 root@38.134.148.47
-free -h; nproc; uptime; df -h /
-sudo -u postgres psql -tc "SELECT name FROM pg_available_extensions WHERE name='vector'"
+```
+              total     usada      libre   disponible
+Mem:          1,9Gi     1,3Gi      100Mi      604Mi
+Swap:         2,0Gi     174Mi
+carga: 0,02   ·   sin procesos muertos por falta de memoria
 ```
 
-Regla de decisión según la RAM libre:
+**Disponibles: 604 MB.** Y el swap ya se está usando.
 
-| RAM libre | Modelo del nivel A |
+Regla que se había fijado antes de medir:
+
+| RAM disponible | Modelo del nivel A |
 |---|---|
 | ≥ 4 GB y 2 núcleos holgados | `qwen2.5:3b-instruct-q4_K_M` (~2 GB) |
 | 2 – 4 GB | `qwen2.5:1.5b-instruct-q4_K_M` (~1 GB) |
 | 1 – 2 GB | `qwen2.5:0.5b-instruct-q4` (~0,4 GB) |
-| < 1 GB | No se instala: el chat responde igual con los datos reales, sin redacción |
+| **< 1 GB** | **No se instala** |
 
-Ollama en la VPS va como servicio systemd **con límites duros** (`MemoryMax`,
-`CPUQuota` ~50 %, `CPUWeight` bajo, `OLLAMA_NUM_PARALLEL=1`,
-`OLLAMA_MAX_LOADED_MODELS=1`, `OLLAMA_KEEP_ALIVE=-1`) y escuchando solo en
-`127.0.0.1`. Si hay que elegir entre el chat y la velocidad de los sitios, pierde
-el chat.
+Con 604 MB no entra ni el más pequeño: un 0,5B ocupa ~400 MB de pesos más el
+runtime de Ollama y la caché de contexto, es decir cerca de 1 GB. Instalarlo
+empujaría a los gunicorn de los clientes al swap, y en 2 núcleos la generación
+competiría con las peticiones de sus sitios. **El riesgo lo pagarían los clientes,
+no el chat.**
 
-La extensión `pgvector` decide si habrá búsqueda por embeddings: hoy **no está
-disponible** en la base de pruebas, y sin ella el índice de textos funciona igual
-con búsqueda por palabras, parecido y sinónimos (ver `services/ia_rag/`).
+`pgvector` tampoco está disponible, así que no hay embeddings: el índice de
+textos funciona con palabras, parecido y sinónimos (ver `services/ia_rag/`).
+
+### Qué se hace entonces
+
+El chat público **no depende de que haya modelo**. Sin ninguno responde igual, al
+instante y con datos exactos, porque las respuestas las arma Python:
+
+- «¿Tienen X?» / «¿cuánto vale?» → consulta al catálogo
+- «¿A qué hora abren?» / «¿dónde quedan?» → datos del negocio
+- «¿Hacen domicilios?» → índice de textos (preguntas frecuentes)
+
+Lo que aporta el modelo es **redactar** con naturalidad y encadenar. Por eso:
+
+- **Nivel A**: sin modelo por ahora. Respuestas armadas, siempre instantáneas.
+- **Nivel B**: el 14B del PC, cuando está encendido, para redactar y conversar.
+- Si más adelante la VPS crece a 4 GB, el nivel A se activa sin tocar código:
+  basta con apuntar `AI_MOTOR_A_BASE_URL` al Ollama local del servidor.
+
+> La VPS está justa para lo que ya hace: 604 MB disponibles con swap en uso, para
+> 4 instancias más base de datos. Conviene tenerlo presente aunque no se toque el
+> tema de la IA.
