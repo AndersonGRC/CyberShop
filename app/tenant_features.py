@@ -33,6 +33,7 @@ MODULE_RESTAURANT_TABLES = 'restaurant_tables'
 MODULE_FACTURACION_ELECTRONICA = 'facturacion_electronica'
 MODULE_SHARE = 'share'
 MODULE_AI = 'ai_assistant'
+MODULE_AI_PUBLIC = 'ai_public'
 MODULE_BULK_UPLOAD = 'bulk_upload'
 
 MODULE_DEFINITIONS = {
@@ -205,6 +206,17 @@ MODULE_DEFINITIONS = {
         'config_key': 'ia_habilitado',
         'default': False,
         'orden': 170,
+        'is_core': False,
+    },
+    MODULE_AI_PUBLIC: {
+        'nombre': 'Chat del sitio',
+        'descripcion': 'Chatbot con IA en el sitio publico: responde sobre productos, servicios, '
+                       'horarios y preguntas frecuentes con la informacion del propio cliente. '
+                       'Nunca accede a contabilidad, nomina ni datos de clientes. Apagado por defecto.',
+        'categoria': 'inteligencia',
+        'config_key': 'chat_publico_habilitado',
+        'default': False,
+        'orden': 175,
         'is_core': False,
     },
     MODULE_BULK_UPLOAD: {
