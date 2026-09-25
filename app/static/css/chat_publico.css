@@ -1,0 +1,402 @@
+@import url('variables.css');
+
+/* static/css/chat_publico.css — Widget del chat público (módulo ai_public).
+ *
+ * Paleta NEUTRA a propósito (pedido explícito del dueño): blancos y grises
+ * con un acento gris pizarra discreto. Namespace propio (--cbchat-*), CERO
+ * referencias a las variables de marca de variables.css (--color-primario,
+ * --color-secundario, etc.) — el widget debe verse igual en cualquier
+ * cliente, como un chat genérico (tipo Intercom/Crisp), nunca como parte de
+ * la identidad visual de la tienda.
+ *
+ * Solo se carga cuando el módulo está activo (ver bootstrap en layout.js);
+ * si nunca se inyecta este <link>, este archivo no le cuesta nada a nadie.
+ */
+
+#cbchat-root {
+    /* Colores: --cbchat-* en variables.css (paleta neutra, nunca de marca). */
+    --cbchat-radius: 16px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+}
+
+/* La torre de WhatsApp existente se apaga solo cuando el widget confirma
+   que el módulo está activo; si está apagado, .chat-button sigue exactamente
+   igual que siempre — cero regresión para quien no lo activó. */
+body.cybershop-chat-activo .chat-button {
+    display: none !important;
+}
+
+/* ── Lanzador flotante: ocupa EXACTAMENTE el lugar del botón de WhatsApp
+   viejo (mismo bottom/right/z-index en ambos breakpoints, ver layout.css) ── */
+#cbchat-launcher {
+    position: fixed !important;
+    bottom: 20px !important;
+    right: 20px !important;
+    z-index: 1000 !important;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: none;
+    background: var(--cbchat-accent);
+    color: var(--cbchat-sobre-acento);
+    box-shadow: var(--cbchat-shadow-launcher);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease, background 0.2s ease;
+    padding: 0;
+}
+
+#cbchat-launcher:hover {
+    background: var(--cbchat-accent-dark);
+    transform: scale(1.05);
+}
+
+#cbchat-launcher:focus-visible {
+    outline: none;
+    box-shadow: var(--cbchat-shadow-launcher), var(--cbchat-focus);
+}
+
+#cbchat-launcher svg {
+    width: 26px;
+    height: 26px;
+}
+
+/* Cuando el panel está abierto, el lanzador se convierte en botón de cerrar */
+#cbchat-launcher[aria-expanded="true"] .cbchat-icon-abrir { display: none; }
+#cbchat-launcher[aria-expanded="false"] .cbchat-icon-cerrar { display: none; }
+
+/* ── Panel del chat ── */
+#cbchat-panel {
+    position: fixed;
+    bottom: 90px;
+    right: 20px;
+    z-index: 1001;
+    width: min(370px, calc(100vw - 32px));
+    max-height: min(600px, calc(100vh - 120px));
+    /* dvh = alto real visible en móvil (descuenta la barra del navegador que
+       aparece/desaparece); donde no se soporta, el cálculo en vh de arriba
+       ya deja un panel usable. */
+    max-height: min(600px, calc(100dvh - 120px));
+    background: var(--cbchat-bg);
+    border-radius: var(--cbchat-radius);
+    box-shadow: var(--cbchat-shadow), 0 0 0 1px var(--cbchat-border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* No depender de ningun reset global de [hidden]: este producto no lo trae
+   (ver bug ya conocido del modal de mesas), asi que el propio widget se
+   garantiza a si mismo quedar oculto. */
+#cbchat-panel[hidden] {
+    display: none !important;
+}
+
+#cbchat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 14px 16px;
+    background: var(--cbchat-surface);
+    border-bottom: 1px solid var(--cbchat-border);
+}
+
+/* Cara de robot junto al nombre del negocio: refuerzo visual de que la
+   conversación es con un asistente automático, no con una persona. */
+#cbchat-avatar {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--cbchat-accent);
+    color: var(--cbchat-sobre-acento);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#cbchat-avatar svg { width: 19px; height: 19px; }
+
+#cbchat-header-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+#cbchat-titulo {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--cbchat-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#cbchat-subtitulo {
+    font-size: 0.75rem;
+    color: var(--cbchat-text-muted);
+}
+
+#cbchat-cerrar {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--cbchat-text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+#cbchat-cerrar:hover { background: var(--cbchat-border); color: var(--cbchat-text); }
+#cbchat-cerrar:focus-visible { outline: none; box-shadow: var(--cbchat-focus); }
+
+#cbchat-mensajes {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: var(--cbchat-bg);
+    min-height: 200px;
+}
+
+.cbchat-msg {
+    max-width: 85%;
+    padding: 9px 13px;
+    border-radius: 14px;
+    font-size: 0.88rem;
+    line-height: 1.4;
+    word-wrap: break-word;
+    white-space: pre-line;
+}
+
+.cbchat-msg-bot {
+    align-self: flex-start;
+    background: var(--cbchat-bubble-bot);
+    border: 1px solid var(--cbchat-border);
+    color: var(--cbchat-text);
+    border-bottom-left-radius: 4px;
+}
+
+.cbchat-msg-usuario {
+    align-self: flex-end;
+    background: var(--cbchat-bubble-user);
+    color: var(--cbchat-text);
+    border-bottom-right-radius: 4px;
+}
+
+.cbchat-msg-espera {
+    align-self: flex-start;
+    display: flex;
+    gap: 4px;
+    padding: 12px 14px;
+}
+
+.cbchat-msg-espera span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--cbchat-text-muted);
+    opacity: 0.5;
+    animation: cbchat-parpadeo 1.1s infinite ease-in-out;
+}
+
+.cbchat-msg-espera span:nth-child(2) { animation-delay: 0.15s; }
+.cbchat-msg-espera span:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes cbchat-parpadeo {
+    0%, 80%, 100% { opacity: 0.35; transform: translateY(0); }
+    40% { opacity: 1; transform: translateY(-2px); }
+}
+
+#cbchat-whatsapp-cta {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+    padding: 7px 12px;
+    border-radius: 20px;
+    background: var(--cbchat-wa-fondo);
+    color: var(--cbchat-wa-texto);
+    text-decoration: none;
+    font-size: 0.82rem;
+    font-weight: 600;
+    border: 1px solid var(--cbchat-wa-borde);
+}
+
+#cbchat-whatsapp-cta:hover { background: var(--cbchat-wa-fondo-hover); }
+
+#cbchat-sugerencias {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0 14px 12px;
+    background: var(--cbchat-bg);
+}
+
+.cbchat-chip {
+    border: 1px solid var(--cbchat-border);
+    background: var(--cbchat-surface);
+    color: var(--cbchat-text);
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.cbchat-chip:hover { background: var(--cbchat-border); }
+.cbchat-chip:focus-visible { outline: none; box-shadow: var(--cbchat-focus); }
+
+#cbchat-form {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 10px;
+    border-top: 1px solid var(--cbchat-border);
+    background: var(--cbchat-surface);
+}
+
+#cbchat-campo {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+#cbchat-input {
+    width: 100%;
+    box-sizing: border-box;
+    resize: none;
+    border: 1px solid var(--cbchat-border);
+    border-radius: 20px;
+    padding: 9px 14px;
+    font-size: 0.88rem;
+    font-family: inherit;
+    max-height: 90px;
+    color: var(--cbchat-text);
+    background: var(--cbchat-bg);
+}
+
+#cbchat-contador {
+    font-size: 0.68rem;
+    color: var(--cbchat-text-muted);
+    text-align: right;
+    padding-right: 6px;
+}
+
+.cbchat-contador-cerca {
+    color: var(--cbchat-aviso);
+    font-weight: 600;
+}
+
+/* Señuelo anti-bot: fuera de pantalla, nunca display:none/visibility:hidden
+   (algunos bots buscan justo eso) — un visitante real jamás lo ve ni lo llena. */
+.cbchat-senuelo {
+    position: absolute;
+    left: -9999px;
+    top: -9999px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
+#cbchat-verificacion {
+    background: var(--cbchat-bg);
+    border: 1px solid var(--cbchat-border);
+    border-radius: 12px;
+    padding: 12px;
+    font-size: 0.85rem;
+    color: var(--cbchat-text);
+    align-self: stretch;
+}
+
+#cbchat-verificacion p {
+    margin: 0 0 10px;
+}
+
+#cbchat-recaptcha-caja {
+    display: flex;
+    justify-content: center;
+    overflow-x: auto;
+}
+
+#cbchat-input:focus-visible {
+    outline: none;
+    border-color: var(--cbchat-accent);
+    box-shadow: var(--cbchat-focus);
+}
+
+#cbchat-enviar {
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: none;
+    background: var(--cbchat-accent);
+    color: var(--cbchat-sobre-acento);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#cbchat-enviar:hover:not(:disabled) { background: var(--cbchat-accent-dark); }
+#cbchat-enviar:disabled { opacity: 0.5; cursor: default; }
+#cbchat-enviar:focus-visible { outline: none; box-shadow: var(--cbchat-focus); }
+#cbchat-enviar svg { width: 17px; height: 17px; }
+
+/* ── Móvil: mismo hueco que ocupaba el botón de WhatsApp en la torre ── */
+@media screen and (max-width: 768px) {
+    #cbchat-launcher {
+        bottom: 160px !important;
+        right: 20px !important;
+        z-index: 1055 !important;
+        width: 55px;
+        height: 55px;
+    }
+
+    #cbchat-panel {
+        bottom: 0;
+        right: 0;
+        left: 0;
+        width: 100%;
+        max-height: 88vh;
+        max-height: 88dvh; /* alto real del navegador móvil, ver nota arriba */
+        border-radius: var(--cbchat-radius) var(--cbchat-radius) 0 0;
+        z-index: 1056;
+    }
+}
+
+/* ── Celulares angostos (iPhone SE, Android compactos: 360-374px) ──
+   Mismo layout, solo se ajustan tamaños para que nada se sienta apretado. */
+@media screen and (max-width: 374px) {
+    #cbchat-header { padding: 12px; }
+    #cbchat-mensajes { padding: 10px; gap: 8px; }
+    .cbchat-msg { max-width: 90%; font-size: 0.85rem; padding: 8px 11px; }
+    #cbchat-sugerencias { padding: 0 10px 10px; }
+    .cbchat-chip { font-size: 0.74rem; padding: 5px 10px; }
+    #cbchat-form { padding: 8px; }
+}
+
+/* ── Pantallas muy bajas en horizontal (celular acostado): la altura manda,
+   no el ancho — el panel flotante de escritorio ya se ajusta solo por el
+   min(600px, 100dvh - 120px) de arriba, esto solo achica el mensaje de
+   espera para no desperdiciar el poco alto disponible. ── */
+@media screen and (max-height: 420px) {
+    #cbchat-mensajes { min-height: 120px; }
+}

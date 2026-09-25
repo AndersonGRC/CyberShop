@@ -304,3 +304,36 @@ if (document.getElementById('app')) {
         setup();
     }
 })();
+/* 7. Chat publico (modulo ai_public) - bootstrap.
+   Esto corre en TODAS las paginas publicas, para el 100% de los clientes,
+   tengan o no el modulo activo. Por eso vive aqui separado del widget
+   completo: si el modulo esta apagado, este es el UNICO costo que paga ese
+   cliente -> un fetch que resuelve 404, cero DOM, cero CSS, cero JS extra. */
+(function initChatPublico() {
+    function cargar() {
+        fetch('/chat/config', { headers: { 'Accept': 'application/json' } })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (config) {
+                if (!config) return;
+                window.__CBCHAT_CONFIG__ = config;
+                document.body.classList.add('cybershop-chat-activo');
+
+                var css = document.createElement('link');
+                css.rel = 'stylesheet';
+                css.href = '/static/css/chat_publico.css';
+                document.head.appendChild(css);
+
+                var script = document.createElement('script');
+                script.src = '/static/js/chat_publico.js';
+                script.defer = true;
+                document.body.appendChild(script);
+            })
+            .catch(function () { /* silencioso: sin chat, el sitio sigue igual que siempre */ });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', cargar);
+    } else {
+        cargar();
+    }
+})();

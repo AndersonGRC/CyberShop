@@ -173,6 +173,7 @@ def get_data_app():
         MODULE_VIDEO,
         MODULE_WISHLIST,
         MODULE_AI,
+        MODULE_AI_PUBLIC,
         MODULE_CAJA,
         get_active_module_codes,
     )
@@ -311,6 +312,13 @@ def get_data_app():
             "icono": "robot",
             "module_code": MODULE_AI,
             "permiso": ("ai_assistant", "ver"),
+        },
+        {
+            "nombre": "Chat del sitio",
+            "url": "admin_chat_publico.config",
+            "icono": "comment-dots",
+            "module_code": MODULE_AI_PUBLIC,
+            "roles": ADMIN_FULL,
         },
         {
             "nombre": "Videollamadas",

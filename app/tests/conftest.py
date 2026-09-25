@@ -95,6 +95,49 @@ def modulo_caja_on(flask_app):
     tf._clear_cache()
 
 
+# ── Chat público (módulo ai_public) ────────────────────────────
+def _chat_publico(flask_app, encendido):
+    from database import get_db_cursor
+    from services.config_tenant import set_cliente_config
+    import tenant_features as tf
+    with flask_app.test_request_context('/'):
+        with get_db_cursor() as cur:
+            set_cliente_config(cur, 'chat_publico_habilitado',
+                               'true' if encendido else 'false',
+                               descripcion='Chat del sitio')
+        tf._clear_cache()
+
+
+@pytest.fixture()
+def chat_encendido(flask_app):
+    _chat_publico(flask_app, True)
+    yield
+    _chat_publico(flask_app, False)
+
+
+@pytest.fixture()
+def chat_apagado(flask_app):
+    _chat_publico(flask_app, False)
+    yield
+
+
+@pytest.fixture()
+def ip_unica():
+    """IP distinta por request: el limitador de /chat/mensaje cuenta por IP y el
+    test-client siempre pega desde 127.0.0.1, así las pruebas no se estorban."""
+    import uuid
+    return lambda: '10.' + '.'.join(str(b) for b in uuid.uuid4().bytes[:3])
+
+
+@pytest.fixture()
+def responder_falso(monkeypatch):
+    """Reemplaza el motor del chat público por una respuesta fija (sin BD ni IA)."""
+    def _falso(pregunta, historial=None):
+        return {'respuesta': 'ok', 'via': 'test', 'fuentes': [], 'escalar': False,
+                'whatsapp': None, 'ms': 1}
+    monkeypatch.setattr('routes.chat_publico.responder', _falso)
+
+
 @pytest.fixture()
 def limpiar_caja(flask_app):
     """Teardown: borra cualquier sesión/movimiento de caja y ventas TEST- creadas."""

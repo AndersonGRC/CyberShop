@@ -9,8 +9,6 @@ que se le arma, el enrutador por palabras y la ejecución directa.
 
 import pytest
 
-from database import get_db_cursor
-from services.config_tenant import set_cliente_config
 import services.ai_tools as tools
 from services.ia.enrutador import enrutar
 from services.ia.registro import CANAL_PUBLICO as DECLARADA_PUBLICA
@@ -24,29 +22,6 @@ PUBLICAS_ESPERADAS = {'buscar_productos', 'categorias_publicas', 'servicios_publ
 PROHIBIDAS = ('ventas_periodo', 'finanzas_periodo', 'caja_estado', 'nomina_resumen',
               'nomina_empleado', 'top_clientes', 'cliente_historial', 'cartera_pendiente',
               'margenes_productos', 'alertas_negocio', 'crm_pipeline', 'pedidos_estado')
-
-
-def _modulo(flask_app, encendido):
-    with flask_app.test_request_context('/'):
-        with get_db_cursor() as cur:
-            set_cliente_config(cur, 'chat_publico_habilitado',
-                               'true' if encendido else 'false',
-                               descripcion='Chat del sitio')
-        import tenant_features as tf
-        tf._clear_cache()
-
-
-@pytest.fixture()
-def chat_encendido(flask_app):
-    _modulo(flask_app, True)
-    yield
-    _modulo(flask_app, False)
-
-
-@pytest.fixture()
-def chat_apagado(flask_app):
-    _modulo(flask_app, False)
-    yield
 
 
 # ── El interruptor manda ───────────────────────────────────────
@@ -127,6 +102,21 @@ def test_los_datos_del_negocio_son_solo_los_del_pie_de_pagina(flask_app, chat_en
     with flask_app.test_request_context('/'):
         r = tools.ejecutar('datos_del_negocio', {}, Contexto(canal=CANAL_PUBLICO))
     assert set(r) <= permitidas, f'campos inesperados: {set(r) - permitidas}'
+
+
+# ── Guarda hacia adelante: facturación electrónica/DIAN nunca es pública ──
+def test_ninguna_capacidad_de_facturacion_electronica_es_publica():
+    """Hoy factura_electronica.py ni siquiera es parte de este registro (no
+    es un blueprint, no declara Capacidad alguna), así que este bucle no
+    encuentra nada que revisar — es intencional: la prueba queda aquí para
+    que reviente el día que alguien registre una capacidad de DIAN/
+    facturación y la declare alcanzable desde el canal público por error."""
+    palabras = ('factura', 'dian', 'electronica', 'fe_')
+    for code, h in REGISTRO.items():
+        texto = f'{code} {h.dominio}'.lower()
+        if any(p in texto for p in palabras):
+            assert DECLARADA_PUBLICA not in h.canales, (
+                f'{code} (facturación/DIAN) quedó alcanzable desde el canal público')
 
 
 def test_el_catalogo_publico_no_muestra_costos_ni_margenes(flask_app, chat_encendido):

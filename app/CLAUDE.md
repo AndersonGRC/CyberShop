@@ -62,7 +62,7 @@ CyberShop opera en modelo **control plane + 1 base de datos por cliente**:
 
 ### Routes (Flask Blueprints)
 
-`routes/__init__.py::register_blueprints(app)` registra **16 blueprints siempre** y **3 de la API REST solo si `CYBERSHOP_API_ENABLED=1`** (19 en total). `routes/factura_electronica.py` **no es un blueprint** — es un módulo de funciones (`emitir_factura_electronica`, `facturacion_habilitada`, `emitir_factura_pos`) que importa `admin.py`.
+`routes/__init__.py::register_blueprints(app)` registra **22 blueprints siempre** y **3 de la API REST solo si `CYBERSHOP_API_ENABLED=1`** (25 en total; la tabla lista los principales). `routes/factura_electronica.py` **no es un blueprint** — es un módulo de funciones (`emitir_factura_electronica`, `facturacion_habilitada`, `emitir_factura_pos`) que importa `admin.py`.
 
 | Blueprint (archivo) | Prefijo URL | Responsabilidad |
 |---|---|---|
@@ -82,6 +82,8 @@ CyberShop opera en modelo **control plane + 1 base de datos por cliente**:
 | `cupones.py` (`cupones`) | `/` | CRUD cupones de descuento + validación AJAX en carrito |
 | `wishlist.py` (`wishlist`) | `/admin/deseos` | Listas de deseos de clientes |
 | `share.py` (`share`) | `/` | Compartir archivos: carpetas + link público `/c/<token>` |
+| `chat_publico.py` (`chat_publico`) | `/chat` | Chat del sitio público (módulo `ai_public`): `/config` y `/mensaje`, visitante anónimo, CSRF + límite de tasa + señuelo + reCAPTCHA opcional |
+| `admin_chat_publico.py` (`admin_chat_publico`) | `/admin/chat-publico` | Configuración del chat del sitio, preguntas frecuentes y preguntas sin responder |
 | `api_auth.py` (`api_auth`) † | `/api/v1/auth` | JWT: `/login`, `/refresh`, `/logout`, `/me` (RS256 prod / HS256 dev) |
 | `api_health.py` (`api_health`) † | `/api/v1` | `/health` público (estado DB/servicios) |
 | `api_sync.py` (`api_sync`) † | `/api/v1/sync` | API del POS de escritorio (14 endpoints — ver abajo) |

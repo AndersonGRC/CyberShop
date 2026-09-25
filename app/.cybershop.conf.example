@@ -71,7 +71,23 @@ GOOGLE_GMAIL_REDIRECT_URI=https://app.cybershopcol.com/admin/google/gmail/callba
 GOOGLE_LOGIN_REDIRECT_URI=https://app.cybershopcol.com/google/login/callback
 
 # --- reCAPTCHA ---
+# Sin RECAPTCHA_SITE_KEY: el formulario de contacto no valida (ya lo hacía
+# antes); sin RECAPTCHA_SECRET_KEY: el chat público funciona igual, solo con
+# el señuelo (honeypot) y el límite de tasa — nunca se rompe por faltar esto.
+RECAPTCHA_SITE_KEY=
 RECAPTCHA_SECRET_KEY=
+
+# --- Asistente IA (Ollama del dueño + niveles A/B/C) ---
+AI_BASE_URL=
+AI_MODEL=qwen2.5:7b
+AI_TIMEOUT=120
+AI_PUBLIC_MAX_CONCURRENCIA=1
+
+# --- Respaldo en la nube (Anthropic) — ÚLTIMO recurso, se cobra por token ---
+AI_NUBE_API_KEY=
+AI_NUBE_MODEL=claude-haiku-4-5-20251001
+AI_NUBE_PRESUPUESTO_USD=0
+AI_NUBE_PARA_PUBLICO=false
 
 # --- Seguridad de cookies ---
 SESSION_COOKIE_SECURE=true

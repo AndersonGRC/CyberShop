@@ -1,0 +1,121 @@
+{% extends 'plantillaapp.html' %}
+
+{% block titulo %}Chat del sitio | {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+    .cpub-wrap { max-width: 900px; margin: 0 auto; padding: 18px 18px 40px; box-sizing: border-box; }
+    .cpub-wrap * { box-sizing: border-box; }
+    .cpub-title { font-size: 1.4rem; margin: 0 0 6px; color: var(--color-secundario, #0e1b33); display: flex; align-items: center; gap: 10px; }
+    .cpub-title i { color: var(--color-primario, #122C94); }
+    .cpub-lead { color: #6b7280; font-size: 0.92rem; margin: 0 0 20px; }
+    .cpub-card { background: #fff; border: 1px solid rgba(18,44,148,0.08); border-radius: 14px; padding: 20px; margin-bottom: 18px; box-shadow: 0 2px 10px rgba(18,44,148,0.05); }
+    .cpub-card h2 { font-size: 1.05rem; margin: 0 0 14px; color: var(--color-primario-oscuro, #091C5A); border-bottom: 1px solid #eef1f7; padding-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+    .cpub-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+    .cpub-field:last-child { margin-bottom: 0; }
+    .cpub-field label { font-size: 0.82rem; font-weight: 600; color: #444; }
+    .cpub-field small { font-size: 0.76rem; color: #9098a8; }
+    .cpub-field input, .cpub-field textarea {
+        padding: 9px 11px; border: 1px solid #cdd3df; border-radius: 8px; font-size: 0.9rem;
+        font-family: inherit; background: #fbfcff; color: #1f2a44; width: 100%;
+    }
+    .cpub-field input:focus, .cpub-field textarea:focus { outline: none; border-color: var(--color-primario, #122C94); background: #fff; }
+    .cpub-actions { position: sticky; bottom: 0; background: linear-gradient(transparent, #fff 35%); padding-top: 14px; }
+    .cpub-btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 22px; border: none; border-radius: 9px;
+              background: var(--color-primario, #122C94); color: #fff; font-size: 0.92rem; font-weight: 700; cursor: pointer; text-decoration: none; }
+    .cpub-btn-outline { background: #fff; color: var(--color-primario, #122C94); border: 1px solid var(--color-primario, #122C94); }
+    .cpub-alert { padding: 11px 15px; border-radius: 9px; margin-bottom: 14px; font-size: 0.88rem; }
+    .cpub-alert.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .cpub-alert.error, .cpub-alert.danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    .cpub-estado { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 20px; font-size: 0.86rem; font-weight: 600; }
+    .cpub-estado.on { background: #d4edda; color: #155724; }
+    .cpub-estado.off { background: #f1f2f5; color: #666; }
+    .cpub-estado-nota { color: #9098a8; font-size: 0.8rem; margin-top: 8px; }
+    .cpub-sinresp-item { padding: 10px 12px; border: 1px solid #eef1f7; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+    .cpub-sinresp-fecha { font-size: 0.74rem; color: #9098a8; white-space: nowrap; }
+    .cpub-empty { text-align: center; padding: 24px; color: #9098a8; font-size: 0.88rem; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="cpub-wrap">
+    <h1 class="cpub-title"><i class="fas fa-comment-dots"></i> Chat del sitio</h1>
+    <p class="cpub-lead">El asistente que responde preguntas de catálogo, servicios y horarios a los visitantes de tu sitio público. Solo usa información que tú publicaste — nunca ventas, contabilidad, nómina ni datos de clientes.</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="cpub-alert {{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <div class="cpub-card">
+        <h2><i class="fas fa-power-off"></i> Estado</h2>
+        {% if activo %}
+        <span class="cpub-estado on"><i class="fas fa-circle" style="font-size:0.6rem;"></i> Activo en tu sitio</span>
+        {% else %}
+        <span class="cpub-estado off"><i class="fas fa-circle" style="font-size:0.6rem;"></i> Apagado</span>
+        {% endif %}
+        <p class="cpub-estado-nota">Se activa o desactiva desde el equipo CyberShop, como cualquier otro módulo. Aquí solo editas lo que dice cuando está encendido.</p>
+    </div>
+
+    <form method="POST" action="{{ url_for('admin_chat_publico.config') }}">
+        <div class="cpub-card">
+            <h2><i class="fas fa-pen"></i> Cómo se presenta</h2>
+            <div class="cpub-field">
+                <label for="chat_publico_saludo">Saludo inicial</label>
+                <input type="text" id="chat_publico_saludo" name="chat_publico_saludo"
+                       value="{{ valores.get('chat_publico_saludo', '') }}"
+                       placeholder="¡Hola! Soy el asistente de {{ datosApp.titulo }}. ¿En qué te ayudo?" maxlength="300">
+                <small>Lo primero que ve el visitante al abrir el chat. Déjalo vacío para usar el saludo por defecto.</small>
+            </div>
+            <div class="cpub-field">
+                <label for="chat_publico_sugerencias">Preguntas sugeridas</label>
+                <textarea id="chat_publico_sugerencias" name="chat_publico_sugerencias" rows="3"
+                          placeholder="¿Qué productos manejan?|¿Hacen domicilios?|¿A qué hora abren?">{{ valores.get('chat_publico_sugerencias', '') }}</textarea>
+                <small>Separa cada sugerencia con el símbolo | (barra vertical). Aparecen como botones rápidos.</small>
+            </div>
+            <div class="cpub-field">
+                <label for="chat_publico_tono">Tono</label>
+                <input type="text" id="chat_publico_tono" name="chat_publico_tono"
+                       value="{{ valores.get('chat_publico_tono', '') }}" placeholder="cercano y breve" maxlength="100">
+                <small>Una descripción corta de cómo debe sonar (ej: "cercano y breve", "formal y detallado").</small>
+            </div>
+        </div>
+
+        <div class="cpub-actions">
+            <button type="submit" class="cpub-btn"><i class="fas fa-save"></i> Guardar cambios</button>
+        </div>
+    </form>
+
+    <div class="cpub-card">
+        <h2><i class="fas fa-question-circle"></i> Preguntas frecuentes</h2>
+        <p class="cpub-lead" style="margin-bottom:14px;">Respuestas cortas que el chat usa primero, antes de buscar en tu catálogo.</p>
+        <a href="{{ url_for('admin_chat_publico.faq_lista') }}" class="cpub-btn cpub-btn-outline"><i class="fas fa-list"></i> Administrar preguntas frecuentes</a>
+    </div>
+
+    <div class="cpub-card">
+        <h2><i class="fas fa-plug"></i> Preguntas de compatibilidad</h2>
+        <p class="cpub-lead" style="margin-bottom:10px;">Cuando un visitante pregunta si un producto que ya encontró en tu catálogo le sirve para algo, el asistente responde con conocimiento técnico general — solo con el modelo de IA de tu propio equipo y solo si ya está cargado. Si no lo está, le ofrece confirmar por WhatsApp. Nunca cambia precios ni disponibilidad de tu catálogo. Se activa desde el equipo CyberShop.</p>
+        {% if activo_compat %}
+        <span class="cpub-estado on"><i class="fas fa-circle" style="font-size:0.6rem;"></i> Activa</span>
+        {% else %}
+        <span class="cpub-estado off"><i class="fas fa-circle" style="font-size:0.6rem;"></i> Apagada</span>
+        {% endif %}
+    </div>
+
+    <div class="cpub-card">
+        <h2><i class="fas fa-lightbulb"></i> Lo que el chat no supo responder</h2>
+        {% if sin_responder %}
+        <p class="cpub-lead" style="margin-bottom:14px;">Últimas preguntas de visitantes sin una respuesta lista — buenas candidatas para agregar como pregunta frecuente.</p>
+        {% for p in sin_responder %}
+        <div class="cpub-sinresp-item">
+            <span>{{ p.pregunta }}</span>
+            <span class="cpub-sinresp-fecha">{{ p.fecha }}</span>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="cpub-empty">Todavía no hay preguntas sin respuesta registradas.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -604,6 +604,12 @@ PUBLIC_ITEM_TYPES = {
         'legacy_table': 'servicios_home',
         'sort_default': 10,
     },
+    'faq': {
+        'label': 'Preguntas frecuentes',
+        'singular': 'pregunta frecuente',
+        'legacy_table': None,  # sin tabla legacy: nace directo en public_site_items
+        'sort_default': 10,
+    },
 }
 
 

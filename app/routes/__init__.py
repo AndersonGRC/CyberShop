@@ -85,6 +85,14 @@ def register_blueprints(app):
     from routes.blog_admin import blog_admin_bp
     app.register_blueprint(blog_admin_bp)
 
+    # Chat publico del sitio (modulo ai_public; visitante anonimo, sin sesion)
+    from routes.chat_publico import chat_publico_bp
+    app.register_blueprint(chat_publico_bp)
+
+    # Configuracion + FAQ del chat publico (panel admin)
+    from routes.admin_chat_publico import admin_chat_publico_bp
+    app.register_blueprint(admin_chat_publico_bp)
+
     # API REST v1 (habilitada con CYBERSHOP_API_ENABLED=1)
     if os.getenv('CYBERSHOP_API_ENABLED', '0') == '1':
         from routes.api_auth import api_auth_bp
