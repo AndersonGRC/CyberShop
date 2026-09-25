@@ -10,6 +10,10 @@ dos mitades que nunca se mezclan:
 
 - `indexador.py` — arma el índice desde las tablas reales (se puede borrar y
   reconstruir). `reindexar()` lo rehace entero; `reindexar_uno()` un grupo.
+  `mantener_al_dia()` lo arma solo: el chat del sitio lo llama antes de buscar,
+  y reconstruye si está vacío o si tiene más de un día (revisa como mucho cada
+  10 min por proceso; un candado de Postgres deja reconstruir a uno solo a la
+  vez). Si al cliente le falta la tabla (migración 0012), la crea.
 - `buscar.py` — búsqueda por palabras, por parecido y por contenido.
   `solo_publico=True` (valor por defecto) es el candado del chat del sitio.
 - `internos.py` — documentos internos (procedimientos, políticas, manuales)

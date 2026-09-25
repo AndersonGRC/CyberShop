@@ -13,10 +13,11 @@ públicos, con la visibilidad por rol en la fuente.
 
 import html
 import re
+import time
 
 from flask import current_app
 
-from database import get_db_cursor
+from database import _current_db_name, get_db_cursor
 from services.ia_datos.base import _columnas, _existe
 
 # Documentos internos: visibilidad por rol → fuente en el índice. Así el panel
@@ -65,6 +66,85 @@ def indice_disponible(cur=None):
             return _existe(c, 'ia_documentos')
     except Exception:
         return False
+
+
+# La misma tabla e índices que la migración 0012 del maestro (sin intentar
+# instalar extensiones: eso lo hace la migración, si el usuario de la BD puede).
+# Las dos definiciones deben ser idénticas; lo verifica una prueba.
+_DDL_INDICE = """
+CREATE TABLE IF NOT EXISTS ia_documentos (
+    id             BIGSERIAL PRIMARY KEY,
+    fuente         VARCHAR(30)  NOT NULL,
+    fuente_id      VARCHAR(60)  NOT NULL,
+    titulo         VARCHAR(300) NOT NULL,
+    texto          TEXT         NOT NULL DEFAULT '',
+    url            VARCHAR(400),
+    canal_publico  BOOLEAN      NOT NULL DEFAULT FALSE,
+    actualizado_en TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    tsv            tsvector
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ia_documentos_fuente
+    ON ia_documentos (fuente, fuente_id);
+CREATE INDEX IF NOT EXISTS idx_ia_documentos_tsv
+    ON ia_documentos USING GIN (tsv);
+CREATE INDEX IF NOT EXISTS idx_ia_documentos_publico
+    ON ia_documentos (canal_publico) WHERE canal_publico;
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm') THEN
+        CREATE INDEX IF NOT EXISTS idx_ia_documentos_titulo_trgm
+            ON ia_documentos USING GIN (titulo gin_trgm_ops);
+    END IF;
+END $$;
+"""
+_INDICE_LISTO = set()          # BDs con la tabla ya verificada (por proceso)
+_REVISADO = {}                 # BD -> instante de la última revisión (por proceso)
+_REVISAR_CADA_S = 600          # como mucho una revisión cada 10 min por proceso
+_CANDADO_INDICE = 7311520      # pg_advisory: un solo proceso reconstruye a la vez
+
+
+def asegurar_indice(cur):
+    """Crea la tabla del índice si este cliente todavía no la tiene."""
+    clave = _current_db_name()
+    if clave not in _INDICE_LISTO:
+        cur.execute(_DDL_INDICE)
+        _INDICE_LISTO.add(clave)
+
+
+def mantener_al_dia():
+    """Reconstruye el índice si está vacío o si su fila más vieja tiene más de
+    un día. Antes nada lo armaba solo (solo guardar una FAQ indexaba su grupo) y
+    en producción el chat del sitio no encontraba ni «Quiénes somos».
+
+    Barato: revisa como mucho cada 10 min por proceso, y un candado de Postgres
+    deja reconstruir a un solo proceso a la vez. Corre dentro de la petición,
+    así escribe siempre en la BD del cliente que pregunta. Nunca lanza."""
+    clave = _current_db_name()
+    ahora = time.time()
+    if ahora - _REVISADO.get(clave, 0) < _REVISAR_CADA_S:
+        return None
+    _REVISADO[clave] = ahora
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            asegurar_indice(cur)
+            cur.execute("""SELECT COUNT(*) AS n,
+                                  COALESCE(MIN(actualizado_en) < NOW() - INTERVAL '1 day', TRUE) AS viejo
+                           FROM ia_documentos""")
+            fila = cur.fetchone()
+            if fila['n'] and not fila['viejo']:
+                return None
+            cur.execute('SELECT pg_try_advisory_xact_lock(%s) AS ok', (_CANDADO_INDICE,))
+            if not cur.fetchone()['ok']:
+                return None                  # otro proceso ya lo está armando
+            return _reindexar(cur)
+    except Exception as exc:  # noqa: BLE001
+        try:
+            current_app.logger.warning(f'rag: no se pudo mantener el índice al día ({exc})')
+        except Exception:
+            pass
+        return None
 
 
 def _upsert(cur, tsv_sql, fuente, fuente_id, titulo, texto, url, publico):
@@ -235,22 +315,28 @@ def reindexar(fuentes=None, limpiar=True):
     `limpiar` borra lo que ya no existe en el origen (un producto eliminado no
     puede seguir apareciendo en las respuestas).
     """
-    pedidas = tuple(fuentes) if fuentes else tuple(_INDEXADORES)
-    resultado = {}
     try:
         with get_db_cursor(dict_cursor=True) as cur:
             if not indice_disponible(cur):
                 return {'error': 'sin_indice'}
-            tsv_sql = _sql_tsv(cur)
-            if limpiar and not fuentes:
-                cur.execute('DELETE FROM ia_documentos')
-            for nombre in pedidas:
-                fn = _INDEXADORES.get(nombre)
-                if fn:
-                    resultado[nombre] = fn(cur, tsv_sql)
+            return _reindexar(cur, fuentes, limpiar)
     except Exception as exc:  # noqa: BLE001
         current_app.logger.error(f'rag: no se pudo reindexar: {exc}')
         return {'error': str(exc)[:200]}
+
+
+def _reindexar(cur, fuentes=None, limpiar=True):
+    """El trabajo de reindexar() con un cursor ya abierto: todo en una sola
+    transacción, así quien busca mientras tanto ve el índice anterior entero."""
+    pedidas = tuple(fuentes) if fuentes else tuple(_INDEXADORES)
+    tsv_sql = _sql_tsv(cur)
+    if limpiar and not fuentes:
+        cur.execute('DELETE FROM ia_documentos')
+    resultado = {}
+    for nombre in pedidas:
+        fn = _INDEXADORES.get(nombre)
+        if fn:
+            resultado[nombre] = fn(cur, tsv_sql)
     return resultado
 
 

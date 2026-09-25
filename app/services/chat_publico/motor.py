@@ -137,8 +137,11 @@ def config_publica():
         'negocio': negocio,
         'saludo': valores.get('chat_publico_saludo') or
                   f'¡Hola! Soy el asistente de {negocio}. ¿En qué te ayudo?',
-        'sugerencias': sugerencias or ['¿Qué productos manejan?', '¿Hacen domicilios?',
-                                       '¿A qué hora abren?'],
+        # Por defecto, solo preguntas que el chat SIEMPRE puede responder con las
+        # herramientas públicas: «¿Hacen domicilios?» caía en «no sé» mientras el
+        # dueño no publicara esa respuesta en sus preguntas frecuentes.
+        'sugerencias': sugerencias or ['¿Qué productos manejan?', '¿Dónde están ubicados?',
+                                       '¿Cómo puedo comprar?'],
         'whatsapp': re.sub(r'\D', '', valores.get('empresa_whatsapp') or ''),
         'tono': valores.get('chat_publico_tono') or 'cercano y breve',
     }
@@ -327,9 +330,13 @@ def preparar(pregunta, historial=None):
                         texto_base=f"{plan['texto_base']}\n\n{_MSG_CONFIRMAR_COMPAT}")
         return plan
 
-    # 3) índice de textos (lo que escribió el dueño)
+    # 3) índice de textos (lo que escribió el dueño). Se arma o refresca solo
+    # (vacío o de más de un día); antes nada lo construía y en producción el chat
+    # no encontraba ni «Quiénes somos».
     try:
         from services.ia_rag import buscar
+        from services.ia_rag.indexador import mantener_al_dia
+        mantener_al_dia()
         docs = buscar(texto, solo_publico=True, limite=LIMITE_DOCS)
     except Exception as exc:  # noqa: BLE001
         current_app.logger.warning(f'chat público: índice no disponible ({exc})')
