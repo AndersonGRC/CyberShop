@@ -96,6 +96,8 @@
                 {% endif %}
                 {% endif %}
             </div>
+            <!-- Respaldo Anthropic (solo dueño): lo pinta pintarNube() en el script -->
+            <div id="ia-nube-estado" class="ia-nube-estado"></div>
         </div>
 
         <!-- Tarjeta: Descripciones masivas -->
@@ -219,6 +221,39 @@
     const btnActualizar = document.getElementById('btn-actualizar-estado');
     const estadoContenido = document.getElementById('ia-estado-contenido');
 
+    // Respaldo Anthropic: solo el dueño recibe `nube` (trae el gasto); al resto le llega null.
+    const nubeEstado = document.getElementById('ia-nube-estado');
+    function pintarNube(n) {
+        if (!nubeEstado) return;
+        if (!n) { nubeEstado.innerHTML = ''; return; }
+        const usd = function (v) { return 'US$' + Number(v || 0).toFixed(2); };
+        let activo = false, titulo, detalle;
+        if (!n.configurada) {
+            titulo = 'No configurado';
+            detalle = 'Agrega la llave de Anthropic en el panel maestro → Integraciones → Respaldo de emergencia Anthropic.';
+        } else if (n.bloqueo) {
+            titulo = 'En pausa';
+            detalle = n.bloqueo;
+        } else if (!(Number(n.tope_usd) > 0)) {
+            titulo = 'Sin presupuesto';
+            detalle = 'El umbral mensual está en 0 USD: súbelo en el panel maestro para que responda mientras tu equipo de IA carga.';
+        } else if (!n.disponible) {
+            titulo = 'Tope del mes alcanzado';
+            detalle = 'Van ' + usd(n.costo_usd) + ' de ' + usd(n.tope_usd) + ' este mes; vuelve a responder el mes siguiente.';
+        } else {
+            activo = true;
+            titulo = 'Activo';
+            detalle = 'Responde mientras tu equipo de IA carga. Chat del sitio: ' + (n.para_publico ? 'sí' : 'no') +
+                      '. Este mes: ' + usd(n.costo_usd) + ' de ' + usd(n.tope_usd) +
+                      ' (' + (n.llamadas || 0) + ' respuestas).';
+        }
+        nubeEstado.innerHTML = '<div class="ia-nube-titulo">Respaldo Anthropic (Claude)</div>' +
+            '<span class="' + (activo ? 'gem-badge-online' : 'gem-badge-offline') + '"><span class="' +
+            (activo ? 'gem-dot-online' : 'gem-dot-offline') + '"></span>' + escHtml(titulo) + '</span>' +
+            '<p class="gem-motivo">' + escHtml(detalle) + '</p>';
+    }
+    pintarNube({{ nube|tojson }});
+
     if (btnActualizar) {
         btnActualizar.addEventListener('click', function () {
             const icon = this.querySelector('i');
@@ -244,6 +279,7 @@
                     }
                 }
                 estadoContenido.innerHTML = html;
+                pintarNube(data.nube);
             })
             .catch(function () {
                 estadoContenido.innerHTML = '<span class="gem-badge-offline"><span class="gem-dot-offline"></span>Error al consultar</span>';

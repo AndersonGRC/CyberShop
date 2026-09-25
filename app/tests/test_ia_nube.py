@@ -221,6 +221,32 @@ def test_sin_saldo_se_apaga_y_deja_de_intentar(app_nube, monkeypatch):
     assert ia_nube.motivo_bloqueo()
 
 
+SIN_WORKSPACE = RespuestaFalsa(400, {'error': {
+    'type': 'invalid_request_error',
+    'message': ('This API key is not scoped to a workspace, so this request must include the '
+                'anthropic-workspace-id header with the ID of the workspace to use. Add the '
+                'header, or use an API key that is scoped to a workspace.')}})
+
+
+def test_llave_sin_workspace_se_pausa_con_un_motivo_claro(app_nube, monkeypatch):
+    """Caso real (sep-2026): una llave de organización sin workspace falla en
+    TODAS las llamadas. Se pausa y el panel dice qué hacer, en vez de
+    reintentar y fallar en cada pregunta."""
+    llamadas = {'n': 0}
+
+    def post(*a, **k):
+        llamadas['n'] += 1
+        return SIN_WORKSPACE
+
+    monkeypatch.setattr(ia_nube.requests, 'post', post)
+    texto, motivo = ia_nube.responder('sistema', 'usuario')
+    assert texto is None and 'workspace' in motivo
+    assert not ia_nube.disponible()
+    ia_nube.responder('sistema', 'usuario')
+    assert llamadas['n'] == 1, 'no debe reintentar en cada mensaje'
+    assert 'workspace' in ia_nube.estado()['bloqueo']
+
+
 def test_bloqueo_de_nube_no_afecta_otro_cliente(app_nube, monkeypatch):
     cliente = ['cyber_a']
     monkeypatch.setattr(ia_nube, '_clave_bloqueo', lambda: cliente[0])

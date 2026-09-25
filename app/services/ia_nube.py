@@ -255,6 +255,13 @@ def responder(sistema, usuario, max_tokens=None, temperature=0.4, timeout=25):
     except Exception:
         detalle = r.text[:200]
 
+    # Llave de la organización sin workspace: Anthropic la rechaza en TODAS las
+    # llamadas (pide el encabezado anthropic-workspace-id). Es de configuración.
+    if r.status_code == 400 and 'workspace' in detalle.lower():
+        _bloquear('La llave de Anthropic no pertenece a un workspace. Crea la llave dentro de '
+                  'un workspace en la consola de Anthropic y guárdala de nuevo en el maestro.')
+        return None, motivo_bloqueo()
+
     # Sin saldo o clave inválida: no sirve reintentar en cada mensaje.
     if r.status_code in (400, 401, 403) and ('credit' in detalle.lower()
                                              or 'balance' in detalle.lower()

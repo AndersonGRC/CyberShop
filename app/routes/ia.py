@@ -65,7 +65,21 @@ def panel():
     except Exception:
         faltan = 0
     return render_template('admin/ia_panel.html', datosApp=datosApp,
-                           estado=estado, faltan=faltan)
+                           estado=estado, faltan=faltan, nube=_estado_nube())
+
+
+def _estado_nube():
+    """Estado del respaldo Anthropic, solo para el dueño (trae el gasto del mes):
+    sin él no había cómo saber por qué Claude no respondía. None para el resto."""
+    if session.get('rol_id') not in ADMIN_FULL:
+        return None
+    try:
+        from services import ia_nube
+        e = ia_nube.estado()
+    except Exception:  # noqa: BLE001
+        return None
+    return {k: e.get(k) for k in ('configurada', 'disponible', 'bloqueo', 'para_publico',
+                                  'modelo', 'llamadas', 'costo_usd', 'tope_usd')}
 
 
 # ── Documentos internos (índice privado del asistente) ─────────
@@ -140,7 +154,7 @@ def documentos_estado(doc_id):
 @ia_bp.route('/estado')
 @rol_requerido(ADMIN_STAFF)
 def estado():
-    return jsonify(ai.ping())
+    return jsonify({**ai.ping(), 'nube': _estado_nube()})
 
 
 @ia_bp.route('/descripcion', methods=['POST'])

@@ -359,8 +359,6 @@ def chat_con_motor(motor, system, user, max_tokens=400, temperature=0.7, canal='
 
     texto, err = _chat_una_vez(motor.modelo, system, user, max_tokens, temperature,
                                base_url=motor.base_url, timeout=motor.timeout)
-    if texto is not None and motor.nivel == NIVEL_B:
-        _confirmar_modelo_listo(motor.modelo)
     return (texto, None) if texto is not None else (None, err[1])
 
 
@@ -414,8 +412,6 @@ def _chat(system, user, max_tokens=400, temperature=0.7, espera_frio=45,
     texto, err = _chat_una_vez(primario, system, user, max_tokens, temperature,
                                base_url=motor.base_url, timeout=motor.timeout)
     if texto is not None:
-        if motor.nivel == motores.NIVEL_B:
-            _confirmar_modelo_listo(primario)
         return texto, None
     codigo, mensaje = err
     if codigo == 'modelo' and fallback and fallback != primario:
@@ -623,54 +619,23 @@ MSG_MOTOR_PREPARANDO = ('El motor de IA se está preparando: la primera consulta
 MSG_SOLO_LOCAL = ('Estos datos no salen del equipo del negocio y el equipo de IA no está disponible '
                   'ahora mismo.')
 
-# Puente a la nube durante el arranque en frío: vivo()/api/tags (ia_motores.py) no
-# distingue "Ollama arriba pero modelo sin cargar" de "modelo caliente" — un motor
-# frío se ve "vivo" igual que uno listo, así que el respaldo lento de ia_nube.py
-# (180 s + 3 sondeos fallidos reales) nunca llega a activarse para este caso. Este
-# puente es aparte y rápido: usa /api/ps (_modelo_en_memoria, lo correcto) y, si el
-# modelo no está cargado, responde por la nube SOLO la primera y segunda vez de la
-# racha fría (la carga ya quedó pedida en chat_con_motor) — de la tercera en
-# adelante se asume que ya tuvo tiempo de calentar y vuelve al camino local.
-_PUENTE_NUBE_MAX = 2
-_CANALES_PUENTE = ('panel', 'publico')
-_puente_nube_usos = {}       # (db_name, modelo, canal) -> cuenta consecutiva de esta racha
-
-
-def _clave_puente(modelo, canal):
-    """Una racha por chat: los visitantes del sitio no le gastan el cupo al panel."""
-    from database import _current_db_name
-    return (_current_db_name(), modelo, canal)
-
-
-def _puente_frio_disponible(modelo, canal='panel'):
-    return _puente_nube_usos.get(_clave_puente(modelo, canal), 0) < _PUENTE_NUBE_MAX
-
-
-def _registrar_uso_puente(modelo, canal='panel'):
-    clave = _clave_puente(modelo, canal)
-    _puente_nube_usos[clave] = _puente_nube_usos.get(clave, 0) + 1
-
-
-def _confirmar_modelo_listo(modelo):
-    """Hubo una respuesta local real: se olvida la racha fría de ambos chats."""
-    for canal in _CANALES_PUENTE:
-        _puente_nube_usos.pop(_clave_puente(modelo, canal), None)
-
-
-def _tomar_puente(modelo, canal):
-    """Decide, una vez por pregunta, si va por la nube mientras el modelo local
-    carga: queda cupo en la racha fría de ese chat y la nube está disponible para
-    él (presupuesto; opt-in del público). Si sí, cuenta el uso. Nunca lanza."""
-    if not _puente_frio_disponible(modelo, canal):
-        return False
+# Puente a la nube mientras el modelo del equipo no está listo. vivo()/api/tags
+# (ia_motores.py) no distingue "Ollama arriba pero modelo sin cargar" de "modelo
+# caliente"; _modelo_en_memoria (/api/ps) sí, y Ollama no lista un modelo hasta
+# que terminó de cargar (medido con 0.31.1). Regla del dueño: mientras el modelo
+# no esté listo, cada pregunta que necesita modelo la responde la nube (Claude
+# Haiku, sin pensamiento extendido) y la carga queda pedida; cada pregunta vuelve
+# a mirar y, en cuanto está listo, responde el local. Sin tope de preguntas: el
+# gasto lo frena el presupuesto mensual de ia_nube, y lo solo local (nómina,
+# documentos internos) nunca sale.
+def _puente_disponible(canal):
+    """¿Puede la nube responder esta pregunta mientras el modelo local carga?
+    Llave válida, presupuesto y, en el chat del sitio, su permiso. Nunca lanza."""
     try:
         from services import ia_nube
-        if not ia_nube.disponible(canal):
-            return False
+        return bool(ia_nube.disponible(canal))
     except Exception:  # noqa: BLE001
         return False
-    _registrar_uso_puente(modelo, canal)
-    return True
 
 
 def _responder_nube(system, user, max_tokens, temperature):
@@ -692,7 +657,7 @@ def _responder_nube(system, user, max_tokens, temperature):
 def _intentar_puente_frio(motor, system, user, max_tokens, temperature, canal):
     """Solo con el modelo ya confirmado frío. None si no aplica (sigue el camino
     local de siempre); el texto de la nube si el puente respondió."""
-    if not _tomar_puente(motor.modelo, canal):
+    if not _puente_disponible(canal):
         return None
     texto, _motivo = _responder_nube(system, user, max_tokens, temperature)
     return texto or None
@@ -971,14 +936,14 @@ def _plan_chat_pasos(pregunta, anunciar=True, historial=None, contexto=None):
     # Las consultas inequívocas van directo a funciones fijas: no esperan a que
     # cargue Ollama ni pagan un modelo en la nube solo para elegir herramienta.
     # Las demás necesitan el modelo para elegir: si está frío, la carga se pide ya
-    # y, mientras tanto, la pregunta va por la nube si queda cupo en la racha
-    # (máx. 2 por arranque en frío); si no, se espera la carga como siempre.
+    # y, mientras tanto, la pregunta va por la nube (si está configurada); si no,
+    # se espera la carga como siempre.
     puente = None                     # None = no se decidió: lo decide la redacción si hace falta
     if not ruta_segura:
         primario = current_app.config.get('AI_MODEL') or 'qwen2.5:7b'
         if _modelo_en_memoria(primario) is False:
             _pedir_carga(primario)
-            puente = _tomar_puente(primario, 'panel')
+            puente = _puente_disponible('panel')
             if puente:
                 if anunciar:
                     yield ('estado', 'Tu equipo de IA se está preparando: mientras carga, te '
@@ -1311,9 +1276,9 @@ def _datos_solo_locales_hacia_nube(plan, motor):
 
 def _redactar_en_frio(plan, motor):
     """(texto_de_la_nube, frio). Si el modelo del equipo del dueño está sin
-    cargar: pide la carga y, si esta pregunta toma el puente (o ya lo tomó al
-    elegir herramientas) y sus datos pueden salir, la redacta la nube. `frio`
-    le dice a quien llama que, si no hubo texto, hay que esperar la carga."""
+    cargar: pide la carga y, si la nube está disponible (o ya eligió las
+    herramientas de esta pregunta) y sus datos pueden salir, la redacta la nube.
+    `frio` le dice a quien llama que, si no hubo texto, hay que esperar la carga."""
     from services.ia_motores import NIVEL_B
     if motor is None or motor.es_nube or motor.nivel != NIVEL_B:
         return None, False
@@ -1323,7 +1288,7 @@ def _redactar_en_frio(plan, motor):
     _pedir_carga(primario)
     if plan.get('solo_local'):
         return None, True
-    usar = plan['puente'] if plan.get('puente') is not None else _tomar_puente(primario, 'panel')
+    usar = plan['puente'] if plan.get('puente') is not None else _puente_disponible('panel')
     if not usar:
         return None, True
     texto, _motivo = _responder_nube(plan['system'], plan['user_nube'], plan['max_tokens'], 0.7)
@@ -1527,8 +1492,6 @@ def _responder_chat_stream(pregunta, historial, ctx, resultado):
             resultado['error'] = e.mensaje
             yield ('error', e.mensaje)
             return
-    if partes and motor.nivel == motores.NIVEL_B:
-        _confirmar_modelo_listo(primario)
     resultado['error'] = None
     yield ('fin', ''.join(partes).strip())
 

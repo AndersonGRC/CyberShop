@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """Chat del panel con el modelo del equipo del dueño sin cargar.
 
-Regla del dueño: se calienta siempre el modelo local; la nube (Claude) solo
-responde mientras carga, máximo 2 preguntas por arranque en frío, y NUNCA con
-datos solo locales (nómina, documentos internos), ni siquiera los que vienen
-en la conversación anterior. Lo mismo vale para el respaldo con el equipo
-apagado. Todo sin red ni modelo real: la nube y el modelo están simulados.
+Regla del dueño: se calienta siempre el modelo local; la nube (Claude) responde
+cada pregunta mientras el equipo no esté listo —cada pregunta vuelve a revisar—
+y NUNCA con datos solo locales (nómina, documentos internos), ni siquiera los
+que vienen en la conversación anterior. Lo mismo vale para el respaldo con el
+equipo apagado. Todo sin red ni modelo real: la nube y el modelo están simulados.
 """
 import json
 from datetime import date, datetime
@@ -41,7 +41,6 @@ def panel(flask_app, monkeypatch):
     ns = SimpleNamespace(nube=[], local=[], frio=True, motor=motor_b, espera_ok=True,
                          nube_disponible=True, eleccion=None)
     monkeypatch.setitem(flask_app.config, 'AI_MODEL', MODELO)
-    monkeypatch.setattr(ai, '_puente_nube_usos', {})
     monkeypatch.setattr(ai, '_fecha_hoy', lambda: (date(2026, 9, 25), datetime(2026, 9, 25, 10)))
     monkeypatch.setattr(ai, '_contexto_tenant', lambda: 'Negocio de prueba.')
     monkeypatch.setattr(ai, '_registrar_consulta', lambda *a, **k: None)
@@ -91,17 +90,12 @@ def _stream(pregunta, historial=None):
     return SimpleNamespace(eventos=eventos, fin=fin[0] if fin else None, texto=texto)
 
 
-def _racha():
-    return ai._puente_nube_usos.get(ai._clave_puente(MODELO, 'panel'), 0)
-
-
 # ── Lo que puede salir: la nube redacta mientras el equipo carga ─
 def test_en_frio_la_nube_redacta_lo_no_sensible(panel):
     r = _stream('¿Cuánto vendí hoy?')
     assert r.texto == 'Respuesta de la nube.'
     assert r.fin == {'herramienta': 'ventas_periodo', 'motor': 'nube'}
     assert panel.local == [], 'no se esperó ni se usó el modelo local'
-    assert _racha() == 1
 
 
 def test_con_el_modelo_caliente_no_se_toca_la_nube(panel):
@@ -146,14 +140,14 @@ def test_el_modelo_local_si_ve_toda_la_conversacion(panel):
 
 
 # ── Elegir herramientas en frío ────────────────────────────────
-def test_en_frio_la_eleccion_y_la_redaccion_cuentan_como_una_pregunta(panel):
+def test_en_frio_elegir_y_redactar_van_por_la_nube_sin_lo_sensible(panel):
     panel.eleccion = 'ventas_periodo'
     r = _stream('Necesito un análisis del negocio para decidir compras',
                 historial=HISTORIAL_CON_NOMINA)
     assert r.texto == 'Respuesta de la nube.'
     assert len(panel.nube) == 2               # elegir + redactar
     assert all(SECRETO not in u for u in panel.nube)
-    assert _racha() == 1                      # pero es UNA pregunta de la racha
+    assert panel.local == []
 
 
 def test_si_eligio_nomina_la_redaccion_espera_al_equipo(panel):
@@ -163,30 +157,19 @@ def test_si_eligio_nomina_la_redaccion_espera_al_equipo(panel):
     assert r.texto == 'Respuesta local.'
 
 
-# ── El tope: hasta la segunda, no más ──────────────────────────
-def test_la_tercera_pregunta_en_frio_espera_al_equipo(panel):
-    _stream('¿Cuánto vendí hoy?')
-    _stream('¿Cuánto vendí hoy?')
-    r = _stream('¿Cuánto vendí hoy?')
-    assert len(panel.nube) == 2
-    assert r.texto == 'Respuesta local.'
+# ── Hasta que el equipo esté listo; cada pregunta vuelve a mirar ─
+def test_mientras_siga_frio_todas_las_preguntas_van_a_la_nube(panel):
+    textos = [_stream('¿Cuánto vendí hoy?').texto for _ in range(4)]
+    assert textos == ['Respuesta de la nube.'] * 4
+    assert panel.local == []
 
 
-def test_una_respuesta_local_reinicia_la_racha(panel):
-    _stream('¿Cuánto vendí hoy?')
-    _stream('¿Cuánto vendí hoy?')
+def test_en_cuanto_el_equipo_esta_listo_responde_el_local(panel):
+    assert _stream('¿Cuánto vendí hoy?').texto == 'Respuesta de la nube.'
     panel.frio = False
-    _stream('¿Cuánto vendí hoy?')             # respondió el equipo: racha en cero
-    panel.frio = True
-    r = _stream('¿Cuánto vendí hoy?')
-    assert r.texto == 'Respuesta de la nube.'
-
-
-def test_los_visitantes_no_gastan_la_racha_del_panel(panel):
-    ai._registrar_uso_puente(MODELO, 'publico')
-    ai._registrar_uso_puente(MODELO, 'publico')
-    r = _stream('¿Cuánto vendí hoy?')
-    assert r.texto == 'Respuesta de la nube.'
+    assert _stream('¿Cuánto vendí hoy?').texto == 'Respuesta local.'
+    assert _stream('¿Cuánto vendí hoy?').texto == 'Respuesta local.'
+    assert len(panel.nube) == 1
 
 
 def test_sin_nube_configurada_espera_al_equipo_como_siempre(panel):

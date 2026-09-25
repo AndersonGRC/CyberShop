@@ -903,3 +903,18 @@
 .gem-action-preview__status { margin: 10px 0 0; font-size: .83rem; font-weight: 600; }
 .gem-action-preview--done { border-color: #68ad75; background: #f3fbf4; }
 .gem-action-preview--cancelled { border-color: #adb5c2; background: #f5f6f8; }
+
+/* Respaldo Anthropic en la tarjeta de estado (solo lo ve el dueño) */
+.ia-nube-estado:not(:empty) {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--color-gris-borde);
+}
+.ia-nube-titulo {
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-texto-secundario);
+    margin-bottom: 6px;
+}

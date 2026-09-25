@@ -4,11 +4,11 @@
 vivo()/api/tags (ia_motores.py) no distingue "Ollama arriba pero el modelo sin
 cargar en memoria" de "modelo caliente" — así que el respaldo lento ya existente
 (ia_nube, 180s + 3 sondeos fallidos reales) nunca se activa para este caso. Este
-camino usa la señal correcta (_modelo_en_memoria, /api/ps): si el modelo no está
-cargado, pide la carga SIEMPRE y responde por la nube SOLO la primera y segunda
-vez de la racha; después vuelve al camino local de siempre — para no dejar
-esperando al usuario los 1-3 minutos que tarda la carga, sin gastar de más.
-Con esperar_carga=False (chat del sitio) nunca se espera la carga.
+camino usa la señal correcta (_modelo_en_memoria, /api/ps): mientras el modelo
+no esté listo, pide la carga y cada pregunta la responde la nube; en cuanto está
+listo, responde el local (regla del dueño, sep-2026: sin tope de preguntas, el
+gasto lo frena el presupuesto mensual). Con esperar_carga=False (chat del sitio)
+nunca se espera la carga.
 
 El pedido real de carga lo neutraliza conftest (_sin_carga_real_del_modelo).
 """
@@ -29,8 +29,6 @@ def app_puente(monkeypatch):
     app = Flask(__name__)
     app.config.update(AI_BASE_URL='http://pc:11434', AI_API_KEY='',
                       AI_NUBE_PARA_PUBLICO=False)
-    # Cada prueba empieza con la racha en cero.
-    monkeypatch.setattr(ai, '_puente_nube_usos', {})
     monkeypatch.setattr(ia_nube, '_bloqueo', {})
     with app.app_context():
         yield app
@@ -84,43 +82,31 @@ def test_segunda_respuesta_fria_tambien_usa_la_nube(app_puente, monkeypatch):
     assert texto == 'ok'
 
 
-# ── El freno de "hasta la segunda, no más" ──────────────────────
-def test_tercera_respuesta_fria_ya_no_usa_el_puente(app_puente, monkeypatch):
+# ── Hasta que el equipo esté listo, sin tope de preguntas ───────
+def test_mientras_siga_frio_todas_las_preguntas_van_a_la_nube(app_puente, monkeypatch):
+    _sin_llamadas_locales(monkeypatch)
     monkeypatch.setattr(ai, '_modelo_en_memoria', lambda modelo: False)
     monkeypatch.setattr(ia_nube, 'disponible', lambda canal='panel': True)
     monkeypatch.setattr(ia_nube, 'responder', lambda *a, **k: ('de la nube', None))
-    llamadas_locales = []
-    monkeypatch.setattr(ai, '_chat_una_vez',
-                        lambda *a, **k: (llamadas_locales.append(1) or 'de lo local', None))
 
-    ai.chat_con_motor(_motor_b(), 's', 'u1')  # 1a: nube
-    ai.chat_con_motor(_motor_b(), 's', 'u2')  # 2a: nube
-    texto, _ = ai.chat_con_motor(_motor_b(), 's', 'u3')  # 3a: local, aunque siga frio
-    assert texto == 'de lo local'
-    assert len(llamadas_locales) == 1
+    textos = [ai.chat_con_motor(_motor_b(), 's', f'u{i}')[0] for i in range(5)]
+    assert textos == ['de la nube'] * 5
 
 
-# ── Una respuesta local exitosa limpia la racha ─────────────────
-def test_una_respuesta_local_exitosa_reinicia_la_racha(app_puente, monkeypatch):
+def test_cada_pregunta_revisa_y_en_cuanto_esta_listo_responde_el_local(app_puente, monkeypatch):
     monkeypatch.setattr(ia_nube, 'disponible', lambda canal='panel': True)
     monkeypatch.setattr(ia_nube, 'responder', lambda *a, **k: ('de la nube', None))
     monkeypatch.setattr(ai, '_chat_una_vez', lambda *a, **k: ('de lo local', None))
+    revisiones = []
 
-    estados_cargado = iter([False, False, True, False])
-    monkeypatch.setattr(ai, '_modelo_en_memoria', lambda modelo: next(estados_cargado))
+    def _en_memoria(modelo):
+        revisiones.append(1)
+        return len(revisiones) > 2                   # listo desde la tercera pregunta
 
-    ai.chat_con_motor(_motor_b(), 's', 'u1')          # frio -> nube (racha 1)
-    ai.chat_con_motor(_motor_b(), 's', 'u2')          # frio -> nube (racha 2)
-    texto3, _ = ai.chat_con_motor(_motor_b(), 's', 'u3')  # "cargado" -> local, limpia racha
-    assert texto3 == 'de lo local'
-
-    # Racha limpia: una CUARTA consulta fria vuelve a tener puente disponible
-    # (si no se hubiera limpiado, esta ya estaria en su 3er uso y no lo tendria).
-    llamadas_locales = []
-    monkeypatch.setattr(ai, '_chat_una_vez', lambda *a, **k: (llamadas_locales.append(1) or 'x', None))
-    texto4, _ = ai.chat_con_motor(_motor_b(), 's', 'u4')
-    assert texto4 == 'de la nube'
-    assert llamadas_locales == []
+    monkeypatch.setattr(ai, '_modelo_en_memoria', _en_memoria)
+    textos = [ai.chat_con_motor(_motor_b(), 's', f'u{i}')[0] for i in range(4)]
+    assert textos == ['de la nube', 'de la nube', 'de lo local', 'de lo local']
+    assert len(revisiones) == 4, 'cada pregunta vuelve a mirar si el equipo está listo'
 
 
 # ── Respeta las mismas compuertas que ya protegen a ia_nube ─────
