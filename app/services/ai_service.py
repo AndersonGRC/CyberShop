@@ -330,18 +330,29 @@ def _chat_stream_una_vez(model, system, user, max_tokens, temperature,
         raise _ErrorIA('modelo', 'La IA no devolvió contenido. Intenta de nuevo.')
 
 
-def chat_con_motor(motor, system, user, max_tokens=400, temperature=0.7):
+def chat_con_motor(motor, system, user, max_tokens=400, temperature=0.7, canal='panel',
+                   permitir_puente=True):
     """Le habla al motor que sea: una máquina propia (Ollama) o el respaldo en la
     nube. Devuelve (texto, None) o (None, motivo). Quien llama no tiene que saber
-    con cuál de los dos está hablando."""
+    con cuál de los dos está hablando. permitir_puente=False: nunca desvía a la
+    nube aunque el modelo local esté frío."""
     if motor is None:
         return None, 'Sin motor de IA disponible.'
     if getattr(motor, 'es_nube', False):
         from services import ia_nube
         return ia_nube.responder(system, user, max_tokens=max_tokens,
                                  temperature=temperature, timeout=motor.timeout)
+
+    from services.ia_motores import NIVEL_B
+    if motor.nivel == NIVEL_B and permitir_puente:
+        puente = _intentar_puente_frio(motor, system, user, max_tokens, temperature, canal)
+        if puente is not None:
+            return puente, None
+
     texto, err = _chat_una_vez(motor.modelo, system, user, max_tokens, temperature,
                                base_url=motor.base_url, timeout=motor.timeout)
+    if texto is not None and motor.nivel == NIVEL_B:
+        _confirmar_modelo_listo(motor.modelo)
     return (texto, None) if texto is not None else (None, err[1])
 
 
@@ -591,6 +602,59 @@ _CALENTANDO = {}             # modelo -> instante del último pedido de carga (p
 _CALENTAR_CADA_S = 120
 MSG_MOTOR_PREPARANDO = ('El motor de IA se está preparando: la primera consulta después de encender '
                         'el equipo, o de un rato sin uso, tarda de 1 a 3 minutos. Intenta de nuevo en un momento.')
+
+# Puente a la nube durante el arranque en frío: vivo()/api/tags (ia_motores.py) no
+# distingue "Ollama arriba pero modelo sin cargar" de "modelo caliente" — un motor
+# frío se ve "vivo" igual que uno listo, así que el respaldo lento de ia_nube.py
+# (180 s + 3 sondeos fallidos reales) nunca llega a activarse para este caso. Este
+# puente es aparte y rápido: usa /api/ps (_modelo_en_memoria, lo correcto) y, si el
+# modelo no está cargado, responde por la nube SOLO la primera y segunda vez de la
+# racha fría, mientras pide la carga en segundo plano — de la tercera en adelante
+# se asume que ya tuvo tiempo de calentar y vuelve al camino local de siempre.
+_PUENTE_NUBE_MAX = 2
+_puente_nube_usos = {}       # (db_name, modelo) -> cuenta consecutiva de esta racha
+
+
+def _clave_puente(modelo):
+    from database import _current_db_name
+    return (_current_db_name(), modelo)
+
+
+def _puente_frio_disponible(modelo):
+    return _puente_nube_usos.get(_clave_puente(modelo), 0) < _PUENTE_NUBE_MAX
+
+
+def _registrar_uso_puente(modelo):
+    clave = _clave_puente(modelo)
+    _puente_nube_usos[clave] = _puente_nube_usos.get(clave, 0) + 1
+
+
+def _confirmar_modelo_listo(modelo):
+    """Hubo una respuesta local real: se olvida cualquier racha fría anterior."""
+    _puente_nube_usos.pop(_clave_puente(modelo), None)
+
+
+def _intentar_puente_frio(motor, system, user, max_tokens, temperature, canal):
+    """None si no aplica (sigue el camino local de siempre); el texto de la nube
+    si el puente respondió. Nunca lanza: cualquier fallo deja que el camino
+    normal de abajo se encargue, sin gastar el conteo de la racha."""
+    if _modelo_en_memoria(motor.modelo) is not False or not _puente_frio_disponible(motor.modelo):
+        return None
+    try:
+        from services import ia_nube
+        if not ia_nube.disponible(canal):
+            return None
+        _pedir_carga(motor.modelo)
+        _registrar_uso_puente(motor.modelo)
+        texto, err = ia_nube.responder(system, user, max_tokens=max_tokens,
+                                       temperature=temperature, timeout=motor.timeout)
+        return texto or None
+    except Exception as exc:  # noqa: BLE001
+        try:
+            current_app.logger.warning(f'IA: puente de arranque en frío falló ({exc})')
+        except Exception:
+            pass
+        return None
 
 
 def _pedir_carga(modelo):

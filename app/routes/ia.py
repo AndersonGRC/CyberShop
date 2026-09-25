@@ -31,6 +31,20 @@ def _guard():
     return None
 
 
+# Coincide con el maxlength ya visible en templates/admin/ia_panel.html: antes
+# solo era una sugerencia de la interfaz, una llamada directa a la API la
+# saltaba sin esfuerzo (a diferencia del chat público, que sí la exige).
+_MAX_PREGUNTA_PANEL = 300
+
+
+def _pregunta_panel(d):
+    """La pregunta ya recortada, o None si no es un texto usable."""
+    pregunta = d.get('pregunta', '')
+    if not isinstance(pregunta, str) or not pregunta.strip():
+        return None
+    return pregunta.strip()[:_MAX_PREGUNTA_PANEL]
+
+
 @ia_bp.route('/')
 @rol_requerido(ADMIN_STAFF)
 def panel():
@@ -141,8 +155,10 @@ def chat():
     if g:
         return g
     d = request.get_json(silent=True) or {}
+    pregunta = _pregunta_panel(d)
+    if pregunta is None:
+        return jsonify({'ok': False, 'error': 'Escribe una pregunta.'}), 400
     from services import ia_acciones
-    pregunta = d.get('pregunta', '')
     if ia_acciones.parece_operativa(pregunta):
         try:
             propuesta = ia_acciones.preparar(pregunta)
@@ -154,7 +170,7 @@ def chat():
             current_app.logger.exception('No se pudo preparar la acción IA')
             return jsonify({'ok': False, 'error': 'No se pudo preparar la acción. '
                             'Verifica que el esquema del cliente esté actualizado.'}), 503
-    res, err = ai.responder_chat(d.get('pregunta', ''), historial=d.get('historial'))
+    res, err = ai.responder_chat(pregunta, historial=d.get('historial'))
     if err:
         return jsonify({'ok': False, 'error': err}), 400
     return jsonify({'ok': True, **res})
@@ -233,11 +249,14 @@ def chat_stream():
     if g:
         return g
     d = request.get_json(silent=True) or {}
-    pregunta = d.get('pregunta', '')
+    pregunta = _pregunta_panel(d)
     historial = d.get('historial')
     from services import ia_acciones
 
     def gen():
+        if pregunta is None:
+            yield f"data: {json.dumps({'e': 'error', 'd': 'Escribe una pregunta.'}, ensure_ascii=False)}\n\n"
+            return
         # stream_with_context mantiene vivo el request (get_db_cursor del
         # tenant sigue resolviendo dentro del generador).
         if ia_acciones.parece_operativa(pregunta):
