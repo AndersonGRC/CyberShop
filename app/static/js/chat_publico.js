@@ -16,6 +16,10 @@
     var abierto = false;
     var ref = null;
 
+    // Mismo corte que el @media de chat_publico.css: en celular el panel va a
+    // pantalla completa.
+    var MOVIL = window.matchMedia('(max-width: 768px)');
+
     // Verificación humana (reCAPTCHA), solo si el servidor la trae configurada
     // en /chat/config. Una vez resuelta, el token firmado que el servidor
     // devuelve sirve para el resto de la conversación — no hay que repetirla
@@ -80,7 +84,7 @@
         var titulo = crear('div', { id: 'cbchat-titulo', text: config.negocio || 'Chat' });
         var subtitulo = crear('div', { id: 'cbchat-subtitulo', text: 'Asistente automático · responde al instante' });
         var cerrar = crear('button', {
-            id: 'cbchat-cerrar', type: 'button', 'aria-label': 'Cerrar chat', html: '&times;'
+            id: 'cbchat-cerrar', type: 'button', 'aria-label': 'Cerrar chat', html: ICONO_CERRAR
         });
         var header = crear('div', { id: 'cbchat-header' }, [
             avatar,
@@ -152,24 +156,57 @@
         });
 
         ref = { launcher: launcher, panel: panel, input: input, mensajes: mensajes,
-                sugerenciasWrap: sugerenciasWrap, enviar: enviar, senuelo: senuelo };
+                sugerenciasWrap: sugerenciasWrap, enviar: enviar, senuelo: senuelo,
+                cerrar: cerrar };
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', ajustarAlVisor);
+            window.visualViewport.addEventListener('scroll', ajustarAlVisor);
+        }
+        if (MOVIL.addEventListener) MOVIL.addEventListener('change', ajustarAlVisor);
 
         if (config.saludo) agregarMensaje('bot', config.saludo);
+    }
+
+    // Celular: el panel se ajusta al área que de verdad se ve (visualViewport).
+    // El teclado virtual achica solo esa área, no la ventana: sin esto el campo
+    // quedaba debajo del teclado o el encabezado —con la X— se salía por arriba.
+    // Y si la página desborda a lo ancho (p. ej. a 320 px), el navegador agranda
+    // el área de los elementos fijos y la X quedaba fuera de la pantalla.
+    // En escritorio (o cerrado) manda solo el CSS.
+    function ajustarAlVisor() {
+        var vv = window.visualViewport;
+        if (!ref) return;
+        var ajustar = vv && abierto && MOVIL.matches;
+        ref.panel.style.left = ajustar ? vv.offsetLeft + 'px' : '';
+        ref.panel.style.top = ajustar ? vv.offsetTop + 'px' : '';
+        ref.panel.style.width = ajustar ? vv.width + 'px' : '';
+        ref.panel.style.height = ajustar ? vv.height + 'px' : '';
     }
 
     function abrirPanel() {
         abierto = true;
         ref.panel.hidden = false;
+        document.body.classList.add('cbchat-abierto');
         ref.launcher.setAttribute('aria-expanded', 'true');
         ref.launcher.setAttribute('aria-label', 'Cerrar chat');
-        window.setTimeout(function () { ref.input.focus(); }, 30);
+        ajustarAlVisor();
+        ref.mensajes.scrollTop = ref.mensajes.scrollHeight;
+        // En celular no se abre el teclado de golpe (taparía el saludo y las
+        // sugerencias): el foco va a la X, dentro del diálogo.
+        window.setTimeout(function () {
+            if (MOVIL.matches) ref.cerrar.focus();
+            else ref.input.focus();
+        }, 30);
     }
 
     function cerrarPanel() {
         abierto = false;
         ref.panel.hidden = true;
+        document.body.classList.remove('cbchat-abierto');
         ref.launcher.setAttribute('aria-expanded', 'false');
         ref.launcher.setAttribute('aria-label', 'Abrir chat');
+        ajustarAlVisor();
         ref.launcher.focus();
     }
 

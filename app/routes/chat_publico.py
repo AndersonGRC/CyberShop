@@ -23,6 +23,8 @@ Esta capa es independiente de la lista blanca del motor
 igual se niega a servir cualquier capacidad no declarada pública.
 """
 
+import os
+
 import requests
 from flask import Blueprint, current_app, jsonify, request
 from itsdangerous import URLSafeTimedSerializer
@@ -100,6 +102,20 @@ def _modulo_apagado():
     return jsonify({'error': 'not_found'}), 404
 
 
+_ARCHIVOS_WIDGET = ('css/chat_publico.css', 'js/chat_publico.js')
+
+
+def _version_widget():
+    """Versión para el ?v= con que layout.js pide el CSS y el JS del widget: la
+    fecha del más reciente de los dos. Cloudflare guarda /static 7 días; con la
+    versión en la URL, un despliegue nuevo se ve de inmediato."""
+    try:
+        return str(int(max(os.path.getmtime(os.path.join(current_app.static_folder, ruta))
+                           for ruta in _ARCHIVOS_WIDGET)))
+    except OSError:
+        return str(current_app.config.get('APP_VERSION') or '')
+
+
 def _sanear_historial(bruto):
     """Recorta el historial ANTES de que llegue al motor. Defensivo: hoy el
     motor ni siquiera lee su contenido, pero el contrato de la API lo acepta
@@ -127,6 +143,7 @@ def config():
         return _modulo_apagado()
     try:
         salida = config_publica()
+        salida['v'] = _version_widget()
         # Ausente por completo si no está configurada: el widget no debe ni
         # intentar cargar el script de reCAPTCHA cuando no hace falta.
         if _verificacion_activa():

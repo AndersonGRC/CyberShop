@@ -247,31 +247,6 @@
    --color-texto-oscuro: #222222;
    --sombra-eliminar: rgba(255, 0, 0, 0.3);
    --sombra-exito-leve: rgba(40, 167, 69, 0.3);
-
-   /* ============================================
-     CHAT DEL SITIO (static/css/chat_publico.css)
-     Paleta NEUTRA a propósito: nunca usa los colores de marca, para que el
-     widget se vea igual en cualquier cliente. No sobreescribir por cliente.
-     ============================================ */
-   --cbchat-bg: #ffffff;
-   --cbchat-surface: #f7f7f8;
-   --cbchat-border: #e2e4e8;
-   --cbchat-text: #1f2328;
-   --cbchat-text-muted: #6b7280;
-   --cbchat-accent: #475569;
-   --cbchat-accent-dark: #334155;
-   --cbchat-sobre-acento: #ffffff;
-   --cbchat-bubble-user: #eef1f5;
-   --cbchat-bubble-bot: #ffffff;
-   --cbchat-aviso: #b45309;
-   --cbchat-wa-fondo: #e7f5ec;
-   --cbchat-wa-fondo-hover: #d7efe0;
-   --cbchat-wa-texto: #1a7d3c;
-   --cbchat-wa-borde: #bfe6cc;
-   --cbchat-shadow: 0 12px 32px rgba(15, 23, 42, 0.22);
-   /* Anillo blanco + sombra oscura: el lanzador se separa de cualquier fondo. */
-   --cbchat-shadow-launcher: 0 0 0 3px #ffffff, 0 6px 20px rgba(15, 23, 42, 0.35);
-   --cbchat-focus: 0 0 0 3px rgba(71, 85, 105, 0.35);
 }
 
 /* ============================================

@@ -61,8 +61,20 @@ def test_config_200_con_modulo_activo(client, chat_encendido, ip_unica):
     r = client.get('/chat/config', environ_base={'REMOTE_ADDR': ip_unica()})
     assert r.status_code == 200
     datos = r.get_json()
-    for campo in ('negocio', 'saludo', 'sugerencias', 'whatsapp', 'tono'):
+    for campo in ('negocio', 'saludo', 'sugerencias', 'whatsapp', 'tono', 'v'):
         assert campo in datos
+
+
+def test_config_trae_la_version_del_widget(client, chat_encendido, ip_unica):
+    """El ?v= con que layout.js pide el CSS y el JS: cambia cuando cambia
+    cualquiera de los dos, así Cloudflare nunca sirve un widget viejo."""
+    import os
+    from routes.chat_publico import _ARCHIVOS_WIDGET
+    carpeta = client.application.static_folder
+    esperado = str(int(max(os.path.getmtime(os.path.join(carpeta, ruta))
+                           for ruta in _ARCHIVOS_WIDGET)))
+    r = client.get('/chat/config', environ_base={'REMOTE_ADDR': ip_unica()})
+    assert r.get_json()['v'] == esperado
 
 
 # ── Payload defensivo de /chat/mensaje ──

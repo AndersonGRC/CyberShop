@@ -1,22 +1,80 @@
-@import url('variables.css');
-
 /* static/css/chat_publico.css — Widget del chat público (módulo ai_public).
  *
  * Paleta NEUTRA a propósito (pedido explícito del dueño): blancos y grises
  * con un acento gris pizarra discreto. Namespace propio (--cbchat-*), CERO
- * referencias a las variables de marca de variables.css (--color-primario,
- * --color-secundario, etc.) — el widget debe verse igual en cualquier
- * cliente, como un chat genérico (tipo Intercom/Crisp), nunca como parte de
- * la identidad visual de la tienda.
+ * referencias a las variables de marca (--color-primario, etc.): el widget
+ * debe verse igual en cualquier cliente, como un chat genérico (tipo
+ * Intercom/Crisp), nunca como parte de la identidad visual de la tienda.
  *
- * Solo se carga cuando el módulo está activo (ver bootstrap en layout.js);
- * si nunca se inyecta este <link>, este archivo no le cuesta nada a nadie.
+ * EXCEPCIÓN a la regla «todo color en variables.css»: este archivo NO importa
+ * variables.css y declara sus propios tokens en #cbchat-root. Dos motivos:
+ *  1. Se inyecta tarde (layout.js, cuando /chat/config confirma el módulo). Un
+ *     @import de variables.css en ese momento volvía a aplicar los colores de
+ *     marca POR DEFECTO encima de los del cliente (el <style>:root del
+ *     brand_config en plantillaindex.html va antes).
+ *  2. Los @import piden variables.css sin ?v= y Cloudflare lo guarda 7 días:
+ *     los tokens nuevos no llegaban y el panel salía transparente.
+ * Este archivo sí se pide versionado (?v= que entrega /chat/config).
+ *
+ * Solo se carga cuando el módulo está activo (ver bootstrap en layout.js).
  */
 
 #cbchat-root {
-    /* Colores: --cbchat-* en variables.css (paleta neutra, nunca de marca). */
+    --cbchat-bg: #ffffff;
+    --cbchat-surface: #f7f7f8;
+    --cbchat-border: #e2e4e8;
+    --cbchat-text: #1f2328;
+    --cbchat-text-muted: #6b7280;
+    --cbchat-accent: #475569;
+    --cbchat-accent-dark: #334155;
+    --cbchat-sobre-acento: #ffffff;
+    --cbchat-bubble-user: #eef1f5;
+    --cbchat-bubble-bot: #ffffff;
+    --cbchat-aviso: #b45309;
+    --cbchat-wa-fondo: #e7f5ec;
+    --cbchat-wa-fondo-hover: #d7efe0;
+    --cbchat-wa-texto: #1a7d3c;
+    --cbchat-wa-borde: #bfe6cc;
+    --cbchat-shadow: 0 12px 32px rgba(15, 23, 42, 0.22);
+    /* Anillo blanco + sombra oscura: el lanzador se separa de cualquier fondo. */
+    --cbchat-shadow-launcher: 0 0 0 3px #ffffff, 0 6px 20px rgba(15, 23, 42, 0.35);
+    --cbchat-focus: 0 0 0 3px rgba(71, 85, 105, 0.35);
     --cbchat-radius: 16px;
+    font-size: 16px;
+    line-height: 1.4;
+    color: var(--cbchat-text);
+    text-align: left;
+}
+
+/* ── Blindaje contra el CSS del sitio ──
+   layout.css aplica `* { font-family; margin; padding }` y algunas páginas
+   (login.css) estilan `button`, `input` y `form` en general: sin esto el chat
+   heredaba botones de 100% de ancho, márgenes y fuentes ajenas. :where() deja
+   la especificidad en un solo id, así las reglas de abajo siguen mandando. */
+#cbchat-root,
+#cbchat-root *,
+#cbchat-root *::before,
+#cbchat-root *::after {
+    box-sizing: border-box;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+}
+
+#cbchat-root :where(button, input, textarea, form) {
+    margin: 0;
+    width: auto;
+    min-height: 0;
+    font-size: inherit;
+    font-weight: normal;
+    line-height: inherit;
+    letter-spacing: normal;
+    text-transform: none;
+    transform: none;
+}
+
+/* Nunca depender de un reset global de [hidden]: este producto no lo trae y
+   cualquier `display:flex` por id lo anulaba (las sugerencias no se ocultaban). */
+#cbchat-root [hidden] {
+    display: none !important;
 }
 
 /* La torre de WhatsApp existente se apaga solo cuando el widget confirma
@@ -59,48 +117,43 @@ body.cybershop-chat-activo .chat-button {
 }
 
 #cbchat-launcher svg {
-    width: 26px;
-    height: 26px;
+    width: 28px;
+    height: 28px;
+}
+
+#cbchat-launcher span {
+    display: flex;
 }
 
 /* Cuando el panel está abierto, el lanzador se convierte en botón de cerrar */
 #cbchat-launcher[aria-expanded="true"] .cbchat-icon-abrir { display: none; }
 #cbchat-launcher[aria-expanded="false"] .cbchat-icon-cerrar { display: none; }
 
-/* ── Panel del chat ── */
+/* ── Panel del chat (escritorio: tarjeta flotante sobre el lanzador) ── */
 #cbchat-panel {
     position: fixed;
     bottom: 90px;
     right: 20px;
-    z-index: 1001;
-    width: min(370px, calc(100vw - 32px));
-    max-height: min(600px, calc(100vh - 120px));
-    /* dvh = alto real visible en móvil (descuenta la barra del navegador que
-       aparece/desaparece); donde no se soporta, el cálculo en vh de arriba
-       ya deja un panel usable. */
-    max-height: min(600px, calc(100dvh - 120px));
+    z-index: 2000;
+    width: min(380px, calc(100vw - 32px));
+    height: min(620px, calc(100vh - 120px));
+    /* dvh = alto real visible (descuenta barras del navegador); donde no se
+       soporta, queda el cálculo en vh de arriba. */
+    height: min(620px, calc(100dvh - 120px));
     background: var(--cbchat-bg);
     border-radius: var(--cbchat-radius);
     box-shadow: var(--cbchat-shadow), 0 0 0 1px var(--cbchat-border);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-/* No depender de ningun reset global de [hidden]: este producto no lo trae
-   (ver bug ya conocido del modal de mesas), asi que el propio widget se
-   garantiza a si mismo quedar oculto. */
-#cbchat-panel[hidden] {
-    display: none !important;
 }
 
 #cbchat-header {
+    flex-shrink: 0;
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 10px;
-    padding: 14px 16px;
+    padding: 12px 12px 12px 16px;
     background: var(--cbchat-surface);
     border-bottom: 1px solid var(--cbchat-border);
 }
@@ -109,8 +162,8 @@ body.cybershop-chat-activo .chat-button {
    conversación es con un asistente automático, no con una persona. */
 #cbchat-avatar {
     flex-shrink: 0;
-    width: 34px;
-    height: 34px;
+    width: 38px;
+    height: 38px;
     border-radius: 50%;
     background: var(--cbchat-accent);
     color: var(--cbchat-sobre-acento);
@@ -119,7 +172,7 @@ body.cybershop-chat-activo .chat-button {
     justify-content: center;
 }
 
-#cbchat-avatar svg { width: 19px; height: 19px; }
+#cbchat-avatar svg { width: 21px; height: 21px; }
 
 #cbchat-header-info {
     flex: 1;
@@ -129,7 +182,7 @@ body.cybershop-chat-activo .chat-button {
 }
 
 #cbchat-titulo {
-    font-size: 0.95rem;
+    font-size: 0.97rem;
     font-weight: 600;
     color: var(--cbchat-text);
     white-space: nowrap;
@@ -138,51 +191,57 @@ body.cybershop-chat-activo .chat-button {
 }
 
 #cbchat-subtitulo {
-    font-size: 0.75rem;
+    font-size: 0.76rem;
     color: var(--cbchat-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
+/* La X siempre a la vista: círculo con borde, no un signo gris suelto. */
 #cbchat-cerrar {
     flex-shrink: 0;
-    width: 30px;
-    height: 30px;
+    width: 40px;
+    height: 40px;
+    padding: 0;
     border-radius: 50%;
-    border: none;
-    background: transparent;
-    color: var(--cbchat-text-muted);
+    border: 1px solid var(--cbchat-border);
+    background: var(--cbchat-bg);
+    color: var(--cbchat-text);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.1rem;
-    line-height: 1;
 }
 
-#cbchat-cerrar:hover { background: var(--cbchat-border); color: var(--cbchat-text); }
+#cbchat-cerrar svg { width: 20px; height: 20px; }
+#cbchat-cerrar:hover { background: var(--cbchat-border); }
 #cbchat-cerrar:focus-visible { outline: none; box-shadow: var(--cbchat-focus); }
 
 #cbchat-mensajes {
-    flex: 1;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     padding: 14px;
     display: flex;
     flex-direction: column;
     gap: 10px;
     background: var(--cbchat-bg);
-    min-height: 200px;
 }
 
-.cbchat-msg {
+#cbchat-root .cbchat-msg {
     max-width: 85%;
     padding: 9px 13px;
     border-radius: 14px;
-    font-size: 0.88rem;
-    line-height: 1.4;
-    word-wrap: break-word;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
     white-space: pre-line;
 }
 
-.cbchat-msg-bot {
+#cbchat-root .cbchat-msg-bot {
     align-self: flex-start;
     background: var(--cbchat-bubble-bot);
     border: 1px solid var(--cbchat-border);
@@ -190,21 +249,21 @@ body.cybershop-chat-activo .chat-button {
     border-bottom-left-radius: 4px;
 }
 
-.cbchat-msg-usuario {
+#cbchat-root .cbchat-msg-usuario {
     align-self: flex-end;
     background: var(--cbchat-bubble-user);
     color: var(--cbchat-text);
     border-bottom-right-radius: 4px;
 }
 
-.cbchat-msg-espera {
+#cbchat-root .cbchat-msg-espera {
     align-self: flex-start;
     display: flex;
     gap: 4px;
     padding: 12px 14px;
 }
 
-.cbchat-msg-espera span {
+#cbchat-root .cbchat-msg-espera span {
     width: 6px;
     height: 6px;
     border-radius: 50%;
@@ -213,8 +272,8 @@ body.cybershop-chat-activo .chat-button {
     animation: cbchat-parpadeo 1.1s infinite ease-in-out;
 }
 
-.cbchat-msg-espera span:nth-child(2) { animation-delay: 0.15s; }
-.cbchat-msg-espera span:nth-child(3) { animation-delay: 0.3s; }
+#cbchat-root .cbchat-msg-espera span:nth-child(2) { animation-delay: 0.15s; }
+#cbchat-root .cbchat-msg-espera span:nth-child(3) { animation-delay: 0.3s; }
 
 @keyframes cbchat-parpadeo {
     0%, 80%, 100% { opacity: 0.35; transform: translateY(0); }
@@ -227,12 +286,12 @@ body.cybershop-chat-activo .chat-button {
     align-items: center;
     gap: 6px;
     margin-top: 2px;
-    padding: 7px 12px;
+    padding: 8px 14px;
     border-radius: 20px;
     background: var(--cbchat-wa-fondo);
     color: var(--cbchat-wa-texto);
     text-decoration: none;
-    font-size: 0.82rem;
+    font-size: 0.85rem;
     font-weight: 600;
     border: 1px solid var(--cbchat-wa-borde);
 }
@@ -240,6 +299,7 @@ body.cybershop-chat-activo .chat-button {
 #cbchat-whatsapp-cta:hover { background: var(--cbchat-wa-fondo-hover); }
 
 #cbchat-sugerencias {
+    flex-shrink: 0;
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
@@ -247,25 +307,27 @@ body.cybershop-chat-activo .chat-button {
     background: var(--cbchat-bg);
 }
 
-.cbchat-chip {
+#cbchat-root .cbchat-chip {
     border: 1px solid var(--cbchat-border);
     background: var(--cbchat-surface);
     color: var(--cbchat-text);
     border-radius: 20px;
-    padding: 6px 12px;
-    font-size: 0.78rem;
+    padding: 7px 12px;
+    font-size: 0.8rem;
     cursor: pointer;
     transition: background 0.15s ease;
 }
 
-.cbchat-chip:hover { background: var(--cbchat-border); }
-.cbchat-chip:focus-visible { outline: none; box-shadow: var(--cbchat-focus); }
+#cbchat-root .cbchat-chip:hover { background: var(--cbchat-border); }
+#cbchat-root .cbchat-chip:focus-visible { outline: none; box-shadow: var(--cbchat-focus); }
 
 #cbchat-form {
+    flex-shrink: 0;
     display: flex;
     align-items: flex-end;
     gap: 8px;
     padding: 10px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
     border-top: 1px solid var(--cbchat-border);
     background: var(--cbchat-surface);
 }
@@ -279,17 +341,25 @@ body.cybershop-chat-activo .chat-button {
 }
 
 #cbchat-input {
+    display: block;
     width: 100%;
-    box-sizing: border-box;
     resize: none;
     border: 1px solid var(--cbchat-border);
     border-radius: 20px;
     padding: 9px 14px;
-    font-size: 0.88rem;
-    font-family: inherit;
+    font-size: 0.9rem;
+    line-height: 1.35;
     max-height: 90px;
     color: var(--cbchat-text);
     background: var(--cbchat-bg);
+}
+
+#cbchat-input::placeholder { color: var(--cbchat-text-muted); opacity: 1; }
+
+#cbchat-input:focus-visible {
+    outline: none;
+    border-color: var(--cbchat-accent);
+    box-shadow: var(--cbchat-focus);
 }
 
 #cbchat-contador {
@@ -299,14 +369,14 @@ body.cybershop-chat-activo .chat-button {
     padding-right: 6px;
 }
 
-.cbchat-contador-cerca {
+#cbchat-root .cbchat-contador-cerca {
     color: var(--cbchat-aviso);
     font-weight: 600;
 }
 
 /* Señuelo anti-bot: fuera de pantalla, nunca display:none/visibility:hidden
    (algunos bots buscan justo eso) — un visitante real jamás lo ve ni lo llena. */
-.cbchat-senuelo {
+#cbchat-root .cbchat-senuelo {
     position: absolute;
     left: -9999px;
     top: -9999px;
@@ -335,16 +405,12 @@ body.cybershop-chat-activo .chat-button {
     overflow-x: auto;
 }
 
-#cbchat-input:focus-visible {
-    outline: none;
-    border-color: var(--cbchat-accent);
-    box-shadow: var(--cbchat-focus);
-}
-
 #cbchat-enviar {
     flex-shrink: 0;
-    width: 38px;
-    height: 38px;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    margin-bottom: 18px; /* alineado con el campo, no con el contador de abajo */
     border-radius: 50%;
     border: none;
     background: var(--cbchat-accent);
@@ -358,45 +424,84 @@ body.cybershop-chat-activo .chat-button {
 #cbchat-enviar:hover:not(:disabled) { background: var(--cbchat-accent-dark); }
 #cbchat-enviar:disabled { opacity: 0.5; cursor: default; }
 #cbchat-enviar:focus-visible { outline: none; box-shadow: var(--cbchat-focus); }
-#cbchat-enviar svg { width: 17px; height: 17px; }
+#cbchat-enviar svg { width: 18px; height: 18px; }
 
-/* ── Móvil: mismo hueco que ocupaba el botón de WhatsApp en la torre ── */
+/* ── Ventanas de escritorio bajitas: la tarjeta cabe igual (el alto ya sale
+   del min() de arriba); solo se afloja el espacio de los mensajes. ── */
+@media screen and (min-width: 769px) and (max-height: 520px) {
+    #cbchat-panel { bottom: 12px; height: calc(100vh - 24px); height: calc(100dvh - 24px); }
+    #cbchat-launcher[aria-expanded="true"] { display: none; }
+}
+
+/* ── Celular: pantalla completa, como las apps de chat. Con fondo propio
+   (nada del sitio se mezcla detrás), la X arriba a la derecha y la torre de
+   botones flotantes tapada mientras el chat está abierto. ── */
 @media screen and (max-width: 768px) {
     #cbchat-launcher {
         bottom: 160px !important;
         right: 20px !important;
         z-index: 1055 !important;
-        width: 55px;
-        height: 55px;
+        width: 56px;
+        height: 56px;
+    }
+
+    body.cbchat-abierto #cbchat-launcher {
+        display: none !important;
+    }
+
+    body.cbchat-abierto {
+        overflow: hidden;
     }
 
     #cbchat-panel {
-        bottom: 0;
+        top: 0;
         right: 0;
+        bottom: 0;
         left: 0;
         width: 100%;
-        max-height: 88vh;
-        max-height: 88dvh; /* alto real del navegador móvil, ver nota arriba */
-        border-radius: var(--cbchat-radius) var(--cbchat-radius) 0 0;
-        z-index: 1056;
+        height: 100%;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    #cbchat-header {
+        padding: 10px 10px 10px 14px;
+        padding-top: calc(10px + env(safe-area-inset-top, 0px));
+    }
+
+    #cbchat-cerrar {
+        width: 44px;
+        height: 44px;
+    }
+
+    #cbchat-cerrar svg { width: 22px; height: 22px; }
+
+    /* 16px o más: iOS no hace zoom al enfocar el campo. */
+    #cbchat-input {
+        font-size: 16px;
+    }
+
+    #cbchat-enviar {
+        width: 44px;
+        height: 44px;
+    }
+
+    #cbchat-root .cbchat-msg {
+        max-width: 88%;
+        font-size: 0.95rem;
+    }
+
+    #cbchat-root .cbchat-chip {
+        font-size: 0.85rem;
+        padding: 8px 13px;
     }
 }
 
-/* ── Celulares angostos (iPhone SE, Android compactos: 360-374px) ──
-   Mismo layout, solo se ajustan tamaños para que nada se sienta apretado. */
+/* ── Celulares angostos (iPhone SE, Android compactos: hasta 374px) ── */
 @media screen and (max-width: 374px) {
-    #cbchat-header { padding: 12px; }
+    #cbchat-header { gap: 8px; }
     #cbchat-mensajes { padding: 10px; gap: 8px; }
-    .cbchat-msg { max-width: 90%; font-size: 0.85rem; padding: 8px 11px; }
+    #cbchat-root .cbchat-msg { max-width: 92%; }
     #cbchat-sugerencias { padding: 0 10px 10px; }
-    .cbchat-chip { font-size: 0.74rem; padding: 5px 10px; }
-    #cbchat-form { padding: 8px; }
-}
-
-/* ── Pantallas muy bajas en horizontal (celular acostado): la altura manda,
-   no el ancho — el panel flotante de escritorio ya se ajusta solo por el
-   min(600px, 100dvh - 120px) de arriba, esto solo achica el mensaje de
-   espera para no desperdiciar el poco alto disponible. ── */
-@media screen and (max-height: 420px) {
-    #cbchat-mensajes { min-height: 120px; }
+    #cbchat-form { padding-left: 8px; padding-right: 8px; }
 }

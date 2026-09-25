@@ -318,13 +318,17 @@ if (document.getElementById('app')) {
                 window.__CBCHAT_CONFIG__ = config;
                 document.body.classList.add('cybershop-chat-activo');
 
+                // ?v= de /chat/config: Cloudflare guarda /static 7 días y, sin
+                // versión en la URL, seguía sirviendo el widget viejo.
+                var version = config.v ? '?v=' + encodeURIComponent(config.v) : '';
+
                 var css = document.createElement('link');
                 css.rel = 'stylesheet';
-                css.href = '/static/css/chat_publico.css';
+                css.href = '/static/css/chat_publico.css' + version;
                 document.head.appendChild(css);
 
                 var script = document.createElement('script');
-                script.src = '/static/js/chat_publico.js';
+                script.src = '/static/js/chat_publico.js' + version;
                 script.defer = true;
                 document.body.appendChild(script);
             })

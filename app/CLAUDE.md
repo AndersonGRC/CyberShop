@@ -269,6 +269,8 @@ Cada página o módulo tiene su propio CSS. Todos importan `variables.css` como 
 
 > **Ningún hex ni `rgba()` directo en archivos CSS de módulo.**
 > Todo color va en `variables.css`. Los módulos solo referencian variables.
+>
+> **Única excepción: `chat_publico.css`** (widget del chat del sitio). Declara sus tokens `--cbchat-*` en `#cbchat-root` y **no** importa `variables.css`: se inyecta tarde desde `layout.js`, y un `@import` en ese momento volvía a aplicar los colores de marca por defecto encima de los del cliente (el `<style>:root` de `brand_config`). Además, Cloudflare guarda 7 días `variables.css`, que se pide sin `?v=`. El widget se pide versionado con el `v` de `/chat/config`.
 
 ### variables.css — Grupos de variables
 
