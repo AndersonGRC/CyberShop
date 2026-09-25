@@ -132,12 +132,18 @@
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape' && abierto) cerrarPanel();
         });
+        function actualizarContador() {
+            var restantes = 1000 - input.value.length;
+            contador.textContent = input.value.length + '/1000';
+            contador.classList.toggle('cbchat-contador-cerca', restantes <= 100);
+        }
         form.addEventListener('submit', function (e) {
             e.preventDefault();
             var texto = input.value.trim();
             if (!texto) return;
             input.value = '';
             input.style.height = 'auto';
+            actualizarContador();
             enviarPregunta(texto);
         });
         input.addEventListener('keydown', function (e) {
@@ -150,9 +156,7 @@
         input.addEventListener('input', function () {
             input.style.height = 'auto';
             input.style.height = Math.min(input.scrollHeight, 90) + 'px';
-            var restantes = 1000 - input.value.length;
-            contador.textContent = input.value.length + '/1000';
-            contador.classList.toggle('cbchat-contador-cerca', restantes <= 100);
+            actualizarContador();
         });
 
         ref = { launcher: launcher, panel: panel, input: input, mensajes: mensajes,
