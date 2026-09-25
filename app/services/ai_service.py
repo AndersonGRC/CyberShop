@@ -365,7 +365,8 @@ def chat_con_motor(motor, system, user, max_tokens=400, temperature=0.7, canal='
 
 
 def _chat(system, user, max_tokens=400, temperature=0.7, espera_frio=45,
-          perfil='normal', canal='panel', tarea='chat_panel'):
+          perfil='normal', canal='panel', tarea='chat_panel', user_nube=None,
+          permitir_nube=True):
     """Llamada de chat con FALLBACK automático de modelo: si el primario
     (AI_MODEL, p.ej. gpt-oss:20b) falla por memoria/timeout/error del server,
     reintenta UNA vez con AI_MODEL_FALLBACK (p.ej. qwen2.5:7b) — el usuario
@@ -373,7 +374,11 @@ def _chat(system, user, max_tokens=400, temperature=0.7, espera_frio=45,
 
     espera_frio: segundos máximos a esperar si el modelo está sin cargar. Quien
     llama mientras se arma una página (p. ej. "Tu día" del CRM) pasa 0: se pide
-    la carga y se responde al instante, sin colgar la página."""
+    la carga y se responde al instante, sin colgar la página.
+
+    Si atiende el respaldo en la nube: se le manda `user_nube` (la misma
+    petición sin la conversación que no puede salir del equipo) y, con
+    permitir_nube=False, no se le manda nada."""
     ok, motivo = estado_ia()
     if not ok:
         return None, motivo
@@ -386,8 +391,11 @@ def _chat(system, user, max_tokens=400, temperature=0.7, espera_frio=45,
     if motor is None:
         return None, motivo_motor
     if motor.es_nube:
+        if not permitir_nube:
+            return None, MSG_SOLO_LOCAL
         # La nube no se precalienta ni tiene modelo de respaldo: se llama y ya.
-        return chat_con_motor(motor, system, user, max_tokens, temperature)
+        return chat_con_motor(motor, system, user if user_nube is None else user_nube,
+                              max_tokens, temperature)
 
     primario = motor.modelo or 'qwen2.5:7b'
     # El respaldo de modelo es de la máquina del dueño: no aplica a los demás.
@@ -406,6 +414,8 @@ def _chat(system, user, max_tokens=400, temperature=0.7, espera_frio=45,
     texto, err = _chat_una_vez(primario, system, user, max_tokens, temperature,
                                base_url=motor.base_url, timeout=motor.timeout)
     if texto is not None:
+        if motor.nivel == motores.NIVEL_B:
+            _confirmar_modelo_listo(primario)
         return texto, None
     codigo, mensaje = err
     if codigo == 'modelo' and fallback and fallback != primario:
@@ -610,6 +620,8 @@ _CALENTANDO = {}             # modelo -> instante del último pedido de carga (p
 _CALENTAR_CADA_S = 120
 MSG_MOTOR_PREPARANDO = ('El motor de IA se está preparando: la primera consulta después de encender '
                         'el equipo, o de un rato sin uso, tarda de 1 a 3 minutos. Intenta de nuevo en un momento.')
+MSG_SOLO_LOCAL = ('Estos datos no salen del equipo del negocio y el equipo de IA no está disponible '
+                  'ahora mismo.')
 
 # Puente a la nube durante el arranque en frío: vivo()/api/tags (ia_motores.py) no
 # distingue "Ollama arriba pero modelo sin cargar" de "modelo caliente" — un motor
@@ -620,48 +632,70 @@ MSG_MOTOR_PREPARANDO = ('El motor de IA se está preparando: la primera consulta
 # racha fría (la carga ya quedó pedida en chat_con_motor) — de la tercera en
 # adelante se asume que ya tuvo tiempo de calentar y vuelve al camino local.
 _PUENTE_NUBE_MAX = 2
-_puente_nube_usos = {}       # (db_name, modelo) -> cuenta consecutiva de esta racha
+_CANALES_PUENTE = ('panel', 'publico')
+_puente_nube_usos = {}       # (db_name, modelo, canal) -> cuenta consecutiva de esta racha
 
 
-def _clave_puente(modelo):
+def _clave_puente(modelo, canal):
+    """Una racha por chat: los visitantes del sitio no le gastan el cupo al panel."""
     from database import _current_db_name
-    return (_current_db_name(), modelo)
+    return (_current_db_name(), modelo, canal)
 
 
-def _puente_frio_disponible(modelo):
-    return _puente_nube_usos.get(_clave_puente(modelo), 0) < _PUENTE_NUBE_MAX
+def _puente_frio_disponible(modelo, canal='panel'):
+    return _puente_nube_usos.get(_clave_puente(modelo, canal), 0) < _PUENTE_NUBE_MAX
 
 
-def _registrar_uso_puente(modelo):
-    clave = _clave_puente(modelo)
+def _registrar_uso_puente(modelo, canal='panel'):
+    clave = _clave_puente(modelo, canal)
     _puente_nube_usos[clave] = _puente_nube_usos.get(clave, 0) + 1
 
 
 def _confirmar_modelo_listo(modelo):
-    """Hubo una respuesta local real: se olvida cualquier racha fría anterior."""
-    _puente_nube_usos.pop(_clave_puente(modelo), None)
+    """Hubo una respuesta local real: se olvida la racha fría de ambos chats."""
+    for canal in _CANALES_PUENTE:
+        _puente_nube_usos.pop(_clave_puente(modelo, canal), None)
+
+
+def _tomar_puente(modelo, canal):
+    """Decide, una vez por pregunta, si va por la nube mientras el modelo local
+    carga: queda cupo en la racha fría de ese chat y la nube está disponible para
+    él (presupuesto; opt-in del público). Si sí, cuenta el uso. Nunca lanza."""
+    if not _puente_frio_disponible(modelo, canal):
+        return False
+    try:
+        from services import ia_nube
+        if not ia_nube.disponible(canal):
+            return False
+    except Exception:  # noqa: BLE001
+        return False
+    _registrar_uso_puente(modelo, canal)
+    return True
+
+
+def _responder_nube(system, user, max_tokens, temperature):
+    """Una llamada directa al respaldo en la nube. (texto, None) o (None, motivo);
+    nunca lanza. Presupuesto y conteo de tokens los lleva ia_nube."""
+    try:
+        from services import ia_nube
+        timeout = int(current_app.config.get('AI_NUBE_TIMEOUT') or 25)
+        return ia_nube.responder(system, user, max_tokens=max_tokens,
+                                 temperature=temperature, timeout=timeout)
+    except Exception as exc:  # noqa: BLE001
+        try:
+            current_app.logger.warning(f'IA: el respaldo en la nube falló ({exc})')
+        except Exception:
+            pass
+        return None, 'El respaldo en la nube no respondió.'
 
 
 def _intentar_puente_frio(motor, system, user, max_tokens, temperature, canal):
     """Solo con el modelo ya confirmado frío. None si no aplica (sigue el camino
-    local de siempre); el texto de la nube si el puente respondió. Nunca lanza:
-    cualquier fallo deja que el camino normal de abajo se encargue."""
-    if not _puente_frio_disponible(motor.modelo):
+    local de siempre); el texto de la nube si el puente respondió."""
+    if not _tomar_puente(motor.modelo, canal):
         return None
-    try:
-        from services import ia_nube
-        if not ia_nube.disponible(canal):
-            return None
-        _registrar_uso_puente(motor.modelo)
-        texto, err = ia_nube.responder(system, user, max_tokens=max_tokens,
-                                       temperature=temperature, timeout=motor.timeout)
-        return texto or None
-    except Exception as exc:  # noqa: BLE001
-        try:
-            current_app.logger.warning(f'IA: puente de arranque en frío falló ({exc})')
-        except Exception:
-            pass
-        return None
+    texto, _motivo = _responder_nube(system, user, max_tokens, temperature)
+    return texto or None
 
 
 def _pedir_carga(modelo):
@@ -727,6 +761,17 @@ def _esperar_motor_bloqueando(modelo, espera_max):
         return fin.value
 
 
+def _latidos(espera):
+    """La espera de _esperar_motor convertida en eventos ('latido', None) para
+    el chat en streaming. Con `yield from` devuelve si el modelo quedó listo."""
+    try:
+        while True:
+            next(espera)
+            yield ('latido', None)
+    except StopIteration as fin:
+        return fin.value
+
+
 # ── Chat del negocio ───────────────────────────────────────────
 _MAX_HERRAMIENTAS = 3        # por pregunta (p. ej. "ventas del mes y qué reponer")
 _MAX_HISTORIAL = 4           # intercambios previos que se tienen en cuenta
@@ -762,6 +807,31 @@ def _texto_historial(historial):
         if turno['respuesta']:
             lineas.append(f"  Asistente: «{turno['respuesta']}»")
     return '\n'.join(lineas)
+
+
+def _previo(historial):
+    """La conversación reciente lista para anteponer a la petición, o ''."""
+    conversacion = _texto_historial(historial)
+    return f'{conversacion}\n\n' if conversacion else ''
+
+
+def _solo_local(h):
+    """True si lo que devuelve esta capacidad nunca puede ir a la nube: los datos
+    sensibles (nómina) y las que se declaran así (documentos internos)."""
+    return h is not None and (h.sensible is not None or h.extra.get('nube') is False)
+
+
+def _historial_para_nube(historial):
+    """La conversación sin los turnos que usaron capacidades solo locales: sus
+    respuestas pueden traer esas cifras, y la nube no debe verlas aunque la
+    pregunta nueva no sea sensible."""
+    import services.ai_tools as tools
+    limpio = []
+    for turno in historial:
+        codigos = [c.strip() for c in (turno.get('herramienta') or '').split(',') if c.strip()]
+        if not any(_solo_local(tools.REGISTRO.get(c)) for c in codigos):
+            limpio.append(turno)
+    return limpio
 
 
 _RE_CODE = re.compile(r'"tool"\s*:\s*"([a-z_]+)"|"([a-z_]+)"\s*:\s*\{\s*"params"')
@@ -891,28 +961,39 @@ def _plan_chat_pasos(pregunta, anunciar=True, historial=None, contexto=None):
     from services.ia.enrutador import enrutar_panel_seguro
     ruta_segura = enrutar_panel_seguro(pregunta, disponibles, historial=historial)
 
+    # La conversación va en dos versiones: completa para el modelo del equipo del
+    # dueño, y sin los turnos solo locales (nómina, documentos internos) para el
+    # respaldo en la nube.
+    historial = _sanear_historial(historial)
+    previo = _previo(historial)
+    previo_nube = _previo(_historial_para_nube(historial))
+
     # Las consultas inequívocas van directo a funciones fijas: no esperan a que
     # cargue Ollama ni pagan un modelo en la nube solo para elegir herramienta.
-    if anunciar and not ruta_segura:
+    # Las demás necesitan el modelo para elegir: si está frío, la carga se pide ya
+    # y, mientras tanto, la pregunta va por la nube si queda cupo en la racha
+    # (máx. 2 por arranque en frío); si no, se espera la carga como siempre.
+    puente = None                     # None = no se decidió: lo decide la redacción si hace falta
+    if not ruta_segura:
         primario = current_app.config.get('AI_MODEL') or 'qwen2.5:7b'
         if _modelo_en_memoria(primario) is False:
-            yield ('estado', 'Estamos preparando el motor de análisis. '
-                             'La primera consulta tarda un poco más; enseguida seguimos…')
-            # Se espera la carga ANTES de preguntarle al modelo, con latidos cada 5 s:
-            # sin ellos Cloudflare/nginx cortaban la conexión a los 60-100 s de silencio.
-            espera = _esperar_motor(primario, espera_max=300)
-            try:
-                while True:
-                    next(espera)
-                    yield ('latido', None)
-            except StopIteration as fin:
-                if not fin.value:
+            _pedir_carga(primario)
+            puente = _tomar_puente(primario, 'panel')
+            if puente:
+                if anunciar:
+                    yield ('estado', 'Tu equipo de IA se está preparando: mientras carga, te '
+                                     'respondo con el respaldo en la nube…')
+            elif anunciar:
+                yield ('estado', 'Estamos preparando el motor de análisis. '
+                                 'La primera consulta tarda un poco más; enseguida seguimos…')
+                # Se espera la carga ANTES de preguntarle al modelo, con latidos cada 5 s:
+                # sin ellos Cloudflare/nginx cortaban la conexión a los 60-100 s de silencio.
+                listo = yield from _latidos(_esperar_motor(primario, espera_max=300))
+                if not listo:
                     yield ('error', MSG_MOTOR_PREPARANDO)
                     return
-            yield ('estado', 'El motor de análisis está listo. Seguimos con tu pregunta…')
+                yield ('estado', 'El motor de análisis está listo. Seguimos con tu pregunta…')
 
-    conversacion = _texto_historial(_sanear_historial(historial))
-    previo = f'{conversacion}\n\n' if conversacion else ''
     hoy, ahora = _fecha_hoy()
 
     # Paso 1: selección de herramientas (la IA NO escribe SQL, solo elige nombres+params).
@@ -935,12 +1016,25 @@ def _plan_chat_pasos(pregunta, anunciar=True, historial=None, contexto=None):
         "falta con la conversación reciente. Si piden datos sensibles o algo sin herramienta, "
         "responde {\"tools\":[]}. Solo el JSON."
     )
-    sel_user = f"{previo}Pregunta actual: «{pregunta}»" if conversacion else pregunta
+    sel_user = f"{previo}Pregunta actual: «{pregunta}»" if previo else pregunta
+    sel_user_nube = f"{previo_nube}Pregunta actual: «{pregunta}»" if previo_nube else pregunta
+
+    def _seleccionar(extra=''):
+        """Elegir herramientas no manda datos del negocio, solo la pregunta y el
+        catálogo; aun así la nube recibe la conversación ya filtrada."""
+        if puente:
+            texto, _motivo = _responder_nube(sel_system, sel_user_nube + extra, 220, 0)
+            if texto:
+                return texto, None
+            # La nube falló: se sigue con el equipo del dueño (espera acotada).
+        return _chat(sel_system, sel_user + extra, max_tokens=220, temperature=0,
+                     user_nube=sel_user_nube + extra)
+
     if ruta_segura:
         elegidas = ruta_segura
         via = 'keyword'
     else:
-        raw, err = _chat(sel_system, sel_user, max_tokens=220, temperature=0)
+        raw, err = _seleccionar()
         if err:
             yield ('error', err)
             return
@@ -948,11 +1042,10 @@ def _plan_chat_pasos(pregunta, anunciar=True, historial=None, contexto=None):
             # A veces el modelo contesta "ninguna" a preguntas que sí puede resolver
             # (medido con el modelo real). Se insiste UNA vez, sin aflojar la regla de
             # los datos sensibles: si de verdad no aplica, vuelve a responder vacío.
-            reintento, err2 = _chat(
-                sel_system,
-                f"{sel_user}\n\nAntes respondiste sin herramientas. Si la pregunta se puede responder con "
+            reintento, err2 = _seleccionar(
+                "\n\nAntes respondiste sin herramientas. Si la pregunta se puede responder con "
                 "alguna de la lista, elígela ahora. Si pide datos sensibles o algo que no está en la lista, "
-                "responde {\"tools\":[]} otra vez.", max_tokens=220, temperature=0)
+                "responde {\"tools\":[]} otra vez.")
             if not err2 and _parsear_herramientas(reintento):
                 raw = reintento
         permitidos = [h.code for h in disponibles]
@@ -970,22 +1063,23 @@ def _plan_chat_pasos(pregunta, anunciar=True, historial=None, contexto=None):
         # Pregunta fuera del alcance de los datos (o dato sensible): responde
         # con honestidad y recuerda los límites del contexto.
         puede = '; '.join(h.etiqueta for h in disponibles) or 'la información general de tu negocio'
+        cuerpo = (f"El dueño preguntó: «{pregunta}». No tienes una herramienta ni permiso "
+                  "para responder eso con datos. Responde breve y amable; si es un dato "
+                  "sensible niégate, y en todo caso indícale qué SÍ puedes consultar: "
+                  f"{puede}.")
         yield ('plan', {
             'system': _contexto_tenant() + "\n" + tools.CONTEXTO_DATOS,
-            'user': previo + (
-                f"El dueño preguntó: «{pregunta}». No tienes una herramienta ni permiso "
-                "para responder eso con datos. Responde breve y amable; si es un dato "
-                "sensible niégate, y en todo caso indícale qué SÍ puedes consultar: "
-                f"{puede}."),
+            'user': previo + cuerpo, 'user_nube': previo_nube + cuerpo,
             'max_tokens': 220, 'datos': None, 'herramienta': None,
             'herramientas': [], 'sensible': None, 'objetivo': None,
-            'via': via, 'intencion': None,
+            'via': via, 'intencion': None, 'puente': puente, 'solo_local': False,
         })
         return
 
     # Paso 2: ejecutar las herramientas (consultas reales, tenant-scoped). ejecutar()
     # vuelve a revisar el permiso por si el modelo nombró una que no estaba en su lista.
     resultados, usadas, fallidas, sensibles, objetivos = {}, [], 0, set(), []
+    solo_local = False
     for code, params in elegidas:
         h = tools.REGISTRO[code]
         if anunciar:
@@ -1002,9 +1096,12 @@ def _plan_chat_pasos(pregunta, anunciar=True, historial=None, contexto=None):
         clave = code if code not in resultados else f'{code}_{usadas.count(code) + 1}'
         resultados[clave] = datos
         usadas.append(code)
-        if h.sensible and not (isinstance(datos, dict) and datos.get('denegado')):
+        denegado = isinstance(datos, dict) and datos.get('denegado')
+        if h.sensible and not denegado:
             sensibles.add(h.sensible)
             objetivos.extend(str(v) for k, v in params.items() if k in ('empleado', 'cliente') and v)
+        if _solo_local(h) and not denegado:
+            solo_local = True
     if fallidas == len(elegidas):
         yield ('error', 'No pude consultar esos datos en este momento.')
         return
@@ -1016,14 +1113,17 @@ def _plan_chat_pasos(pregunta, anunciar=True, historial=None, contexto=None):
     unica = len(resultados) == 1
     datos = next(iter(resultados.values())) if unica else resultados
     agrupados = '' if unica else ', agrupados por herramienta'
+    cuerpo = (f"Pregunta: «{pregunta}»\n"
+              f"Datos reales de su tienda, consultados el {ahora:%Y-%m-%d %H:%M}{agrupados} (JSON):\n"
+              f"{json.dumps(datos, ensure_ascii=False, default=str)}\n\nRedacta la respuesta.")
     yield ('plan', {
         'system': (_contexto_tenant() +
                    " Responde la pregunta del dueño usando ÚNICAMENTE los datos que "
                    "te doy (son reales, de su tienda). Sé claro y breve, en español, "
                    "con las cifras exactas. No inventes nada que no esté en los datos."),
-        'user': (f"{previo}Pregunta: «{pregunta}»\n"
-                 f"Datos reales de su tienda, consultados el {ahora:%Y-%m-%d %H:%M}{agrupados} (JSON):\n"
-                 f"{json.dumps(datos, ensure_ascii=False, default=str)}\n\nRedacta la respuesta."),
+        'user': previo + cuerpo,
+        # solo_local: la redacción nunca va a la nube (ni puente ni respaldo).
+        'user_nube': previo_nube + cuerpo,
         'max_tokens': 350 if unica else 550,
         'datos': datos,
         'herramienta': ','.join(dict.fromkeys(usadas)),
@@ -1031,6 +1131,7 @@ def _plan_chat_pasos(pregunta, anunciar=True, historial=None, contexto=None):
         'sensible': ','.join(sorted(sensibles)) or None,
         'objetivo': '; '.join(dict.fromkeys(objetivos))[:120] or None,
         'via': via, 'intencion': usadas[0] if len(set(usadas)) == 1 else 'multiple',
+        'puente': puente, 'solo_local': solo_local,
     })
 
 
@@ -1158,6 +1259,9 @@ def _respuesta_datos_sin_modelo(plan):
     datos = plan.get('datos')
     if datos is None:
         return None
+    documentos = _texto_de_documentos(datos)
+    if documentos:
+        return documentos
 
     def acotar(valor, profundidad=0):
         if profundidad >= 5:
@@ -1183,6 +1287,49 @@ def _respuesta_datos_sin_modelo(plan):
     return f'Datos verificados de {titulo} (sin redacción de IA):\n{cuerpo}'
 
 
+def _texto_de_documentos(datos):
+    """Los documentos internos como texto legible (título y contenido), no como
+    JSON: son textos que el dueño escribió para leerse. None si no es eso."""
+    if not isinstance(datos, dict) or not set(datos) <= {'buscado', 'encontrados',
+                                                         'documentos', 'conclusion'}:
+        return None
+    docs = datos.get('documentos')
+    if isinstance(docs, list) and docs and all(
+            isinstance(d, dict) and d.get('titulo') and d.get('texto') for d in docs):
+        partes = [f"«{d['titulo']}»\n{d['texto']}" for d in docs]
+        return 'Esto dicen tus documentos internos (sin redacción de IA):\n\n' + '\n\n'.join(partes)
+    return datos.get('conclusion') or None
+
+
+def _datos_solo_locales_hacia_nube(plan, motor):
+    """True si el único motor disponible es la nube y la respuesta no puede ir
+    allá: o trae datos solo locales, o es una consulta directa (keyword) que ya
+    se entiende sin redactar. Entonces se entregan los datos tal cual."""
+    return (plan['datos'] is not None and motor is not None and motor.es_nube
+            and (plan.get('via') == 'keyword' or plan.get('solo_local')))
+
+
+def _redactar_en_frio(plan, motor):
+    """(texto_de_la_nube, frio). Si el modelo del equipo del dueño está sin
+    cargar: pide la carga y, si esta pregunta toma el puente (o ya lo tomó al
+    elegir herramientas) y sus datos pueden salir, la redacta la nube. `frio`
+    le dice a quien llama que, si no hubo texto, hay que esperar la carga."""
+    from services.ia_motores import NIVEL_B
+    if motor is None or motor.es_nube or motor.nivel != NIVEL_B:
+        return None, False
+    primario = motor.modelo or 'qwen2.5:7b'
+    if _modelo_en_memoria(primario) is not False:
+        return None, False
+    _pedir_carga(primario)
+    if plan.get('solo_local'):
+        return None, True
+    usar = plan['puente'] if plan.get('puente') is not None else _tomar_puente(primario, 'panel')
+    if not usar:
+        return None, True
+    texto, _motivo = _responder_nube(plan['system'], plan['user_nube'], plan['max_tokens'], 0.7)
+    return (texto or None), True
+
+
 def responder_chat(pregunta, historial=None, contexto=None):
     """Asistente conversacional del negocio (respuesta completa, sin streaming
     — la usa el desktop y queda de respaldo para el panel web).
@@ -1199,17 +1346,24 @@ def responder_chat(pregunta, historial=None, contexto=None):
     motor, _ = motores.motor_para(plan.get('perfil', 'normal'),
                                  plan.get('canal_motor', 'panel'))
     directo = plan['datos'] is not None and (
-        motor is None or (motor.es_nube and plan.get('via') == 'keyword'))
+        motor is None or _datos_solo_locales_hacia_nube(plan, motor))
     if directo:
         resp, err3 = _respuesta_datos_sin_modelo(plan), None
         plan['motor'] = 'SQL'
     else:
-        resp, err3 = _chat(plan['system'], plan['user'], max_tokens=plan['max_tokens'])
-        if err3 and plan['datos'] is not None:
-            resp, err3 = _respuesta_datos_sin_modelo(plan), None
-            plan['motor'] = 'SQL'
-        elif not err3 and motor is not None:
-            plan['motor'] = 'nube' if motor.es_nube else motor.nivel
+        resp, _frio = _redactar_en_frio(plan, motor)
+        err3 = None
+        if resp:
+            plan['motor'] = 'nube'
+        else:
+            resp, err3 = _chat(plan['system'], plan['user'], max_tokens=plan['max_tokens'],
+                               user_nube=plan.get('user_nube'),
+                               permitir_nube=not plan.get('solo_local'))
+            if err3 and plan['datos'] is not None:
+                resp, err3 = _respuesta_datos_sin_modelo(plan), None
+                plan['motor'] = 'SQL'
+            elif not err3 and motor is not None:
+                plan['motor'] = 'nube' if motor.es_nube else motor.nivel
     _registrar_consulta(ctx, pregunta, plan, err3, inicio)
     if err3:
         return None, err3
@@ -1265,7 +1419,7 @@ def _responder_chat_stream(pregunta, historial, ctx, resultado):
     motor, motivo_motor = motores.motor_para(plan.get('perfil', 'normal'),
                                              plan.get('canal_motor', 'panel'))
     if plan['datos'] is not None and (
-            motor is None or (motor.es_nube and plan.get('via') == 'keyword')):
+            motor is None or _datos_solo_locales_hacia_nube(plan, motor)):
         texto = _respuesta_datos_sin_modelo(plan)
         plan['motor'] = 'SQL'
         resultado['error'] = None
@@ -1278,7 +1432,7 @@ def _responder_chat_stream(pregunta, historial, ctx, resultado):
         return
     if motor.es_nube:
         yield ('estado', 'Respondiendo con el respaldo en la nube…')
-        texto, motivo = chat_con_motor(motor, plan['system'], plan['user'],
+        texto, motivo = chat_con_motor(motor, plan['system'], plan['user_nube'],
                                        plan['max_tokens'], 0.7)
         if not texto:
             if plan['datos'] is not None:
@@ -1297,6 +1451,32 @@ def _responder_chat_stream(pregunta, historial, ctx, resultado):
         yield ('delta', texto)
         yield ('fin', {'herramienta': plan['herramienta'], 'motor': 'nube'})
         return
+
+    # Modelo del equipo del dueño sin cargar: el puente (si toca y los datos
+    # pueden salir) o esperar la carga con latidos. Sin esto, el stream quedaba
+    # mudo 1-3 min mientras Ollama cargaba y nginx lo cortaba a los 60 s.
+    texto_nube, frio = _redactar_en_frio(plan, motor)
+    if texto_nube:
+        resultado['texto'] = texto_nube
+        resultado['error'] = None
+        plan['motor'] = 'nube'
+        yield ('delta', texto_nube)
+        yield ('fin', {'herramienta': plan['herramienta'], 'motor': 'nube'})
+        return
+    if frio:
+        yield ('estado', 'Estamos preparando el motor de análisis. Enseguida seguimos…')
+        listo = yield from _latidos(_esperar_motor(motor.modelo or 'qwen2.5:7b', espera_max=300))
+        if not listo:
+            if plan['datos'] is not None:
+                directo = _respuesta_datos_sin_modelo(plan)
+                plan['motor'] = 'SQL'
+                resultado['error'] = None
+                yield ('delta', directo)
+                yield ('fin', directo)
+                return
+            resultado['error'] = MSG_MOTOR_PREPARANDO
+            yield ('error', MSG_MOTOR_PREPARANDO)
+            return
 
     primario = motor.modelo or 'qwen2.5:7b'
     plan['motor'] = motor.nivel
@@ -1347,6 +1527,8 @@ def _responder_chat_stream(pregunta, historial, ctx, resultado):
             resultado['error'] = e.mensaje
             yield ('error', e.mensaje)
             return
+    if partes and motor.nivel == motores.NIVEL_B:
+        _confirmar_modelo_listo(primario)
     resultado['error'] = None
     yield ('fin', ''.join(partes).strip())
 
