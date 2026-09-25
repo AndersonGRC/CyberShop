@@ -9,7 +9,7 @@ ai_service arma el contexto solo desde esa BD.
 import json
 
 from flask import (Blueprint, current_app, request, jsonify, render_template, Response,
-                   stream_with_context)
+                   stream_with_context, session, flash, redirect, url_for)
 
 from security import registrar_guard_permiso, rol_requerido, ADMIN_FULL, ADMIN_STAFF
 from database import get_db_cursor
@@ -66,6 +66,75 @@ def panel():
         faltan = 0
     return render_template('admin/ia_panel.html', datosApp=datosApp,
                            estado=estado, faltan=faltan)
+
+
+# ── Documentos internos (índice privado del asistente) ─────────
+# Procedimientos, políticas y manuales que SOLO lee el asistente del panel,
+# según el rol (services/ia_rag/internos.py). Los administra el dueño.
+def _sin_modulo_ia():
+    """Redirección si el plan no incluye el Asistente IA; None si sí."""
+    from tenant_features import is_module_active, MODULE_AI
+    if is_module_active(MODULE_AI):
+        return None
+    flash('El Asistente IA no está incluido en tu plan.', 'warning')
+    return redirect(url_for('admin.dashboard_admin'))
+
+
+def _pagina_documentos(editar=None, status=200):
+    from services.ia_rag import internos
+    return render_template('admin/ia_documentos.html', datosApp=get_data_app(),
+                           documentos=internos.listar(), editar=editar,
+                           max_texto=internos.MAX_TEXTO, max_titulo=internos.MAX_TITULO), status
+
+
+@ia_bp.route('/documentos')
+@rol_requerido(ADMIN_FULL)
+def documentos():
+    sin_modulo = _sin_modulo_ia()
+    if sin_modulo:
+        return sin_modulo
+    from services.ia_rag import internos
+    doc_id = request.args.get('editar', type=int)
+    return _pagina_documentos(editar=internos.obtener(doc_id) if doc_id else None)
+
+
+@ia_bp.route('/documentos/guardar', methods=['POST'])
+@rol_requerido(ADMIN_FULL)
+def documentos_guardar():
+    sin_modulo = _sin_modulo_ia()
+    if sin_modulo:
+        return sin_modulo
+    from services.ia_rag import internos
+    doc_id = request.form.get('id', type=int)
+    valores = {'id': doc_id, 'titulo': request.form.get('titulo', ''),
+               'texto': request.form.get('texto', ''),
+               'visibilidad': request.form.get('visibilidad', '')}
+    try:
+        internos.guardar(valores['titulo'], valores['texto'], valores['visibilidad'],
+                         doc_id=doc_id, usuario_id=session.get('usuario_id'))
+    except ValueError as exc:
+        # Se vuelve a mostrar lo escrito: un documento largo no se pierde por un error.
+        flash(str(exc), 'error')
+        return _pagina_documentos(editar=valores, status=400)
+    flash('Documento guardado. El asistente ya puede consultarlo.', 'success')
+    return redirect(url_for('ia.documentos'))
+
+
+@ia_bp.route('/documentos/<int:doc_id>/estado', methods=['POST'])
+@rol_requerido(ADMIN_FULL)
+def documentos_estado(doc_id):
+    """Archivar o restaurar. Nunca se borra: archivado, el asistente no lo consulta."""
+    sin_modulo = _sin_modulo_ia()
+    if sin_modulo:
+        return sin_modulo
+    from services.ia_rag import internos
+    activo = request.form.get('activo') == '1'
+    if internos.cambiar_estado(doc_id, activo, usuario_id=session.get('usuario_id')):
+        flash('Documento restaurado.' if activo
+              else 'Documento archivado: el asistente ya no lo consulta.', 'success')
+    else:
+        flash('Ese documento ya no existe.', 'error')
+    return redirect(url_for('ia.documentos'))
 
 
 @ia_bp.route('/estado')

@@ -1,0 +1,148 @@
+{% extends 'plantillaapp.html' %}
+
+{% block titulo %}Documentos internos | {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<style>
+    .idoc-wrap { max-width: 900px; margin: 0 auto; padding: 18px 18px 40px; box-sizing: border-box; }
+    .idoc-wrap * { box-sizing: border-box; }
+    .idoc-title { font-size: 1.4rem; margin: 0 0 6px; color: var(--color-secundario, #0e1b33); display: flex; align-items: center; gap: 10px; }
+    .idoc-title i { color: var(--color-primario, #122C94); }
+    .idoc-lead { color: #6b7280; font-size: 0.92rem; margin: 0 0 20px; }
+    .idoc-card { background: #fff; border: 1px solid rgba(18,44,148,0.08); border-radius: 14px; padding: 20px; margin-bottom: 18px; box-shadow: 0 2px 10px rgba(18,44,148,0.05); }
+    .idoc-card h2 { font-size: 1.05rem; margin: 0 0 14px; color: var(--color-primario-oscuro, #091C5A); border-bottom: 1px solid #eef1f7; padding-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+    .idoc-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+    .idoc-field label, .idoc-field legend { font-size: 0.82rem; font-weight: 600; color: #444; padding: 0; }
+    .idoc-field small { font-size: 0.76rem; color: #9098a8; }
+    .idoc-field input[type=text], .idoc-field textarea {
+        padding: 9px 11px; border: 1px solid #cdd3df; border-radius: 8px; font-size: 0.9rem;
+        font-family: inherit; background: #fbfcff; color: #1f2a44; width: 100%;
+    }
+    .idoc-field textarea { min-height: 220px; resize: vertical; line-height: 1.45; }
+    .idoc-field input:focus, .idoc-field textarea:focus { outline: none; border-color: var(--color-primario, #122C94); background: #fff; }
+    .idoc-field fieldset { border: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+    .idoc-opcion { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid #e4e8f0; border-radius: 9px; cursor: pointer; font-weight: 400; }
+    .idoc-opcion input { margin-top: 3px; }
+    .idoc-opcion strong { display: block; font-size: 0.88rem; color: #1f2a44; }
+    .idoc-opcion span { font-size: 0.8rem; color: #6b7280; }
+    .idoc-contador { text-align: right; }
+    .idoc-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+    .idoc-btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 22px; border: none; border-radius: 9px;
+                background: var(--color-primario, #122C94); color: #fff; font-size: 0.92rem; font-weight: 700; cursor: pointer; text-decoration: none; }
+    .idoc-btn-outline { background: #fff; color: var(--color-primario, #122C94); border: 1px solid var(--color-primario, #122C94); }
+    .idoc-btn-sm { padding: 7px 13px; font-size: 0.8rem; font-weight: 600; }
+    .idoc-item { padding: 12px 14px; border: 1px solid #eef1f7; border-radius: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .idoc-item.archivado { background: #f7f8fa; }
+    .idoc-item.archivado .idoc-item-titulo { color: #9098a8; }
+    .idoc-item-info { min-width: 0; flex: 1 1 260px; }
+    .idoc-item-titulo { font-weight: 600; color: #1f2a44; font-size: 0.93rem; overflow-wrap: anywhere; }
+    .idoc-item-meta { font-size: 0.76rem; color: #9098a8; margin-top: 4px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .idoc-badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
+    .idoc-badge.admin { background: #fdecea; color: #8a1c14; }
+    .idoc-badge.equipo { background: #e7f0ff; color: #1d3f8f; }
+    .idoc-badge.arch { background: #eceef2; color: #555; }
+    .idoc-item-acciones { display: flex; gap: 8px; }
+    .idoc-item-acciones form { margin: 0; }
+    .idoc-empty { text-align: center; padding: 24px; color: #9098a8; font-size: 0.88rem; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="idoc-wrap">
+    <h1 class="idoc-title"><i class="fas fa-book"></i> Documentos internos</h1>
+    <p class="idoc-lead">Procedimientos, políticas y manuales de tu negocio. El Asistente IA los consulta para
+        responderle a tu equipo, según quién pregunte. Nunca aparecen en el chat de tu sitio público ni se
+        envían al respaldo en la nube: solo los procesa tu equipo de IA.</p>
+
+    <div class="idoc-card" id="formulario">
+        <h2><i class="fas {{ 'fa-pen' if editar and editar.id else 'fa-plus' }}"></i>
+            {{ 'Editar documento' if editar and editar.id else 'Nuevo documento' }}</h2>
+        <form method="POST" action="{{ url_for('ia.documentos_guardar') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% if editar and editar.id %}<input type="hidden" name="id" value="{{ editar.id }}">{% endif %}
+            <div class="idoc-field">
+                <label for="idoc-titulo">Título</label>
+                <input type="text" id="idoc-titulo" name="titulo" required maxlength="{{ max_titulo }}"
+                       value="{{ editar.titulo if editar else '' }}" placeholder="Ej.: Procedimiento de apertura del local">
+            </div>
+            <div class="idoc-field">
+                <label for="idoc-texto">Contenido</label>
+                <textarea id="idoc-texto" name="texto" required maxlength="{{ max_texto }}"
+                          placeholder="Escribe el procedimiento o la política tal como quieres que el asistente la explique. Separa los temas en párrafos.">{{ editar.texto if editar else '' }}</textarea>
+                <small class="idoc-contador"><span id="idoc-contador">0</span> / {{ '{:,}'.format(max_texto).replace(',', '.') }} caracteres</small>
+            </div>
+            {% set vis = (editar.visibilidad if editar else '') or 'administracion' %}
+            <div class="idoc-field">
+                <fieldset>
+                    <legend>¿Quién puede consultarlo con el asistente?</legend>
+                    <label class="idoc-opcion">
+                        <input type="radio" name="visibilidad" value="administracion" {{ 'checked' if vis == 'administracion' }}>
+                        <div><strong>Solo administración</strong>
+                            <span>Dueño y administrador del sistema.</span></div>
+                    </label>
+                    <label class="idoc-opcion">
+                        <input type="radio" name="visibilidad" value="equipo" {{ 'checked' if vis == 'equipo' }}>
+                        <div><strong>Todo el equipo</strong>
+                            <span>Cualquier persona que use el Asistente IA del panel.</span></div>
+                    </label>
+                </fieldset>
+            </div>
+            <div class="idoc-btns">
+                <button type="submit" class="idoc-btn"><i class="fas fa-save"></i> Guardar documento</button>
+                {% if editar and editar.id %}
+                <a href="{{ url_for('ia.documentos') }}" class="idoc-btn idoc-btn-outline">Cancelar</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <div class="idoc-card">
+        <h2><i class="fas fa-folder-open"></i> Tus documentos</h2>
+        {% if documentos %}
+            {% for d in documentos %}
+            <div class="idoc-item {{ '' if d.activo else 'archivado' }}">
+                <div class="idoc-item-info">
+                    <div class="idoc-item-titulo">{{ d.titulo }}</div>
+                    <div class="idoc-item-meta">
+                        {% if d.visibilidad == 'equipo' %}
+                        <span class="idoc-badge equipo">Todo el equipo</span>
+                        {% else %}
+                        <span class="idoc-badge admin">Solo administración</span>
+                        {% endif %}
+                        {% if not d.activo %}<span class="idoc-badge arch">Archivado</span>{% endif %}
+                        <span>{{ d.texto|length }} caracteres · actualizado {{ d.actualizado_en.strftime('%d/%m/%Y %H:%M') if d.actualizado_en else '' }}</span>
+                    </div>
+                </div>
+                <div class="idoc-item-acciones">
+                    {% if d.activo %}
+                    <a href="{{ url_for('ia.documentos', editar=d.id) }}#formulario" class="idoc-btn idoc-btn-outline idoc-btn-sm">
+                        <i class="fas fa-pen"></i> Editar</a>
+                    {% endif %}
+                    <form method="POST" action="{{ url_for('ia.documentos_estado', doc_id=d.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="activo" value="{{ '0' if d.activo else '1' }}">
+                        <button type="submit" class="idoc-btn idoc-btn-outline idoc-btn-sm">
+                            {% if d.activo %}<i class="fas fa-archive"></i> Archivar{% else %}<i class="fas fa-undo"></i> Restaurar{% endif %}
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="idoc-empty">Todavía no hay documentos. Empieza por el que más te pregunta tu equipo:
+                apertura y cierre, devoluciones, turnos…</div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+(function () {
+    var campo = document.getElementById('idoc-texto');
+    var contador = document.getElementById('idoc-contador');
+    if (!campo || !contador) return;
+    function actualizar() { contador.textContent = campo.value.length.toLocaleString('es-CO'); }
+    campo.addEventListener('input', actualizar);
+    actualizar();
+})();
+</script>
+{% endblock %}

@@ -6,7 +6,9 @@ apunta a su origen (`fuente`, `fuente_id`).
 
 `canal_publico` es la línea que separa lo que el chat del sitio puede leer de lo
 interno. Un producto archivado o no visible en la tienda entra al índice para el
-panel, pero marcado como NO público: el bot del sitio no lo menciona.
+panel, pero marcado como NO público: el bot del sitio no lo menciona. Los
+documentos internos (services/ia_rag/internos.py) entran siempre como NO
+públicos, con la visibilidad por rol en la fuente.
 """
 
 import html
@@ -17,11 +19,17 @@ from flask import current_app
 from database import get_db_cursor
 from services.ia_datos.base import _columnas, _existe
 
-FUENTES = ('producto', 'servicio', 'faq', 'publicacion', 'pagina', 'blog')
+# Documentos internos: visibilidad por rol → fuente en el índice. Así el panel
+# filtra con `fuentes=` sin tocar la búsqueda.
+FUENTES_INTERNAS = {'administracion': 'interno_admin', 'equipo': 'interno_equipo'}
+FUENTES = ('producto', 'servicio', 'faq', 'publicacion', 'pagina', 'blog',
+           *FUENTES_INTERNAS.values())
 
 _RE_TAG = re.compile(r'<[^>]+>')
 _RE_ESPACIOS = re.compile(r'\s+')
+_RE_PARRAFOS = re.compile(r'\n\s*\n')
 _MAX_TEXTO = 4000          # un documento más largo que esto no aporta y sí pesa
+_MAX_PARTE = 1500          # los documentos internos largos se indexan por partes
 
 
 def texto_plano(valor, limite=_MAX_TEXTO):
@@ -168,11 +176,56 @@ def _blog(cur, tsv_sql):
     return n
 
 
+def partir(texto, maximo=_MAX_PARTE):
+    """Un documento largo en partes que se encuentran y se citan por separado.
+    Corta por párrafos y, si un párrafo solo no cabe, por la última frase."""
+    partes, actual = [], ''
+    for parrafo in (p.strip() for p in _RE_PARRAFOS.split(texto or '')):
+        while len(parrafo) > maximo:
+            corte = parrafo.rfind('. ', 0, maximo)
+            corte = corte + 1 if corte > maximo // 2 else maximo
+            if actual:
+                partes.append(actual)
+                actual = ''
+            partes.append(parrafo[:corte].strip())
+            parrafo = parrafo[corte:].strip()
+        if not parrafo:
+            continue
+        if actual and len(actual) + 2 + len(parrafo) > maximo:
+            partes.append(actual)
+            actual = parrafo
+        else:
+            actual = f'{actual}\n\n{parrafo}' if actual else parrafo
+    if actual:
+        partes.append(actual)
+    return partes
+
+
+def _internos(cur, tsv_sql):
+    """Documentos internos activos: NUNCA públicos. Se rehace el grupo entero,
+    así lo archivado o lo que cambió de visibilidad no deja restos."""
+    cur.execute('DELETE FROM ia_documentos WHERE fuente = ANY(%s)',
+                (list(FUENTES_INTERNAS.values()),))
+    if not _existe(cur, 'ia_documentos_internos'):
+        return 0
+    cur.execute("""SELECT id, titulo, texto, visibilidad FROM ia_documentos_internos
+                   WHERE activo""")
+    n = 0
+    for r in cur.fetchall():
+        fuente = FUENTES_INTERNAS.get(r['visibilidad'])
+        if not fuente:
+            continue
+        for i, parte in enumerate(partir(r['texto']), 1):
+            n += _upsert(cur, tsv_sql, fuente, f"{r['id']}-{i}", r['titulo'], parte, None, False)
+    return n
+
+
 _INDEXADORES = {
     'producto': _productos,
     'sitio': _items_del_sitio,       # servicios + faq + publicaciones
     'pagina': _paginas,
     'blog': _blog,
+    'interno': _internos,            # documentos internos (solo el panel)
 }
 
 
@@ -205,7 +258,7 @@ def reindexar_uno(fuente, fuente_id):
     """Actualiza un solo documento (al guardar un producto, una FAQ, etc.).
     Silencioso a propósito: nunca debe tumbar el guardado que lo llamó."""
     mapa = {'producto': 'producto', 'servicio': 'sitio', 'faq': 'sitio',
-            'publicacion': 'sitio', 'pagina': 'pagina', 'blog': 'blog'}
+            'publicacion': 'sitio', 'pagina': 'pagina', 'blog': 'blog', 'interno': 'interno'}
     grupo = mapa.get(fuente)
     if not grupo:
         return False

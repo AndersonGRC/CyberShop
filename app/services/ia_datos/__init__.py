@@ -25,6 +25,7 @@ from services.ia_datos import alertas as _ale
 from services.ia_datos import analitica as _ana
 from services.ia_datos import caja as _caj
 from services.ia_datos import comercial as _com
+from services.ia_datos import documentos as _doc
 from services.ia_datos import finanzas as _fin
 from services.ia_datos import inventario as _inv
 from services.ia_datos import nomina as _nom
@@ -189,6 +190,14 @@ registrar('nomina_empleado', _nom.nomina_empleado,
           "Datos de pago de UN empleado por su nombre: cargo, antigüedad, salario base, su última liquidación y sus provisiones.",
           ['empleado'], etiqueta='la nómina de ese empleado', dominio='nomina',
           modulos=('payroll',), permiso='payroll', sensible='nomina')
+
+# ── Documentos internos (solo panel, según el rol; NUNCA a la nube) ─
+# Los escribe el dueño en /admin/ia/documentos. extra={'nube': False}: ni el
+# puente de arranque en frío ni el respaldo en la nube redactan con ellos.
+registrar('documentos_internos', _doc.documentos_internos,
+          "Busca en los documentos internos que escribió el dueño —procedimientos, políticas, manuales, instructivos— lo que responde la pregunta: cómo se hace algo o qué dice una política interna.",
+          ['texto'], etiqueta='los documentos internos', dominio='documentos',
+          permiso='ai_assistant', extra={'nube': False})
 
 # ── Sitio público (módulo ai_public) ───────────────────────────
 # SOLO estas se exponen al visitante anónimo, y solo si el módulo está activo.

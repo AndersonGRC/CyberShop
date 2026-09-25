@@ -14,7 +14,7 @@ Así decide el asistente qué hacer con una pregunta:
 
 En todos los casos, los datos los pone la consulta: el modelo solo redacta con lo que recibe.
 
-**Capacidades registradas: 46**
+**Capacidades registradas: 47**
 
 ## Caja
 
@@ -52,6 +52,12 @@ En todos los casos, los datos los pone la consulta: el modelo solo redacta con l
 | `crm_seguimiento` | A quién hay que atender hoy: tareas vencidas o del día por responsable y clientes sin contacto hace más de un mes. | `tareas pendientes` · `tengo que llamar` · `a quien llamar` · `seguimiento` · `tareas vencidas` · `que tengo que hacer hoy` | — | Panel | A · cualquiera | crm · módulo crm |
 | `cuentas_cobro_periodo` | Cuentas de cobro emitidas en un período, a qué clientes y cuáles siguen sin pagarse. | `cuentas de cobro` · `cuentas emitidas` | periodo | Panel | A · cualquiera | billing · módulo billing |
 | `resenas_estado` | Reseñas de los clientes: calificación promedio, cuáles faltan por aprobar o responder y los productos peor calificados. | `resenas` · `calificaciones` · `que opinan los clientes` · `estrellas` · `comentarios de los clientes` | — | Panel | A · cualquiera | content |
+
+## Documentos
+
+| Función | Qué responde | Se dispara con | Parámetros | Canal | Motor | Permiso |
+|---|---|---|---|---|---|---|
+| `documentos_internos` | Busca en los documentos internos que escribió el dueño —procedimientos, políticas, manuales, instructivos— lo que responde la pregunta: cómo se hace algo o qué dice una política interna. | `procedimiento` · `procedimientos` · `protocolo` · `politica de` · `politicas de` · `politica del` · `manual de` · `manual del` · `segun el manual` · `reglamento` · `instructivo` · `documento interno` · `documentos internos` | texto | Panel | A · cualquiera | ai_assistant |
 
 ## Finanzas
 
@@ -153,6 +159,9 @@ Las usa la prueba del enrutador: cada una debe caer en su función.
 - «¿A quién tengo que llamar hoy?» → `crm_seguimiento`
 - «¿Cuántas cuentas de cobro emití este mes?» → `cuentas_cobro_periodo`
 - «¿Qué opinan los clientes de mis productos?» → `resenas_estado`
+- «¿Cuál es el procedimiento para abrir el local?» → `documentos_internos`
+- «¿Qué dice la política de cambios?» → `documentos_internos`
+- «Muéstrame el protocolo de bioseguridad» → `documentos_internos`
 - «¿Cuánto gané este mes?» → `finanzas_periodo`
 - «¿Cuáles fueron mis gastos del mes pasado?» → `finanzas_periodo`
 - «¿Qué productos me dejan más ganancia?» → `margenes_productos`

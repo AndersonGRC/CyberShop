@@ -272,6 +272,19 @@ INTENCIONES = {
         'canales': PANEL, 'motor': 'A',
     },
 
+    # ── Documentos internos (los escribe el dueño; nunca públicos) ─
+    'documentos_internos': {
+        # Necesita el tema: lo que viene después de la frase disparadora.
+        'disparadores': ('procedimiento', 'procedimientos', 'protocolo', 'politica de',
+                         'politicas de', 'politica del', 'manual de', 'manual del',
+                         'segun el manual', 'reglamento', 'instructivo',
+                         'documento interno', 'documentos internos'),
+        'ejemplos': ('¿Cuál es el procedimiento para abrir el local?',
+                     '¿Qué dice la política de cambios?',
+                     'Muéstrame el protocolo de bioseguridad'),
+        'canales': PANEL, 'motor': 'A',
+    },
+
     # ── General ───────────────────────────────────────────────
     'alertas_negocio': {
         'disparadores': ('que debo atender', 'alertas', 'que esta mal', 'que revisar hoy',

@@ -111,6 +111,7 @@ CyberShop opera en modelo **control plane + 1 base de datos por cliente**:
 | `installer_packager.py` | Empaqueta el ZIP del instalador POS (base .exe + `bootstrap.json`) |
 | `restaurant_tables_service.py` | API interna de estado de mesas/cocina |
 | `ia_datos/` | Herramientas de datos del Asistente IA, una por dominio (`ventas`, `inventario`, `finanzas`, `caja`, `restaurante`, `comercial`, `operacion`, `nomina`). `base.py` = períodos/rangos + registro; `acceso.py` = módulo del plan + permiso del rol + canal (web/escritorio/sistema); `__init__.py` = catálogo y `ejecutar()`. `ai_tools.py` quedó como fachada |
+| `ia_rag/` | Índice de textos (RAG) en dos mitades que no se mezclan: pública (`canal_publico`, la lee el chat del sitio con `solo_publico=True`) e interna (documentos internos por rol desde `/admin/ia/documentos`, solo el panel y nunca hacia la nube). Ver su README |
 | `ventas_consolidado_service.py` | Consolidado de ventas por canal desde `contabilidad_movimientos` (lo usan el reporte y la reconciliación de la IA) |
 | `auth/jwt_handler.py` | Creación/validación/revocación de JWT (RS256 prod, HS256 dev) |
 | `auth/decorators.py` | `@jwt_required()`, `@jwt_role_required([...])` |
