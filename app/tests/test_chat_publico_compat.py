@@ -86,8 +86,10 @@ def _preparar_motor(monkeypatch, motor_obj, cargado):
     monkeypatch.setattr(ai, '_modelo_en_memoria', lambda modelo: cargado)
     llamadas = []
 
-    def _chat(motor, sistema, usuario, max_tokens, temperature, canal='panel', permitir_puente=True):
-        llamadas.append({'nivel': motor.nivel, 'permitir_puente': permitir_puente, 'sistema': sistema})
+    def _chat(motor, sistema, usuario, max_tokens, temperature, canal='panel', permitir_puente=True,
+              esperar_carga=True):
+        llamadas.append({'nivel': motor.nivel, 'permitir_puente': permitir_puente,
+                         'esperar_carga': esperar_carga, 'sistema': sistema})
         return 'Normalmente sí es compatible, pero confírmalo por WhatsApp.', None
 
     monkeypatch.setattr(ai, 'chat_con_motor', _chat)
@@ -140,4 +142,5 @@ def test_consulta_normal_sigue_permitiendo_el_puente(base, monkeypatch):
     base.responder('tienen rtx')
     assert len(llamadas) == 1
     assert llamadas[0]['permitir_puente'] is True
+    assert llamadas[0]['esperar_carga'] is False, 'al visitante nunca se le espera la carga'
     assert 'conocimiento técnico general' not in llamadas[0]['sistema']

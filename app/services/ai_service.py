@@ -331,11 +331,13 @@ def _chat_stream_una_vez(model, system, user, max_tokens, temperature,
 
 
 def chat_con_motor(motor, system, user, max_tokens=400, temperature=0.7, canal='panel',
-                   permitir_puente=True):
+                   permitir_puente=True, esperar_carga=True):
     """Le habla al motor que sea: una máquina propia (Ollama) o el respaldo en la
     nube. Devuelve (texto, None) o (None, motivo). Quien llama no tiene que saber
     con cuál de los dos está hablando. permitir_puente=False: nunca desvía a la
-    nube aunque el modelo local esté frío."""
+    nube aunque el modelo local esté frío. esperar_carga=False: con el modelo
+    frío no se espera la carga (1-3 min); queda pedida y se devuelve
+    (None, motivo) para que quien llama conteste sin modelo."""
     if motor is None:
         return None, 'Sin motor de IA disponible.'
     if getattr(motor, 'es_nube', False):
@@ -344,10 +346,16 @@ def chat_con_motor(motor, system, user, max_tokens=400, temperature=0.7, canal='
                                  temperature=temperature, timeout=motor.timeout)
 
     from services.ia_motores import NIVEL_B
-    if motor.nivel == NIVEL_B and permitir_puente:
-        puente = _intentar_puente_frio(motor, system, user, max_tokens, temperature, canal)
-        if puente is not None:
-            return puente, None
+    if motor.nivel == NIVEL_B and _modelo_en_memoria(motor.modelo) is False:
+        # Frío: la carga se pide YA, en segundo plano, pase lo que pase después
+        # (puente a la nube, espera o respuesta sin modelo).
+        _pedir_carga(motor.modelo)
+        if permitir_puente:
+            puente = _intentar_puente_frio(motor, system, user, max_tokens, temperature, canal)
+            if puente is not None:
+                return puente, None
+        if not esperar_carga:
+            return None, MSG_MOTOR_PREPARANDO
 
     texto, err = _chat_una_vez(motor.modelo, system, user, max_tokens, temperature,
                                base_url=motor.base_url, timeout=motor.timeout)
@@ -609,8 +617,8 @@ MSG_MOTOR_PREPARANDO = ('El motor de IA se está preparando: la primera consulta
 # (180 s + 3 sondeos fallidos reales) nunca llega a activarse para este caso. Este
 # puente es aparte y rápido: usa /api/ps (_modelo_en_memoria, lo correcto) y, si el
 # modelo no está cargado, responde por la nube SOLO la primera y segunda vez de la
-# racha fría, mientras pide la carga en segundo plano — de la tercera en adelante
-# se asume que ya tuvo tiempo de calentar y vuelve al camino local de siempre.
+# racha fría (la carga ya quedó pedida en chat_con_motor) — de la tercera en
+# adelante se asume que ya tuvo tiempo de calentar y vuelve al camino local.
 _PUENTE_NUBE_MAX = 2
 _puente_nube_usos = {}       # (db_name, modelo) -> cuenta consecutiva de esta racha
 
@@ -635,16 +643,15 @@ def _confirmar_modelo_listo(modelo):
 
 
 def _intentar_puente_frio(motor, system, user, max_tokens, temperature, canal):
-    """None si no aplica (sigue el camino local de siempre); el texto de la nube
-    si el puente respondió. Nunca lanza: cualquier fallo deja que el camino
-    normal de abajo se encargue, sin gastar el conteo de la racha."""
-    if _modelo_en_memoria(motor.modelo) is not False or not _puente_frio_disponible(motor.modelo):
+    """Solo con el modelo ya confirmado frío. None si no aplica (sigue el camino
+    local de siempre); el texto de la nube si el puente respondió. Nunca lanza:
+    cualquier fallo deja que el camino normal de abajo se encargue."""
+    if not _puente_frio_disponible(motor.modelo):
         return None
     try:
         from services import ia_nube
         if not ia_nube.disponible(canal):
             return None
-        _pedir_carga(motor.modelo)
         _registrar_uso_puente(motor.modelo)
         texto, err = ia_nube.responder(system, user, max_tokens=max_tokens,
                                        temperature=temperature, timeout=motor.timeout)
@@ -676,6 +683,20 @@ def _pedir_carga(modelo):
             pass
 
     threading.Thread(target=_cargar, name=f'ia-calentar-{modelo}', daemon=True).start()
+
+
+def precalentar(motor):
+    """Deja el modelo del equipo del dueño cargándose para la PRÓXIMA pregunta,
+    aunque esta la haya contestado Python. Si ya está en memoria, el pedido solo
+    renueva el keep_alive del servidor (30 min): nunca lo deja cargado para
+    siempre. No espera ni lanza; el freno de _pedir_carga evita repetirlo."""
+    try:
+        from services.ia_motores import NIVEL_B
+        if motor is None or motor.es_nube or motor.nivel != NIVEL_B or not motor.configurado:
+            return
+        _pedir_carga(motor.modelo)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _esperar_motor(modelo, espera_max, intervalo=5):

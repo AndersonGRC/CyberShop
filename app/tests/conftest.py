@@ -45,6 +45,15 @@ def flask_app():
     return flask_app
 
 
+@pytest.fixture(autouse=True)
+def _sin_carga_real_del_modelo(monkeypatch):
+    """Ninguna prueba le pide al Ollama real que cargue el modelo: en el equipo
+    del dueño quedaría 30 min en memoria. Quien quiera observar el pedido lo
+    vuelve a reemplazar en su propia prueba."""
+    import services.ai_service as ai
+    monkeypatch.setattr(ai, '_pedir_carga', lambda modelo: None)
+
+
 @pytest.fixture()
 def client(flask_app):
     return flask_app.test_client()

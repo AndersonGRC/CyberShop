@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
-"""Puente a la nube durante el arranque en frío del motor local (NIVEL_B).
+"""Arranque en frío del motor local (NIVEL_B): carga pedida y puente a la nube.
 
 vivo()/api/tags (ia_motores.py) no distingue "Ollama arriba pero el modelo sin
 cargar en memoria" de "modelo caliente" — así que el respaldo lento ya existente
 (ia_nube, 180s + 3 sondeos fallidos reales) nunca se activa para este caso. Este
-puente es aparte y usa la señal correcta (_modelo_en_memoria, /api/ps): si el
-modelo no está cargado, responde por la nube SOLO la primera y segunda vez de la
-racha, después vuelve al camino local de siempre — para no dejar esperando al
-usuario los 1-3 minutos que tarda la carga, sin gastar de más.
+camino usa la señal correcta (_modelo_en_memoria, /api/ps): si el modelo no está
+cargado, pide la carga SIEMPRE y responde por la nube SOLO la primera y segunda
+vez de la racha; después vuelve al camino local de siempre — para no dejar
+esperando al usuario los 1-3 minutos que tarda la carga, sin gastar de más.
+Con esperar_carga=False (chat del sitio) nunca se espera la carga.
+
+El pedido real de carga lo neutraliza conftest (_sin_carga_real_del_modelo).
 """
 import pytest
 from flask import Flask
@@ -26,9 +29,8 @@ def app_puente(monkeypatch):
     app = Flask(__name__)
     app.config.update(AI_BASE_URL='http://pc:11434', AI_API_KEY='',
                       AI_NUBE_PARA_PUBLICO=False)
-    # Cada prueba empieza con la racha en cero y sin pedidos de carga pendientes.
+    # Cada prueba empieza con la racha en cero.
     monkeypatch.setattr(ai, '_puente_nube_usos', {})
-    monkeypatch.setattr(ai, '_CALENTANDO', {})
     monkeypatch.setattr(ia_nube, '_bloqueo', {})
     with app.app_context():
         yield app
@@ -38,19 +40,19 @@ def _sin_llamadas_locales(monkeypatch):
     """Si _chat_una_vez se invoca cuando no debía, la prueba falla de inmediato
     en vez de intentar una conexión real."""
     def _revienta(*a, **k):
-        raise AssertionError('_chat_una_vez no debía llamarse: el puente debía responder')
+        raise AssertionError('_chat_una_vez no debía llamarse')
     monkeypatch.setattr(ai, '_chat_una_vez', _revienta)
 
 
-def _pedir_carga_silenciosa(monkeypatch):
-    """No lanzar un hilo real que golpee la red durante la prueba."""
-    monkeypatch.setattr(ai, '_pedir_carga', lambda modelo: None)
+def _registrar_cargas(monkeypatch):
+    pedidos = []
+    monkeypatch.setattr(ai, '_pedir_carga', lambda modelo: pedidos.append(modelo))
+    return pedidos
 
 
 # ── El puente entra cuando toca ─────────────────────────────────
 def test_primera_respuesta_fria_usa_la_nube_y_no_toca_el_local(app_puente, monkeypatch):
     _sin_llamadas_locales(monkeypatch)
-    _pedir_carga_silenciosa(monkeypatch)
     monkeypatch.setattr(ai, '_modelo_en_memoria', lambda modelo: False)
     monkeypatch.setattr(ia_nube, 'disponible', lambda canal='panel': True)
     monkeypatch.setattr(ia_nube, 'responder', lambda *a, **k: ('Respuesta de la nube.', None))
@@ -65,8 +67,7 @@ def test_pide_la_carga_en_segundo_plano_al_usar_el_puente(app_puente, monkeypatc
     monkeypatch.setattr(ai, '_modelo_en_memoria', lambda modelo: False)
     monkeypatch.setattr(ia_nube, 'disponible', lambda canal='panel': True)
     monkeypatch.setattr(ia_nube, 'responder', lambda *a, **k: ('ok', None))
-    pedidos = []
-    monkeypatch.setattr(ai, '_pedir_carga', lambda modelo: pedidos.append(modelo))
+    pedidos = _registrar_cargas(monkeypatch)
 
     ai.chat_con_motor(_motor_b(), 'sistema', 'usuario')
     assert pedidos == ['qwen2.5:14b']
@@ -74,7 +75,6 @@ def test_pide_la_carga_en_segundo_plano_al_usar_el_puente(app_puente, monkeypatc
 
 def test_segunda_respuesta_fria_tambien_usa_la_nube(app_puente, monkeypatch):
     _sin_llamadas_locales(monkeypatch)
-    _pedir_carga_silenciosa(monkeypatch)
     monkeypatch.setattr(ai, '_modelo_en_memoria', lambda modelo: False)
     monkeypatch.setattr(ia_nube, 'disponible', lambda canal='panel': True)
     monkeypatch.setattr(ia_nube, 'responder', lambda *a, **k: ('ok', None))
@@ -86,7 +86,6 @@ def test_segunda_respuesta_fria_tambien_usa_la_nube(app_puente, monkeypatch):
 
 # ── El freno de "hasta la segunda, no más" ──────────────────────
 def test_tercera_respuesta_fria_ya_no_usa_el_puente(app_puente, monkeypatch):
-    _pedir_carga_silenciosa(monkeypatch)
     monkeypatch.setattr(ai, '_modelo_en_memoria', lambda modelo: False)
     monkeypatch.setattr(ia_nube, 'disponible', lambda canal='panel': True)
     monkeypatch.setattr(ia_nube, 'responder', lambda *a, **k: ('de la nube', None))
@@ -103,7 +102,6 @@ def test_tercera_respuesta_fria_ya_no_usa_el_puente(app_puente, monkeypatch):
 
 # ── Una respuesta local exitosa limpia la racha ─────────────────
 def test_una_respuesta_local_exitosa_reinicia_la_racha(app_puente, monkeypatch):
-    _pedir_carga_silenciosa(monkeypatch)
     monkeypatch.setattr(ia_nube, 'disponible', lambda canal='panel': True)
     monkeypatch.setattr(ia_nube, 'responder', lambda *a, **k: ('de la nube', None))
     monkeypatch.setattr(ai, '_chat_una_vez', lambda *a, **k: ('de lo local', None))
@@ -174,7 +172,6 @@ def test_permitir_puente_false_nunca_desvia_a_la_nube(app_puente, monkeypatch):
 
 # ── Nunca lanza, ni si la nube falla a mitad de camino ──────────
 def test_si_la_nube_tambien_falla_cae_al_local_sin_reventar(app_puente, monkeypatch):
-    _pedir_carga_silenciosa(monkeypatch)
     monkeypatch.setattr(ai, '_modelo_en_memoria', lambda modelo: False)
     monkeypatch.setattr(ia_nube, 'disponible', lambda canal='panel': True)
     monkeypatch.setattr(ia_nube, 'responder', lambda *a, **k: (None, 'la nube tambien fallo'))
@@ -182,3 +179,74 @@ def test_si_la_nube_tambien_falla_cae_al_local_sin_reventar(app_puente, monkeypa
 
     texto, err = ai.chat_con_motor(_motor_b(), 's', 'u')
     assert texto == 'de lo local' and err is None
+
+
+# ── La carga se pide siempre que está frío ──────────────────────
+def test_frio_sin_nube_igual_pide_la_carga(app_puente, monkeypatch):
+    monkeypatch.setattr(ai, '_modelo_en_memoria', lambda modelo: False)
+    monkeypatch.setattr(ia_nube, 'disponible', lambda canal='panel': False)
+    monkeypatch.setattr(ai, '_chat_una_vez', lambda *a, **k: ('de lo local', None))
+    pedidos = _registrar_cargas(monkeypatch)
+
+    ai.chat_con_motor(_motor_b(), 's', 'u')
+    assert pedidos == ['qwen2.5:14b']
+
+
+def test_modelo_caliente_no_pide_carga(app_puente, monkeypatch):
+    monkeypatch.setattr(ai, '_modelo_en_memoria', lambda modelo: True)
+    monkeypatch.setattr(ai, '_chat_una_vez', lambda *a, **k: ('de lo local', None))
+    pedidos = _registrar_cargas(monkeypatch)
+
+    ai.chat_con_motor(_motor_b(), 's', 'u')
+    assert pedidos == []
+
+
+# ── esperar_carga=False: nadie se queda esperando la carga ──────
+def test_sin_esperar_carga_responde_sin_modelo_y_deja_la_carga_pedida(app_puente, monkeypatch):
+    _sin_llamadas_locales(monkeypatch)
+    monkeypatch.setattr(ai, '_modelo_en_memoria', lambda modelo: False)
+    monkeypatch.setattr(ia_nube, 'disponible', lambda canal='panel': False)
+    pedidos = _registrar_cargas(monkeypatch)
+
+    texto, motivo = ai.chat_con_motor(_motor_b(), 's', 'u', canal='publico', esperar_carga=False)
+    assert texto is None
+    assert motivo == ai.MSG_MOTOR_PREPARANDO
+    assert pedidos == ['qwen2.5:14b']
+
+
+def test_sin_esperar_carga_igual_usa_el_puente_si_hay_nube(app_puente, monkeypatch):
+    _sin_llamadas_locales(monkeypatch)
+    monkeypatch.setattr(ai, '_modelo_en_memoria', lambda modelo: False)
+    monkeypatch.setattr(ia_nube, 'disponible', lambda canal='panel': True)
+    monkeypatch.setattr(ia_nube, 'responder', lambda *a, **k: ('de la nube', None))
+
+    texto, _ = ai.chat_con_motor(_motor_b(), 's', 'u', canal='publico', esperar_carga=False)
+    assert texto == 'de la nube'
+
+
+def test_sin_esperar_carga_con_estado_desconocido_sigue_como_siempre(app_puente, monkeypatch):
+    """Si /api/ps no contesta no se sabe si está frío: se le habla al modelo."""
+    monkeypatch.setattr(ai, '_modelo_en_memoria', lambda modelo: None)
+    monkeypatch.setattr(ai, '_chat_una_vez', lambda *a, **k: ('de lo local', None))
+
+    texto, _ = ai.chat_con_motor(_motor_b(), 's', 'u', esperar_carga=False)
+    assert texto == 'de lo local'
+
+
+# ── precalentar(): solo el equipo del dueño, nunca la nube ──────
+def test_precalentar_pide_la_carga_del_motor_local(app_puente, monkeypatch):
+    pedidos = _registrar_cargas(monkeypatch)
+    ai.precalentar(_motor_b())
+    assert pedidos == ['qwen2.5:14b']
+
+
+@pytest.mark.parametrize('motor', [
+    None,
+    mot.Motor(mot.NIVEL_A, 'http://servidor:11434', 'modelo-chico', 30, 'servidor'),
+    mot.Motor(mot.NIVEL_A, '', 'claude-haiku-4-5-20251001', 25, 'respaldo', proveedor='nube'),
+    mot.Motor(mot.NIVEL_B, '', '', 120, 'tu equipo de IA'),  # IA sin configurar
+])
+def test_precalentar_ignora_lo_que_no_es_el_equipo_del_dueno(app_puente, monkeypatch, motor):
+    pedidos = _registrar_cargas(monkeypatch)
+    ai.precalentar(motor)
+    assert pedidos == []

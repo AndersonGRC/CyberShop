@@ -14,6 +14,10 @@ Con los datos ya en la mano se arma **siempre** una respuesta escrita en Python.
 Si hay motor disponible y turno libre, el modelo la reescribe más natural, pero
 **sin poder cambiar los datos**: se le entrega el texto base y se le pide que lo
 diga mejor. Por eso el bot no puede inventar un precio aunque el modelo falle.
+
+Al visitante nunca se le hace esperar la carga del modelo (1-3 min en frío): sale
+el texto de Python y la carga queda pedida en segundo plano, también cuando la
+respuesta no necesitaba modelo, para que las siguientes preguntas lo encuentren listo.
 """
 
 import hashlib
@@ -101,6 +105,18 @@ def _modelo_local_listo(motor):
         return ai._modelo_en_memoria(motor.modelo) is True
     except Exception:  # noqa: BLE001
         return False
+
+
+def _precalentar():
+    """Aunque esta respuesta no haya usado el modelo (saludo, «no sé», caché, sin
+    turno, compatibilidad en frío), deja el del equipo del dueño cargándose para
+    las próximas preguntas del visitante. No espera ni lanza."""
+    try:
+        from services import ia_motores as motores
+        import services.ai_service as ai
+        ai.precalentar(motores.motor_configurado(motores.NIVEL_B))
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def config_publica():
@@ -442,13 +458,16 @@ def responder(pregunta, historial=None, redactar=True):
                         sistema, usuario = _prompt(plan)
                         texto, err = ai.chat_con_motor(motor, sistema, usuario, 220, 0.4,
                                                        canal='publico',
-                                                       permitir_puente=not compat)
+                                                       permitir_puente=not compat,
+                                                       esperar_carga=False)
                         if texto and not err:
                             respuesta = texto.strip()
                             motor_usado = motor.nivel
                             _cache_guardar(_clave_cache(plan), respuesta)
                     except Exception as exc:  # noqa: BLE001
                         current_app.logger.warning(f'chat público: el modelo falló ({exc})')
+    if redactar and motor_usado is None:
+        _precalentar()
 
     salida = {
         'respuesta': respuesta,
