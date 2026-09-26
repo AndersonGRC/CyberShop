@@ -558,6 +558,13 @@ def responder(pregunta, historial=None, redactar=True):
                                               tarea='chat_publico')
                 if compat and not _modelo_local_listo(motor):
                     motor = None  # compatibilidad: solo el modelo local ya cargado
+                if motor is not None and not motor.es_nube:
+                    # Un visitante no espera lo que espera el dueño en el panel
+                    # (AI_TIMEOUT, 180 s): pasado AI_PUBLIC_TIMEOUT sale el texto
+                    # de Python, que ya trae los datos correctos.
+                    import dataclasses
+                    tope = int(current_app.config.get('AI_PUBLIC_TIMEOUT') or 12)
+                    motor = dataclasses.replace(motor, timeout=min(motor.timeout, tope))
                 if motor is not None:
                     try:
                         import services.ai_service as ai

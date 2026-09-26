@@ -94,3 +94,21 @@ def test_modelo_frio_no_hace_esperar_al_visitante(base, cargas, monkeypatch):
     assert 'Tarjeta RTX 4060' in salida['respuesta']
     assert salida['via'] == base.VIA_KEYWORD
     assert cargas and set(cargas) == {'modelo-local'}
+
+
+def test_el_visitante_no_espera_mas_que_el_tope_publico(base, cargas, monkeypatch, flask_app):
+    """AI_PUBLIC_TIMEOUT existía pero nadie lo usaba: el chat del sitio esperaba
+    hasta los 180 s del panel. Ahora el modelo local recibe el tope público."""
+    import services.ai_service as ai
+    _catalogo(monkeypatch)
+    monkeypatch.setitem(flask_app.config, 'AI_PUBLIC_TIMEOUT', 12)
+    motor_b = mot.Motor(mot.NIVEL_B, 'http://pc:11434', 'modelo-local', 180, 'tu equipo de IA')
+    monkeypatch.setattr(mot, 'turno_publico', _turno)
+    monkeypatch.setattr(mot, 'motor_para', lambda *a, **k: (motor_b, 'x'))
+    monkeypatch.setattr(ai, '_modelo_en_memoria', lambda modelo: True)
+    vistos = []
+    monkeypatch.setattr(ai, '_chat_una_vez',
+                        lambda *a, **k: vistos.append(k.get('timeout')) or (None, ('modelo', 'tardó')))
+    salida = base.responder('tienen rtx')
+    assert vistos == [12]
+    assert 'Tarjeta RTX 4060' in salida['respuesta'], 'si el modelo no alcanza, sale el catálogo'

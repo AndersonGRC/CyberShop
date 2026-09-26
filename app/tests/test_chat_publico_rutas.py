@@ -199,3 +199,15 @@ def test_mensaje_no_agrega_datos_de_sesion_propios(client, chat_encendido, ip_un
     r = client.post('/chat/mensaje', json={'pregunta': 'hola'},
                     environ_base={'REMOTE_ADDR': ip_unica()})
     assert _payload_sesion(r) == {'_permanent': True}
+
+
+# ── Token CSRF renovable (el de la página vence a la hora) ──
+def test_token_entrega_uno_nuevo_con_el_modulo_activo(client, chat_encendido, ip_unica):
+    r = client.get('/chat/token', environ_base={'REMOTE_ADDR': ip_unica()})
+    assert r.status_code == 200
+    assert len(r.get_json()['csrf']) > 20
+
+
+def test_token_404_con_el_modulo_apagado(client, chat_apagado, ip_unica):
+    r = client.get('/chat/token', environ_base={'REMOTE_ADDR': ip_unica()})
+    assert r.status_code == 404

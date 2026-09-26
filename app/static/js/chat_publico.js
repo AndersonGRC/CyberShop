@@ -61,9 +61,34 @@
         return el;
     }
 
+    // El token de la página vence a la hora: si el servidor lo rechaza, se pide
+    // uno nuevo a /chat/token y se reintenta una vez (ver postMensaje).
+    var csrfNuevo = null;
+
     function tokenCsrf() {
+        if (csrfNuevo) return csrfNuevo;
         var meta = document.querySelector('meta[name="csrf-token"]');
         return meta ? meta.getAttribute('content') : '';
+    }
+
+    function postMensaje(cuerpo, reintentado) {
+        return fetch('/chat/mensaje', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': tokenCsrf() },
+            body: JSON.stringify(cuerpo)
+        }).then(function (r) {
+            if (r.status !== 400 || reintentado) return r;
+            return r.clone().json().then(function (d) {
+                if (!(d && typeof d.error === 'string' && d.error.indexOf('CSRF') >= 0)) return r;
+                return fetch('/chat/token', { headers: { 'Accept': 'application/json' } })
+                    .then(function (t) { return t.ok ? t.json() : null; })
+                    .then(function (t) {
+                        if (!t || !t.csrf) return r;
+                        csrfNuevo = t.csrf;
+                        return postMensaje(cuerpo, true);
+                    });
+            }).catch(function () { return r; });
+        });
     }
 
     function construir() {
@@ -264,11 +289,7 @@
         if (recaptchaToken) cuerpo.recaptcha = recaptchaToken;
         if (verificacionToken) cuerpo.verificacion = verificacionToken;
 
-        fetch('/chat/mensaje', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': tokenCsrf() },
-            body: JSON.stringify(cuerpo)
-        }).then(function (r) {
+        postMensaje(cuerpo, false).then(function (r) {
             if (r.status === 429) {
                 return Promise.reject({ amable: 'Muchas preguntas seguidas — dame un momento y '
                                                  + 'vuelve a escribirme.' });

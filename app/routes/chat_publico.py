@@ -154,6 +154,19 @@ def config():
         return jsonify({'error': 'internal'}), 200  # el widget no debe romperse por esto
 
 
+@chat_publico_bp.route('/token', methods=['GET'])
+def token():
+    """Token CSRF nuevo para el widget. El de la página vence a la hora
+    (WTF_CSRF_TIME_LIMIT) y, con el sitio abierto mucho rato, el chat
+    respondía «No pude responder»: el widget lo renueva y reintenta."""
+    if not controlar_tasa_solicitudes(request.remote_addr, max_requests=30, interval=60):
+        return jsonify({'error': 'rate_limited'}), 429
+    if not is_module_active(MODULE_AI_PUBLIC):
+        return _modulo_apagado()
+    from flask_wtf.csrf import generate_csrf
+    return jsonify({'csrf': generate_csrf()})
+
+
 @chat_publico_bp.route('/mensaje', methods=['POST'])
 @limiter.limit('8 per minute; 60 per hour')
 def mensaje():
