@@ -326,6 +326,67 @@ def _texto_documentos(docs):
     return texto[:600] if texto else principal.get('titulo')
 
 
+# Palabras que acompañan la intención de comprar pero no nombran un producto:
+# «comprar unos productos», «ver algunas cosas», «algo para comprar».
+_NO_ES_PRODUCTO = {
+    'comprar', 'compra', 'adquirir', 'pedir', 'ver', 'conseguir', 'mirar', 'cotizar',
+    'unos', 'unas', 'uno', 'una', 'un', 'algunos', 'algunas', 'algun', 'alguna', 'algo',
+    'productos', 'producto', 'articulos', 'articulo', 'cosas', 'cosa', 'mercancia',
+    'de', 'del', 'la', 'el', 'los', 'las', 'para', 'por', 'favor', 'mas', 'sus', 'su',
+    'informacion', 'info', 'que', 'ustedes', 'aqui', 'hoy', 'me', 'gustaria', 'quiero',
+    'quisiera', 'necesito', 'y', 'o', 'en', 'a', 'saber', 'conocer', 'como', 'se',
+}
+
+
+def _termino_de_producto(texto):
+    """Lo que de verdad nombra un producto, sin los verbos ni el relleno de
+    alrededor. Vacío si la frase no nombra ninguno."""
+    palabras = [p for p in re.split(r'\s+', (texto or '').strip(' ?¿!¡.,;:')) if p]
+    utiles = [p for p in palabras if _normalizar(p).strip('.,;:?!') not in _NO_ES_PRODUCTO]
+    # Se recorta solo por delante: «comprar unos cables de red» → «cables de red».
+    if not utiles:
+        return ''
+    inicio = palabras.index(utiles[0])
+    return ' '.join(palabras[inicio:]).strip(' ?¿!¡.,;:')
+
+
+def _dato_publico(code, tools, contexto, permitidas):
+    """Corre una capacidad pública si el visitante la tiene; el texto o None."""
+    if code not in {h.code for h in permitidas}:
+        return None, None
+    datos = tools.ejecutar(code, {}, contexto)
+    if not isinstance(datos, dict) or datos.get('denegado'):
+        return None, None
+    texto = _REDACTORES[code](datos)
+    return (None, None) if texto == _MSG_NO_SE else (texto, datos)
+
+
+def _plan_compra_general(plan, tools, contexto, permitidas):
+    """«Quiero comprar unos productos»: qué se vende y cómo se compra."""
+    categorias, _ = _dato_publico('categorias_publicas', tools, contexto, permitidas)
+    comprar, datos = _dato_publico('como_comprar', tools, contexto, permitidas)
+    partes = [t for t in (categorias, comprar) if t]
+    if not partes:
+        return False
+    plan.update(via=VIA_KEYWORD, intencion='como_comprar',
+                herramientas=[c for c, t in (('categorias_publicas', categorias),
+                                             ('como_comprar', comprar)) if t],
+                datos=datos, texto_base='\n'.join(partes) + '\n¿Buscas algo en particular?')
+    if datos and datos.get('enlace'):
+        plan['fuentes'] = [{'titulo': 'Ver el catálogo', 'url': datos['enlace']}]
+    return True
+
+
+def _texto_no_encontrado(datos, tools, contexto, permitidas):
+    buscado = datos.get('buscado') or 'eso'
+    texto = (f'No encontré «{buscado}» en el catálogo publicado. Escríbenos por WhatsApp '
+             'y te confirmamos si está disponible.')
+    categorias, _ = _dato_publico('categorias_publicas', tools, contexto, permitidas)
+    if categorias:
+        texto += f' {categorias}'
+    return texto
+
+
 # ── Preparación (sin modelo) ───────────────────────────────────
 def preparar(pregunta, historial=None):
     """Arma la respuesta con datos reales. No llama a ningún modelo.
@@ -376,6 +437,15 @@ def preparar(pregunta, historial=None):
             # «¿Cuánto cuesta el envío?» no es una búsqueda de un producto
             # llamado "envío". La FAQ del negocio puede tener la respuesta.
             break
+        if code == 'buscar_productos':
+            termino = _termino_de_producto(params.get('texto', ''))
+            if not termino:
+                # «Necesito comprar unos productos» no nombra ningún producto:
+                # se le cuenta qué hay y cómo se compra, en vez de buscar la frase.
+                if _plan_compra_general(plan, tools, contexto, permitidas):
+                    return plan
+                break
+            params = {**params, 'texto': termino}
         datos = tools.ejecutar(code, params, contexto)
         if not isinstance(datos, dict) or datos.get('denegado'):
             continue
@@ -394,8 +464,9 @@ def preparar(pregunta, historial=None):
         if code == 'buscar_productos' and not datos.get('productos'):
             # «No encontré X» sale tal cual: medido con qwen2.5:14b, el modelo lo
             # volvía «Sí, tenemos X» en 9 de 12 intentos (5 de 12 aun con una
-            # regla expresa en el prompt).
-            plan.update(sin_modelo=True, escalar=True)
+            # regla expresa en el prompt). Se dice con amabilidad y ofreciendo lo que sí hay.
+            plan.update(sin_modelo=True, escalar=True,
+                        texto_base=_texto_no_encontrado(datos, tools, contexto, permitidas))
 
         # Compatibilidad (módulo ai_public_compat, apagado por defecto): solo si
         # ya se encontró un producto real Y la pregunta es de compatibilidad.

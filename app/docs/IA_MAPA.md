@@ -28,9 +28,9 @@ En todos los casos, los datos los pone la consulta: el modelo solo redacta con l
 
 | Función | Qué responde | Se dispara con | Parámetros | Canal | Motor | Permiso |
 |---|---|---|---|---|---|---|
-| `buscar_productos` | Busca productos del catálogo público por nombre o categoría, con precio y disponibilidad. | `tienen` · `tienes` · `venden` · `cuanto vale` · `cuanto cuesta` · `precio de` · `busco` · `estoy buscando` · `necesito` | texto, limite | Público | A · cualquiera | cualquiera del panel · módulo ai_public |
+| `buscar_productos` | Busca productos del catálogo público por nombre o categoría, con precio y disponibilidad. | `tienen` · `tienes` · `venden` · `cuanto vale` · `cuanto cuesta` · `precio de` · `busco` · `estoy buscando` · `necesito` · `quiero comprar` · `quisiera comprar` · `me gustaria comprar` · `necesito comprar` · `quiero` · `quisiera` | texto, limite | Público | A · cualquiera | cualquiera del panel · módulo ai_public |
 | `categorias_publicas` | Qué categorías de producto maneja la tienda. | `que venden` · `que productos manejan` · `que categorias` · `que puedo comprar` | — | Público | A · cualquiera | cualquiera del panel · módulo ai_public |
-| `como_comprar` | Cómo se compra en este sitio: tienda en línea o por contacto. | `como compro` · `como puedo comprar` · `como hago el pedido` · `puedo comprar en linea` · `como pido` | — | Público | A · cualquiera | cualquiera del panel · módulo ai_public |
+| `como_comprar` | Cómo se compra en este sitio: tienda en línea o por contacto. | `como compro` · `como puedo comprar` · `como hago el pedido` · `como comprar` · `como se compra` · `como hago una compra` · `puedo comprar en linea` · `como pido` | — | Público | A · cualquiera | cualquiera del panel · módulo ai_public |
 | `datos_del_negocio` | Dirección, teléfono, WhatsApp, correo y horario del negocio. | `donde quedan` · `donde estan` · `direccion` · `telefono` · `whatsapp` · `como los contacto` · `a que hora` · `horario` · `abren` | — | Público | A · cualquiera | cualquiera del panel · módulo ai_public |
 | `servicios_publicos` | Servicios que presta el negocio, según su sitio. | `que servicios` · `prestan servicio` · `hacen mantenimiento` · `hacen instalacion` · `tienen servicio de` · `tienen servicio` · `ofrecen` | — | Público | A · cualquiera | cualquiera del panel · módulo ai_public |
 

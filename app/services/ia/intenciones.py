@@ -303,7 +303,9 @@ INTENCIONES = {
     # ninguna otra parte: si no dice 'publico', no se expone.
     'buscar_productos': {
         'disparadores': ('tienen', 'tienes', 'venden', 'cuanto vale', 'cuanto cuesta',
-                         'precio de', 'busco', 'estoy buscando', 'necesito'),
+                         'precio de', 'busco', 'estoy buscando', 'necesito',
+                         'quiero comprar', 'quisiera comprar', 'me gustaria comprar',
+                         'necesito comprar', 'quiero', 'quisiera'),
         'ejemplos': ('¿Tienen gaseosa?', '¿Cuánto vale el jugo natural?', 'Busco una camiseta'),
         'canales': PUBLICO, 'motor': 'A',
     },
@@ -327,7 +329,8 @@ INTENCIONES = {
         'canales': PUBLICO, 'motor': 'A',
     },
     'como_comprar': {
-        'disparadores': ('como compro', 'como puedo comprar', 'como hago el pedido',
+        'disparadores': ('como compro', 'como puedo comprar', 'como hago el pedido', 'como comprar',
+                         'como se compra', 'como hago una compra',
                          'puedo comprar en linea', 'como pido'),
         'ejemplos': ('¿Cómo compro?', '¿Puedo comprar en línea?'),
         'canales': PUBLICO, 'motor': 'A',
