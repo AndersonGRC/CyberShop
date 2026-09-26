@@ -391,6 +391,11 @@ def preparar(pregunta, historial=None):
                     texto_base=texto_base)
         if datos.get('enlace'):
             plan['fuentes'] = [{'titulo': 'Ver en el sitio', 'url': datos['enlace']}]
+        if code == 'buscar_productos' and not datos.get('productos'):
+            # «No encontré X» sale tal cual: medido con qwen2.5:14b, el modelo lo
+            # volvía «Sí, tenemos X» en 9 de 12 intentos (5 de 12 aun con una
+            # regla expresa en el prompt).
+            plan.update(sin_modelo=True, escalar=True)
 
         # Compatibilidad (módulo ai_public_compat, apagado por defecto): solo si
         # ya se encontró un producto real Y la pregunta es de compatibilidad.
@@ -539,7 +544,8 @@ def responder(pregunta, historial=None, redactar=True):
     motor_usado = None
 
     cacheada = False
-    usa_modelo = plan['via'] not in (VIA_CORTESIA, VIA_SIN_RESPUESTA, VIA_INTERNO)
+    usa_modelo = (plan['via'] not in (VIA_CORTESIA, VIA_SIN_RESPUESTA, VIA_INTERNO)
+                  and not plan.get('sin_modelo'))
     cortesia = plan['via'] == VIA_CORTESIA and bool(plan.get('cortesia'))
     if redactar and (usa_modelo or cortesia):
         guardada = _cache_leer(_clave_cache(plan))

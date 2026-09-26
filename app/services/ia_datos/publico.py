@@ -11,6 +11,8 @@ entrando a la tienda. Nada de dinero del negocio, nada de personas.
 Las respuestas son cortas y ya formateadas: el modelo solo las redacta.
 """
 
+import re
+
 from flask import current_app
 
 from database import get_db_cursor
@@ -48,6 +50,56 @@ def _url_producto(r):
     return f"/producto/{r['id']}-{r['slug']}" if r.get('slug') else f"/producto/{r['id']}"
 
 
+_RELLENO_BUSQUEDA = {
+    'para', 'con', 'sin', 'del', 'los', 'las', 'una', 'uno', 'unos', 'unas', 'que', 'por',
+    'tienen', 'tienes', 'venden', 'vendes', 'hay', 'algun', 'alguna', 'algunos', 'algunas',
+    'busco', 'necesito', 'quiero', 'mi', 'mis', 'este', 'esta', 'ese', 'esa', 'como',
+}
+_SIN_TILDES = ('áéíóúüñ', 'aeiouun')
+
+
+def _singular(palabra):
+    """«cargadores» → «cargador», «portátiles» → «portatil», «mouses» → «mouse»."""
+    if len(palabra) > 5 and palabra.endswith('es') and palabra[-3] not in 'aeiou':
+        return palabra[:-2]
+    if len(palabra) > 4 and palabra.endswith('s'):          # «asus» se queda igual
+        return palabra[:-1]
+    return palabra
+
+
+def _palabras_clave(termino):
+    """Las palabras con las que buscar, sin tildes ni relleno. Solo si son
+    varias o si la única cambió al pasarla a singular: si no, la frase exacta
+    ya hizo la misma búsqueda."""
+    from services.ia.enrutador import normalizar
+    crudas = [p for p in re.split(r'[^a-z0-9]+', normalizar(termino)) if p]
+    palabras = [_singular(p) for p in crudas if len(p) >= 3 and p not in _RELLENO_BUSQUEDA]
+    if not palabras or (len(palabras) == 1 and crudas == palabras):
+        return []
+    return palabras[:5]
+
+
+def _buscar_por_palabras(cur, palabras, limite, slug):
+    """Segunda pasada cuando la frase exacta no encontró nada: cada palabra debe
+    aparecer (sin importar tildes ni mayúsculas) en el nombre, la categoría o la
+    descripción. Todas, no alguna: mejor «no lo encontré» que ofrecer otro producto."""
+    campo = ("translate(lower(p.nombre || ' ' || COALESCE(g.nombre, '') || ' ' || "
+             "COALESCE(p.descripcion, '')), %s, %s)")
+    condiciones = ' AND '.join(f'{campo} LIKE %s' for _ in palabras)
+    params = []
+    for palabra in palabras:
+        params += [*_SIN_TILDES, f'%{palabra}%']
+    cur.execute(f"""
+        SELECT p.id, p.nombre, p.precio, COALESCE(p.stock, 0) AS stock,
+               COALESCE(g.nombre, '') AS categoria, {slug} AS slug
+        FROM productos p LEFT JOIN generos g ON g.id = p.genero_id
+        WHERE {_sql_visibles(cur)} AND {condiciones}
+        ORDER BY (COALESCE(p.stock, 0) > 0) DESC, p.nombre
+        LIMIT %s
+    """, (*params, limite))
+    return cur.fetchall()
+
+
 def buscar_productos(texto='', limite=LIMITE_PRODUCTOS, **_):
     """Busca en el catálogo público por nombre o categoría."""
     termino = (texto or '').strip()
@@ -76,6 +128,9 @@ def buscar_productos(texto='', limite=LIMITE_PRODUCTOS, **_):
             LIMIT %s
         """, (patron, patron, patron, limite))
         filas = cur.fetchall()
+        palabras = _palabras_clave(termino)
+        if not filas and palabras:
+            filas = _buscar_por_palabras(cur, palabras, limite, slug)
 
     if not filas:
         return {'buscado': termino,
