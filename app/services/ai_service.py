@@ -663,6 +663,9 @@ def _intentar_puente_frio(motor, system, user, max_tokens, temperature, canal):
     return texto or None
 
 
+_CUERPO_CARGA = {'prompt': 'hola', 'stream': False, 'options': {'num_predict': 1}}
+
+
 def _pedir_carga(modelo):
     """Pide a Ollama cargar el modelo sin bloquear (hilo aparte). No fija
     keep_alive: rige el del servidor (30 min), así no queda cargado para siempre."""
@@ -676,7 +679,10 @@ def _pedir_carga(modelo):
 
     def _cargar():
         try:
-            requests.post(f'{base}/api/generate', json={'model': modelo},
+            # Carga + 1 token de prueba: la primera generación tras cargar tarda
+            # ~21 s (la GPU compila sus rutinas; CUDA_CACHE_DISABLE en el equipo)
+            # y pasaba del tope de 12 s del chat del sitio. Así la paga la carga.
+            requests.post(f'{base}/api/generate', json={**_CUERPO_CARGA, 'model': modelo},
                           headers=headers, timeout=(5, 600))
         except Exception:
             pass

@@ -112,3 +112,29 @@ def test_el_visitante_no_espera_mas_que_el_tope_publico(base, cargas, monkeypatc
     salida = base.responder('tienen rtx')
     assert vistos == [12]
     assert 'Tarjeta RTX 4060' in salida['respuesta'], 'si el modelo no alcanza, sale el catálogo'
+
+
+def test_la_carga_incluye_una_generacion_de_prueba(flask_app, monkeypatch):
+    """La primera generación tras cargar tardaba ~21 s (la GPU compila sus
+    rutinas) y pasaba del tope de 12 s: la carga ya genera 1 token y la paga ella."""
+    import services.ai_service as ai
+    monkeypatch.undo()                       # el _pedir_carga real (conftest lo anula)
+    enviados = []
+    monkeypatch.setattr(ai.requests, 'post', lambda url, json=None, **k: enviados.append((url, json)))
+
+    class _HiloEnLinea:
+        def __init__(self, target, **_):
+            self.target = target
+
+        def start(self):
+            self.target()
+    monkeypatch.setattr(ai.threading, 'Thread', _HiloEnLinea)
+    monkeypatch.setitem(flask_app.config, 'AI_BASE_URL', 'http://pc:11434')
+    ai._CALENTANDO.pop('modelo-prueba', None)
+    with flask_app.app_context():
+        ai._pedir_carga('modelo-prueba')
+    ai._CALENTANDO.pop('modelo-prueba', None)
+    assert enviados == [('http://pc:11434/api/generate',
+                         {'model': 'modelo-prueba', 'prompt': 'hola', 'stream': False,
+                          'options': {'num_predict': 1}})]
+    assert 'keep_alive' not in enviados[0][1], 'rige el del equipo (30 min), nunca para siempre'
