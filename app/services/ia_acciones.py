@@ -34,7 +34,12 @@ _VERBOS = re.compile(r'\b(crea|crear|creame|agrega|agregar|registra|registrar|'
                     r'edita|editar|modifica|modificar|cambia|cambiar|actualiza|actualizar|'
                     r'elimina|eliminar|borra|borrar|cuadra|cuadrar|ajusta|ajustar|'
                     r'fija|fijar|pon|poner|sube|subir|baja|bajar)\b')
-_OBJETOS = re.compile(r'\b(contactos?|inventario|stock|existencias?|productos?)\b')
+# Un contacto también se nombra por su tipo: «crea un proveedor», «agrega el
+# socio…», «registra un cliente nuevo». Antes solo contaba la palabra
+# «contacto» y «crea un proveedor» se iba al chat de consultas.
+_CONTACTO = (r'contactos?|proveedor(?:es)?|socios?|leads?'
+             r'|clientes?\s+nuevos?|nuevos?\s+clientes?|como\s+cliente')
+_OBJETOS = re.compile(r'\b(' + _CONTACTO + r'|inventario|stock|existencias?|productos?)\b')
 _SOLO_LECTURA = re.compile(r'^(como|que es|puedo|se puede|explica|muestra|'
                           r'consulta|cuales|cuantos)\b')
 _VERBOS_CONTACTO = {
@@ -94,7 +99,7 @@ def parece_operativa(pregunta):
 def _tipo_solicitado(pregunta):
     """Determina el permiso exigido antes de llamar a un modelo de pago."""
     frase = _normalizar(pregunta)
-    contacto = bool(re.search(r'\bcontactos?\b', frase))
+    contacto = bool(re.search(r'\b(' + _CONTACTO + r')\b', frase))
     inventario = bool(re.search(r'\b(stock|inventario|existencias?)\b', frase))
     if contacto and not inventario:
         acciones = [clave for clave, patron in _VERBOS_CONTACTO.items()
@@ -174,7 +179,8 @@ Operaciones permitidas:
 2. {\"tipo\":\"crear_contacto\",\"campos\":{\"nombre\":\"...\",\"tipo\":
    \"cliente|proveedor|lead|socio\", otros campos opcionales: empresa, cargo,
    email, telefono, whatsapp, sitio_web, direccion, ciudad, notas, origen}}.
-   Si falta tipo, pregunta; no lo supongas.
+   Si la orden dice proveedor, cliente, lead o socio, ese es el tipo; si no
+   lo dice, pregunta; no lo supongas.
 3. {\"tipo\":\"editar_contacto\",\"contacto_id\":entero opcional,
    \"contacto\":\"nombre exacto\" opcional,\"cambios\":{campo:valor}}.
 4. {\"tipo\":\"eliminar_contacto\",\"contacto_id\":entero opcional,
@@ -208,7 +214,47 @@ def _interpretar(pregunta, historial=None):
     if plan.get('tipo') not in TIPOS:
         raise AccionError('Esa operación no está disponible. No se realizó ningún cambio.')
     _validar_intencion(pregunta, plan['tipo'])
+    _solo_datos_dichos(plan, pregunta, historial)
     return plan
+
+
+def _plano(texto):
+    return ' '.join(re.sub(r'[^a-z0-9@.]+', ' ', _normalizar(str(texto or ''))).split())
+
+
+def _aparece(valor, fuente):
+    """¿El dato lo dijo la persona? Los teléfonos se comparan solo por dígitos."""
+    plano = _plano(valor)
+    if not plano:
+        return False
+    digitos = re.sub(r'\D', '', str(valor))
+    if len(digitos) >= 7 and len(digitos) >= len(plano.replace(' ', '')) - 3:
+        return digitos in re.sub(r'\D', '', fuente)
+    return plano in _plano(fuente)
+
+
+def _solo_datos_dichos(plan, pregunta, historial):
+    """El modelo no puede inventar datos del contacto. Medido con Qwen: con
+    «Crea un proveedor» ponía de nombre «...» (copiado del ejemplo) y con solo un
+    correo inventaba «ventas Andes». Cada dato debe aparecer en la orden o en la
+    conversación reciente; si el nombre no aparece se pregunta, y cualquier otro
+    dato inventado se descarta."""
+    if plan.get('tipo') not in ('crear_contacto', 'editar_contacto'):
+        return
+    from services.ai_service import _sanear_historial, _texto_historial
+    fuente = f'{pregunta}\n{_texto_historial(_sanear_historial(historial))}'
+    clave = 'campos' if plan['tipo'] == 'crear_contacto' else 'cambios'
+    campos = plan.get(clave)
+    if not isinstance(campos, dict):
+        return
+    for campo in list(campos):
+        if campo in ('tipo', 'origen') or not isinstance(campos[campo], str):
+            continue
+        if not _aparece(campos[campo], fuente):
+            if campo == 'nombre':
+                tipo = campos.get('tipo') if campos.get('tipo') in TIPOS_CONTACTO else 'contacto'
+                raise AccionAclarar(f'¿Cuál es el nombre del {tipo}?')
+            campos.pop(campo)
 
 
 def _entero(valor, nombre, minimo=1, maximo=1_000_000_000):

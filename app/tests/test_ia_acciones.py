@@ -351,3 +351,48 @@ def test_otra_pregunta_de_datos_no_se_mezcla_con_la_accion(monkeypatch):
     r, llamadas = _chat_ruta(monkeypatch, {'pregunta': '¿Cuánto vendí hoy?',
                                            'accion_pendiente': 'Crear contacto Juan'})
     assert llamadas == [] and r.json['respuesta'] == 'consulta'
+
+
+# ── «Crea un proveedor»: se reconoce y no se inventan datos ────
+@pytest.mark.parametrize('frase, tipo', [
+    ('Crea un proveedor', 'crear_contacto'),
+    ('Agrega el proveedor Distribuidora Andes', 'crear_contacto'),
+    ('Registra un cliente nuevo: Ana', 'crear_contacto'),
+    ('Elimina el proveedor Andes', 'eliminar_contacto'),
+    ('Actualiza el teléfono del proveedor Andes', 'editar_contacto'),
+])
+def test_el_tipo_de_contacto_cuenta_como_contacto(frase, tipo):
+    assert acciones.parece_operativa(frase) and acciones._tipo_solicitado(frase) == tipo
+
+
+@pytest.mark.parametrize('frase', ['¿Quiénes son mis proveedores?', 'Muestra los proveedores',
+                                   'Crea un pedido para el cliente Juan'])
+def test_las_consultas_de_proveedores_no_son_acciones(frase):
+    assert not acciones.parece_operativa(frase)
+
+
+def test_el_nombre_inventado_se_pregunta():
+    """Medido con Qwen: «Crea un proveedor» → nombre «...»; con solo un correo
+    inventaba «ventas Andes»."""
+    for nombre in ('...', 'ventas Andes'):
+        plan = {'tipo': 'crear_contacto', 'campos': {'nombre': nombre, 'tipo': 'proveedor',
+                                                     'email': 'ventas@andes.com'}}
+        with pytest.raises(acciones.AccionAclarar, match='nombre del proveedor'):
+            acciones._solo_datos_dichos(plan, 'Registra un proveedor con correo ventas@andes.com', None)
+
+
+def test_los_datos_dichos_pasan_y_los_inventados_se_quitan():
+    plan = {'tipo': 'crear_contacto', 'campos': {
+        'nombre': 'Distribuidora Andes', 'tipo': 'proveedor', 'telefono': '3001234567',
+        'ciudad': 'Bogotá', 'email': 'andes@correo.com'}}
+    acciones._solo_datos_dichos(
+        plan, 'Agrega el proveedor Distribuidora Andes, teléfono 300 123 4567', None)
+    assert plan['campos'] == {'nombre': 'Distribuidora Andes', 'tipo': 'proveedor',
+                              'telefono': '3001234567'}
+
+
+def test_el_dato_puede_venir_de_la_conversacion():
+    plan = {'tipo': 'crear_contacto', 'campos': {'nombre': 'Distribuidora Andes', 'tipo': 'proveedor'}}
+    historial = [{'pregunta': '¿Quién me vende gaseosas?', 'respuesta': 'Distribuidora Andes.'}]
+    acciones._solo_datos_dichos(plan, 'Crea ese contacto como proveedor', historial)
+    assert plan['campos']['nombre'] == 'Distribuidora Andes'
