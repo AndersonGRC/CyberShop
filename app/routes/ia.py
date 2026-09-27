@@ -48,6 +48,23 @@ def _pregunta_panel(d):
 MSG_ACCION_CANCELADA = 'Listo, dejé esa acción de lado. No se hizo ningún cambio.'
 
 
+def _historial_del_chat(d):
+    """La conversación guardada del usuario (services/ia_conversacion.py): sigue
+    igual desde otro navegador o el celular. Si no se pudo leer, la del navegador."""
+    from services import ia_conversacion
+    guardada = ia_conversacion.recientes()
+    return guardada if guardada is not None else d.get('historial')
+
+
+def _texto_propuesta(propuesta):
+    return 'Te mostré una propuesta para confirmar: ' + str(propuesta.get('resumen') or '')
+
+
+def _recordar(pregunta, respuesta, herramienta=''):
+    from services import ia_conversacion
+    ia_conversacion.guardar(pregunta, respuesta, herramienta)
+
+
 def _accion_pendiente(d):
     """La orden que quedó esperando un dato. La manda el navegador, pero es el
     propio texto de quien pregunta: se vuelve a validar entera (permiso, tipo y
@@ -274,15 +291,19 @@ def chat():
     if pregunta is None:
         return jsonify({'ok': False, 'error': 'Escribe una pregunta.'}), 400
     from services import ia_acciones
+    historial = _historial_del_chat(d)
     texto_accion, cancelada = _texto_de_accion(pregunta, _accion_pendiente(d))
     if cancelada:
+        _recordar(pregunta, MSG_ACCION_CANCELADA, 'accion')
         return jsonify({'ok': True, 'respuesta': MSG_ACCION_CANCELADA, 'accion_cancelada': True})
     if texto_accion:
         try:
-            propuesta = ia_acciones.preparar(texto_accion, historial=d.get('historial'))
+            propuesta = ia_acciones.preparar(texto_accion, historial=historial)
+            _recordar(pregunta, _texto_propuesta(propuesta), 'accion')
             return jsonify({'ok': True, 'respuesta': 'Revisa los datos antes de confirmar.',
                             'propuesta_accion': propuesta})
         except ia_acciones.AccionAclarar as exc:
+            _recordar(pregunta, str(exc), 'accion')
             return jsonify({'ok': True, 'respuesta': str(exc),
                             'aclarar_accion': {'solicitud': texto_accion}})
         except ia_acciones.AccionError as exc:
@@ -291,10 +312,34 @@ def chat():
             current_app.logger.exception('No se pudo preparar la acción IA')
             return jsonify({'ok': False, 'error': 'No se pudo preparar la acción. '
                             'Verifica que el esquema del cliente esté actualizado.'}), 503
-    res, err = ai.responder_chat(pregunta, historial=d.get('historial'))
+    res, err = ai.responder_chat(pregunta, historial=historial)
     if err:
         return jsonify({'ok': False, 'error': err}), 400
+    _recordar(pregunta, res.get('respuesta'), res.get('herramienta'))
     return jsonify({'ok': True, **res})
+
+
+@ia_bp.route('/conversacion')
+@rol_requerido(ADMIN_STAFF)
+def conversacion():
+    """La conversación guardada del usuario, para pintarla al abrir el panel."""
+    g = _guard()
+    if g:
+        return g
+    from services import ia_conversacion
+    turnos = ia_conversacion.recientes(ia_conversacion.PARA_MOSTRAR)
+    return jsonify({'ok': turnos is not None, 'turnos': turnos or [], 'dias': ia_conversacion.DIAS})
+
+
+@ia_bp.route('/conversacion/nueva', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+def conversacion_nueva():
+    """«Nueva conversación»: lo anterior deja de usarse como contexto."""
+    g = _guard()
+    if g:
+        return g
+    from services import ia_conversacion
+    return jsonify({'ok': ia_conversacion.nueva()})
 
 
 @ia_bp.route('/consultas')
@@ -371,7 +416,7 @@ def chat_stream():
         return g
     d = request.get_json(silent=True) or {}
     pregunta = _pregunta_panel(d)
-    historial = d.get('historial')
+    historial = _historial_del_chat(d) if pregunta is not None else None
     from services import ia_acciones
 
     def gen():
@@ -382,13 +427,16 @@ def chat_stream():
         # tenant sigue resolviendo dentro del generador).
         texto_accion, cancelada = _texto_de_accion(pregunta, _accion_pendiente(d))
         if cancelada:
+            _recordar(pregunta, MSG_ACCION_CANCELADA, 'accion')
             yield f"data: {json.dumps({'e': 'accion_cancelada', 'd': MSG_ACCION_CANCELADA}, ensure_ascii=False)}\n\n"
             return
         if texto_accion:
             try:
                 propuesta = ia_acciones.preparar(texto_accion, historial=historial)
+                _recordar(pregunta, _texto_propuesta(propuesta), 'accion')
                 yield f"data: {json.dumps({'e': 'propuesta_accion', 'd': propuesta}, ensure_ascii=False)}\n\n"
             except ia_acciones.AccionAclarar as exc:
+                _recordar(pregunta, str(exc), 'accion')
                 aclarar = {'pregunta': str(exc), 'solicitud': texto_accion}
                 yield f"data: {json.dumps({'e': 'aclarar_accion', 'd': aclarar}, ensure_ascii=False)}\n\n"
             except ia_acciones.AccionError as exc:
@@ -398,13 +446,25 @@ def chat_stream():
                 mensaje = 'No se pudo preparar la acción. Verifica el esquema del cliente.'
                 yield f"data: {json.dumps({'e': 'error', 'd': mensaje}, ensure_ascii=False)}\n\n"
             return
+        partes, final, herramienta, fallo = [], None, '', False
         for evento, dato in ai.responder_chat_stream(pregunta, historial=historial):
             if evento == 'latido':
                 # Comentario SSE: el navegador lo ignora, pero Cloudflare y nginx ven
                 # tráfico y no cortan mientras el modelo carga en frío (1-3 min).
                 yield ": latido\n\n"
                 continue
+            if evento == 'meta' and isinstance(dato, dict):
+                herramienta = dato.get('herramienta') or ''
+            elif evento == 'delta' and isinstance(dato, str):
+                partes.append(dato)
+            elif evento == 'fin' and isinstance(dato, str):
+                final = dato
+            elif evento == 'error':
+                fallo = True
             yield f"data: {json.dumps({'e': evento, 'd': dato}, ensure_ascii=False)}\n\n"
+        texto = final or ''.join(partes)
+        if texto and not fallo:
+            _recordar(pregunta, texto, herramienta)
 
     return Response(stream_with_context(gen()), mimetype='text/event-stream',
                     headers={'Cache-Control': 'no-cache',

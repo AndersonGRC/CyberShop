@@ -31,6 +31,10 @@
                 <span class="gem-sparkle-sm">✦</span>
                 Pregúntale a tu negocio
             </h2>
+            <button type="button" id="gem-chat-nueva" class="gem-btn-ghost"
+                    title="Lo anterior deja de usarse como contexto">
+                <i class="fas fa-plus"></i> Nueva conversación
+            </button>
         </div>
         <p class="gem-chat-hint">Tu agente conoce solo TU negocio y responde según tu cargo:
             ventas, productos, inventario, clientes, mesas, caja y ganancias.
@@ -396,11 +400,11 @@
     const chatSend  = document.getElementById('gem-chat-send');
     const chatSug   = document.getElementById('gem-chat-sug');
     let chatBusy = false;
-    /* Memoria corta: los últimos intercambios viajan con cada pregunta para que
-       "¿y el mes pasado?" se entienda. Se guarda en sessionStorage (solo esta
-       pestaña y este usuario; se borra al cerrarla) para no perderla al cambiar
-       de pantalla, e incluye las acciones: antes, tras una propuesta o una
-       pregunta de la IA, el siguiente mensaje llegaba sin contexto. */
+    /* Memoria del chat: la conversación se guarda por usuario en el servidor
+       (/admin/ia/conversacion) y se retoma desde cualquier navegador o el
+       celular; el servidor la usa como contexto. sessionStorage queda de
+       respaldo si el servidor no la pudo leer, y guarda la acción que espera
+       un dato. «Nueva conversación» la archiva. */
     const MAX_HISTORIAL = 6;
     const CLAVE_MEMORIA = 'ia-panel:{{ session.get("usuario_id") or "" }}:{{ session.get("rol_id") or "" }}';
     let historial = [];
@@ -458,20 +462,63 @@
         return wrap;
     }
 
-    (function restaurarMemoria() {
-        let guardado = null;
-        try { guardado = JSON.parse(sessionStorage.getItem(CLAVE_MEMORIA) || 'null'); } catch (e) { guardado = null; }
-        if (!guardado || guardado.v !== 1 || !Array.isArray(guardado.historial)) return;
-        historial = guardado.historial.filter(function (h) {
-            return h && typeof h.pregunta === 'string' && typeof h.respuesta === 'string';
-        }).slice(-MAX_HISTORIAL);
-        historial.forEach(function (h) {
+    function pintarTurnos(turnos) {
+        turnos.forEach(function (h) {
             addMsg(h.pregunta, 'user');
             addMsg(h.completa || h.respuesta, 'ia');   /* textContent: nunca HTML */
         });
-        if (historial.length && chatSug) chatSug.style.display = 'none';
-        if (guardado.pendiente && typeof guardado.pendiente.solicitud === 'string') fijarPendiente(guardado.pendiente);
+        if (turnos.length && chatSug) chatSug.style.display = 'none';
+    }
+
+    const saludoInicial = chatLog.innerHTML;
+
+    (function restaurarMemoria() {
+        let guardado = null;
+        try { guardado = JSON.parse(sessionStorage.getItem(CLAVE_MEMORIA) || 'null'); } catch (e) { guardado = null; }
+        if (!guardado || guardado.v !== 1) guardado = null;
+        if (guardado && guardado.pendiente && typeof guardado.pendiente.solicitud === 'string') {
+            fijarPendiente(guardado.pendiente);
+        }
+        function desdeNavegador() {
+            if (!guardado || !Array.isArray(guardado.historial)) return;
+            historial = guardado.historial.filter(function (h) {
+                return h && typeof h.pregunta === 'string' && typeof h.respuesta === 'string';
+            }).slice(-MAX_HISTORIAL);
+            pintarTurnos(historial);
+        }
+        fetch('/admin/ia/conversacion', { headers: { 'X-CSRFToken': csrfToken } })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+            if (!d.ok || !Array.isArray(d.turnos)) return desdeNavegador();
+            if (chatLog.querySelectorAll('.gem-chat-msg').length > 1) return; /* ya escribió algo */
+            const turnos = d.turnos.filter(function (h) {
+                return h && typeof h.pregunta === 'string' && typeof h.respuesta === 'string';
+            });
+            pintarTurnos(turnos);
+            historial = turnos.slice(-MAX_HISTORIAL);
+            guardarMemoria();
+        })
+        .catch(desdeNavegador);
     })();
+
+    const btnNueva = document.getElementById('gem-chat-nueva');
+    if (btnNueva) {
+        btnNueva.addEventListener('click', function () {
+            if (chatBusy) return;
+            btnNueva.disabled = true;
+            fetch('/admin/ia/conversacion/nueva', { method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }, body: '{}' })
+            .catch(function () { /* igual se limpia la pantalla y la memoria del navegador */ })
+            .finally(function () {
+                historial = [];
+                fijarPendiente(null);
+                chatLog.innerHTML = saludoInicial;
+                if (chatSug) chatSug.style.display = '';
+                btnNueva.disabled = false;
+                chatInput.focus();
+            });
+        });
+    }
 
     if (avisoPendiente) {
         avisoPendiente.querySelector('.gem-accion-pendiente__cancelar').addEventListener('click', function () {
