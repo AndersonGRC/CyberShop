@@ -43,3 +43,12 @@ def test_layout_pide_el_widget_versionado():
     js = _leer('static/js/layout.js')
     assert "'/static/css/chat_publico.css' + version" in js
     assert "'/static/js/chat_publico.js' + version" in js
+
+
+def test_la_conversacion_se_guarda_solo_en_la_pestana():
+    """Al cambiar de página (Productos, Contáctenos, login…) la conversación
+    sigue. Se guarda en sessionStorage: solo esa pestaña, se borra al cerrarla y
+    nunca en localStorage, que la dejaría en el equipo para el siguiente que lo use."""
+    js = _leer('static/js/chat_publico.js')
+    assert 'sessionStorage' in js
+    assert 'localStorage' not in js

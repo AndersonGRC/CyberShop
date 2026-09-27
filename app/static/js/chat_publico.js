@@ -23,9 +23,15 @@
     // Verificación humana (reCAPTCHA), solo si el servidor la trae configurada
     // en /chat/config. Una vez resuelta, el token firmado que el servidor
     // devuelve sirve para el resto de la conversación — no hay que repetirla
-    // en cada mensaje. Sin sesión ni cookies: vive solo en esta variable, se
-    // pierde al recargar la página (igual que el resto del estado del chat).
+    // en cada mensaje. Sin sesión ni cookies: se guarda con la conversación.
     var verificacionToken = null;
+
+    // La conversación sigue al cambiar de página (Productos, Contáctenos, login…):
+    // se guarda en sessionStorage, solo en esta pestaña del visitante, y se
+    // borra al cerrarla. Nada de esto va al servidor.
+    var CLAVE_GUARDADO = 'cbchat:conversacion';
+    var MAX_MOSTRADOS = 40;
+    var mostrados = [];     // lo que se ve en el panel, para pintarlo igual en la próxima página
     var recaptchaListoPromesa = null;
 
     // Mismo nombre que _CAMPO_SENUELO en routes/chat_publico.py.
@@ -194,7 +200,56 @@
         }
         if (MOVIL.addEventListener) MOVIL.addEventListener('change', ajustarAlVisor);
 
-        if (config.saludo) agregarMensaje('bot', config.saludo);
+        var guardado = leerGuardado();
+        if (guardado && guardado.mostrados.length) {
+            restaurar(guardado);
+        } else if (config.saludo) {
+            agregarMensaje('bot', config.saludo);
+        }
+    }
+
+    function guardar() {
+        try {
+            window.sessionStorage.setItem(CLAVE_GUARDADO, JSON.stringify({
+                v: 1, mostrados: mostrados.slice(-MAX_MOSTRADOS), historial: historial,
+                abierto: abierto, verificacion: verificacionToken
+            }));
+        } catch (e) { /* sin almacenamiento (modo privado, bloqueado): el chat sigue igual */ }
+    }
+
+    function leerGuardado() {
+        try {
+            var d = JSON.parse(window.sessionStorage.getItem(CLAVE_GUARDADO) || 'null');
+            if (!d || d.v !== 1 || !Array.isArray(d.mostrados)) return null;
+            // Solo lo que el propio widget sabe pintar; el resto se descarta.
+            d.mostrados = d.mostrados.filter(function (m) {
+                return m && ((m.t === 'msg' && (m.rol === 'usuario' || m.rol === 'bot')
+                              && typeof m.texto === 'string')
+                             || (m.t === 'wa' && /^\d{6,15}$/.test(String(m.numero))));
+            });
+            d.historial = Array.isArray(d.historial) ? d.historial.filter(function (h) {
+                return h && (h.rol === 'usuario' || h.rol === 'asistente') && typeof h.texto === 'string';
+            }).slice(-MAX_HISTORIAL) : [];
+            return d;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function restaurar(guardado) {
+        // Primero el estado: cada mensaje repintado vuelve a guardar.
+        historial = guardado.historial;
+        if (typeof guardado.verificacion === 'string') verificacionToken = guardado.verificacion;
+        guardado.mostrados.forEach(function (m) {
+            if (m.t === 'wa') agregarWhatsapp(m.numero);
+            else agregarMensaje(m.rol, m.texto);
+        });
+        guardar();
+        // Ya hubo conversación: las sugerencias de arranque sobran.
+        if (guardado.mostrados.some(function (m) { return m.rol === 'usuario'; })) {
+            ref.sugerenciasWrap.hidden = true;
+        }
+        if (guardado.abierto) abrirPanel();
     }
 
     // Celular: el panel se ajusta al área que de verdad se ve (visualViewport).
@@ -220,6 +275,7 @@
         ref.launcher.setAttribute('aria-expanded', 'true');
         ref.launcher.setAttribute('aria-label', 'Cerrar chat');
         ajustarAlVisor();
+        guardar();
         ref.mensajes.scrollTop = ref.mensajes.scrollHeight;
         // En celular no se abre el teclado de golpe (taparía el saludo y las
         // sugerencias): el foco va a la X, dentro del diálogo.
@@ -236,6 +292,7 @@
         ref.launcher.setAttribute('aria-expanded', 'false');
         ref.launcher.setAttribute('aria-label', 'Abrir chat');
         ajustarAlVisor();
+        guardar();
         ref.launcher.focus();
     }
 
@@ -246,6 +303,8 @@
         });
         ref.mensajes.appendChild(burbuja);
         ref.mensajes.scrollTop = ref.mensajes.scrollHeight;
+        mostrados.push({ t: 'msg', rol: rol === 'usuario' ? 'usuario' : 'bot', texto: texto });
+        guardar();
         return burbuja;
     }
 
@@ -265,6 +324,8 @@
         });
         ref.mensajes.appendChild(link);
         ref.mensajes.scrollTop = ref.mensajes.scrollHeight;
+        mostrados.push({ t: 'wa', numero: String(numero) });
+        guardar();
     }
 
     function enviarPregunta(texto) {
@@ -312,6 +373,7 @@
             historial.push({ rol: 'usuario', texto: texto });
             historial.push({ rol: 'asistente', texto: datos.respuesta });
             if (historial.length > MAX_HISTORIAL) historial = historial.slice(-MAX_HISTORIAL);
+            guardar();
             if (datos.escalar && datos.whatsapp) agregarWhatsapp(datos.whatsapp);
         }).catch(function (err) {
             espera.remove();
