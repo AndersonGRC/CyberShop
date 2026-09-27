@@ -742,6 +742,23 @@
 .gem-chip:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(41, 169, 226,.22); }
 /* input + enviar */
 .gem-chat-form { display: flex; gap: 10px; align-items: center; }
+
+/* Acción que espera un dato: la próxima respuesta la completa */
+.gem-accion-pendiente {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px dashed var(--marca-tinte-medio);
+    background: var(--marca-tinte-leve);
+    color: var(--color-texto);
+    font-size: 0.85rem;
+}
+.gem-accion-pendiente[hidden] { display: none; }
+.gem-accion-pendiente__texto { overflow-wrap: anywhere; }
 .gem-chat-input {
     flex: 1; padding: 13px 16px; font-size: .96rem; border-radius: 999px;
     border: 2px solid #e0e6f0; background: #fbfcff; color: #1f2a44;

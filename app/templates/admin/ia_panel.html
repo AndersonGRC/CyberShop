@@ -55,6 +55,11 @@
             <button class="gem-chip" type="button">Fijar stock del producto 42 en 8 unidades, motivo: conteo físico</button>
         </div>
 
+        <div class="gem-accion-pendiente" id="gem-accion-pendiente" role="status" aria-live="polite" hidden>
+            <span class="gem-accion-pendiente__texto"></span>
+            <button type="button" class="gem-btn-ghost gem-accion-pendiente__cancelar">Cancelar</button>
+        </div>
+
         <form id="gem-chat-form" class="gem-chat-form">
             <input type="text" id="gem-chat-input" class="gem-chat-input" autocomplete="off"
                    placeholder="Escribe tu pregunta…" maxlength="300">
@@ -392,15 +397,50 @@
     const chatSug   = document.getElementById('gem-chat-sug');
     let chatBusy = false;
     /* Memoria corta: los últimos intercambios viajan con cada pregunta para que
-       "¿y el mes pasado?" se entienda. Vive solo en esta página. */
-    const MAX_HISTORIAL = 4;
-    const historial = [];
+       "¿y el mes pasado?" se entienda. Se guarda en sessionStorage (solo esta
+       pestaña y este usuario; se borra al cerrarla) para no perderla al cambiar
+       de pantalla, e incluye las acciones: antes, tras una propuesta o una
+       pregunta de la IA, el siguiente mensaje llegaba sin contexto. */
+    const MAX_HISTORIAL = 6;
+    const CLAVE_MEMORIA = 'ia-panel:{{ session.get("usuario_id") or "" }}:{{ session.get("rol_id") or "" }}';
+    let historial = [];
+    let accionPendiente = null;      /* { solicitud, pregunta }: la orden que espera un dato */
+    const avisoPendiente = document.getElementById('gem-accion-pendiente');
+
+    function guardarMemoria() {
+        try {
+            sessionStorage.setItem(CLAVE_MEMORIA, JSON.stringify({ v: 1, historial: historial,
+                                                                  pendiente: accionPendiente }));
+        } catch (e) { /* sin almacenamiento: la memoria vive solo en esta página */ }
+    }
 
     function recordar(pregunta, respuesta, herramienta) {
         if (!respuesta) return;
-        historial.push({ pregunta: pregunta, respuesta: String(respuesta).slice(0, 300),
+        historial.push({ pregunta: String(pregunta).slice(0, 300),
+                         respuesta: String(respuesta).slice(0, 500),
+                         completa: String(respuesta).slice(0, 2000),
                          herramienta: herramienta || '' });
         while (historial.length > MAX_HISTORIAL) historial.shift();
+        guardarMemoria();
+    }
+
+    function fijarPendiente(p) {
+        accionPendiente = (p && p.solicitud) ? { solicitud: String(p.solicitud).slice(0, 1000),
+                                                 pregunta: String(p.pregunta || '').slice(0, 300) } : null;
+        if (avisoPendiente) {
+            avisoPendiente.hidden = !accionPendiente;
+            if (accionPendiente) {
+                avisoPendiente.querySelector('.gem-accion-pendiente__texto').textContent =
+                    'Completando la acción: «' + accionPendiente.solicitud.split('. Dato adicional:')[0] + '»';
+            }
+        }
+        guardarMemoria();
+    }
+
+    function paraEnviar() {
+        return historial.map(function (h) {
+            return { pregunta: h.pregunta, respuesta: h.respuesta, herramienta: h.herramienta };
+        });
     }
 
     function addMsg(texto, quien) {
@@ -416,6 +456,28 @@
         chatLog.appendChild(wrap);
         chatLog.scrollTop = chatLog.scrollHeight;
         return wrap;
+    }
+
+    (function restaurarMemoria() {
+        let guardado = null;
+        try { guardado = JSON.parse(sessionStorage.getItem(CLAVE_MEMORIA) || 'null'); } catch (e) { guardado = null; }
+        if (!guardado || guardado.v !== 1 || !Array.isArray(guardado.historial)) return;
+        historial = guardado.historial.filter(function (h) {
+            return h && typeof h.pregunta === 'string' && typeof h.respuesta === 'string';
+        }).slice(-MAX_HISTORIAL);
+        historial.forEach(function (h) {
+            addMsg(h.pregunta, 'user');
+            addMsg(h.completa || h.respuesta, 'ia');   /* textContent: nunca HTML */
+        });
+        if (historial.length && chatSug) chatSug.style.display = 'none';
+        if (guardado.pendiente && typeof guardado.pendiente.solicitud === 'string') fijarPendiente(guardado.pendiente);
+    })();
+
+    if (avisoPendiente) {
+        avisoPendiente.querySelector('.gem-accion-pendiente__cancelar').addEventListener('click', function () {
+            fijarPendiente(null);
+            addMsg('Listo, dejé esa acción de lado. No se hizo ningún cambio.', 'ia');
+        });
     }
 
     /* Una propuesta nunca se ejecuta por recibirla ni por escribir otra frase.
@@ -562,24 +624,33 @@
 
     /* Respaldo sin streaming (respuesta completa) — se usa si el stream
        falla antes de pintar el primer fragmento (proxy viejo, red rara). */
-    function preguntarSinStream(texto, previo, thinking, alTerminar) {
+    function preguntarSinStream(texto, previo, pendiente, thinking, alTerminar) {
         fetch('/admin/ia/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-            body: JSON.stringify({ pregunta: texto, historial: previo })
+            body: JSON.stringify({ pregunta: texto, historial: previo, accion_pendiente: pendiente })
         })
         .then(function (r) { return r.json(); })
         .then(function (data) {
             quitarThinking(thinking);
-            if (data.ok && data.respuesta) {
+            if (data.ok && data.respuesta && !data.propuesta_accion) {
                 addMsg(data.respuesta, 'ia');
             } else if (!data.ok) {
                 addMsg(data.error || 'No pude responder eso ahora.', 'ia');
             }
             if (data.ok && data.propuesta_accion) {
-                addPropuestaAccion(data.propuesta_accion);
+                if (addPropuestaAccion(data.propuesta_accion)) {
+                    recordar(texto, 'Te mostré una propuesta para confirmar: ' + data.propuesta_accion.resumen, 'accion');
+                }
+                fijarPendiente(null);
+            } else if (data.ok && data.aclarar_accion) {
+                recordar(texto, data.respuesta, 'accion');
+                fijarPendiente({ solicitud: data.aclarar_accion.solicitud, pregunta: data.respuesta });
             } else if (data.ok) {
                 recordar(texto, data.respuesta, data.herramienta);
+                fijarPendiente(null);
+            } else {
+                fijarPendiente(null);
             }
         })
         .catch(function () {
@@ -598,7 +669,8 @@
         addMsg(texto, 'user');
         const thinking = addThinking();
         chatSend.disabled = true;
-        const previo = historial.slice();   /* lo anterior a esta pregunta */
+        const previo = paraEnviar();        /* lo anterior a esta pregunta */
+        const pendiente = accionPendiente ? accionPendiente.solicitud : null;
         let herramienta = '';
         let fallo = false;
         let propuestaRecibida = false;
@@ -633,6 +705,23 @@
             } else if (ev.e === 'propuesta_accion') {
                 if (!bubble) quitarThinking(thinking);
                 propuestaRecibida = addPropuestaAccion(ev.d);
+                if (propuestaRecibida) {
+                    recordar(texto, 'Te mostré una propuesta para confirmar: ' + ev.d.resumen, 'accion');
+                }
+                fijarPendiente(null);
+            } else if (ev.e === 'aclarar_accion') {
+                /* Falta un dato: la acción sigue abierta y la próxima respuesta la completa. */
+                if (!bubble) quitarThinking(thinking);
+                addMsg(ev.d.pregunta, 'ia');
+                recordar(texto, ev.d.pregunta, 'accion');
+                fijarPendiente(ev.d);
+                propuestaRecibida = true;
+            } else if (ev.e === 'accion_cancelada') {
+                if (!bubble) quitarThinking(thinking);
+                addMsg(ev.d, 'ia');
+                recordar(texto, ev.d, 'accion');
+                fijarPendiente(null);
+                propuestaRecibida = true;
             } else if (ev.e === 'error') {
                 fallo = true;
                 if (bubble || propuestaRecibida) {
@@ -648,7 +737,7 @@
         fetch('/admin/ia/chat-stream', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-            body: JSON.stringify({ pregunta: texto, historial: previo })
+            body: JSON.stringify({ pregunta: texto, historial: previo, accion_pendiente: pendiente })
         })
         .then(function (r) {
             if (!r.ok || !r.body) throw new Error('sin stream');
@@ -674,15 +763,18 @@
         .then(function () {
             if (!bubble && !propuestaRecibida) {
                 /* stream terminó sin producir nada: respaldo clásico */
-                preguntarSinStream(texto, previo, thinking, terminar);
+                preguntarSinStream(texto, previo, pendiente, thinking, terminar);
             } else {
-                if (!fallo && !propuestaRecibida) recordar(texto, acumulado, herramienta);
+                if (!fallo && !propuestaRecibida) {
+                    recordar(texto, acumulado, herramienta);
+                    fijarPendiente(null);   /* respondió otra cosa: la acción pendiente se deja */
+                }
                 terminar();
             }
         })
         .catch(function () {
             if (!bubble && !propuestaRecibida) {
-                preguntarSinStream(texto, previo, thinking, terminar);
+                preguntarSinStream(texto, previo, pendiente, thinking, terminar);
             } else {
                 terminar();
             }

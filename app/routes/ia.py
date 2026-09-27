@@ -45,6 +45,38 @@ def _pregunta_panel(d):
     return pregunta.strip()[:_MAX_PREGUNTA_PANEL]
 
 
+MSG_ACCION_CANCELADA = 'Listo, dejé esa acción de lado. No se hizo ningún cambio.'
+
+
+def _accion_pendiente(d):
+    """La orden que quedó esperando un dato. La manda el navegador, pero es el
+    propio texto de quien pregunta: se vuelve a validar entera (permiso, tipo y
+    datos) antes de proponer nada."""
+    p = d.get('accion_pendiente')
+    return p.strip()[:1000] if isinstance(p, str) and p.strip() else None
+
+
+def _texto_de_accion(pregunta, pendiente):
+    """(texto de la acción o None, si se canceló la pendiente).
+
+    Con una acción esperando un dato, la respuesta de la persona la completa
+    («proveedor», «el stock final es 12»), salvo que sea otra orden, una
+    cancelación o claramente otra pregunta con datos («¿cuánto vendí hoy?»)."""
+    from services import ia_acciones
+    if ia_acciones.parece_operativa(pregunta):
+        return pregunta, False
+    if not pendiente:
+        return None, False
+    if ia_acciones.es_cancelacion(pregunta):
+        return None, True
+    if '?' in pregunta:
+        import services.ai_tools as tools
+        from services.ia.enrutador import enrutar_panel_seguro
+        if enrutar_panel_seguro(pregunta, tools.permitidas(tools.contexto_actual())):
+            return None, False
+    return ia_acciones.combinar(pendiente, pregunta), False
+
+
 @ia_bp.route('/')
 @rol_requerido(ADMIN_STAFF)
 def panel():
@@ -242,11 +274,17 @@ def chat():
     if pregunta is None:
         return jsonify({'ok': False, 'error': 'Escribe una pregunta.'}), 400
     from services import ia_acciones
-    if ia_acciones.parece_operativa(pregunta):
+    texto_accion, cancelada = _texto_de_accion(pregunta, _accion_pendiente(d))
+    if cancelada:
+        return jsonify({'ok': True, 'respuesta': MSG_ACCION_CANCELADA, 'accion_cancelada': True})
+    if texto_accion:
         try:
-            propuesta = ia_acciones.preparar(pregunta)
+            propuesta = ia_acciones.preparar(texto_accion, historial=d.get('historial'))
             return jsonify({'ok': True, 'respuesta': 'Revisa los datos antes de confirmar.',
                             'propuesta_accion': propuesta})
+        except ia_acciones.AccionAclarar as exc:
+            return jsonify({'ok': True, 'respuesta': str(exc),
+                            'aclarar_accion': {'solicitud': texto_accion}})
         except ia_acciones.AccionError as exc:
             return jsonify({'ok': False, 'error': str(exc)}), exc.status
         except Exception:
@@ -342,10 +380,17 @@ def chat_stream():
             return
         # stream_with_context mantiene vivo el request (get_db_cursor del
         # tenant sigue resolviendo dentro del generador).
-        if ia_acciones.parece_operativa(pregunta):
+        texto_accion, cancelada = _texto_de_accion(pregunta, _accion_pendiente(d))
+        if cancelada:
+            yield f"data: {json.dumps({'e': 'accion_cancelada', 'd': MSG_ACCION_CANCELADA}, ensure_ascii=False)}\n\n"
+            return
+        if texto_accion:
             try:
-                propuesta = ia_acciones.preparar(pregunta)
+                propuesta = ia_acciones.preparar(texto_accion, historial=historial)
                 yield f"data: {json.dumps({'e': 'propuesta_accion', 'd': propuesta}, ensure_ascii=False)}\n\n"
+            except ia_acciones.AccionAclarar as exc:
+                aclarar = {'pregunta': str(exc), 'solicitud': texto_accion}
+                yield f"data: {json.dumps({'e': 'aclarar_accion', 'd': aclarar}, ensure_ascii=False)}\n\n"
             except ia_acciones.AccionError as exc:
                 yield f"data: {json.dumps({'e': 'error', 'd': str(exc)}, ensure_ascii=False)}\n\n"
             except Exception:

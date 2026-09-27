@@ -210,8 +210,8 @@ def test_json_roto_del_modelo_no_pierde_la_consulta():
 def test_historial_se_recorta_y_valida():
     largo = [{'pregunta': f'p{i}', 'respuesta': 'r' * 900} for i in range(9)] + ['basura', {'respuesta': 'x'}]
     limpio = ai._sanear_historial(largo)
-    assert [t['pregunta'] for t in limpio] == ['p7', 'p8']
-    assert all(len(t['respuesta']) == 300 for t in limpio)
+    assert [t['pregunta'] for t in limpio] == ['p5', 'p6', 'p7', 'p8']
+    assert all(len(t['respuesta']) == 500 for t in limpio)
     assert ai._sanear_historial('no es lista') == []
 
 

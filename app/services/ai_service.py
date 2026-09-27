@@ -771,7 +771,7 @@ def _latidos(espera):
 
 # ── Chat del negocio ───────────────────────────────────────────
 _MAX_HERRAMIENTAS = 3        # por pregunta (p. ej. "ventas del mes y qué reponer")
-_MAX_HISTORIAL = 4           # intercambios previos que se tienen en cuenta
+_MAX_HISTORIAL = 6           # intercambios previos que se tienen en cuenta
 _DIAS_SEMANA = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo']
 
 
@@ -789,7 +789,7 @@ def _sanear_historial(historial):
         pregunta = str(turno.get('pregunta') or '').strip()[:300]
         if pregunta:
             limpio.append({'pregunta': pregunta,
-                           'respuesta': str(turno.get('respuesta') or '').strip()[:300],
+                           'respuesta': str(turno.get('respuesta') or '').strip()[:500],
                            'herramienta': str(turno.get('herramienta') or '').strip()[:80]})
     return limpio
 

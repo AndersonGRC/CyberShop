@@ -102,7 +102,7 @@ def test_campos_contacto_lista_blanca_y_datos_obligatorios():
     with pytest.raises(acciones.AccionError, match='no permitidos'):
         acciones._campos_contacto({'nombre': 'Ana', 'tipo': 'lead',
                                    'usuario_id': 1}, creacion=True)
-    with pytest.raises(acciones.AccionError, match='nombre y tipo'):
+    with pytest.raises(acciones.AccionAclarar, match='cliente, proveedor, lead o socio'):
         acciones._campos_contacto({'nombre': 'Ana'}, creacion=True)
     with pytest.raises(acciones.AccionError, match='correo'):
         acciones._campos_contacto({'nombre': 'Ana', 'tipo': 'lead',
@@ -253,7 +253,7 @@ def test_chat_operativo_solo_prepara_y_endpoint_confirma(monkeypatch):
     propuesta = {'id': str(uuid4()), 'tipo': 'crear_contacto', 'resumen': 'Crear Ana'}
     llamadas = []
     monkeypatch.setattr(acciones, 'preparar',
-                        lambda pregunta: llamadas.append(('preparar', pregunta)) or propuesta)
+                        lambda pregunta, historial=None: llamadas.append(('preparar', pregunta)) or propuesta)
     monkeypatch.setattr(rutas.ai, 'responder_chat',
                         lambda *_a, **_k: pytest.fail('un comando no es consulta de lectura'))
     with app.test_request_context('/admin/ia/chat', method='POST',
@@ -270,3 +270,84 @@ def test_chat_operativo_solo_prepara_y_endpoint_confirma(monkeypatch):
         respuesta, status = rutas.confirmar_accion.__wrapped__()
         assert status == 200 and respuesta.json['mensaje'] == 'Creado'
     assert llamadas[-1] == ('confirmar', propuesta['id'])
+
+
+# ── Acción a medio completar: la respuesta de la persona la completa ──
+def test_combinar_y_cancelar():
+    assert acciones.combinar('Crear contacto Juan Pérez', 'proveedor') == \
+        'Crear contacto Juan Pérez. Dato adicional: proveedor'
+    assert acciones.es_cancelacion('Cancelar') and acciones.es_cancelacion('olvídalo!')
+    assert not acciones.es_cancelacion('proveedor')
+    # La orden combinada conserva el verbo y el objeto: se vuelve a validar entera.
+    assert acciones.parece_operativa(acciones.combinar('Crear contacto Juan', 'proveedor'))
+
+
+def test_falta_de_datos_es_aclaracion_no_rechazo():
+    with pytest.raises(acciones.AccionAclarar, match='nombre del contacto'):
+        acciones._campos_contacto({'tipo': 'lead'}, creacion=True)
+    with pytest.raises(acciones.AccionAclarar):
+        acciones._entero(None, 'el stock final', minimo=0)
+    # Lo que no es un dato faltante sigue siendo un rechazo.
+    with pytest.raises(acciones.AccionError) as exc:
+        acciones._campos_contacto({'nombre': 'Ana', 'tipo': 'lead', 'rol': 1}, creacion=True)
+    assert not isinstance(exc.value, acciones.AccionAclarar)
+
+
+def test_el_modelo_recibe_la_conversacion_como_contexto(monkeypatch):
+    import services.ai_service as ai
+    vistos = []
+    monkeypatch.setattr(ai, '_chat', lambda system, user, **k: vistos.append(user) or (
+        '{"tipo":"aclarar","pregunta":"¿Es cliente o proveedor?"}', None))
+    historial = [{'pregunta': '¿Quién me vende las gaseosas?', 'respuesta': 'Distribuidora Andes.'}]
+    with pytest.raises(acciones.AccionAclarar, match='cliente o proveedor'):
+        acciones._interpretar('Crea ese contacto', historial)
+    assert 'Distribuidora Andes' in vistos[0] and 'Orden actual: Crea ese contacto' in vistos[0]
+
+
+def _chat_ruta(monkeypatch, cuerpo, preparar=None, responder=None):
+    from flask import Flask
+    from routes import ia as rutas
+    app = Flask(__name__)
+    monkeypatch.setattr(rutas, '_guard', lambda: None)
+    llamadas = []
+    monkeypatch.setattr(acciones, 'preparar', preparar or (
+        lambda pregunta, historial=None: llamadas.append(pregunta) or
+        {'id': str(uuid4()), 'tipo': 'crear_contacto', 'resumen': 'Crear'}))
+    monkeypatch.setattr(rutas.ai, 'responder_chat', responder or (
+        lambda *_a, **_k: ({'respuesta': 'consulta', 'herramienta': 'x'}, None)))
+    monkeypatch.setattr(rutas, '_texto_de_accion', rutas._texto_de_accion)
+    with app.test_request_context('/admin/ia/chat', method='POST', json=cuerpo):
+        return rutas.chat.__wrapped__(), llamadas
+
+
+def test_la_respuesta_completa_la_accion_pendiente(monkeypatch):
+    r, llamadas = _chat_ruta(monkeypatch, {'pregunta': 'proveedor',
+                                           'accion_pendiente': 'Crear contacto Juan Pérez'})
+    assert llamadas == ['Crear contacto Juan Pérez. Dato adicional: proveedor']
+    assert 'propuesta_accion' in r.json
+
+
+def test_si_sigue_faltando_un_dato_la_accion_sigue_abierta(monkeypatch):
+    def _aclara(pregunta, historial=None):
+        raise acciones.AccionAclarar('¿Cuál es el nombre del contacto?')
+    r, _ = _chat_ruta(monkeypatch, {'pregunta': 'Crear contacto proveedor'}, preparar=_aclara)
+    assert r.json['ok'] and r.json['respuesta'] == '¿Cuál es el nombre del contacto?'
+    assert r.json['aclarar_accion'] == {'solicitud': 'Crear contacto proveedor'}
+
+
+def test_cancelar_la_accion_pendiente(monkeypatch):
+    r, llamadas = _chat_ruta(monkeypatch, {'pregunta': 'cancelar',
+                                           'accion_pendiente': 'Crear contacto Juan'})
+    assert r.json['accion_cancelada'] and llamadas == []
+
+
+def test_otra_pregunta_de_datos_no_se_mezcla_con_la_accion(monkeypatch):
+    from routes import ia as rutas
+    import services.ai_tools as tools
+    monkeypatch.setattr(tools, 'permitidas', lambda ctx: [])
+    monkeypatch.setattr('services.ia.enrutador.enrutar_panel_seguro',
+                        lambda texto, caps, historial=None: [('ventas_periodo', {})])
+    monkeypatch.setattr(tools, 'contexto_actual', lambda: None)
+    r, llamadas = _chat_ruta(monkeypatch, {'pregunta': '¿Cuánto vendí hoy?',
+                                           'accion_pendiente': 'Crear contacto Juan'})
+    assert llamadas == [] and r.json['respuesta'] == 'consulta'

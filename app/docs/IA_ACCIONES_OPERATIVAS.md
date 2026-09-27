@@ -22,10 +22,20 @@ El detector de palabras solo decide que la frase parece una orden. Antes de
 llamar al modelo se comprueban la función solicitada, el módulo y el permiso,
 para no gastar el respaldo de pago en solicitudes no autorizadas. El modelo
 convierte la frase en un candidato JSON de **cuatro tipos cerrados** o pide
-aclaración. No puede generar SQL ni autorizar la escritura. Si falta un dato,
-hay varios registros con el mismo nombre, existe posible duplicado o el modelo
-devuelve algo inválido, se rechaza la propuesta. Para inventario no se infiere
-un stock final a partir de «suma tres» o «cuadra»: se pide el valor final.
+aclaración. No puede generar SQL ni autorizar la escritura. Si hay un posible
+duplicado o el modelo devuelve algo inválido, se rechaza la propuesta. Para
+inventario no se infiere un stock final a partir de «suma tres» o «cuadra»: se
+pide el valor final.
+
+**Si falta un dato o hay varios registros con el mismo nombre** (versión 1.3.1.0),
+la acción no se rechaza: la IA pregunta lo que falta (`AccionAclarar`) y la acción
+queda abierta en el chat, con un aviso «Completando la acción…» y un botón
+Cancelar. La siguiente respuesta («proveedor», «el motivo es conteo físico») se
+une a la orden original (`ia_acciones.combinar`) y todo se vuelve a validar desde
+cero: permiso, tipo, datos y la misma confirmación con botón. Escribir otra orden,
+«cancelar» o una pregunta de datos con «?» deja la acción de lado. El modelo que
+interpreta la orden recibe también la conversación reciente, marcada como
+contexto: así entiende «créalo como proveedor» después de hablar de un negocio.
 
 ## Contrato de seguridad
 
