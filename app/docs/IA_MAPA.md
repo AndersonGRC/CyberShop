@@ -14,7 +14,7 @@ Así decide el asistente qué hacer con una pregunta:
 
 En todos los casos, los datos los pone la consulta: el modelo solo redacta con lo que recibe.
 
-**Capacidades registradas: 47**
+**Capacidades registradas: 48**
 
 ## Caja
 
@@ -65,6 +65,7 @@ En todos los casos, los datos los pone la consulta: el modelo solo redacta con l
 |---|---|---|---|---|---|---|
 | `finanzas_periodo` | Ingresos, egresos y UTILIDAD (ganancia) de un período, con los gastos por concepto y la comparación con el período anterior. | `ingresos y egresos` · `cuanto gane` · `cuanta ganancia` · `utilidad del` · `balance del` · `gastos del` · `cuanto gaste` | periodo | Panel | A · cualquiera | accounting · módulo accounting |
 | `margenes_productos` | Cuánto deja cada producto (precio menos costo): los más y menos rentables y los vendidos por debajo del costo. | `margen` · `rentabilidad` · `dejan mas ganancia` · `deja mas ganancia` · `cual deja mas` · `utilidad por producto` | periodo, limite | Panel | B · mejor con el bueno | accounting |
+| `proveedores` | Proveedores del negocio: a quién le compra (contactos de tipo proveedor del CRM) y cuánto les ha pagado según la contabilidad, con los últimos pagos. | `proveedores` · `proveedor` · `a quien le compro` · `a quien le compramos` · `pagos a proveedores` · `mis proveedores` | periodo, limite | Panel | A · cualquiera | accounting · módulo accounting |
 
 ## General
 
@@ -165,6 +166,8 @@ Las usa la prueba del enrutador: cada una debe caer en su función.
 - «¿Cuánto gané este mes?» → `finanzas_periodo`
 - «¿Cuáles fueron mis gastos del mes pasado?» → `finanzas_periodo`
 - «¿Qué productos me dejan más ganancia?» → `margenes_productos`
+- «¿Quiénes son mis proveedores?» → `proveedores`
+- «¿Cuánto les pagué a los proveedores este mes?» → `proveedores`
 - «¿Qué debo atender hoy?» → `alertas_negocio`
 - «¿Qué datos me faltan por completar?» → `calidad_datos`
 - «Dame los números generales del negocio» → `conteo_general`

@@ -90,6 +90,11 @@ registrar('finanzas_periodo', _fin.finanzas_periodo,
           "Ingresos, egresos y UTILIDAD (ganancia) de un período, con los gastos por concepto y la comparación con el período anterior.",
           ['periodo'], etiqueta='tus ingresos, gastos y utilidad', dominio='finanzas',
           modulos=('accounting',), permiso='accounting')
+registrar('proveedores', _fin.proveedores,
+          "Proveedores del negocio: a quién le compra (contactos de tipo proveedor del CRM) y "
+          "cuánto les ha pagado según la contabilidad, con los últimos pagos.",
+          ['periodo', 'limite'], etiqueta='tus proveedores y lo que les pagas', dominio='finanzas',
+          modulos=('accounting',), permiso='accounting')
 registrar('margenes_productos', _fin.margenes_productos,
           "Cuánto deja cada producto (precio menos costo): los más y menos rentables y los vendidos por debajo del costo.",
           ['periodo', 'limite'], etiqueta='el margen de tus productos', dominio='finanzas',

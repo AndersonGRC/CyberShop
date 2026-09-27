@@ -177,3 +177,52 @@ def margenes_productos(periodo='mes', limite=10, **_):
         'confiabilidad': confiabilidad, 'conclusion': conclusion,
         'nota': 'Incluye solo ventas de mostrador y mesas: el POS de escritorio no envía el costo.',
     }
+
+def proveedores(periodo='todo', limite=10, **_):
+    """A quién le compra el negocio: los proveedores registrados en el CRM y lo
+    que se les ha pagado según la contabilidad (egresos «Proveedores / insumos»)."""
+    p = _periodo(periodo)
+    try:
+        limite = max(1, min(int(limite or 10), 30))
+    except (TypeError, ValueError):
+        limite = 10
+    salida = {'periodo': _label_periodo(p)}
+    with get_db_cursor(dict_cursor=True) as cur:
+        contactos = []
+        if _existe(cur, 'crm_contactos'):
+            cur.execute("""SELECT nombre, empresa, telefono, email, ciudad
+                           FROM crm_contactos
+                           WHERE tipo = 'proveedor' AND COALESCE(activo, TRUE)
+                           ORDER BY nombre LIMIT %s""", (limite,))
+            contactos = [{k: v for k, v in dict(r).items() if v} for r in cur.fetchall()]
+            cur.execute("""SELECT COUNT(*) AS n FROM crm_contactos
+                           WHERE tipo = 'proveedor' AND COALESCE(activo, TRUE)""")
+            salida['proveedores_registrados'] = int(cur.fetchone()['n'])
+        salida['proveedores'] = contactos
+
+        if _existe(cur, 'contabilidad_movimientos'):
+            cur.execute("SELECT CURRENT_DATE AS hoy")
+            desde, hasta = rango_efectivo(cur.fetchone()['hoy'], p)
+            cur.execute("""SELECT COALESCE(SUM(monto), 0) AS total, COUNT(*) AS n
+                           FROM contabilidad_movimientos
+                           WHERE tipo = 'egreso' AND categoria = 'proveedor'
+                             AND (%s::date IS NULL OR fecha >= %s) AND fecha <= %s""",
+                        (desde, desde, hasta))
+            tot = cur.fetchone()
+            salida['pagado_a_proveedores'] = formatear_moneda(float(tot['total']))
+            salida['pagos'] = int(tot['n'])
+            cur.execute("""SELECT fecha, descripcion, monto
+                           FROM contabilidad_movimientos
+                           WHERE tipo = 'egreso' AND categoria = 'proveedor'
+                             AND (%s::date IS NULL OR fecha >= %s) AND fecha <= %s
+                           ORDER BY fecha DESC, id DESC LIMIT %s""", (desde, desde, hasta, limite))
+            salida['ultimos_pagos'] = [
+                {'fecha': str(r['fecha']), 'concepto': r['descripcion'] or 'Sin descripción',
+                 'monto': formatear_moneda(float(r['monto']))} for r in cur.fetchall()]
+
+    if not salida.get('proveedores') and not salida.get('pagos'):
+        salida['conclusion'] = ('Todavía no hay proveedores registrados (CRM → contactos de tipo '
+                                '«proveedor») ni pagos a proveedores en contabilidad (egresos de la '
+                                'categoría «Proveedores / insumos»). Al registrarlos, podré decirte '
+                                'a quién le compras y cuánto.')
+    return salida

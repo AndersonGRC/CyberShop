@@ -1060,10 +1060,20 @@ def _plan_chat_pasos(pregunta, anunciar=True, historial=None, contexto=None):
         # Pregunta fuera del alcance de los datos (o dato sensible): responde
         # con honestidad y recuerda los límites del contexto.
         puede = '; '.join(h.etiqueta for h in disponibles) or 'la información general de tu negocio'
-        cuerpo = (f"El dueño preguntó: «{pregunta}». No tienes una herramienta ni permiso "
-                  "para responder eso con datos. Responde breve y amable; si es un dato "
-                  "sensible niégate, y en todo caso indícale qué SÍ puedes consultar: "
-                  f"{puede}.")
+        if len(disponibles) >= len(tools.permitidas(tools.Contexto(rol_id=1, canal=ctx.canal))):
+            # Quien pregunta ya ve TODAS las herramientas (el dueño): lo que falta
+            # no es un permiso ni un dato «sensible», es un dato no conectado.
+            # Antes el modelo le decía al dueño que sus proveedores eran «un dato
+            # sensible y privado para tu negocio».
+            motivo = ("Ese dato todavía no está conectado al asistente: dilo así, sin llamarlo "
+                      "sensible ni privado (quien pregunta es el dueño y todo es suyo).")
+        else:
+            motivo = ("Puede que ese dato no esté conectado o que su cargo no tenga permiso para "
+                      "verlo: dilo así y sugiérele consultarlo con el administrador.")
+        cuerpo = (f"Preguntaron: «{pregunta}». No hay una herramienta para responder eso con "
+                  f"datos. {motivo} Responde en dos o tres frases, sin saludos ni fórmulas como "
+                  f"«amable dueño», y menciona solo 3 o 4 cosas relacionadas que SÍ puedes "
+                  f"consultar de esta lista: {puede}.")
         yield ('plan', {
             'system': _contexto_panel() + "\n" + tools.CONTEXTO_DATOS,
             'user': previo + cuerpo, 'user_nube': previo_nube + cuerpo,

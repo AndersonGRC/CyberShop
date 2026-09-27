@@ -153,6 +153,12 @@ INTENCIONES = {
         'ejemplos': ('¿Cuánto gané este mes?', '¿Cuáles fueron mis gastos del mes pasado?'),
         'canales': PANEL, 'motor': 'A',
     },
+    'proveedores': {
+        'disparadores': ('proveedores', 'proveedor', 'a quien le compro', 'a quien le compramos',
+                         'pagos a proveedores', 'mis proveedores'),
+        'ejemplos': ('¿Quiénes son mis proveedores?', '¿Cuánto les pagué a los proveedores este mes?'),
+        'canales': PANEL, 'motor': 'A',
+    },
     'margenes_productos': {
         'disparadores': ('margen', 'rentabilidad', 'dejan mas ganancia', 'deja mas ganancia',
                          'cual deja mas', 'utilidad por producto'),
