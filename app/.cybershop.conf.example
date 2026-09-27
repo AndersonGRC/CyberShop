@@ -89,6 +89,12 @@ AI_NUBE_MODEL=claude-haiku-4-5-20251001
 AI_NUBE_PRESUPUESTO_USD=0
 AI_NUBE_PARA_PUBLICO=false
 
+# --- Chat del sitio: referencias de internet (SearXNG propio, deploy/searxng/) ---
+# Solo para dudas de compatibilidad/uso de un producto ya encontrado, y solo si el
+# cliente tiene el módulo ai_public_compat. Vacío = sin búsqueda.
+SEARXNG_URL=http://127.0.0.1:8888
+SEARXNG_TIMEOUT=4
+
 # --- Seguridad de cookies ---
 SESSION_COOKIE_SECURE=true
 

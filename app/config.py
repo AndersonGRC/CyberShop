@@ -22,7 +22,7 @@ class Config:
     # clientes, código compartido → todos ven la misma = la última desplegada).
     #   A = cambio radical de plataforma · B = módulo nuevo grande
     #   C = estabilización / mejora · D = correcciones y ajustes de UI
-    APP_VERSION = "1.2.3.5"
+    APP_VERSION = "1.3.0.0"
 
     # --- General / Sesion ---
     # SECURITY M2: Sin fallback débil — falla explícitamente si no está configurado
@@ -172,6 +172,13 @@ class Config:
     # Precios por millón de tokens (confirmar en la página de precios de Anthropic).
     AI_NUBE_PRECIO_ENTRADA_USD_MTOK = float(os.getenv('AI_NUBE_PRECIO_ENTRADA_USD_MTOK', '1.0'))
     AI_NUBE_PRECIO_SALIDA_USD_MTOK  = float(os.getenv('AI_NUBE_PRECIO_SALIDA_USD_MTOK', '5.0'))
+
+    # Referencias de internet para las dudas de compatibilidad/uso del chat del
+    # sitio: SearXNG propio en el mismo servidor (deploy/searxng/), sin llaves ni
+    # cupos de terceros. Vacío = sin búsqueda. Si no está corriendo, la conexión
+    # se rechaza al instante y el chat responde igual, sin referencias.
+    SEARXNG_URL     = os.getenv('SEARXNG_URL', 'http://127.0.0.1:8888').strip().rstrip('/')
+    SEARXNG_TIMEOUT = float(os.getenv('SEARXNG_TIMEOUT', '4'))
 
     GOOGLE_CLIENT_ID     = os.getenv('GOOGLE_CLIENT_ID')
     GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')

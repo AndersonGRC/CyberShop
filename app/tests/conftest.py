@@ -54,6 +54,14 @@ def _sin_carga_real_del_modelo(monkeypatch):
     monkeypatch.setattr(ai, '_pedir_carga', lambda modelo: None)
 
 
+@pytest.fixture(autouse=True)
+def _sin_busqueda_web_real(monkeypatch):
+    """Ninguna prueba sale a internet por el SearXNG del servidor (corre en el
+    mismo equipo donde se ejecuta la suite). Quien la prueba la simula."""
+    from services.chat_publico import busqueda_web
+    monkeypatch.setattr(busqueda_web, 'buscar', lambda producto, categoria=None: [])
+
+
 @pytest.fixture()
 def client(flask_app):
     return flask_app.test_client()

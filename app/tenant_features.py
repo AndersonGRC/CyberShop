@@ -233,10 +233,12 @@ MODULE_DEFINITIONS = {
     },
     MODULE_AI_PUBLIC_COMPAT: {
         'nombre': 'Chat del sitio — compatibilidad con IA local',
-        'descripcion': 'Cuando preguntan si un producto ya encontrado en el catalogo es compatible '
-                       'o sirve para algo, responde con conocimiento general del modelo de IA del '
-                       'propio equipo (nunca la nube), solo si ese modelo ya esta cargado. Si no, '
-                       'ofrece confirmar por WhatsApp. Requiere el Chat del sitio. Apagado por defecto.',
+        'descripcion': 'Cuando preguntan si un producto ya encontrado en el catalogo es compatible, '
+                       'sirve para algo o como se usa, responde con el modelo de IA del propio '
+                       'equipo (nunca la nube), solo si ya esta cargado, apoyado en referencias de '
+                       'internet sobre ese producto (SearXNG propio del servidor) y citando las '
+                       'fuentes. Si no, ofrece confirmar por WhatsApp. Requiere el Chat del sitio. '
+                       'Apagado por defecto.',
         'categoria': 'inteligencia',
         'config_key': 'chat_publico_compat_habilitado',
         'default': False,

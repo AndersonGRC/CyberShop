@@ -300,6 +300,24 @@ body.cybershop-chat-activo .chat-button {
 
 #cbchat-whatsapp-cta:hover { background: var(--cbchat-wa-fondo-hover); }
 
+/* Enlaces bajo la respuesta: ficha del producto o página de internet consultada */
+#cbchat-root .cbchat-fuentes {
+    align-self: flex-start;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 10px;
+    max-width: 85%;
+    margin-top: -4px;
+    font-size: 0.75rem;
+    color: var(--cbchat-text-muted);
+}
+
+#cbchat-root .cbchat-fuentes a {
+    color: var(--cbchat-accent);
+    text-decoration: underline;
+    overflow-wrap: anywhere;
+}
+
 #cbchat-sugerencias {
     flex-shrink: 0;
     display: flex;

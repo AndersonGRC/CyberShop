@@ -225,7 +225,8 @@
             d.mostrados = d.mostrados.filter(function (m) {
                 return m && ((m.t === 'msg' && (m.rol === 'usuario' || m.rol === 'bot')
                               && typeof m.texto === 'string')
-                             || (m.t === 'wa' && /^\d{6,15}$/.test(String(m.numero))));
+                             || (m.t === 'wa' && /^\d{6,15}$/.test(String(m.numero)))
+                             || (m.t === 'fuentes' && Array.isArray(m.items)));
             });
             d.historial = Array.isArray(d.historial) ? d.historial.filter(function (h) {
                 return h && (h.rol === 'usuario' || h.rol === 'asistente') && typeof h.texto === 'string';
@@ -242,6 +243,7 @@
         if (typeof guardado.verificacion === 'string') verificacionToken = guardado.verificacion;
         guardado.mostrados.forEach(function (m) {
             if (m.t === 'wa') agregarWhatsapp(m.numero);
+            else if (m.t === 'fuentes') agregarFuentes(m.items);
             else agregarMensaje(m.rol, m.texto);
         });
         guardar();
@@ -308,6 +310,37 @@
         return burbuja;
     }
 
+    // Enlaces que acompañan la respuesta: la ficha del producto en el sitio o la
+    // página de internet que se consultó. Solo rutas del propio sitio o http(s);
+    // nunca «javascript:» ni nada que venga manipulado del almacenamiento.
+    function fuentesValidas(fuentes) {
+        return (Array.isArray(fuentes) ? fuentes : []).filter(function (f) {
+            if (!f || typeof f.url !== 'string' || typeof f.titulo !== 'string') return false;
+            return /^\/(?!\/)/.test(f.url) || /^https?:\/\/[^\s]+$/i.test(f.url);
+        }).slice(0, 3).map(function (f) {
+            return { titulo: f.titulo.slice(0, 90), url: f.url.slice(0, 500) };
+        });
+    }
+
+    function agregarFuentes(fuentes) {
+        var validas = fuentesValidas(fuentes);
+        if (!validas.length) return;
+        var caja = crear('div', { class: 'cbchat-fuentes' }, [crear('span', { text: 'Fuentes:' })]);
+        validas.forEach(function (f) {
+            var externa = /^https?:/i.test(f.url);
+            var attrs = { href: f.url, text: f.titulo };
+            if (externa) {
+                attrs.target = '_blank';
+                attrs.rel = 'noopener noreferrer nofollow';
+            }
+            caja.appendChild(crear('a', attrs));
+        });
+        ref.mensajes.appendChild(caja);
+        ref.mensajes.scrollTop = ref.mensajes.scrollHeight;
+        mostrados.push({ t: 'fuentes', items: validas });
+        guardar();
+    }
+
     function agregarEspera() {
         var espera = crear('div', { class: 'cbchat-msg-espera' },
             [crear('span'), crear('span'), crear('span')]);
@@ -369,6 +402,7 @@
         }).then(function (datos) {
             espera.remove();
             agregarMensaje('bot', datos.respuesta);
+            agregarFuentes(datos.fuentes);
             if (datos.verificacion) verificacionToken = datos.verificacion;
             historial.push({ rol: 'usuario', texto: texto });
             historial.push({ rol: 'asistente', texto: datos.respuesta });
