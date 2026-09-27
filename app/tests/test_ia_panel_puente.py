@@ -43,6 +43,7 @@ def panel(flask_app, monkeypatch):
     monkeypatch.setitem(flask_app.config, 'AI_MODEL', MODELO)
     monkeypatch.setattr(ai, '_fecha_hoy', lambda: (date(2026, 9, 25), datetime(2026, 9, 25, 10)))
     monkeypatch.setattr(ai, '_contexto_tenant', lambda: 'Negocio de prueba.')
+    monkeypatch.setattr(ai, '_contexto_panel', lambda: 'Negocio de prueba.')
     monkeypatch.setattr(ai, '_registrar_consulta', lambda *a, **k: None)
     monkeypatch.setattr(ai, 'estado_ia', lambda: (True, None))
     monkeypatch.setattr(mot, 'motor_para', lambda *a, **k: (ns.motor, 'x'))

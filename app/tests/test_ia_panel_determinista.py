@@ -49,6 +49,7 @@ def test_panel_responde_con_datos_autorizados_sin_modelo(flask_app, monkeypatch)
                         lambda code, params, _ctx: consultas.append((code, params)) or
                         {'periodo': 'hoy', 'total': '$ 10', 'cantidad': 2})
     monkeypatch.setattr(ai, '_contexto_tenant', lambda: 'Tienda de prueba')
+    monkeypatch.setattr(ai, '_contexto_panel', lambda: 'Tienda de prueba')
     monkeypatch.setattr(ai, '_modelo_en_memoria',
                         lambda *_: (_ for _ in ()).throw(AssertionError('no debe esperar Ollama')))
     monkeypatch.setattr(ai, '_chat',
@@ -69,3 +70,33 @@ def test_panel_responde_con_datos_autorizados_sin_modelo(flask_app, monkeypatch)
         assert eventos[-1][0] == 'fin'
         assert '"total": "$ 10"' in eventos[-1][1]
         assert registros[-1][3] is None
+
+
+def test_el_panel_es_asesor_de_gestion_no_vendedor(flask_app, monkeypatch):
+    """El dueño ya conoce su negocio: el chat del panel no le vende ni le da los
+    datos de contacto de su empresa; lo asesora en control administrativo. Los
+    textos de venta (descripciones, SEO) siguen con el contexto comercial."""
+    import services.ai_service as ai
+    monkeypatch.setattr('services.public_site_service.get_brand_config',
+                        lambda: {'empresa_nombre': 'Tienda X'})
+    with flask_app.app_context():
+        panel, comercial = ai._contexto_panel(), ai._contexto_tenant()
+    assert 'asesor de gestión de «Tienda X»' in panel
+    assert 'persuasivo' not in panel and 'no les vendas' in panel
+    assert 'recomendaciones concretas de gestión' in panel
+    assert 'persuasivo' in comercial
+
+
+def test_el_chat_del_panel_redacta_con_el_asesor(flask_app, monkeypatch):
+    import services.ai_service as ai
+    import services.ai_tools as tools
+    monkeypatch.setattr(ai, '_contexto_panel', lambda: 'ASESOR')
+    monkeypatch.setattr(ai, '_contexto_tenant', lambda: 'VENDEDOR')
+    monkeypatch.setattr(ai, '_modelo_en_memoria', lambda m: True)
+    monkeypatch.setattr(ai, '_chat', lambda *a, **k: ('{"tools":[{"tool":"conteo_general","params":{}}]}', None))
+    monkeypatch.setattr(tools, 'ejecutar', lambda code, params, ctx: {'productos': 9})
+    from services.ia_datos.acceso import Contexto
+    with flask_app.app_context():
+        plan, err = ai._plan_chat('¿Cuántos productos tengo?', contexto=Contexto(rol_id=1, canal='web'))
+    assert err is None
+    assert plan['system'].startswith('ASESOR') and 'VENDEDOR' not in plan['system']

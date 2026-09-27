@@ -151,6 +151,32 @@ def _contexto_tenant():
     return ctx
 
 
+def _contexto_panel():
+    """El asistente del panel (tras el login): habla con el dueño o su equipo,
+    que ya conocen su negocio. No es un vendedor: es un asesor de gestión y
+    control. Antes usaba _contexto_tenant(), pensado para escribir textos de
+    venta («claro y persuasivo»), y a veces le respondía al dueño en tono
+    comercial. Los generadores de descripciones, SEO y blog siguen con aquel."""
+    nombre = 'la empresa'
+    try:
+        from services.public_site_service import get_brand_config
+        nombre = (get_brand_config() or {}).get('empresa_nombre') or nombre
+    except Exception:
+        pass
+    return (
+        f"Eres el asesor de gestión de «{nombre}» dentro de su software administrativo. "
+        "Hablas con el dueño o su equipo: ya conocen su negocio, sus productos y sus datos de "
+        "contacto, así que no les vendas, no promociones productos ni les des la dirección, "
+        "el teléfono o las redes de la empresa. Tu trabajo es el control administrativo: "
+        "inventario (qué reponer y cuánto, qué no rota, qué se agota), ventas, márgenes, "
+        "costos, caja, cartera y contabilidad. Responde directo, en español de Colombia, en "
+        "tono profesional y sobrio, con las cifras exactas de los datos. Cuando los datos lo "
+        "permitan, cierra con 1 a 3 recomendaciones concretas de gestión (qué reponer, qué "
+        "liquidar, qué revisar o cobrar); si no alcanzan para recomendar, dilo. No inventes "
+        "datos, cifras ni productos."
+    )
+
+
 # ── Cliente OpenAI-compatible (stateless) ──────────────────────
 def _chat_una_vez(model, system, user, max_tokens, temperature, base_url=None, timeout=None):
     """Una llamada a /v1/chat/completions con UN modelo concreto.
@@ -1039,7 +1065,7 @@ def _plan_chat_pasos(pregunta, anunciar=True, historial=None, contexto=None):
                   "sensible niégate, y en todo caso indícale qué SÍ puedes consultar: "
                   f"{puede}.")
         yield ('plan', {
-            'system': _contexto_tenant() + "\n" + tools.CONTEXTO_DATOS,
+            'system': _contexto_panel() + "\n" + tools.CONTEXTO_DATOS,
             'user': previo + cuerpo, 'user_nube': previo_nube + cuerpo,
             'max_tokens': 220, 'datos': None, 'herramienta': None,
             'herramientas': [], 'sensible': None, 'objetivo': None,
@@ -1088,10 +1114,10 @@ def _plan_chat_pasos(pregunta, anunciar=True, historial=None, contexto=None):
               f"Datos reales de su tienda, consultados el {ahora:%Y-%m-%d %H:%M}{agrupados} (JSON):\n"
               f"{json.dumps(datos, ensure_ascii=False, default=str)}\n\nRedacta la respuesta.")
     yield ('plan', {
-        'system': (_contexto_tenant() +
-                   " Responde la pregunta del dueño usando ÚNICAMENTE los datos que "
-                   "te doy (son reales, de su tienda). Sé claro y breve, en español, "
-                   "con las cifras exactas. No inventes nada que no esté en los datos."),
+        'system': (_contexto_panel() +
+                   " Responde la pregunta usando ÚNICAMENTE los datos que te doy (son "
+                   "reales, de su negocio). Sé claro y breve, con las cifras exactas. "
+                   "No inventes nada que no esté en los datos."),
         'user': previo + cuerpo,
         # solo_local: la redacción nunca va a la nube (ni puente ni respaldo).
         'user_nube': previo_nube + cuerpo,
@@ -1555,7 +1581,7 @@ def resumen_ejecutivo(force=False):
             "empezando con «• », concretas y accionables (qué va bien, qué "
             "atender hoy, qué comprar o despachar). Usa las cifras exactas, no "
             "inventes nada y no saludes:\n\n" + json.dumps(datos, ensure_ascii=False))
-    texto, err = _chat(_contexto_tenant(), user, max_tokens=380, temperature=0.5, tarea='contenido')
+    texto, err = _chat(_contexto_panel(), user, max_tokens=380, temperature=0.5, tarea='contenido')
     if err:
         return None, err
 

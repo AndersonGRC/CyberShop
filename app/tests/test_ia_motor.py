@@ -240,6 +240,7 @@ def motor(flask_app, matriz, monkeypatch):
         monkeypatch.setitem(base.REGISTRO, h.code, h)
     monkeypatch.setattr(ai, '_modelo_en_memoria', lambda m: True)
     monkeypatch.setattr(ai, '_contexto_tenant', lambda: 'CTX')
+    monkeypatch.setattr(ai, '_contexto_panel', lambda: 'CTX')
     monkeypatch.setattr(ai, '_fecha_hoy', lambda: (date(2026, 9, 15), datetime(2026, 9, 15, 10, 30)))
     respuestas = []
 
