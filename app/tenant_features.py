@@ -213,8 +213,9 @@ MODULE_DEFINITIONS = {
     MODULE_AI_ACTIONS: {
         'nombre': 'Acciones operativas con IA',
         'descripcion': 'Productos, categorias, movimientos de inventario, contactos (crear, '
-                       'editar, archivar, reactivar) y CRM (tareas, actividades y '
-                       'oportunidades) con confirmacion humana. '
+                       'editar, archivar, reactivar), CRM (tareas, actividades y '
+                       'oportunidades), reseñas (aprobar, responder) y tickets de '
+                       'soporte (cerrar, reabrir) con confirmacion humana. '
                        'Solo en el panel; apagado por defecto para cada cliente.',
         'categoria': 'inteligencia',
         'config_key': 'ia_acciones_habilitadas',

@@ -42,11 +42,18 @@ TIPOS = {
     'crear_oportunidad': ('crm', 'operar'),
     'mover_oportunidad': ('crm', 'operar'),
     'editar_oportunidad': ('crm', 'operar'),
+    # Reseñas y soporte (services/ia_acciones_atencion.py). La IA no rechaza
+    # reseñas (el panel las borra) ni responde tickets (envía un correo).
+    'aprobar_resena': ('content', 'operar'),
+    'responder_resena': ('content', 'operar'),
+    'cerrar_ticket': ('support', 'operar'),
+    'reabrir_ticket': ('support', 'operar'),
 }
 _CRM = {'crear_tarea', 'completar_tarea', 'reabrir_tarea', 'editar_tarea', 'registrar_actividad',
         'crear_oportunidad', 'mover_oportunidad', 'editar_oportunidad'}
 _CATALOGO = {'crear_producto', 'editar_producto', 'archivar_producto', 'reactivar_producto',
              'movimiento_inventario', 'crear_categoria', 'renombrar_categoria'}
+_ATENCION = {'aprobar_resena', 'responder_resena', 'cerrar_ticket', 'reabrir_ticket'}
 TIPOS_CONTACTO = {'cliente', 'proveedor', 'lead', 'socio'}
 CONTACTO_CAMPOS = {
     'nombre': 200, 'tipo': 20, 'empresa': 200, 'cargo': 100,
@@ -155,6 +162,33 @@ _VERBOS_ACTIVIDAD = {
 }
 _ETAPA_DICHA = re.compile(r'\b(prospecto|calificad[oa]|propuesta|negociacion|ganad[oa]|'
                           r'perdid[oa]|ganamos|perdimos|cerramos|se cayo|se perdio)\b')
+# Reseñas y tickets: la orden EMPIEZA por el verbo, junto al objeto («Responde
+# la reseña de Ana: …», «Cierra el ticket 12»). Se revisa antes que el stock
+# porque el texto de una respuesta puede decir cualquier cosa («…ya llegaron 10
+# unidades»); «crea una tarea para responder la reseña» no empieza por el verbo
+# y sigue siendo una tarea. Los «:» no cuentan: lo que sigue es el texto.
+_CORTESIA = (r'^(?:(?:por favor|porfa|porfavor|puedes|podrias|ayudame a|quiero|necesito|'
+             r'hay que)\s+)*')
+_OBJ_RESENA = r'(?:resenas?|comentarios?|opinion(?:es)?|calificacion(?:es)?)\b'
+_OBJ_TICKET = r'(?:tickets?|casos? de soporte|solicitud(?:es)? de soporte)\b'
+_CERCA = r'\b[^.?!:]{0,40}?\b'
+_ORDENES_ATENCION = {
+    'aprobar_resena': re.compile(_CORTESIA + r'(?:aprueba|aprobar|apruebala|publica|publicar|'
+                                 r'publicala|acepta|aceptar)' + _CERCA + _OBJ_RESENA),
+    'responder_resena': re.compile(_CORTESIA + r'(?:responde|responder|respondele|respondela|'
+                                   r'contesta|contestar|contestale)' + _CERCA + _OBJ_RESENA),
+    'cerrar_ticket': re.compile(_CORTESIA + r'(?:cierra|cerrar|cierralo|resuelve|resolver|'
+                                r'finaliza|finalizar|marca como resuelto|da por resuelto)'
+                                + _CERCA + _OBJ_TICKET),
+    'reabrir_ticket': re.compile(_CORTESIA + r'(?:reabre|reabrir|reabrelo|vuelve a abrir|'
+                                 r'abre de nuevo|abre otra vez)' + _CERCA + _OBJ_TICKET),
+}
+
+
+def _orden_de_atencion(frase):
+    """El proceso de reseñas o soporte de una frase ya normalizada, o None."""
+    frase = frase.lstrip('¿¡ \t')
+    return next((tipo for tipo, patron in _ORDENES_ATENCION.items() if patron.search(frase)), None)
 
 
 def _unico(verbos, frase, primero=None):
@@ -267,7 +301,7 @@ def parece_operativa(pregunta):
     if _SOLO_LECTURA.match(frase):
         return False
     return bool((_VERBOS.search(frase) and _OBJETOS.search(frase))
-                or _movimiento_suelto(frase, pregunta))
+                or _movimiento_suelto(frase, pregunta) or _orden_de_atencion(frase))
 
 
 def _tipo_solicitado(pregunta):
@@ -278,6 +312,9 @@ def _tipo_solicitado(pregunta):
     pero el verbo no encaja, se prueba la siguiente («entraron 10 gaseosas
     del proveedor Andes» es un movimiento, no un contacto)."""
     frase = _normalizar(pregunta)
+    atencion = _orden_de_atencion(frase)
+    if atencion:
+        return atencion
     if re.search(r'\b(' + _STOCK + r')\b', frase):
         if _MOVIMIENTO_STOCK.search(frase):
             return 'movimiento_inventario'
@@ -315,7 +352,7 @@ def _tipo_solicitado(pregunta):
         return 'movimiento_inventario'
     raise AccionError('La acción no coincide claramente con una función disponible. '
                       'Pide un solo cambio y di si es un contacto, un producto, una '
-                      'categoría o el stock.')
+                      'categoría, el stock, una tarea, una reseña o un ticket.')
 
 
 def direccion_movimiento(pregunta):
@@ -364,10 +401,13 @@ def _autorizar(cur, tipo, rol):
     if tipo not in TIPOS:
         raise AccionError('Esa operación no está disponible.', 400)
     modulo, accion = TIPOS[tipo]
-    clave_modulo = {'inventory': 'inventario_habilitado', 'crm': 'crm_habilitado'}[modulo]
+    clave_modulo = {'inventory': 'inventario_habilitado', 'crm': 'crm_habilitado',
+                    'support': 'soporte_habilitado', 'content': None}[modulo]
     # Orden de bloqueo igual al guardado de módulos del maestro: inventario/CRM,
     # Asistente IA, Acciones IA. Así evitamos un deadlock con «Guardar módulos».
-    if not _flag_activo(cur, clave_modulo):
+    # Las reseñas no tienen interruptor propio (la pantalla del panel solo exige
+    # el cargo): quedan cubiertas por el flag de Acciones IA y el permiso.
+    if clave_modulo and not _flag_activo(cur, clave_modulo):
         raise AccionError('El módulo correspondiente no está habilitado.', 403)
     if not _flag_activo(cur, 'ia_habilitado') or not _habilitada(cur):
         raise AccionError('Las acciones de IA no están habilitadas para este cliente.', 403)
@@ -544,6 +584,29 @@ Salida completa: {\"tipo\":\"editar_oportunidad\",\"oportunidad_id\":entero O
 \"oportunidad\":\"título o contacto\",\"cambios\":{campo:valor}}. Cambios
 permitidos: titulo, monto (número), fecha_cierre (expresión COPIADA),
 descripcion. La etapa NO se cambia aquí.""",
+    'aprobar_resena': """PROCESO aprobar_resena.
+Salida completa: {\"tipo\":\"aprobar_resena\",\"resena_id\":entero O
+\"resena\":\"cliente o producto de la reseña, con las palabras de la persona\"}.
+Si no dice cuál, usa \"resena\":\"\" (el servidor muestra las pendientes).
+Ejemplo: «Aprueba la reseña de Ana sobre la torta» →
+{\"tipo\":\"aprobar_resena\",\"resena\":\"Ana torta\"}.""",
+    'responder_resena': """PROCESO responder_resena.
+Salida completa: {\"tipo\":\"responder_resena\",\"resena_id\":entero O
+\"resena\":\"cliente o producto\",\"respuesta\":\"texto COPIADO tal cual\"}.
+La respuesta es el texto que la persona pidió publicar, sin cambiar una palabra.
+Nunca redactes una respuesta: si no la escribió, aclara con `campo` `respuesta`.
+Ejemplo: «Responde la reseña de Ana: ¡Gracias por tu compra!» →
+{\"tipo\":\"responder_resena\",\"resena\":\"Ana\",\"respuesta\":\"¡Gracias por tu compra!\"}.""",
+    'cerrar_ticket': """PROCESO cerrar_ticket.
+Salida completa: {\"tipo\":\"cerrar_ticket\",\"ticket_id\":entero O
+\"ticket\":\"asunto o cliente, con las palabras de la persona\"}. Si no dice
+cuál, usa \"ticket\":\"\". Ejemplos: «Cierra el ticket 12» →
+{\"tipo\":\"cerrar_ticket\",\"ticket_id\":12}; «Cierra el ticket de Juan por la
+garantía» → {\"tipo\":\"cerrar_ticket\",\"ticket\":\"Juan garantía\"}.""",
+    'reabrir_ticket': """PROCESO reabrir_ticket.
+Salida completa: {\"tipo\":\"reabrir_ticket\",\"ticket_id\":entero O
+\"ticket\":\"asunto o cliente, con las palabras de la persona\"}. Ejemplo:
+«Reabre el ticket 12» → {\"tipo\":\"reabrir_ticket\",\"ticket_id\":12}.""",
 }
 
 _CAMPOS_PLAN = {
@@ -569,6 +632,10 @@ _CAMPOS_PLAN = {
                           'fecha_cierre'},
     'mover_oportunidad': {'tipo', 'oportunidad_id', 'oportunidad', 'etapa', 'motivo_perdida'},
     'editar_oportunidad': {'tipo', 'oportunidad_id', 'oportunidad', 'cambios'},
+    'aprobar_resena': {'tipo', 'resena_id', 'resena'},
+    'responder_resena': {'tipo', 'resena_id', 'resena', 'respuesta'},
+    'cerrar_ticket': {'tipo', 'ticket_id', 'ticket'},
+    'reabrir_ticket': {'tipo', 'ticket_id', 'ticket'},
 }
 # Preguntas del catálogo por (proceso, campo): el modelo elige el campo que
 # falta y el servidor redacta la pregunta.
@@ -618,6 +685,12 @@ _PREGUNTAS_CATALOGO = {
     ('editar_oportunidad', 'oportunidad'): '¿Qué oportunidad quieres cambiar?',
     ('editar_oportunidad', 'cambios'): '¿Qué cambio de la oportunidad: título, monto, fecha de cierre o detalle?',
     ('editar_oportunidad', 'monto'): '¿Cuál es el nuevo monto?',
+    ('aprobar_resena', 'resena'): '¿Qué reseña apruebo? Dime el cliente, el producto o su ID.',
+    ('responder_resena', 'respuesta'):
+        '¿Qué respuesta publico? Escríbela tal cual se verá en la página del producto.',
+    ('responder_resena', 'resena'): '¿A qué reseña respondo? Dime el cliente, el producto o su ID.',
+    ('cerrar_ticket', 'ticket'): '¿Qué ticket cierro? Dime el asunto, el cliente o su ID.',
+    ('reabrir_ticket', 'ticket'): '¿Qué ticket reabro? Dime el asunto, el cliente o su ID.',
 }
 _PREGUNTAS = {
     'producto': '¿Cuál es el ID o la referencia exacta del producto?',
@@ -645,7 +718,7 @@ _CAMPOS_MENCION = {
 def _pregunta_campo(tipo, campo):
     """El modelo selecciona un campo, pero nunca redacta texto al usuario."""
     campo = campo if isinstance(campo, str) else None
-    if tipo in _CATALOGO or tipo in _CRM:
+    if tipo in _CATALOGO or tipo in _CRM or tipo in _ATENCION:
         propias = {c: p for (t, c), p in _PREGUNTAS_CATALOGO.items() if t == tipo}
         return propias.get(campo) or next(iter(propias.values()))
     if tipo == 'ajustar_inventario':
@@ -849,6 +922,76 @@ def _completar_crm(plan, tipo, pregunta):
     return plan
 
 
+_OBJETO_RESENA = r'reseñas?|resenas?|comentarios?|opini[oó]n(?:es)?|calificaci[oó]n(?:es)?'
+_OBJETO_TICKET = r'tickets?|casos? de soporte|solicitud(?:es)? de soporte'
+# proceso de atención: (clave del ID, clave de la referencia, objeto en la frase)
+_ID_ATENCION = {
+    'aprobar_resena': ('resena_id', 'resena', _OBJETO_RESENA),
+    'responder_resena': ('resena_id', 'resena', _OBJETO_RESENA),
+    'cerrar_ticket': ('ticket_id', 'ticket', _OBJETO_TICKET),
+    'reabrir_ticket': ('ticket_id', 'ticket', _OBJETO_TICKET),
+}
+_CITA = re.compile(r'[«"“]([^»"”]{2,1500})[»"”]')
+_DICIENDO = re.compile(r'(?::|\b(?:que diga|diciendo|diciendole|diciéndole|con el texto|'
+                       r'con este texto)\b)\s*(?P<texto>\S.*)$', re.I | re.S)
+_MAX_DATO = 280     # combinar() corta cada respuesta a una aclaración en 280
+
+
+def respuesta_dicha(pregunta):
+    """El texto a publicar TAL CUAL lo escribió la persona: entre comillas, tras
+    «:» o «que diga», o su primera respuesta (que no sea un ID) a «¿Qué
+    respuesta publico?». Nunca lo redacta el modelo: es público."""
+    partes = str(pregunta or '').split('. Dato adicional:')
+    cita = _CITA.search(partes[0])
+    if cita:
+        return cita.group(1).strip()
+    dicho = _DICIENDO.search(partes[0])
+    if dicho:
+        return dicho.group('texto').strip()
+    for dato in partes[1:]:
+        dato = dato.strip()
+        if dato and not re.fullmatch(r'ID \d{1,9}', dato):
+            if len(dato) >= _MAX_DATO - 1:
+                raise AccionError('Esa respuesta es muy larga para completarla así. Escribe la '
+                                  'orden en un solo mensaje: «Responde la reseña de Ana: …».')
+            return dato
+    return None
+
+
+def _referencia_atencion(pregunta, objeto):
+    """«Aprueba la reseña de Ana sobre la torta» → «de Ana sobre la torta»; sin
+    el texto de la respuesta. Vacío si no dice cuál."""
+    orden = _CITA.sub(' ', str(pregunta or '').split('. Dato adicional:')[0]).split(':')[0]
+    return _nombre_en_orden(orden, objeto) or ''
+
+
+def _completar_atencion(plan, tipo, pregunta):
+    """Reseñas y tickets: el registro sale del ID elegido o de lo que sigue al
+    objeto en la frase si el modelo lo pide; el texto de una respuesta sale
+    siempre literal de lo que escribió la persona (nunca del modelo)."""
+    clave_id, clave_ref, objeto = _ID_ATENCION[tipo]
+    elegido = _id_elegido(pregunta)
+    if plan.get('tipo') == 'aclarar' and plan.get('campo') in (None, clave_ref, clave_id, 'respuesta'):
+        plan = {'tipo': tipo, clave_ref: _referencia_atencion(pregunta, objeto)}
+    if plan.get('tipo') != tipo:
+        return plan
+    plan = dict(plan)
+    numero = re.fullmatch(r'\s*(?:id\s*)?#?\s*(\d{1,9})\s*', str(plan.get(clave_ref) or ''), re.I)
+    if numero:                 # «el ticket 12»: es su ID, no un texto a buscar
+        plan.pop(clave_ref)
+        plan[clave_id] = int(numero.group(1))
+    if elegido is not None:
+        plan.pop(clave_ref, None)
+        plan[clave_id] = elegido
+    if tipo == 'responder_resena':
+        respuesta = respuesta_dicha(pregunta)
+        if respuesta:
+            plan['respuesta'] = respuesta
+        else:
+            plan.pop('respuesta', None)
+    return plan
+
+
 def _completar_identidad(plan, tipo_solicitado, pregunta):
     """Identidad del registro sin depender de que el modelo la copie bien.
 
@@ -860,6 +1003,8 @@ def _completar_identidad(plan, tipo_solicitado, pregunta):
     inventario la dirección sale del verbo («se dañaron» = salida)."""
     if tipo_solicitado in _CRM:
         return _completar_crm(plan, tipo_solicitado, pregunta)
+    if tipo_solicitado in _ATENCION:
+        return _completar_atencion(plan, tipo_solicitado, pregunta)
     if tipo_solicitado == 'movimiento_inventario' and plan.get('tipo') == tipo_solicitado:
         direccion = direccion_movimiento(pregunta)
         if direccion:
@@ -952,7 +1097,9 @@ def _id_dicho(valor, fuentes, dominio):
     prefijos = {'producto': 'id|codigo|referencia|producto',
                 'categoria': 'id|categoria|genero',
                 'tarea': 'id|tarea',
-                'oportunidad': 'id|oportunidad|negocio'}.get(
+                'oportunidad': 'id|oportunidad|negocio',
+                'resena': 'id|resena|comentario|opinion|calificacion',
+                'ticket': 'id|ticket|caso|solicitud'}.get(
         dominio, 'id|contacto|cliente|proveedor|lead|socio')
     patron = re.compile(rf'\b(?:{prefijos})\s*(?:numero|no\.?\s*)?[:#-]?\s*{numero}\b')
     return any(patron.search(_normalizar(texto)) for texto in fuentes)
@@ -1080,6 +1227,29 @@ def _datos_crm_dichos(plan, fuentes, fuente):
         plan.pop('descripcion')
 
 
+def _datos_atencion_dichos(plan, fuentes, fuente):
+    """Reseñas y tickets: el registro lo nombró la persona (o no dijo cuál y se
+    le mostrarán las opciones); la respuesta es su texto literal."""
+    tipo = plan['tipo']
+    clave_id, clave_ref, _objeto = _ID_ATENCION[tipo]
+    if tipo == 'responder_resena':
+        respuesta = respuesta_dicha(fuentes[0])
+        if not respuesta:
+            raise AccionAclarar(_pregunta_campo(tipo, 'respuesta'))
+        plan['respuesta'] = respuesta
+    if plan.get(clave_id) is not None:
+        if not _id_dicho(plan[clave_id], fuentes, clave_ref):
+            raise AccionAclarar(_pregunta_campo(tipo, clave_ref))
+        plan.pop(clave_ref, None)
+        return
+    referencia = plan.get(clave_ref)
+    if referencia in (None, ''):
+        plan[clave_ref] = ''
+        return
+    if not isinstance(referencia, str) or not _mayormente_dicho(referencia, fuente, minimo=1.0):
+        raise AccionAclarar(_pregunta_campo(tipo, clave_ref))
+
+
 def _datos_catalogo_dichos(plan, fuentes, fuente):
     """Productos, movimientos y categorías: nombres, precios, cantidades y
     categorías deben estar en lo que escribió la persona. Lo obligatorio que no
@@ -1167,6 +1337,9 @@ def _solo_datos_dichos(plan, pregunta, historial):
         return
     if tipo in _CRM:
         _datos_crm_dichos(plan, fuentes, fuente)
+        return
+    if tipo in _ATENCION:
+        _datos_atencion_dichos(plan, fuentes, fuente)
         return
     if tipo == 'ajustar_inventario':
         if plan.get('producto_id') is None and not plan.get('producto'):
@@ -1327,6 +1500,9 @@ def _preparar_datos(cur, plan):
     if tipo in _CRM:
         from services import ia_acciones_crm
         return ia_acciones_crm.preparar(cur, plan)
+    if tipo in _ATENCION:
+        from services import ia_acciones_atencion
+        return ia_acciones_atencion.preparar(cur, plan)
     if tipo == 'ajustar_inventario':
         nuevo = _entero(plan.get('stock_nuevo'), 'el stock final', minimo=0)
         motivo = _texto(plan.get('motivo'), 'motivo', 500, obligatorio=True)
@@ -1489,6 +1665,9 @@ def _ejecutar(cur, fila, usuario):
     if tipo in _CRM:
         from services import ia_acciones_crm
         return ia_acciones_crm.ejecutar(cur, fila, usuario)
+    if tipo in _ATENCION:
+        from services import ia_acciones_atencion
+        return ia_acciones_atencion.ejecutar(cur, fila, usuario)
     if tipo == 'ajustar_inventario':
         producto = _producto(cur, {'producto_id': payload['producto_id']}, bloquear=True)
         anterior = int(producto['stock'] or 0)

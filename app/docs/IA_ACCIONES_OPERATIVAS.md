@@ -1,6 +1,6 @@
 # Acciones operativas del Asistente IA (panel)
 
-Versión de código: 1.1.0.0. Estado: implementado localmente, **apagado por
+Versión de código: 1.4.3.0. Estado: implementado localmente, **apagado por
 cliente y sin despliegue verificado**. No forma parte del catálogo de 48 consultas de solo
 lectura ni del chat público; la separación evita que una respuesta informativa
 pueda disparar una escritura.
@@ -28,6 +28,16 @@ publica por sí solo los cambios del panel maestro ni activa este módulo.
 | `registrar_actividad` | «registra una llamada con…», «anota que visité a…» | Contacto y asunto; el tipo (llamada, visita, reunión, correo, whatsapp, nota) sale del verbo, si no «otro» | `crm.operar` | Inserta en `crm_actividades` con fecha = ahora. Son historial: no se editan. |
 | `crear_oportunidad` / `editar_oportunidad` | «crea una oportunidad con… por 3 millones», «cambia el monto de la oportunidad…» | Contacto, título; opcionales monto (como lo dijo: «3 millones», «2.500.000») y fecha de cierre | `crm.operar` | Inserta/actualiza `crm_oportunidades`; etapa inicial Prospecto. |
 | `mover_oportunidad` | «ganamos el negocio de…», «pasa la oportunidad a negociación», «perdimos…» | Oportunidad y etapa (de las palabras) | `crm.operar` | Cambia `etapa`; ganada/perdida ⇒ probabilidad 100/0 y fecha de cierre real, como el CRM. «Perdida» es el cierre: no hay borrado. |
+| `aprobar_resena` | «aprueba/publica la reseña de…» | Reseña por aprobar (cliente, producto o ID); si no dice cuál, se listan las pendientes | `content.operar` | `aprobado = TRUE`: queda visible en la página del producto. La IA **no** rechaza reseñas (en el panel, rechazar la borra). |
+| `responder_resena` | «responde la reseña de Ana: ¡Gracias!» | Reseña y el texto **literal** (tras «:», entre comillas o como respuesta a «¿Qué respuesta publico?») | `content.operar` | `respuesta` (≤1.500) + `respuesta_fecha`. El modelo nunca redacta el texto público; no se vacía una respuesta. |
+| `cerrar_ticket` / `reabrir_ticket` | «cierra el ticket 12», «marca como resuelto el ticket del cargador», «reabre el ticket…» | Ticket (asunto, cliente o ID); si no dice cuál, se listan | `support.operar` + `soporte_habilitado` | `estado` cerrado/abierto y `fecha_actualizado`. **No** responde tickets ni envía correos. |
+
+Reseñas y soporte en `services/ia_acciones_atencion.py` (fase 4, 1.4.3.0). Estas
+órdenes se reconocen solo si EMPIEZAN por el verbo junto al objeto («Responde la
+reseña…», «Cierra el ticket…»): el texto de una respuesta puede decir cualquier
+cosa sin volverse otra orden, y «crea una tarea para responder la reseña» sigue
+siendo una tarea. Las reseñas no tienen interruptor propio (la pantalla del panel
+solo exige el cargo): las cubre el flag de Acciones IA y el permiso `content`.
 
 Lógica del CRM en `services/ia_acciones_crm.py` (fase 3, 1.4.2.0): las fechas las
 calcula el servidor, nunca el modelo; prioridad, tipo de actividad y etapa salen de
