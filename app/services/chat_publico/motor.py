@@ -860,7 +860,6 @@ def _prompt_cortesia(plan):
     return sistema, usuario
 
 
-_NUMERO = re.compile(r'\d[\d.,]*')
 _NUMERO_EN_PALABRAS = re.compile(
     r'\b(?:cero|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|'
     r'catorce|quince|dieciseis|veinte|veinti\w+|treinta|cuarenta|cincuenta|'
@@ -888,11 +887,20 @@ _PORCENTAJE_EN_PALABRAS = re.compile(
 
 
 def _montos(texto):
-    return {re.sub(r'\D', '', a or b) for a, b in _MONTO.findall(texto)}
+    """Cada monto del texto con sus lecturas por valor («$ 117.750,00» = «$117.750»)."""
+    from services.ia.texto import lecturas
+    return [lecturas(a or b) for a, b in _MONTO.findall(texto)]
 
 
 def _porcentajes(texto):
-    return {re.sub(r'\D', '', n) for n in _PORCENTAJE.findall(texto)}
+    from services.ia.texto import lecturas
+    return [lecturas(n) for n in _PORCENTAJE.findall(texto)]
+
+
+def _respaldadas(salida, base):
+    """¿Cada cifra de la salida coincide en valor con alguna de la base?"""
+    disponibles = set().union(*base) if base else set()
+    return all(opciones & disponibles for opciones in salida)
 
 
 def _conserva_cifras(plan, texto):
@@ -919,16 +927,21 @@ def _conserva_cifras(plan, texto):
                 and not set(_PORCENTAJE_EN_PALABRAS.findall(salida))
                 <= set(_PORCENTAJE_EN_PALABRAS.findall(base))):
             return False
-        return (_montos(salida) <= _montos(base)
-                and _porcentajes(salida) <= _porcentajes(base)
+        return (_respaldadas(_montos(salida), _montos(base))
+                and _respaldadas(_porcentajes(salida), _porcentajes(base))
                 and set(_PROMOCION.findall(salida)) <= set(_PROMOCION.findall(base)))
-    numeros_base = {re.sub(r'\D', '', n) for n in _NUMERO.findall(base)}
-    numeros_salida = {re.sub(r'\D', '', n) for n in _NUMERO.findall(salida)}
-    if not numeros_salida <= numeros_base:
+    # Por VALOR, no por dígitos pegados: «$ 117.750,00» del catálogo y «$117.750»
+    # del modelo son el mismo precio (antes se descartaba), y la numeración de
+    # una lista no es una cifra del negocio.
+    from services.ia.texto import cifras_respaldadas
+    if not cifras_respaldadas(salida, base):
         return False
-    # Con varias cifras, comprobar solo el conjunto no detectaría que el
-    # modelo intercambió los precios de dos productos. Se usa el texto base.
-    if len(numeros_base) > 1 and numeros_salida:
+    # Con varios precios, comprobar solo el conjunto no detectaría que el modelo
+    # intercambió los de dos productos: si la base tiene más de un monto y la
+    # salida menciona alguno, se usa el texto base. Una dirección con teléfono
+    # no es un precio y sí puede redactarse (antes se descartaba toda cifra).
+    montos_base = {min(opciones) for opciones in _montos(base) if opciones}
+    if len(montos_base) > 1 and _montos(salida):
         return False
     for patron in (_NUMERO_EN_PALABRAS, _MARCADOR_ECONOMICO, _UNIDAD_SINGULAR,
                    _UNIDAD_FACTUAL, _ESTADO_STOCK):

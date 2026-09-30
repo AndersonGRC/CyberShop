@@ -1383,22 +1383,21 @@ def _respuesta_datos_sin_modelo(plan):
     return f'Datos verificados de {titulo} (sin redacción de IA):\n{cuerpo}'
 
 
-_CIFRA_RESPUESTA = re.compile(r'(?<!\w)\d[\d.,]*')
-
-
 def _redaccion_con_cifras_verificadas(plan, texto):
     """No publica cifras nuevas inventadas por un modelo al resumir datos SQL.
 
-    Es una barrera conservadora, no una prueba semántica: ante formatos que no
-    sabemos comparar se devuelve el JSON autorizado tal cual. Los números de
-    preguntas o historial no son fuente de verdad para esta comprobación.
+    Es una barrera conservadora, no una prueba semántica: una cifra que no
+    coincide EN VALOR con alguna de los datos devuelve el resultado autorizado
+    sin redacción. Se compara por valor («$ 905.500,00» del dato = «$905.500»
+    del texto) y sin la numeración de las listas: comparar los dígitos pegados
+    descartaba 10 de 10 respuestas correctas de Qwen. Los números de preguntas
+    o historial no son fuente de verdad para esta comprobación.
     """
+    from services.ia.texto import cifras_respaldadas
     if not texto or plan.get('datos') is None:
         return bool(texto)
     fuente = json.dumps(plan['datos'], ensure_ascii=False, default=str)
-    numeros = {re.sub(r'\D', '', n) for n in _CIFRA_RESPUESTA.findall(fuente)}
-    salida = {re.sub(r'\D', '', n) for n in _CIFRA_RESPUESTA.findall(texto)}
-    return salida <= numeros and ('%' not in texto or '%' in fuente)
+    return cifras_respaldadas(texto, fuente) and ('%' not in texto or '%' in fuente)
 
 
 def _redaccion_o_datos(plan, texto):
