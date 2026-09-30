@@ -212,6 +212,11 @@ registrar('buscar_contactos', _con.buscar_contactos,
           "correo o teléfono y muestra su ID y datos de contacto. Sin nombre, los más recientes.",
           ['texto', 'limite'], etiqueta='tus contactos del CRM', dominio='comercial',
           modulos=('crm',), permiso='crm', extra={'nube': False})
+registrar('tareas_pendientes', _con.tareas_pendientes,
+          "Tareas pendientes del CRM con su ID, contacto, prioridad y fecha de vencimiento "
+          "(primero las vencidas), para completarlas o cambiarlas.",
+          ['limite'], etiqueta='tus tareas pendientes', dominio='comercial',
+          modulos=('crm',), permiso='crm')
 
 # ── Sitio público (módulo ai_public) ───────────────────────────
 # SOLO estas se exponen al visitante anónimo, y solo si el módulo está activo.

@@ -32,7 +32,19 @@ TIPOS = {
     'movimiento_inventario': ('inventory', 'operar'),
     'crear_categoria': ('inventory', 'operar'),
     'renombrar_categoria': ('inventory', 'operar'),
+    # CRM (services/ia_acciones_crm.py). Nada se borra: la tarea se completa,
+    # la oportunidad se marca perdida y la actividad es historial.
+    'crear_tarea': ('crm', 'operar'),
+    'completar_tarea': ('crm', 'operar'),
+    'reabrir_tarea': ('crm', 'operar'),
+    'editar_tarea': ('crm', 'operar'),
+    'registrar_actividad': ('crm', 'operar'),
+    'crear_oportunidad': ('crm', 'operar'),
+    'mover_oportunidad': ('crm', 'operar'),
+    'editar_oportunidad': ('crm', 'operar'),
 }
+_CRM = {'crear_tarea', 'completar_tarea', 'reabrir_tarea', 'editar_tarea', 'registrar_actividad',
+        'crear_oportunidad', 'mover_oportunidad', 'editar_oportunidad'}
 _CATALOGO = {'crear_producto', 'editar_producto', 'archivar_producto', 'reactivar_producto',
              'movimiento_inventario', 'crear_categoria', 'renombrar_categoria'}
 TIPOS_CONTACTO = {'cliente', 'proveedor', 'lead', 'socio'}
@@ -49,7 +61,12 @@ _VERBOS = re.compile(r'\b(crea|crear|creame|agrega|agregar|registra|registrar|'
                     r'desactiva|desactivar|archiva|archivar|reactiva|reactivar|activa|activar|'
                     r'restaura|restaurar|recupera|recuperar|anade|anadir|anadele|agregale|'
                     r'ponle|renombra|renombrar|oculta|ocultar|suma|sumale|sumar|resta|restale|'
-                    r'restar|descuenta|descontar|descuentale|quitale)\b')
+                    r'restar|descuenta|descontar|descuentale|quitale|anota|anotar|apunta|'
+                    r'apuntar|programa|programar|recuerdame|recordarme|agenda|agendar|ponme|'
+                    r'completa|completar|termina|terminar|finaliza|finalizar|reabre|reabrir|'
+                    r'mueve|mover|aplaza|aplazar|posterga|postergar|pasa|pasar|marca|marcar|'
+                    r'avanza|avanzar|abre|abrir|guarda|guardar|deja|dejar|ganamos|perdimos|'
+                    r'cerramos)\b')
 # Un contacto también se nombra por su tipo: «crea un proveedor», «agrega el
 # socio…», «registra un cliente nuevo». Antes solo contaba la palabra
 # «contacto» y «crea un proveedor» se iba al chat de consultas.
@@ -64,7 +81,12 @@ _CONTACTO = _CONTACTO + '|' + _CLIENTE_OBJETO
 _STOCK = r'stock|inventario|existencias?|unidades'
 _PRODUCTO = r'productos?|articulos?|precios?|costos?|catalogo'
 _CATEGORIA = r'categorias?|generos?'
-_OBJETOS = re.compile(r'\b(' + '|'.join((_CONTACTO, _STOCK, _PRODUCTO, _CATEGORIA)) + r')\b')
+_TAREA = r'tareas?|recordatorios?|recuerdame|recordarme'
+_OPORTUNIDAD = r'oportunidad(?:es)?|negocios?|tratos?|pipeline'
+_ACTIVIDAD = (r'actividad(?:es)?|llamadas?|visitas?|reunion(?:es)?|notas?|llame|visite|'
+              r'me reuni|hable|escribi')
+_OBJETOS = re.compile(r'\b(' + '|'.join((_CONTACTO, _STOCK, _PRODUCTO, _CATEGORIA, _TAREA,
+                                           _OPORTUNIDAD, _ACTIVIDAD)) + r')\b')
 # Movimientos de inventario dichos sin la palabra «stock»: «entraron 10 gaseosas»,
 # «se dañaron 2 tortas» (el texto se compara sin tildes: ñ → n).
 _ENTRADA = (r'entraron|entro|llegaron|llego|ingresaron|ingreso|recibimos|recibi|entrada|'
@@ -107,6 +129,32 @@ _VERBOS_CATEGORIA = {
     'renombrar_categoria': re.compile(r'\b(renombra|renombrar|edita|editar|modifica|modificar|'
                                       r'cambia|cambiar|actualiza|actualizar)\b'),
 }
+
+
+_VERBOS_TAREA = {
+    'crear_tarea': re.compile(r'\b(crea|crear|creame|agrega|agregar|registra|registrar|anota|'
+                              r'anotar|programa|programar|recuerdame|recordarme|pon|ponme|agenda|'
+                              r'agendar)\b'),
+    'completar_tarea': re.compile(r'\b(completa|completar|termina|terminar|finaliza|finalizar|'
+                                  r'hecha|hice|realice|marca como (?:hecha|lista|completada))\b'),
+    'reabrir_tarea': re.compile(r'\b(reabre|reabrir|reactiva|reactivar|vuelve a abrir)\b'),
+    'editar_tarea': re.compile(r'\b(cambia|cambiar|edita|editar|modifica|modificar|actualiza|'
+                               r'actualizar|mueve|mover|aplaza|aplazar|posterga|postergar|pasa)\b'),
+}
+_VERBOS_OPORTUNIDAD = {
+    'crear_oportunidad': re.compile(r'\b(crea|crear|creame|agrega|agregar|registra|registrar|'
+                                    r'abre|abrir)\b'),
+    'mover_oportunidad': re.compile(r'\b(mueve|mover|pasa|pasar|marca|marcar|avanza|avanzar|'
+                                    r'ganamos|perdimos|cerramos|se cayo|se perdio)\b'),
+    'editar_oportunidad': re.compile(r'\b(cambia|cambiar|edita|editar|modifica|modificar|'
+                                     r'actualiza|actualizar|sube|subir|baja|bajar)\b'),
+}
+_VERBOS_ACTIVIDAD = {
+    'registrar_actividad': re.compile(r'\b(registra|registrar|anota|anotar|apunta|apuntar|agrega|'
+                                      r'agregar|crea|crear|guarda|guardar|deja|dejar)\b'),
+}
+_ETAPA_DICHA = re.compile(r'\b(prospecto|calificad[oa]|propuesta|negociacion|ganad[oa]|'
+                          r'perdid[oa]|ganamos|perdimos|cerramos|se cayo|se perdio)\b')
 
 
 def _unico(verbos, frase, primero=None):
@@ -235,6 +283,22 @@ def _tipo_solicitado(pregunta):
             return 'movimiento_inventario'
         if _VERBOS_INVENTARIO.search(frase):
             return 'ajustar_inventario'
+    # Tareas, oportunidades y actividades van antes que productos y contactos:
+    # «crea una tarea para llamar al proveedor» es una tarea, no un contacto.
+    if re.search(r'\b(' + _TAREA + r')\b', frase):
+        tipo = _unico(_VERBOS_TAREA, frase, primero='crear_tarea')
+        if tipo:
+            return tipo
+    if re.search(r'\b(' + _OPORTUNIDAD + r')\b', frase):
+        if _ETAPA_DICHA.search(frase) and _VERBOS_OPORTUNIDAD['mover_oportunidad'].search(frase):
+            return 'mover_oportunidad'
+        tipo = _unico(_VERBOS_OPORTUNIDAD, frase, primero='crear_oportunidad')
+        if tipo:
+            return tipo
+    if re.search(r'\b(' + _ACTIVIDAD + r')\b', frase):
+        tipo = _unico(_VERBOS_ACTIVIDAD, frase)
+        if tipo:
+            return tipo
     if re.search(r'\b(' + _PRODUCTO + r')\b', frase):
         tipo = _unico(_VERBOS_PRODUCTO, frase, primero='crear_producto')
         if tipo:
@@ -430,6 +494,56 @@ categoría actual (`campo`: `categoria`); 2) nombre nuevo (`campo`:
 `nombre_nuevo`). Ejemplo: «Renombra la categoría Bebidas a Bebidas frías» →
 {\"tipo\":\"renombrar_categoria\",\"categoria\":\"Bebidas\",
 \"nombre_nuevo\":\"Bebidas frías\"}.""",
+    'crear_tarea': """PROCESO crear_tarea.
+Salida completa: {\"tipo\":\"crear_tarea\",\"contacto_id\":entero O
+\"contacto\":\"nombre del contacto como lo dijo la persona\",\"titulo\":\"qué
+hay que hacer\",\"fecha\":\"expresión de fecha COPIADA tal cual\" opcional,
+\"descripcion\":\"...\" opcional}. Toda tarea es con un contacto del CRM
+(`campo`: `contacto` si no se nombra). No calcules fechas: copia «mañana», «el
+viernes», «15 de octubre». Ejemplo: «Recuérdame llamar a Juan Pérez mañana
+para cobrar» → {\"tipo\":\"crear_tarea\",\"contacto\":\"Juan Pérez\",
+\"titulo\":\"Llamar a Juan Pérez para cobrar\",\"fecha\":\"mañana\"}.""",
+    'completar_tarea': """PROCESO completar_tarea.
+Salida completa: {\"tipo\":\"completar_tarea\",\"tarea_id\":entero O
+\"tarea\":\"título o contacto de la tarea como lo dijo la persona\"}. Ejemplo:
+«Marca como hecha la tarea de llamar a Juan» → {\"tipo\":\"completar_tarea\",
+\"tarea\":\"llamar a Juan\"}.""",
+    'reabrir_tarea': """PROCESO reabrir_tarea.
+Salida completa: {\"tipo\":\"reabrir_tarea\",\"tarea_id\":entero O
+\"tarea\":\"título o contacto de la tarea\"}. Vuelve a dejarla pendiente.""",
+    'editar_tarea': """PROCESO editar_tarea.
+Salida completa: {\"tipo\":\"editar_tarea\",\"tarea_id\":entero O \"tarea\":\"título
+o contacto\",\"cambios\":{campo:valor}}. Cambios permitidos: titulo, prioridad
+(alta|media|baja), fecha (expresión COPIADA tal cual), descripcion. Ejemplo:
+«Aplaza la tarea de enviar pedido al lunes» → {\"tipo\":\"editar_tarea\",
+\"tarea\":\"enviar pedido\",\"cambios\":{\"fecha\":\"lunes\"}}.""",
+    'registrar_actividad': """PROCESO registrar_actividad.
+Salida completa: {\"tipo\":\"registrar_actividad\",\"contacto_id\":entero O
+\"contacto\":\"nombre como lo dijo la persona\",\"tipo_actividad\":
+\"llamada|email|reunion|whatsapp|visita|nota|otro\",\"asunto\":\"de qué se
+trató\",\"descripcion\":\"...\" opcional}. Es algo que YA pasó. Ejemplo:
+«Registra una llamada con Juan Pérez: pidió cotización» →
+{\"tipo\":\"registrar_actividad\",\"contacto\":\"Juan Pérez\",
+\"tipo_actividad\":\"llamada\",\"asunto\":\"Pidió cotización\"}.""",
+    'crear_oportunidad': """PROCESO crear_oportunidad.
+Salida completa: {\"tipo\":\"crear_oportunidad\",\"contacto_id\":entero O
+\"contacto\":\"nombre como lo dijo la persona\",\"titulo\":\"qué se le quiere
+vender\",\"monto\":número opcional,\"etapa\":\"...\" opcional,\"fecha_cierre\":
+\"expresión COPIADA\" opcional}. «5 millones» es 5000000. Ejemplo: «Crea una
+oportunidad con Andes por 5 millones para dotar su oficina» →
+{\"tipo\":\"crear_oportunidad\",\"contacto\":\"Andes\",\"titulo\":\"Dotar su
+oficina\",\"monto\":5000000}.""",
+    'mover_oportunidad': """PROCESO mover_oportunidad.
+Salida completa: {\"tipo\":\"mover_oportunidad\",\"oportunidad_id\":entero O
+\"oportunidad\":\"título o contacto como lo dijo la persona\",\"etapa\":
+\"prospecto|calificado|propuesta|negociacion|ganada|perdida\",
+\"motivo_perdida\":\"...\" opcional}. Ejemplo: «Ganamos el negocio con Andes» →
+{\"tipo\":\"mover_oportunidad\",\"oportunidad\":\"Andes\",\"etapa\":\"ganada\"}.""",
+    'editar_oportunidad': """PROCESO editar_oportunidad.
+Salida completa: {\"tipo\":\"editar_oportunidad\",\"oportunidad_id\":entero O
+\"oportunidad\":\"título o contacto\",\"cambios\":{campo:valor}}. Cambios
+permitidos: titulo, monto (número), fecha_cierre (expresión COPIADA),
+descripcion. La etapa NO se cambia aquí.""",
 }
 
 _CAMPOS_PLAN = {
@@ -445,6 +559,16 @@ _CAMPOS_PLAN = {
     'movimiento_inventario': {'tipo', 'producto_id', 'producto', 'direccion', 'cantidad', 'motivo'},
     'crear_categoria': {'tipo', 'nombre'},
     'renombrar_categoria': {'tipo', 'categoria', 'categoria_id', 'nombre_nuevo'},
+    'crear_tarea': {'tipo', 'contacto_id', 'contacto', 'titulo', 'prioridad', 'fecha', 'descripcion'},
+    'completar_tarea': {'tipo', 'tarea_id', 'tarea'},
+    'reabrir_tarea': {'tipo', 'tarea_id', 'tarea'},
+    'editar_tarea': {'tipo', 'tarea_id', 'tarea', 'cambios'},
+    'registrar_actividad': {'tipo', 'contacto_id', 'contacto', 'tipo_actividad', 'asunto',
+                            'descripcion'},
+    'crear_oportunidad': {'tipo', 'contacto_id', 'contacto', 'titulo', 'monto', 'etapa',
+                          'fecha_cierre'},
+    'mover_oportunidad': {'tipo', 'oportunidad_id', 'oportunidad', 'etapa', 'motivo_perdida'},
+    'editar_oportunidad': {'tipo', 'oportunidad_id', 'oportunidad', 'cambios'},
 }
 # Preguntas del catálogo por (proceso, campo): el modelo elige el campo que
 # falta y el servidor redacta la pregunta.
@@ -474,6 +598,26 @@ _PREGUNTAS_CATALOGO = {
     ('crear_categoria', 'nombre'): '¿Cómo se llama la categoría nueva?',
     ('renombrar_categoria', 'categoria'): '¿Qué categoría quieres renombrar?',
     ('renombrar_categoria', 'nombre_nuevo'): '¿Cuál será el nuevo nombre de la categoría?',
+    ('crear_tarea', 'contacto'): '¿Con qué contacto del CRM es la tarea?',
+    ('crear_tarea', 'titulo'): '¿Qué hay que hacer?',
+    ('crear_tarea', 'fecha'): '¿Para qué fecha? (p. ej. «mañana», «el viernes»)',
+    ('crear_tarea', 'prioridad'): '¿Qué prioridad tiene: alta, media o baja?',
+    ('completar_tarea', 'tarea'): '¿Qué tarea marco como hecha?',
+    ('reabrir_tarea', 'tarea'): '¿Qué tarea vuelvo a abrir?',
+    ('editar_tarea', 'tarea'): '¿Qué tarea quieres cambiar?',
+    ('editar_tarea', 'cambios'): '¿Qué cambio de la tarea: título, prioridad, fecha o detalle?',
+    ('editar_tarea', 'fecha'): '¿Para qué fecha queda? (p. ej. «el lunes»)',
+    ('registrar_actividad', 'contacto'): '¿Con qué contacto fue?',
+    ('registrar_actividad', 'tipo_actividad'): '¿Qué fue: llamada, correo, reunión, WhatsApp, visita o nota?',
+    ('registrar_actividad', 'asunto'): '¿De qué se trató?',
+    ('crear_oportunidad', 'contacto'): '¿Con qué contacto es la oportunidad?',
+    ('crear_oportunidad', 'titulo'): '¿Qué se le quiere vender?',
+    ('crear_oportunidad', 'monto'): '¿Por cuánto es la oportunidad?',
+    ('mover_oportunidad', 'oportunidad'): '¿Qué oportunidad quieres mover?',
+    ('mover_oportunidad', 'etapa'): '¿A qué etapa pasa: prospecto, calificado, propuesta, negociación, ganada o perdida?',
+    ('editar_oportunidad', 'oportunidad'): '¿Qué oportunidad quieres cambiar?',
+    ('editar_oportunidad', 'cambios'): '¿Qué cambio de la oportunidad: título, monto, fecha de cierre o detalle?',
+    ('editar_oportunidad', 'monto'): '¿Cuál es el nuevo monto?',
 }
 _PREGUNTAS = {
     'producto': '¿Cuál es el ID o la referencia exacta del producto?',
@@ -501,7 +645,7 @@ _CAMPOS_MENCION = {
 def _pregunta_campo(tipo, campo):
     """El modelo selecciona un campo, pero nunca redacta texto al usuario."""
     campo = campo if isinstance(campo, str) else None
-    if tipo in _CATALOGO:
+    if tipo in _CATALOGO or tipo in _CRM:
         propias = {c: p for (t, c), p in _PREGUNTAS_CATALOGO.items() if t == tipo}
         return propias.get(campo) or next(iter(propias.values()))
     if tipo == 'ajustar_inventario':
@@ -551,6 +695,8 @@ def _interpretar(pregunta, historial=None):
     if not isinstance(plan, dict):
         raise AccionError('No pude interpretar la acción con seguridad.')
     plan = _completar_identidad(plan, tipo_solicitado, pregunta)
+    if plan.get('tipo') == 'reinterpretar':
+        return _interpretar(plan['orden'], historial)
     if plan.get('tipo') == 'aclarar':
         raise AccionAclarar(_pregunta_campo(tipo_solicitado, plan.get('campo')))
     if plan.get('tipo') not in TIPOS:
@@ -602,6 +748,107 @@ def _nombre_en_orden(pregunta, objeto=_OBJETO_CONTACTO):
     return nombre or None
 
 
+# proceso del CRM: (clave del ID, clave del nombre) del registro al que se refiere
+_ID_CRM = {
+    'crear_tarea': ('contacto_id', 'contacto'),
+    'registrar_actividad': ('contacto_id', 'contacto'),
+    'crear_oportunidad': ('contacto_id', 'contacto'),
+    'completar_tarea': ('tarea_id', 'tarea'),
+    'reabrir_tarea': ('tarea_id', 'tarea'),
+    'editar_tarea': ('tarea_id', 'tarea'),
+    'mover_oportunidad': ('oportunidad_id', 'oportunidad'),
+    'editar_oportunidad': ('oportunidad_id', 'oportunidad'),
+}
+
+
+def _con_contacto_mencionado(plan, tipo, pregunta):
+    """Si un contacto aparece escrito en la orden, se vuelve a interpretar con
+    su ID explícito; si no, se deja la aclaración del modelo."""
+    if _id_elegido(pregunta) is not None:
+        return plan            # ya se reinterpretó con el ID: ahora sí se pregunta
+    try:
+        from services.ia.buscador import contacto_mencionado
+        with get_db_cursor(dict_cursor=True) as cur:
+            contacto = contacto_mencionado(cur, str(pregunta or '').split('. Dato adicional:')[0])
+    except Exception:  # noqa: BLE001
+        return plan
+    if not contacto:
+        return plan
+    if tipo == 'registrar_actividad':
+        # Todo sale de la frase: contacto escrito, tipo por el verbo y el asunto es
+        # lo que sigue al nombre («…a Distribuidora Andes y quedaron de pagar…»).
+        from services.ia_acciones_crm import tipo_actividad_de
+        asunto = _texto_tras_nombre(pregunta, contacto['nombre'])
+        if asunto:
+            return {'tipo': tipo, 'contacto': contacto['nombre'], 'asunto': asunto,
+                    'tipo_actividad': tipo_actividad_de(str(pregunta)) or 'otro'}
+    orden = combinar(pregunta, f"ID {contacto['id']}")
+    return {'tipo': 'reinterpretar', 'orden': orden}
+
+
+def _texto_tras_nombre(pregunta, nombre):
+    """Lo que la persona escribió después del nombre del contacto, sin conectores."""
+    orden = str(pregunta or '').split('. Dato adicional:')[0]
+    normal = _normalizar(orden)
+    pos = normal.find(_normalizar(nombre))
+    if pos < 0 or len(normal) != len(orden):
+        return None
+    resto = orden[pos + len(nombre):]
+    resto = re.sub(r'^[\s,:;.\-–]*(?:(?:y|que|porque|para)\s+)*', '', resto, flags=re.I).strip(' .')
+    return (resto[:1].upper() + resto[1:])[:300] if len(resto) >= 3 else None
+
+
+def _completar_crm(plan, tipo, pregunta):
+    """En el CRM las listas cerradas salen de las palabras de la persona, no
+    del modelo: «urgente» = prioridad alta, «llamé» = llamada, «ganamos» =
+    ganada. Si la persona no lo dijo, se usa el valor por defecto (media,
+    otro, prospecto) en vez de uno inventado."""
+    clave_id, clave_nombre = _ID_CRM[tipo]
+    if (plan.get('tipo') == 'aclarar' and plan.get('campo') in (None, 'contacto')
+            and clave_id == 'contacto_id'):
+        # Medido con Qwen: a veces pide el contacto de «Anota que visité a
+        # Distribuidora Andes…». Si un contacto del CRM aparece escrito tal cual,
+        # se usa ese; el modelo vuelve a interpretar la orden con él.
+        return _con_contacto_mencionado(plan, tipo, pregunta)
+    if plan.get('tipo') != tipo:
+        return plan
+    from services.ia_acciones_crm import etapa_de, prioridad_de, tipo_actividad_de
+    orden = str(pregunta or '')
+    plan = dict(plan)
+    elegido = _id_elegido(pregunta)
+    if elegido is not None:
+        plan.pop(clave_nombre, None)
+        plan[clave_id] = elegido
+    if tipo == 'crear_tarea':
+        prioridad = prioridad_de(orden)
+        if prioridad:
+            plan['prioridad'] = prioridad
+        else:
+            plan.pop('prioridad', None)
+    elif tipo == 'editar_tarea' and isinstance(plan.get('cambios'), dict) \
+            and 'prioridad' in plan['cambios']:
+        cambios = dict(plan['cambios'])
+        prioridad = prioridad_de(orden)
+        if prioridad:
+            cambios['prioridad'] = prioridad
+        else:
+            cambios.pop('prioridad')
+        plan['cambios'] = cambios
+    elif tipo == 'registrar_actividad':
+        plan['tipo_actividad'] = tipo_actividad_de(orden) or 'otro'
+    elif tipo == 'crear_oportunidad':
+        etapa = etapa_de(orden)
+        if etapa:
+            plan['etapa'] = etapa
+        else:
+            plan.pop('etapa', None)
+    elif tipo == 'mover_oportunidad':
+        etapa = etapa_de(orden)
+        if etapa:
+            plan['etapa'] = etapa
+    return plan
+
+
 def _completar_identidad(plan, tipo_solicitado, pregunta):
     """Identidad del registro sin depender de que el modelo la copie bien.
 
@@ -611,6 +858,8 @@ def _completar_identidad(plan, tipo_solicitado, pregunta):
     datos salen literalmente de lo que escribió la persona; el buscador y la
     vista previa con confirmación siguen aplicando. En un movimiento de
     inventario la dirección sale del verbo («se dañaron» = salida)."""
+    if tipo_solicitado in _CRM:
+        return _completar_crm(plan, tipo_solicitado, pregunta)
     if tipo_solicitado == 'movimiento_inventario' and plan.get('tipo') == tipo_solicitado:
         direccion = direccion_movimiento(pregunta)
         if direccion:
@@ -701,7 +950,9 @@ def _id_dicho(valor, fuentes, dominio):
     except (TypeError, ValueError):
         return False
     prefijos = {'producto': 'id|codigo|referencia|producto',
-                'categoria': 'id|categoria|genero'}.get(
+                'categoria': 'id|categoria|genero',
+                'tarea': 'id|tarea',
+                'oportunidad': 'id|oportunidad|negocio'}.get(
         dominio, 'id|contacto|cliente|proveedor|lead|socio')
     patron = re.compile(rf'\b(?:{prefijos})\s*(?:numero|no\.?\s*)?[:#-]?\s*{numero}\b')
     return any(patron.search(_normalizar(texto)) for texto in fuentes)
@@ -756,6 +1007,77 @@ def _campo_solicitado_faltante(pregunta, campos):
         if campo not in campos and re.search(patron, texto):
             return campo
     return None
+
+
+def _mayormente_dicho(valor, fuente, minimo=0.6):
+    """Títulos y asuntos: el modelo los redacta («Llamar a Juan para cobrar»),
+    pero sus palabras deben venir de lo dicho (al menos el 60 %)."""
+    from services.ia.texto import singular
+    tokens = [singular(t) for t in _plano(valor).split() if len(t) >= 3]
+    if not tokens:
+        return False
+    dicho = _plano(fuente)
+    presentes = sum(1 for t in tokens if t in dicho)
+    return presentes / len(tokens) >= minimo
+
+
+def _datos_crm_dichos(plan, fuentes, fuente):
+    """Tareas, actividades y oportunidades: el registro al que se refiere, los
+    títulos, montos y fechas deben venir de lo que escribió la persona."""
+    from services.ia.texto import valor_dicho
+    tipo = plan['tipo']
+
+    def falta(campo):
+        return AccionAclarar(_pregunta_campo(tipo, campo))
+
+    clave_id, clave_nombre = _ID_CRM[tipo]
+    dominio = {'contacto_id': 'contacto', 'tarea_id': 'tarea',
+               'oportunidad_id': 'oportunidad'}[clave_id]
+    if plan.get(clave_id) is not None:
+        if not _id_dicho(plan[clave_id], fuentes, dominio):
+            raise falta(clave_nombre)
+    elif not plan.get(clave_nombre) or not _aparece(plan[clave_nombre], fuente):
+        raise falta(clave_nombre)
+
+    def fecha_dicha(valor):
+        return valor in (None, '') or _aparece(valor, fuente)
+
+    if tipo == 'crear_tarea':
+        if not _mayormente_dicho(plan.get('titulo'), fuente):
+            raise falta('titulo')
+        if not fecha_dicha(plan.get('fecha')):
+            raise falta('fecha')
+    elif tipo == 'registrar_actividad':
+        if not _mayormente_dicho(plan.get('asunto'), fuente):
+            raise falta('asunto')
+    elif tipo == 'crear_oportunidad':
+        if not _mayormente_dicho(plan.get('titulo'), fuente):
+            raise falta('titulo')
+        if plan.get('monto') not in (None, '') and not valor_dicho(plan['monto'], fuentes):
+            raise falta('monto')
+        if not fecha_dicha(plan.get('fecha_cierre')):
+            plan.pop('fecha_cierre')
+    elif tipo == 'mover_oportunidad':
+        from services.ia_acciones_crm import etapa_de
+        if plan.get('etapa') != etapa_de(fuentes[0]):   # la orden actual, no el historial
+            raise falta('etapa')
+        if plan.get('motivo_perdida') and not _aparece(plan['motivo_perdida'], fuente):
+            plan.pop('motivo_perdida')
+    elif tipo in ('editar_tarea', 'editar_oportunidad'):
+        cambios = plan.get('cambios')
+        if not isinstance(cambios, dict) or not cambios:
+            raise falta('cambios')
+        for campo, valor in cambios.items():
+            if campo == 'titulo' and not _mayormente_dicho(valor, fuente):
+                raise falta('titulo')
+            if campo in ('fecha', 'fecha_cierre') and (not valor or not _aparece(valor, fuente)):
+                raise falta(campo)
+            if campo == 'monto' and not valor_dicho(valor, fuentes):
+                raise falta('monto')
+            if campo == 'descripcion' and valor and not _aparece(valor, fuente):
+                raise falta('cambios')
+    if plan.get('descripcion') and not _aparece(plan['descripcion'], fuente):
+        plan.pop('descripcion')
 
 
 def _datos_catalogo_dichos(plan, fuentes, fuente):
@@ -842,6 +1164,9 @@ def _solo_datos_dichos(plan, pregunta, historial):
     tipo = plan.get('tipo')
     if tipo in _CATALOGO:
         _datos_catalogo_dichos(plan, fuentes, fuente)
+        return
+    if tipo in _CRM:
+        _datos_crm_dichos(plan, fuentes, fuente)
         return
     if tipo == 'ajustar_inventario':
         if plan.get('producto_id') is None and not plan.get('producto'):
@@ -999,6 +1324,9 @@ def _preparar_datos(cur, plan):
     if tipo in _CATALOGO:
         from services import ia_acciones_catalogo
         return ia_acciones_catalogo.preparar(cur, plan)
+    if tipo in _CRM:
+        from services import ia_acciones_crm
+        return ia_acciones_crm.preparar(cur, plan)
     if tipo == 'ajustar_inventario':
         nuevo = _entero(plan.get('stock_nuevo'), 'el stock final', minimo=0)
         motivo = _texto(plan.get('motivo'), 'motivo', 500, obligatorio=True)
@@ -1158,6 +1486,9 @@ def _ejecutar(cur, fila, usuario):
     if tipo in _CATALOGO:
         from services import ia_acciones_catalogo
         return ia_acciones_catalogo.ejecutar(cur, fila, usuario)
+    if tipo in _CRM:
+        from services import ia_acciones_crm
+        return ia_acciones_crm.ejecutar(cur, fila, usuario)
     if tipo == 'ajustar_inventario':
         producto = _producto(cur, {'producto_id': payload['producto_id']}, bloquear=True)
         anterior = int(producto['stock'] or 0)

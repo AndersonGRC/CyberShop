@@ -15,6 +15,35 @@ from services.ia_datos.base import _existe
 LIMITE = 10
 
 
+def tareas_pendientes(limite=15, **_):
+    """Tareas pendientes del CRM con su ID, contacto, prioridad y vencimiento,
+    para completarlas o cambiarlas por su ID. Primero las vencidas."""
+    try:
+        limite = max(1, min(int(limite or 15), 40))
+    except (TypeError, ValueError):
+        limite = 15
+    with get_db_cursor(dict_cursor=True) as cur:
+        if not _existe(cur, 'crm_tareas'):
+            return {'conclusion': 'Este negocio todavía no usa tareas en el CRM.'}
+        cur.execute("""SELECT t.id, t.titulo, t.prioridad, t.fecha_limite, c.nombre AS contacto,
+                              (t.fecha_limite < CURRENT_DATE) AS vencida
+                       FROM crm_tareas t JOIN crm_contactos c ON c.id = t.contacto_id
+                       WHERE t.estado = 'pendiente'
+                       ORDER BY (t.fecha_limite IS NULL), t.fecha_limite,
+                                CASE t.prioridad WHEN 'alta' THEN 0 WHEN 'media' THEN 1 ELSE 2 END, t.id
+                       LIMIT %s""", (limite,))
+        filas = cur.fetchall()
+        cur.execute("SELECT COUNT(*) AS n FROM crm_tareas WHERE estado = 'pendiente'")
+        total = int(cur.fetchone()['n'])
+    if not filas:
+        return {'tareas_pendientes': 0, 'conclusion': 'No hay tareas pendientes en el CRM.'}
+    return {'tareas_pendientes': total,
+            'tareas': [{'id': f['id'], 'tarea': f['titulo'], 'contacto': f['contacto'],
+                        'prioridad': f['prioridad'],
+                        'vence': str(f['fecha_limite']) if f['fecha_limite'] else None,
+                        'vencida': bool(f['vencida'])} for f in filas]}
+
+
 def buscar_contactos(texto='', limite=LIMITE, **_):
     """Contactos activos que coinciden con lo dicho (nombre, empresa, correo o
     teléfono). Sin texto: los más recientes."""

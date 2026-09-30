@@ -206,6 +206,12 @@ INTENCIONES = {
         'ejemplos': ('¿A quién tengo que llamar hoy?',),
         'canales': PANEL, 'motor': 'A',
     },
+    'tareas_pendientes': {
+        'disparadores': ('mis tareas', 'tareas pendientes con id', 'lista de tareas',
+                         'que tareas tengo', 'muestrame las tareas', 'tareas por hacer'),
+        'ejemplos': ('¿Qué tareas tengo?', 'Muéstrame las tareas pendientes'),
+        'canales': PANEL, 'motor': 'A',
+    },
     'buscar_contactos': {
         'disparadores': ('busca el contacto', 'buscar contacto', 'buscar el contacto',
                          'datos del contacto', 'ficha del contacto', 'id del contacto',

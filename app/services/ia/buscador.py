@@ -79,6 +79,26 @@ def contactos(cur, referencia, activos=True, limite=5):
     return filas, 'parcial'
 
 
+def contacto_mencionado(cur, texto):
+    """El contacto activo cuyo nombre completo aparece escrito en la frase
+    («…visité a Distribuidora Andes…»), o None si no hay uno claro. Si aparecen
+    «Andes» y «Distribuidora Andes», gana el más largo que contiene al otro."""
+    from services.ia.texto import normalizar
+    plano = ' '.join(re.sub(r'[^a-z0-9@.]+', ' ', normalizar(texto)).split())
+    cur.execute("""SELECT id, nombre FROM crm_contactos
+                   WHERE activo = TRUE AND length(nombre) >= 4
+                     AND %s LIKE '%%' || regexp_replace(translate(lower(nombre), %s, %s),
+                                                        '[^a-z0-9@.]+', ' ', 'g') || '%%'
+                   ORDER BY length(nombre) DESC LIMIT 4""", (plano, *SIN_TILDES))
+    filas = [dict(f) for f in cur.fetchall()]
+    if not filas:
+        return None
+    mayor = normalizar(filas[0]['nombre'])
+    if all(normalizar(f['nombre']) in mayor for f in filas[1:]):
+        return filas[0]
+    return None
+
+
 def elegir(filas, modo):
     """El registro a usar, o None si hay que preguntar cuál.
 

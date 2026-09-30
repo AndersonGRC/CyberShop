@@ -23,6 +23,18 @@ publica por sí solo los cambios del panel maestro ni activa este módulo.
 | `archivar_producto` / `reactivar_producto` | «archiva/desactiva/oculta», «reactiva/restaura» el producto | Producto | `inventory.eliminar` / `inventory.operar` | `active` (y `visible_en_ecommerce`) FALSE/TRUE, como el panel. Sin la columna `active`, no se hace desde la IA. |
 | `movimiento_inventario` | «entraron 10 gaseosas», «se dañaron 2 tortas», «llegaron 5 unidades» | Producto, cantidad y dirección (sale del verbo); motivo opcional | `inventory.operar` | Suma o resta al stock, nunca por debajo de cero, con rastro en `inventario_log`. |
 | `crear_categoria` / `renombrar_categoria` | «crea la categoría…», «renombra la categoría X a Y» | Nombre (≤50) / categoría actual y nombre nuevo | `inventory.operar` | Inserta o renombra en `generos` sin duplicar; al renombrar «toca» sus productos para que el escritorio refresque el nombre. |
+| `crear_tarea` | «recuérdame llamar a…», «crea una tarea para…» | Contacto (por parecido o escrito en la frase), qué hay que hacer; opcionales: fecha («mañana», «el viernes», «15 de octubre») y prioridad (de «urgente», «importante») | `crm.operar` | Inserta en `crm_tareas`. **No** envía correo ni crea evento de Google Calendar (la vista previa lo dice). |
+| `completar_tarea` / `reabrir_tarea` / `editar_tarea` | «marca como hecha la tarea…», «reabre…», «aplaza la tarea… al lunes» | Tarea (por palabras del título o del contacto); cambios: título, fecha, prioridad | `crm.operar` | Cambia `estado`/`completada_en` o los campos dichos. Nunca se borra una tarea. |
+| `registrar_actividad` | «registra una llamada con…», «anota que visité a…» | Contacto y asunto; el tipo (llamada, visita, reunión, correo, whatsapp, nota) sale del verbo, si no «otro» | `crm.operar` | Inserta en `crm_actividades` con fecha = ahora. Son historial: no se editan. |
+| `crear_oportunidad` / `editar_oportunidad` | «crea una oportunidad con… por 3 millones», «cambia el monto de la oportunidad…» | Contacto, título; opcionales monto (como lo dijo: «3 millones», «2.500.000») y fecha de cierre | `crm.operar` | Inserta/actualiza `crm_oportunidades`; etapa inicial Prospecto. |
+| `mover_oportunidad` | «ganamos el negocio de…», «pasa la oportunidad a negociación», «perdimos…» | Oportunidad y etapa (de las palabras) | `crm.operar` | Cambia `etapa`; ganada/perdida ⇒ probabilidad 100/0 y fecha de cierre real, como el CRM. «Perdida» es el cierre: no hay borrado. |
+
+Lógica del CRM en `services/ia_acciones_crm.py` (fase 3, 1.4.2.0): las fechas las
+calcula el servidor, nunca el modelo; prioridad, tipo de actividad y etapa salen de
+las palabras de la persona. Si el modelo pide el contacto pero su nombre completo
+está escrito en la frase («…visité a Distribuidora Andes y…»), se toma de ahí. Al
+confirmar se compara con la vista previa (una oportunidad movida por otra persona
+rechaza la acción). Consulta relacionada sin confirmación: `tareas_pendientes`.
 
 Lógica del catálogo en `services/ia_acciones_catalogo.py` (fase 2, 1.4.1.0). Al
 confirmar se compara con la vista previa; el stock solo cuenta en los
