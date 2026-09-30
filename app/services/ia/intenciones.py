@@ -206,6 +206,14 @@ INTENCIONES = {
         'ejemplos': ('¿A quién tengo que llamar hoy?',),
         'canales': PANEL, 'motor': 'A',
     },
+    'buscar_contactos': {
+        'disparadores': ('busca el contacto', 'buscar contacto', 'buscar el contacto',
+                         'datos del contacto', 'ficha del contacto', 'id del contacto',
+                         'mis contactos', 'lista de contactos', 'muestrame los contactos',
+                         'telefono del contacto', 'correo del contacto'),
+        'ejemplos': ('Busca el contacto Cybershop', '¿Cuál es el ID del contacto Andes?'),
+        'canales': PANEL, 'motor': 'A',
+    },
     'cotizaciones_estado': {
         'disparadores': ('cotizaciones', 'cuantas cotizaciones', 'cotizaciones aprobadas',
                          'cotizaciones sin respuesta'),

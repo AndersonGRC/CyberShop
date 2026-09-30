@@ -15,13 +15,38 @@ publica por sí solo los cambios del panel maestro ni activa este módulo.
 | --- | --- | --- | --- | --- |
 | `ajustar_inventario` | «fijar stock», «cuadrar inventario», «ajustar existencias» | ID, nombre o referencia exacta del producto; **stock final** entero no negativo; motivo concreto | `inventory.operar` | Actualiza `productos.stock` y crea `inventario_log` en la misma transacción. |
 | `crear_contacto` | «crear contacto», «agregar contacto», «registrar contacto» | Nombre y tipo: cliente, proveedor, lead o socio | `crm.operar` | Inserta solo campos permitidos en `crm_contactos`. |
-| `editar_contacto` | «editar contacto», «cambiar contacto», «actualizar contacto» | ID o nombre exacto; campos y nuevos valores | `crm.operar` | Actualiza solo campos permitidos, tras comparar el registro con la vista previa. |
-| `eliminar_contacto` | «eliminar contacto», «borrar contacto» | ID o nombre exacto | `crm.eliminar` | Desactiva (`activo=FALSE`); no borra ventas ni otros registros. |
+| `editar_contacto` | «editar contacto», «cambiar contacto», «actualizar contacto» | ID, o nombre/correo/teléfono como lo diga la persona (búsqueda por parecido); campos y nuevos valores | `crm.operar` | Actualiza solo campos permitidos, tras comparar el registro con la vista previa. |
+| `eliminar_contacto` | «eliminar», «borrar», «desactivar», «archivar» contacto | ID o nombre (búsqueda por parecido) | `crm.eliminar` | Desactiva (`activo=FALSE`); no borra ventas ni otros registros. |
+| `reactivar_contacto` | «reactivar», «activar de nuevo», «restaurar», «recuperar» contacto | ID o nombre de un contacto **desactivado** | `crm.operar` | `activo=TRUE` si no hay otro activo con el mismo nombre o correo. |
+
+Consulta de solo lectura relacionada (sin confirmación): `buscar_contactos`
+(permiso `crm`, solo local) muestra contactos con su ID, correo y teléfono.
+
+### Encontrar el registro como lo nombra la persona (1.4.0.0)
+
+Caso real (Panadería Nicol's, 28-sep): tras crear «Cybershop», «edita el contacto
+de Cybershop Proveedor Tecnológico…» respondía «No encontré ese contacto» porque
+se exigía el nombre exacto. Ahora `services/ia/buscador.py` busca por ID;
+teléfono, correo o nombre exactos; todas las palabras (sin tildes, en singular);
+o las que más coinciden. Si hay un candidato claro lo usa (la vista previa lo
+muestra con su ID); si hay varios, la IA lista «ID 36 · Distribuidora Qwandes ·
+proveedor; ID 37 · Qwandes Tech · cliente» y la respuesta «37» elige ese ID.
+
+- **«El que acabo de crear».** Si la última acción ejecutada por la misma persona
+  (≤15 min, leída en el servidor) fue sobre un contacto y el siguiente mensaje
+  trae un dato de contacto sin «?» («está ubicado en Bogotá»), se propone editar
+  ese contacto.
+- **Identidad sin depender del modelo.** Si Qwen pide el contacto en «Desactiva el
+  contacto Cybershop», el nombre se toma literalmente de la frase; el ID elegido
+  de una lista manda sobre un nombre ambiguo.
+- **Teléfonos.** Se comparan por número completo dicho por la persona (se admite
+  el indicativo 57), nunca pegando dígitos vecinos. Un teléfono que no tenga 7, 10
+  o 12 dígitos no se bloquea, pero la vista previa muestra un aviso.
 
 El detector de palabras solo decide que la frase parece una orden. Antes de
 llamar al modelo se comprueban la función solicitada, el módulo y el permiso,
 para no gastar el respaldo de pago en solicitudes no autorizadas. El modelo
-convierte la frase en un candidato JSON de **cuatro tipos cerrados** o pide
+convierte la frase en un candidato JSON de **tipos cerrados** o pide
 aclaración. No puede generar SQL ni autorizar la escritura. Si hay un posible
 duplicado o el modelo devuelve algo inválido, se rechaza la propuesta. Para
 inventario no se infiere un stock final a partir de «suma tres» o «cuadra»: se

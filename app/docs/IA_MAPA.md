@@ -14,7 +14,7 @@ Así decide el asistente qué hacer con una pregunta:
 
 En todos los casos, los datos los pone la consulta: el modelo solo redacta con lo que recibe.
 
-**Capacidades registradas: 48**
+**Capacidades registradas: 49**
 
 ## Caja
 
@@ -46,6 +46,7 @@ En todos los casos, los datos los pone la consulta: el modelo solo redacta con l
 
 | Función | Qué responde | Se dispara con | Parámetros | Canal | Motor | Permiso |
 |---|---|---|---|---|---|---|
+| `buscar_contactos` | Busca contactos del CRM (clientes, proveedores, leads, socios) por nombre, empresa, correo o teléfono y muestra su ID y datos de contacto. Sin nombre, los más recientes. | `busca el contacto` · `buscar contacto` · `buscar el contacto` · `datos del contacto` · `ficha del contacto` · `id del contacto` · `mis contactos` · `lista de contactos` · `muestrame los contactos` · `telefono del contacto` · `correo del contacto` | texto, limite | Panel | A · cualquiera | crm · módulo crm |
 | `cartera_pendiente` | Cartera por cobrar: qué cotizaciones aprobadas y cuentas de cobro están aprobadas pero todavía no las han pagado, cuánto suman, quién debe y qué está vencido. | `cuanto me deben` · `quien me debe` · `cartera` · `por cobrar` · `sin cobrar` · `pendiente de pago` | — | Panel | A · cualquiera | billing · módulo billing |
 | `cotizaciones_estado` | Cotizaciones de un período: cuántas, por cuánto, cuántas se aprobaron y cuáles llevan días sin respuesta. | `cotizaciones` · `cuantas cotizaciones` · `cotizaciones aprobadas` · `cotizaciones sin respuesta` | periodo | Panel | A · cualquiera | quotes · módulo quotes |
 | `crm_pipeline` | Negocios y oportunidades en curso del CRM: cuánto hay por etapa, cuánto se espera cerrar, ganados y perdidos, y qué cierra pronto. | `oportunidades` · `pipeline` · `negocios en curso` · `embudo` · `negocios puedo cerrar` · `puedo cerrar` | — | Panel | B · mejor con el bueno | crm · módulo crm |
@@ -152,6 +153,8 @@ Las usa la prueba del enrutador: cada una debe caer en su función.
 - «¿Qué ha comprado Ana Pérez?» → `cliente_historial`
 - «¿Qué tipos de clientes tengo?» → `segmentos_clientes`
 - «¿Quiénes son mis mejores clientes?» → `top_clientes`
+- «Busca el contacto Cybershop» → `buscar_contactos`
+- «¿Cuál es el ID del contacto Andes?» → `buscar_contactos`
 - «¿Cuánto me deben?» → `cartera_pendiente`
 - «¿Qué está vencido sin cobrar?» → `cartera_pendiente`
 - «¿Cómo van mis cotizaciones?» → `cotizaciones_estado`

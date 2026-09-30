@@ -78,12 +78,19 @@ def _texto_de_accion(pregunta, pendiente):
 
     Con una acción esperando un dato, la respuesta de la persona la completa
     («proveedor», «el stock final es 12»), salvo que sea otra orden, una
-    cancelación o claramente otra pregunta con datos («¿cuánto vendí hoy?»)."""
+    cancelación o claramente otra pregunta con datos («¿cuánto vendí hoy?»).
+
+    Sin acción pendiente, un dato suelto sobre el registro que la persona acaba
+    de crear o editar («está ubicado en Bogotá») se convierte en editarlo; el
+    registro sale de su última acción ejecutada, leída en el servidor."""
     from services import ia_acciones
     if ia_acciones.parece_operativa(pregunta):
         return pregunta, False
     if not pendiente:
-        return None, False
+        if not ia_acciones.podria_ser_dato(pregunta):
+            return None, False
+        orden = ia_acciones.sobre_ultimo(ia_acciones.ultimo_registro(), pregunta)
+        return (orden, False) if orden else (None, False)
     if ia_acciones.es_cancelacion(pregunta):
         return None, True
     if '?' in pregunta:

@@ -22,6 +22,7 @@ TIPOS = {
     'crear_contacto': ('crm', 'operar'),
     'editar_contacto': ('crm', 'operar'),
     'eliminar_contacto': ('crm', 'eliminar'),
+    'reactivar_contacto': ('crm', 'operar'),
 }
 TIPOS_CONTACTO = {'cliente', 'proveedor', 'lead', 'socio'}
 CONTACTO_CAMPOS = {
@@ -33,19 +34,31 @@ CONTACTO_COLUMNAS = ', '.join(('id', *CONTACTO_CAMPOS, 'activo'))
 _VERBOS = re.compile(r'\b(crea|crear|creame|agrega|agregar|registra|registrar|'
                     r'edita|editar|modifica|modificar|cambia|cambiar|actualiza|actualizar|'
                     r'elimina|eliminar|borra|borrar|cuadra|cuadrar|ajusta|ajustar|'
-                    r'fija|fijar|pon|poner|sube|subir|baja|bajar)\b')
+                    r'fija|fijar|pon|poner|sube|subir|baja|bajar|'
+                    r'desactiva|desactivar|archiva|archivar|reactiva|reactivar|activa|activar|'
+                    r'restaura|restaurar|recupera|recuperar)\b')
 # Un contacto también se nombra por su tipo: «crea un proveedor», «agrega el
 # socio…», «registra un cliente nuevo». Antes solo contaba la palabra
 # «contacto» y «crea un proveedor» se iba al chat de consultas.
 _CONTACTO = (r'contactos?|proveedor(?:es)?|socios?|leads?'
              r'|clientes?\s+nuevos?|nuevos?\s+clientes?|como\s+cliente')
+# «cliente» suelto no es un objeto («crea un pedido para el cliente Juan»), pero
+# sí justo después de desactivar/archivar/reactivar: «archiva el cliente Ana».
+_CLIENTE_OBJETO = (r'(?:elimina|eliminar|borra|borrar|desactiva|desactivar|archiva|archivar|'
+                   r'reactiva|reactivar|activa|activar|restaura|restaurar|recupera|recuperar)'
+                   r'\s+(?:al|el|a|la)\s+(?:cliente|clienta)')
+_CONTACTO = _CONTACTO + '|' + _CLIENTE_OBJETO
 _OBJETOS = re.compile(r'\b(' + _CONTACTO + r'|inventario|stock|existencias?|productos?)\b')
 _SOLO_LECTURA = re.compile(r'^(como|que es|puedo|se puede|explica|muestra|'
                           r'consulta|cuales|cuantos)\b')
 _VERBOS_CONTACTO = {
     'crear_contacto': re.compile(r'\b(crea|crear|creame|agrega|agregar|registra|registrar)\b'),
     'editar_contacto': re.compile(r'\b(edita|editar|modifica|modificar|cambia|cambiar|actualiza|actualizar)\b'),
-    'eliminar_contacto': re.compile(r'\b(elimina|eliminar|borra|borrar)\b'),
+    'eliminar_contacto': re.compile(r'\b(elimina|eliminar|borra|borrar|desactiva|desactivar|'
+                                    r'archiva|archivar)\b'),
+    # «activa» no choca con «desactiva»: \b exige que no haya letras antes.
+    'reactivar_contacto': re.compile(r'\b(reactiva|reactivar|activa|activar|restaura|restaurar|'
+                                     r'recupera|recuperar)\b'),
 }
 _VERBOS_INVENTARIO = re.compile(r'\b(cuadra|cuadrar|ajusta|ajustar|fija|fijar|'
                                 r'pon|poner|sube|subir|baja|bajar|cambia|cambiar|'
@@ -80,7 +93,61 @@ def combinar(solicitud, respuesta):
     a validar completa (permiso, tipo, datos): no es un atajo para saltarse nada."""
     solicitud = str(solicitud or '').strip()[:700]
     respuesta = str(respuesta or '').strip()[:280]
+    # Respuesta a una lista de opciones («ID 1 · Cybershop…»): «1», «el 1», «#1».
+    # Se deja dicho como ID para que cuente como identificador explícito.
+    elegido = re.fullmatch(r'(?:el\s+|la\s+)?(?:id\s*|#\s*)?(\d{1,9})\.?', _normalizar(respuesta))
+    if elegido:
+        respuesta = f'ID {elegido.group(1)}'
     return f'{solicitud}. Dato adicional: {respuesta}'[:1000]
+
+
+# ── «El que acabo de crear» ────────────────────────────────────
+# Caso real (Panadería Nicol's): tras crear el contacto «Cybershop», el dueño
+# escribió «está ubicado en Bogotá» y se fue al chat de consultas. Si la última
+# acción EJECUTADA por la misma persona (≤15 min, leída del servidor, nunca del
+# navegador) fue sobre un contacto y el mensaje trae un dato de contacto, se
+# propone editar ese contacto; la vista previa lo muestra antes de confirmar.
+_ULTIMO_MINUTOS = 15
+_DATO_DE_CONTACTO = re.compile(
+    r'\b(ubicad[oa]s?|queda|quedan|ciudad|direccion|vive|telefono|celular|whats?app|correo|'
+    r'email|empresa|cargo|nota|notas|sitio web|pagina web|web)\b')
+
+
+def ultimo_registro():
+    """{'entidad': 'contacto', 'id': 1} de la última acción ejecutada por la
+    persona en los últimos minutos, o None. Nunca lanza."""
+    try:
+        usuario, _rol, db_nombre = _identidad()
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("""SELECT resultado FROM ia_acciones_pendientes
+                           WHERE usuario_id = %s AND db_nombre = %s AND estado = 'ejecutada'
+                             AND decidido_en > NOW() - make_interval(mins => %s)
+                           ORDER BY decidido_en DESC LIMIT 1""",
+                        (usuario, db_nombre, _ULTIMO_MINUTOS))
+            fila = cur.fetchone()
+    except Exception:  # noqa: BLE001
+        return None
+    resultado = (fila or {}).get('resultado') or {}
+    if isinstance(resultado, dict) and isinstance(resultado.get('contacto_id'), int):
+        return {'entidad': 'contacto', 'id': resultado['contacto_id']}
+    return None
+
+
+def podria_ser_dato(texto):
+    """Filtro barato antes de consultar el último registro: sin «?» y con la
+    palabra de algún dato de contacto."""
+    texto = str(texto or '')
+    return '?' not in texto and bool(_DATO_DE_CONTACTO.search(_normalizar(texto)))
+
+
+def sobre_ultimo(registro, texto):
+    """La orden para el último registro si el mensaje trae un dato suyo, o None.
+    Las preguntas («¿…?») siguen siendo consultas."""
+    if not registro or '?' in str(texto) or parece_operativa(texto):
+        return None
+    if registro.get('entidad') == 'contacto' and _DATO_DE_CONTACTO.search(_normalizar(str(texto))):
+        return f"Edita el contacto ID {registro['id']}: {str(texto).strip()[:280]}"
+    return None
 
 
 def _normalizar(texto):
@@ -204,8 +271,9 @@ Si pidió uno de esos campos pero no dio su valor, aclara con ese `campo`.
 No derives el nombre de un email ni inventes otros datos.""",
     'editar_contacto': """PROCESO editar_contacto.
 Salida completa: {\"tipo\":\"editar_contacto\",\"contacto_id\":entero O
-\"contacto\":\"nombre exacto\",\"cambios\":{campo:valor_nuevo}}.
-Orden de datos: 1) ID o nombre exacto del contacto (`campo`: `contacto`);
+\"contacto\":\"nombre, correo o teléfono como lo dijo la persona\",
+\"cambios\":{campo:valor_nuevo}}. El servidor busca el contacto por parecido.
+Orden de datos: 1) ID o nombre del contacto (`campo`: `contacto`);
 2) al menos un campo a modificar y su valor nuevo (`campo`: `cambios` o el
 campo específico solicitado). Cambios permitidos: nombre, tipo, empresa,
 cargo, email, telefono, whatsapp, sitio_web, direccion, ciudad, notas, origen.
@@ -214,9 +282,17 @@ campo opcional y se permite SOLO si lo pidió expresamente. No copies valores
 actuales ni supongas cambios desde la conversación previa.""",
     'eliminar_contacto': """PROCESO eliminar_contacto.
 Salida completa: {\"tipo\":\"eliminar_contacto\",\"contacto_id\":entero O
-\"contacto\":\"nombre exacto\"}. Único dato: ID o nombre exacto del
-contacto (`campo`: `contacto`). La acción disponible es desactivar el contacto;
+\"contacto\":\"nombre, correo o teléfono como lo dijo la persona\"}. Único
+dato: ID o nombre del contacto (`campo`: `contacto`). La acción disponible es desactivar el contacto;
 no se borran ventas, documentos ni datos de otros clientes.""",
+    'reactivar_contacto': """PROCESO reactivar_contacto.
+Salida completa: {\"tipo\":\"reactivar_contacto\",\"contacto_id\":entero O
+\"contacto\":\"nombre, correo o teléfono como lo dijo la persona\"}. Único
+dato: ID o nombre del contacto (`campo`: `contacto`); el servidor lo busca entre
+los desactivados. Ejemplo: «Reactiva el contacto Ana Pérez» →
+{\"tipo\":\"reactivar_contacto\",\"contacto\":\"Ana Pérez\"}. Pide aclaración
+solo si la orden no nombra ningún contacto. Vuelve a dejarlo activo; no cambia
+ningún otro dato.""",
 }
 
 _CAMPOS_PLAN = {
@@ -224,12 +300,13 @@ _CAMPOS_PLAN = {
     'crear_contacto': {'tipo', 'campos'},
     'editar_contacto': {'tipo', 'contacto_id', 'contacto', 'cambios'},
     'eliminar_contacto': {'tipo', 'contacto_id', 'contacto'},
+    'reactivar_contacto': {'tipo', 'contacto_id', 'contacto'},
 }
 _PREGUNTAS = {
     'producto': '¿Cuál es el ID o la referencia exacta del producto?',
     'stock_nuevo': '¿Cuál es el stock final exacto del producto?',
     'motivo': '¿Cuál es el motivo exacto del ajuste?',
-    'contacto': '¿Cuál es el ID o el nombre exacto del contacto?',
+    'contacto': '¿Cuál es el nombre, correo, teléfono o ID del contacto?',
     'nombre': '¿Cuál es el nombre del contacto?',
     'tipo': '¿Es cliente, proveedor, lead o socio?',
     'cambios': '¿Qué dato del contacto deseas modificar y cuál es su valor nuevo?',
@@ -297,6 +374,7 @@ def _interpretar(pregunta, historial=None):
         raise AccionError('No pude interpretar la acción con seguridad. Reformúlala con datos exactos.')
     if not isinstance(plan, dict):
         raise AccionError('No pude interpretar la acción con seguridad.')
+    plan = _completar_identidad(plan, tipo_solicitado, pregunta)
     if plan.get('tipo') == 'aclarar':
         raise AccionAclarar(_pregunta_campo(tipo_solicitado, plan.get('campo')))
     if plan.get('tipo') not in TIPOS:
@@ -306,6 +384,55 @@ def _interpretar(pregunta, historial=None):
         raise AccionError('La acción interpretada contiene datos no permitidos. '
                           'Descríbela de nuevo con los campos exactos.')
     _solo_datos_dichos(plan, pregunta, historial)
+    return plan
+
+
+_ID_ELEGIDO = re.compile(r'dato adicional:\s*id\s*(\d{1,9})\b')
+_NOMBRE_TRAS_OBJETO = re.compile(
+    r'\b(?:contacto|proveedor|cliente|lead|socio)\b\s+(?:(?:llamad[oa]|de nombre)\s+)?'
+    r'(?P<nombre>[^.,;:!?¿¡()\[\]]{2,120})', re.I)
+_COLA_DE_ORDEN = re.compile(r'\s+(?:de nuevo|otra vez|nuevamente|por favor|porfa)\s*$', re.I)
+_CONTACTO_UNICO_DATO = ('eliminar_contacto', 'reactivar_contacto')
+
+
+def _id_elegido(pregunta):
+    """El ID que la persona eligió de una lista («Dato adicional: ID 34»)."""
+    hallados = _ID_ELEGIDO.findall(_normalizar(str(pregunta or '')))
+    return int(hallados[-1]) if hallados else None
+
+
+def _nombre_en_orden(pregunta):
+    """«Desactiva el contacto Cybershop» → «Cybershop», tal como se escribió."""
+    orden = str(pregunta or '').split('. Dato adicional:')[0]
+    hallado = _NOMBRE_TRAS_OBJETO.search(orden)
+    if not hallado:
+        return None
+    nombre = _COLA_DE_ORDEN.sub('', hallado.group('nombre')).strip()
+    return nombre or None
+
+
+def _completar_identidad(plan, tipo_solicitado, pregunta):
+    """Identidad del contacto sin depender de que el modelo la copie bien.
+
+    Medido con Qwen: «Desactiva el contacto Cybershop» y «Elimina el proveedor
+    Andes» devolvían aclarar{contacto} aunque el nombre estaba en la frase, y
+    tras elegir «ID 34» de una lista seguía mandando el nombre ambiguo. Ambos
+    datos salen literalmente de lo que escribió la persona; el buscador y la
+    vista previa con confirmación siguen aplicando."""
+    if not tipo_solicitado.endswith('_contacto') or tipo_solicitado == 'crear_contacto':
+        return plan
+    elegido = _id_elegido(pregunta)
+    if plan.get('tipo') == tipo_solicitado and elegido is not None:
+        plan = {k: v for k, v in plan.items() if k != 'contacto'}
+        plan['contacto_id'] = elegido
+        return plan
+    if (plan.get('tipo') == 'aclarar' and plan.get('campo') in (None, 'contacto')
+            and tipo_solicitado in _CONTACTO_UNICO_DATO):
+        if elegido is not None:
+            return {'tipo': tipo_solicitado, 'contacto_id': elegido}
+        nombre = _nombre_en_orden(pregunta)
+        if nombre:
+            return {'tipo': tipo_solicitado, 'contacto': nombre}
     return plan
 
 
@@ -320,8 +447,34 @@ def _aparece(valor, fuente):
         return False
     digitos = re.sub(r'\D', '', str(valor))
     if len(digitos) >= 7 and len(digitos) >= len(plano.replace(' ', '')) - 3:
-        return digitos in re.sub(r'\D', '', fuente)
+        return _numero_dicho(digitos, fuente)
     return plano in _plano(fuente)
+
+
+_GRUPO_DIGITOS = re.compile(r'\+?\d[\d\s().-]*\d')
+
+
+def _numero_dicho(digitos, fuente):
+    """El número debe coincidir con UN número completo dicho por la persona
+    («300 123 4567» cuenta; se admite el indicativo 57). Antes se pegaban todos
+    los dígitos del texto y dos números vecinos podían «formar» uno que nadie dijo."""
+    for grupo in _GRUPO_DIGITOS.findall(str(fuente or '')):
+        g = re.sub(r'\D', '', grupo)
+        if digitos in (g, '57' + g) or g == '57' + digitos:
+            return True
+    return False
+
+
+def _avisos_telefono(campos):
+    """Aviso en la vista previa si un teléfono no tiene 7, 10 o 12 (57…) dígitos.
+    No bloquea: puede ser un número extranjero; la persona lo ve antes de confirmar."""
+    avisos = []
+    for campo in ('telefono', 'whatsapp'):
+        valor = campos.get(campo)
+        n = len(re.sub(r'\D', '', valor or ''))
+        if valor and n not in (7, 10, 12):
+            avisos.append(f'⚠ El {campo} {valor} tiene {n} dígitos; revisa que esté completo.')
+    return avisos
 
 
 def _fuentes_usuario(pregunta, historial):
@@ -417,14 +570,14 @@ def _solo_datos_dichos(plan, pregunta, historial):
             raise AccionAclarar('¿Cuál es el motivo exacto del ajuste?')
         return
 
-    if tipo in ('editar_contacto', 'eliminar_contacto'):
+    if tipo in ('editar_contacto', 'eliminar_contacto', 'reactivar_contacto'):
         if plan.get('contacto_id') is None and not plan.get('contacto'):
             raise AccionAclarar(_PREGUNTAS['contacto'])
         if plan.get('contacto_id') is not None and not _id_dicho(
                 plan['contacto_id'], fuentes, 'contacto'):
-            raise AccionAclarar('¿Cuál es el ID o el nombre exacto del contacto?')
+            raise AccionAclarar(_PREGUNTAS['contacto'])
         if plan.get('contacto') and not _aparece(plan['contacto'], fuente):
-            raise AccionAclarar('¿Cuál es el nombre exacto del contacto?')
+            raise AccionAclarar(_PREGUNTAS['contacto'])
     if tipo not in ('crear_contacto', 'editar_contacto'):
         return
     clave = 'campos' if plan['tipo'] == 'crear_contacto' else 'cambios'
@@ -525,22 +678,34 @@ def _producto(cur, plan, bloquear=False):
     return dict(filas[0])
 
 
-def _contacto(cur, plan, bloquear=False):
+def _contacto(cur, plan, bloquear=False, activo=True):
+    """El contacto de la orden: por ID, o buscado por parecido (services/ia/
+    buscador.py). Con varios candidatos no adivina: muestra las opciones con su
+    ID para que la persona elija. `activo=False` busca los desactivados
+    (para reactivar)."""
     sufijo = ' FOR UPDATE' if bloquear else ''
+    estado = 'activo' if activo else 'desactivado'
     if plan.get('contacto_id') is not None:
         cid = _entero(plan['contacto_id'], 'el ID del contacto')
         cur.execute(f'SELECT {CONTACTO_COLUMNAS} FROM crm_contactos WHERE id = %s' + sufijo,
                     (cid,))
-    else:
-        nombre = _texto(plan.get('contacto'), 'nombre del contacto', 200, obligatorio=True)
-        cur.execute(f'SELECT {CONTACTO_COLUMNAS} FROM crm_contactos '
-                    'WHERE activo = TRUE AND LOWER(nombre) = LOWER(%s) '
-                    'ORDER BY id LIMIT 2' + sufijo, (nombre,))
-    filas = cur.fetchall()
-    if len(filas) != 1 or not filas[0]['activo']:
-        raise AccionAclarar('No encontré ese contacto o hay varios con ese nombre. '
-                            '¿Cuál es su ID o su nombre exacto?')
-    return dict(filas[0])
+        filas = cur.fetchall()
+        if len(filas) != 1 or bool(filas[0]['activo']) != activo:
+            raise AccionAclarar(f'No encontré un contacto {estado} con el ID {cid}. '
+                                '¿Cuál es su nombre, correo o teléfono?')
+        return dict(filas[0])
+
+    from services.ia.buscador import contactos, elegir, opciones_contacto
+    referencia = _texto(plan.get('contacto'), 'nombre del contacto', 200, obligatorio=True)
+    filas, modo = contactos(cur, referencia, activos=activo)
+    elegido = elegir(filas, modo)
+    if elegido is not None:
+        return {k: elegido[k] for k in ('id', *CONTACTO_CAMPOS, 'activo')}
+    if not filas:
+        raise AccionAclarar(f'No encontré un contacto {estado} como «{referencia}». '
+                            '¿Cuál es su nombre, correo o teléfono?')
+    raise AccionAclarar('Encontré varios contactos: ' + '; '.join(opciones_contacto(filas))
+                        + '. ¿Cuál es? Responde con su ID.')
 
 
 def _preparar_datos(cur, plan):
@@ -567,10 +732,18 @@ def _preparar_datos(cur, plan):
         _verificar_duplicado(cur, campos)
         payload = {'tipo': tipo, 'campos': campos}
         detalles = [f'{k}: {v}' for k, v in campos.items() if v is not None]
+        detalles += _avisos_telefono(campos)
         return payload, f"Crear contacto {campos['nombre']} ({campos['tipo']}).", detalles
 
-    contacto = _contacto(cur, plan)
+    contacto = _contacto(cur, plan, activo=tipo != 'reactivar_contacto')
     snapshot = {k: contacto[k] for k in ('id', *CONTACTO_CAMPOS, 'activo')}
+    if tipo == 'reactivar_contacto':
+        _verificar_duplicado(cur, snapshot, excluir=contacto['id'])
+        payload = {'tipo': tipo, 'contacto_id': contacto['id'], 'snapshot': snapshot}
+        detalles = [f'Contacto: {contacto["nombre"]} (ID {contacto["id"]})',
+                    f'Tipo: {contacto["tipo"]}', f'Correo: {contacto["email"] or "(sin correo)"}',
+                    'Vuelve a quedar activo con los mismos datos que tenía.']
+        return payload, f"Reactivar contacto {contacto['nombre']} (ID {contacto['id']}).", detalles
     if tipo == 'editar_contacto':
         cambios = _campos_contacto(plan.get('cambios'), creacion=False)
         cambios = {k: v for k, v in cambios.items() if v != contacto[k]}
@@ -583,6 +756,7 @@ def _preparar_datos(cur, plan):
         detalles = [f'Contacto: {contacto["nombre"]} (ID {contacto["id"]})']
         detalles.extend(f'{k}: {contacto[k] or "(vacío)"} → {v or "(vacío)"}'
                         for k, v in cambios.items())
+        detalles += _avisos_telefono(cambios)
         return payload, f"Editar contacto {contacto['nombre']} (ID {contacto['id']}).", detalles
 
     payload = {'tipo': tipo, 'contacto_id': contacto['id'], 'snapshot': snapshot}
@@ -727,7 +901,8 @@ def _ejecutar(cur, fila, usuario):
         cid = int(cur.fetchone()['id'])
         return {'mensaje': f"Contacto {campos['nombre']} creado (ID {cid}).", 'contacto_id': cid}
 
-    contacto = _contacto(cur, {'contacto_id': payload['contacto_id']}, bloquear=True)
+    contacto = _contacto(cur, {'contacto_id': payload['contacto_id']}, bloquear=True,
+                         activo=tipo != 'reactivar_contacto')
     snapshot = payload.get('snapshot')
     if not isinstance(snapshot, dict) or any(contacto[k] != snapshot.get(k)
                                              for k in ('id', *CONTACTO_CAMPOS, 'activo')):
@@ -746,6 +921,13 @@ def _ejecutar(cur, fila, usuario):
         cur.execute('UPDATE crm_contactos SET activo = FALSE, updated_at = CURRENT_TIMESTAMP '
                     'WHERE id = %s AND activo = TRUE', (contacto['id'],))
         return {'mensaje': f"Contacto {contacto['nombre']} desactivado (ID {contacto['id']}).",
+                'contacto_id': contacto['id']}
+
+    if tipo == 'reactivar_contacto':
+        _verificar_duplicado(cur, contacto, excluir=contacto['id'])
+        cur.execute('UPDATE crm_contactos SET activo = TRUE, updated_at = CURRENT_TIMESTAMP '
+                    'WHERE id = %s AND activo = FALSE', (contacto['id'],))
+        return {'mensaje': f"Contacto {contacto['nombre']} reactivado (ID {contacto['id']}).",
                 'contacto_id': contacto['id']}
     raise AccionError('Esta operación no está disponible.')
 

@@ -25,6 +25,7 @@ from services.ia_datos import alertas as _ale
 from services.ia_datos import analitica as _ana
 from services.ia_datos import caja as _caj
 from services.ia_datos import comercial as _com
+from services.ia_datos import contactos as _con
 from services.ia_datos import documentos as _doc
 from services.ia_datos import finanzas as _fin
 from services.ia_datos import inventario as _inv
@@ -203,6 +204,14 @@ registrar('documentos_internos', _doc.documentos_internos,
           "Busca en los documentos internos que escribió el dueño —procedimientos, políticas, manuales, instructivos— lo que responde la pregunta: cómo se hace algo o qué dice una política interna.",
           ['texto'], etiqueta='los documentos internos', dominio='documentos',
           permiso='ai_assistant', extra={'nube': False})
+
+# Directorio del CRM con ID, teléfono y correo: el mismo que la persona ve en
+# el CRM, para saber a qué contacto se refiere antes de editarlo. Solo local.
+registrar('buscar_contactos', _con.buscar_contactos,
+          "Busca contactos del CRM (clientes, proveedores, leads, socios) por nombre, empresa, "
+          "correo o teléfono y muestra su ID y datos de contacto. Sin nombre, los más recientes.",
+          ['texto', 'limite'], etiqueta='tus contactos del CRM', dominio='comercial',
+          modulos=('crm',), permiso='crm', extra={'nube': False})
 
 # ── Sitio público (módulo ai_public) ───────────────────────────
 # SOLO estas se exponen al visitante anónimo, y solo si el módulo está activo.

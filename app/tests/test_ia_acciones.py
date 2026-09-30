@@ -314,7 +314,7 @@ def test_el_modelo_recibe_la_conversacion_como_contexto(monkeypatch):
     ('Cuadra stock del producto 42', 'ajustar_inventario'),
     ('Crea contacto Ana', 'crear_contacto'),
     ('Edita contacto Ana', 'editar_contacto'),
-    ('Elimina contacto Ana', 'eliminar_contacto'),
+    ('Elimina un contacto', 'eliminar_contacto'),
 ])
 def test_prompt_operativo_es_exclusivo_por_proceso(monkeypatch, orden, proceso):
     import services.ai_service as ai
@@ -331,7 +331,7 @@ def test_prompt_operativo_es_exclusivo_por_proceso(monkeypatch, orden, proceso):
     ('Cuadra stock del producto 42', 'stock_nuevo', 'stock final exacto'),
     ('Crea contacto Ana', 'tipo', 'cliente, proveedor, lead o socio'),
     ('Edita contacto Ana', 'telefono', 'nuevo valor de «telefono»'),
-    ('Elimina contacto Ana', 'contacto', 'ID o el nombre exacto'),
+    ('Elimina un contacto', 'contacto', 'nombre, correo, teléfono o ID'),
 ])
 def test_modelo_solo_elige_campo_y_servidor_redacta_una_pregunta(
         monkeypatch, orden, campo, esperado):
@@ -515,11 +515,11 @@ def test_el_modelo_no_puede_inventar_nombre_de_producto():
 @pytest.mark.parametrize('tipo', ('editar_contacto', 'eliminar_contacto'))
 def test_el_modelo_no_puede_inventar_objetivo_de_contacto(tipo):
     por_nombre = {'tipo': tipo, 'contacto': 'Beatriz'}
-    with pytest.raises(acciones.AccionAclarar, match='nombre exacto'):
+    with pytest.raises(acciones.AccionAclarar, match='nombre, correo, teléfono o ID'):
         acciones._solo_datos_dichos(por_nombre, 'Edita el contacto Ana', None)
 
     por_id = {'tipo': tipo, 'contacto_id': 17}
-    with pytest.raises(acciones.AccionAclarar, match='ID o el nombre'):
+    with pytest.raises(acciones.AccionAclarar, match='nombre, correo, teléfono o ID'):
         acciones._solo_datos_dichos(por_id, 'Edita el contacto Ana', None)
 
 
@@ -567,11 +567,11 @@ def test_stock_inventado_no_llega_a_guardarse_como_propuesta(monkeypatch):
     ({'tipo': 'crear_contacto', 'campos': {'nombre': 'Ana'}},
      'Crea contacto Ana', 'cliente, proveedor, lead o socio'),
     ({'tipo': 'editar_contacto', 'cambios': {'telefono': '3001234567'}},
-     'Edita teléfono de un contacto a 3001234567', 'ID o el nombre exacto'),
+     'Edita teléfono de un contacto a 3001234567', 'nombre, correo, teléfono o ID'),
     ({'tipo': 'editar_contacto', 'contacto': 'Ana', 'cambios': {}},
      'Edita teléfono del contacto Ana', 'nuevo valor de «telefono»'),
     ({'tipo': 'eliminar_contacto'},
-     'Elimina un contacto', 'ID o el nombre exacto'),
+     'Elimina un contacto', 'nombre, correo, teléfono o ID'),
 ])
 def test_cada_proceso_pide_solo_su_primer_dato_obligatorio(plan, orden, pregunta):
     with pytest.raises(acciones.AccionAclarar, match=pregunta):
