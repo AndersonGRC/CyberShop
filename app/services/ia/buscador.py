@@ -98,6 +98,69 @@ def elegir(filas, modo):
     return None
 
 
+def _por_palabras(cur, tabla, columnas, texto_sql, filtro, filtro_params, referencia, limite,
+                  ignorar=()):
+    """Búsqueda por palabras con puntaje, común a productos y categorías."""
+    buscar = [p for p in palabras(referencia) if p not in ignorar]
+    if not buscar:
+        return [], 'ninguno'
+    puntos = ' + '.join(f'(CASE WHEN {texto_sql} LIKE %s THEN 1 ELSE 0 END)' for _ in buscar)
+    params = []
+    for p in buscar:
+        params += [*SIN_TILDES, f'%{p}%']
+    cur.execute(f'SELECT * FROM (SELECT {columnas}, ({puntos}) AS puntos FROM {tabla} '
+                f'WHERE {filtro}) x WHERE puntos > 0 ORDER BY puntos DESC, id LIMIT %s',
+                (*params, *filtro_params, limite + 1))
+    filas = [dict(f) for f in cur.fetchall()]
+    if not filas:
+        return [], 'ninguno'
+    for f in filas:
+        f['palabras'] = len(buscar)
+    todas = [f for f in filas if f['puntos'] == len(buscar)]
+    return (todas, 'todas') if todas else (filas, 'parcial')
+
+
+def productos(cur, referencia, activos=True, tiene_active=True, limite=5):
+    """Productos por referencia o nombre exactos, o por palabras.
+    `tiene_active=False` en bases viejas sin la columna (no se filtra)."""
+    ref = str(referencia or '').strip()
+    if not ref:
+        return [], 'ninguno'
+    columnas = 'id, nombre, referencia, precio, stock' + (', active' if tiene_active else '')
+    filtro, filtro_params = ('COALESCE(active, TRUE) = %s', (activos,)) if tiene_active else ('TRUE', ())
+    cur.execute(f'SELECT {columnas} FROM productos WHERE {filtro} AND '
+                '(LOWER(referencia) = LOWER(%s) OR LOWER(nombre) = LOWER(%s)) ORDER BY id LIMIT %s',
+                (*filtro_params, ref, ref, limite + 1))
+    filas = [dict(f) for f in cur.fetchall()]
+    if filas:
+        return filas, 'exacto'
+    texto = "translate(lower(nombre || ' ' || COALESCE(referencia, '')), %s, %s)"
+    return _por_palabras(cur, 'productos', columnas, texto, filtro, filtro_params, ref, limite,
+                         ignorar=('producto', 'articulo', 'item'))
+
+
+def categorias(cur, referencia, limite=5):
+    ref = str(referencia or '').strip()
+    if not ref:
+        return [], 'ninguno'
+    cur.execute('SELECT id, nombre FROM generos WHERE LOWER(nombre) = LOWER(%s) ORDER BY id LIMIT %s',
+                (ref, limite + 1))
+    filas = [dict(f) for f in cur.fetchall()]
+    if filas:
+        return filas, 'exacto'
+    return _por_palabras(cur, 'generos', 'id, nombre', 'translate(lower(nombre), %s, %s)',
+                         'TRUE', (), ref, limite, ignorar=('categoria', 'genero', 'seccion'))
+
+
+def opciones(filas, limite=5, extra=None):
+    """«ID 4 · Gaseosa · REF-1» para elegir; `extra(f)` agrega un dato por fila."""
+    lineas = []
+    for f in filas[:limite]:
+        partes = [f"ID {f['id']}", f['nombre']] + ([extra(f)] if extra else [])
+        lineas.append(' · '.join(str(p) for p in partes if p not in (None, '')))
+    return lineas
+
+
 def opciones_contacto(filas, limite=5):
     """«ID 1 · Cybershop · proveedor · ventas@…» para que la persona elija."""
     lineas = []

@@ -23,7 +23,18 @@ TIPOS = {
     'editar_contacto': ('crm', 'operar'),
     'eliminar_contacto': ('crm', 'eliminar'),
     'reactivar_contacto': ('crm', 'operar'),
+    # Catálogo (services/ia_acciones_catalogo.py). Archivar exige «eliminar»
+    # como el archivado del panel; nada se borra.
+    'crear_producto': ('inventory', 'operar'),
+    'editar_producto': ('inventory', 'operar'),
+    'archivar_producto': ('inventory', 'eliminar'),
+    'reactivar_producto': ('inventory', 'operar'),
+    'movimiento_inventario': ('inventory', 'operar'),
+    'crear_categoria': ('inventory', 'operar'),
+    'renombrar_categoria': ('inventory', 'operar'),
 }
+_CATALOGO = {'crear_producto', 'editar_producto', 'archivar_producto', 'reactivar_producto',
+             'movimiento_inventario', 'crear_categoria', 'renombrar_categoria'}
 TIPOS_CONTACTO = {'cliente', 'proveedor', 'lead', 'socio'}
 CONTACTO_CAMPOS = {
     'nombre': 200, 'tipo': 20, 'empresa': 200, 'cargo': 100,
@@ -36,7 +47,9 @@ _VERBOS = re.compile(r'\b(crea|crear|creame|agrega|agregar|registra|registrar|'
                     r'elimina|eliminar|borra|borrar|cuadra|cuadrar|ajusta|ajustar|'
                     r'fija|fijar|pon|poner|sube|subir|baja|bajar|'
                     r'desactiva|desactivar|archiva|archivar|reactiva|reactivar|activa|activar|'
-                    r'restaura|restaurar|recupera|recuperar)\b')
+                    r'restaura|restaurar|recupera|recuperar|anade|anadir|anadele|agregale|'
+                    r'ponle|renombra|renombrar|oculta|ocultar|suma|sumale|sumar|resta|restale|'
+                    r'restar|descuenta|descontar|descuentale|quitale)\b')
 # Un contacto también se nombra por su tipo: «crea un proveedor», «agrega el
 # socio…», «registra un cliente nuevo». Antes solo contaba la palabra
 # «contacto» y «crea un proveedor» se iba al chat de consultas.
@@ -48,9 +61,22 @@ _CLIENTE_OBJETO = (r'(?:elimina|eliminar|borra|borrar|desactiva|desactivar|archi
                    r'reactiva|reactivar|activa|activar|restaura|restaurar|recupera|recuperar)'
                    r'\s+(?:al|el|a|la)\s+(?:cliente|clienta)')
 _CONTACTO = _CONTACTO + '|' + _CLIENTE_OBJETO
-_OBJETOS = re.compile(r'\b(' + _CONTACTO + r'|inventario|stock|existencias?|productos?)\b')
-_SOLO_LECTURA = re.compile(r'^(como|que es|puedo|se puede|explica|muestra|'
-                          r'consulta|cuales|cuantos)\b')
+_STOCK = r'stock|inventario|existencias?|unidades'
+_PRODUCTO = r'productos?|articulos?|precios?|costos?|catalogo'
+_CATEGORIA = r'categorias?|generos?'
+_OBJETOS = re.compile(r'\b(' + '|'.join((_CONTACTO, _STOCK, _PRODUCTO, _CATEGORIA)) + r')\b')
+# Movimientos de inventario dichos sin la palabra «stock»: «entraron 10 gaseosas»,
+# «se dañaron 2 tortas» (el texto se compara sin tildes: ñ → n).
+_ENTRADA = (r'entraron|entro|llegaron|llego|ingresaron|ingreso|recibimos|recibi|entrada|'
+            r'suma|sumale|sumar')
+_SALIDA = (r'salieron|salio|salida|danaron|dano|merma|vencieron|vencio|perdimos|perdio|'
+           r'robaron|resta|restale|restar|descuenta|descontar|descuentale')
+_MOVIMIENTO = re.compile(r'\b(' + _ENTRADA + '|' + _SALIDA + r')\b')
+_MOVIMIENTO_STOCK = re.compile(r'\b(' + _ENTRADA + '|' + _SALIDA +
+                               r'|agrega|agregale|anade|anadele|quita|quitale)\b')
+_SOLO_LECTURA = re.compile(r'^(como|que es|puedo|se puede|explica|muestra|muestrame|dime|'
+                          r'consulta|cuales|cual|cuantos|cuantas|cuanto|cuanta|cuando|donde|'
+                          r'quien|lista)\b')
 _VERBOS_CONTACTO = {
     'crear_contacto': re.compile(r'\b(crea|crear|creame|agrega|agregar|registra|registrar)\b'),
     'editar_contacto': re.compile(r'\b(edita|editar|modifica|modificar|cambia|cambiar|actualiza|actualizar)\b'),
@@ -62,7 +88,33 @@ _VERBOS_CONTACTO = {
 }
 _VERBOS_INVENTARIO = re.compile(r'\b(cuadra|cuadrar|ajusta|ajustar|fija|fijar|'
                                 r'pon|poner|sube|subir|baja|bajar|cambia|cambiar|'
-                                r'actualiza|actualizar)\b')
+                                r'actualiza|actualizar|deja|dejar)\b')
+# Crear va primero: «crea el producto Gaseosa y ponle precio 3000» es crear.
+_VERBOS_PRODUCTO = {
+    'crear_producto': re.compile(r'\b(crea|crear|creame|agrega|agregar|registra|registrar|'
+                                 r'anade|anadir)\b'),
+    'archivar_producto': re.compile(r'\b(elimina|eliminar|borra|borrar|desactiva|desactivar|'
+                                    r'archiva|archivar|oculta|ocultar)\b'),
+    'reactivar_producto': re.compile(r'\b(reactiva|reactivar|activa|activar|restaura|restaurar|'
+                                     r'recupera|recuperar)\b'),
+    'editar_producto': re.compile(r'\b(edita|editar|modifica|modificar|cambia|cambiar|actualiza|'
+                                  r'actualizar|sube|subir|baja|bajar|pon|ponle|poner|ajusta|'
+                                  r'ajustar|fija|fijar)\b'),
+}
+_VERBOS_CATEGORIA = {
+    'crear_categoria': re.compile(r'\b(crea|crear|creame|agrega|agregar|registra|registrar|'
+                                  r'anade|anadir)\b'),
+    'renombrar_categoria': re.compile(r'\b(renombra|renombrar|edita|editar|modifica|modificar|'
+                                      r'cambia|cambiar|actualiza|actualizar)\b'),
+}
+
+
+def _unico(verbos, frase, primero=None):
+    """El único proceso cuyos verbos aparecen; `primero` gana si aparece."""
+    hallados = [clave for clave, patron in verbos.items() if patron.search(frase)]
+    if primero in hallados:
+        return primero
+    return hallados[0] if len(hallados) == 1 else None
 
 
 class AccionError(Exception):
@@ -155,29 +207,61 @@ def _normalizar(texto):
                    if unicodedata.category(c) != 'Mn')
 
 
+def _movimiento_suelto(frase, original):
+    """«Entraron 10 gaseosas»: verbo de movimiento + cantidad, sin «?»."""
+    return bool(_MOVIMIENTO.search(frase) and re.search(r'\d', frase) and '?' not in original)
+
+
 def parece_operativa(pregunta):
     if not isinstance(pregunta, str):
         return False
     frase = _normalizar(pregunta.strip()).lstrip('¿¡ \t')
-    return bool(_VERBOS.search(frase) and _OBJETOS.search(frase)
-                and not _SOLO_LECTURA.match(frase))
+    if _SOLO_LECTURA.match(frase):
+        return False
+    return bool((_VERBOS.search(frase) and _OBJETOS.search(frase))
+                or _movimiento_suelto(frase, pregunta))
 
 
 def _tipo_solicitado(pregunta):
-    """Determina el permiso exigido antes de llamar a un modelo de pago."""
+    """Determina el proceso (y con él el permiso) antes de llamar a un modelo.
+
+    Se revisa cada clase de registro en orden: stock, producto, categoría,
+    contacto. Una clase cuenta si se nombra Y su verbo encaja; si se nombra
+    pero el verbo no encaja, se prueba la siguiente («entraron 10 gaseosas
+    del proveedor Andes» es un movimiento, no un contacto)."""
     frase = _normalizar(pregunta)
-    contacto = bool(re.search(r'\b(' + _CONTACTO + r')\b', frase))
-    inventario = bool(re.search(r'\b(stock|inventario|existencias?)\b', frase))
-    if contacto and not inventario:
-        acciones = [clave for clave, patron in _VERBOS_CONTACTO.items()
-                    if patron.search(frase)]
-        if len(acciones) == 1:
-            return acciones[0]
-    elif inventario and not contacto:
+    if re.search(r'\b(' + _STOCK + r')\b', frase):
+        if _MOVIMIENTO_STOCK.search(frase):
+            return 'movimiento_inventario'
         if _VERBOS_INVENTARIO.search(frase):
             return 'ajustar_inventario'
+    if re.search(r'\b(' + _PRODUCTO + r')\b', frase):
+        tipo = _unico(_VERBOS_PRODUCTO, frase, primero='crear_producto')
+        if tipo:
+            return tipo
+    if re.search(r'\b(' + _CATEGORIA + r')\b', frase):
+        tipo = _unico(_VERBOS_CATEGORIA, frase, primero='crear_categoria')
+        if tipo:
+            return tipo
+    if re.search(r'\b(' + _CONTACTO + r')\b', frase):
+        tipo = _unico(_VERBOS_CONTACTO, frase)
+        if tipo:
+            return tipo
+    if _movimiento_suelto(frase, pregunta):
+        return 'movimiento_inventario'
     raise AccionError('La acción no coincide claramente con una función disponible. '
-                      'Pide un solo cambio y especifica contacto o stock exacto.')
+                      'Pide un solo cambio y di si es un contacto, un producto, una '
+                      'categoría o el stock.')
+
+
+def direccion_movimiento(pregunta):
+    """'entrada' | 'salida' | None según los verbos de la orden."""
+    frase = _normalizar(str(pregunta or ''))
+    entrada = re.search(r'\b(' + _ENTRADA + r'|agrega|agregale|anade|anadele)\b', frase)
+    salida = re.search(r'\b(' + _SALIDA + r'|quita|quitale)\b', frase)
+    if bool(entrada) == bool(salida):
+        return None
+    return 'entrada' if entrada else 'salida'
 
 
 def _validar_intencion(pregunta, tipo):
@@ -293,6 +377,59 @@ los desactivados. Ejemplo: «Reactiva el contacto Ana Pérez» →
 {\"tipo\":\"reactivar_contacto\",\"contacto\":\"Ana Pérez\"}. Pide aclaración
 solo si la orden no nombra ningún contacto. Vuelve a dejarlo activo; no cambia
 ningún otro dato.""",
+    'crear_producto': """PROCESO crear_producto.
+Salida completa: {\"tipo\":\"crear_producto\",\"campos\":{\"nombre\":\"...\",
+\"precio\":número,\"categoria\":\"nombre de la categoría\", ...}}.
+Orden de datos: 1) nombre (`campo`: `nombre`); 2) precio de venta (`campo`:
+`precio`); 3) categoría (`campo`: `categoria`). Opcionales SOLO si la persona
+los dice: referencia, descripcion, costo, stock (unidades iniciales).
+Ejemplo: «Crea el producto Gaseosa 400ml a 3.500 en Bebidas» →
+{\"tipo\":\"crear_producto\",\"campos\":{\"nombre\":\"Gaseosa 400ml\",
+\"precio\":3500,\"categoria\":\"Bebidas\"}}. «Agrega el producto Agua de coco
+a 2 mil en la categoría Bebidas» → {\"tipo\":\"crear_producto\",\"campos\":
+{\"nombre\":\"Agua de coco\",\"precio\":2000,\"categoria\":\"Bebidas\"}}: lo que
+sigue a «categoría» es la categoría. «3 mil» es 3000. No inventes referencia,
+costo ni descripción.""",
+    'editar_producto': """PROCESO editar_producto.
+Salida completa: {\"tipo\":\"editar_producto\",\"producto_id\":entero O
+\"producto\":\"nombre o referencia como lo dijo la persona\",
+\"cambios\":{campo:valor_nuevo}}. El servidor busca el producto por parecido.
+Cambios permitidos: nombre, precio, costo, descripcion, categoria, stock_minimo.
+El stock y la referencia NO se editan aquí. Ejemplo: «Sube el precio de la
+gaseosa a 3.800» → {\"tipo\":\"editar_producto\",\"producto\":\"gaseosa\",
+\"cambios\":{\"precio\":3800}}. Solo valores nuevos dichos por la persona.""",
+    'archivar_producto': """PROCESO archivar_producto.
+Salida completa: {\"tipo\":\"archivar_producto\",\"producto_id\":entero O
+\"producto\":\"nombre o referencia como lo dijo la persona\"}. Único dato: el
+producto (`campo`: `producto`). Archivar lo oculta de la tienda y las listas; no
+se borra. Ejemplo: «Archiva el producto Termo de acero» →
+{\"tipo\":\"archivar_producto\",\"producto\":\"Termo de acero\"}.""",
+    'reactivar_producto': """PROCESO reactivar_producto.
+Salida completa: {\"tipo\":\"reactivar_producto\",\"producto_id\":entero O
+\"producto\":\"nombre o referencia como lo dijo la persona\"}. Único dato: el
+producto archivado (`campo`: `producto`). Ejemplo: «Reactiva el producto Termo»
+→ {\"tipo\":\"reactivar_producto\",\"producto\":\"Termo\"}.""",
+    'movimiento_inventario': """PROCESO movimiento_inventario.
+Salida completa: {\"tipo\":\"movimiento_inventario\",\"producto_id\":entero O
+\"producto\":\"nombre o referencia como lo dijo la persona\",
+\"direccion\":\"entrada|salida\",\"cantidad\":entero positivo,
+\"motivo\":\"texto\" opcional}. Entrada: llegó, entró, se recibió, sumar.
+Salida: se dañó, venció, merma, se perdió, restar. La cantidad es la que dijo la
+persona (no el stock final). Ejemplo: «Se dañaron 2 tortas de chocolate» →
+{\"tipo\":\"movimiento_inventario\",\"producto\":\"tortas de chocolate\",
+\"direccion\":\"salida\",\"cantidad\":2,\"motivo\":\"se dañaron\"}.
+Orden de datos: 1) producto; 2) cantidad; 3) direccion.""",
+    'crear_categoria': """PROCESO crear_categoria.
+Salida completa: {\"tipo\":\"crear_categoria\",\"nombre\":\"...\"}. Único dato:
+el nombre (`campo`: `nombre`). Ejemplo: «Crea la categoría Postres» →
+{\"tipo\":\"crear_categoria\",\"nombre\":\"Postres\"}.""",
+    'renombrar_categoria': """PROCESO renombrar_categoria.
+Salida completa: {\"tipo\":\"renombrar_categoria\",\"categoria\":\"nombre actual\"
+O \"categoria_id\":entero,\"nombre_nuevo\":\"...\"}. Orden de datos: 1)
+categoría actual (`campo`: `categoria`); 2) nombre nuevo (`campo`:
+`nombre_nuevo`). Ejemplo: «Renombra la categoría Bebidas a Bebidas frías» →
+{\"tipo\":\"renombrar_categoria\",\"categoria\":\"Bebidas\",
+\"nombre_nuevo\":\"Bebidas frías\"}.""",
 }
 
 _CAMPOS_PLAN = {
@@ -301,6 +438,42 @@ _CAMPOS_PLAN = {
     'editar_contacto': {'tipo', 'contacto_id', 'contacto', 'cambios'},
     'eliminar_contacto': {'tipo', 'contacto_id', 'contacto'},
     'reactivar_contacto': {'tipo', 'contacto_id', 'contacto'},
+    'crear_producto': {'tipo', 'campos'},
+    'editar_producto': {'tipo', 'producto_id', 'producto', 'cambios'},
+    'archivar_producto': {'tipo', 'producto_id', 'producto'},
+    'reactivar_producto': {'tipo', 'producto_id', 'producto'},
+    'movimiento_inventario': {'tipo', 'producto_id', 'producto', 'direccion', 'cantidad', 'motivo'},
+    'crear_categoria': {'tipo', 'nombre'},
+    'renombrar_categoria': {'tipo', 'categoria', 'categoria_id', 'nombre_nuevo'},
+}
+# Preguntas del catálogo por (proceso, campo): el modelo elige el campo que
+# falta y el servidor redacta la pregunta.
+_PREGUNTAS_CATALOGO = {
+    ('crear_producto', 'nombre'): '¿Cuál es el nombre del producto?',
+    ('crear_producto', 'precio'): '¿Cuál es el precio de venta del producto?',
+    ('crear_producto', 'categoria'): '¿En qué categoría va el producto?',
+    ('crear_producto', 'referencia'): '¿Cuál es la referencia del producto?',
+    ('crear_producto', 'descripcion'): '¿Cuál es la descripción del producto?',
+    ('crear_producto', 'costo'): '¿Cuál es el costo del producto?',
+    ('crear_producto', 'stock'): '¿Con cuántas unidades empieza el producto?',
+    ('editar_producto', 'producto'): '¿Cuál es el producto (nombre, referencia o ID)?',
+    ('editar_producto', 'cambios'): '¿Qué dato del producto quieres cambiar y cuál es el valor nuevo?',
+    ('editar_producto', 'nombre'): '¿Cuál será el nuevo nombre del producto?',
+    ('editar_producto', 'precio'): '¿Cuál será el nuevo precio de venta?',
+    ('editar_producto', 'costo'): '¿Cuál será el nuevo costo?',
+    ('editar_producto', 'descripcion'): '¿Cuál será la nueva descripción?',
+    ('editar_producto', 'categoria'): '¿A qué categoría pasa el producto?',
+    ('editar_producto', 'stock_minimo'): '¿Cuál será el stock mínimo?',
+    ('archivar_producto', 'producto'): '¿Qué producto quieres archivar (nombre, referencia o ID)?',
+    ('reactivar_producto', 'producto'): '¿Qué producto archivado quieres reactivar?',
+    ('movimiento_inventario', 'producto'): '¿De qué producto es el movimiento?',
+    ('movimiento_inventario', 'cantidad'): '¿Cuántas unidades?',
+    ('movimiento_inventario', 'direccion'):
+        '¿Es una entrada (llegó mercancía) o una salida (daño, merma, uso)?',
+    ('movimiento_inventario', 'motivo'): '¿Cuál es el motivo del movimiento?',
+    ('crear_categoria', 'nombre'): '¿Cómo se llama la categoría nueva?',
+    ('renombrar_categoria', 'categoria'): '¿Qué categoría quieres renombrar?',
+    ('renombrar_categoria', 'nombre_nuevo'): '¿Cuál será el nuevo nombre de la categoría?',
 }
 _PREGUNTAS = {
     'producto': '¿Cuál es el ID o la referencia exacta del producto?',
@@ -328,6 +501,9 @@ _CAMPOS_MENCION = {
 def _pregunta_campo(tipo, campo):
     """El modelo selecciona un campo, pero nunca redacta texto al usuario."""
     campo = campo if isinstance(campo, str) else None
+    if tipo in _CATALOGO:
+        propias = {c: p for (t, c), p in _PREGUNTAS_CATALOGO.items() if t == tipo}
+        return propias.get(campo) or next(iter(propias.values()))
     if tipo == 'ajustar_inventario':
         permitido, defecto = {'producto', 'stock_nuevo', 'motivo'}, 'producto'
     elif tipo == 'crear_contacto':
@@ -388,11 +564,25 @@ def _interpretar(pregunta, historial=None):
 
 
 _ID_ELEGIDO = re.compile(r'dato adicional:\s*id\s*(\d{1,9})\b')
-_NOMBRE_TRAS_OBJETO = re.compile(
-    r'\b(?:contacto|proveedor|cliente|lead|socio)\b\s+(?:(?:llamad[oa]|de nombre)\s+)?'
-    r'(?P<nombre>[^.,;:!?¿¡()\[\]]{2,120})', re.I)
+_OBJETO_CONTACTO = r'contacto|proveedor|cliente|lead|socio'
+_OBJETO_PRODUCTO = r'producto|articulo|artículo'
 _COLA_DE_ORDEN = re.compile(r'\s+(?:de nuevo|otra vez|nuevamente|por favor|porfa)\s*$', re.I)
-_CONTACTO_UNICO_DATO = ('eliminar_contacto', 'reactivar_contacto')
+# proceso: (clave del ID, clave del nombre, objeto que lo precede, ¿es su único dato?)
+_IDENTIDADES = {
+    'editar_contacto': ('contacto_id', 'contacto', _OBJETO_CONTACTO, False),
+    'eliminar_contacto': ('contacto_id', 'contacto', _OBJETO_CONTACTO, True),
+    'reactivar_contacto': ('contacto_id', 'contacto', _OBJETO_CONTACTO, True),
+    'ajustar_inventario': ('producto_id', 'producto', _OBJETO_PRODUCTO, False),
+    'editar_producto': ('producto_id', 'producto', _OBJETO_PRODUCTO, False),
+    'archivar_producto': ('producto_id', 'producto', _OBJETO_PRODUCTO, True),
+    'reactivar_producto': ('producto_id', 'producto', _OBJETO_PRODUCTO, True),
+    'movimiento_inventario': ('producto_id', 'producto', _OBJETO_PRODUCTO, False),
+}
+# proceso de creación: (objeto que precede al nombre, ¿el nombre va en «campos»?)
+_CREACION = {
+    'crear_producto': (_OBJETO_PRODUCTO, True),
+    'crear_categoria': (r'categoria|categoría', False),
+}
 
 
 def _id_elegido(pregunta):
@@ -401,10 +591,11 @@ def _id_elegido(pregunta):
     return int(hallados[-1]) if hallados else None
 
 
-def _nombre_en_orden(pregunta):
+def _nombre_en_orden(pregunta, objeto=_OBJETO_CONTACTO):
     """«Desactiva el contacto Cybershop» → «Cybershop», tal como se escribió."""
     orden = str(pregunta or '').split('. Dato adicional:')[0]
-    hallado = _NOMBRE_TRAS_OBJETO.search(orden)
+    hallado = re.search(rf'\b(?:{objeto})\b\s+(?:(?:llamad[oa]|de nombre)\s+)?'
+                        r'(?P<nombre>[^.,;:!?¿¡()\[\]]{2,120})', orden, re.I)
     if not hallado:
         return None
     nombre = _COLA_DE_ORDEN.sub('', hallado.group('nombre')).strip()
@@ -412,27 +603,43 @@ def _nombre_en_orden(pregunta):
 
 
 def _completar_identidad(plan, tipo_solicitado, pregunta):
-    """Identidad del contacto sin depender de que el modelo la copie bien.
+    """Identidad del registro sin depender de que el modelo la copie bien.
 
     Medido con Qwen: «Desactiva el contacto Cybershop» y «Elimina el proveedor
     Andes» devolvían aclarar{contacto} aunque el nombre estaba en la frase, y
     tras elegir «ID 34» de una lista seguía mandando el nombre ambiguo. Ambos
     datos salen literalmente de lo que escribió la persona; el buscador y la
-    vista previa con confirmación siguen aplicando."""
-    if not tipo_solicitado.endswith('_contacto') or tipo_solicitado == 'crear_contacto':
+    vista previa con confirmación siguen aplicando. En un movimiento de
+    inventario la dirección sale del verbo («se dañaron» = salida)."""
+    if tipo_solicitado == 'movimiento_inventario' and plan.get('tipo') == tipo_solicitado:
+        direccion = direccion_movimiento(pregunta)
+        if direccion:
+            plan = {**plan, 'direccion': direccion}
+    # «Crea el producto Té helado» → Qwen a veces pide el nombre que ya está. Si
+    # tras la palabra del objeto hay un nombre corto sin cifras, se usa y se
+    # pregunta lo siguiente que falte (precio, categoría).
+    if (tipo_solicitado in _CREACION and plan.get('tipo') == 'aclarar'
+            and plan.get('campo') in (None, 'nombre')):
+        objeto, en_campos = _CREACION[tipo_solicitado]
+        nombre = _nombre_en_orden(pregunta, objeto)
+        if nombre and len(nombre.split()) <= 4 and not re.search(r'\d', nombre):
+            return ({'tipo': tipo_solicitado, 'campos': {'nombre': nombre}} if en_campos
+                    else {'tipo': tipo_solicitado, 'nombre': nombre})
+    if tipo_solicitado not in _IDENTIDADES:
         return plan
+    clave_id, clave_nombre, objeto, unico = _IDENTIDADES[tipo_solicitado]
     elegido = _id_elegido(pregunta)
     if plan.get('tipo') == tipo_solicitado and elegido is not None:
-        plan = {k: v for k, v in plan.items() if k != 'contacto'}
-        plan['contacto_id'] = elegido
+        plan = {k: v for k, v in plan.items() if k != clave_nombre}
+        plan[clave_id] = elegido
         return plan
-    if (plan.get('tipo') == 'aclarar' and plan.get('campo') in (None, 'contacto')
-            and tipo_solicitado in _CONTACTO_UNICO_DATO):
+    if (unico and plan.get('tipo') == 'aclarar'
+            and plan.get('campo') in (None, clave_nombre)):
         if elegido is not None:
-            return {'tipo': tipo_solicitado, 'contacto_id': elegido}
-        nombre = _nombre_en_orden(pregunta)
+            return {'tipo': tipo_solicitado, clave_id: elegido}
+        nombre = _nombre_en_orden(pregunta, objeto)
         if nombre:
-            return {'tipo': tipo_solicitado, 'contacto': nombre}
+            return {'tipo': tipo_solicitado, clave_nombre: nombre}
     return plan
 
 
@@ -448,7 +655,9 @@ def _aparece(valor, fuente):
     digitos = re.sub(r'\D', '', str(valor))
     if len(digitos) >= 7 and len(digitos) >= len(plano.replace(' ', '')) - 3:
         return _numero_dicho(digitos, fuente)
-    return plano in _plano(fuente)
+    fuente_plana = _plano(fuente)
+    # «Gaseosa400ml» dicho y «Gaseosa 400ml» en el JSON son el mismo dato.
+    return plano in fuente_plana or plano.replace(' ', '') in fuente_plana.replace(' ', '')
 
 
 _GRUPO_DIGITOS = re.compile(r'\+?\d[\d\s().-]*\d')
@@ -491,8 +700,9 @@ def _id_dicho(valor, fuentes, dominio):
         numero = int(valor)
     except (TypeError, ValueError):
         return False
-    prefijos = ('id|codigo|referencia|producto' if dominio == 'producto'
-                else 'id|contacto|cliente|proveedor|lead|socio')
+    prefijos = {'producto': 'id|codigo|referencia|producto',
+                'categoria': 'id|categoria|genero'}.get(
+        dominio, 'id|contacto|cliente|proveedor|lead|socio')
     patron = re.compile(rf'\b(?:{prefijos})\s*(?:numero|no\.?\s*)?[:#-]?\s*{numero}\b')
     return any(patron.search(_normalizar(texto)) for texto in fuentes)
 
@@ -548,6 +758,80 @@ def _campo_solicitado_faltante(pregunta, campos):
     return None
 
 
+def _datos_catalogo_dichos(plan, fuentes, fuente):
+    """Productos, movimientos y categorías: nombres, precios, cantidades y
+    categorías deben estar en lo que escribió la persona. Lo obligatorio que no
+    aparece se pregunta; lo opcional inventado se descarta."""
+    from services.ia.texto import valor_dicho
+    tipo = plan['tipo']
+
+    def falta(campo):
+        return AccionAclarar(_pregunta_campo(tipo, campo))
+
+    if tipo in _IDENTIDADES:
+        if plan.get('producto_id') is None and not plan.get('producto'):
+            raise falta('producto')
+        if plan.get('producto_id') is not None and not _id_dicho(
+                plan['producto_id'], fuentes, 'producto'):
+            raise falta('producto')
+        if plan.get('producto') and not _aparece(plan['producto'], fuente):
+            raise falta('producto')
+
+    if tipo == 'movimiento_inventario':
+        if not valor_dicho(plan.get('cantidad'), fuentes):
+            raise falta('cantidad')
+        if plan.get('direccion') not in ('entrada', 'salida'):
+            raise falta('direccion')
+        if plan.get('motivo') and not _aparece(plan['motivo'], fuente):
+            plan.pop('motivo')
+        return
+
+    if tipo == 'crear_producto':
+        campos = plan.get('campos') if isinstance(plan.get('campos'), dict) else {}
+        plan['campos'] = campos
+        if not campos.get('nombre') or not _nombre_dicho(str(campos['nombre']), fuentes):
+            raise falta('nombre')
+        if not valor_dicho(campos.get('precio'), fuentes):
+            raise falta('precio')
+        if not campos.get('categoria') or not _aparece(str(campos['categoria']), fuente):
+            raise falta('categoria')
+        for opcional in ('referencia', 'descripcion'):
+            if campos.get(opcional) is not None and not _aparece(str(campos[opcional]), fuente):
+                campos.pop(opcional)
+        for numero in ('costo', 'stock'):
+            if campos.get(numero) is not None and not valor_dicho(campos[numero], fuentes):
+                campos.pop(numero)
+        return
+
+    if tipo == 'editar_producto':
+        cambios = plan.get('cambios')
+        if not isinstance(cambios, dict) or not cambios:
+            raise falta('cambios')
+        for campo, valor in list(cambios.items()):
+            if campo == 'nombre' and not _nombre_dicho(str(valor or ''), fuentes):
+                raise falta('nombre')
+            if campo in ('precio', 'costo', 'stock_minimo') and not valor_dicho(valor, fuentes):
+                raise falta(campo)
+            if campo in ('categoria', 'descripcion') and (
+                    valor is None or not _aparece(str(valor), fuente)):
+                raise falta(campo)
+        return
+
+    if tipo == 'crear_categoria':
+        if not plan.get('nombre') or not _nombre_dicho(str(plan['nombre']), fuentes):
+            raise falta('nombre')
+        return
+
+    if tipo == 'renombrar_categoria':
+        if plan.get('categoria_id') is not None:
+            if not _id_dicho(plan['categoria_id'], fuentes, 'categoria'):
+                raise falta('categoria')
+        elif not plan.get('categoria') or not _aparece(str(plan['categoria']), fuente):
+            raise falta('categoria')
+        if not plan.get('nombre_nuevo') or not _nombre_dicho(str(plan['nombre_nuevo']), fuentes):
+            raise falta('nombre_nuevo')
+
+
 def _solo_datos_dichos(plan, pregunta, historial):
     """El modelo no puede inventar objetivos ni valores operativos. Medido con Qwen: con
     «Crea un proveedor» ponía de nombre «...» (copiado del ejemplo) y con solo un
@@ -556,6 +840,9 @@ def _solo_datos_dichos(plan, pregunta, historial):
     fuentes = _fuentes_usuario(pregunta, historial)
     fuente = '\n'.join(fuentes)
     tipo = plan.get('tipo')
+    if tipo in _CATALOGO:
+        _datos_catalogo_dichos(plan, fuentes, fuente)
+        return
     if tipo == 'ajustar_inventario':
         if plan.get('producto_id') is None and not plan.get('producto'):
             raise AccionAclarar(_PREGUNTAS['producto'])
@@ -667,10 +954,9 @@ def _producto(cur, plan, bloquear=False):
         cur.execute('SELECT id, nombre, referencia, stock FROM productos WHERE id = %s' + sufijo,
                     (pid,))
     else:
-        nombre = _texto(plan.get('producto'), 'producto o referencia', 200, obligatorio=True)
-        cur.execute('SELECT id, nombre, referencia, stock FROM productos '
-                    'WHERE LOWER(nombre) = LOWER(%s) OR LOWER(referencia) = LOWER(%s) '
-                    'ORDER BY id LIMIT 2' + sufijo, (nombre, nombre))
+        # Por parecido, con opciones si hay varios (igual que los contactos).
+        from services.ia_acciones_catalogo import producto
+        return producto(cur, plan, bloquear=bloquear)
     filas = cur.fetchall()
     if len(filas) != 1:
         raise AccionAclarar('No encontré ese producto o hay varios con ese nombre. '
@@ -710,6 +996,9 @@ def _contacto(cur, plan, bloquear=False, activo=True):
 
 def _preparar_datos(cur, plan):
     tipo = plan['tipo']
+    if tipo in _CATALOGO:
+        from services import ia_acciones_catalogo
+        return ia_acciones_catalogo.preparar(cur, plan)
     if tipo == 'ajustar_inventario':
         nuevo = _entero(plan.get('stock_nuevo'), 'el stock final', minimo=0)
         motivo = _texto(plan.get('motivo'), 'motivo', 500, obligatorio=True)
@@ -866,6 +1155,9 @@ def _ejecutar(cur, fila, usuario):
     tipo = fila['tipo']
     if not isinstance(payload, dict) or payload.get('tipo') != tipo:
         raise AccionError('La propuesta no contiene datos válidos. Prepara una nueva.')
+    if tipo in _CATALOGO:
+        from services import ia_acciones_catalogo
+        return ia_acciones_catalogo.ejecutar(cur, fila, usuario)
     if tipo == 'ajustar_inventario':
         producto = _producto(cur, {'producto_id': payload['producto_id']}, bloquear=True)
         anterior = int(producto['stock'] or 0)

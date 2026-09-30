@@ -18,6 +18,15 @@ publica por sí solo los cambios del panel maestro ni activa este módulo.
 | `editar_contacto` | «editar contacto», «cambiar contacto», «actualizar contacto» | ID, o nombre/correo/teléfono como lo diga la persona (búsqueda por parecido); campos y nuevos valores | `crm.operar` | Actualiza solo campos permitidos, tras comparar el registro con la vista previa. |
 | `eliminar_contacto` | «eliminar», «borrar», «desactivar», «archivar» contacto | ID o nombre (búsqueda por parecido) | `crm.eliminar` | Desactiva (`activo=FALSE`); no borra ventas ni otros registros. |
 | `reactivar_contacto` | «reactivar», «activar de nuevo», «restaurar», «recuperar» contacto | ID o nombre de un contacto **desactivado** | `crm.operar` | `activo=TRUE` si no hay otro activo con el mismo nombre o correo. |
+| `crear_producto` | «crea/agrega/registra el producto…» | Nombre, precio de venta y categoría existente; opcionales: referencia, descripción, costo, stock inicial | `inventory.operar` | Inserta en `productos` sin foto; referencia `IA-…` si no se da; stock inicial con rastro en `inventario_log`. |
+| `editar_producto` | «cambia/sube/baja el precio…», «edita el producto…» | Producto (por parecido) y cambios: nombre, precio, costo, descripción, categoría, stock mínimo | `inventory.operar` | Actualiza esos campos. **Nunca** la referencia (llave del escritorio) ni el stock. |
+| `archivar_producto` / `reactivar_producto` | «archiva/desactiva/oculta», «reactiva/restaura» el producto | Producto | `inventory.eliminar` / `inventory.operar` | `active` (y `visible_en_ecommerce`) FALSE/TRUE, como el panel. Sin la columna `active`, no se hace desde la IA. |
+| `movimiento_inventario` | «entraron 10 gaseosas», «se dañaron 2 tortas», «llegaron 5 unidades» | Producto, cantidad y dirección (sale del verbo); motivo opcional | `inventory.operar` | Suma o resta al stock, nunca por debajo de cero, con rastro en `inventario_log`. |
+| `crear_categoria` / `renombrar_categoria` | «crea la categoría…», «renombra la categoría X a Y» | Nombre (≤50) / categoría actual y nombre nuevo | `inventory.operar` | Inserta o renombra en `generos` sin duplicar; al renombrar «toca» sus productos para que el escritorio refresque el nombre. |
+
+Lógica del catálogo en `services/ia_acciones_catalogo.py` (fase 2, 1.4.1.0). Al
+confirmar se compara con la vista previa; el stock solo cuenta en los
+movimientos (una venta no invalida un cambio de precio). No hay ningún DELETE.
 
 Consulta de solo lectura relacionada (sin confirmación): `buscar_contactos`
 (permiso `crm`, solo local) muestra contactos con su ID, correo y teléfono.

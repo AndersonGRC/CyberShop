@@ -212,7 +212,8 @@ MODULE_DEFINITIONS = {
     },
     MODULE_AI_ACTIONS: {
         'nombre': 'Acciones operativas con IA',
-        'descripcion': 'Ajustes de inventario y cambios de contactos con confirmacion humana. '
+        'descripcion': 'Productos, categorias, movimientos de inventario y contactos (crear, '
+                       'editar, archivar, reactivar) con confirmacion humana. '
                        'Solo en el panel; apagado por defecto para cada cliente.',
         'categoria': 'inteligencia',
         'config_key': 'ia_acciones_habilitadas',

@@ -94,6 +94,35 @@ def valores(texto, sin_vinetas=True):
     return salida
 
 
+_MULTIPLO = re.compile(r'(\d[\d.,]*)\s*(mil|k|millones|millon|palos?|lucas?)\b')
+_FACTOR = {'mil': 1000, 'k': 1000, 'lucas': 1000, 'luca': 1000,
+           'millon': 1_000_000, 'millones': 1_000_000, 'palo': 1_000_000, 'palos': 1_000_000}
+
+
+def valores_dichos(texto):
+    """Valores de las cifras del texto, incluidos «3 mil» = 3000, «2,5 millones»,
+    «12k» o «20 lucas». Para verificar precios y cantidades dichas por la persona."""
+    texto = normalizar(texto)
+    salida = valores(texto, sin_vinetas=False)
+    for cifra, palabra in _MULTIPLO.findall(texto):
+        for lectura in lecturas(cifra):
+            canonico = _canonico(Decimal(lectura) * _FACTOR[palabra])
+            if canonico:
+                salida.add(canonico)
+    return salida
+
+
+def valor_dicho(valor, fuentes):
+    """¿El número (del JSON del modelo) coincide en valor con uno dicho?"""
+    if isinstance(valor, bool) or valor is None:
+        return False
+    if isinstance(valor, (int, float)):
+        opciones = {_canonico(repr(valor))} - {None}
+    else:
+        opciones = lecturas(str(valor).strip().lstrip('$').strip())
+    return bool(opciones) and any(opciones & valores_dichos(f) for f in fuentes)
+
+
 def cifras_respaldadas(texto, fuente):
     """¿Cada cifra del texto coincide en valor con alguna de la fuente?"""
     disponibles = valores(fuente, sin_vinetas=False)

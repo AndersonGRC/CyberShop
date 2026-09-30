@@ -51,7 +51,7 @@ def test_flag_maestro_apagado_ni_invoca_modelo(monkeypatch):
     with pytest.raises(acciones.AccionError, match='no está habilitado'):
         acciones.preparar('Crear contacto Ana')
     with pytest.raises(acciones.AccionError, match='no coincide'):
-        acciones.preparar('Eliminar producto 42')
+        acciones.preparar('Eliminar la venta 42')
 
 
 def test_permiso_y_flags_se_revalidan_sin_cache(monkeypatch):
