@@ -4,10 +4,11 @@
 FAQ usa item_type='faq' de services/public_site_service.py (PUBLIC_ITEM_TYPES)
 — sin tabla propia, mismas funciones genéricas que slides/publicaciones/
 servicios. También cubre el gate de cada pantalla (config: ADMIN_FULL,
-FAQ: ADMIN_STAFF) y que guardar una FAQ la deja buscable por ia_rag (aunque
-hoy reindexar_uno() reindexe el grupo 'sitio' completo, no solo esa fila —
-limitación conocida, no es lo que esta prueba evalúa).
+FAQ: ADMIN_STAFF) y que guardar, despublicar o eliminar una FAQ actualiza
+inmediatamente el índice público sin tocar los documentos de otras fuentes.
 """
+from contextlib import contextmanager
+
 import pytest
 
 from database import get_db_cursor
@@ -18,11 +19,20 @@ def limpiar_faq_test():
     yield
     with get_db_cursor() as cur:
         cur.execute("DELETE FROM public_site_items WHERE item_type='faq' AND title LIKE 'TEST-%%'")
+    from services.ia_rag.indexador import reindexar_uno
+    reindexar_uno('faq', None)
 
 
 def _buscar(titulo):
     with get_db_cursor(dict_cursor=True) as cur:
         cur.execute("SELECT * FROM public_site_items WHERE item_type='faq' AND title=%s", (titulo,))
+        return cur.fetchone()
+
+
+def _indexada(item_id):
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute("SELECT canal_publico FROM ia_documentos "
+                    "WHERE fuente = 'faq' AND fuente_id = %s", (str(item_id),))
         return cur.fetchone()
 
 
@@ -95,15 +105,100 @@ def test_eliminar_faq(as_propietario, limpiar_faq_test):
 
 
 def test_faq_guardada_queda_buscable_por_rag(as_propietario, limpiar_faq_test):
-    """save_public_site_item() dispara reindexar_uno('faq', id) — esta prueba
-    confirma que el efecto real (aparecer en ia_rag.buscar) ocurre, sin
-    importar el detalle interno de a cuánto alcanza ese reindexado."""
+    """Crear una FAQ sin ID conocido reindexa solo el grupo de FAQ."""
     from services.ia_rag.buscar import buscar
     _crear(as_propietario, 'TEST-Zorroquimico99', 'Respuesta unica Zorroquimico99 para la prueba de RAG.')
     resultados = buscar('Zorroquimico99', solo_publico=True)
     textos = [f"{r.get('titulo', '')} {r.get('texto', '')}" for r in resultados]
     assert any('Zorroquimico99' in t for t in textos), \
         f'la FAQ nueva no aparecio en la busqueda RAG: {resultados}'
+
+
+def test_despublicar_y_eliminar_faq_no_dejan_documento_publico(as_propietario,
+                                                                 limpiar_faq_test):
+    from services.ia_rag.buscar import buscar
+
+    _crear(as_propietario, 'TEST-FaqUnicaZorro97', 'Respuesta TEST-FaqUnicaZorro97.')
+    _crear(as_propietario, 'TEST-FaqVecinaZorro98', 'Respuesta TEST-FaqVecinaZorro98.')
+    primera = _buscar('TEST-FaqUnicaZorro97')['id']
+    vecina = _buscar('TEST-FaqVecinaZorro98')['id']
+    assert _indexada(primera)['canal_publico'] is True
+    assert _indexada(vecina)['canal_publico'] is True
+
+    as_propietario.post(f'/admin/chat-publico/faq/toggle/{primera}')
+    assert _indexada(primera)['canal_publico'] is False
+    assert _indexada(vecina)['canal_publico'] is True
+    assert all(d['fuente_id'] != str(primera)
+               for d in buscar('FaqUnicaZorro97', solo_publico=True))
+
+    as_propietario.post(f'/admin/chat-publico/faq/toggle/{primera}')
+    assert _indexada(primera)['canal_publico'] is True
+    as_propietario.post(f'/admin/chat-publico/faq/eliminar/{primera}')
+    assert _indexada(primera) is None
+    assert _indexada(vecina)['canal_publico'] is True
+    assert all(d['fuente_id'] != str(primera)
+               for d in buscar('FaqUnicaZorro97', solo_publico=True))
+
+
+def test_reindexar_faq_borrada_solo_elimina_su_fila(monkeypatch, flask_app):
+    from services.ia_rag import indexador
+
+    class Cursor:
+        def __init__(self):
+            self.consultas = []
+
+        def execute(self, sql, params=None):
+            self.consultas.append((sql, params))
+
+        def fetchall(self):
+            return []  # la FAQ ya no existe en public_site_items
+
+    cur = Cursor()
+
+    @contextmanager
+    def cursor(**_kwargs):
+        yield cur
+
+    monkeypatch.setattr(indexador, 'get_db_cursor', cursor)
+    monkeypatch.setattr(indexador, 'indice_disponible', lambda _cur: True)
+    monkeypatch.setattr(indexador, '_existe', lambda _cur, _tabla: True)
+    monkeypatch.setattr(indexador, '_sql_tsv', lambda _cur: "to_tsvector('spanish', %s)")
+    with flask_app.app_context():
+        assert indexador.reindexar_uno('faq', 42) is True
+    borrados = [(sql, params) for sql, params in cur.consultas if 'DELETE FROM ia_documentos' in sql]
+    assert borrados == [('DELETE FROM ia_documentos WHERE fuente = %s AND fuente_id = %s',
+                         ('faq', '42'))]
+    assert any('WHERE item_type = %s AND id = %s' in sql and params == ('faq', 42)
+               for sql, params in cur.consultas)
+
+
+def test_reindexar_faq_inactiva_la_marca_no_publica(monkeypatch, flask_app):
+    from services.ia_rag import indexador
+
+    class Cursor:
+        def execute(self, _sql, _params=None):
+            pass
+
+        def fetchall(self):
+            return [{'id': 42, 'title': 'FAQ inactiva', 'subtitle': '',
+                     'description': 'Respuesta anterior', 'extra_text': '',
+                     'cta_url': '', 'is_active': False}]
+
+    @contextmanager
+    def cursor(**_kwargs):
+        yield Cursor()
+
+    guardadas = []
+    monkeypatch.setattr(indexador, 'get_db_cursor', cursor)
+    monkeypatch.setattr(indexador, 'indice_disponible', lambda _cur: True)
+    monkeypatch.setattr(indexador, '_existe', lambda _cur, _tabla: True)
+    monkeypatch.setattr(indexador, '_sql_tsv', lambda _cur: "to_tsvector('spanish', %s)")
+    monkeypatch.setattr(indexador, '_upsert', lambda *args: guardadas.append(args) or True)
+    with flask_app.app_context():
+        assert indexador.reindexar_uno('faq', 42) is True
+    assert len(guardadas) == 1
+    assert guardadas[0][2:4] == ('faq', 42)
+    assert guardadas[0][-1] is False
 
 
 # ── Gates: cada pantalla exige el rol correcto ──

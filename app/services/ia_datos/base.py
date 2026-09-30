@@ -19,6 +19,7 @@ _PERIODO_SQL = {
     'mes':    "{col} >= date_trunc('month', CURRENT_DATE)",
     'todo':   "TRUE",
     'ayer':   "DATE({col}) = CURRENT_DATE - 1",
+    'anteayer': "DATE({col}) = CURRENT_DATE - 2",
     'semana_anterior': ("{col} >= date_trunc('week', CURRENT_DATE) - INTERVAL '7 days' "
                         "AND {col} < date_trunc('week', CURRENT_DATE)"),
     'mes_anterior': ("{col} >= date_trunc('month', CURRENT_DATE) - INTERVAL '1 month' "
@@ -27,7 +28,8 @@ _PERIODO_SQL = {
 }
 _PERIODO_LABEL = {
     'hoy': 'hoy', 'semana': 'esta semana', 'mes': 'este mes', 'todo': 'en total',
-    'ayer': 'ayer', 'semana_anterior': 'la semana pasada', 'mes_anterior': 'el mes pasado',
+    'ayer': 'ayer', 'anteayer': 'anteayer',
+    'semana_anterior': 'la semana pasada', 'mes_anterior': 'el mes pasado',
     'anio': 'este año',
 }
 PERIODOS = tuple(_PERIODO_SQL)
@@ -74,6 +76,7 @@ def rango_efectivo(hoy, periodo):
     return {
         'hoy': (hoy, hoy),
         'ayer': (hoy - timedelta(days=1), hoy - timedelta(days=1)),
+        'anteayer': (hoy - timedelta(days=2), hoy - timedelta(days=2)),
         'semana': (lunes, hoy),
         'semana_anterior': (lunes - timedelta(days=7), lunes - timedelta(days=1)),
         'mes': (mes1, hoy),

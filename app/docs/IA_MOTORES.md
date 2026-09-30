@@ -1,21 +1,23 @@
 # Motores de IA: qué máquina atiende qué
 
-El diseño contempla tres niveles de motor. Las mediciones de esta página son
-del 23/09/2026, no una verificación del despliegue actual. El panel usa el
-selector para respuestas normales; el perfil «profundo» está definido pero
-no llega desde el plan de chat actual al selector, y el chat público aún no
-tiene endpoint/widget. Ver [inventario de IA](IA_ARCHIVOS_Y_DEPENDENCIAS.md).
+El diseño contempla tres niveles de motor. Las mediciones y algunos estados de
+esta página son históricos (23/09/2026), **no** una verificación del despliegue
+actual. El código local posterior ya tiene ruta y widget del chat público y un
+puente temporal a Anthropic mientras el modelo del PC está frío, si el
+respaldo está configurado. Para el contrato vigente de prompts y datos, ver
+[IA_CONTRATOS_PROMPTS.md](IA_CONTRATOS_PROMPTS.md). El perfil «profundo» está
+definido pero no llega desde el plan de chat actual al selector.
 
 | Nivel | Dónde vive | Para qué | Quién lo dispara |
 |---|---|---|---|
-| **A · Respaldo** | Nube (Anthropic), se cobra por token | Solo cuando el PC lleva minutos sin responder. | Solo el panel, por defecto |
-| **B · Bueno** | PC de IA, RTX 5070 Ti | Asistente del panel; previsto para el chat público cuando se conecte. | Según configuración y disponibilidad |
+| **A · Respaldo** | Nube (Anthropic), se cobra por token | Tras caída prolongada del PC o como puente mientras carga el modelo local, si está habilitado. | Solo el panel, por defecto |
+| **B · Bueno** | PC de IA, RTX 5070 Ti | Asistente del panel y, con el módulo habilitado, chat público. | Según configuración y disponibilidad |
 | **C · Profundo** | PC de IA, contexto largo | Perfil previsto para análisis pesados; falta conectarlo al plan de chat del panel. | No disponible por frase del panel hoy |
 
-El motor público previsto no permite nivel C. Su uso del PC tiene límite de
-concurrencia y puede responder con datos armados en Python cuando no hay
-modelo; Anthropic está excluido del canal público por defecto. Nada de esto
-supone que un visitante tenga hoy acceso al chat: faltan ruta y widget.
+El motor público no permite nivel C. Su uso del PC tiene límite de concurrencia
+y puede responder con datos armados en Python cuando no hay modelo; Anthropic
+está excluido del canal público por defecto. La ruta y el widget existen en el
+código local; el acceso de visitantes depende del módulo y del despliegue.
 
 ---
 
@@ -103,9 +105,9 @@ textos funciona con palabras, parecido y sinónimos (ver `services/ia_rag/`).
 
 ### Qué se hace entonces
 
-El **motor previsto** del chat público no depende de que haya modelo: puede
-armar respuestas con datos exactos en Python. Todavía faltan endpoint, widget
-e indexación automática antes de ofrecerlo a visitantes:
+El motor del chat público no depende de que haya modelo: puede armar respuestas
+con datos exactos en Python. La ruta, el widget y el mantenimiento del índice
+se añadieron después de esta medición; su despliegue sigue sin verificarse:
 
 - «¿Tienen X?» / «¿cuánto vale?» → consulta al catálogo
 - «¿A qué hora abren?» / «¿dónde quedan?» → datos del negocio
@@ -114,7 +116,8 @@ e indexación automática antes de ofrecerlo a visitantes:
 Lo que aporta el modelo es **redactar** con naturalidad y encadenar. Por eso:
 
 - **Nivel A**: sin modelo propio en la VPS. En su lugar, un **respaldo en la nube**
-  (ver abajo) que solo entra si el PC lleva minutos caído.
+  (ver abajo) tras caída prolongada del PC, o como puente si el PC responde
+  pero el modelo local aún se está cargando.
 - **Nivel B**: el 14B del PC, cuando está encendido, para redactar y conversar.
 - Si más adelante la VPS crece a 4 GB, se le pone su propio modelo sin tocar
   código: basta con apuntar `AI_MOTOR_A_BASE_URL` al Ollama local del servidor,
@@ -127,10 +130,11 @@ Lo que aporta el modelo es **redactar** con naturalidad y encadenar. Por eso:
 Existe para que el negocio no se quede sin asistente cuando el PC está apagado.
 Como **se cobra por token**, tiene tres frenos, y los tres importan:
 
-1. **Tiempo.** No entra apenas el equipo deja de responder: espera
+1. **Tiempo.** Cuando el equipo deja de responder, espera
    `AI_NUBE_ESPERA_LOCAL_S` (3 minutos por defecto) de caída continua. Un
    reinicio de Ollama o un corte de VPN no deben costar dinero. Si el equipo
-   vuelve, el reloj se reinicia.
+   vuelve, el reloj se reinicia. Esta espera no aplica al puente de modelo frío:
+   para ese caso rigen la habilitación, el presupuesto y las restricciones de datos.
 2. **Presupuesto.** Umbral local mensual **estimado** en dólares
    (`AI_NUBE_PRESUPUESTO_USD`, US$ 0 por defecto: apagado). Con un valor mayor
    que cero se deja de solicitar respaldo cuando el contador alcanza el umbral,

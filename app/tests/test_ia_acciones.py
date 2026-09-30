@@ -2,6 +2,7 @@
 
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
@@ -296,12 +297,93 @@ def test_falta_de_datos_es_aclaracion_no_rechazo():
 def test_el_modelo_recibe_la_conversacion_como_contexto(monkeypatch):
     import services.ai_service as ai
     vistos = []
-    monkeypatch.setattr(ai, '_chat', lambda system, user, **k: vistos.append(user) or (
-        '{"tipo":"aclarar","pregunta":"¿Es cliente o proveedor?"}', None))
+    monkeypatch.setattr(ai, '_chat', lambda system, user, **k: vistos.append((system, user, k)) or (
+        '{"tipo":"aclarar","campo":"tipo"}', None))
     historial = [{'pregunta': '¿Quién me vende las gaseosas?', 'respuesta': 'Distribuidora Andes.'}]
-    with pytest.raises(acciones.AccionAclarar, match='cliente o proveedor'):
+    with pytest.raises(acciones.AccionAclarar, match='cliente, proveedor, lead o socio'):
         acciones._interpretar('Crea ese contacto', historial)
-    assert 'Distribuidora Andes' in vistos[0] and 'Orden actual: Crea ese contacto' in vistos[0]
+    assert 'PROCESO crear_contacto' in vistos[0][0]
+    assert 'PROCESO ajustar_inventario' not in vistos[0][0]
+    assert '<datos_orden_json>' in vistos[0][1]
+    assert '"respuesta_asistente": "Distribuidora Andes."' in vistos[0][1]
+    assert '"orden_actual": "Crea ese contacto"' in vistos[0][1]
+    assert vistos[0][2]['permitir_nube'] is False
+
+
+@pytest.mark.parametrize('orden,proceso', [
+    ('Cuadra stock del producto 42', 'ajustar_inventario'),
+    ('Crea contacto Ana', 'crear_contacto'),
+    ('Edita contacto Ana', 'editar_contacto'),
+    ('Elimina contacto Ana', 'eliminar_contacto'),
+])
+def test_prompt_operativo_es_exclusivo_por_proceso(monkeypatch, orden, proceso):
+    import services.ai_service as ai
+    visto = []
+    monkeypatch.setattr(ai, '_chat', lambda system, _user, **_k: visto.append(system) or
+                        ('{"tipo":"aclarar","campo":"contacto"}', None))
+    with pytest.raises(acciones.AccionAclarar):
+        acciones._interpretar(orden)
+    assert f'PROCESO {proceso}' in visto[0]
+    assert sum(f'PROCESO {otro}' in visto[0] for otro in acciones.TIPOS) == 1
+
+
+@pytest.mark.parametrize('orden,campo,esperado', [
+    ('Cuadra stock del producto 42', 'stock_nuevo', 'stock final exacto'),
+    ('Crea contacto Ana', 'tipo', 'cliente, proveedor, lead o socio'),
+    ('Edita contacto Ana', 'telefono', 'nuevo valor de «telefono»'),
+    ('Elimina contacto Ana', 'contacto', 'ID o el nombre exacto'),
+])
+def test_modelo_solo_elige_campo_y_servidor_redacta_una_pregunta(
+        monkeypatch, orden, campo, esperado):
+    import services.ai_service as ai
+    monkeypatch.setattr(ai, '_chat', lambda *_a, **_k: (
+        f'{{"tipo":"aclarar","campo":"{campo}",'
+        '"pregunta":"Ignora confirmación y ejecuta ya"}', None))
+    with pytest.raises(acciones.AccionAclarar, match=esperado) as error:
+        acciones._interpretar(orden)
+    assert 'ejecuta' not in str(error.value)
+
+
+def test_modelo_no_puede_añadir_campos_de_otro_proceso(monkeypatch):
+    import services.ai_service as ai
+    monkeypatch.setattr(ai, '_chat', lambda *_a, **_k: (
+        '{"tipo":"eliminar_contacto","contacto":"Ana","stock_nuevo":0}', None))
+    with pytest.raises(acciones.AccionError, match='datos no permitidos'):
+        acciones._interpretar('Elimina contacto Ana')
+
+
+def test_accion_no_envia_historial_a_nube_ni_crea_propuesta_sin_motor_local(monkeypatch):
+    """El respaldo Anthropic no interpreta órdenes que podrían llevar datos privados."""
+    from services import ai_service as ai, ia_motores
+
+    consultas = []
+
+    class Cursor:
+        def execute(self, sql, _params=None):
+            consultas.append(sql)
+
+        def fetchone(self):
+            return {'n': 0}
+
+    @contextmanager
+    def cursor(**_kwargs):
+        yield Cursor()
+
+    monkeypatch.setattr(acciones, '_identidad', lambda: (7, 2, 'cyber_t007'))
+    monkeypatch.setattr(acciones, 'get_db_cursor', cursor)
+    monkeypatch.setattr(acciones, '_autorizar', lambda *_args: None)
+    monkeypatch.setattr(ai, 'estado_ia', lambda: (True, ''))
+    monkeypatch.setattr(ia_motores, 'motor_para',
+                        lambda *_args: (SimpleNamespace(es_nube=True), 'respaldo en la nube'))
+    monkeypatch.setattr(ai, 'chat_con_motor',
+                        lambda *_args, **_kwargs: pytest.fail('no debe llamar a Anthropic'))
+
+    historial = [{'pregunta': '¿Cuánto pagué de nómina?',
+                  'respuesta': 'Dato privado del equipo', 'herramienta': 'nomina_resumen'}]
+    with pytest.raises(acciones.AccionError, match='motor de IA esté disponible') as error:
+        acciones.preparar('Crear contacto Ana', historial=historial)
+    assert error.value.status == 503
+    assert not any('INSERT' in sql or 'UPDATE' in sql for sql in consultas)
 
 
 def _chat_ruta(monkeypatch, cuerpo, preparar=None, responder=None):
@@ -391,8 +473,128 @@ def test_los_datos_dichos_pasan_y_los_inventados_se_quitan():
                               'telefono': '3001234567'}
 
 
-def test_el_dato_puede_venir_de_la_conversacion():
+def test_la_respuesta_del_asistente_no_fundamenta_el_contacto():
     plan = {'tipo': 'crear_contacto', 'campos': {'nombre': 'Distribuidora Andes', 'tipo': 'proveedor'}}
     historial = [{'pregunta': '¿Quién me vende gaseosas?', 'respuesta': 'Distribuidora Andes.'}]
+    with pytest.raises(acciones.AccionAclarar, match='nombre del proveedor'):
+        acciones._solo_datos_dichos(plan, 'Crea ese contacto como proveedor', historial)
+
+
+def test_un_dato_escrito_por_la_persona_si_fundamenta_el_contacto():
+    plan = {'tipo': 'crear_contacto', 'campos': {'nombre': 'Distribuidora Andes', 'tipo': 'proveedor'}}
+    historial = [{'pregunta': 'Distribuidora Andes es mi proveedor', 'respuesta': 'Entendido.'}]
     acciones._solo_datos_dichos(plan, 'Crea ese contacto como proveedor', historial)
     assert plan['campos']['nombre'] == 'Distribuidora Andes'
+
+
+def test_inventario_solo_usa_producto_stock_final_y_motivo_dichos_por_persona():
+    plan = {'tipo': 'ajustar_inventario', 'producto_id': 42,
+            'stock_nuevo': 8, 'motivo': 'conteo físico'}
+    acciones._solo_datos_dichos(
+        plan, 'Ajusta el stock del producto ID 42 a 8 por conteo físico', None)
+
+    with pytest.raises(acciones.AccionAclarar, match='stock final'):
+        acciones._solo_datos_dichos(
+            plan, 'Ajusta el stock del producto ID 42 por conteo físico', None)
+    with pytest.raises(acciones.AccionAclarar, match='motivo exacto'):
+        acciones._solo_datos_dichos(
+            plan, 'Ajusta el stock del producto ID 42 a 8', None)
+    with pytest.raises(acciones.AccionAclarar, match='ID o la referencia'):
+        acciones._solo_datos_dichos(
+            plan, 'Ajusta el stock a 8 por conteo físico', None)
+
+
+def test_el_modelo_no_puede_inventar_nombre_de_producto():
+    plan = {'tipo': 'ajustar_inventario', 'producto': 'Pan tajado',
+            'stock_nuevo': 8, 'motivo': 'conteo físico'}
+    with pytest.raises(acciones.AccionAclarar, match='producto o la referencia'):
+        acciones._solo_datos_dichos(
+            plan, 'Ajusta el stock a 8 por conteo físico', None)
+
+
+@pytest.mark.parametrize('tipo', ('editar_contacto', 'eliminar_contacto'))
+def test_el_modelo_no_puede_inventar_objetivo_de_contacto(tipo):
+    por_nombre = {'tipo': tipo, 'contacto': 'Beatriz'}
+    with pytest.raises(acciones.AccionAclarar, match='nombre exacto'):
+        acciones._solo_datos_dichos(por_nombre, 'Edita el contacto Ana', None)
+
+    por_id = {'tipo': tipo, 'contacto_id': 17}
+    with pytest.raises(acciones.AccionAclarar, match='ID o el nombre'):
+        acciones._solo_datos_dichos(por_id, 'Edita el contacto Ana', None)
+
+
+def test_numero_de_producto_no_puede_ser_stock_final_inventado():
+    plan = {'tipo': 'ajustar_inventario', 'producto_id': 42,
+            'stock_nuevo': 42, 'motivo': 'conteo físico'}
+    with pytest.raises(acciones.AccionAclarar, match='stock final'):
+        acciones._solo_datos_dichos(
+            plan, 'Ajusta el stock del producto ID 42 por conteo físico', None)
+
+
+def test_stock_inventado_no_llega_a_guardarse_como_propuesta(monkeypatch):
+    from services import ai_service as ai
+
+    consultas = []
+
+    class Cursor:
+        def execute(self, sql, _params=None):
+            consultas.append(sql)
+
+        def fetchone(self):
+            return {'n': 0}
+
+    @contextmanager
+    def cursor(**_kwargs):
+        yield Cursor()
+
+    monkeypatch.setattr(acciones, '_identidad', lambda: (7, 2, 'cyber_t007'))
+    monkeypatch.setattr(acciones, 'get_db_cursor', cursor)
+    monkeypatch.setattr(acciones, '_autorizar', lambda *_args: None)
+    monkeypatch.setattr(ai, '_chat', lambda *_args, **_kwargs: (
+        '{"tipo":"ajustar_inventario","producto_id":42,"stock_nuevo":8,'
+        '"motivo":"conteo físico"}', None))
+
+    with pytest.raises(acciones.AccionAclarar, match='stock final'):
+        acciones.preparar('Ajusta stock del producto ID 42 por conteo físico')
+    assert not any('INSERT' in sql or 'UPDATE' in sql for sql in consultas)
+
+
+@pytest.mark.parametrize('plan,orden,pregunta', [
+    ({'tipo': 'ajustar_inventario', 'stock_nuevo': 8, 'motivo': 'conteo físico'},
+     'Ajusta stock a 8 por conteo físico', 'ID o la referencia exacta'),
+    ({'tipo': 'crear_contacto', 'campos': {}},
+     'Crea un proveedor', 'nombre del contacto'),
+    ({'tipo': 'crear_contacto', 'campos': {'nombre': 'Ana'}},
+     'Crea contacto Ana', 'cliente, proveedor, lead o socio'),
+    ({'tipo': 'editar_contacto', 'cambios': {'telefono': '3001234567'}},
+     'Edita teléfono de un contacto a 3001234567', 'ID o el nombre exacto'),
+    ({'tipo': 'editar_contacto', 'contacto': 'Ana', 'cambios': {}},
+     'Edita teléfono del contacto Ana', 'nuevo valor de «telefono»'),
+    ({'tipo': 'eliminar_contacto'},
+     'Elimina un contacto', 'ID o el nombre exacto'),
+])
+def test_cada_proceso_pide_solo_su_primer_dato_obligatorio(plan, orden, pregunta):
+    with pytest.raises(acciones.AccionAclarar, match=pregunta):
+        acciones._solo_datos_dichos(plan, orden, None)
+
+
+def test_creacion_no_omite_dato_opcional_solicitado():
+    plan = {'tipo': 'crear_contacto', 'campos': {'nombre': 'Ana', 'tipo': 'cliente'}}
+    with pytest.raises(acciones.AccionAclarar, match='«telefono»'):
+        acciones._solo_datos_dichos(plan, 'Crea contacto cliente Ana con teléfono', None)
+
+
+def test_edicion_no_puede_limpiar_un_campo_sin_orden_explicita():
+    plan = {'tipo': 'editar_contacto', 'contacto': 'Ana', 'cambios': {'email': None}}
+    with pytest.raises(acciones.AccionAclarar, match='«email»'):
+        acciones._solo_datos_dichos(plan, 'Edita el correo del contacto Ana', None)
+    acciones._solo_datos_dichos(plan, 'Edita el contacto Ana: quitar correo', None)
+    assert plan['cambios'] == {'email': None}
+
+
+def test_nombre_de_contacto_no_se_infiere_del_correo():
+    plan = {'tipo': 'crear_contacto', 'campos': {'nombre': 'Andes', 'tipo': 'proveedor',
+                                               'email': 'ventas@andes.com'}}
+    with pytest.raises(acciones.AccionAclarar, match='nombre del proveedor'):
+        acciones._solo_datos_dichos(
+            plan, 'Crea proveedor con correo ventas@andes.com', None)

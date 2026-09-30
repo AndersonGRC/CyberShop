@@ -1,6 +1,8 @@
 # Inventario de archivos de IA y dependencias
 
-Auditoría del código local: 24/09/2026. Abarca `CyberShop/app`,
+Auditoría histórica del código local: 24/09/2026. Para el contrato actual de
+los dos chats, las acciones y los prompts tras los cambios posteriores, ver
+[IA_CONTRATOS_PROMPTS.md](IA_CONTRATOS_PROMPTS.md). Abarca `CyberShop/app`,
 `CyberShopAdmin` y `CyberShopDesktop`. «Conectado» significa que existe una
 ruta o un llamador en este código, **no** que esté desplegado ni habilitado en
 producción. No se consultaron bases de clientes, cron del servidor ni servicios

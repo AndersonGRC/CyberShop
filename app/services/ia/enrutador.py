@@ -22,7 +22,7 @@ _PARAMS_NOMBRE = ('cliente', 'producto', 'empleado', 'texto')
 _PERIODOS_TEXTO = (
     ('semana pasada', 'semana_anterior'), ('semana anterior', 'semana_anterior'),
     ('mes pasado', 'mes_anterior'), ('mes anterior', 'mes_anterior'),
-    ('anteayer', 'ayer'),
+    ('anteayer', 'anteayer'),
     ('hoy', 'hoy'), ('ayer', 'ayer'),
     ('esta semana', 'semana'), ('la semana', 'semana'),
     ('este mes', 'mes'), ('del mes', 'mes'), ('en el mes', 'mes'),

@@ -274,6 +274,10 @@ def test_varias_herramientas_y_comparacion_de_periodos(motor):
     assert '- ventas_prueba:' in enrutador and 'finanzas_prueba' not in enrutador   # ni la ve en su lista
     assert 'Hoy es martes 2026-09-15' in enrutador
     assert 'consultados el 2026-09-15 10:30' in plan['user']
+    assert 'Procesos consultados y parámetros validados' in plan['user']
+    assert '"periodo": "mes_anterior"' in plan['user']
+    assert '"funcion": "finanzas_prueba"' not in plan['user']
+    assert 'responde cada una por separado' in plan['system']
 
 
 def test_una_herramienta_conserva_la_forma_de_siempre(motor):
@@ -328,15 +332,19 @@ def test_seguimiento_usa_la_conversacion(motor):
     historial = [{'pregunta': '¿cuánto vendí este mes?', 'respuesta': 'Vendiste $ 10.', 'herramienta': 'ventas_prueba'}]
     _, plan = _plan('¿y el mes pasado?', historial=historial, contexto=_ctx(4))
     user_enrutador = llamadas['chat'][0][1]
-    assert 'CONVERSACIÓN RECIENTE' in user_enrutador and 'Pregunta actual: «¿y el mes pasado?»' in user_enrutador
+    assert 'CONVERSACIÓN RECIENTE' in user_enrutador
+    assert 'Pregunta actual (dato JSON): "¿y el mes pasado?"' in user_enrutador
     assert '¿cuánto vendí este mes?' in plan['user']
 
 
 def test_consulta_sensible_marca_auditoria(motor):
-    _, respuestas = motor
+    llamadas, respuestas = motor
     respuestas.append('{"tools":[{"tool":"nomina_prueba","params":{"empleado":"Ana Pérez"}}]}')
     _, plan = _plan('¿cuánto se le pagó a Ana?', contexto=_ctx(5))
     assert plan['sensible'] == 'nomina' and plan['objetivo'] == 'Ana Pérez'
+    assert 'Puedes elegir una herramienta de nómina' in llamadas['chat'][0][0]
+    assert 'Si piden datos sensibles' not in llamadas['chat'][0][0]
+    assert 'la nómina sí se pueden consultar cuando' in llamadas['chat'][0][0]
     respuestas.append('{"tools":[{"tool":"nomina_prueba","params":{"empleado":"Ana Pérez"}}]}')
     _, plan = _plan('¿cuánto se le pagó a Ana?', contexto=_ctx(4))      # negada: no se marca
     assert plan['datos']['denegado'] is True and plan['sensible'] is None
@@ -351,6 +359,84 @@ def test_responder_chat_registra_la_consulta(motor, monkeypatch):
     assert err is None and res['respuesta'] == 'Vendiste $ 10.' and res['herramientas'] == ['ventas_prueba']
     ctx, pregunta, plan, error, _inicio = registros[-1]
     assert ctx.rol_id == 4 and pregunta == '¿cuánto vendí?' and plan['herramientas'] == ['ventas_prueba'] and error is None
+
+
+def test_verificador_panel_rechaza_cifras_y_porcentajes_sin_fuente():
+    plan = {'datos': {'total': 500000}}
+    assert ai._redaccion_con_cifras_verificadas(plan, 'Vendiste $500.000.')
+    assert not ai._redaccion_con_cifras_verificadas(plan, 'Vendiste $900.000.')
+    assert not ai._redaccion_con_cifras_verificadas(plan, 'Subiste 50%.')
+
+
+def test_aclaracion_del_panel_sale_sin_modelo_ni_consulta(flask_app, monkeypatch):
+    from services import ia_motores
+
+    plan = ai._plan_aclaracion('¿Qué compró?', 'cliente_historial',
+                              '¿Cuál es el nombre exacto del cliente?')
+    registros = []
+    monkeypatch.setattr(ai, '_registrar_consulta', lambda *args: registros.append(args))
+    monkeypatch.setattr(ai, '_plan_chat', lambda *_a, **_k: (plan, None))
+    monkeypatch.setattr(ai, '_plan_chat_pasos', lambda *_a, **_k: iter([('plan', plan)]))
+    monkeypatch.setattr(ia_motores, 'motor_para',
+                        lambda *_a, **_k: pytest.fail('una aclaración no llama al modelo'))
+
+    with flask_app.app_context():
+        respuesta, err = ai.responder_chat('¿Qué compró?', contexto=_ctx(4))
+        eventos = list(ai.responder_chat_stream('¿Qué compró?', contexto=_ctx(4)))
+    assert err is None
+    assert respuesta['respuesta'] == '¿Cuál es el nombre exacto del cliente?'
+    assert respuesta['herramienta'] == 'aclaracion:cliente_historial'
+    assert eventos[-1] == ('fin', respuesta['respuesta'])
+    assert registros and all(r[3] is None for r in registros)
+
+
+def test_panel_pide_cliente_antes_de_consultar_y_reanuda_con_respuesta(flask_app, monkeypatch):
+    import services.ai_tools as tools
+
+    h = tools.REGISTRO['cliente_historial']
+    consultas = []
+    respuestas = [
+        '{"tools":[{"tool":"cliente_historial","params":{}}]}',
+        '{"tools":[{"tool":"cliente_historial","params":{"cliente":"Ana Pérez"}}]}',
+    ]
+    monkeypatch.setattr(tools, 'permitidas', lambda _ctx: [h])
+    monkeypatch.setattr(tools, 'ejecutar',
+                        lambda code, params, _ctx: consultas.append((code, params)) or
+                        {'cliente': params['cliente'], 'compras': 2})
+    monkeypatch.setattr(ai, '_chat', lambda *_a, **_k: (respuestas.pop(0), None))
+    monkeypatch.setattr(ai, '_modelo_en_memoria', lambda _m: True)
+    monkeypatch.setattr(ai, '_fecha_hoy',
+                        lambda: (date(2026, 9, 28), datetime(2026, 9, 28, 10)))
+
+    with flask_app.app_context():
+        primero, err = ai._plan_chat('¿Qué ha comprado?', contexto=_ctx(4))
+        historial = [{'pregunta': '¿Qué ha comprado?',
+                      'respuesta': primero['respuesta_directa'],
+                      'herramienta': primero['herramienta']}]
+        segundo, err2 = ai._plan_chat('Ana Pérez', historial=historial, contexto=_ctx(4))
+    assert err is None and err2 is None
+    assert primero['aclaracion'] is True and consultas == [('cliente_historial', {
+        'cliente': 'Ana Pérez'})]
+    assert segundo['datos']['compras'] == 2
+
+
+def test_panel_no_usa_periodo_inventado_por_modelo(flask_app, monkeypatch):
+    import services.ai_tools as tools
+
+    h = tools.REGISTRO['ventas_periodo']
+    consultas = []
+    monkeypatch.setattr(tools, 'permitidas', lambda _ctx: [h])
+    monkeypatch.setattr(tools, 'ejecutar',
+                        lambda _code, params, _ctx: consultas.append(params) or {'total': 2})
+    monkeypatch.setattr(ai, '_chat', lambda *_a, **_k: (
+        '{"tools":[{"tool":"ventas_periodo","params":{"periodo":"mes"}}]}', None))
+    monkeypatch.setattr(ai, '_modelo_en_memoria', lambda _m: True)
+    monkeypatch.setattr(ai, '_fecha_hoy',
+                        lambda: (date(2026, 9, 28), datetime(2026, 9, 28, 10)))
+    with flask_app.app_context():
+        plan, err = ai._plan_chat('Dame mis ventas', contexto=_ctx(4))
+    assert err is None and plan['datos'] == {'total': 2}
+    assert consultas == [{'periodo': 'todo'}]
 
 
 def test_stream_registra_aunque_el_navegador_corte(motor, monkeypatch):

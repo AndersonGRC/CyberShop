@@ -1,7 +1,7 @@
 # Acciones operativas del Asistente IA (panel)
 
 Versión de código: 1.1.0.0. Estado: implementado localmente, **apagado por
-cliente y sin despliegue verificado**. No forma parte del catálogo de 46 consultas de solo
+cliente y sin despliegue verificado**. No forma parte del catálogo de 48 consultas de solo
 lectura ni del chat público; la separación evita que una respuesta informativa
 pueda disparar una escritura.
 
@@ -26,6 +26,12 @@ aclaración. No puede generar SQL ni autorizar la escritura. Si hay un posible
 duplicado o el modelo devuelve algo inválido, se rechaza la propuesta. Para
 inventario no se infiere un stock final a partir de «suma tres» o «cuadra»: se
 pide el valor final.
+
+El intérprete recibe la orden y el historial en un bloque JSON delimitado. Un
+objetivo, ID, stock final, motivo o campo de contacto propuesto por el modelo
+debe poder encontrarse en texto escrito por la persona (orden actual o sus
+preguntas anteriores), **no** en respuestas previas de la IA. Si no se puede
+fundamentar, pide una aclaración y no guarda una propuesta.
 
 **Si falta un dato o hay varios registros con el mismo nombre** (versión 1.3.1.0),
 la acción no se rechaza: la IA pregunta lo que falta (`AccionAclarar`) y la acción
@@ -61,9 +67,9 @@ contexto: así entiende «créalo como proveedor» después de hablar de un nego
    a una tabla compartida.
 5. Las consultas de escritura son parametrizadas y las columnas editables son
    una lista blanca. El modelo solo recibe la frase de la persona, no un volcado
-   de la base. Si el respaldo Anthropic de emergencia entra en el chat del
-   panel según su política, esa frase podría enviarse al proveedor; cada
-   cliente debe decidir si acepta ese tratamiento de datos personales.
+   de la base. La interpretación de acciones exige un motor no-nube: no envía la
+   orden ni su historial al respaldo Anthropic. Si ese motor no está listo,
+   no se propone ni ejecuta ningún cambio.
 
 Esto es aislamiento **a nivel de aplicación**. Sigue pendiente el cierre P0
 del informe `AUDITORIA_IA_MULTITENANT_2026-09.md`: usuarios de sistema y roles

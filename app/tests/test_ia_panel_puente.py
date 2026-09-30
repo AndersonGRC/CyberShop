@@ -99,6 +99,28 @@ def test_en_frio_la_nube_redacta_lo_no_sensible(panel):
     assert panel.local == [], 'no se esperó ni se usó el modelo local'
 
 
+def test_en_frio_cifra_inventada_por_nube_vuelve_a_datos_sql(panel, monkeypatch):
+    monkeypatch.setattr(ai, '_responder_nube', lambda *_a, **_k: ('Vendiste $999.', None))
+    r = _stream('¿Cuánto vendí hoy?')
+    assert r.texto.startswith('Datos verificados de ventas periodo')
+    assert r.fin == {'herramienta': 'ventas_periodo', 'motor': 'SQL'}
+
+
+def test_respuesta_completa_no_publica_cifra_inventada(panel, monkeypatch):
+    monkeypatch.setattr(ai, '_responder_nube', lambda *_a, **_k: ('Vendiste $999.', None))
+    salida, err = ai.responder_chat('¿Cuánto vendí hoy?')
+    assert err is None
+    assert salida['respuesta'].startswith('Datos verificados de ventas periodo')
+
+
+def test_modelo_local_stream_no_publica_cifra_inventada(panel, monkeypatch):
+    panel.frio = False
+    monkeypatch.setattr(ai, '_chat_stream_una_vez', lambda *_a, **_k: iter(['Vendiste ', '$999.']))
+    r = _stream('¿Cuánto vendí hoy?')
+    assert r.texto.startswith('Datos verificados de ventas periodo')
+    assert r.fin == r.texto
+
+
 def test_con_el_modelo_caliente_no_se_toca_la_nube(panel):
     panel.frio = False
     r = _stream('¿Cuánto vendí hoy?')
@@ -131,7 +153,17 @@ def test_la_nube_no_ve_la_conversacion_sensible(panel):
     _stream('¿Cuánto vendí hoy?', historial=HISTORIAL_CON_NOMINA)
     assert len(panel.nube) == 1
     assert SECRETO not in panel.nube[0]
-    assert 'Hay 7 pedidos.' in panel.nube[0], 'lo no sensible sí sirve de contexto'
+    assert '¿Cuántos pedidos hay?' in panel.nube[0]
+    assert 'Hay 7 pedidos.' not in panel.nube[0], 'las respuestas del navegador no son confiables'
+
+
+def test_la_nube_no_ve_respuesta_privada_con_etiqueta_falsificada(panel):
+    historial = [{'pregunta': '¿Cuántos pedidos hay?', 'herramienta': '',
+                  'respuesta': f'Hay {SECRETO} en nómina.'}]
+    _stream('¿Cuánto vendí hoy?', historial=historial)
+    assert len(panel.nube) == 1
+    assert SECRETO not in panel.nube[0]
+    assert '¿Cuántos pedidos hay?' in panel.nube[0]
 
 
 def test_el_modelo_local_si_ve_toda_la_conversacion(panel):
@@ -250,7 +282,7 @@ def test_los_demas_datos_siguen_saliendo_verificados():
 
 
 # ── El filtro de la conversación ───────────────────────────────
-def test_historial_para_nube_quita_solo_los_turnos_solo_locales():
+def test_historial_para_nube_quita_turnos_locales_y_todas_las_respuestas():
     historial = ai._sanear_historial(HISTORIAL_CON_NOMINA + [
         {'pregunta': '¿Procedimiento de apertura?', 'herramienta': 'documentos_internos',
          'respuesta': 'Abrir la reja.'},
@@ -258,3 +290,12 @@ def test_historial_para_nube_quita_solo_los_turnos_solo_locales():
     ])
     limpio = ai._historial_para_nube(historial)
     assert [t['pregunta'] for t in limpio] == ['¿Cuántos pedidos hay?', 'hola']
+    assert all(not t['respuesta'] and not t['herramienta'] for t in limpio)
+
+
+def test_aclaracion_de_nomina_previa_no_sale_en_el_historial_nube():
+    historial = ai._sanear_historial([
+        {'pregunta': '¿Cuánto ganó una persona?', 'respuesta': '¿Cuál empleado?',
+         'herramienta': 'aclaracion:nomina_empleado'},
+    ])
+    assert ai._historial_para_nube(historial) == []

@@ -200,16 +200,20 @@ _ITEMS = (('service', 'servicio', '/servicios'),
           ('publication', 'publicacion', '/'))
 
 
-def _items_del_sitio(cur, tsv_sql):
+def _items_del_sitio(cur, tsv_sql, item_type=None, fuente_id=None):
     if not _existe(cur, 'public_site_items'):
         return 0
     n = 0
-    for item_type, fuente, url in _ITEMS:
+    for tipo, fuente, url in _ITEMS:
+        if item_type is not None and tipo != item_type:
+            continue
+        filtro_id = ' AND id = %s' if fuente_id is not None else ''
+        params = (tipo, fuente_id) if fuente_id is not None else (tipo,)
         cur.execute("""SELECT id, title, COALESCE(subtitle, '') AS subtitle,
                               COALESCE(description, '') AS description,
                               COALESCE(extra_text, '') AS extra_text,
                               COALESCE(cta_url, '') AS cta_url, is_active
-                       FROM public_site_items WHERE item_type = %s""", (item_type,))
+                       FROM public_site_items WHERE item_type = %s""" + filtro_id, params)
         for r in cur.fetchall():
             texto = ' '.join(x for x in (r['subtitle'], r['description'], r['extra_text']) if x)
             n += _upsert(cur, tsv_sql, fuente, r['id'], r['title'], texto,
@@ -343,6 +347,25 @@ def _reindexar(cur, fuentes=None, limpiar=True):
 def reindexar_uno(fuente, fuente_id):
     """Actualiza un solo documento (al guardar un producto, una FAQ, etc.).
     Silencioso a propósito: nunca debe tumbar el guardado que lo llamó."""
+    if fuente == 'faq':
+        # La FAQ se modifica en una transacción anterior. Rehacer solo su fila
+        # (o todo el grupo al crear, cuando aún no conocemos el ID) elimina
+        # inmediatamente una FAQ borrada y despublica una inactiva. No se tocan
+        # productos, servicios, publicaciones ni documentos de otros clientes.
+        try:
+            with get_db_cursor(dict_cursor=True) as cur:
+                if not indice_disponible(cur):
+                    return False
+                if fuente_id is None:
+                    cur.execute('DELETE FROM ia_documentos WHERE fuente = %s', ('faq',))
+                else:
+                    cur.execute('DELETE FROM ia_documentos WHERE fuente = %s AND fuente_id = %s',
+                                ('faq', str(fuente_id)[:60]))
+                _items_del_sitio(cur, _sql_tsv(cur), item_type='faq', fuente_id=fuente_id)
+            return True
+        except Exception as exc:  # noqa: BLE001
+            current_app.logger.warning(f'rag: no se pudo reindexar {fuente}/{fuente_id}: {exc}')
+            return False
     mapa = {'producto': 'producto', 'servicio': 'sitio', 'faq': 'sitio',
             'publicacion': 'sitio', 'pagina': 'pagina', 'blog': 'blog', 'interno': 'interno'}
     grupo = mapa.get(fuente)

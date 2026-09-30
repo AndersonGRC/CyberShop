@@ -29,12 +29,23 @@ admin_chat_publico_bp = Blueprint('admin_chat_publico', __name__, url_prefix='/a
 _CAMPOS_CONFIG = ('chat_publico_saludo', 'chat_publico_sugerencias', 'chat_publico_tono')
 
 
-def _reindexar_faq():
+def _reindexar_faq(item_id=None):
     try:
         from services.ia_rag.indexador import reindexar_uno
-        reindexar_uno('faq', None)
+        if reindexar_uno('faq', item_id):
+            return True
     except Exception as exc:  # noqa: BLE001
         current_app.logger.warning(f'admin_chat_publico: reindexado de FAQ falló ({exc})')
+    current_app.logger.warning(f'admin_chat_publico: FAQ {item_id} no se actualizó en el índice')
+    return False
+
+
+def _avisar_resultado_faq(mensaje, item_id=None):
+    if _reindexar_faq(item_id):
+        flash(mensaje, 'success')
+    else:
+        flash(mensaje + ' El índice del chat no se pudo actualizar; verifica el chat público.',
+              'warning')
 
 
 @admin_chat_publico_bp.route('/', methods=['GET', 'POST'])
@@ -90,8 +101,7 @@ def faq_crear():
         datos['item_type'] = 'faq'
         try:
             save_public_site_item(datos, request.files.get('imagen'), current_app.root_path)
-            _reindexar_faq()
-            flash('Pregunta frecuente creada.', 'success')
+            _avisar_resultado_faq('Pregunta frecuente creada.')
         except Exception as exc:  # noqa: BLE001
             current_app.logger.error(f'admin_chat_publico: error creando FAQ ({exc})')
             flash('No fue posible guardar la pregunta.', 'error')
@@ -109,8 +119,7 @@ def faq_editar(item_id):
         datos['item_id'] = str(item_id)
         try:
             save_public_site_item(datos, request.files.get('imagen'), current_app.root_path)
-            _reindexar_faq()
-            flash('Pregunta frecuente actualizada.', 'success')
+            _avisar_resultado_faq('Pregunta frecuente actualizada.', item_id)
         except Exception as exc:  # noqa: BLE001
             current_app.logger.error(f'admin_chat_publico: error editando FAQ ({exc})')
             flash('No fue posible guardar los cambios.', 'error')
@@ -130,8 +139,7 @@ def faq_editar(item_id):
 def faq_eliminar(item_id):
     try:
         delete_public_site_item(item_id, item_type='faq')
-        _reindexar_faq()
-        flash('Pregunta frecuente eliminada.', 'success')
+        _avisar_resultado_faq('Pregunta frecuente eliminada.', item_id)
     except Exception:
         flash('Error eliminando la pregunta.', 'error')
     return redirect(url_for('admin_chat_publico.faq_lista'))
@@ -142,8 +150,7 @@ def faq_eliminar(item_id):
 def faq_toggle(item_id):
     try:
         toggle_public_site_item(item_id, item_type='faq')
-        _reindexar_faq()
-        flash('Estado actualizado.', 'success')
+        _avisar_resultado_faq('Estado actualizado.', item_id)
     except Exception:
         flash('Error cambiando el estado.', 'error')
     return redirect(url_for('admin_chat_publico.faq_lista'))
