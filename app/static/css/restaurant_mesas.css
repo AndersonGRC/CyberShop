@@ -41,6 +41,18 @@
     --rm-red-600: #d63b3b;
     --rm-red-100: #fde4e4;
 
+    /* Estados de mesa (pedido del dueño): Disponible verde, Ocupada roja,
+       Pendiente de cobro amarilla. */
+    --rm-st-libre: var(--rm-green-500);
+    --rm-st-libre-tint: var(--rm-green-100);
+    --rm-st-libre-text: var(--rm-green-text);
+    --rm-st-ocupada: #dc2f2f;
+    --rm-st-ocupada-tint: #fde3e3;
+    --rm-st-ocupada-text: #b01e1e;
+    --rm-st-cobrar: #f2c200;
+    --rm-st-cobrar-tint: #fff4c4;
+    --rm-st-cobrar-text: #7a5a00;
+
     --rm-border-subtle: var(--rm-ink-200);
     --rm-border-default: var(--rm-ink-300);
     --rm-shadow-sm: 0 1px 2px rgba(8, 14, 31, .06), 0 1px 3px rgba(8, 14, 31, .08);
@@ -904,9 +916,9 @@
     background: var(--rm-ink-400);
 }
 
-.rm-dot.is-libre { background: var(--rm-green-500); }
-.rm-dot.is-ocupada { background: var(--rm-brand); }
-.rm-dot.is-cobrar { background: var(--rm-amber-500); }
+.rm-dot.is-libre { background: var(--rm-st-libre); }
+.rm-dot.is-ocupada { background: var(--rm-st-ocupada); }
+.rm-dot.is-cobrar { background: var(--rm-st-cobrar); }
 .rm-dot.is-reservada { background: var(--rm-violet-500); }
 
 /* Tarjeta de mesa en el plano */
@@ -939,11 +951,19 @@
     display: block;
     height: 4px;
     width: 100%;
-    background: var(--rm-green-500);
+    background: var(--rm-st-libre);
 }
 
-.rm-card.is-ocupada .rm-card-strip { background: var(--rm-brand); }
-.rm-card.is-cobrar .rm-card-strip { background: var(--rm-amber-500); }
+.rm-card.is-ocupada .rm-card-strip { background: var(--rm-st-ocupada); }
+.rm-card.is-cobrar .rm-card-strip { background: var(--rm-st-cobrar); }
+
+/* La tarjeta completa lleva el color de su estado (se ve de lejos). */
+.rm-card .rm-card-strip { height: 6px; }
+.rm-card.is-libre { background: var(--rm-st-libre-tint); border-color: var(--rm-st-libre); }
+.rm-card.is-ocupada { background: var(--rm-st-ocupada-tint); border-color: var(--rm-st-ocupada); }
+.rm-card.is-cobrar { background: var(--rm-st-cobrar-tint); border-color: var(--rm-st-cobrar); }
+.rm-card.is-reservada { background: var(--rm-violet-100); border-color: var(--rm-violet-500); }
+.rm-card .rm-badge { background: var(--rm-white); }
 .rm-card.is-reservada .rm-card-strip { background: var(--rm-violet-500); }
 
 .rm-card-body {
@@ -1003,8 +1023,9 @@
     color: var(--rm-green-text);
 }
 
-.rm-badge.is-ocupada { background: var(--rm-brand-50); color: var(--rm-brand-700); }
-.rm-badge.is-cobrar { background: var(--rm-amber-100); color: var(--rm-amber-text); }
+.rm-badge.is-libre { background: var(--rm-st-libre-tint); color: var(--rm-st-libre-text); }
+.rm-badge.is-ocupada { background: var(--rm-st-ocupada-tint); color: var(--rm-st-ocupada-text); }
+.rm-badge.is-cobrar { background: var(--rm-st-cobrar-tint); color: var(--rm-st-cobrar-text); }
 .rm-badge.is-reservada { background: var(--rm-violet-100); color: var(--rm-violet-text); }
 
 /* ── Mesa abierta: venta ───────────────────────────────────────── */
@@ -1073,9 +1094,9 @@
     color: var(--rm-ink-900);
 }
 
-.rm-step.is-on .rm-dot.is-libre { background: var(--rm-green-500); }
-.rm-step.is-on .rm-dot.is-ocupada { background: var(--rm-brand); }
-.rm-step.is-on .rm-dot.is-cobrar { background: var(--rm-amber-500); }
+.rm-step.is-on .rm-dot.is-libre { background: var(--rm-st-libre); }
+.rm-step.is-on .rm-dot.is-ocupada { background: var(--rm-st-ocupada); }
+.rm-step.is-on .rm-dot.is-cobrar { background: var(--rm-st-cobrar); }
 
 .rm-step-sep {
     width: 16px;
@@ -1300,8 +1321,8 @@
     height: 104px;
     cursor: pointer;
     border-radius: 20px;
-    border: 6px solid var(--rm-green-500);
-    background: var(--rm-green-100);
+    border: 6px solid var(--rm-st-libre);
+    background: var(--rm-st-libre-tint);
     color: var(--rm-ink-900);
     font: 800 52px var(--rm-font);
     display: flex;
@@ -1311,8 +1332,8 @@
     white-space: nowrap;
 }
 
-.rm-mnode.is-ocupada { border-color: var(--rm-brand); background: var(--rm-brand-50); }
-.rm-mnode.is-cobrar { border-color: var(--rm-amber-500); background: var(--rm-amber-100); }
+.rm-mnode.is-ocupada { border-color: var(--rm-st-ocupada); background: var(--rm-st-ocupada-tint); }
+.rm-mnode.is-cobrar { border-color: var(--rm-st-cobrar); background: var(--rm-st-cobrar-tint); }
 .rm-mnode.is-reservada { border-color: var(--rm-violet-500); background: var(--rm-violet-100); }
 
 .rm-mnode.is-on {
