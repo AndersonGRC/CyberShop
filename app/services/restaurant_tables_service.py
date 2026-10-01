@@ -6,6 +6,7 @@ Eso permite apagar el modulo o retirarlo sin introducir acoplamientos
 directos con otras rutas del ERP.
 """
 
+import json
 from datetime import date, datetime, timedelta
 from functools import lru_cache
 
@@ -812,11 +813,16 @@ def upsert_table_layout(user_id, payload):
     nombre = (payload.get('nombre') or '').strip()
     area = (payload.get('area') or 'Salon principal').strip() or 'Salon principal'
     forma = (payload.get('forma') or 'square').strip().lower()
-    estado = (payload.get('estado') or 'disponible').strip().lower()
+    # El constructor de planos no envía el estado: al editar se conserva el que
+    # tiene la mesa (un autoguardado no puede quitarle «cuenta solicitada» a una
+    # mesa en servicio). Solo una mesa nueva arranca disponible.
+    estado = (payload.get('estado') or '').strip().lower() or None
+    if estado is None and not table_id:
+        estado = 'disponible'
 
     if forma not in SHAPES:
         raise ValueError('La forma de la mesa no es válida.')
-    if estado not in TABLE_STATES:
+    if estado is not None and estado not in TABLE_STATES:
         raise ValueError('El estado de la mesa no es válido.')
 
     capacidad = _parse_int(payload.get('capacidad'), default=4, minimum=1, maximum=30, field='capacidad')
@@ -850,7 +856,7 @@ def upsert_table_layout(user_id, payload):
                     area = %s,
                     capacidad = %s,
                     forma = %s,
-                    estado = %s,
+                    estado = COALESCE(%s, estado),
                     pos_x = %s,
                     pos_y = %s,
                     ancho = %s,
@@ -948,6 +954,114 @@ def delete_table_layout(table_id):
         'codigo': table_row['codigo'],
         'nombre': table_row['nombre'],
     }
+
+
+def get_table_brief(table_id):
+    """Código y salón de una mesa (respuesta del autoguardado del plano)."""
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute('SELECT id, codigo, nombre, area FROM restaurant_tables WHERE id = %s', (table_id,))
+        row = cur.fetchone()
+    return dict(row) if row else None
+
+
+# ── Salones del plano ──────────────────────────────────────────
+# El salón de una mesa es su columna `area` (la misma que replica el POS de
+# escritorio). Un salón recién creado aún no tiene mesas, así que la lista y su
+# orden se guardan en cliente_config['restaurante_salones'] (JSON). Renombrar
+# mueve las mesas al nombre nuevo en la misma transacción; un salón solo se
+# elimina vacío. Nunca se borra una mesa ni una orden desde aquí.
+SALONES_CLAVE = 'restaurante_salones'
+AREA_DEFECTO = 'Salon principal'
+MAX_SALON = 100     # VARCHAR(100) de restaurant_tables.area
+
+
+def _nombre_salon(valor):
+    nombre = ' '.join(str(valor or '').split())
+    if not nombre:
+        raise ValueError('Escribe el nombre del salón.')
+    if len(nombre) > MAX_SALON:
+        raise ValueError(f'El nombre del salón admite máximo {MAX_SALON} caracteres.')
+    return nombre
+
+
+def _salones_guardados(cur, bloquear=False):
+    cur.execute('SELECT valor FROM cliente_config WHERE clave = %s'
+                + (' FOR UPDATE' if bloquear else '') + ' LIMIT 1', (SALONES_CLAVE,))
+    row = cur.fetchone()
+    try:
+        lista = json.loads(row['valor']) if row and row.get('valor') else []
+    except (TypeError, ValueError):
+        lista = []
+    return [n for n in (str(x).strip() for x in lista if isinstance(x, str)) if n]
+
+
+def _salones(cur, bloquear=False):
+    """[{'nombre', 'mesas'}] en el orden guardado; los salones que solo existen
+    en las mesas van al final. Siempre hay al menos uno."""
+    guardados = _salones_guardados(cur, bloquear)
+    cur.execute('SELECT area, COUNT(*) AS n FROM restaurant_tables GROUP BY area')
+    conteo = {(r['area'] or AREA_DEFECTO): int(r['n']) for r in cur.fetchall()}
+    nombres = list(dict.fromkeys(guardados))
+    nombres += sorted(a for a in conteo if a not in nombres)
+    if not nombres:
+        nombres = [AREA_DEFECTO]
+    return [{'nombre': n, 'mesas': conteo.get(n, 0)} for n in nombres]
+
+
+def _guardar_salones(cur, nombres):
+    from services.config_tenant import set_cliente_config
+    set_cliente_config(cur, SALONES_CLAVE, json.dumps(nombres, ensure_ascii=False), tipo='json',
+                       grupo='restaurante', descripcion='Salones del plano de mesas y su orden')
+
+
+def list_salones():
+    if not _module_schema_status()['ready']:
+        return [{'nombre': AREA_DEFECTO, 'mesas': 0}]
+    with get_db_cursor(dict_cursor=True) as cur:
+        return _salones(cur)
+
+
+def create_salon(nombre):
+    nombre = _nombre_salon(nombre)
+    with get_db_cursor(dict_cursor=True) as cur:
+        actuales = _salones(cur, bloquear=True)
+        if any(s['nombre'].lower() == nombre.lower() for s in actuales):
+            raise ValueError(f'Ya existe un salón llamado «{nombre}».')
+        _guardar_salones(cur, [s['nombre'] for s in actuales] + [nombre])
+        return _salones(cur)
+
+
+def rename_salon(actual, nuevo):
+    actual = ' '.join(str(actual or '').split())
+    nuevo = _nombre_salon(nuevo)
+    with get_db_cursor(dict_cursor=True) as cur:
+        salones = _salones(cur, bloquear=True)
+        nombres = [s['nombre'] for s in salones]
+        if actual not in nombres:
+            raise ValueError('Ese salón ya no existe. Recarga la página.')
+        if nuevo == actual:
+            return salones
+        if any(n.lower() == nuevo.lower() and n != actual for n in nombres):
+            raise ValueError(f'Ya existe un salón llamado «{nuevo}».')
+        cur.execute("""UPDATE restaurant_tables SET area = %s, updated_at = NOW()
+                       WHERE area = %s""", (nuevo, actual))
+        _guardar_salones(cur, [nuevo if n == actual else n for n in nombres])
+        return _salones(cur)
+
+
+def delete_salon(nombre):
+    nombre = ' '.join(str(nombre or '').split())
+    with get_db_cursor(dict_cursor=True) as cur:
+        salones = _salones(cur, bloquear=True)
+        salon = next((s for s in salones if s['nombre'] == nombre), None)
+        if not salon:
+            raise ValueError('Ese salón ya no existe. Recarga la página.')
+        if salon['mesas']:
+            raise ValueError('Solo se puede eliminar un salón vacío. Mueve o elimina sus mesas primero.')
+        if len(salones) <= 1:
+            raise ValueError('Debe quedar al menos un salón.')
+        _guardar_salones(cur, [s['nombre'] for s in salones if s['nombre'] != nombre])
+        return _salones(cur)
 
 
 def _sync_open_order_context(cur, order_id, payload):

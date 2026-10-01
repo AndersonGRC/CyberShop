@@ -41,8 +41,13 @@
                 {% if datosApp.longMenuAppindex > 0 %}
                 <ul>
                     {% for i in datosApp.MenuAppindex %}
-                    <li{% if i.submodulos %} class="has-submenu"{% endif %}>
-                        <a href="{% if i.url == '#' %}#{% else %}{{ url_for(i.url) }}{% endif %}"{% if i.submodulos %} aria-expanded="false"{% endif %}>
+                    {#- Submódulo activo resuelto en el servidor (activo_en = endpoints que
+                        cuentan como suyos): así el grupo queda desplegado aunque la URL no
+                        coincida exacta con la del enlace (p. ej. /mesas → /mesas/atencion). -#}
+                    {% set grupo_activo = namespace(si=false) %}
+                    {% for sub in i.submodulos or [] %}{% if sub.activo_en and request.endpoint in sub.activo_en %}{% set grupo_activo.si = true %}{% endif %}{% endfor %}
+                    <li{% if i.submodulos %} class="has-submenu{% if grupo_activo.si %} active has-active-child{% endif %}"{% endif %}>
+                        <a href="{% if i.url == '#' %}#{% else %}{{ url_for(i.url) }}{% endif %}"{% if i.submodulos %} aria-expanded="{{ 'true' if grupo_activo.si else 'false' }}"{% endif %}{% if i.entrar_primero and i.submodulos %} data-entrada="{{ url_for(i.submodulos[0].url) }}"{% endif %}>
                             <i class="fas fa-{{ i.icono }}"></i>
                             <span>{{ i.nombre }}</span>
                             {% if i.submodulos %}
@@ -53,7 +58,7 @@
                         <ul class="submenu">
                             {% for sub in i.submodulos %}
                             <li>
-                                <a href="{{ url_for(sub.url) }}">
+                                <a href="{{ url_for(sub.url) }}"{% if sub.activo_en and request.endpoint in sub.activo_en %} class="is-active"{% endif %}>
                                     <i class="fas fa-{{ sub.icono }}"></i>
                                     <span>{{ sub.nombre }}</span>
                                 </a>

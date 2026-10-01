@@ -336,10 +336,16 @@ def get_data_app():
             "url": "#",
             "icono": "utensils",
             "module_code": MODULE_RESTAURANT_TABLES,
+            # Tocar «Restaurante» abre su primer submódulo visible (Atender
+            # mesas); dentro del módulo el grupo queda desplegado.
+            "entrar_primero": True,
             "submodulos": [
-                {"nombre": "Atención de Mesas", "url": "restaurant_tables.restaurant_tables_dashboard", "icono": "concierge-bell", "permiso": ("restaurant_tables", "ver")},
-                {"nombre": "Construcción de Plano", "url": "restaurant_tables.restaurant_tables_builder", "icono": "drafting-compass", "roles": RESTAURANT_ADMIN},
-                {"nombre": "Reportes de Mesas", "url": "restaurant_tables.restaurant_tables_reports", "icono": "chart-bar", "roles": RESTAURANT_ADMIN},
+                {"nombre": "Atender mesas", "url": "restaurant_tables.restaurant_tables_dashboard", "icono": "concierge-bell", "permiso": ("restaurant_tables", "ver"),
+                 "activo_en": ("restaurant_tables.restaurant_tables_dashboard", "restaurant_tables.restaurant_tables_service")},
+                {"nombre": "Crear mesas", "url": "restaurant_tables.restaurant_tables_builder", "icono": "drafting-compass", "roles": RESTAURANT_ADMIN,
+                 "activo_en": ("restaurant_tables.restaurant_tables_builder",)},
+                {"nombre": "Reportes de mesas", "url": "restaurant_tables.restaurant_tables_reports", "icono": "chart-bar", "roles": RESTAURANT_ADMIN,
+                 "activo_en": ("restaurant_tables.restaurant_tables_reports",)},
             ]
         },
         {

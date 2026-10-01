@@ -150,6 +150,15 @@
         trigger.setAttribute('aria-expanded', String(item.classList.contains('active')));
 
         trigger.addEventListener('click', function (event) {
+            // Grupo con entrada propia (Restaurante): desde fuera del modulo, tocarlo
+            // abre su primer submodulo; ya dentro, solo despliega/pliega.
+            var entrada = trigger.getAttribute('data-entrada');
+            if (entrada && !item.classList.contains('has-active-child')) {
+                event.preventDefault();
+                window.location.href = entrada;
+                return;
+            }
+
             // En modo RAIL (colapsado, desktop): atajo rapido -> ir directo a la
             // PRIMERA pestana del submenu en vez de desplegar.
             if (!isMobile() && sidebar.classList.contains('collapsed')) {

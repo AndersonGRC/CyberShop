@@ -33,8 +33,13 @@ from services.restaurant_tables_service import (
     cancel_closed_order,
     cancel_open_table_order,
     close_table_order,
+    create_salon,
+    delete_salon,
     delete_table_layout,
     get_product_catalog,
+    get_table_brief,
+    list_salones,
+    rename_salon,
     list_floor_tables,
     list_restaurant_reports,
     update_consumption_state,
@@ -139,6 +144,21 @@ def _restaurant_context(*, view_mode, page_title, page_description, area=None, r
 }
 
 
+def _render_mesas(view_mode):
+    """Crear mesas y Atender (diseño 1.5): una sola plantilla con lienzo lógico
+    1436×640. Siempre carga todas las mesas; el salón se elige en la pantalla."""
+    current_role = session.get('rol_id')
+    context = _restaurant_context(
+        view_mode=view_mode,
+        page_title='Crear mesas' if view_mode == 'builder' else 'Atender mesas',
+        page_description='',
+    )
+    context['products'] = _serialize_products() if view_mode == 'service' else []
+    context['salones'] = list_salones()
+    context['can_build'] = current_role in RESTAURANT_ACCESS
+    return render_template('restaurant_mesas.html', **context)
+
+
 @restaurant_tables_bp.route('/admin/restaurante/panel')
 @rol_requerido(RESTAURANT_SERVICE_ACCESS)
 @module_required(MODULE_RESTAURANT_TABLES)
@@ -167,30 +187,14 @@ def restaurant_tables_dashboard():
 @rol_requerido(RESTAURANT_ACCESS)
 @module_required(MODULE_RESTAURANT_TABLES)
 def restaurant_tables_builder():
-    return render_template(
-        'restaurant_tables.html',
-        **_restaurant_context(
-            view_mode='builder',
-            page_title='Constructor de Mesas',
-            page_description='Crea el plano del restaurante con presets rápidos, click para ubicar y arrastre con snap a grilla.',
-            area=request.args.get('area', '').strip() or None,
-        ),
-    )
+    return _render_mesas('builder')
 
 
 @restaurant_tables_bp.route('/admin/restaurante/mesas/atencion')
 @rol_requerido(RESTAURANT_SERVICE_ACCESS)
 @module_required(MODULE_RESTAURANT_TABLES)
 def restaurant_tables_service():
-    return render_template(
-        'restaurant_tables.html',
-        **_restaurant_context(
-            view_mode='service',
-            page_title='Atender Mesas',
-            page_description='Toca una mesa para ver su cuenta, agregar platos y cobrar.',
-            area=request.args.get('area', '').strip() or None,
-        ),
-    )
+    return _render_mesas('service')
 
 
 @restaurant_tables_bp.route('/admin/restaurante/mesas/reportes')
@@ -249,6 +253,7 @@ def restaurant_tables_data():
     return jsonify({
         'success': True,
         **list_floor_tables(area=request.args.get('area', '').strip() or None),
+        'salones': list_salones(),
     })
 
 
@@ -259,10 +264,36 @@ def restaurant_tables_layout_save():
     payload = request.get_json(silent=True) or request.form.to_dict()
     try:
         table_id = upsert_table_layout(session.get('usuario_id'), payload)
-        return jsonify({'success': True, 'table_id': table_id})
+        brief = get_table_brief(table_id) or {}
+        return jsonify({'success': True, 'table_id': table_id, 'codigo': brief.get('codigo'),
+                        'area': brief.get('area')})
     except Exception as exc:
         app.logger.error(f'Error guardando layout de mesas: {exc}')
         return _json_error(str(exc), 400)
+
+
+@restaurant_tables_bp.route('/admin/restaurante/salones', methods=['POST'])
+@rol_requerido(RESTAURANT_ACCESS)
+@module_required(MODULE_RESTAURANT_TABLES)
+def restaurant_salones_save():
+    """Crear, renombrar o eliminar (vacío) un salón del plano."""
+    payload = request.get_json(silent=True) or request.form.to_dict()
+    accion = (payload.get('accion') or '').strip()
+    try:
+        if accion == 'crear':
+            salones = create_salon(payload.get('nombre'))
+        elif accion == 'renombrar':
+            salones = rename_salon(payload.get('nombre'), payload.get('nuevo'))
+        elif accion == 'eliminar':
+            salones = delete_salon(payload.get('nombre'))
+        else:
+            return _json_error('Acción no válida.', 400)
+        return jsonify({'success': True, 'salones': salones})
+    except ValueError as exc:
+        return _json_error(str(exc), 400)
+    except Exception as exc:
+        app.logger.error(f'Error guardando salones: {exc}')
+        return _json_error('No fue posible guardar el salón.', 500)
 
 
 @restaurant_tables_bp.route('/admin/restaurante/mesas/<int:table_id>', methods=['DELETE'])

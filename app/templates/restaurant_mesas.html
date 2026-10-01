@@ -1,0 +1,90 @@
+{% extends "plantillaapp.html" %}
+
+{#- Módulo Restaurante — diseño 1.5 (design_handoff_modulo_restaurante).
+    Crear mesas y Atender comparten esta plantilla; el contenido lo dibuja
+    static/js/restaurant_mesas.js sobre un lienzo lógico de 1436×640.
+    Header, footer y menú lateral son los de plantillaapp.html, sin cambios.
+    Reportes y el panel de mesero siguen en sus plantillas propias. -#}
+
+{% block titulo %}{{ page_title }} | {{ datosApp.titulo }}{% endblock %}
+
+{% block LinkAdicional %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/restaurant_mesas.css') }}?v={{ config.APP_VERSION }}">
+{% endblock %}
+
+{% block body %}
+<div class="rm" id="rmApp" data-view="{{ view_mode }}">
+    <div class="rm-bar" role="banner">
+        <h1 class="rm-bar-title">Restaurante</h1>
+        <nav class="rm-tabs" aria-label="Secciones del restaurante">
+            {% if can_build %}
+            <a class="rm-tab{% if view_mode == 'builder' %} is-on{% endif %}"
+               href="{{ url_for('restaurant_tables.restaurant_tables_builder') }}"
+               {% if view_mode == 'builder' %}aria-current="page"{% endif %}>
+                <i class="fas fa-drafting-compass"></i>Crear mesas
+            </a>
+            {% endif %}
+            <a class="rm-tab{% if view_mode == 'service' %} is-on{% endif %}"
+               href="{{ url_for('restaurant_tables.restaurant_tables_service') }}"
+               {% if view_mode == 'service' %}aria-current="page"{% endif %}>
+                <i class="fas fa-concierge-bell"></i>Atender
+            </a>
+        </nav>
+        <div class="rm-bar-stats">
+            {% if caja_activa %}
+            <span class="rm-caja {{ 'is-open' if caja_abierta else 'is-closed' }}" id="rmCaja">
+                <i class="fas fa-cash-register"></i>{{ 'Caja abierta' if caja_abierta else 'Caja cerrada' }}
+            </span>
+            {% endif %}
+            <div class="rm-stat"><span>Mesas ocupadas</span><b id="rmStatOcupadas">—</b></div>
+            <div class="rm-stat"><span>Total abierto</span><b id="rmStatTotal" class="rm-num">—</b></div>
+        </div>
+    </div>
+
+    {% if floor_data.schema_ready is defined and not floor_data.schema_ready %}
+    <div class="rm-alert"><i class="fas fa-exclamation-triangle"></i> {{ floor_data.schema_message }}</div>
+    {% endif %}
+
+    <div id="rmRoot" class="rm-root" aria-live="polite"></div>
+</div>
+
+<div id="rmGhost" class="rm-ghost" hidden></div>
+<div id="rmToast" class="rm-toast" role="status" hidden><i class="fas fa-check-circle"></i><span></span></div>
+
+<script>
+window.RM_PAGE = {
+    view: {{ view_mode | tojson }},
+    simple: {{ restaurante_simple | default(false) | tojson }},
+    floor: {{ floor_data | tojson }},
+    salones: {{ salones | tojson }},
+    products: {{ products | tojson }},
+    paymentMethods: {{ payment_methods.items() | list | tojson }},
+    feHabilitada: {{ fe_habilitada | default(false) | tojson }},
+    canCharge: {{ can_charge_tables | default(false) | tojson }},
+    canCancel: {{ can_cancel_tables | default(false) | tojson }},
+    canBuild: {{ can_build | default(false) | tojson }},
+    caja: {
+        activa: {{ (caja_activa | default(false)) | tojson }},
+        abierta: {{ ((caja_abierta is defined and caja_abierta is not none)) | tojson }},
+    },
+    endpoints: {
+        builder: {{ url_for('restaurant_tables.restaurant_tables_builder') | tojson }},
+        abrirCaja: {{ url_for('caja.abrir_caja') | tojson }},
+        data: {{ url_for('restaurant_tables.restaurant_tables_data') | tojson }},
+        layout: {{ url_for('restaurant_tables.restaurant_tables_layout_save') | tojson }},
+        salones: {{ url_for('restaurant_tables.restaurant_salones_save') | tojson }},
+        deleteTableBase: {{ url_for('restaurant_tables.restaurant_tables_layout_delete', table_id=0) | replace('/0', '/__TABLE_ID__') | tojson }},
+        tableStateBase: {{ url_for('restaurant_tables.restaurant_table_state_change', table_id=0) | replace('/0/', '/__TABLE_ID__/') | tojson }},
+        addConsumptionBase: {{ url_for('restaurant_tables.restaurant_table_add_consumption', table_id=0) | replace('/0/', '/__TABLE_ID__/') | tojson }},
+        consumptionStateBase: {{ url_for('restaurant_tables.restaurant_consumption_state_change', consumption_id=0) | replace('/0/', '/__CONSUMPTION_ID__/') | tojson }},
+        consumptionRemoveBase: {{ url_for('restaurant_tables.restaurant_consumption_remove', consumption_id=0) | replace('/0/', '/__CONSUMPTION_ID__/') | tojson }},
+        consumptionQtyBase: {{ url_for('restaurant_tables.restaurant_consumption_quantity', consumption_id=0) | replace('/0/', '/__CONSUMPTION_ID__/') | tojson }},
+        closeAccountBase: {{ url_for('restaurant_tables.restaurant_table_close', table_id=0) | replace('/0/', '/__TABLE_ID__/') | tojson }},
+        cancelOpenBase: {{ url_for('restaurant_tables.restaurant_table_cancel_open', table_id=0) | replace('/0/', '/__TABLE_ID__/') | tojson }},
+    }
+};
+</script>
+<script src="{{ url_for('static', filename='js/restaurant_mesas.js') }}?v={{ config.APP_VERSION }}"></script>
+{% endblock %}
