@@ -662,8 +662,70 @@
     function productosFiltrados() {
         const q = S.q.trim().toLowerCase();
         return (P.products || []).filter((p) => (S.cat === 'Todos' || (p.genero_nombre || 'Sin categoría') === S.cat)
-            && (!q || String(p.nombre || '').toLowerCase().includes(q) || String(p.referencia || '').toLowerCase().includes(q)));
+            && (!q || String(p.nombre || '').toLowerCase().includes(q) || String(p.referencia || '').toLowerCase().includes(q)
+                || String(p.barcode || '').toLowerCase().includes(q)));
     }
+
+    /* ── Lector de código de barras (mismo criterio que el POS) ──
+       La pistola USB escribe como un teclado muy rápido y termina con Enter.
+       El código se compara con la referencia o el barcode del producto, sin
+       distinguir mayúsculas ni espacios. A diferencia del POS no se exige stock:
+       en el restaurante la venta nunca se bloquea por inventario. */
+    const normCodigo = (v) => String(v == null ? '' : v).replace(/[ -]/g, '').trim().toUpperCase();
+    function productoPorCodigo(codigo) {
+        const c = normCodigo(codigo);
+        if (!c) return null;
+        return (P.products || []).find((p) => normCodigo(p.referencia) === c || (p.barcode && normCodigo(p.barcode) === c)) || null;
+    }
+    function bip(ok) {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator(), gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.frequency.value = ok ? 1200 : 400; osc.type = 'sine'; gain.gain.value = 0.3;
+            osc.start(); osc.stop(ctx.currentTime + (ok ? 0.15 : 0.3));
+        } catch (e) { /* sin audio */ }
+    }
+    const ultimoEscaneo = { codigo: '', t: 0 };
+    function escanear(codigo) {
+        const c = normCodigo(codigo);
+        if (c.length < 3) return false;
+        const ahora = Date.now();
+        if (c === ultimoEscaneo.codigo && ahora - ultimoEscaneo.t < 500) return true;   // rebote del lector
+        ultimoEscaneo.codigo = c; ultimoEscaneo.t = ahora;
+        const mesa = S.view === 'service' && S.mesa != null ? byId(S.mesa) : null;
+        if (!mesa) { bip(false); toast('Abre una mesa para agregar con el lector', 'error'); return true; }
+        const p = productoPorCodigo(c);
+        if (!p) { bip(false); toast(`No encontré el código ${c}. Usa Ítem libre si no está en el catálogo.`, 'error'); return true; }
+        bip(true);
+        S.q = '';
+        operar(() => agregar(mesa, { product_id: p.id, cantidad: 1, merge: true }, p.nombre));
+        return true;
+    }
+    // Lector con el foco fuera de un campo: se acumula la ráfaga de teclas.
+    const lector = { buffer: '', ultima: 0, timer: null };
+    document.addEventListener('keydown', (ev) => {
+        if (S.view !== 'service' || document.querySelector('.swal2-container')) return;
+        const foco = document.activeElement;
+        if (foco && /INPUT|SELECT|TEXTAREA/.test(foco.tagName)) return;     // el buscador tiene su propio manejo
+        const ahora = Date.now(), dt = ahora - lector.ultima;
+        if ((ev.key === 'Enter' || ev.key === 'Tab') && lector.buffer.length >= 3) {
+            ev.preventDefault();
+            const cod = lector.buffer; lector.buffer = ''; clearTimeout(lector.timer);
+            escanear(cod);
+            return;
+        }
+        if (ev.key.length !== 1 || ev.ctrlKey || ev.altKey || ev.metaKey) return;
+        lector.ultima = ahora;
+        if (dt > 50 && lector.buffer.length) lector.buffer = '';
+        if (lector.buffer.length && dt <= 50) ev.preventDefault();
+        lector.buffer += ev.key;
+        clearTimeout(lector.timer);
+        lector.timer = setTimeout(() => {
+            if (lector.buffer.length >= 3) escanear(lector.buffer);
+            lector.buffer = '';
+        }, 200);
+    }, true);
     function gridProductos() {
         const lista = productosFiltrados();
         if (!lista.length) return '<div class="rm-prods-empty">No hay productos con ese filtro. Usa <b>Ítem libre</b> para vender algo que no está en el catálogo.</div>';
@@ -705,8 +767,9 @@
                     </div>` : ''}
                 </div>
                 <div class="rm-search">
-                    <i class="fas fa-search"></i>
-                    <input id="rmQ" type="search" placeholder="Buscar producto…" value="${esc(S.q)}" autocomplete="off">
+                    <i class="fas fa-barcode"></i>
+                    <input id="rmQ" type="search" placeholder="Buscar producto o escanear código…" value="${esc(S.q)}"
+                        autocomplete="off" aria-label="Buscar producto o escanear su código de barras">
                 </div>
                 <div class="rm-cats">
                     ${cats.map((c) => `<button type="button" class="rm-chip rm-chip-pill${S.cat === c ? ' is-on' : ''}" data-act="cat" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}
@@ -819,9 +882,18 @@
             finally { S.busy--; }
             try { await recargar(); } catch (e) { /* conserva la vista */ }
             stats();
-            if (S.view === 'service') renderService();
+            if (S.view === 'service') { renderService(); listoParaEscanear(); }
         });
         return S.ops;
+    }
+
+    /* En PC el buscador queda enfocado para el siguiente escaneo (como el POS),
+       salvo que la persona esté escribiendo en otro campo. */
+    function listoParaEscanear() {
+        if (S.mesa == null || !window.matchMedia('(pointer: fine)').matches) return;
+        const foco = document.activeElement;
+        if (foco && foco !== document.body && root.contains(foco) && /INPUT|SELECT|TEXTAREA/.test(foco.tagName)) return;
+        document.getElementById('rmQ')?.focus({ preventScroll: true });
     }
 
     async function estadoMesa(t, estado) {
@@ -951,6 +1023,7 @@
             if (t && t.area) S.salon = t.area;
             renderService();
             window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (window.matchMedia('(pointer: fine)').matches) document.getElementById('rmQ')?.focus({ preventScroll: true });
         }
         else if (act === 'close-mesa') { S.mesa = null; S.menu = false; renderService(); }
         else if (!mesa) return;
@@ -1045,6 +1118,21 @@
         operar(() => agregar(mesa, { descripcion: desc, precio_unitario: precio, cantidad: cant, notas: nota || undefined }, desc));
     });
 
+    root.addEventListener('keydown', (ev) => {
+        if (ev.target.id !== 'rmQ' || ev.key !== 'Enter') return;
+        ev.preventDefault();
+        const valor = ev.target.value;
+        if (productoPorCodigo(valor)) { ev.target.value = ''; escanear(valor); return; }
+        const lista = productosFiltrados();
+        if (valor.trim() && lista.length === 1) {
+            const p = lista[0];
+            ev.target.value = ''; S.q = '';
+            operar(() => agregar(byId(S.mesa), { product_id: p.id, cantidad: 1, merge: true }, p.nombre));
+        } else if (valor.trim() && !lista.length) {
+            escanear(valor);            // avisa «No encontré el código…»
+        }
+    });
+
     document.addEventListener('keydown', (ev) => {
         const enCampo = /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || '');
         if (S.view === 'builder' && S.sel != null && !enCampo) {
@@ -1069,9 +1157,13 @@
     setInterval(async () => {
         if (S.view !== 'service' || document.visibilityState !== 'visible' || S.busy) return;
         const foco = document.activeElement;
-        if (foco && root.contains(foco) && /INPUT|SELECT|TEXTAREA/.test(foco.tagName)) return;
+        const buscadorVacio = foco && foco.id === 'rmQ' && !foco.value;
+        if (foco && root.contains(foco) && /INPUT|SELECT|TEXTAREA/.test(foco.tagName) && !buscadorVacio) return;
         if (S.menu || document.querySelector('.swal2-container')) return;
-        try { await recargar(); stats(); renderService(); } catch (e) { /* reintenta en el próximo ciclo */ }
+        try {
+            await recargar(); stats(); renderService();
+            if (buscadorVacio) document.getElementById('rmQ')?.focus({ preventScroll: true });
+        } catch (e) { /* reintenta en el próximo ciclo */ }
     }, 20000);
 
     window.addEventListener('beforeunload', (ev) => {

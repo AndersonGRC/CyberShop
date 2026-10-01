@@ -301,14 +301,27 @@
     border-radius: 999px;
 }
 
-.rm-chip-libre,
+/* Ítem libre en verde, igual que el botón «Item Libre» del POS. */
+.rm-chip-libre {
+    background: var(--color-exito);
+    color: var(--rm-white);
+}
+
+.rm-chip-libre:hover,
+.rm-chip-libre.is-on {
+    background: var(--color-exito-hover);
+}
+
+.rm-chip-libre.is-on {
+    box-shadow: 0 0 0 3px var(--color-exito-tinte);
+}
+
 .rm-chip-nota {
     background: var(--rm-white);
     border: 1.5px dashed var(--rm-ink-300);
     color: var(--rm-ink-700);
 }
 
-.rm-chip-libre.is-on,
 .rm-chip-nota.is-on {
     border-style: solid;
     border-color: var(--rm-brand);
@@ -1154,7 +1167,15 @@
     padding: 12px;
     border-radius: 14px;
     background: var(--rm-white);
-    border: 1.5px dashed var(--rm-brand-200);
+    border: 1.5px dashed var(--color-exito-borde);
+}
+
+.rm-libre .rm-btn-primary {
+    background: var(--color-exito);
+}
+
+.rm-libre .rm-btn-primary:hover {
+    background: var(--color-exito-hover);
 }
 
 .rm-libre input {

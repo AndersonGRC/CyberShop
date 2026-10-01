@@ -455,11 +455,15 @@ def _serialize_consumption(item):
 def get_product_catalog():
     """Retorna productos disponibles para agregar a una mesa, con categoría."""
     try:
+        # `barcode` lo llena el POS de escritorio (sus etiquetas imprimen barcode
+        # o, si falta, la referencia): el lector de Atender reconoce los dos.
+        barcode_sql = 'p.barcode' if _table_has_column('productos', 'barcode') else 'NULL::TEXT'
         with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute("""
+            cur.execute(f"""
                 SELECT p.id, p.nombre, p.precio, p.stock,
                        p.imagen,
                        p.referencia,
+                       {barcode_sql} AS barcode,
                        p.genero_id,
                        COALESCE(g.nombre, 'Sin categoría') AS genero_nombre
                 FROM productos p
