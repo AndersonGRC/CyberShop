@@ -4,130 +4,196 @@
 {% block meta_description %}Crea tu tienda en línea con punto de venta, inventario, contabilidad y asistente IA. Prueba gratis 15 días, sin tarjeta.{% endblock %}
 
 {% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/prueba_gratis.css') }}">
 <style>
   header::after { content: ""; display: table; clear: both; }
   header .nav .wrap { left: 0 !important; }
   body.nav_fixed .nav .wrap { left: 0 !important; }
-
-  .tg-page {
-    --tg-primario: {{ sw_color_primario }};
-    --tg-oscuro: {{ sw_color_oscuro }};
-    color: #1c2433;
-    background:
-      radial-gradient(900px 420px at 100% -10%, rgba(41,169,226,.10), transparent 60%),
-      linear-gradient(180deg, #f5f7fb 0%, #eef2fa 100%);
-    min-height: 72vh; padding: 56px 18px 72px;
-  }
-  .tg-card {
-    max-width: 640px; margin: 0 auto; background: #fff; border-radius: 22px;
-    padding: 40px 36px; border: 1px solid #e9edf6;
-    box-shadow: 0 18px 50px rgba(18, 44, 148, .10);
-  }
-  .tg-card h1 { margin: 0 0 6px; font-size: 1.7rem; color: var(--tg-oscuro); }
-  .tg-card .tg-sub { color: #5b6575; font-size: .95rem; margin: 0 0 22px; line-height: 1.55; }
-  .tg-badge {
-    display: inline-block; background: #eaf7ee; color: #1d7a3d; font-weight: 700;
-    font-size: .8rem; border-radius: 20px; padding: 5px 14px; margin-bottom: 14px;
-  }
-  .tg-field { margin-bottom: 16px; }
-  .tg-field label { display: block; font-weight: 700; font-size: .86rem; color: #33405c; margin-bottom: 6px; }
-  .tg-field input {
-    width: 100%; box-sizing: border-box; border: 1.5px solid #dbe2f0; border-radius: 10px;
-    padding: 12px 14px; font-size: 15px; outline: none; transition: border-color .15s;
-  }
-  .tg-field input:focus { border-color: var(--tg-primario); }
-  .tg-field .tg-hint { font-size: .78rem; color: #8a93a6; margin-top: 4px; }
-  .tg-sub-row { display: flex; align-items: center; gap: 8px; }
-  .tg-sub-row input { flex: 1; }
-  .tg-sub-row .tg-domain { color: #5b6575; font-weight: 700; white-space: nowrap; }
-  .tg-btn {
-    width: 100%; border: 0; border-radius: 12px; padding: 15px; cursor: pointer;
-    font-size: 16px; font-weight: 800; color: #fff;
-    background: linear-gradient(135deg, var(--tg-primario), var(--tg-oscuro));
-    box-shadow: 0 10px 24px rgba(18,44,148,.25);
-  }
-  .tg-btn:hover { filter: brightness(1.07); }
-  .tg-error {
-    background: #fdeaea; color: #b42318; border-radius: 10px; padding: 11px 14px;
-    font-size: .88rem; margin-bottom: 16px;
-  }
-  .tg-check { text-align: center; padding: 20px 0 6px; }
-  .tg-check .tg-icon { font-size: 52px; }
-  .tg-incluye { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 22px; padding: 0; list-style: none; }
-  .tg-incluye li {
-    background: #f2f5fc; color: #33405c; border-radius: 16px; padding: 5px 12px; font-size: .78rem;
-  }
-  .tg-hp { position: absolute; left: -9999px; opacity: 0; height: 0; overflow: hidden; }
+  .tg-page { --tg-primario: {{ sw_color_primario }}; --tg-oscuro: {{ sw_color_oscuro }}; }
 </style>
 {% endblock %}
 
 {% block body %}
 <div class="tg-page">
   <div class="tg-card">
-    {% if enviado %}
-      <div class="tg-check">
-        <div class="tg-icon">📬</div>
-        <h1>Revisa tu correo</h1>
-        <p class="tg-sub">Te enviamos un enlace a <strong>{{ email_destino }}</strong> para
-        confirmar tu correo y crear tu tienda. El enlace llega en menos de un minuto
-        (mira también en spam).</p>
+  {% if enviado %}
+    <div class="tg-done">
+      <div class="tg-done-ico" aria-hidden="true"><i class="fas fa-envelope-open-text"></i></div>
+      <h1>Revisa tu correo</h1>
+      <p class="tg-sub">Te enviamos un enlace a <strong>{{ email_destino }}</strong>. Ábrelo para crear tu tienda
+        (llega en menos de un minuto; mira también en spam o promociones).</p>
+      <ol class="tg-timeline">
+        <li class="is-on"><b>Confirma tu correo</b><span>Con el botón del correo que te enviamos.</span></li>
+        <li><b>Creamos tu tienda</b><span>Toma 1 a 2 minutos; verás el avance en pantalla.</span></li>
+        <li><b>Recibes tu acceso</b><span>Te llega la dirección de tu tienda, tu usuario y una contraseña temporal.</span></li>
+      </ol>
+    </div>
+  {% else %}
+    <span class="tg-badge"><i class="fas fa-gift"></i> 15 días gratis · sin tarjeta · sin compromiso</span>
+    <h1>Crea tu tienda en 4 pasos</h1>
+    <p class="tg-sub">Te explicamos cada paso. Nada se cobra y puedes cambiarlo todo después.</p>
+
+    <div class="tg-progress" aria-hidden="true">
+      <div class="tg-progress-bar"><span id="tgBar"></span></div>
+      <ol class="tg-progress-steps">
+        <li data-ind="1">Tu negocio</li><li data-ind="2">Dirección web</li>
+        <li data-ind="3">Diseño</li><li data-ind="4">Tus datos</li>
+      </ol>
+    </div>
+
+    {% if error %}<div class="tg-error" role="alert"><i class="fas fa-exclamation-circle"></i> {{ error }}</div>{% endif %}
+
+    <form method="POST" autocomplete="on" id="tgForm" novalidate
+          data-error-paso="{{ error_paso or '' }}"
+          data-slug-url="{{ url_for('public.prueba_gratis_slug') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="tg-hp" aria-hidden="true">
+        <label>No llenes este campo</label>
+        <input type="text" name="website2" tabindex="-1" autocomplete="off">
       </div>
-    {% else %}
-      <span class="tg-badge">🎁 15 días gratis · sin tarjeta · sin compromiso</span>
-      <h1>Crea tu tienda hoy</h1>
-      <p class="tg-sub">Prueba el plan más completo de CyberShop con todo incluido:</p>
-      <ul class="tg-incluye">
-        <li>🛒 Tienda en línea</li><li>💳 Punto de venta</li><li>📦 Inventario</li>
-        <li>Σ Contabilidad</li><li>👥 Nómina</li><li>🤖 Asistente IA</li>
-        <li>🖥️ App de escritorio (funciona sin internet)</li>
-      </ul>
 
-      {% if error %}<div class="tg-error">{{ error }}</div>{% endif %}
-
-      <form method="POST" autocomplete="on">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <!-- honeypot antibots -->
-        <div class="tg-hp" aria-hidden="true">
-          <label>No llenes este campo</label>
-          <input type="text" name="website2" tabindex="-1" autocomplete="off">
-        </div>
+      {# ── Paso 1 ── #}
+      <fieldset class="tg-step" data-step="1">
+        <legend><span class="tg-num">1</span> Tu negocio</legend>
+        <p class="tg-explica">Así se llamará tu tienda: aparece en tu página, en tus recibos y en tu panel.</p>
         <div class="tg-field">
-          <label>Nombre de tu negocio</label>
-          <input type="text" name="nombre_negocio" required minlength="3" maxlength="80"
+          <label for="tgNegocio">Nombre de tu negocio</label>
+          <input id="tgNegocio" type="text" name="nombre_negocio" required minlength="3" maxlength="80"
                  value="{{ form.nombre_negocio or '' }}" placeholder="Ej: Panadería Roma">
         </div>
         <div class="tg-field">
-          <label>Tu nombre</label>
-          <input type="text" name="buyer_nombre" required minlength="3" maxlength="100"
-                 value="{{ form.buyer_nombre or '' }}" placeholder="Nombre y apellido">
-        </div>
-        <div class="tg-field">
-          <label>Tu correo</label>
-          <input type="email" name="buyer_email" required maxlength="150"
-                 value="{{ form.buyer_email or '' }}" placeholder="tucorreo@gmail.com">
-          <div class="tg-hint">Aquí te llegan el enlace de confirmación y tus claves de acceso.</div>
-        </div>
-        <div class="tg-field">
-          <label>WhatsApp (opcional)</label>
-          <input type="tel" name="buyer_telefono" maxlength="20"
-                 value="{{ form.buyer_telefono or '' }}" placeholder="300 123 4567">
-        </div>
-        <div class="tg-field">
-          <label>Elige tu dirección web</label>
-          <div class="tg-sub-row">
-            <input type="text" name="subdominio" required minlength="3" maxlength="40"
-                   value="{{ form.subdominio or '' }}" placeholder="minegocio"
-                   pattern="[a-z0-9]+(-[a-z0-9]+)*" style="text-transform:lowercase">
-            <span class="tg-domain">.cybershopcol.com</span>
+          <span class="tg-label">¿A qué se dedica?</span>
+          <div class="tg-tipos" role="radiogroup">
+            {% set iconos = {'tienda': 'store', 'restaurante': 'utensils', 'servicios': 'tools', 'otro': 'shapes'} %}
+            {% for clave, nombre in tipos.items() %}
+            <label class="tg-tipo">
+              <input type="radio" name="tipo_negocio" value="{{ clave }}"
+                     {% if (form.tipo_negocio or 'tienda') == clave %}checked{% endif %}>
+              <span><i class="fas fa-{{ iconos[clave] }}"></i>{{ nombre }}</span>
+            </label>
+            {% endfor %}
           </div>
-          <div class="tg-hint">Solo minúsculas, números y guiones. Luego puedes conectar tu dominio propio.</div>
+          <div class="tg-hint">Solo sirve para dejarte textos de ejemplo apropiados. Todos los planes incluyen lo mismo.</div>
         </div>
-        <button type="submit" class="tg-btn">Crear mi tienda gratis →</button>
-        <p class="tg-hint" style="text-align:center;margin-top:12px">
-          Al continuar aceptas los términos del servicio. Tus datos se conservan si decides no seguir.
-        </p>
-      </form>
-    {% endif %}
+      </fieldset>
+
+      {# ── Paso 2 ── #}
+      <fieldset class="tg-step" data-step="2">
+        <legend><span class="tg-num">2</span> Tu dirección web</legend>
+        <p class="tg-explica">Es la dirección donde tus clientes verán tu tienda en internet. La creamos por ti con
+          candado de seguridad incluido. Más adelante puedes conectar tu propio dominio (ej. minegocio.com).</p>
+        <div class="tg-field">
+          <label for="tgSlug">Elige tu dirección</label>
+          <div class="tg-url">
+            <span class="tg-url-pre">https://</span>
+            <input id="tgSlug" type="text" name="subdominio" required minlength="3" maxlength="40"
+                   value="{{ form.subdominio or '' }}" placeholder="minegocio"
+                   pattern="[a-z0-9]+(-[a-z0-9]+)*" autocapitalize="off" spellcheck="false">
+            <span class="tg-url-dom">.cybershopcol.com</span>
+          </div>
+          <div class="tg-slug-estado" id="tgSlugEstado" aria-live="polite"></div>
+          <div class="tg-hint">Solo minúsculas, números y guiones. La sugerimos a partir del nombre de tu negocio.</div>
+        </div>
+      </fieldset>
+
+      {# ── Paso 3 ── #}
+      <fieldset class="tg-step" data-step="3">
+        <legend><span class="tg-num">3</span> Diseña tu página</legend>
+        <p class="tg-explica">Esta es tu página: elige tu color y escribe la frase de tu negocio. Mira cómo queda
+          abajo; así la verás al entrar y podrás seguir cambiándola cuando quieras. Tu logo lo subes en un minuto
+          desde <b>Mi Negocio</b>; mientras tanto verás «Tu logo aquí».</p>
+        <div class="tg-field">
+          <label for="tgLema">Frase de tu negocio <span class="tg-opc">(opcional)</span></label>
+          <input id="tgLema" type="text" name="lema" maxlength="120" value="{{ form.lema or '' }}"
+                 placeholder="Ej: El mejor pan de la ciudad, recién horneado">
+          <div class="tg-hint">Aparece en tu página. Si la dejas vacía, ponemos una según tu tipo de negocio.</div>
+        </div>
+        <span class="tg-label">Color de tu marca</span>
+        <div class="tg-colores" role="radiogroup" aria-label="Color de tu marca">
+          {% set elegido = form.color_marca or color_neutro %}
+          {% for hex, nombre in muestras %}
+          <label class="tg-color" title="{{ nombre }}">
+            <input type="radio" name="color_marca" value="{{ hex }}" {% if elegido == hex %}checked{% endif %}>
+            <span style="background: {{ hex }}"></span><small>{{ nombre }}</small>
+          </label>
+          {% endfor %}
+          <label class="tg-color tg-color-libre" title="Otro color">
+            <input type="radio" name="color_marca" value="{{ elegido if elegido not in muestras|map('first') else '#0f4c81' }}" id="tgColorLibreRadio"
+                   {% if elegido not in muestras|map('first') %}checked{% endif %}>
+            <span><input type="color" id="tgColorLibre" value="{{ elegido if elegido not in muestras|map('first') else '#0f4c81' }}" aria-label="Elegir otro color"></span>
+            <small>Otro</small>
+          </label>
+        </div>
+        <div class="tg-aviso" id="tgColorAviso" hidden></div>
+
+        <div class="tg-preview" id="tgPreview" aria-label="Vista previa de tu tienda">
+          <div class="tgp-top">
+            <span class="tgp-logo"><i class="fas fa-image"></i> Tu logo aquí</span>
+            <b class="tgp-nombre" id="tgpNombre">Tu negocio</b>
+            <span class="tgp-menu"><i>Inicio</i><i>Productos</i><i>Contacto</i></span>
+          </div>
+          <div class="tgp-hero"><b>Bienvenido a <span id="tgpNombre2">tu tienda</span></b><span id="tgpLema">Así se verá tu página principal</span></div>
+          <div class="tgp-productos">
+            <div class="tgp-card"><span class="tgp-img"></span><b>Producto de ejemplo</b><em>$25.000</em><span class="tgp-btn">Ver detalles</span></div>
+            <div class="tgp-card"><span class="tgp-img"></span><b>Otro producto</b><em>$18.500</em><span class="tgp-btn">Ver detalles</span></div>
+          </div>
+          <div class="tgp-pie"><span id="tgpPie">© Tu negocio</span></div>
+        </div>
+      </fieldset>
+
+      {# ── Paso 4 ── #}
+      <fieldset class="tg-step" data-step="4">
+        <legend><span class="tg-num">4</span> Tus datos</legend>
+        <p class="tg-explica">Con estos datos creamos tu usuario de administrador y te acompañamos durante la prueba.</p>
+        <div class="tg-grid2">
+          <div class="tg-field">
+            <label for="tgNombre">Tu nombre</label>
+            <input id="tgNombre" type="text" name="buyer_nombre" required minlength="3" maxlength="100"
+                   value="{{ form.buyer_nombre or '' }}" placeholder="Nombre y apellido" autocomplete="name">
+          </div>
+          <div class="tg-field">
+            <label for="tgTel">Tu WhatsApp</label>
+            <input id="tgTel" type="tel" name="buyer_telefono" required maxlength="20" inputmode="tel"
+                   value="{{ form.buyer_telefono or '' }}" placeholder="300 123 4567" autocomplete="tel"
+                   pattern="(\+?57)?[\s\-]*[36][\d\s\-]{8,}">
+            <div class="tg-hint">Te escribimos por aquí si necesitas ayuda. No lo compartimos.</div>
+          </div>
+        </div>
+        <div class="tg-field">
+          <label for="tgEmail">Tu correo</label>
+          <input id="tgEmail" type="email" name="buyer_email" required maxlength="150"
+                 value="{{ form.buyer_email or '' }}" placeholder="tucorreo@gmail.com" autocomplete="email">
+          <div class="tg-hint">Será tu usuario para entrar. Aquí te llegan el enlace de confirmación y tu contraseña temporal.</div>
+        </div>
+
+        <div class="tg-resumen">
+          <h2>Esto es lo que vamos a crear</h2>
+          <ul>
+            <li><i class="fas fa-globe"></i><span>Tu tienda en <b id="tgrUrl">https://minegocio.cybershopcol.com</b></span></li>
+            <li><i class="fas fa-user-shield"></i><span>Tu panel de administración: entras con tu correo <b id="tgrEmail">—</b></span></li>
+            <li><i class="fas fa-palette"></i><span>Con tu color <b class="tgr-color" id="tgrColor"></b> y el espacio para tu logo</span></li>
+            <li><i class="fas fa-calendar-check"></i><span><b>15 días</b> con todo el plan completo: tienda en línea, punto de venta, inventario, contabilidad, nómina, CRM, asistente IA y la app de escritorio.</span></li>
+          </ul>
+          <div class="tg-noincluye">
+            <b><i class="fas fa-plug"></i> Durante la prueba no se conectan servicios externos</b>
+            <span>Pagos en línea (PSE/tarjeta), facturación electrónica DIAN, inicio con Google y píxel de Meta
+              requieren cuentas propias de tu negocio. Los activamos contigo cuando contrates; mientras tanto tus
+              clientes pueden comprarte por WhatsApp.</span>
+          </div>
+          <p class="tg-dia16"><i class="fas fa-info-circle"></i> El día 16 te avisamos para elegir un plan. Si no sigues,
+            tu tienda se pausa y tus datos se conservan.</p>
+        </div>
+      </fieldset>
+
+      <div class="tg-nav">
+        <button type="button" class="tg-btn-sec" id="tgAtras" hidden><i class="fas fa-arrow-left"></i> Atrás</button>
+        <button type="button" class="tg-btn" id="tgSiguiente" hidden>Siguiente <i class="fas fa-arrow-right"></i></button>
+        <button type="submit" class="tg-btn" id="tgCrear"><i class="fas fa-rocket"></i> Crear mi tienda gratis</button>
+      </div>
+      <p class="tg-hint tg-legal">Al continuar aceptas los términos del servicio. Tus datos se conservan si decides no seguir.</p>
+    </form>
+  {% endif %}
   </div>
 </div>
+<script src="{{ url_for('static', filename='js/prueba_gratis.js') }}" defer></script>
 {% endblock %}

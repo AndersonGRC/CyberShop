@@ -31,13 +31,50 @@
     .mn-alert.error, .mn-alert.danger { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
     .mn-alert.warning { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
     @media (max-width: 640px) { .mn-grid { grid-template-columns: 1fr; } }
+    /* Primeros pasos y colores de marca */
+    .mn-pasos { background: #f4f7fc; border: 1px dashed #c9d3e6; }
+    .mn-pasos ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+    .mn-pasos li { display: flex; gap: 10px; align-items: flex-start; font-size: .9rem; color: #33405c; }
+    .mn-pasos li i { margin-top: 3px; color: #b6c0d3; }
+    .mn-pasos li.ok { color: #1d7a3d; }
+    .mn-pasos li.ok i { color: #1d7a3d; }
+    .mn-pasos small { display: block; color: #8a93a6; font-size: .78rem; }
+    .mn-colores { display: grid; grid-template-columns: repeat(9, 1fr); gap: 8px; max-width: 560px; }
+    .mn-color { position: relative; cursor: pointer; text-align: center; }
+    .mn-color > input[type="radio"] { position: absolute; opacity: 0; }
+    .mn-color > span { display: block; aspect-ratio: 1; border-radius: 10px; border: 3px solid #fff;
+        box-shadow: 0 0 0 1.5px #cdd3df; position: relative; overflow: hidden; }
+    .mn-color small { display: block; font-size: .66rem; color: #8a93a6; margin-top: 3px; }
+    .mn-color > input:checked + span { box-shadow: 0 0 0 3px #1f2a44; }
+    .mn-color-libre > span { background: conic-gradient(#e11d48, #f59e0b, #16a34a, #0ea5e9, #7c3aed, #e11d48); }
+    .mn-color-libre input[type="color"] { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+    .mn-prev { --mn-c: #334155; --mn-o: #212a37; --mn-l: #eef0f3; margin-top: 14px; border-radius: 12px;
+        overflow: hidden; border: 1px solid #e3e6ec; max-width: 560px; font-size: 13px; }
+    .mn-prev-top { background: var(--mn-o); color: #fff; padding: 9px 12px; font-weight: 700; }
+    .mn-prev-hero { background: linear-gradient(135deg, var(--mn-c), var(--mn-o)); color: #fff; padding: 16px 12px; }
+    .mn-prev-body { background: var(--mn-l); padding: 12px; display: flex; gap: 8px; align-items: center; }
+    .mn-prev-btn { background: var(--mn-c); color: #fff; border-radius: 6px; padding: 5px 10px; font-size: 12px; }
+    .mn-aviso { display: none; margin-top: 8px; font-size: .82rem; color: #8a5a00; background: #fff6df; border-radius: 8px; padding: 7px 10px; }
+    @media (max-width: 640px) { .mn-colores { grid-template-columns: repeat(5, 1fr); } }
 </style>
 {% endblock %}
 
 {% block body %}
 <div class="mn-wrap">
     <h1 class="mn-title"><i class="fas fa-store"></i> Mi Negocio</h1>
-    <p class="mn-lead">Edita la información pública de tu negocio: nombre, slogan, contacto, redes, logo y los textos del sitio. Los cambios se reflejan en tu sitio web. <em>(Los colores, la estructura y los módulos los gestiona el equipo CyberShop.)</em></p>
+    <p class="mn-lead">Edita la información pública de tu negocio: nombre, slogan, contacto, redes, logo y los textos del sitio. Los cambios se reflejan en tu sitio web. <em>(La estructura y los módulos los gestiona el equipo CyberShop.)</em></p>
+
+    {% if primeros_pasos %}
+    <div class="mn-card mn-pasos">
+        <h2><i class="fas fa-magic"></i> Personaliza tu tienda</h2>
+        <ol>
+            {% for titulo, ayuda, hecho in primeros_pasos %}
+            <li class="{{ 'ok' if hecho }}"><i class="fas fa-{{ 'check-circle' if hecho else 'circle' }}"></i>
+                <span>{{ titulo }}<small>{{ ayuda }}</small></span></li>
+            {% endfor %}
+        </ol>
+    </div>
+    {% endif %}
 
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% for category, message in messages %}
@@ -59,6 +96,36 @@
                     <input type="file" id="logo" name="logo" accept="image/png,image/jpeg,image/webp,image/svg+xml">
                     <small>PNG, JPG, WEBP o SVG. Deja vacío para conservar el actual.</small>
                 </div>
+            </div>
+        </div>
+
+        <!-- Colores de marca (un color principal; el resto de la paleta se deriva) -->
+        <div class="mn-card">
+            <h2>Colores de tu marca</h2>
+            <p class="mn-lead" style="margin-bottom:12px">Elige tu color principal: lo usamos en botones, títulos y el menú de tu página.
+                Ajustamos el resto de tonos para que todo se lea bien.</p>
+            {% set hex_muestras = muestras | map('first') | list %}
+            <div class="mn-colores" role="radiogroup" aria-label="Color principal">
+                {% for hex, nombre in muestras %}
+                <label class="mn-color" title="{{ nombre }}">
+                    <input type="radio" name="color_marca" value="{{ hex }}" {% if color_actual == hex %}checked{% endif %}>
+                    <span style="background: {{ hex }}"></span><small>{{ nombre }}</small>
+                </label>
+                {% endfor %}
+                <label class="mn-color mn-color-libre" title="Otro color">
+                    <input type="radio" name="color_marca" id="mnColorLibreRadio"
+                           value="{{ color_actual if color_actual not in hex_muestras else '#0f4c81' }}"
+                           {% if color_actual not in hex_muestras %}checked{% endif %}>
+                    <span><input type="color" id="mnColorLibre" aria-label="Elegir otro color"
+                                 value="{{ color_actual if color_actual not in hex_muestras else '#0f4c81' }}"></span>
+                    <small>Otro</small>
+                </label>
+            </div>
+            <div class="mn-aviso" id="mnColorAviso">Ese color es muy claro: el texto blanco de botones y títulos no se leería. Elige un tono más oscuro.</div>
+            <div class="mn-prev" id="mnPrev" aria-label="Vista previa">
+                <div class="mn-prev-top">{{ public_site_settings.empresa_nombre or 'Tu negocio' }}</div>
+                <div class="mn-prev-hero"><b>Bienvenido</b> · {{ public_site_settings.empresa_tagline or '' }}</div>
+                <div class="mn-prev-body"><span>Producto de ejemplo</span><span class="mn-prev-btn">Ver detalles</span></div>
             </div>
         </div>
 
@@ -104,4 +171,31 @@
         </div>
     </form>
 </div>
+<script>
+/* Vista previa en vivo del color de marca (mismas mezclas que marca_service). */
+(function () {
+    var prev = document.getElementById('mnPrev');
+    if (!prev) return;
+    function rgb(h) { return [1, 3, 5].map(function (i) { return parseInt(h.slice(i, i + 2), 16); }); }
+    function mezclar(a, b, p) { var x = rgb(a), y = rgb(b);
+        return '#' + x.map(function (v, i) { return ('0' + Math.round(v + (y[i] - v) * p).toString(16)).slice(-2); }).join(''); }
+    function contraste(h) { var l = rgb(h).map(function (v) { v /= 255;
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+        return 1.05 / (0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2] + 0.05); }
+    function pintar() {
+        var r = document.querySelector('input[name="color_marca"]:checked');
+        if (!r || !/^#[0-9a-f]{6}$/i.test(r.value)) return;
+        prev.style.setProperty('--mn-c', r.value);
+        prev.style.setProperty('--mn-o', mezclar(r.value, '#0b1220', 0.78));
+        prev.style.setProperty('--mn-l', mezclar(r.value, '#ffffff', 0.92));
+        document.getElementById('mnColorAviso').style.display = contraste(r.value) < 3 ? 'block' : 'none';
+    }
+    document.querySelectorAll('input[name="color_marca"]').forEach(function (r) { r.addEventListener('change', pintar); });
+    document.getElementById('mnColorLibre').addEventListener('input', function () {
+        var radio = document.getElementById('mnColorLibreRadio');
+        radio.value = this.value; radio.checked = true; pintar();
+    });
+    pintar();
+})();
+</script>
 {% endblock %}

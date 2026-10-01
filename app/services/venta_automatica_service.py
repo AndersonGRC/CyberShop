@@ -68,6 +68,7 @@ def procesar_compra_plan(referencia, base_url='https://cybershopcol.com'):
         if padre_pre.get('es_trial'):
             pcs.marcar_trial_convertido(compra['renovacion_de'])
             limpiar_datos_trial(padre_pre)
+            _quitar_modo_prueba(padre_pre)
 
         reactivada = ''
         if padre_pre.get('suspendida_por_pago') and padre_pre.get('tenant_id'):
@@ -117,13 +118,76 @@ def procesar_compra_plan(referencia, base_url='https://cybershopcol.com'):
     return resultado
 
 
-def _sembrar_datos_trial(compra):
+def _db_del_tenant(tenant_id, resultado=None):
+    """Nombre de la BD del cliente: el que devolvió el maestro al crearlo o,
+    si no se tiene, el mismo cálculo del maestro (tenant_service.compute_db_name:
+    `cyber_t` + id con 3 dígitos). Antes se usaba sin relleno y para ids < 100
+    apuntaba a una BD que no existe (el banner de la prueba nunca se sembraba)."""
+    if resultado and resultado.get('db_name'):
+        return resultado['db_name']
+    return f"cyber_t{int(tenant_id):03d}"
+
+
+def _sembrar_tienda_nueva(compra, resultado=None):
+    """La tienda recién creada muestra SUS datos, no los de CyberShop: logo
+    «Tu logo aquí», su correo y WhatsApp, su color (o uno neutro) y textos
+    guía para editar en Mi Negocio. Solo escribe en la BD del cliente nuevo,
+    después de una creación exitosa: no cambia cómo se crea un cliente."""
+    try:
+        from services.db_layer import tenant_cursor
+        from services import marca_service
+        valores = marca_service.valores_tienda_nueva(
+            negocio=compra.get('nombre_negocio') or compra.get('slug'),
+            email=compra.get('buyer_email'), whatsapp=compra.get('buyer_telefono'),
+            color=compra.get('color_marca'), tipo=compra.get('tipo_negocio'),
+            lema=compra.get('lema'))
+        with tenant_cursor(db_name=_db_del_tenant(compra['tenant_id'], resultado)) as cur:
+            marca_service.escribir_en_bd(cur, valores)
+        return True
+    except Exception as exc:  # noqa: BLE001 — cosmético: la tienda ya existe y funciona
+        try:
+            current_app.logger.warning(f"tienda nueva: no se pudo sembrar la marca: {exc}")
+        except Exception:
+            pass
+        return False
+
+
+def _aplicar_modo_prueba(compra):
+    """Prueba gratis: apaga pagos en línea, Google, Meta y DIAN (llaves que el
+    cliente no tiene). Devuelve '' o el error para avisar al operador."""
+    try:
+        from services.master_client import modo_prueba
+        modo_prueba(compra['tenant_id'], activo=True)
+        return ''
+    except Exception as exc:  # noqa: BLE001
+        try:
+            current_app.logger.error(f"trial: no se pudo aplicar el modo prueba: {exc}")
+        except Exception:
+            pass
+        return str(exc)
+
+
+def _quitar_modo_prueba(compra):
+    """La prueba pagó: la tienda vuelve a heredar las integraciones (o las que
+    el operador le configure). Nunca rompe la renovación."""
+    try:
+        if compra.get('tenant_id'):
+            from services.master_client import modo_prueba
+            modo_prueba(compra['tenant_id'], activo=False)
+    except Exception as exc:  # noqa: BLE001
+        try:
+            current_app.logger.error(f"trial: no se pudo quitar el modo prueba: {exc}")
+        except Exception:
+            pass
+
+
+def _sembrar_datos_trial(compra, resultado=None):
     """Escribe en la BD del NUEVO tenant las llaves que su instancia usa para
     mostrar el banner '🎁 te quedan N días': trial_hasta y trial_renovar_url.
     (El app del operador puede escribir cualquier BD de tenant vía tenant_cursor.)"""
     try:
         from services.db_layer import tenant_cursor
-        db_name = f"cyber_t{int(compra['tenant_id'])}"
+        db_name = _db_del_tenant(compra['tenant_id'], resultado)
         url = f"https://cybershopcol.com/renovar/{compra['token_renovacion']}"
         from services.config_tenant import set_cliente_config
         with tenant_cursor(db_name=db_name) as cur:
@@ -141,7 +205,7 @@ def limpiar_datos_trial(compra):
     """El trial pagó: quita las llaves del banner en la BD del tenant."""
     try:
         from services.db_layer import tenant_cursor
-        db_name = f"cyber_t{int(compra['tenant_id'])}"
+        db_name = _db_del_tenant(compra['tenant_id'])
         with tenant_cursor(db_name=db_name) as cur:
             cur.execute("DELETE FROM cliente_config WHERE clave IN ('trial_hasta','trial_renovar_url')")
     except Exception:
@@ -181,17 +245,30 @@ def activar_tienda_async(app, compra_id, slug, nombre_negocio):
                                     periodo=compra.get('periodo') or 'mes',
                                     dias=pcs.TRIAL_DIAS if es_trial else None)
                 compra = pcs.get_por_id(compra_id)
+                marca_ok = _sembrar_tienda_nueva(compra, resultado)
+                error_modo_prueba = ''
                 if es_trial:
-                    _sembrar_datos_trial(compra)
+                    _sembrar_datos_trial(compra, resultado)
+                    error_modo_prueba = _aplicar_modo_prueba(compra)
+                    from services.crm_pruebas_service import prueba_activada
+                    prueba_activada(compra)
                 _enviar(compra['buyer_email'],
                         generar_email_bienvenida_tienda(compra, plan, resultado))
+                avisos = []
+                if not marca_ok:
+                    avisos.append("⚠️ No se pudo poner su marca (quedó con la de CyberShop): revísala.")
+                if error_modo_prueba:
+                    avisos.append(f"⚠️ No se apagaron pagos/Google/Meta/DIAN: {error_modo_prueba}")
                 _enviar(_email_operador(), generar_email_aviso_operador(
                     ("🎁 PRUEBA GRATIS activada — " if es_trial else "🚀 Tienda activada — ")
                     + str(resultado.get('domain')),
                     [f"Cliente: {compra.get('buyer_nombre')} <{compra.get('buyer_email')}>",
+                     f"WhatsApp: {compra.get('buyer_telefono') or 'no lo dio'}",
+                     f"Negocio: {compra.get('nombre_negocio') or '—'}",
                      f"Plan: {plan.get('nombre')} → módulos '{master_plan}'"
                      + (f" | Prueba hasta {compra.get('proximo_pago')}" if es_trial else ""),
-                     f"Tenant ID: {resultado.get('tenant_id')} | Puerto: {resultado.get('port')}"]))
+                     f"Tenant ID: {resultado.get('tenant_id')} | Puerto: {resultado.get('port')}"]
+                    + avisos))
             except MasterError as exc:
                 pcs.marcar_error(compra_id, str(exc))
             except Exception as exc:  # noqa: BLE001

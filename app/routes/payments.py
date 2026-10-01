@@ -225,6 +225,13 @@ def crear_orden():
         flash("Tu carrito está vacío o ha expirado.", "error")
         return redirect(url_for('public.productos'))
 
+    # Sin pasarela configurada en ESTA tienda (p. ej. prueba gratis): no se
+    # crea un pedido que iría a PayU sin credenciales.
+    if not (app.config.get('PAYU_MERCHANT_ID') and app.config.get('PAYU_API_KEY')):
+        flash("Los pagos en línea aún no están activos en esta tienda. "
+              "Completa tu compra por WhatsApp.", "info")
+        return redirect(url_for('payments.metodos_pago'))
+
     referencia = generar_reference_code()
 
     try:

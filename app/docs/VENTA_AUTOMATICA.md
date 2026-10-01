@@ -90,3 +90,37 @@ POST /confirmacion-pago  con merchant_id, reference_sale=ref, value, currency=CO
 Luego abrir `/activar-tienda/<token>` (el token queda en `plan_compras`),
 activar con un slug de prueba, verificar el tenant en el control plane y
 finalmente `destroy_hard` desde el panel. Probado así en DEV y en PROD.
+
+## Prueba gratis de 15 días (1.6.0.0)
+
+```
+/prueba-gratis  (asistente de 4 pasos, static/js/prueba_gratis.js; sin JS funciona igual)
+   1. Tu negocio      → nombre + tipo (tienda, restaurante, servicios, otro)
+   2. Dirección web   → subdominio sugerido + verificación en vivo
+                        GET /prueba-gratis/slug?s=  (plan_compras + maestro /tenants/slug-disponible)
+   3. Diseña tu página→ color de marca (muestras o libre, contraste ≥ 3) + frase, con vista previa
+   4. Tus datos       → nombre, correo, WhatsApp OBLIGATORIO (10 dígitos, acepta +57)
+   POST → plan_compras TRIAL_PENDIENTE (+ color_marca, tipo_negocio, lema)
+        → contacto lead en el CRM de CyberShop (origen prueba_gratis, etiqueta prueba-gratis)
+        → correo de confirmación (si no confirmó y reintenta: se reenvía, no se bloquea)
+/prueba-gratis/confirmar/<token> → activar_tienda_async (MISMA creación de siempre)
+/activar-tienda/<token>          → se actualiza sola (GET …/estado cada 3 s) con 4 etapas
+```
+
+Después de una creación exitosa (`_worker`), sin tocar create_tenant/seed/provision:
+
+- **Tienda neutra** (todas las autoservicio): `marca_service.valores_tienda_nueva` →
+  logo `static/img/tu-logo-aqui.svg`, correo/WhatsApp/teléfono del cliente (no los de
+  CyberShop), su paleta (`paleta_desde`) y textos guía para editar en Mi Negocio.
+- **Modo prueba** (solo pruebas): maestro `POST /internal/api/v1/tenants/<id>/modo-prueba`
+  → `trial_mode_service.aplicar` deja VACÍAS en `<slug>.env` las llaves de PayU, Google,
+  Meta, DIAN y BILLING_* y reinicia la instancia. Correo e IA siguen activos (decisión del
+  dueño). Al pagar la renovación se quita (`activo=false`): solo se borran las llaves que
+  siguen vacías.
+- **CRM**: actividad «Prueba gratis activada» + tarea «Llamar a … su prueba vence el …»
+  (día 12, prioridad alta). Pantalla **CRM → Pruebas gratis** (`routes/crm_pruebas.py`):
+  días que quedan, WhatsApp, correo, link de pago, filtros.
+- El teléfono también sale en el aviso al operador y en la ficha del maestro.
+
+Relleno de pruebas anteriores al CRM: `python tools/backfill_crm_pruebas.py` (vista
+previa) y `--aplicar` (solo crea los contactos que faltan).

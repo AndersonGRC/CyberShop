@@ -1974,6 +1974,7 @@ def mi_negocio():
             # Whitelist: solo se escriben las claves seguras, aunque el POST traiga otras.
             save_public_site_settings(request.form, safe_keys)
             save_public_logo(request.files.get('logo'), current_app.root_path)
+            _guardar_color_marca(request.form.get('color_marca'))
             flash('Datos de tu negocio actualizados.', 'success')
         except Exception as exc:
             current_app.logger.error(f'Error guardando mi-negocio: {exc}')
@@ -1982,13 +1983,56 @@ def mi_negocio():
 
     ctx = get_public_site_admin_context()
     safe = set(safe_keys)
+    from services import marca_service
+    ajustes = ctx['public_site_settings']
     return render_template(
         'mi_negocio.html',
         datosApp=get_data_app(),
-        public_site_settings=ctx['public_site_settings'],
+        public_site_settings=ajustes,
         branding_fields=[f for f in PUBLIC_BRANDING_FIELDS if f['key'] in safe],
         landing_fields=[f for f in PUBLIC_LANDING_FIELDS if f['key'] in safe],
+        muestras=marca_service.MUESTRAS,
+        color_actual=marca_service.normalizar(ajustes.get('color_primario')) or marca_service.NEUTRO,
+        primeros_pasos=_primeros_pasos(ajustes),
     )
+
+
+def _guardar_color_marca(color):
+    """Color principal elegido por el dueño → paleta completa derivada (no
+    expone los ~20 colores: eso era lo que rompía el diseño). Rechaza colores
+    sin contraste con el texto blanco."""
+    from services import marca_service
+    if not (color or '').strip():
+        return
+    from services.public_site_service import get_brand_config
+    actual = marca_service.normalizar(get_brand_config().get('color_primario')) or marca_service.NEUTRO
+    if marca_service.normalizar(color) == actual:
+        return      # no lo cambió: no se toca la paleta (puede estar afinada desde el maestro)
+    c, err = marca_service.validar(color)
+    if err:
+        flash(err, 'warning')
+        return
+    paleta = marca_service.paleta_desde(c)
+    save_public_site_settings(paleta, list(paleta))
+
+
+def _primeros_pasos(ajustes):
+    """Checklist de una tienda recién creada; None cuando ya está personalizada."""
+    from services import marca_service
+    logo_listo = (ajustes.get('empresa_logo_url') or '') != marca_service.LOGO_PROVISIONAL
+    textos_listos = 'Edita este texto en Mi Negocio' not in (ajustes.get('home_about_intro') or '')
+    try:
+        with get_db_cursor() as cur:
+            cur.execute('SELECT EXISTS (SELECT 1 FROM productos)')
+            producto_listo = bool(cur.fetchone()[0])
+    except Exception:
+        producto_listo = True
+    pasos = [('Sube tu logo', 'Arriba, en «Logo».', logo_listo),
+             ('Cuenta quiénes son', 'En «Textos del sitio» cambia los textos de ejemplo.', textos_listos),
+             ('Agrega tu primer producto', 'Desde Inventario → Agregar producto.', producto_listo)]
+    if logo_listo and textos_listos:
+        return None
+    return pasos
 
 
 @admin_bp.route('/admin/config-secciones', methods=['GET', 'POST'])

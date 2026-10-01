@@ -59,6 +59,20 @@
   .ac-dominio { font-size: 1.15rem; font-weight: 800; color: var(--ac-primario);
     background: #eef6ff; border-radius: 10px; padding: 12px 18px; display: inline-block; margin: 10px 0 16px; }
   .ac-nota { font-size: .88rem; color: #7a8499; line-height: 1.55; }
+  .ac-etapas { list-style: none; margin: 18px auto 0; padding: 0; max-width: 430px; text-align: left; }
+  .ac-etapas li { position: relative; padding: 0 0 14px 34px; display: flex; flex-direction: column; gap: 2px;
+    font-size: .88rem; color: #9aa3b5; transition: color .3s; }
+  .ac-etapas li::before { content: ""; position: absolute; left: 4px; top: 3px; width: 14px; height: 14px;
+    border-radius: 50%; border: 2px solid #d5dcea; background: #fff; }
+  .ac-etapas li.is-on { color: #33405c; }
+  .ac-etapas li.is-on::before { border-color: var(--ac-acento); border-top-color: transparent;
+    animation: acspin .9s linear infinite; }
+  .ac-etapas li.is-done { color: #1d7a3d; }
+  .ac-etapas li.is-done::before { content: "✓"; border-color: #1d7a3d; background: #1d7a3d; color: #fff;
+    font-size: 10px; line-height: 14px; text-align: center; }
+  .ac-pasos { text-align: left; background: #f4f7fc; border-radius: 14px; padding: 14px 18px; margin: 18px 0; }
+  .ac-pasos b { display: block; margin-bottom: 8px; color: #33405c; }
+  .ac-pasos ol { margin: 0; padding-left: 20px; font-size: .9rem; line-height: 1.7; color: #4d576b; }
 </style>
 {% endblock %}
 
@@ -102,13 +116,16 @@
     </form>
 
     {% elif compra.estado == 'ACTIVANDO' %}
-    <div class="ac-status">
+    <div class="ac-status" id="acCreando" data-estado-url="{{ url_for('public.activar_tienda_estado', token=compra.token) }}">
       <div class="ac-spinner"></div>
       <h1>Creando tu tienda…</h1>
-      <p class="sub">Estamos montando tu base de datos, tu sitio y tu certificado
-        de seguridad. Esto toma <strong>2-3 minutos</strong>.</p>
-      <p class="ac-nota">Te enviaremos un correo a <strong>{{ compra.buyer_email }}</strong>
-        con tus accesos. Puedes recargar esta página para ver el estado.</p>
+      <p class="sub">Toma <strong>1 a 3 minutos</strong>. No necesitas recargar: esta página se actualiza sola.</p>
+      <ol class="ac-etapas" id="acEtapas">
+        <li data-s="0"><b>Reservando tu espacio seguro</b><span>Una base de datos solo para tu negocio.</span></li>
+        <li data-s="20"><b>Preparando tu panel</b><span>Tu usuario de administrador, tus módulos y tu diseño.</span></li>
+        <li data-s="45"><b>Activando tu dirección web</b><span>Con el candado de seguridad (https) para que tus clientes compren tranquilos.</span></li>
+        <li data-s="90"><b>Enviándote tus accesos</b><span>A <strong>{{ compra.buyer_email }}</strong>: la dirección, tu usuario y una contraseña temporal.</span></li>
+      </ol>
     </div>
 
     {% elif compra.estado == 'ACTIVADA' %}
@@ -119,6 +136,14 @@
       <p class="sub">Revisa tu correo (<strong>{{ compra.buyer_email }}</strong>):
         te enviamos el usuario, la contraseña temporal y el código para
         descargar el punto de venta de escritorio.</p>
+      <div class="ac-pasos">
+        <b>Tus primeros pasos (5 minutos)</b>
+        <ol>
+          <li>Entra a <strong>https://{{ compra.dominio }}/admin</strong> con tu correo y la contraseña temporal.</li>
+          <li>Ve a <strong>Mi Negocio</strong>: sube tu logo y ajusta tus colores y textos.</li>
+          <li>Agrega tu primer producto desde <strong>Inventario</strong>.</li>
+        </ol>
+      </div>
       <a href="https://{{ compra.dominio }}" class="ac-btn" style="display:inline-block;text-decoration:none;text-align:center;box-sizing:border-box;">
         <i class="fas fa-external-link-alt"></i> Ir a mi tienda</a>
     </div>
@@ -135,6 +160,33 @@
 </div>
 
 <script>
+/* Creación en curso: consulta el estado cada 3 s y avanza las etapas según el
+   tiempo transcurrido (la creación real no reporta pasos intermedios). */
+(function () {
+  var caja = document.getElementById('acCreando');
+  if (!caja) return;
+  var etapas = Array.prototype.slice.call(document.querySelectorAll('#acEtapas li'));
+  var inicio = Date.now();
+  function pintar() {
+    var s = (Date.now() - inicio) / 1000;
+    etapas.forEach(function (li, i) {
+      var desde = Number(li.dataset.s), sig = etapas[i + 1] ? Number(etapas[i + 1].dataset.s) : 1e9;
+      li.className = s >= sig ? 'is-done' : (s >= desde ? 'is-on' : '');
+    });
+  }
+  function consultar() {
+    fetch(caja.dataset.estadoUrl, { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.estado === 'ACTIVANDO') { setTimeout(consultar, 3000); return; }
+        window.location.reload();   // ACTIVADA o ERROR: el servidor pinta el resultado
+      })
+      .catch(function () { setTimeout(consultar, 5000); });
+  }
+  pintar();
+  setInterval(pintar, 1000);
+  setTimeout(consultar, 3000);
+})();
 (function () {
   var nombre = document.getElementById('nombre_negocio');
   var slug = document.getElementById('subdominio');

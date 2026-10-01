@@ -302,7 +302,8 @@ def generar_email_bienvenida_tienda(compra, plan, resultado):
     admin_password, client_code)."""
     empresa = _get_empresa_info()
     colores = _get_colores()
-    nombre = compra.get('buyer_nombre') or 'Hola'
+    from html import escape as _esc
+    nombre = _esc(compra.get('buyer_nombre') or 'Hola')
     dominio = resultado.get('domain') or compra.get('dominio') or ''
     url_tienda = f"https://{dominio}"
     url_admin = f"https://{dominio}/admin"
@@ -338,6 +339,12 @@ def generar_email_bienvenida_tienda(compra, plan, resultado):
       ⚠️ Por seguridad, <strong>cambia la contraseña</strong> en tu primer ingreso
       (Panel → tu usuario).
     </p>
+    <h3 style="color:{colores['primario']};margin:24px 0 8px;">✨ Tus primeros pasos (5 minutos)</h3>
+    <ol style="font-size:14px;color:#333;line-height:1.7;padding-left:20px;margin:0;">
+      <li>Entra a <a href="{url_admin}" style="color:{colores['primario']};">{url_admin}</a> con tu usuario y la contraseña temporal.</li>
+      <li>En <strong>Mi Negocio</strong>: sube tu logo (hoy ves «Tu logo aquí») y ajusta tus colores y textos.</li>
+      <li>En <strong>Inventario</strong>: agrega tu primer producto y míralo en tu tienda.</li>
+    </ol>
     {pos_html}
     <p style="font-size:14px;color:#333;line-height:1.6;margin-top:18px;">
       ¿Necesitas ayuda? Escríbenos por WhatsApp: <strong>{empresa.get('whatsapp') or empresa.get('telefono','')}</strong>
@@ -378,7 +385,9 @@ def generar_email_aviso_operador(titulo, lineas):
     `lineas` es una lista de strings clave: valor."""
     empresa = _get_empresa_info()
     colores = _get_colores()
-    items = ''.join(f'<li style="padding:3px 0;font-size:14px;color:#333;">{l}</li>' for l in lineas)
+    # Las líneas traen datos que escribió el cliente (nombre, negocio): se escapan.
+    from html import escape as _esc
+    items = ''.join(f'<li style="padding:3px 0;font-size:14px;color:#333;">{_esc(str(l))}</li>' for l in lineas)
     contenido = f"""
     <h2 style="margin:0 0 14px;color:{colores['primario']};">{titulo}</h2>
     <ul style="padding-left:18px;margin:0;">{items}</ul>

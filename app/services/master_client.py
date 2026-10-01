@@ -78,3 +78,35 @@ def suspender_tenant(tenant_id):
 def reactivar_tenant(tenant_id):
     """Reactiva la instancia del cliente (renovación pagada)."""
     return _accion_tenant(tenant_id, 'reactivate')
+
+
+def slug_disponible(slug):
+    """¿Se puede crear un cliente con este subdominio? Solo lectura.
+    Devuelve (disponible: bool|None, motivo). None = no se pudo consultar
+    (el registro sigue; el maestro lo vuelve a validar al crear)."""
+    try:
+        r = requests.get(f"{_base()}/internal/api/v1/tenants/slug-disponible",
+                         params={'slug': slug}, headers=_headers(), timeout=(1.5, 4))
+        if r.status_code != 200:
+            return None, ''
+        data = r.json()
+        return bool(data.get('disponible')), data.get('motivo') or ''
+    except (requests.RequestException, ValueError, MasterError):
+        return None, ''
+
+
+def modo_prueba(tenant_id, activo=True):
+    """Prueba gratis: apaga (activo) o devuelve las integraciones externas de
+    la tienda (pagos, Google, Meta, DIAN). Lanza MasterError si falla."""
+    try:
+        r = requests.post(f"{_base()}/internal/api/v1/tenants/{tenant_id}/modo-prueba",
+                          json={'activo': bool(activo)}, headers=_headers(), timeout=120)
+    except requests.RequestException as exc:
+        raise MasterError(f'No se pudo contactar el maestro: {exc}')
+    if r.status_code != 200:
+        try:
+            detalle = r.json().get('error', r.text)
+        except Exception:
+            detalle = r.text
+        raise MasterError(detalle or f'Error {r.status_code}')
+    return r.json()

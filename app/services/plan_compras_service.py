@@ -64,6 +64,34 @@ def _ensure_table():
         cur.execute("ALTER TABLE plan_compras ADD COLUMN IF NOT EXISTS es_trial BOOLEAN NOT NULL DEFAULT FALSE")
         cur.execute("ALTER TABLE plan_compras ADD COLUMN IF NOT EXISTS nombre_negocio VARCHAR(150)")
         cur.execute("ALTER TABLE plan_compras ADD COLUMN IF NOT EXISTS buyer_telefono VARCHAR(40)")
+        # Asistente de la prueba gratis (aditivo): color de marca y tipo de negocio
+        cur.execute("ALTER TABLE plan_compras ADD COLUMN IF NOT EXISTS color_marca VARCHAR(7)")
+        cur.execute("ALTER TABLE plan_compras ADD COLUMN IF NOT EXISTS tipo_negocio VARCHAR(30)")
+        cur.execute("ALTER TABLE plan_compras ADD COLUMN IF NOT EXISTS lema VARCHAR(120)")
+
+
+def normalizar_whatsapp(valor):
+    """WhatsApp colombiano a 10 dígitos: acepta espacios, guiones y +57.
+    Devuelve (numero, None) o (None, mensaje)."""
+    digitos = ''.join(ch for ch in str(valor or '') if ch.isdigit())
+    if len(digitos) == 12 and digitos.startswith('57'):
+        digitos = digitos[2:]
+    if len(digitos) != 10 or not (digitos.startswith('3') or digitos.startswith('60')):
+        return None, ('Escribe tu WhatsApp de 10 dígitos (ej. 300 123 4567). '
+                      'Es el número por el que te ayudaremos durante la prueba.')
+    return digitos, None
+
+
+ESTADOS_QUE_RESERVAN = ('TRIAL_PENDIENTE', 'PAGADO', 'ACTIVANDO', 'ACTIVADA')
+
+
+def slug_reservado(slug):
+    """¿Otra compra o prueba ya apartó este subdominio?"""
+    _ensure_table()
+    with get_db_cursor() as cur:
+        cur.execute("SELECT 1 FROM plan_compras WHERE slug = %s AND estado = ANY(%s) LIMIT 1",
+                    (slug, list(ESTADOS_QUE_RESERVAN)))
+        return cur.fetchone() is not None
 
 
 def crear_compra(pedido_id, referencia, plan_key, buyer_nombre, buyer_email,
@@ -186,25 +214,43 @@ def marcar_activada(compra_id, tenant_id, slug, dominio, periodo='mes', dias=Non
 
 # ── Prueba gratis (trial 15 días, plan Ultra, sin pago) ────────
 
-def crear_trial(nombre_negocio, buyer_nombre, buyer_email, slug, telefono=''):
+def crear_trial(nombre_negocio, buyer_nombre, buyer_email, slug, telefono='',
+                color_marca=None, tipo_negocio=None, lema=None):
     """Registro de prueba gratis: fila TRIAL_PENDIENTE con token de
-    verificación de email. Devuelve (compra_id, token) o (None, error)."""
+    verificación de email. Devuelve (compra_id, token) o (None, error).
+    En la misma transacción deja al interesado en el CRM del operador."""
     _ensure_table()
     buyer_email = (buyer_email or '').strip().lower()
     with get_db_cursor(dict_cursor=True) as cur:
-        # Antiabuso: un solo trial por email (pendiente o ya usado)
+        # Antiabuso: un solo trial por email. Si el anterior NUNCA confirmó el
+        # correo (no llegó, se perdió), se actualizan sus datos y se reenvía el
+        # mismo enlace en vez de dejar a la persona bloqueada.
         cur.execute(
-            "SELECT 1 FROM plan_compras WHERE LOWER(buyer_email) = %s AND es_trial = TRUE",
+            "SELECT id, estado, token FROM plan_compras "
+            "WHERE LOWER(buyer_email) = %s AND referencia_pedido LIKE 'TRIAL-%%' "
+            "ORDER BY id DESC LIMIT 1",
             (buyer_email,),
         )
-        if cur.fetchone():
+        previa = cur.fetchone()
+        if previa and previa['estado'] != 'TRIAL_PENDIENTE':
             return None, 'Ese correo ya usó una prueba gratis. Escríbenos y te ayudamos.'
         cur.execute(
-            "SELECT 1 FROM plan_compras WHERE slug = %s AND estado IN ('TRIAL_PENDIENTE','ACTIVANDO','ACTIVADA')",
-            (slug,),
+            "SELECT 1 FROM plan_compras WHERE slug = %s AND estado = ANY(%s) "
+            "AND id <> COALESCE(%s, 0)",
+            (slug, list(ESTADOS_QUE_RESERVAN), previa['id'] if previa else None),
         )
         if cur.fetchone():
             return None, 'Ese subdominio ya está en uso. Elige otro.'
+        if previa:
+            cur.execute(
+                """UPDATE plan_compras
+                   SET buyer_nombre = %s, buyer_telefono = %s, nombre_negocio = %s, slug = %s,
+                       color_marca = %s, tipo_negocio = %s, lema = %s
+                   WHERE id = %s AND estado = 'TRIAL_PENDIENTE'""",
+                (buyer_nombre, telefono, nombre_negocio, slug, color_marca, tipo_negocio,
+                 lema or None, previa['id']),
+            )
+            return previa['id'], previa['token']
         token = secrets.token_urlsafe(24)
         referencia = f"TRIAL-{secrets.token_hex(8).upper()}"
         cur.execute(
@@ -212,14 +258,25 @@ def crear_trial(nombre_negocio, buyer_nombre, buyer_email, slug, telefono=''):
             INSERT INTO plan_compras
                 (referencia_pedido, plan_key, buyer_nombre, buyer_email,
                  buyer_telefono, nombre_negocio, slug, token, estado,
-                 periodo, es_trial)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'TRIAL_PENDIENTE', 'mes', TRUE)
+                 periodo, es_trial, color_marca, tipo_negocio, lema)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'TRIAL_PENDIENTE', 'mes', TRUE, %s, %s, %s)
             RETURNING id
             """,
             (referencia, TRIAL_PLAN_KEY, buyer_nombre, buyer_email,
-             telefono, nombre_negocio, slug, token),
+             telefono, nombre_negocio, slug, token, color_marca, tipo_negocio, lema or None),
         )
-        return cur.fetchone()['id'], token
+        compra_id = cur.fetchone()['id']
+        # El interesado queda en el CRM desde ya (aunque no confirme el correo,
+        # se le puede escribir por WhatsApp). Si el CRM falla, el registro sigue.
+        try:
+            cur.execute('SAVEPOINT crm_prueba')
+            from services.crm_pruebas_service import registrar_interesado
+            registrar_interesado(cur, nombre=buyer_nombre, email=buyer_email, telefono=telefono,
+                                 negocio=nombre_negocio, slug=slug, tipo_negocio=tipo_negocio)
+            cur.execute('RELEASE SAVEPOINT crm_prueba')
+        except Exception:  # noqa: BLE001
+            cur.execute('ROLLBACK TO SAVEPOINT crm_prueba')
+        return compra_id, token
 
 
 def marcar_trial_verificado(compra_id):

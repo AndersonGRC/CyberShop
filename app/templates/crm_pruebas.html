@@ -1,0 +1,121 @@
+{% extends "crm_base.html" %}
+
+{% block titulo %}Pruebas gratis · CRM{% endblock %}
+
+{% block LinkAdicional %}
+{{ super() }}
+<style>
+  .pg-wrap { --pg-ok: #1d7a3d; --pg-ok-bg: #e8f6ee; --pg-warn: #8a5a00; --pg-warn-bg: #fff4d6;
+             --pg-mal: #b42318; --pg-mal-bg: #fdeaea; --pg-azul: var(--color-primario, #122C94);
+             --pg-gris: #6b7488; --pg-borde: #e3e8f2; }
+  .pg-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 4px 0 14px; }
+  .pg-head h1 { margin: 0; font-size: 1.35rem; }
+  .pg-head p { margin: 4px 0 0; color: var(--pg-gris); font-size: .9rem; max-width: 640px; }
+  .pg-filtros { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .pg-filtros a { text-decoration: none; padding: 7px 13px; border-radius: 999px; border: 1.5px solid var(--pg-borde);
+                  color: #33405c; font-size: .84rem; font-weight: 600; background: #fff; }
+  .pg-filtros a.on { border-color: var(--pg-azul); color: var(--pg-azul); background: #f2f5ff; }
+  .pg-filtros b { font-weight: 500; color: var(--pg-gris); margin-left: 4px; }
+  .pg-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
+  .pg-card { background: #fff; border: 1px solid var(--pg-borde); border-radius: 14px; padding: 16px;
+             display: flex; flex-direction: column; gap: 10px; box-shadow: 0 2px 8px rgba(18, 30, 60, .05); }
+  .pg-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+  .pg-top h2 { margin: 0; font-size: 1.02rem; }
+  .pg-top small { display: block; color: var(--pg-gris); font-size: .82rem; margin-top: 2px; }
+  .pg-estado { font-size: .74rem; font-weight: 700; padding: 4px 9px; border-radius: 999px; white-space: nowrap;
+               background: #eef1f6; color: #33405c; }
+  .pg-estado.activa, .pg-estado.convertida { background: var(--pg-ok-bg); color: var(--pg-ok); }
+  .pg-estado.por_vencer, .pg-estado.pendiente, .pg-estado.creando { background: var(--pg-warn-bg); color: var(--pg-warn); }
+  .pg-estado.vencida, .pg-estado.error { background: var(--pg-mal-bg); color: var(--pg-mal); }
+  .pg-barra { height: 8px; border-radius: 99px; background: #eef1f6; overflow: hidden; }
+  .pg-barra span { display: block; height: 100%; background: var(--pg-ok); border-radius: 99px; }
+  .pg-barra.por_vencer span { background: #e0a100; }
+  .pg-barra.vencida span { background: var(--pg-mal); }
+  .pg-datos { display: grid; gap: 5px; font-size: .86rem; color: #33405c; }
+  .pg-datos i { width: 16px; color: var(--pg-gris); text-align: center; margin-right: 6px; }
+  .pg-datos a { color: var(--pg-azul); text-decoration: none; word-break: break-all; }
+  .pg-sin { color: var(--pg-mal); font-weight: 600; }
+  .pg-acciones { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+  .pg-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 9px;
+            font-size: .82rem; font-weight: 700; text-decoration: none; border: 1.5px solid var(--pg-borde);
+            color: #33405c; background: #fff; cursor: pointer; }
+  .pg-btn.wa { background: #25d366; border-color: #25d366; color: #fff; }
+  .pg-error { font-size: .8rem; color: var(--pg-mal); background: var(--pg-mal-bg); border-radius: 8px; padding: 6px 9px; }
+  .pg-vacio { text-align: center; color: var(--pg-gris); background: #fff; border: 1px dashed var(--pg-borde);
+              border-radius: 14px; padding: 36px 16px; }
+</style>
+{% endblock %}
+
+{% block crm_content %}
+<div class="pg-wrap">
+  <div class="pg-head">
+    <div>
+      <h1><i class="fas fa-gift"></i> Pruebas gratis</h1>
+      <p>Quién está probando el software, cuántos días le quedan de los {{ total_dias }} y cómo contactarlo.
+        Cada prueba también queda como contacto (lead) y con una tarea de seguimiento para el día 12.</p>
+    </div>
+  </div>
+
+  <div class="pg-filtros">
+    {% for clave, nombre in filtros %}
+    <a href="{{ url_for('crm_pruebas.lista', f=clave) }}" class="{{ 'on' if filtro == clave }}">{{ nombre }}<b>{{ conteo.get(clave, 0) }}</b></a>
+    {% endfor %}
+  </div>
+
+  {% if pruebas %}
+  <div class="pg-lista">
+    {% for p in pruebas %}
+    <article class="pg-card">
+      <div class="pg-top">
+        <div>
+          <h2>{{ p.nombre_negocio or '—' }}</h2>
+          <small>{{ p.buyer_nombre or 'Sin nombre' }} · desde {{ p.created_at.strftime('%d/%m/%Y') if p.created_at else '—' }}</small>
+        </div>
+        <span class="pg-estado {{ p.estado_clave }}">{{ p.estado_texto }}</span>
+      </div>
+      {% if p.progreso is not none %}
+      <div class="pg-barra {{ p.estado_clave }}" title="{{ p.estado_texto }}"><span style="width: {{ p.progreso }}%"></span></div>
+      {% endif %}
+      <div class="pg-datos">
+        <span><i class="fab fa-whatsapp"></i>{% if p.buyer_telefono %}{{ p.buyer_telefono }}{% else %}<span class="pg-sin">No dio teléfono</span>{% endif %}</span>
+        <span><i class="fas fa-envelope"></i><a href="mailto:{{ p.buyer_email }}">{{ p.buyer_email }}</a></span>
+        {% if p.dominio or p.slug %}
+        <span><i class="fas fa-globe"></i>{% if p.dominio %}<a href="https://{{ p.dominio }}" target="_blank" rel="noopener">{{ p.dominio }}</a>{% else %}{{ p.slug }}.cybershopcol.com (aún no creada){% endif %}</span>
+        {% endif %}
+        {% if p.proximo_pago and p.estado_clave != 'convertida' %}
+        <span><i class="fas fa-calendar"></i>Vence el {{ p.proximo_pago.strftime('%d/%m/%Y') }}</span>
+        {% endif %}
+      </div>
+      {% if p.estado_clave == 'error' and p.error %}<div class="pg-error">{{ p.error[:180] }}</div>{% endif %}
+      <div class="pg-acciones">
+        {% if p.whatsapp_url %}
+        <a class="pg-btn wa" href="{{ p.whatsapp_url }}?text={{ ('Hola ' ~ (p.buyer_nombre or '') ~ ', te escribo de CyberShop por tu prueba gratis de ' ~ (p.nombre_negocio or 'tu tienda') ~ '.')|urlencode }}" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i> WhatsApp</a>
+        {% endif %}
+        {% if p.contacto_id %}
+        <a class="pg-btn" href="{{ url_for('crm.crm_contacto_ver', id=p.contacto_id) }}"><i class="fas fa-address-card"></i> Ficha</a>
+        {% endif %}
+        {% if p.link_pago and p.estado_clave != 'convertida' %}
+        <button type="button" class="pg-btn" data-copiar="{{ p.link_pago }}"><i class="fas fa-link"></i> Copiar link de pago</button>
+        {% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="pg-vacio"><i class="fas fa-gift fa-2x"></i><p>No hay pruebas en este filtro.</p></div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block crm_scripts %}
+<script>
+document.querySelectorAll('[data-copiar]').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var t = b.getAttribute('data-copiar');
+    (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () {
+      b.innerHTML = '<i class="fas fa-check"></i> Copiado';
+    }).catch(function () { window.prompt('Copia el link de pago:', t); });
+  });
+});
+</script>
+{% endblock %}

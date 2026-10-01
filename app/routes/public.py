@@ -18,6 +18,8 @@ def _csrf_exempt(view):
     return view
 
 from database import get_db_cursor
+from services import marca_service
+from services.crm_pruebas_service import TIPOS_NEGOCIO
 from helpers import get_common_data, formatear_moneda
 from security import controlar_tasa_solicitudes
 from services.public_site_service import (
@@ -941,6 +943,7 @@ def prueba_gratis():
     sw_colors = _software_colors(brand)
     form = {}
     error = None
+    error_paso = None
 
     if request.method == 'POST':
         # Antiabuso: honeypot + rate limit por IP (mismo patrón de /descargar)
@@ -953,24 +956,36 @@ def prueba_gratis():
 
         form = {k: (request.form.get(k) or '').strip()
                 for k in ('nombre_negocio', 'buyer_nombre', 'buyer_email',
-                          'buyer_telefono', 'subdominio')}
+                          'buyer_telefono', 'subdominio', 'tipo_negocio', 'color_marca', 'lema')}
+        form['lema'] = ' '.join(form['lema'].split())[:120]
         slug, slug_err = validar_slug(form['subdominio'])
+        telefono, tel_err = pcs.normalizar_whatsapp(form['buyer_telefono'])
+        color, color_err = marca_service.validar(form['color_marca'] or marca_service.NEUTRO)
+        tipo = form['tipo_negocio'] if form['tipo_negocio'] in TIPOS_NEGOCIO else 'otro'
         if not error:
+            # El asistente abre el paso donde está el dato a corregir.
             if len(form['nombre_negocio']) < 3:
-                error = 'Escribe el nombre de tu negocio (mínimo 3 caracteres).'
-            elif len(form['buyer_nombre']) < 3:
-                error = 'Escribe tu nombre.'
-            elif '@' not in form['buyer_email'] or len(form['buyer_email']) < 6:
-                error = 'Escribe un correo válido.'
+                error, error_paso = 'Escribe el nombre de tu negocio (mínimo 3 caracteres).', 1
             elif slug_err:
-                error = slug_err
+                error, error_paso = slug_err, 2
+            elif color_err:
+                error, error_paso = color_err, 3
+            elif len(form['buyer_nombre']) < 3:
+                error, error_paso = 'Escribe tu nombre.', 4
+            elif '@' not in form['buyer_email'] or len(form['buyer_email']) < 6:
+                error, error_paso = 'Escribe un correo válido.', 4
+            elif tel_err:
+                error, error_paso = tel_err, 4
+            elif _slug_ocupado(slug):
+                error, error_paso = 'Esa dirección web ya la tiene otro negocio. Prueba con otra.', 2
 
         if not error:
             compra_id, res = pcs.crear_trial(
                 form['nombre_negocio'], form['buyer_nombre'],
-                form['buyer_email'], slug, telefono=form['buyer_telefono'])
+                form['buyer_email'], slug, telefono=telefono,
+                color_marca=color, tipo_negocio=tipo, lema=form['lema'])
             if compra_id is None:
-                error = res
+                error, error_paso = res, (2 if 'subdominio' in res else 4)
             else:
                 from helpers_email_templates import generar_email_confirmacion_trial
                 from helpers_gmail import enviar_email_gmail
@@ -989,7 +1004,40 @@ def prueba_gratis():
                                            form={}, error=None, **sw_colors)
 
     return render_template('prueba_gratis.html', datosApp=datosApp, enviado=False,
-                           form=form, error=error, **sw_colors)
+                           form=form, error=error, error_paso=error_paso,
+                           muestras=marca_service.MUESTRAS,
+                           color_neutro=marca_service.NEUTRO, tipos=TIPOS_NEGOCIO, **sw_colors)
+
+
+def _slug_ocupado(slug):
+    """Reservado por otra compra/prueba o ya creado en el maestro.
+    Si el maestro no responde, se deja pasar: lo vuelve a validar al crear."""
+    from services import plan_compras_service as pcs
+    from services.master_client import slug_disponible
+    if pcs.slug_reservado(slug):
+        return True
+    disponible, _motivo = slug_disponible(slug)
+    return disponible is False
+
+
+@public_bp.route('/prueba-gratis/slug')
+def prueba_gratis_slug():
+    """Solo lectura: ¿está libre esta dirección web? (verificación en vivo del
+    asistente). Límite por IP; no reserva nada."""
+    from security import controlar_tasa_solicitudes
+    from services.venta_automatica_service import validar_slug
+    if not is_public_section_enabled('mostrar_modulo_software', False):
+        return jsonify({'disponible': False, 'motivo': 'No disponible.'}), 404
+    ip = request.headers.get('X-Forwarded-For', request.remote_addr or '?').split(',')[0].strip()
+    if not controlar_tasa_solicitudes(f"trial-slug:{ip}", max_requests=40, interval=60):
+        return jsonify({'disponible': None, 'motivo': 'Espera un momento.'}), 429
+    slug, err = validar_slug(request.args.get('s'))
+    if err:
+        return jsonify({'slug': slug, 'disponible': False, 'motivo': err})
+    if _slug_ocupado(slug):
+        return jsonify({'slug': slug, 'disponible': False,
+                        'motivo': 'Esa dirección ya la tiene otro negocio.'})
+    return jsonify({'slug': slug, 'disponible': True})
 
 
 @public_bp.route('/prueba-gratis/confirmar/<token>')
@@ -1014,6 +1062,20 @@ def prueba_gratis_confirmar(token):
                                  compra.get('nombre_negocio') or compra['slug'])
     # Reutiliza la página de activación (muestra ACTIVANDO → ACTIVADA / ERROR)
     return redirect(url_for('public.activar_tienda', token=token))
+
+
+@public_bp.route('/activar-tienda/<token>/estado')
+def activar_tienda_estado(token):
+    """Estado de la creación para la página de activación (la consulta sola
+    cada pocos segundos). Solo con el token; no expone datos personales."""
+    from services import plan_compras_service as pcs
+    compra = pcs.get_por_token(token)
+    if not compra:
+        return jsonify({'estado': 'NO_EXISTE'}), 404
+    return jsonify({
+        'estado': compra['estado'],
+        'dominio': compra.get('dominio') if compra['estado'] == 'ACTIVADA' else None,
+    })
 
 
 @public_bp.route('/activar-tienda/<token>', methods=['GET', 'POST'])

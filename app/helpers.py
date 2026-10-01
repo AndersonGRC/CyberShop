@@ -129,6 +129,16 @@ def _modulo_software_on():
         return False
 
 
+def _vende_software():
+    """¿Esta tienda vende el Software CyberShop (landing /software activa)?
+    Ahí viven las pruebas gratis; el resto de clientes no ve ese menú."""
+    try:
+        from services.public_site_service import is_public_section_enabled
+        return bool(is_public_section_enabled('mostrar_modulo_software', False))
+    except Exception:
+        return False
+
+
 def get_data_app():
     """Retorna los datos comunes para el panel de administracion.
 
@@ -272,6 +282,9 @@ def get_data_app():
                 {"nombre": "Dashboard CRM",  "url": "crm.crm_dashboard",      "icono": "chart-pie", "permiso": ("crm", "ver")},
                 {"nombre": "Contactos",      "url": "crm.crm_contactos_lista", "icono": "address-card", "permiso": ("crm", "ver")},
                 {"nombre": "Tareas",         "url": "crm.crm_tareas_lista",    "icono": "tasks", "permiso": ("crm", "ver")},
+                # Solo en la tienda que vende el software (la de las pruebas gratis).
+                *([{"nombre": "Pruebas gratis", "url": "crm_pruebas.lista", "icono": "gift", "permiso": ("crm", "ver")}]
+                  if _vende_software() else []),
             ]
         },
         {
