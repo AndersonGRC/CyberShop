@@ -169,7 +169,8 @@
     /* ── Lienzo escalado ────────────────────────────────────── */
     const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(() => fit()) : null;
     function fit() {
-        root.querySelectorAll('.rm-canvas-wrap').forEach((wrap) => {
+        root.querySelectorAll('.rm-canvas-movil').forEach(ubicarMovil);
+        root.querySelectorAll('.rm-canvas-wrap:not(.rm-canvas-movil)').forEach((wrap) => {
             const s = wrap.clientWidth / CW;
             if (!s) return;
             wrap.style.height = (CH * s) + 'px';
@@ -186,6 +187,71 @@
         fit();
     }
     window.addEventListener('resize', fit);
+
+    /* ── Plano en celular ──────────────────────────────────────
+       Solo en celular (≤760 px). En vertical el plano se gira 90° para usar el
+       alto de la pantalla, se recorta a donde hay mesas y se ajusta para que
+       quepan todas sin desplazarse. Las tarjetas se ubican en píxeles de
+       pantalla (no se encogen con el plano), así siguen legibles. En el
+       computador el plano es exactamente el de siempre. */
+    const MQ_MOVIL = window.matchMedia('(max-width: 760px)');
+    const esMovil = () => MQ_MOVIL.matches;
+    const verticalMovil = () => window.innerHeight > window.innerWidth;
+    let orientacionPintada = null;
+
+    function planoMovil(mesas) {
+        const girar = verticalMovil();
+        orientacionPintada = girar;
+        const items = mesas.map((t) => {
+            const g = geo(t);
+            // Giro horario: lo de la izquierda del salón queda arriba.
+            const r = girar ? { x: CH - (g.y + g.h), y: g.x, w: g.h, h: g.w } : { x: g.x, y: g.y, w: g.w, h: g.h };
+            return { t, r };
+        });
+        const M = 24;
+        let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+        items.forEach(({ r }) => {
+            x0 = Math.min(x0, r.x); y0 = Math.min(y0, r.y);
+            x1 = Math.max(x1, r.x + r.w); y1 = Math.max(y1, r.y + r.h);
+        });
+        if (!items.length) { x0 = 0; y0 = 0; x1 = girar ? CH : CW; y1 = girar ? CW : CH; }
+        return `<div class="rm-canvas-wrap rm-canvas-movil rm-lines" data-ox="${x0 - M}" data-oy="${y0 - M}"
+                data-bw="${x1 - x0 + 2 * M}" data-bh="${y1 - y0 + 2 * M}">
+            ${items.map(({ t, r }) => tarjeta(t, false, r)).join('')}
+        </div>`;
+    }
+
+    function ubicarMovil(wrap) {
+        const bw = Number(wrap.dataset.bw), bh = Number(wrap.dataset.bh);
+        const ox = Number(wrap.dataset.ox), oy = Number(wrap.dataset.oy);
+        const W = wrap.clientWidth;
+        if (!W || !bw || !bh) return;
+        // Que todo el plano quepa en el alto visible del celular.
+        const altoVisible = Math.max(360, (window.visualViewport ? window.visualViewport.height : window.innerHeight) - 96);
+        const s = Math.min(W / bw, altoVisible / bh);
+        const dx = (W - bw * s) / 2;
+        wrap.style.height = Math.round(bh * s) + 'px';
+        wrap.querySelectorAll('[data-lx]').forEach((c) => {
+            const w = Math.max(Number(c.dataset.lw) * s, 132);
+            const left = Math.min(dx + (Number(c.dataset.lx) - ox) * s, W - w - 4);
+            c.style.left = Math.max(4, left) + 'px';
+            c.style.top = Math.max(4, (Number(c.dataset.ly) - oy) * s) + 'px';
+            c.style.width = w + 'px';
+        });
+    }
+
+    // Cruzar el límite celular/computador o girar el celular vuelve a dibujar.
+    function alCambiarPantalla() {
+        if (S.view !== 'service') return;
+        if (S.mesa != null) { renderService(); return; }
+        if (esMovil() && orientacionPintada !== verticalMovil()) renderService();
+        else if (!esMovil() && orientacionPintada !== null) renderService();
+    }
+    if (MQ_MOVIL.addEventListener) MQ_MOVIL.addEventListener('change', alCambiarPantalla);
+    window.addEventListener('orientationchange', () => setTimeout(alCambiarPantalla, 150));
+    window.addEventListener('resize', () => {
+        if (S.view === 'service' && S.mesa == null && esMovil() && orientacionPintada !== verticalMovil()) alCambiarPantalla();
+    });
 
     function chairs(t, g) {
         const S_ = 30, G = 10, n = Math.min(Number(t.capacidad) || 1, MAX_CAP), out = [];
@@ -608,7 +674,7 @@
         else { S.mesa = null; renderPlano(); }
     }
 
-    function tarjeta(t, mini) {
+    function tarjeta(t, mini, movil) {
         const g = geo(t), e = est(t), o = t.open_order;
         const coincide = S.filtro === 'todas' || e === S.filtro;
         const on = mini && t.id === S.mesa;
@@ -617,8 +683,11 @@
             return `<button type="button" class="rm-mnode is-${e}${on ? ' is-on' : ''}" data-act="open" data-id="${t.id}" title="Mesa ${esc(t.codigo)}"
                 style="left:${g.x}px;top:${g.y}px;width:${Math.max(g.w, 200)}px">${esc(t.codigo)}</button>`;
         }
-        return `<button type="button" class="rm-card is-${e}" data-act="open" data-id="${t.id}"
-            style="left:${g.x}px;top:${g.y}px;width:${Math.max(g.w, 200)}px;opacity:${coincide ? 1 : 0.3}"
+        const lugar = movil
+            ? `data-lx="${movil.x}" data-ly="${movil.y}" data-lw="${movil.w}" style="opacity:${coincide ? 1 : 0.3}"`
+            : `style="left:${g.x}px;top:${g.y}px;width:${Math.max(g.w, 200)}px;opacity:${coincide ? 1 : 0.3}"`;
+        return `<button type="button" class="rm-card is-${e}${movil ? ' is-movil' : ''}" data-act="open" data-id="${t.id}"
+            ${lugar}
             aria-label="Mesa ${esc(t.codigo)}, ${ST[e]}">
             <span class="rm-card-strip"></span>
             <span class="rm-card-body">
@@ -647,15 +716,17 @@
                         <span class="rm-dot is-${k}"></span>${l}<span class="rm-filter-n">${n}</span></button>`).join('')}
                 </div>
             </div>
-            <div class="rm-scroll">
+            <div class="rm-scroll${esMovil() ? ' is-movil' : ''}">
+                ${esMovil() && mesas.length ? planoMovil(mesas) : `
                 <div class="rm-canvas-wrap rm-canvas-big">
                     <div class="rm-canvas rm-lines">${mesas.map((t) => tarjeta(t, false)).join('')}</div>
                     ${mesas.length ? '' : `<div class="rm-empty"><i class="fas fa-chair"></i><b>Este salón no tiene mesas</b>
                         ${P.canBuild ? `<a class="rm-btn rm-btn-sec rm-btn-sm" href="${esc(E.builder)}"><i class="fas fa-drafting-compass"></i>Crear mesas</a>` : '<span>Pide a un administrador que las cree.</span>'}</div>`}
-                </div>
+                </div>`}
             </div>
             <div class="rm-hints"><span>Toca una mesa para abrir su cuenta.</span></div>
         </section>`;
+        if (!esMovil()) orientacionPintada = null;
         observar();
     }
 
@@ -671,7 +742,7 @@
        El código se compara con la referencia o el barcode del producto, sin
        distinguir mayúsculas ni espacios. A diferencia del POS no se exige stock:
        en el restaurante la venta nunca se bloquea por inventario. */
-    const normCodigo = (v) => String(v == null ? '' : v).replace(/[ -]/g, '').trim().toUpperCase();
+    const normCodigo = (v) => String(v == null ? '' : v).replace(/[\x00-\x1F\x7F]/g, '').trim().toUpperCase();
     function productoPorCodigo(codigo) {
         const c = normCodigo(codigo);
         if (!c) return null;
@@ -748,9 +819,19 @@
         const salonMesa = t.area || 'Salon principal';
         const mini = S.tables.filter((x) => (x.area || 'Salon principal') === salonMesa);
         const opciones = menuMesa(t, e);
+        const minimapa = `
+                <div class="rm-mini-head">
+                    <span>Cambiar de mesa</span>
+                    <button type="button" class="rm-btn rm-btn-sec rm-btn-sm" data-act="close-mesa"><i class="fas fa-th-large"></i>Ver todas</button>
+                </div>
+                <div class="rm-canvas-wrap rm-canvas-mini">
+                    <div class="rm-canvas rm-minigrid">${mini.map((x) => tarjeta(x, true)).join('')}</div>
+                </div>`;
+        const movil = esMovil();
 
         root.innerHTML = `
         <div class="rm-grid rm-grid-sale">
+            ${movil ? `<div class="rm-mini-top">${minimapa}</div>` : ''}
             <section class="rm-main">
                 <div class="rm-sale-head">
                     <button type="button" class="rm-ibtn rm-ibtn-lg" data-act="close-mesa" aria-label="Ver todas las mesas"><i class="fas fa-arrow-left"></i></button>
@@ -787,13 +868,7 @@
                 <div class="rm-prods" id="rmProds">${gridProductos()}</div>
             </section>
             <div class="rm-side rm-side-sale" id="rmCuenta">
-                <div class="rm-mini-head">
-                    <span>Cambiar de mesa</span>
-                    <button type="button" class="rm-btn rm-btn-sec rm-btn-sm" data-act="close-mesa"><i class="fas fa-th-large"></i>Ver todas</button>
-                </div>
-                <div class="rm-canvas-wrap rm-canvas-mini">
-                    <div class="rm-canvas rm-minigrid">${mini.map((x) => tarjeta(x, true)).join('')}</div>
-                </div>
+                ${movil ? '' : minimapa}
                 <div class="rm-lines-list">
                     ${lineas.length ? lineas.map(linea).join('') : '<div class="rm-lines-empty">Aún no hay consumos. Toca un producto para agregarlo.</div>'}
                 </div>

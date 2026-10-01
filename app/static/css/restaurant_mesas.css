@@ -1590,14 +1590,78 @@
         padding: 16px;
     }
 
-    /* El plano conserva un tamaño legible: se desplaza de lado. */
-    .rm-scroll {
+    /* Constructor: el plano conserva un tamaño legible y se desplaza de lado.
+       En Atender (.is-movil) el plano se ajusta a la pantalla (JS). */
+    .rm-scroll:not(.is-movil) {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
     }
 
-    .rm-scroll > .rm-canvas-wrap {
+    .rm-scroll:not(.is-movil) > .rm-canvas-wrap {
         width: 760px;
+    }
+
+    .rm-canvas-movil {
+        border-radius: 18px;
+        background-size: 24px 24px;
+    }
+
+    .rm-card.is-movil {
+        border-radius: 12px;
+    }
+
+    .rm-card.is-movil:hover {
+        transform: none;
+    }
+
+    .rm-card.is-movil .rm-card-body {
+        padding: 8px 10px 9px;
+        gap: 5px;
+    }
+
+    .rm-card.is-movil .rm-card-top b {
+        font-size: 15px;
+    }
+
+    /* El estado y el total bajan de línea en vez de cortarse. */
+    .rm-card.is-movil .rm-card-top,
+    .rm-card.is-movil .rm-card-meta {
+        flex-wrap: wrap;
+        row-gap: 3px;
+    }
+
+    .rm-card.is-movil .rm-card-meta b {
+        margin-left: 0;
+    }
+
+    .rm-card.is-movil .rm-badge {
+        font-size: 10px;
+        padding: 2px 6px;
+    }
+
+    .rm-card.is-movil .rm-card-meta {
+        font-size: 12px;
+        gap: 6px;
+    }
+
+    .rm-card.is-movil .rm-card-meta b {
+        font-size: 13px;
+    }
+
+    /* Mesa abierta: el minimapa va primero, luego la venta y al final la cuenta. */
+    .rm-mini-top {
+        background: var(--rm-white);
+        border-bottom: 1px solid var(--rm-border-subtle);
+        padding-bottom: 14px;
+    }
+
+    .rm-mini-top .rm-mini-head {
+        padding: 14px 16px 10px;
+    }
+
+    .rm-mini-top > .rm-canvas-wrap {
+        width: auto;
+        margin: 0 16px;
     }
 
     .rm-filters {
