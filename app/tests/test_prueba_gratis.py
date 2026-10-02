@@ -364,3 +364,18 @@ def test_registro_con_correo_mal_escrito_vuelve_al_paso_4(client, software_visib
                                                'buyer_email': 'ana@gmial.com', 'buyer_telefono': '3001234567',
                                                'subdominio': f'tienda-{MARCA}', 'color_marca': '#1e40af'}).get_data(as_text=True)
     assert 'ana@gmail.com' in html and 'data-error-paso="4"' in html
+
+
+def test_panel_muestra_tiendas_eliminadas_sin_link_de_pago(limpiar, cursor):
+    with cursor() as cur:
+        for estado, n in (('ELIMINADA', 'el'), ('CANCELADA', 'ca')):
+            cur.execute("""INSERT INTO plan_compras (referencia_pedido, plan_key, buyer_email, estado, es_trial,
+                                                     proximo_pago, token_renovacion)
+                           VALUES (%s, 'ultra', %s, %s, TRUE, CURRENT_DATE - 30, %s)""",
+                        (f'TRIAL-PY{MARCA}{n}', _email(n), estado, f'tok-{MARCA}{n}'))
+    pruebas, conteo = crmp.listar('eliminada')
+    mias = [p for p in pruebas if MARCA in p['buyer_email']]
+    assert {p['estado_texto'] for p in mias} == {'Tienda eliminada', 'Tienda cancelada (apagada)'}
+    assert all(p['estado_clave'] == 'eliminada' for p in mias)
+    assert not [c for c in pcs.compras_para_recordatorio() if MARCA in (c['buyer_email'] or '')], \
+        'una tienda eliminada o cancelada no recibe recordatorios de pago'

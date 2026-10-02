@@ -26,7 +26,10 @@ PLANES_AUTOMATICOS = {
 }
 
 ESTADOS = ('PENDIENTE_PAGO', 'PAGADO', 'CONTACTO', 'ACTIVANDO', 'ACTIVADA', 'ERROR',
-           'TRIAL_PENDIENTE')
+           'TRIAL_PENDIENTE',
+           # El maestro cierra la compra al cancelar (CANCELADA, reversible) o
+           # eliminar (ELIMINADA) la tienda: el cron deja de cobrarla.
+           'CANCELADA', 'ELIMINADA')
 
 TRIAL_DIAS = 15          # duración de la prueba gratis
 TRIAL_PLAN_KEY = 'ultra'  # decisión de negocio: toda prueba usa el plan completo

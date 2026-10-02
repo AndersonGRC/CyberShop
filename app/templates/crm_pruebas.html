@@ -27,6 +27,7 @@
   .pg-estado.activa, .pg-estado.convertida { background: var(--pg-ok-bg); color: var(--pg-ok); }
   .pg-estado.por_vencer, .pg-estado.pendiente, .pg-estado.creando { background: var(--pg-warn-bg); color: var(--pg-warn); }
   .pg-estado.vencida, .pg-estado.error { background: var(--pg-mal-bg); color: var(--pg-mal); }
+  .pg-estado.eliminada { background: #eef1f6; color: var(--pg-gris); }
   .pg-barra { height: 8px; border-radius: 99px; background: #eef1f6; overflow: hidden; }
   .pg-barra span { display: block; height: 100%; background: var(--pg-ok); border-radius: 99px; }
   .pg-barra.por_vencer span { background: #e0a100; }
@@ -82,7 +83,7 @@
         {% if p.dominio or p.slug %}
         <span><i class="fas fa-globe"></i>{% if p.dominio %}<a href="https://{{ p.dominio }}" target="_blank" rel="noopener">{{ p.dominio }}</a>{% else %}{{ p.slug }}.cybershopcol.com (aún no creada){% endif %}</span>
         {% endif %}
-        {% if p.proximo_pago and p.estado_clave != 'convertida' %}
+        {% if p.proximo_pago and p.estado_clave not in ('convertida', 'eliminada') %}
         <span><i class="fas fa-calendar"></i>Vence el {{ p.proximo_pago.strftime('%d/%m/%Y') }}</span>
         {% endif %}
       </div>
@@ -94,7 +95,7 @@
         {% if p.contacto_id %}
         <a class="pg-btn" href="{{ url_for('crm.crm_contacto_ver', id=p.contacto_id) }}"><i class="fas fa-address-card"></i> Ficha</a>
         {% endif %}
-        {% if p.link_pago and p.estado_clave != 'convertida' %}
+        {% if p.link_pago and p.estado_clave not in ('convertida', 'eliminada') %}
         <button type="button" class="pg-btn" data-copiar="{{ p.link_pago }}"><i class="fas fa-link"></i> Copiar link de pago</button>
         {% endif %}
       </div>

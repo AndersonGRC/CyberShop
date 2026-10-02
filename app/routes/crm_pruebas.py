@@ -17,7 +17,7 @@ registrar_guard_permiso(crm_pruebas_bp, 'crm')
 FILTROS = (
     ('todas', 'Todas'), ('activas', 'Activas'), ('por_vencer', 'Por vencer (3 días o menos)'),
     ('vencida', 'Vencidas'), ('pendiente', 'Sin confirmar correo'),
-    ('convertida', 'Ya son clientes'), ('error', 'Con error'),
+    ('convertida', 'Ya son clientes'), ('error', 'Con error'), ('eliminada', 'Eliminadas'),
 )
 
 

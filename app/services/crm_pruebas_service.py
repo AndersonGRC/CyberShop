@@ -120,6 +120,10 @@ def _estado(f, hoy):
         return 'creando', 'Creando su tienda', None
     if estado == 'ERROR':
         return 'error', 'Falló la creación de la tienda', None
+    if estado == 'ELIMINADA':
+        return 'eliminada', 'Tienda eliminada', None
+    if estado == 'CANCELADA':
+        return 'eliminada', 'Tienda cancelada (apagada)', None
     if estado == 'ACTIVADA' and f['proximo_pago']:
         quedan = (f['proximo_pago'] - hoy).days
         if quedan < 0:
