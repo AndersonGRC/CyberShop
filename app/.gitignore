@@ -25,6 +25,7 @@ env/
 # Copiar .env.example → .env en cada despliegue.
 .env
 .env.*
+!.env.example
 *.secret
 
 # ── Archivos de sistema ──────────────────────────────────

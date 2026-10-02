@@ -115,10 +115,10 @@ Se aplican sobre la DB de un tenant (no el control plane):
 | Archivo | Para qué sirve |
 |---|---|
 | `migrate_backup_db.sql` | Esquema de backups/auditoría (también plantilla de tenant nuevo) |
-| `migrate_crm_mejoras.sql` | Mejoras CRM: log de actividades, prioridades, campos de Google Calendar |
-| `migrate_public_site_settings.sql` | Tablas de config del sitio público (`public_site_settings/blocks`) |
-| `migrate_public_site_structured.sql` | Esquema extendido del sitio público (`public_site_items`, visibilidad, SEO) |
-| `migrate_share_module.sql` | Módulo compartir: carpetas, archivos, tokens, password opcional |
+| `migrations/legacy/migrate_crm_mejoras.sql` | Mejoras CRM: log de actividades, prioridades, campos de Google Calendar |
+| `migrations/legacy/migrate_public_site_settings.sql` | Tablas de config del sitio público (`public_site_settings/blocks`) |
+| `migrations/legacy/migrate_public_site_structured.sql` | Esquema extendido del sitio público (`public_site_items`, visibilidad, SEO) |
+| `migrations/legacy/migrate_share_module.sql` | Módulo compartir: carpetas, archivos, tokens, password opcional |
 
 ## 7. Frontend (convención, no archivo por archivo)
 
@@ -127,7 +127,7 @@ Se aplican sobre la DB de un tenant (no el control plane):
   productos (`GestionProductos.html`, `editar_producto*.html`), pedidos/POS
   (`gestion_pedidos.html`, `facturacion_pos.html`), cotizaciones/billing,
   CRM (`crm_*.html`), contabilidad (`contabilidad_*.html`), nómina (`nomina_*`),
-  sitio público (`index.html`, `config_secciones.html`), auth, soporte/video/
+  sitio público (`index.html`), auth, soporte/video/
   wishlist/cupones, utilidades (`404.html`, `descargar.html`), `pdf_quote.html`.
 - **`static/css/`**: un CSS por página; todos importan `variables.css`
   (único lugar de colores de marca). Subcarpetas `css/crm/`, `css/nomina/`,

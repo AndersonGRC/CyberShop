@@ -1,10 +1,9 @@
-{% extends "public/layout_admin.html" %}
+{% extends "admin/layout_admin.html" %}
 
 {% block title %}Detalle Empleado{% endblock %}
 
 {% block LinkAdicional %}
 {{ super() }}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/nomina/nomina_empleado_ver.css') }}">
 {% endblock %}
 
 {% block content %}

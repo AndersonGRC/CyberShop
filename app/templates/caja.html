@@ -1,4 +1,4 @@
-{% extends 'plantillaapp.html' %}
+{% extends "plantillaapp.html" %}
 {% block titulo %}Caja / Arqueo · POS{% endblock %}
 
 {% macro cop(v) %}${{ "{:,.0f}".format(v or 0) | replace(",", ".") }}{% endmacro %}

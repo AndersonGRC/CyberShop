@@ -1,10 +1,9 @@
-{% extends "public/layout_admin.html" %}
+{% extends "admin/layout_admin.html" %}
 
 {% block title %}Liquidaciones{% endblock %}
 
 {% block LinkAdicional %}
 {{ super() }}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/nomina/nomina_liquidaciones.css') }}">
 {% endblock %}
 
 {% block content %}

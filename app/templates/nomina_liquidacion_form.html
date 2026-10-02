@@ -1,11 +1,10 @@
-{% extends "public/layout_admin.html" %}
+{% extends "admin/layout_admin.html" %}
 {% from "nomina_macros.html" import pesos, avisos, tabla_liquidacion %}
 
 {% block title %}Nueva liquidación{% endblock %}
 
 {% block LinkAdicional %}
 {{ super() }}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/nomina/nomina_liquidacion_form.css') }}">
 {% endblock %}
 
 {% block content %}
