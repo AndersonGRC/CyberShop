@@ -87,6 +87,10 @@ def paleta_desde(color):
 
 # ── Tienda nueva neutra (prueba gratis y compras en línea) ─────
 LOGO_PROVISIONAL = '/static/img/tu-logo-aqui.svg'
+# Marca interna: tienda creada desde la página de pruebas/compras de CyberShop.
+# Solo esas tiendas ven en Mi Negocio el color guiado y los primeros pasos; los
+# clientes existentes y los creados desde el maestro no cambian.
+CLAVE_AUTOSERVICIO = 'tienda_autoservicio'
 
 _LEMAS = {
     'tienda': 'Productos de calidad, cerca de ti.',
@@ -101,6 +105,7 @@ def valores_tienda_nueva(*, negocio, email, whatsapp, color=None, tipo=None, lem
     guía que invitan a editarlos desde Mi Negocio."""
     negocio = (negocio or 'Mi negocio').strip()
     valores = {
+        CLAVE_AUTOSERVICIO: 'true',
         'empresa_logo_url': LOGO_PROVISIONAL,
         'empresa_email': email,
         'contacto_email_destino': email,
@@ -123,6 +128,18 @@ def valores_tienda_nueva(*, negocio, email, whatsapp, color=None, tipo=None, lem
     return valores
 
 
+def es_autoservicio():
+    """¿Esta tienda (la BD activa) se creó desde la página de CyberShop?"""
+    try:
+        from database import get_db_cursor
+        with get_db_cursor() as cur:
+            cur.execute('SELECT valor FROM cliente_config WHERE clave = %s LIMIT 1', (CLAVE_AUTOSERVICIO,))
+            fila = cur.fetchone()
+        return bool(fila) and str(fila[0]).strip().lower() == 'true'
+    except Exception:
+        return False
+
+
 def escribir_en_bd(cur, valores):
     """Escribe los valores en la BD del cliente (cursor de ESA BD): en
     cliente_config (tolerante, sin ON CONFLICT) y, si la tienda ya tiene la
@@ -133,7 +150,8 @@ def escribir_en_bd(cur, valores):
     fila = cur.fetchone()
     hay_estructurada = bool(fila['hay'] if isinstance(fila, dict) else fila[0])
     for clave, valor in valores.items():
-        campo = PUBLIC_FIELD_BY_KEY.get(clave) or {}
+        campo = PUBLIC_FIELD_BY_KEY.get(clave) or {'type': 'boolean', 'group': 'sistema',
+                                                    'description': 'Tienda creada desde la página (auto)'}
         set_cliente_config(cur, clave, valor, tipo=campo.get('type', 'text'),
                            grupo=campo.get('group', 'sitio_publico'),
                            descripcion=campo.get('description') or 'Tienda nueva (auto)')

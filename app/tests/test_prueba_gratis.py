@@ -225,11 +225,50 @@ def colores_restaurables(flask_app):
         save_public_site_settings(antes, list(antes))
 
 
-def test_mi_negocio_cambia_la_paleta_solo_si_cambia_el_color(as_propietario, flask_app, colores_restaurables):
+@pytest.fixture()
+def autoservicio(cursor):
+    from services.config_tenant import set_cliente_config
+    with cursor() as cur:
+        cur.execute("SELECT valor FROM cliente_config WHERE clave = %s", (marca.CLAVE_AUTOSERVICIO,))
+        fila = cur.fetchone()
+        previo = fila['valor'] if fila else None
+        set_cliente_config(cur, marca.CLAVE_AUTOSERVICIO, 'true')
+    yield
+    with cursor() as cur:
+        if previo is None:
+            cur.execute("DELETE FROM cliente_config WHERE clave = %s", (marca.CLAVE_AUTOSERVICIO,))
+        else:
+            cur.execute("UPDATE cliente_config SET valor = %s WHERE clave = %s", (previo, marca.CLAVE_AUTOSERVICIO))
+
+
+def test_clientes_existentes_no_ven_ni_aplican_el_color(as_propietario, flask_app, colores_restaurables, cursor):
+    with cursor() as cur:
+        cur.execute("SELECT 1 FROM cliente_config WHERE clave = %s AND valor = 'true'", (marca.CLAVE_AUTOSERVICIO,))
+        if cur.fetchone():
+            pytest.skip('la base de pruebas está marcada como autoservicio')
+    from services.public_site_service import get_brand_config, clear_public_site_cache
+    html = as_propietario.get('/admin/mi-negocio').get_data(as_text=True)
+    assert 'Colores de tu marca' not in html and 'Personaliza tu tienda' not in html
+    with flask_app.test_request_context('/'):
+        antes = get_brand_config().get('color_primario')
+    as_propietario.post('/admin/mi-negocio', data={'color_marca': '#0f766e'})
+    with flask_app.test_request_context('/'):
+        clear_public_site_cache()
+        assert get_brand_config().get('color_primario') == antes
+
+
+def test_tienda_nueva_queda_marcada_como_autoservicio():
+    v = marca.valores_tienda_nueva(negocio='X', email='x@x.com', whatsapp=None)
+    assert v[marca.CLAVE_AUTOSERVICIO] == 'true'
+
+
+def test_mi_negocio_cambia_la_paleta_solo_si_cambia_el_color(as_propietario, flask_app, colores_restaurables,
+                                                            autoservicio):
     from services.public_site_service import get_brand_config, clear_public_site_cache
     with flask_app.test_request_context('/'):
         actual = marca.normalizar(get_brand_config().get('color_primario')) or marca.NEUTRO
         secundario = get_brand_config().get('color_secundario')
+    assert 'Colores de tu marca' in as_propietario.get('/admin/mi-negocio').get_data(as_text=True)
     as_propietario.post('/admin/mi-negocio', data={'color_marca': actual})
     with flask_app.test_request_context('/'):
         clear_public_site_cache()

@@ -1968,13 +1968,15 @@ def mi_negocio():
     Contacto, Servicios). Reusa las MISMAS claves que el maestro
     (public_site_settings) → un solo lugar de almacenamiento, sin duplicar.
     NO expone colores, visibilidad de secciones ni módulos (operador/maestro)."""
+    from services import marca_service
     safe_keys = _mi_negocio_keys()
     if request.method == 'POST':
         try:
             # Whitelist: solo se escriben las claves seguras, aunque el POST traiga otras.
             save_public_site_settings(request.form, safe_keys)
             save_public_logo(request.files.get('logo'), current_app.root_path)
-            _guardar_color_marca(request.form.get('color_marca'))
+            if marca_service.es_autoservicio():
+                _guardar_color_marca(request.form.get('color_marca'))
             flash('Datos de tu negocio actualizados.', 'success')
         except Exception as exc:
             current_app.logger.error(f'Error guardando mi-negocio: {exc}')
@@ -1983,17 +1985,18 @@ def mi_negocio():
 
     ctx = get_public_site_admin_context()
     safe = set(safe_keys)
-    from services import marca_service
     ajustes = ctx['public_site_settings']
+    autoservicio = marca_service.es_autoservicio()
     return render_template(
         'mi_negocio.html',
         datosApp=get_data_app(),
         public_site_settings=ajustes,
         branding_fields=[f for f in PUBLIC_BRANDING_FIELDS if f['key'] in safe],
         landing_fields=[f for f in PUBLIC_LANDING_FIELDS if f['key'] in safe],
+        autoservicio=autoservicio,
         muestras=marca_service.MUESTRAS,
         color_actual=marca_service.normalizar(ajustes.get('color_primario')) or marca_service.NEUTRO,
-        primeros_pasos=_primeros_pasos(ajustes),
+        primeros_pasos=_primeros_pasos(ajustes) if autoservicio else None,
     )
 
 

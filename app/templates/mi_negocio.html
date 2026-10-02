@@ -62,7 +62,7 @@
 {% block body %}
 <div class="mn-wrap">
     <h1 class="mn-title"><i class="fas fa-store"></i> Mi Negocio</h1>
-    <p class="mn-lead">Edita la información pública de tu negocio: nombre, slogan, contacto, redes, logo y los textos del sitio. Los cambios se reflejan en tu sitio web. <em>(La estructura y los módulos los gestiona el equipo CyberShop.)</em></p>
+    <p class="mn-lead">Edita la información pública de tu negocio: nombre, slogan, contacto, redes, logo y los textos del sitio. Los cambios se reflejan en tu sitio web. <em>({{ 'La estructura' if autoservicio else 'Los colores, la estructura' }} y los módulos los gestiona el equipo CyberShop.)</em></p>
 
     {% if primeros_pasos %}
     <div class="mn-card mn-pasos">
@@ -99,7 +99,9 @@
             </div>
         </div>
 
-        <!-- Colores de marca (un color principal; el resto de la paleta se deriva) -->
+        {% if autoservicio %}
+        <!-- Colores de marca (un color principal; el resto de la paleta se deriva).
+             Solo tiendas creadas desde la página de CyberShop (prueba gratis / compra en línea). -->
         <div class="mn-card">
             <h2>Colores de tu marca</h2>
             <p class="mn-lead" style="margin-bottom:12px">Elige tu color principal: lo usamos en botones, títulos y el menú de tu página.
@@ -128,6 +130,7 @@
                 <div class="mn-prev-body"><span>Producto de ejemplo</span><span class="mn-prev-btn">Ver detalles</span></div>
             </div>
         </div>
+        {% endif %}
 
         <!-- Datos de la empresa -->
         <div class="mn-card">
