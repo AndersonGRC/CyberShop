@@ -10,7 +10,7 @@ carpetas grandes (`templates/`, `static/`) se describen por convención.
 
 - **Última actualización:** 2026-05-19
 - **Apps:** Web Flask SaaS multi-tenant (`CyberShop/app`) + POS escritorio offline (`CyberShopDesktop`)
-- **Docs relacionados:** [CLAUDE.md](../CLAUDE.md) · [INTEGRACION_WEB_DESKTOP.md](INTEGRACION_WEB_DESKTOP.md) · [onboarding_nuevo_cliente_pos_desktop.md](onboarding_nuevo_cliente_pos_desktop.md) · [../../ESTADO_PROYECTO.md](../../ESTADO_PROYECTO.md)
+- **Docs relacionados:** [CLAUDE.md](../CLAUDE.md) · [INTEGRACION_WEB_DESKTOP.md](INTEGRACION_WEB_DESKTOP.md) · [pendientes/BACKLOG.md](pendientes/BACKLOG.md)
 
 ---
 

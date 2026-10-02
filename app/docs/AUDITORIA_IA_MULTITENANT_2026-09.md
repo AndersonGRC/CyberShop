@@ -47,7 +47,7 @@ La frontera esperada de cada superficie es:
 | P0 | La clave Anthropic aparece en claro en el texto histórico adjunto a la conversación (no en los repositorios revisados). | Revocarla y generar otra; no reutilizar la expuesta. |
 | P1 | No hubo prueba directa de las nuevas consultas contra `cyber_t002`: la conexión local de `psycopg2` falló antes de ejecutar SQL. | Canario de solo lectura en base de pruebas con esquema representativo y conciliación de cifras de ventas contra contabilidad. |
 | P1 | Otras cachés de esquema (`routes/admin.py`, `payments.py`, `public.py`, `restaurant_tables_service.py`) siguen sin base de datos en su clave. Hoy las rutas web están pensadas para instancias separadas, pero una futura instancia multi-tenant podría mezclar decisiones de esquema. | Clave `(db_name, objeto)` o aislamiento estricto por proceso, más prueba con dos esquemas distintos. |
-| P1 | El chat público tiene motor y lista blanca, pero aún faltan endpoints, widget, controles de tráfico y pantalla de FAQ (F6–F9 de `IA_ESTADO.md`). | Terminar esas fases antes de habilitar `ai_public` para visitantes. |
+| P1 | El chat público tiene motor y lista blanca, pero aún faltan endpoints, widget, controles de tráfico y pantalla de FAQ (F6–F9, ya implementadas en `routes/chat_publico.py` y `admin_chat_publico.py`). | Terminar esas fases antes de habilitar `ai_public` para visitantes. |
 | P1 | El aviso de costo por correo se envía tras la primera llamada cobrada y solo si hay destinatarios configurados; no es una aprobación previa ni una alerta garantizada. | Probar destinatarios, entrega y alerta de umbrales; mostrar estado de gasto en el maestro. |
 
 ## Correcciones de esta pasada

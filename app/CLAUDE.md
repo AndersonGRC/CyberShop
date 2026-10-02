@@ -32,7 +32,7 @@ DB_NAME=cyber_t002 env/bin/python -m pytest tests/ -q
 
 Aún no hay linter ni CI configurado.
 
-**Despliegue sin caída:** los cambios de código/plantilla se aplican con `systemctl reload` (gunicorn recarga graceful vía rolling reload, sin cortar); `restart` queda para cambios de env/venv/unit. Canario en el operador + smoke + lotes. Ver `CONTEXTO_IA_SERVIDOR.md` y `OPCIONES_DE_MEJORA.md` (HA-01).
+**Despliegue sin caída:** los cambios de código/plantilla se aplican con `systemctl reload` (gunicorn recarga graceful vía rolling reload, sin cortar); `restart` queda para cambios de env/venv/unit. Canario en el operador + smoke + lotes. Ver `CONTEXTO_IA_SERVIDOR.md`. Pendientes del proyecto: `docs/pendientes/BACKLOG.md`.
 
 ## Architecture
 

@@ -1078,13 +1078,14 @@ def crear_usuario():
             flash('No tienes permiso para crear usuarios con rol Administrador.', 'error')
             return redirect(url_for('admin.crear_usuario'))
 
-        nombre_foto = 'Perfil_dafault.png'
+        nombre_foto = '/static/img/Perfil_default.png'
         file = request.files.get('fotografia')
         if file and file.filename != '':
             from werkzeug.utils import secure_filename
             filename = secure_filename(file.filename)
             imagen_nombre = user_images.save(file, folder='users')
-            nombre_foto = f"/static/media/users/{imagen_nombre}"
+            # La foto se guarda en static/user/users/: su URL pública la da el UploadSet.
+            nombre_foto = user_images.url(imagen_nombre)
 
         try:
             conn = get_db_connection()
@@ -1158,7 +1159,7 @@ def editar_usuario(id):
             file = request.files.get('fotografia')
             if file and file.filename != '':
                 imagen_nombre = user_images.save(file, folder='users')
-                fotografia_url = f"/static/media/users/{imagen_nombre}"
+                fotografia_url = user_images.url(imagen_nombre)
                 query = """UPDATE usuarios SET nombre=%s, email=%s, rol_id=%s, estado=%s, fecha_nacimiento=%s, telefono=%s, direccion=%s, fotografia=%s WHERE id=%s"""
                 valores = (nombre, email, rol_id, estado, request.form.get('fecha_nacimiento'), request.form.get('telefono'), request.form.get('direccion'), fotografia_url, id)
             else:

@@ -5,7 +5,7 @@ Cómo se conectan la web Flask (`CyberShop/app`) y el POS de escritorio offline
 datos. Único documento que describe la cadena de punta a punta.
 
 - **Última actualización:** 2026-05-19
-- **Relacionados:** [MAPA_ARCHIVOS.md](MAPA_ARCHIVOS.md) · [onboarding_nuevo_cliente_pos_desktop.md](onboarding_nuevo_cliente_pos_desktop.md) · [../CLAUDE.md](../CLAUDE.md) · [../../../CyberShopDesktop/README.md](../../../CyberShopDesktop/README.md)
+- **Relacionados:** [MAPA_ARCHIVOS.md](MAPA_ARCHIVOS.md) · [../CLAUDE.md](../CLAUDE.md) · [../../../CyberShopDesktop/README.md](../../../CyberShopDesktop/README.md)
 
 ---
 
@@ -33,7 +33,7 @@ sync_api_keys                %APPDATA%\CyberShopNative\    DB del tenant
    `.cybershop.conf` en `%APPDATA%\CyberShopNative\` (SERVER_URL, SYNC_API_KEY,
    TENANT_*). El escritorio copia esos valores a `sync_config.json`.
 
-Detalle paso a paso del alta del tenant: [onboarding_nuevo_cliente_pos_desktop.md](onboarding_nuevo_cliente_pos_desktop.md).
+El alta del cliente se hace desde el maestro (admin.cybershopcol.com → Nuevo cliente) o por la venta automática; ver `CyberShopAdmin/DEPLOY.md`.
 
 ## 2. Autenticación de sync (`X-Sync-Key`)
 

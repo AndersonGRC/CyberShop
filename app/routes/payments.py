@@ -263,14 +263,14 @@ def crear_orden():
             if not prod_db:
                 conn.rollback()
                 flash(f"Producto '{prod_nombre}' no encontrado.", "error")
-                return redirect(url_for('public.carrito'))
+                return redirect(url_for('public.ver_carrito'))
 
             pid, nombre_db, precio_db, stock_db = prod_db
 
             if stock_db < cantidad:
                 conn.rollback()
                 flash(f"No hay suficiente stock para '{nombre_db}'.", "error")
-                return redirect(url_for('public.carrito'))
+                return redirect(url_for('public.ver_carrito'))
 
             precio_real = float(precio_db)
             subtotal    = precio_real * cantidad
@@ -283,7 +283,7 @@ def crear_orden():
         if total_calculado <= 0:
             conn.rollback()
             flash("El total del pedido no puede ser cero.", "error")
-            return redirect(url_for('public.carrito'))
+            return redirect(url_for('public.ver_carrito'))
 
         # Aplicar cupón de descuento si existe
         cupon_id = None
