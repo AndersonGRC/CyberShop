@@ -1,115 +1,98 @@
 <!DOCTYPE html>
 <html lang="es">
+{% from "nomina_macros.html" import pesos %}
+{% set contratista = e.tipo_vinculacion == 'CONTRATISTA' %}
+{% set c = d.calculo if d and d.calculo is defined and d.calculo else {} %}
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Desprendible de Pago</title>
+    <title>{{ 'Comprobante de pago' if contratista else 'Desprendible de nómina' }} · {{ e.nombres }} {{ e.apellidos }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/variables.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/nomina/nomina_desprendible.css') }}">
 </head>
 
 <body>
-    <button onclick="window.print()" class="no-print print-btn">Imprimir
-        Desprendible</button>
+    <button type="button" onclick="window.print()" class="no-print print-btn">Imprimir</button>
 
-    <div class="container">
-        <div class="header">
-            <h2>{{ brand_config.empresa_nombre or 'CYBERSHOP S.A.S.' }}</h2>
-            <p>NIT: 900.000.000-1</p>
-            <h3>Comprobante de Nómina</h3>
-            <p>Periodo: {{ p.anio }}-{{ p.mes }} / {% if p.numero_periodo == 0 %}Mensual{% else %}Quincena {{
-                p.numero_periodo }}{% endif %}</p>
-        </div>
+    <main class="container">
+        <header class="header">
+            <h1 class="h2">{{ brand_config.empresa_nombre or datosApp.titulo or 'Empresa' }}</h1>
+            {% if brand_config.empresa_nit is defined and brand_config.empresa_nit %}<p>NIT: {{ brand_config.empresa_nit }}</p>{% endif %}
+            <h2 class="h3">{{ 'Comprobante de pago a contratista' if contratista else 'Comprobante de nómina' }}</h2>
+            <p>Periodo {{ p.anio }}-{{ '%02d'|format(p.mes) }} · {% if p.numero_periodo in (1, 2) %}quincena {{ p.numero_periodo }}{% else %}mensual{% endif %} · {{ p.fecha_inicio }} a {{ p.fecha_fin }}</p>
+        </header>
 
-        <div class="box">
+        {% if not d %}
+        <p>No hay liquidación de esta persona en el periodo. Calcule el periodo primero.</p>
+        {% else %}
+        <section class="box" aria-label="Datos de la persona">
             <div class="row">
-                <div class="col"><strong>Empleado:</strong> {{ e.nombres }} {{ e.apellidos }}</div>
-                <div class="col"><strong>Documento:</strong> {{ e.numero_documento }}</div>
+                <div class="col"><strong>{{ 'Contratista' if contratista else 'Empleado' }}:</strong> {{ e.nombres }} {{ e.apellidos }}</div>
+                <div class="col"><strong>Documento:</strong> {{ e.tipo_documento or '' }} {{ e.numero_documento }}</div>
             </div>
             <div class="row">
-                <div class="col"><strong>Cargo:</strong> {{ e.cargo }}</div>
-                <div class="col"><strong>Salario Base:</strong> {{ '${:,.0f}'.format(e.salario_base) }}</div>
+                <div class="col"><strong>{{ 'Objeto' if contratista else 'Cargo' }}:</strong> {{ e.cargo or '—' }}</div>
+                <div class="col"><strong>{{ 'Honorarios mensuales' if contratista else 'Salario mensual' }}:</strong> {{ pesos(e.salario_base) }}</div>
             </div>
             <div class="row">
-                <div class="col"><strong>Días Trabajados:</strong> {{ d.dias_trabajados }}</div>
+                <div class="col"><strong>Días:</strong> {{ d.dias_trabajados }}</div>
+                {% if not contratista and e.eps %}<div class="col"><strong>EPS / Pensión:</strong> {{ e.eps }} / {{ e.fondo_pension or '—' }}</div>{% endif %}
             </div>
-        </div>
+        </section>
 
         <table class="table">
+            <caption class="sr-only">Conceptos pagados y descontados</caption>
             <thead>
                 <tr>
-                    <th>Concepto</th>
-                    <th class="text-right">Devengado</th>
-                    <th class="text-right">Deducido</th>
+                    <th scope="col">Concepto</th>
+                    <th scope="col" class="text-right">{{ 'Pago' if contratista else 'Devengado' }}</th>
+                    <th scope="col" class="text-right">Descuento</th>
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td>Sueldo Básico</td>
-                    <td class="text-right">{{ '${:,.0f}'.format(d.sueldo_basico) }}</td>
-                    <td></td>
-                </tr>
-                <tr>
-                    <td>Auxilio de Transporte</td>
-                    <td class="text-right">{{ '${:,.0f}'.format(d.auxilio_transporte) }}</td>
-                    <td></td>
-                </tr>
-                {% if d.horas_extras > 0 %}
-                <tr>
-                    <td>Horas Extras y Recargos</td>
-                    <td class="text-right">{{ '${:,.0f}'.format(d.horas_extras) }}</td>
-                    <td></td>
-                </tr>
+                <tr><th scope="row">{{ 'Honorarios' if contratista else 'Sueldo básico' }}</th><td class="text-right">{{ pesos(d.sueldo_basico) }}</td><td></td></tr>
+                {% if d.auxilio_transporte %}<tr><th scope="row">Auxilio de transporte</th><td class="text-right">{{ pesos(d.auxilio_transporte) }}</td><td></td></tr>{% endif %}
+                {% if d.horas_extras %}<tr><th scope="row">Horas extras y recargos</th><td class="text-right">{{ pesos(d.horas_extras) }}</td><td></td></tr>{% endif %}
+                {% if d.comisiones %}<tr><th scope="row">Comisiones</th><td class="text-right">{{ pesos(d.comisiones) }}</td><td></td></tr>{% endif %}
+                {% if d.bonificaciones %}<tr><th scope="row">Bonificaciones</th><td class="text-right">{{ pesos(d.bonificaciones) }}</td><td></td></tr>{% endif %}
+                {% if d.incapacidades %}<tr><th scope="row">Incapacidades</th><td class="text-right">{{ pesos(d.incapacidades) }}</td><td></td></tr>{% endif %}
+                {% if d.licencias %}<tr><th scope="row">Licencias y vacaciones</th><td class="text-right">{{ pesos(d.licencias) }}</td><td></td></tr>{% endif %}
+                {% if not contratista %}
+                <tr><th scope="row">Salud (4 %)</th><td></td><td class="text-right">{{ pesos(d.salud_empleado) }}</td></tr>
+                <tr><th scope="row">Pensión (4 %)</th><td></td><td class="text-right">{{ pesos(d.pension_empleado) }}</td></tr>
+                {% if d.fondo_solidaridad %}<tr><th scope="row">Fondo de solidaridad pensional</th><td></td><td class="text-right">{{ pesos(d.fondo_solidaridad) }}</td></tr>{% endif %}
                 {% endif %}
-
-                <tr>
-                    <td>Aporte Salud (4%)</td>
-                    <td></td>
-                    <td class="text-right">{{ '${:,.0f}'.format(d.salud_empleado) }}</td>
-                </tr>
-                <tr>
-                    <td>Aporte Pensión (4%)</td>
-                    <td></td>
-                    <td class="text-right">{{ '${:,.0f}'.format(d.pension_empleado) }}</td>
-                </tr>
-
-                {% if d.fondo_solidaridad > 0 %}
-                <tr>
-                    <td>Fondo Solidaridad Pensional</td>
-                    <td></td>
-                    <td class="text-right">{{ '${:,.0f}'.format(d.fondo_solidaridad) }}</td>
-                </tr>
-                {% endif %}
-
-                {% if d.retencion_fuente > 0 %}
-                <tr>
-                    <td>Retención en la Fuente</td>
-                    <td></td>
-                    <td class="text-right">{{ '${:,.0f}'.format(d.retencion_fuente) }}</td>
-                </tr>
-                {% endif %}
-
-                <tr class="bold">
-                    <td>TOTALES</td>
-                    <td class="text-right">{{ '${:,.0f}'.format(d.total_devengado) }}</td>
-                    <td class="text-right">{{ '${:,.0f}'.format(d.total_deducido) }}</td>
-                </tr>
+                {% if d.retencion_fuente %}<tr><th scope="row">Retención en la fuente{% if c.retencion %} · {{ c.retencion.norma }}{% endif %}</th><td></td><td class="text-right">{{ pesos(d.retencion_fuente) }}</td></tr>{% endif %}
+                {% if d.prestamos %}<tr><th scope="row">Préstamos</th><td></td><td class="text-right">{{ pesos(d.prestamos) }}</td></tr>{% endif %}
+                {% if d.otras_deducciones %}<tr><th scope="row">Otras deducciones</th><td></td><td class="text-right">{{ pesos(d.otras_deducciones) }}</td></tr>{% endif %}
             </tbody>
+            <tfoot>
+                <tr class="bold">
+                    <th scope="row">Totales</th>
+                    <td class="text-right">{{ pesos(d.total_devengado) }}</td>
+                    <td class="text-right">{{ pesos(d.total_deducido) }}</td>
+                </tr>
+            </tfoot>
         </table>
 
-        <div class="box neto-pagar-box">
+        <section class="box neto-pagar-box">
             <div class="row">
-                <div class="col text-right">
-                    <strong>NETO A PAGAR: {{ '${:,.0f}'.format(d.neto_pagar) }}</strong>
-                </div>
+                <div class="col text-right"><strong>Neto a pagar: {{ pesos(d.neto_pagar) }}</strong></div>
             </div>
-        </div>
+        </section>
 
-        <div class="footer">
-            <p>Generado automáticamente por {{ brand_config.empresa_nombre or 'CyberShop' }} Payroll Module</p>
-        </div>
-    </div>
+        {% if contratista and c.pila %}
+        <section class="box" aria-label="Seguridad social del contratista">
+            <p><strong>Seguridad social a cargo del contratista (PILA):</strong> salud {{ pesos(c.pila.salud) }}, pensión {{ pesos(c.pila.pension) }}{% if c.pila.fsp %}, fondo de solidaridad {{ pesos(c.pila.fsp) }}{% endif %}{% if c.pila.arl %}, ARL {{ pesos(c.pila.arl) }}{% endif %}. Total {{ pesos(c.pila.total) }} sobre un IBC de {{ pesos(c.ibc) }}.</p>
+        </section>
+        {% endif %}
+
+        <footer class="footer">
+            <p>Generado por {{ brand_config.empresa_nombre or datosApp.titulo or 'CyberShop' }} · Nómina</p>
+        </footer>
+        {% endif %}
+    </main>
 </body>
 
 </html>

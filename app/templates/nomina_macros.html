@@ -1,0 +1,39 @@
+{# Utilidades de presentación del módulo de nómina. #}
+{% macro pesos(valor) -%}
+${{ '{:,.0f}'.format((valor or 0)|float).replace(',', '.') }}
+{%- endmacro %}
+
+{% macro avisos(lista) -%}
+{% if lista %}
+<ul class="nm-avisos" aria-label="Avisos del cálculo">
+    {% for a in lista %}
+    <li class="nm-aviso {{ a.nivel if a.nivel in ('warning', 'danger') else '' }}">{{ a.mensaje }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+{%- endmacro %}
+
+{% macro tabla_liquidacion(l, motivos) -%}
+<table class="table table-bordered mb-0">
+    <caption class="sr-only">Conceptos de la liquidación</caption>
+    <thead class="thead-light">
+        <tr><th scope="col">Concepto</th><th scope="col" class="text-right">Valor</th></tr>
+    </thead>
+    <tbody>
+        <tr><th scope="row" class="font-weight-normal">Cesantías <small class="text-muted d-block">Art. 249 CST · {{ l.dias_liquidacion }} días del año</small></th><td class="text-right">{{ pesos(l.cesantias) }}</td></tr>
+        <tr><th scope="row" class="font-weight-normal">Intereses sobre cesantías <small class="text-muted d-block">12 % anual · Ley 52 de 1975</small></th><td class="text-right">{{ pesos(l.intereses_cesantias) }}</td></tr>
+        <tr><th scope="row" class="font-weight-normal">Prima de servicios <small class="text-muted d-block">Art. 306 CST{% if l.dias_semestre is defined and l.dias_semestre is not none %} · {{ l.dias_semestre }} días del semestre{% endif %}</small></th><td class="text-right">{{ pesos(l.prima_servicios) }}</td></tr>
+        <tr><th scope="row" class="font-weight-normal">Vacaciones pendientes <small class="text-muted d-block">{% if l.dias_vacaciones is defined and l.dias_vacaciones is not none %}{{ l.dias_vacaciones }} días · {% endif %}Art. 189 CST</small></th><td class="text-right">{{ pesos(l.vacaciones) }}</td></tr>
+        <tr><th scope="row" class="font-weight-normal">Indemnización <small class="text-muted d-block">Art. 64 CST · solo despido sin justa causa</small></th><td class="text-right">{{ pesos(l.indemnizacion) }}</td></tr>
+        {% if l.salarios_pendientes %}
+        <tr><th scope="row" class="font-weight-normal">Salarios pendientes</th><td class="text-right">{{ pesos(l.salarios_pendientes) }}</td></tr>
+        {% endif %}
+        {% if l.deducciones_pendientes %}
+        <tr><th scope="row" class="font-weight-normal">Descuentos pendientes (préstamos)</th><td class="text-right">−{{ pesos(l.deducciones_pendientes) }}</td></tr>
+        {% endif %}
+    </tbody>
+    <tfoot>
+        <tr class="font-weight-bold bg-light"><th scope="row">Total a pagar</th><td class="text-right text-success">{{ pesos(l.total_pagar) }}</td></tr>
+    </tfoot>
+</table>
+{%- endmacro %}

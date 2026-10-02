@@ -1,6 +1,7 @@
 {% extends "public/layout_admin.html" %}
+{% from "nomina_macros.html" import pesos, avisos, tabla_liquidacion %}
 
-{% block title %}Detalle Liquidación{% endblock %}
+{% block title %}Liquidación de {{ l.nombres }} {{ l.apellidos }}{% endblock %}
 
 {% block LinkAdicional %}
 {{ super() }}
@@ -8,67 +9,57 @@
 {% endblock %}
 
 {% block content %}
+{% set d = l.detalle if l.detalle is defined and l.detalle else {} %}
 <div class="container-fluid">
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
         <h1 class="h3 mb-0 text-gray-800">Liquidación: {{ l.nombres }} {{ l.apellidos }}</h1>
-        <button onclick="window.print()" class="d-none d-sm-inline-block btn btn-sm btn-primary shadow-sm"><i
-                class="fas fa-print fa-sm text-white-50"></i> Imprimir</button>
+        <button type="button" onclick="window.print()" class="btn btn-primary nm-btn shadow-sm">
+            <i class="fas fa-print" aria-hidden="true"></i> Imprimir
+        </button>
     </div>
 
     <div class="row">
-        <div class="col-lg-6">
-            <div class="card shadow mb-4">
+        <div class="col-lg-5">
+            <section class="card shadow mb-4" aria-labelledby="titulo_empleado">
                 <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Datos del Empleado</h6>
+                    <h2 class="h6 m-0 font-weight-bold text-primary" id="titulo_empleado">Datos del empleado</h2>
                 </div>
                 <div class="card-body">
-                    <p><strong>Documento:</strong> {{ l.numero_documento }}</p>
-                    <p><strong>Cargo:</strong> {{ l.cargo }}</p>
-                    <p><strong>Fecha Ingreso:</strong> {{ l.fecha_ingreso }}</p>
-                    <p><strong>Fecha Retiro:</strong> {{ l.fecha_retiro }}</p>
-                    <p><strong>Motivo:</strong> {{ l.motivo_retiro }}</p>
-                    <p><strong>Días Liquidados:</strong> {{ l.dias_liquidacion }}</p>
-                    <p><strong>Salario Base:</strong> {{ '${:,.0f}'.format(l.salario_base_liquidacion) }}</p>
+                    <dl class="row mb-0">
+                        <dt class="col-6">Documento</dt><dd class="col-6">{{ l.numero_documento }}</dd>
+                        <dt class="col-6">Cargo</dt><dd class="col-6">{{ l.cargo or '—' }}</dd>
+                        <dt class="col-6">Fecha de ingreso</dt><dd class="col-6">{{ l.fecha_ingreso }}</dd>
+                        <dt class="col-6">Fecha de retiro</dt><dd class="col-6">{{ l.fecha_retiro }}</dd>
+                        <dt class="col-6">Motivo</dt><dd class="col-6">{{ motivos.get(l.motivo_retiro, l.motivo_retiro) }}</dd>
+                        <dt class="col-6">Salario base</dt><dd class="col-6">{{ pesos(l.salario_base_liquidacion) }}</dd>
+                        {% if d.base_prestaciones %}
+                        <dt class="col-6">Base de prestaciones</dt><dd class="col-6">{{ pesos(d.base_prestaciones) }}</dd>
+                        {% endif %}
+                        {% if d.promedio_variable %}
+                        <dt class="col-6">Promedio variable</dt><dd class="col-6">{{ pesos(d.promedio_variable) }}</dd>
+                        {% endif %}
+                    </dl>
                 </div>
-            </div>
+            </section>
         </div>
 
-        <div class="col-lg-6">
-            <div class="card shadow mb-4">
+        <div class="col-lg-7">
+            <section class="card shadow mb-4" aria-labelledby="titulo_liq">
                 <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-success">Liquidación</h6>
+                    <h2 class="h6 m-0 font-weight-bold text-success" id="titulo_liq">Conceptos liquidados</h2>
                 </div>
                 <div class="card-body">
+                    {{ avisos(d.alertas) }}
                     <div class="table-responsive">
-                        <table class="table table-bordered">
-                            <tr>
-                                <td>Cesantías</td>
-                                <td class="text-right">{{ '${:,.0f}'.format(l.cesantias) }}</td>
-                            </tr>
-                            <tr>
-                                <td>Intereses Cesantías</td>
-                                <td class="text-right">{{ '${:,.0f}'.format(l.intereses_cesantias) }}</td>
-                            </tr>
-                            <tr>
-                                <td>Prima de Servicios</td>
-                                <td class="text-right">{{ '${:,.0f}'.format(l.prima_servicios) }}</td>
-                            </tr>
-                            <tr>
-                                <td>Vacaciones</td>
-                                <td class="text-right">{{ '${:,.0f}'.format(l.vacaciones) }}</td>
-                            </tr>
-                            <tr>
-                                <td>Indemnización</td>
-                                <td class="text-right">{{ '${:,.0f}'.format(l.indemnizacion) }}</td>
-                            </tr>
-                            <tr class="font-weight-bold bg-light">
-                                <td>Total a Pagar</td>
-                                <td class="text-right text-success">{{ '${:,.0f}'.format(l.total_pagar) }}</td>
-                            </tr>
-                        </table>
+                        {{ tabla_liquidacion({
+                            'dias_liquidacion': l.dias_liquidacion, 'dias_semestre': d.dias_semestre, 'dias_vacaciones': d.dias_vacaciones,
+                            'cesantias': l.cesantias, 'intereses_cesantias': l.intereses_cesantias, 'prima_servicios': l.prima_servicios,
+                            'vacaciones': l.vacaciones, 'indemnizacion': l.indemnizacion, 'salarios_pendientes': l.salarios_pendientes,
+                            'deducciones_pendientes': l.deducciones_pendientes, 'total_pagar': l.total_pagar,
+                        }, motivos) }}
                     </div>
                 </div>
-            </div>
+            </section>
         </div>
     </div>
 </div>

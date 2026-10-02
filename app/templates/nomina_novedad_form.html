@@ -1,6 +1,6 @@
 {% extends "public/layout_admin.html" %}
 
-{% block title %}Registrar Novedad{% endblock %}
+{% block title %}Registrar novedad{% endblock %}
 
 {% block LinkAdicional %}
 {{ super() }}
@@ -8,31 +8,41 @@
 {% endblock %}
 
 {% block content %}
+{% set grupos = [
+    ('Horas extras', ['HED', 'HEN', 'HEDF', 'HENF']),
+    ('Recargos', ['RN', 'RD', 'RNDF']),
+    ('Incapacidades y licencias', ['INCAPACIDAD_GEN', 'INCAPACIDAD_LAB', 'LICENCIA_MAT', 'LICENCIA_PAT', 'LICENCIA_LUTO', 'VACACIONES', 'LICENCIA_NR']),
+    ('Pagos adicionales', ['COMISION', 'BONIF_S', 'BONIF_NS']),
+    ('Descuentos', ['PRESTAMO', 'OTRA_DEDUCCION']),
+] %}
 <div class="container-fluid">
-    <h1 class="h3 mb-4 text-gray-800">Registrar Novedad</h1>
+    <h1 class="h3 mb-2 text-gray-800">Registrar novedad</h1>
+    <p class="nm-ayuda mb-4">Horas extras, recargos, incapacidades, vacaciones, pagos adicionales o descuentos de un periodo abierto.
+        El valor se calcula solo con la jornada vigente ({{ horas_mes_hoy }} horas al mes) y el trabajo nocturno empieza a las {{ hora_nocturna }}:00.</p>
+
+    {% if not periodos %}
+    <div class="nm-aviso warning" role="status">No hay periodos abiertos. <a href="{{ url_for('nomina.periodo_crear') }}">Crea un periodo</a> para registrar novedades.</div>
+    {% endif %}
 
     <div class="card shadow mb-4">
-        <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Detalle de la Novedad</h6>
-        </div>
         <div class="card-body">
-            <form method="POST">
+            <form method="POST" id="form-novedad" data-valor-url="{{ url_for('nomina.novedad_valor') }}">
                 <div class="form-row">
                     <div class="form-group col-md-6">
-                        <label for="periodo_id">Periodo de Nómina</label>
+                        <label for="periodo_id">Periodo de nómina *</label>
                         <select class="form-control" id="periodo_id" name="periodo_id" required>
                             {% for p in periodos %}
-                            <option value="{{ p.id }}">{{ p.anio }}-{{ p.mes }} ({{ p.fecha_inicio }} - {{ p.fecha_fin
-                                }})</option>
+                            <option value="{{ p.id }}" data-fin="{{ p.fecha_fin }}">{{ p.anio }}-{{ '%02d'|format(p.mes) }}{% if p.numero_periodo %} · quincena {{ p.numero_periodo }}{% endif %} ({{ p.fecha_inicio }} a {{ p.fecha_fin }}){% if p.estado != 'borrador' %} · {{ p.estado }}{% endif %}</option>
                             {% endfor %}
                         </select>
+                        <small class="form-text text-muted">Si el periodo ya estaba calculado, vuelve a borrador para recalcularlo.</small>
                     </div>
                     <div class="form-group col-md-6">
-                        <label for="empleado_id">Empleado</label>
+                        <label for="empleado_id">Empleado *</label>
                         <select class="form-control" id="empleado_id" name="empleado_id" required>
-                            <option value="">Seleccione...</option>
+                            <option value="">Seleccione…</option>
                             {% for e in empleados %}
-                            <option value="{{ e.id }}">{{ e.apellidos }} {{ e.nombres }}</option>
+                            <option value="{{ e.id }}">{{ e.apellidos }} {{ e.nombres }}{% if e.tipo_vinculacion == 'CONTRATISTA' %} (contratista){% endif %}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -40,51 +50,135 @@
 
                 <div class="form-row">
                     <div class="form-group col-md-4">
-                        <label for="tipo_novedad">Tipo de Novedad</label>
-                        <select class="form-control" id="tipo_novedad" name="tipo_novedad" required>
-                            <optgroup label="Horas Extras y Recargos">
-                                <option value="HED">Hora Extra Diurna (1.25)</option>
-                                <option value="HEN">Hora Extra Nocturna (1.75)</option>
-                                <option value="HEDF">Hora Extra Diurna Festiva (2.00)</option>
-                                <option value="HENF">Hora Extra Nocturna Festiva (2.50)</option>
-                                <option value="RN">Recargo Nocturno (0.35)</option>
-                                <option value="RD">Recargo Dominical/Festivo (0.75)</option>
+                        <label for="tipo_novedad">Tipo de novedad *</label>
+                        <select class="form-control" id="tipo_novedad" name="tipo_novedad" required aria-describedby="ayuda_tipo">
+                            {% for nombre, tipos in grupos %}
+                            <optgroup label="{{ nombre }}">
+                                {% for t in tipos %}
+                                <option value="{{ t }}" data-unidad="{{ catalogo[t].unidad }}">{{ catalogo[t].nombre }}{% if factores.get(t) %} (×{{ '%.2f'|format(factores[t]) }}){% endif %}</option>
+                                {% endfor %}
                             </optgroup>
-                            <optgroup label="Incapacidades y Licencias">
-                                <option value="INCAPACIDAD_GEN">Incapacidad General</option>
-                                <option value="INCAPACIDAD_LAB">Incapacidad Laboral / ARL</option>
-                                <option value="LICENCIA_MAT">Licencia Maternidad</option>
-                                <option value="LICENCIA_PAT">Licencia Paternidad</option>
-                                <option value="LICENCIA_LUTO">Licencia de Luto</option>
-                                <option value="LICENCIA_NR">Licencia No Remunerada</option>
-                            </optgroup>
+                            {% endfor %}
                         </select>
+                        <small id="ayuda_tipo" class="form-text text-muted">Los factores dominicales cambian con la fecha (Ley 2466 de 2025).</small>
+                    </div>
+                    <div class="form-group col-md-4" id="grupo_cantidad">
+                        <label for="cantidad" id="lbl_cantidad">Cantidad de horas *</label>
+                        <input type="number" step="0.5" min="0" class="form-control" id="cantidad" name="cantidad" inputmode="decimal" required>
                     </div>
                     <div class="form-group col-md-4">
-                        <label for="cantidad">Cantidad (Horas o Días)</label>
-                        <input type="number" step="0.5" class="form-control" id="cantidad" name="cantidad" required>
-                        <small class="form-text text-muted">Horas para extras, Días para incapacidades.</small>
+                        <label for="fecha_novedad">Fecha *</label>
+                        <input type="date" class="form-control" id="fecha_novedad" name="fecha_novedad" required aria-describedby="ayuda_fecha">
+                        <small id="ayuda_fecha" class="form-text text-muted">El día en que ocurrió: define el valor de la hora y el recargo.</small>
                     </div>
+                </div>
+
+                <div class="form-row">
                     <div class="form-group col-md-4">
-                        <label for="fecha_novedad">Fecha de la Novedad</label>
-                        <input type="date" class="form-control" id="fecha_novedad" name="fecha_novedad" required>
+                        <label for="valor_total" id="lbl_valor">Valor en pesos (opcional)</label>
+                        <div class="input-group">
+                            <div class="input-group-prepend"><span class="input-group-text" aria-hidden="true">$</span></div>
+                            <input type="number" step="1" min="0" class="form-control" id="valor_total" name="valor_total" inputmode="numeric" aria-describedby="ayuda_valor">
+                        </div>
+                        <small id="ayuda_valor" class="form-text text-muted">Déjelo vacío para que el sistema lo calcule. Si lo escribe, se respeta tal cual.</small>
+                    </div>
+                    <div class="form-group col-md-8">
+                        <div class="nm-aviso" id="vista_previa" role="status" aria-live="polite">Elija empleado, tipo, cantidad y fecha para ver el valor calculado.</div>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label for="observacion">Observaciones</label>
-                    <textarea class="form-control" id="observacion" name="observacion" rows="3"></textarea>
+                    <textarea class="form-control" id="observacion" name="observacion" rows="3" placeholder="Ej.: número de la incapacidad, motivo del descuento o autorización firmada."></textarea>
                 </div>
 
-                <div class="form-group">
-                    <label for="valor_total">Valor Total Manual (Opcional - Sobrescribe cálculo)</label>
-                    <input type="number" step="0.01" class="form-control" id="valor_total" name="valor_total">
-                </div>
-
-                <button type="submit" class="btn btn-primary">Registrar</button>
-                <a href="{{ url_for('nomina.novedades_lista') }}" class="btn btn-secondary">Cancelar</a>
+                <button type="submit" class="btn btn-primary nm-btn" {{ 'disabled' if not periodos }}>Registrar</button>
+                <a href="{{ url_for('nomina.novedades_lista') }}" class="btn btn-secondary nm-btn">Cancelar</a>
             </form>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function () {
+  var form = document.getElementById('form-novedad');
+  var url = form.getAttribute('data-valor-url');
+  var tipo = document.getElementById('tipo_novedad');
+  var empleado = document.getElementById('empleado_id');
+  var cantidad = document.getElementById('cantidad');
+  var fecha = document.getElementById('fecha_novedad');
+  var periodo = document.getElementById('periodo_id');
+  var valor = document.getElementById('valor_total');
+  var grupoCantidad = document.getElementById('grupo_cantidad');
+  var lblCantidad = document.getElementById('lbl_cantidad');
+  var lblValor = document.getElementById('lbl_valor');
+  var ayudaValor = document.getElementById('ayuda_valor');
+  var vista = document.getElementById('vista_previa');
+  var temporizador = null;
+
+  function unidad() {
+    var op = tipo.options[tipo.selectedIndex];
+    return op ? op.getAttribute('data-unidad') : 'horas';
+  }
+
+  function ajustarCampos() {
+    var u = unidad();
+    var esValor = u === 'valor';
+    grupoCantidad.hidden = esValor;
+    cantidad.required = !esValor;
+    if (esValor) { cantidad.value = cantidad.value || '1'; }
+    lblCantidad.textContent = u === 'dias' ? 'Cantidad de días *' : 'Cantidad de horas *';
+    cantidad.step = u === 'dias' ? '1' : '0.5';
+    valor.required = esValor;
+    lblValor.textContent = esValor ? 'Valor en pesos *' : 'Valor en pesos (opcional)';
+    ayudaValor.textContent = esValor
+      ? 'Escriba el valor exacto del pago o del descuento.'
+      : 'Déjelo vacío para que el sistema lo calcule. Si lo escribe, se respeta tal cual.';
+    previsualizar();
+  }
+
+  function fechaPorDefecto() {
+    if (fecha.value) return;
+    var op = periodo.options[periodo.selectedIndex];
+    if (op && op.getAttribute('data-fin')) fecha.value = op.getAttribute('data-fin');
+  }
+
+  function previsualizar() {
+    clearTimeout(temporizador);
+    temporizador = setTimeout(function () {
+      if (unidad() === 'valor') {
+        vista.textContent = 'Este concepto no se calcula: se registra el valor que escriba.';
+        return;
+      }
+      if (!empleado.value || !cantidad.value || !fecha.value) return;
+      var q = new URLSearchParams({ empleado_id: empleado.value, tipo: tipo.value, cantidad: cantidad.value, fecha: fecha.value });
+      fetch(url + '?' + q.toString(), { credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (!d || !d.ok) { vista.textContent = 'No se pudo calcular la vista previa.'; return; }
+          var texto = 'Valor calculado: ' + d.valor_texto + '.';
+          if (d.factor !== undefined) {
+            texto += ' Hora ordinaria $' + Math.round(d.valor_hora).toLocaleString('es-CO') +
+              ' (salario ÷ ' + d.horas_mes + ' h) × ' + d.factor.toFixed(2) + '.';
+          }
+          if (d.entidad && d.cobrar > 0) {
+            texto += ' La empresa asume $' + Math.round(d.empresa).toLocaleString('es-CO') +
+              ' y se cobran $' + Math.round(d.cobrar).toLocaleString('es-CO') + ' a la ' + d.entidad + '.';
+          }
+          vista.textContent = texto;
+        })
+        .catch(function () { vista.textContent = 'No se pudo calcular la vista previa.'; });
+    }, 300);
+  }
+
+  [empleado, cantidad, fecha].forEach(function (el) { el.addEventListener('input', previsualizar); el.addEventListener('change', previsualizar); });
+  tipo.addEventListener('change', ajustarCampos);
+  periodo.addEventListener('change', function () { fecha.value = ''; fechaPorDefecto(); previsualizar(); });
+  fechaPorDefecto();
+  ajustarCampos();
+})();
+</script>
 {% endblock %}

@@ -1,6 +1,7 @@
 {% extends "public/layout_admin.html" %}
+{% from "nomina_macros.html" import pesos, avisos, tabla_liquidacion %}
 
-{% block title %}Nueva Liquidación{% endblock %}
+{% block title %}Nueva liquidación{% endblock %}
 
 {% block LinkAdicional %}
 {{ super() }}
@@ -9,46 +10,103 @@
 
 {% block content %}
 <div class="container-fluid">
-    <h1 class="h3 mb-4 text-gray-800">Generar Liquidación Definitiva</h1>
+    <h1 class="h3 mb-2 text-gray-800">Liquidación definitiva del contrato</h1>
+    <p class="nm-ayuda mb-4">Primero revise el cálculo; solo al confirmar se guarda la liquidación y el empleado pasa a inactivo.
+        Los contratistas no aparecen: no tienen prestaciones sociales.</p>
 
     <div class="card shadow mb-4">
         <div class="card-body">
-            <form method="POST">
-                <div class="form-group">
-                    <label>Empleado a Liquidar</label>
-                    <select class="form-control select2" name="empleado_id" required>
-                        <option value="">Seleccione...</option>
-                        {% for e in empleados %}
-                        <option value="{{ e.id }}">{{ e.nombres }} {{ e.apellidos }} - {{ e.numero_documento }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
+            <form method="POST" id="form-liquidacion">
                 <div class="form-row">
                     <div class="form-group col-md-6">
-                        <label>Fecha de Retiro</label>
-                        <input type="date" class="form-control" name="fecha_retiro" required>
-                    </div>
-                    <div class="form-group col-md-6">
-                        <label>Motivo de Retiro</label>
-                        <select class="form-control" name="motivo_retiro" required>
-                            <option value="RENUNCIA">Renuncia Voluntaria</option>
-                            <option value="TERMINACION_CONTRATO">Terminación de Contrato</option>
-                            <option value="DESPIDO_JUSTO">Despido con Justa Causa</option>
-                            <option value="DESPIDO_INJUSTO">Despido sin Justa Causa</option>
+                        <label for="empleado_id">Empleado *</label>
+                        <select class="form-control" id="empleado_id" name="empleado_id" required>
+                            <option value="">Seleccione…</option>
+                            {% for e in empleados %}
+                            <option value="{{ e.id }}" {{ 'selected' if form.empleado_id == e.id|string }}>{{ e.nombres }} {{ e.apellidos }} · {{ e.numero_documento }}</option>
+                            {% endfor %}
                         </select>
                     </div>
+                    <div class="form-group col-md-3">
+                        <label for="fecha_retiro">Último día de trabajo *</label>
+                        <input type="date" class="form-control" id="fecha_retiro" name="fecha_retiro" value="{{ form.fecha_retiro or '' }}" required>
+                    </div>
+                    <div class="form-group col-md-3">
+                        <label for="motivo_retiro">Motivo del retiro *</label>
+                        <select class="form-control" id="motivo_retiro" name="motivo_retiro" required aria-describedby="ayuda_motivo">
+                            {% for clave, texto in motivos.items() %}
+                            <option value="{{ clave }}" {{ 'selected' if form.motivo_retiro == clave }}>{{ texto }}</option>
+                            {% endfor %}
+                        </select>
+                        <small id="ayuda_motivo" class="form-text text-muted">La indemnización solo aplica en despido sin justa causa.</small>
+                    </div>
                 </div>
 
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle"></i> Al generar la liquidación, el empleado pasará a estado
-                    <strong>Inactivo</strong>.
-                </div>
+                <fieldset class="nm-fieldset mb-3">
+                    <legend>Ajustes (opcionales)</legend>
+                    <div class="form-row">
+                        <div class="form-group col-md-4">
+                            <label for="dias_vacaciones_pendientes">Días de vacaciones pendientes</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="dias_vacaciones_pendientes" name="dias_vacaciones_pendientes" value="{{ form.dias_vacaciones_pendientes or '' }}" aria-describedby="ayuda_vac">
+                            <small id="ayuda_vac" class="form-text text-muted">Vacío: los causados en el año menos los registrados como disfrutados.</small>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label for="salarios_pendientes">Salarios pendientes ($)</label>
+                            <input type="number" step="1" min="0" class="form-control" id="salarios_pendientes" name="salarios_pendientes" value="{{ form.salarios_pendientes or '' }}" aria-describedby="ayuda_sal">
+                            <small id="ayuda_sal" class="form-text text-muted">Vacío: los días desde el último periodo liquidado hasta el retiro.</small>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label for="deducciones_pendientes">Descuentos pendientes ($)</label>
+                            <input type="number" step="1" min="0" class="form-control" id="deducciones_pendientes" name="deducciones_pendientes" value="{{ form.deducciones_pendientes or '' }}" aria-describedby="ayuda_ded">
+                            <small id="ayuda_ded" class="form-text text-muted">Saldos de préstamos autorizados por escrito.</small>
+                        </div>
+                    </div>
+                </fieldset>
 
-                <button type="submit" class="btn btn-danger">Calcular y Generar</button>
-                <a href="{{ url_for('nomina.liquidaciones_lista') }}" class="btn btn-secondary">Cancelar</a>
+                <button type="submit" name="accion" value="previsualizar" class="btn btn-primary nm-btn">
+                    <i class="fas fa-calculator" aria-hidden="true"></i> Calcular vista previa
+                </button>
+                <a href="{{ url_for('nomina.liquidaciones_lista') }}" class="btn btn-secondary nm-btn">Cancelar</a>
+
+                {% if preview %}
+                <section class="mt-4" aria-labelledby="titulo_preview" id="preview" tabindex="-1">
+                    <h2 class="h5" id="titulo_preview">Vista previa: {{ preview.empleado.nombres }} {{ preview.empleado.apellidos }}</h2>
+                    <div class="nm-resumen">
+                        <div class="nm-dato"><span>Salario base</span><strong>{{ pesos(preview.salario_base_liquidacion) }}</strong></div>
+                        <div class="nm-dato"><span>Base de prestaciones</span><strong>{{ pesos(preview.base_prestaciones) }}</strong></div>
+                        <div class="nm-dato"><span>Promedio variable mensual</span><strong>{{ pesos(preview.promedio_variable) }}</strong></div>
+                        <div class="nm-dato"><span>Tiempo de servicio</span><strong>{{ preview.dias_total }} días</strong></div>
+                    </div>
+                    {{ avisos(preview.alertas) }}
+                    <p class="nm-ayuda">Sugerencias del sistema: {{ preview.sugerencias.dias_salario_pendiente }} día(s) de salario pendiente
+                        ({{ pesos(preview.sugerencias.salarios_pendientes) }}) y {{ preview.sugerencias.vacaciones_disfrutadas_anio }} día(s) de vacaciones registradas este año.</p>
+                    <div class="table-responsive mb-3">{{ tabla_liquidacion(preview, motivos) }}</div>
+                    <div class="nm-aviso warning mb-3">Al confirmar, la liquidación queda guardada y <strong>{{ preview.empleado.nombres }}</strong> pasa a inactivo.</div>
+                    <button type="submit" name="accion" value="confirmar" class="btn btn-danger nm-btn">
+                        <i class="fas fa-check" aria-hidden="true"></i> Confirmar y guardar liquidación
+                    </button>
+                </section>
+                {% endif %}
             </form>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function () {
+  var preview = document.getElementById('preview');
+  if (preview) { preview.scrollIntoView({ behavior: 'smooth', block: 'start' }); preview.focus({ preventScroll: true }); }
+  // Si cambian los datos después de la vista previa, hay que volver a calcular antes de confirmar.
+  var form = document.getElementById('form-liquidacion');
+  form.querySelectorAll('select, input').forEach(function (el) {
+    el.addEventListener('change', function () {
+      var confirmar = form.querySelector('button[value="confirmar"]');
+      if (confirmar) { confirmar.disabled = true; confirmar.textContent = 'Recalcule la vista previa para confirmar'; }
+    });
+  });
+})();
+</script>
 {% endblock %}

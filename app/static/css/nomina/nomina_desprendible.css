@@ -6,6 +6,7 @@ body {
 }
 
 .container {
+    box-sizing: border-box;
     width: 100%;
     max-width: 800px;
     margin: 0 auto;
@@ -96,5 +97,54 @@ body {
 
     body {
         font-size: 10pt;
+    }
+}
+/* Encabezados semánticos con el tamaño visual anterior. */
+.h2 {
+    font-size: 1.5em;
+    margin: 0.4em 0;
+}
+
+.h3 {
+    font-size: 1.17em;
+    margin: 0.4em 0;
+}
+
+/* Filas de concepto: el encabezado de fila no va en negrilla. */
+.table tbody th {
+    background-color: transparent;
+    font-weight: normal;
+}
+
+.table tfoot th,
+.table tfoot td {
+    font-weight: bold;
+    background-color: var(--color-fondo-alt);
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+}
+
+.print-btn {
+    min-height: 44px;
+}
+
+@media (max-width: 600px) {
+    .container {
+        padding: 12px;
+    }
+
+    .table th,
+    .table td {
+        padding: 6px;
+        word-break: break-word;
     }
 }

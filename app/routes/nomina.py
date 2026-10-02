@@ -1,14 +1,14 @@
 from datetime import datetime
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session, current_app
 from database import get_db_cursor
 from nomina_engine import *
 from nomina_inteligente import (
-    calcular_nomina_periodo_inteligente,
     obtener_referencia_normativa,
     PARAMETROS_OFICIALES_NOMINA,
 )
 from helpers import get_data_app, formatear_moneda
 from security import registrar_guard_permiso
+from services import nomina_service
 
 nomina_bp = Blueprint('nomina', __name__, url_prefix='/admin/nomina')
 
@@ -16,6 +16,12 @@ nomina_bp = Blueprint('nomina', __name__, url_prefix='/admin/nomina')
 # matriz configurable del Propietario (recomendado: Admin y Contador). Guard
 # único a nivel de blueprint: cualquier ruta nueva queda protegida por defecto.
 registrar_guard_permiso(nomina_bp, 'payroll')
+
+
+@nomina_bp.before_request
+def _asegurar_esquema_nomina():
+    # Columnas nuevas (aditivas) antes de leer o guardar formularios.
+    nomina_service.asegurar_esquema()
 
 
 @nomina_bp.context_processor
@@ -159,13 +165,14 @@ def parametros_crear():
         salario = request.form.get('salario_minimo')
         auxilio = request.form.get('auxilio_transporte')
         uvt = request.form.get('uvt')
+        exonerado = request.form.get('exonerado_114_1') in ('1', 'on')
 
         try:
             with get_db_cursor() as cur:
                 cur.execute("""
-                    INSERT INTO nomina_parametros (anio, salario_minimo, auxilio_transporte, uvt)
-                    VALUES (%s, %s, %s, %s)
-                """, (anio, salario, auxilio, uvt))
+                    INSERT INTO nomina_parametros (anio, salario_minimo, auxilio_transporte, uvt, exonerado_114_1)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (anio, salario, auxilio, uvt, exonerado))
 
             flash('Parámetros creados exitosamente.', 'success')
             return redirect(url_for('nomina.parametros_lista'))
@@ -186,14 +193,15 @@ def parametros_editar(anio):
         salario = request.form.get('salario_minimo')
         auxilio = request.form.get('auxilio_transporte')
         uvt = request.form.get('uvt')
-        
+        exonerado = request.form.get('exonerado_114_1') in ('1', 'on')
+
         try:
             with get_db_cursor() as cur:
                 cur.execute("""
-                    UPDATE nomina_parametros 
-                    SET salario_minimo=%s, auxilio_transporte=%s, uvt=%s
+                    UPDATE nomina_parametros
+                    SET salario_minimo=%s, auxilio_transporte=%s, uvt=%s, exonerado_114_1=%s
                     WHERE anio=%s
-                """, (salario, auxilio, uvt, anio))
+                """, (salario, auxilio, uvt, exonerado, anio))
             flash('Parámetros actualizados.', 'success')
             return redirect(url_for('nomina.parametros_lista'))
         except Exception as e:
@@ -217,65 +225,99 @@ def empleados_lista():
         empleados = cur.fetchall()
     return render_template('nomina_empleados.html', empleados=empleados)
 
+_EMPLEADO_TEXTO = (
+    'tipo_documento', 'numero_documento', 'nombres', 'apellidos', 'email', 'telefono', 'direccion',
+    'fecha_ingreso', 'tipo_vinculacion', 'cargo', 'salario_base', 'nivel_arl',
+    'banco', 'tipo_cuenta', 'numero_cuenta', 'eps', 'fondo_pension', 'fondo_cesantias',
+    'fecha_fin_contrato', 'aprendiz_etapa', 'ret_concepto',
+)
+_EMPLEADO_BOOL = ('salario_integral', 'ret_dependientes', 'ret_declarante', 'ret_contrata_2_o_mas')
+_EMPLEADO_DINERO = ('ret_intereses_vivienda', 'ret_medicina_prepagada', 'ret_aportes_voluntarios')
+
+
+def _datos_empleado(f):
+    """Columnas y valores del formulario de empleado, ya normalizados."""
+    datos = {}
+    for campo in _EMPLEADO_TEXTO:
+        valor = (f.get(campo) or '').strip()
+        datos[campo] = valor or None
+    for campo in _EMPLEADO_BOOL:
+        datos[campo] = f.get(campo) in ('1', 'on', 'true')
+    for campo in _EMPLEADO_DINERO:
+        try:
+            datos[campo] = max(float((f.get(campo) or '0').replace(',', '.')), 0.0)
+        except ValueError:
+            datos[campo] = 0.0
+    try:
+        datos['salario_base'] = float((datos['salario_base'] or '').replace(',', '.'))
+    except ValueError:
+        raise ValueError('Escribe el salario u honorarios mensuales en números.')
+    if datos['salario_base'] <= 0:
+        raise ValueError('El salario u honorarios deben ser mayores a cero.')
+    if datos['tipo_vinculacion'] != 'APRENDIZ_SENA':
+        datos['aprendiz_etapa'] = None
+    if datos['tipo_vinculacion'] not in ('INDEFINIDO', 'FIJO', 'OBRA_LABOR'):
+        datos['salario_integral'] = False
+    for campo in ('nombres', 'apellidos', 'numero_documento', 'fecha_ingreso', 'tipo_vinculacion'):
+        if not datos[campo]:
+            raise ValueError('Faltan datos obligatorios: documento, nombres, apellidos, vinculación y fecha de ingreso.')
+    return datos
+
+
+def _smmlv_actual():
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute("SELECT salario_minimo FROM nomina_parametros WHERE anio = %s", (datetime.now().year,))
+        fila = cur.fetchone()
+    if fila:
+        return float(fila['salario_minimo'])
+    ref = obtener_referencia_normativa(datetime.now().year)
+    return float(ref['salario_minimo']) if ref else 0.0
+
+
 @nomina_bp.route('/empleados/crear', methods=['GET', 'POST'])
 def empleado_crear():
     if request.method == 'POST':
-        # Recoger datos del form
-        f = request.form
         try:
+            datos = _datos_empleado(request.form)
+            columnas = ', '.join(datos)
             with get_db_cursor() as cur:
-                cur.execute("""
-                    INSERT INTO nomina_empleados (
-                        tipo_documento, numero_documento, nombres, apellidos, email, telefono, direccion,
-                        fecha_ingreso, tipo_vinculacion, cargo, salario_base, nivel_arl,
-                        banco, tipo_cuenta, numero_cuenta,
-                        eps, fondo_pension, fondo_cesantias
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """, (
-                    f.get('tipo_documento'), f.get('numero_documento'), f.get('nombres'), f.get('apellidos'),
-                    f.get('email'), f.get('telefono'), f.get('direccion'),
-                    f.get('fecha_ingreso'), f.get('tipo_vinculacion'), f.get('cargo'), f.get('salario_base'), f.get('nivel_arl'),
-                    f.get('banco'), f.get('tipo_cuenta'), f.get('numero_cuenta'),
-                    f.get('eps'), f.get('fondo_pension'), f.get('fondo_cesantias')
-                ))
+                cur.execute(
+                    f"INSERT INTO nomina_empleados ({columnas}) VALUES ({', '.join(['%s'] * len(datos))})",
+                    tuple(datos.values()),
+                )
             flash('Empleado creado exitosamente.', 'success')
             return redirect(url_for('nomina.empleados_lista'))
+        except ValueError as e:
+            flash(str(e), 'danger')
         except Exception as e:
+            current_app.logger.exception('nomina: error creando empleado')
             flash(f'Error al crear empleado: {str(e)}', 'danger')
-            
-    return render_template('nomina_empleado_form.html', modo='crear')
+        return render_template('nomina_empleado_form.html', modo='crear', e=request.form, smmlv=_smmlv_actual())
+
+    return render_template('nomina_empleado_form.html', modo='crear', smmlv=_smmlv_actual())
+
 
 @nomina_bp.route('/empleados/editar/<int:id>', methods=['GET', 'POST'])
 def empleado_editar(id):
     if request.method == 'POST':
-        f = request.form
         try:
+            datos = _datos_empleado(request.form)
+            sets = ', '.join(f'{c} = %s' for c in datos)
             with get_db_cursor() as cur:
-                cur.execute("""
-                    UPDATE nomina_empleados SET
-                        tipo_documento=%s, numero_documento=%s, nombres=%s, apellidos=%s, email=%s, telefono=%s, direccion=%s,
-                        fecha_ingreso=%s, tipo_vinculacion=%s, cargo=%s, salario_base=%s, nivel_arl=%s,
-                        banco=%s, tipo_cuenta=%s, numero_cuenta=%s,
-                        eps=%s, fondo_pension=%s, fondo_cesantias=%s
-                    WHERE id=%s
-                """, (
-                    f.get('tipo_documento'), f.get('numero_documento'), f.get('nombres'), f.get('apellidos'),
-                    f.get('email'), f.get('telefono'), f.get('direccion'),
-                    f.get('fecha_ingreso'), f.get('tipo_vinculacion'), f.get('cargo'), f.get('salario_base'), f.get('nivel_arl'),
-                    f.get('banco'), f.get('tipo_cuenta'), f.get('numero_cuenta'),
-                    f.get('eps'), f.get('fondo_pension'), f.get('fondo_cesantias'),
-                    id
-                ))
+                cur.execute(f"UPDATE nomina_empleados SET {sets} WHERE id = %s", (*datos.values(), id))
             flash('Empleado actualizado exitosamente.', 'success')
             return redirect(url_for('nomina.empleados_lista'))
+        except ValueError as e:
+            flash(str(e), 'danger')
         except Exception as e:
-             flash(f'Error al actualizar empleado: {str(e)}', 'danger')
+            current_app.logger.exception('nomina: error actualizando empleado %s', id)
+            flash(f'Error al actualizar empleado: {str(e)}', 'danger')
 
     with get_db_cursor(dict_cursor=True) as cur:
         cur.execute("SELECT * FROM nomina_empleados WHERE id = %s", (id,))
         empleado = cur.fetchone()
-        
-    return render_template('nomina_empleado_form.html', modo='editar', e=empleado)
+
+    return render_template('nomina_empleado_form.html', modo='editar', e=empleado, smmlv=_smmlv_actual())
 
 @nomina_bp.route('/empleados/ver/<int:id>')
 def empleado_ver(id):
@@ -284,48 +326,91 @@ def empleado_ver(id):
         empleado = cur.fetchone()
     return render_template('nomina_empleado_ver.html', e=empleado)
 
+def _pila_esperada(honorarios, nivel_arl, smmlv):
+    """Seguridad social mensual que el contratista debe acreditar en la PILA."""
+    ss = calcular_ss_contratista(float(honorarios or 0), porcentaje_arl(nivel_arl), smmlv)
+    nivel = str(nivel_arl or 'I').upper()
+    arl = 0.0 if nivel in ('IV', 'V') else ss['arl']
+    return round(ss['salud'] + ss['pension'] + ss['fsp'] + arl, 2), round(ss['base'], 2)
+
+
 @nomina_bp.route('/contratistas')
 def contratistas_lista():
+    smmlv = _smmlv_actual()
     with get_db_cursor(dict_cursor=True) as cur:
-        # Obtener solo contratistas
         cur.execute("""
-            SELECT e.*, 
+            SELECT e.*,
+                   (SELECT p.valor_pagado FROM nomina_contratistas_pila p
+                     WHERE p.empleado_id = e.id
+                       AND date_trunc('month', p.fecha_pago) = date_trunc('month', CURRENT_DATE)
+                     ORDER BY p.id DESC LIMIT 1) AS pila_valor_mes,
                    EXISTS(
-                       SELECT 1 FROM nomina_contratistas_pila p 
-                       WHERE p.empleado_id = e.id 
-                       AND EXTRACT(MONTH FROM p.fecha_pago) = EXTRACT(MONTH FROM CURRENT_DATE)
-                       AND EXTRACT(YEAR FROM p.fecha_pago) = EXTRACT(YEAR FROM CURRENT_DATE)
-                   ) as pila_verificada
-            FROM nomina_empleados e 
+                       SELECT 1 FROM nomina_contratistas_pila p
+                       WHERE p.empleado_id = e.id AND COALESCE(p.verificado, FALSE)
+                         AND date_trunc('month', p.fecha_pago) = date_trunc('month', CURRENT_DATE)
+                   ) AS pila_verificada
+            FROM nomina_empleados e
             WHERE e.tipo_vinculacion = 'CONTRATISTA'
-            ORDER BY e.apellidos, e.nombres
+            ORDER BY e.activo DESC, e.apellidos, e.nombres
         """)
-        contratistas = cur.fetchall()
-    return render_template('nomina_contratistas.html', contratistas=contratistas)
+        contratistas = []
+        for fila in cur.fetchall():
+            c = dict(fila)
+            c['pila_esperada'], c['ibc'] = _pila_esperada(c['salario_base'], c.get('nivel_arl'), smmlv)
+            contratistas.append(c)
+        cur.execute("SELECT id, anio, mes, numero_periodo, estado FROM nomina_periodos ORDER BY id DESC LIMIT 8")
+        periodos = cur.fetchall()
+    return render_template('nomina_contratistas.html', contratistas=contratistas, periodos=periodos, smmlv=smmlv)
+
 
 @nomina_bp.route('/contratistas/pila/<int:id>', methods=['POST'])
 def subir_pila(id):
-    numero_planilla = request.form.get('numero_planilla')
-    fecha_pago = request.form.get('fecha_pago')
-    valor_pagado = request.form.get('valor_pagado')
-    
-    # En un caso real, aqui manejariamos la subida del archivo evidencia
-    
+    f = request.form
+    numero_planilla = (f.get('numero_planilla') or '').strip()
+    fecha_pago = f.get('fecha_pago') or None
     try:
-        with get_db_cursor() as cur:
-            # Determinar periodo actual (simplificado al mes actual)
-            # Idealmente se enlaza con nomina_periodos activo
+        valor_pagado = float((f.get('valor_pagado') or '0').replace(',', '.'))
+        periodo_id = int(f.get('periodo_id')) if f.get('periodo_id') else None
+    except ValueError:
+        flash('El valor pagado y el periodo deben ser números.', 'danger')
+        return redirect(url_for('nomina.contratistas_lista'))
+    if not numero_planilla or not fecha_pago or valor_pagado <= 0:
+        flash('Escriba el número de planilla, la fecha de pago y el valor pagado.', 'danger')
+        return redirect(url_for('nomina.contratistas_lista'))
+
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute(
+                "SELECT nombres, salario_base, nivel_arl FROM nomina_empleados WHERE id = %s AND tipo_vinculacion = 'CONTRATISTA'",
+                (id,),
+            )
+            contratista = cur.fetchone()
+            if not contratista:
+                raise ValueError('Contratista no encontrado.')
+            esperada, _ = _pila_esperada(contratista['salario_base'], contratista['nivel_arl'], _smmlv_actual())
+            # Tolerancia de $1.000 por redondeos del operador de PILA.
+            completa = valor_pagado >= esperada - 1000
             cur.execute("""
-                INSERT INTO nomina_contratistas_pila 
-                (empleado_id, numero_planilla, fecha_pago, valor_pagado, verificado)
-                VALUES (%s, %s, %s, %s, TRUE)
-            """, (id, numero_planilla, fecha_pago, valor_pagado))
-            
-        flash('Soporte PILA registrado correctamente.', 'success')
+                INSERT INTO nomina_contratistas_pila
+                    (empleado_id, periodo_id, numero_planilla, fecha_pago, valor_pagado, verificado, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, NOW())
+            """, (id, periodo_id, numero_planilla, fecha_pago, valor_pagado, completa))
+        if completa:
+            flash(f"Planilla PILA de {contratista['nombres']} registrada y verificada.", 'success')
+        else:
+            flash(
+                f"Planilla registrada, pero el valor pagado ({formatear_moneda(valor_pagado)}) es menor al esperado "
+                f"({formatear_moneda(esperada)}). Quedó pendiente de verificación.",
+                'warning',
+            )
+    except ValueError as e:
+        flash(str(e), 'danger')
     except Exception as e:
+        current_app.logger.exception('nomina: error registrando PILA')
         flash(f'Error al registrar PILA: {str(e)}', 'danger')
-        
+
     return redirect(url_for('nomina.contratistas_lista'))
+
 
 @nomina_bp.route('/periodos')
 def periodos_lista():
@@ -356,10 +441,13 @@ def periodo_ver(id):
     with get_db_cursor(dict_cursor=True) as cur:
         cur.execute("SELECT * FROM nomina_periodos WHERE id = %s", (id,))
         periodo = cur.fetchone()
+        if not periodo:
+            flash('Periodo no encontrado.', 'warning')
+            return redirect(url_for('nomina.periodos_lista'))
 
         cur.execute("""
             SELECT nd.*, e.nombres, e.apellidos, e.numero_documento,
-                   e.cargo, e.tipo_vinculacion
+                   e.cargo, e.tipo_vinculacion, e.nivel_arl
             FROM nomina_detalle nd
             JOIN nomina_empleados e ON nd.empleado_id = e.id
             WHERE nd.periodo_id = %s
@@ -367,19 +455,37 @@ def periodo_ver(id):
         """, (id,))
         detalles = cur.fetchall()
 
+        # PILA del contratista: la registrada para este periodo o, en registros
+        # anteriores sin periodo, la pagada en el mes del periodo.
         cur.execute("""
-            SELECT cp.empleado_id, cp.verificado
+            SELECT cp.empleado_id, BOOL_OR(COALESCE(cp.verificado, FALSE)) AS verificado,
+                   SUM(COALESCE(cp.valor_pagado, 0)) AS valor_pagado
             FROM nomina_contratistas_pila cp
-            WHERE cp.empleado_id IN (
-                SELECT nd2.empleado_id FROM nomina_detalle nd2
-                JOIN nomina_empleados e2 ON nd2.empleado_id = e2.id
-                WHERE nd2.periodo_id = %s AND e2.tipo_vinculacion = 'CONTRATISTA'
-            )
-        """, (id,))
-        pila_status = {row['empleado_id']: row['verificado'] for row in cur.fetchall()}
+            WHERE cp.periodo_id = %s
+               OR (cp.periodo_id IS NULL
+                   AND date_trunc('month', cp.fecha_pago) = date_trunc('month', %s::date))
+            GROUP BY cp.empleado_id
+        """, (id, periodo['fecha_fin']))
+        pila_status = {row['empleado_id']: dict(row) for row in cur.fetchall()}
 
+    def total(campo):
+        return sum(float(d[campo] or 0) for d in detalles if campo in d.keys())
+
+    aportes = sum(total(c) for c in ('salud_empleador', 'pension_empleador', 'arl', 'ccf', 'icbf', 'sena'))
+    provisiones = sum(total(c) for c in ('cesantias_provision', 'intereses_provision', 'prima_provision', 'vacaciones_provision'))
+    resumen = {
+        'devengado': total('total_devengado'),
+        'deducido': total('total_deducido'),
+        'neto': total('neto_pagar'),
+        'aportes': aportes,
+        'provisiones': provisiones,
+        'costo': total('total_devengado') + aportes + provisiones,
+        'ss_contratistas': total('ss_contratista') if 'ss_contratista' in (detalles[0].keys() if detalles else []) else 0,
+    }
     return render_template('nomina_periodo_detalle.html',
-                           p=periodo, detalles=detalles, pila_status=pila_status)
+                           p=periodo, detalles=detalles, pila_status=pila_status, resumen=resumen,
+                           catalogo=CATALOGO_NOVEDADES)
+
 
 @nomina_bp.route('/periodos/<int:id>/aprobar', methods=['POST'])
 def periodo_aprobar(id):
@@ -440,98 +546,48 @@ def periodo_desprendible(periodo_id, empleado_id):
             WHERE periodo_id = %s AND empleado_id = %s
         """, (periodo_id, empleado_id))
         detalle = cur.fetchone()
-        
+
+    if not periodo or not empleado:
+        flash('No se encontró el periodo o la persona.', 'warning')
+        return redirect(url_for('nomina.periodos_lista'))
     return render_template('nomina_desprendible.html', p=periodo, e=empleado, d=detalle)
 
 @nomina_bp.route('/periodos/<int:id>/calcular', methods=['POST'])
 def periodo_calcular(id):
     try:
-        resultado = None
         with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute("SELECT * FROM nomina_periodos WHERE id = %s", (id,))
-            periodo = cur.fetchone()
-            if not periodo:
-                flash('Periodo no encontrado.', 'danger')
-                return redirect(url_for('nomina.periodos_lista'))
-
-            estados_validos = ('borrador', 'calculada', 'rechazada')
-            if periodo['estado'] not in estados_validos:
-                flash(f'No se puede recalcular un periodo en estado "{periodo["estado"]}".', 'warning')
-                return redirect(url_for('nomina.periodo_ver', id=id))
-
-            cur.execute("SELECT * FROM nomina_parametros WHERE anio = %s", (periodo['anio'],))
-            params = cur.fetchone()
-            
-            if not params:
-                flash(f"Error: No se encontraron parámetros de nómina para el año {periodo['anio']}. Por favor créelos primero en la sección de Parámetros.", "danger")
-                return redirect(url_for('nomina.periodos_lista'))
-
-            cur.execute("SELECT * FROM nomina_empleados WHERE activo = TRUE")
-            empleados = [dict(row) for row in cur.fetchall()]
-
-            cur.execute("""
-                SELECT periodo_id, empleado_id, UPPER(tipo_novedad) AS tipo_novedad,
-                       COALESCE(SUM(cantidad), 0) AS cantidad,
-                       COALESCE(SUM(valor_total), 0) AS valor_total
-                FROM nomina_novedades
-                WHERE periodo_id = %s
-                GROUP BY periodo_id, empleado_id, UPPER(tipo_novedad)
-            """, (id,))
-            novedades = [dict(row) for row in cur.fetchall()]
-
-            resultado = calcular_nomina_periodo_inteligente(
-                dict(periodo),
-                dict(params),
-                empleados,
-                novedades,
-            )
-
-            cur.execute("DELETE FROM nomina_detalle WHERE periodo_id=%s", (id,))
-            for detalle in resultado['detalles']:
-                cur.execute("""
-                    INSERT INTO nomina_detalle (
-                        periodo_id, empleado_id, dias_trabajados,
-                        sueldo_basico, auxilio_transporte, horas_extras, total_devengado,
-                        salud_empleado, pension_empleado, fondo_solidaridad, retencion_fuente, total_deducido,
-                        neto_pagar
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """, (
-                    id,
-                    detalle['empleado_id'],
-                    detalle['dias_trabajados'],
-                    detalle['sueldo_basico'],
-                    detalle['auxilio_transporte'],
-                    detalle['horas_extras'],
-                    detalle['total_devengado'],
-                    detalle['salud_empleado'],
-                    detalle['pension_empleado'],
-                    detalle['fondo_solidaridad'],
-                    detalle['retencion_fuente'],
-                    detalle['total_deducido'],
-                    detalle['neto_pagar'],
-                ))
-
-            # Actualizar estado periodo
-            cur.execute("UPDATE nomina_periodos SET estado='calculada' WHERE id=%s", (id,))
-
-        alertas = resultado.get('alertas', []) if resultado else []
-        for alerta in alertas[:8]:
-            flash(alerta.get('mensaje', 'Se generó una alerta de validación.'), alerta.get('nivel', 'warning'))
-        if len(alertas) > 8:
-            flash(f"Se generaron {len(alertas)} alertas normativas. Se muestran las primeras 8.", 'warning')
-
-        resumen = resultado.get('resumen', {}) if resultado else {}
-        flash(
-            (
-                "Cálculo de nómina realizado exitosamente. "
-                f"Procesados {resumen.get('empleados', 0)} empleados y "
-                f"{resumen.get('contratistas', 0)} contratistas."
-            ),
-            'success'
-        )
+            resultado = nomina_service.calcular_y_guardar_periodo(cur, id)
+    except nomina_service.PeriodoBloqueado as e:
+        flash(str(e), 'warning')
+        return redirect(url_for('nomina.periodo_ver', id=id))
+    except ValueError as e:
+        flash(str(e), 'danger')
+        return redirect(url_for('nomina.periodos_lista'))
     except Exception as e:
+        current_app.logger.exception('nomina: error calculando el periodo %s', id)
         flash(f'Error en el cálculo: {str(e)}', 'danger')
-        
+        return redirect(url_for('nomina.periodo_ver', id=id))
+
+    resumen = resultado.get('resumen', {})
+    alertas = resultado.get('alertas', [])
+    mensaje = (
+        f"Nómina calculada: {resumen.get('empleados', 0)} empleados y "
+        f"{resumen.get('contratistas', 0)} contratistas."
+    )
+    if alertas:
+        mensaje += f" Revisa {len(alertas)} aviso(s) en el detalle del periodo."
+    flash(mensaje, 'success')
+    return redirect(url_for('nomina.periodo_ver', id=id))
+
+
+@nomina_bp.route('/periodos/<int:id>/pagar', methods=['POST'])
+def periodo_pagar(id):
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            nomina_service.marcar_pagada(cur, id)
+        flash('Periodo marcado como pagado. Ya no se puede modificar.', 'success')
+    except ValueError as e:
+        flash(str(e), 'warning')
     return redirect(url_for('nomina.periodo_ver', id=id))
 
 @nomina_bp.route('/novedades')
@@ -551,74 +607,124 @@ def novedades_lista():
 @nomina_bp.route('/novedades/crear', methods=['GET', 'POST'])
 def novedades_crear():
     if request.method == 'POST':
-        periodo_id = request.form.get('periodo_id')
-        empleado_id = request.form.get('empleado_id')
-        tipo = request.form.get('tipo_novedad')
-        cantidad = float(request.form.get('cantidad'))
-        fecha = request.form.get('fecha_novedad')
-        observacion = request.form.get('observacion')
-        
+        f = request.form
+        tipo = (f.get('tipo_novedad') or '').strip().upper()
+        info = CATALOGO_NOVEDADES.get(tipo)
+        valor_escrito = (f.get('valor_total') or '').strip().replace(',', '.')
         try:
-            with get_db_cursor() as cur:
-                # 1. Obtener datos del empleado y periodo
+            periodo_id = int(f.get('periodo_id') or 0)
+            empleado_id = int(f.get('empleado_id') or 0)
+            cantidad = float((f.get('cantidad') or '0').replace(',', '.'))
+            valor_manual = float(valor_escrito) if valor_escrito else None
+        except ValueError:
+            flash('Revisa el periodo, el empleado, la cantidad y el valor: hay un dato que no es un número.', 'danger')
+            return redirect(url_for('nomina.novedades_crear'))
+
+        if not info:
+            flash('Elige un tipo de novedad de la lista.', 'danger')
+            return redirect(url_for('nomina.novedades_crear'))
+        if info['unidad'] == 'valor':
+            cantidad = cantidad if cantidad > 0 else 1
+            if not valor_manual or valor_manual <= 0:
+                flash(f"Para «{info['nombre']}» escribe el valor en pesos.", 'danger')
+                return redirect(url_for('nomina.novedades_crear'))
+        elif cantidad <= 0:
+            flash(f"Escribe cuántas {info['unidad']} corresponden a la novedad.", 'danger')
+            return redirect(url_for('nomina.novedades_crear'))
+        if valor_manual is not None and valor_manual < 0:
+            flash('El valor no puede ser negativo.', 'danger')
+            return redirect(url_for('nomina.novedades_crear'))
+
+        fecha = f.get('fecha_novedad') or None
+        try:
+            with get_db_cursor(dict_cursor=True) as cur:
+                periodo = nomina_service.validar_periodo_editable(cur, periodo_id)
                 cur.execute("SELECT salario_base FROM nomina_empleados WHERE id = %s", (empleado_id,))
                 emp = cur.fetchone()
-                if not emp: raise Exception("Empleado no encontrado")
-                salario = float(emp[0]) # index 0 for tuple cursor, or use dict_cursor? standard cursor is tuple by default in typical usage unless specified
-                
-                cur.execute("SELECT anio FROM nomina_periodos WHERE id = %s", (periodo_id,))
-                per = cur.fetchone()
-                anio = per[0]
-                
-                cur.execute("SELECT salario_minimo FROM nomina_parametros WHERE anio = %s", (anio,))
+                if not emp:
+                    raise ValueError('Empleado no encontrado.')
+                cur.execute("SELECT salario_minimo FROM nomina_parametros WHERE anio = %s", (periodo['anio'],))
                 param = cur.fetchone()
-                if not param: raise Exception("Parámetros del año no encontrados")
-                smmlv = float(param[0])
+                if not param:
+                    raise ValueError(f"No hay parámetros de nómina para {periodo['anio']}. Créelos primero.")
 
-                # 2. Calcular valor
-                valor_total = 0
-                
-                if tipo in ['HED', 'HEN', 'HEDF', 'HENF', 'RN', 'RD']:
-                    valor_hora = calcular_valor_hora(salario)
-                    # Fecha del recargo: RD (dominical/festivo) usa factor gradual
-                    # por Ley 2466/2025 según la fecha de la novedad.
-                    try:
-                        fecha_dt = datetime.strptime(fecha, '%Y-%m-%d').date() if fecha else None
-                    except (ValueError, TypeError):
-                        fecha_dt = None
-                    valor_total = calcular_horas_extras(valor_hora, tipo, cantidad, fecha_dt)
-                elif 'INCAPACIDAD' in tipo or 'LICENCIA' in tipo:
-                    # Asumimos que cantidad son dias
-                    valor_total = calcular_incapacidad(salario, cantidad, tipo, smmlv)
+                if valor_manual is not None:
+                    valor_total = valor_manual
                 else:
-                    # Otros / Bonificaciones manuales?
-                    # Si tiene un campo valor unitario, se podria usar.
-                    if request.form.get('valor_total'):
-                        valor_total = float(request.form.get('valor_total'))
-                        
-                # 3. Insertar
+                    valor_total = valor_novedad(
+                        tipo, cantidad, float(emp['salario_base']), float(param['salario_minimo']),
+                        fecha or periodo['fecha_fin'],
+                    ) or 0.0
+
                 cur.execute("""
-                    INSERT INTO nomina_novedades 
-                    (periodo_id, empleado_id, tipo_novedad, cantidad, valor_total, fecha_novedad, observacion)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """, (periodo_id, empleado_id, tipo, cantidad, valor_total, fecha, observacion))
-                
-            flash('Novedad registrada exitosamente.', 'success')
+                    INSERT INTO nomina_novedades
+                        (periodo_id, empleado_id, tipo_novedad, cantidad, valor_total, fecha_novedad, observacion, valor_manual)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """, (periodo_id, empleado_id, tipo, cantidad, round(valor_total, 2), fecha,
+                      f.get('observacion'), valor_manual is not None))
+                nomina_service.marcar_para_recalculo(cur, periodo_id)
+
+            flash(f"Novedad registrada: {info['nombre']} por {formatear_moneda(valor_total)}.", 'success')
             return redirect(url_for('nomina.novedades_lista'))
-            
+        except ValueError as e:
+            flash(str(e), 'danger')
         except Exception as e:
+            current_app.logger.exception('nomina: error registrando novedad')
             flash(f'Error al registrar novedad: {str(e)}', 'danger')
-    
-    # GET: Prepare form data
+
     with get_db_cursor(dict_cursor=True) as cur:
-        cur.execute("SELECT id, nombres, apellidos FROM nomina_empleados WHERE activo = TRUE ORDER BY apellidos")
+        cur.execute("""
+            SELECT id, nombres, apellidos, salario_base, tipo_vinculacion
+            FROM nomina_empleados WHERE activo = TRUE ORDER BY apellidos, nombres
+        """)
         empleados = cur.fetchall()
-        
-        # Periodos activos o abiertos (estado borrador)
-        cur.execute("SELECT * FROM nomina_periodos WHERE estado = 'borrador' ORDER BY id DESC")
+        cur.execute(
+            "SELECT * FROM nomina_periodos WHERE estado IN %s ORDER BY id DESC",
+            (nomina_service.ESTADOS_RECALCULABLES,),
+        )
         periodos = cur.fetchall()
-        
-    return render_template('nomina_novedad_form.html', empleados=empleados, periodos=periodos)
+
+    return render_template(
+        'nomina_novedad_form.html',
+        empleados=empleados,
+        periodos=periodos,
+        catalogo=CATALOGO_NOVEDADES,
+        factores=factores_horas_extras(),
+        horas_mes_hoy=horas_mes(),
+        hora_nocturna=hora_inicio_nocturna(),
+    )
+
+
+@nomina_bp.route('/novedades/valor')
+def novedad_valor():
+    """Vista previa del valor de una novedad (solo lectura, para el formulario)."""
+    tipo = (request.args.get('tipo') or '').upper()
+    try:
+        empleado_id = int(request.args.get('empleado_id') or 0)
+        cantidad = float((request.args.get('cantidad') or '0').replace(',', '.'))
+    except ValueError:
+        return jsonify(ok=False), 400
+    fecha = request.args.get('fecha') or None
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute("SELECT salario_base FROM nomina_empleados WHERE id = %s", (empleado_id,))
+        emp = cur.fetchone()
+        anio = int((fecha or str(datetime.now().year))[:4])
+        cur.execute("SELECT salario_minimo FROM nomina_parametros WHERE anio = %s", (anio,))
+        param = cur.fetchone()
+    if not emp or tipo not in CATALOGO_NOVEDADES:
+        return jsonify(ok=False), 404
+    smmlv = float(param['salario_minimo']) if param else 0.0
+    salario = float(emp['salario_base'])
+    valor = valor_novedad(tipo, cantidad, salario, smmlv, fecha)
+    respuesta = {'ok': True, 'manual': valor is None, 'valor': round(valor or 0, 2),
+                 'valor_texto': formatear_moneda(valor or 0)}
+    if tipo in TIPOS_EXTRAS:
+        respuesta.update(factor=factor_hora(tipo, fecha), horas_mes=horas_mes(fecha),
+                         valor_hora=round(calcular_valor_hora(salario, fecha), 2))
+    if tipo in TIPOS_LICENCIAS_REMUNERADAS:
+        d = desglose_incapacidad(salario, cantidad, tipo, smmlv)
+        respuesta.update(empresa=round(d['empresa'], 2), cobrar=round(d['cobrar'], 2), entidad=d['entidad'])
+    return jsonify(respuesta)
 
 @nomina_bp.route('/liquidaciones')
 def liquidaciones_lista():
@@ -634,96 +740,47 @@ def liquidaciones_lista():
 
 @nomina_bp.route('/liquidaciones/crear', methods=['GET', 'POST'])
 def liquidacion_crear():
+    preview = None
+    form = {}
     if request.method == 'POST':
-        empleado_id = request.form.get('empleado_id')
-        fecha_retiro = request.form.get('fecha_retiro')
-        motivo = request.form.get('motivo_retiro')
-        
+        f = request.form
+        form = f.to_dict()
+        accion = f.get('accion') or 'previsualizar'
+        motivo = (f.get('motivo_retiro') or '').upper()
+        ajustes = {k: (f.get(k) or '').replace(',', '.') for k in
+                   ('dias_vacaciones_pendientes', 'salarios_pendientes', 'deducciones_pendientes')}
         try:
+            empleado_id = int(f.get('empleado_id') or 0)
+            if motivo not in MOTIVOS_RETIRO:
+                raise ValueError('Elige el motivo del retiro.')
             with get_db_cursor(dict_cursor=True) as cur:
-                # 1. Obtener datos empleado
-                cur.execute("SELECT * FROM nomina_empleados WHERE id=%s", (empleado_id,))
-                e = cur.fetchone()
-                
-                # Obtener año de los parámetros (del año de retiro)
-                anio_retiro = datetime.strptime(fecha_retiro, '%Y-%m-%d').year
-                cur.execute("SELECT * FROM nomina_parametros WHERE anio=%s", (anio_retiro,))
-                params = cur.fetchone()
-                
-                if not params:
-                    flash(f"Error: No se encontraron parámetros de nómina para el año {anio_retiro}. Por favor créelos primero.", "danger")
-                    return redirect(url_for('nomina.liquidaciones_lista'))
-                
-                smmlv = params['salario_minimo']
-                
-                fecha_retiro_dt = datetime.strptime(fecha_retiro, '%Y-%m-%d').date()
-                salario_base = float(e['salario_base'])
-
-                # 2. Calcular indemnización
-                indemnizacion = calcular_indemnizacion(
-                    salario_base, e['tipo_vinculacion'], e['fecha_ingreso'],
-                    fecha_retiro_dt, float(smmlv),
-                    fecha_fin_contrato=e.get('fecha_fin_contrato')
-                )
-
-                # 3. Prestaciones — sobre los días realmente laborados
-                # (semestre actual para cesantías/prima; año para vacaciones)
-                dias_total = dias_360(e['fecha_ingreso'], fecha_retiro_dt)
-
-                # Inicio del semestre vigente (1 ene o 1 jul del año del retiro)
-                if fecha_retiro_dt.month <= 6:
-                    inicio_semestre = fecha_retiro_dt.replace(month=1, day=1)
+                if accion == 'confirmar':
+                    liquidacion_id, _ = nomina_service.guardar_liquidacion(
+                        cur, empleado_id, f.get('fecha_retiro'), motivo, ajustes)
                 else:
-                    inicio_semestre = fecha_retiro_dt.replace(month=7, day=1)
-                if e['fecha_ingreso'] and e['fecha_ingreso'] > inicio_semestre:
-                    inicio_semestre = e['fecha_ingreso']
-                dias_semestre = dias_360(inicio_semestre, fecha_retiro_dt)
+                    preview = nomina_service.preparar_liquidacion(
+                        cur, empleado_id, f.get('fecha_retiro'), motivo, ajustes)
+            if accion == 'confirmar':
+                flash('Liquidación generada. El empleado quedó inactivo.', 'success')
+                return redirect(url_for('nomina.liquidacion_ver', id=liquidacion_id))
+        except ValueError as e:
+            flash(str(e), 'danger')
+            preview = None
+        except Exception as e:
+            current_app.logger.exception('nomina: error en la liquidación')
+            flash(f'Error al generar la liquidación: {str(e)}', 'danger')
+            preview = None
 
-                # Inicio del año vigente para vacaciones
-                inicio_anio = fecha_retiro_dt.replace(month=1, day=1)
-                if e['fecha_ingreso'] and e['fecha_ingreso'] > inicio_anio:
-                    inicio_anio = e['fecha_ingreso']
-                dias_anio = dias_360(inicio_anio, fecha_retiro_dt)
-
-                dias_prop = dias_semestre  # se guarda como referencia del periodo liquidado
-
-                cesantias = (salario_base * dias_semestre) / 360
-                intereses = (cesantias * dias_semestre * 0.12) / 360
-                prima = (salario_base * dias_semestre) / 360
-                vacaciones = (salario_base * dias_anio) / 720
-                
-                total = cesantias + intereses + prima + vacaciones + indemnizacion
-                
-                # 4. Guardar
-                cur.execute("""
-                    INSERT INTO nomina_liquidaciones (
-                        empleado_id, fecha_retiro, motivo_retiro, 
-                        dias_liquidacion, salario_base_liquidacion,
-                        cesantias, intereses_cesantias, prima_servicios, vacaciones, indemnizacion, 
-                        total_pagar
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """, (
-                    empleado_id, fecha_retiro, motivo,
-                    dias_prop, e['salario_base'],
-                    cesantias, intereses, prima, vacaciones, indemnizacion,
-                    total
-                ))
-                
-                # Marcar empleado inactivo
-                cur.execute("UPDATE nomina_empleados SET activo=FALSE, fecha_retiro=%s WHERE id=%s", (fecha_retiro, empleado_id))
-                
-            flash('Liquidación generada exitosamente.', 'success')
-            return redirect(url_for('nomina.liquidaciones_lista'))
-            
-        except Exception as ex:
-             flash(f'Error al generar liquidación: {str(ex)}', 'danger')
-             
-    # GET: Formulario
     with get_db_cursor(dict_cursor=True) as cur:
-        cur.execute("SELECT * FROM nomina_empleados WHERE activo = TRUE ORDER BY nombres, apellidos")
+        cur.execute("""
+            SELECT * FROM nomina_empleados
+            WHERE activo = TRUE AND tipo_vinculacion <> 'CONTRATISTA'
+            ORDER BY nombres, apellidos
+        """)
         empleados = cur.fetchall()
-        
-    return render_template('nomina_liquidacion_form.html', empleados=empleados)
+
+    return render_template('nomina_liquidacion_form.html', empleados=empleados, preview=preview,
+                           form=form, motivos=MOTIVOS_RETIRO)
 
 @nomina_bp.route('/liquidaciones/ver/<int:id>')
 def liquidacion_ver(id):
@@ -735,4 +792,7 @@ def liquidacion_ver(id):
             WHERE l.id = %s
         """, (id,))
         liq = cur.fetchone()
-    return render_template('nomina_liquidacion_ver.html', l=liq)
+    if not liq:
+        flash('Liquidación no encontrada.', 'warning')
+        return redirect(url_for('nomina.liquidaciones_lista'))
+    return render_template('nomina_liquidacion_ver.html', l=liq, motivos=MOTIVOS_RETIRO)

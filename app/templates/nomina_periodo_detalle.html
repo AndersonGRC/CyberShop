@@ -1,183 +1,297 @@
 {% extends "public/layout_admin.html" %}
+{% from "nomina_macros.html" import pesos, avisos %}
 
-{% block title %}Detalle Periodo{% endblock %}
+{% block title %}Periodo {{ p.anio }}-{{ '%02d'|format(p.mes) }}{% endblock %}
 
 {% block LinkAdicional %}
 {{ super() }}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/nomina/nomina_periodo_detalle.css') }}">
 {% endblock %}
 
+{% macro explica(d) -%}
+{% set c = d.calculo if d.calculo is defined and d.calculo else none %}
+{% if c %}
+<details class="nm-explica">
+    <summary>¿Cómo se calculó?</summary>
+    <dl>
+        {% if c.tipo == 'CONTRATISTA' %}
+        <dt>Honorarios del mes</dt><dd>{{ pesos(c.honorarios_mes) }}</dd>
+        <dt>IBC (40 %, mín. 1 SMMLV)</dt><dd>{{ pesos(c.ibc) }}</dd>
+        <dt>Salud 12,5 % (PILA)</dt><dd>{{ pesos(c.pila.salud) }}</dd>
+        <dt>Pensión 16 % (PILA)</dt><dd>{{ pesos(c.pila.pension) }}</dd>
+        {% if c.pila.fsp %}<dt>Fondo de solidaridad</dt><dd>{{ pesos(c.pila.fsp) }}</dd>{% endif %}
+        <dt>ARL riesgo {{ c.nivel_arl }}{% if c.arl_empresa %} (la paga la empresa){% endif %}</dt><dd>{{ pesos(c.pila.arl or c.arl_empresa) }}</dd>
+        <dt>Retención · {{ c.retencion.norma }}</dt><dd>{{ pesos(c.retencion.valor) }}</dd>
+        {% else %}
+        <dt>Salario base</dt><dd>{{ pesos(c.salario_base) }}</dd>
+        <dt>Días trabajados / del periodo</dt><dd>{{ c.dias.trabajados }} / {{ c.dias.periodo }}</dd>
+        {% if c.dias.remunerados_novedad or c.dias.no_remunerados %}
+        <dt>Días en incapacidad, licencia o vacaciones</dt><dd>{{ "%g"|format(c.dias.remunerados_novedad) }}{% if c.dias.no_remunerados %} + {{ "%g"|format(c.dias.no_remunerados) }} sin pago{% endif %}</dd>
+        {% endif %}
+        <dt>Valor hora (salario ÷ {{ c.horas_mes }} h)</dt><dd>{{ pesos(c.valor_hora) }}</dd>
+        <dt>IBC seguridad social</dt><dd>{{ pesos(c.ibc) }}</dd>
+        {% if c.exceso_no_salarial_40 %}<dt>No salarial sobre el 40 % (Ley 1393)</dt><dd>{{ pesos(c.exceso_no_salarial_40) }}</dd>{% endif %}
+        {% if c.fsp_pct %}<dt>Fondo de solidaridad</dt><dd>{{ c.fsp_pct }} %</dd>{% endif %}
+        <dt>Exonerado Art. 114-1</dt><dd>{{ 'Sí' if c.exonerado_114_1 else 'No' }}</dd>
+        {% if c.retencion_pasos and c.retencion_pasos.base_gravable %}
+        <dt>Base de retención (mes)</dt><dd>{{ pesos(c.retencion_pasos.base_gravable) }}</dd>
+        {% endif %}
+        <dt>Costo total para la empresa</dt><dd><strong>{{ pesos(c.costo_empresa) }}</strong></dd>
+        {% endif %}
+    </dl>
+</details>
+{% endif %}
+{%- endmacro %}
+
 {% block content %}
+{% set orden = ['borrador', 'calculada', 'aprobada', 'pagada'] %}
+{% set actual = 'borrador' if p.estado == 'rechazada' else p.estado %}
+{% set empleados = detalles | rejectattr('tipo_vinculacion', 'equalto', 'CONTRATISTA') | list %}
+{% set contratistas = detalles | selectattr('tipo_vinculacion', 'equalto', 'CONTRATISTA') | list %}
 <div class="container-fluid">
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <div class="d-sm-flex align-items-center justify-content-between mb-3">
         <h1 class="h3 mb-0 text-gray-800">
-            Periodo {{ p.anio }}-{{ p.mes }}
-            {% if p.numero_periodo == 1 %}(Quincena 1){% elif p.numero_periodo == 2 %}(Quincena 2){% else %}(Mensual){% endif %}
+            Periodo {{ p.anio }}-{{ '%02d'|format(p.mes) }}
+            {% if p.numero_periodo == 1 %}· quincena 1{% elif p.numero_periodo == 2 %}· quincena 2{% else %}· mensual{% endif %}
+            <small class="text-muted d-block h6 mt-1">{{ p.fecha_inicio }} a {{ p.fecha_fin }}</small>
         </h1>
         <div class="btn-periodo-acciones">
             {% if p.estado in ('borrador', 'calculada', 'rechazada') %}
             <form action="{{ url_for('nomina.periodo_calcular', id=p.id) }}" method="POST" class="d-inline">
-                <button type="submit" class="btn btn-sm btn-primary shadow-sm">
-                    <i class="fas fa-calculator fa-sm text-white-50"></i>
-                    {% if p.estado == 'rechazada' %}Recalcular Nómina{% else %}Calcular Nómina{% endif %}
+                <button type="submit" class="btn btn-primary nm-btn">
+                    <i class="fas fa-calculator" aria-hidden="true"></i>
+                    {% if p.estado == 'borrador' and not detalles %}Calcular nómina{% else %}Recalcular nómina{% endif %}
                 </button>
             </form>
             {% endif %}
-
             {% if p.estado == 'calculada' %}
             <form action="{{ url_for('nomina.periodo_aprobar', id=p.id) }}" method="POST" class="d-inline">
-                <button type="submit" class="btn btn-sm btn-success shadow-sm">
-                    <i class="fas fa-check fa-sm text-white-50"></i> Aprobar
-                </button>
+                <button type="submit" class="btn btn-success nm-btn"><i class="fas fa-check" aria-hidden="true"></i> Aprobar</button>
             </form>
-            <button type="button" class="btn btn-sm btn-danger shadow-sm" id="btn-rechazar">
-                <i class="fas fa-times fa-sm text-white-50"></i> Rechazar
-            </button>
-            <form action="{{ url_for('nomina.periodo_rechazar', id=p.id) }}" method="POST" id="form-rechazar" class="d-none">
+            <button type="button" class="btn btn-outline-danger nm-btn" id="btn-rechazar"><i class="fas fa-times" aria-hidden="true"></i> Rechazar</button>
+            <form action="{{ url_for('nomina.periodo_rechazar', id=p.id) }}" method="POST" id="form-rechazar" hidden>
                 <input type="hidden" name="motivo" id="input-motivo-rechazo" value="">
             </form>
             {% endif %}
-
             {% if p.estado == 'aprobada' %}
-            <span class="badge badge-success px-3 py-2"><i class="fas fa-check-circle"></i> Aprobada</span>
-            {% endif %}
-            {% if p.estado == 'rechazada' %}
-            <span class="badge badge-danger px-3 py-2"><i class="fas fa-ban"></i> Rechazada</span>
+            <form action="{{ url_for('nomina.periodo_pagar', id=p.id) }}" method="POST" class="d-inline" id="form-pagar">
+                <button type="submit" class="btn btn-success nm-btn"><i class="fas fa-money-bill-wave" aria-hidden="true"></i> Marcar como pagado</button>
+            </form>
             {% endif %}
         </div>
     </div>
 
-    {% if p.estado == 'borrador' %}
-    <div class="alert alert-info py-2 mb-3" style="font-size:0.88rem;">
-        <i class="fas fa-lightbulb"></i> <strong>Borrador:</strong> registra primero las
-        <a href="{{ url_for('nomina.novedades_crear') }}">novedades</a> del periodo (extras, incapacidades, bonos).
-        Luego presiona <em>Calcular Nómina</em>. Podrás recalcular las veces que necesites mientras esté en borrador o rechazada.
-    </div>
+    <ol class="nm-pasos" aria-label="Estado del periodo">
+        {% for paso in orden %}
+        {% set idx = orden.index(paso) %}
+        {% set idx_actual = orden.index(actual) if actual in orden else 0 %}
+        <li class="{{ 'actual' if paso == actual else ('hecho' if idx < idx_actual else '') }}" {% if paso == actual %}aria-current="step"{% endif %}>
+            {{ {'borrador': 'Borrador', 'calculada': 'Calculada', 'aprobada': 'Aprobada', 'pagada': 'Pagada'}[paso] }}
+        </li>
+        {% endfor %}
+    </ol>
+
+    {% if p.estado == 'rechazada' %}
+    <div class="nm-aviso danger mb-3" role="status">Periodo rechazado: corrija las novedades o los datos y vuelva a calcular.</div>
+    {% elif p.estado == 'borrador' %}
+    <div class="nm-aviso mb-3">Registre primero las <a href="{{ url_for('nomina.novedades_crear') }}">novedades</a> (extras, incapacidades, vacaciones, bonos o descuentos) y luego calcule. Puede recalcular las veces que necesite.</div>
     {% elif p.estado == 'calculada' %}
-    <div class="alert alert-warning py-2 mb-3" style="font-size:0.88rem;">
-        <i class="fas fa-eye"></i> <strong>Calculada:</strong> revisa los valores. Si todo está correcto, presiona
-        <em>Aprobar</em>. Si encuentras un error, <em>Rechaza</em> y vuelve a calcular.
-    </div>
+    <div class="nm-aviso warning mb-3">Revise los valores y los avisos. Si todo está bien, apruebe; si encuentra un error, rechace y vuelva a calcular.</div>
     {% elif p.estado == 'aprobada' %}
-    <div class="alert alert-success py-2 mb-3" style="font-size:0.88rem;">
-        <i class="fas fa-check-circle"></i> <strong>Aprobada:</strong> ya puedes imprimir los desprendibles y pagar.
+    <div class="nm-aviso mb-3">Aprobada: imprima los desprendibles, pague y márquelo como pagado. Ya no se puede modificar.</div>
+    {% elif p.estado == 'pagada' %}
+    <div class="nm-aviso mb-3">Pagada{% if p.pagado_at is defined and p.pagado_at %} el {{ p.pagado_at.strftime('%d/%m/%Y') }}{% endif %}. El periodo está cerrado.</div>
+    {% endif %}
+
+    {% if detalles %}
+    <div class="nm-resumen" role="group" aria-label="Totales del periodo">
+        <div class="nm-dato"><span>Total devengado</span><strong>{{ pesos(resumen.devengado) }}</strong></div>
+        <div class="nm-dato"><span>Deducciones</span><strong>{{ pesos(resumen.deducido) }}</strong></div>
+        <div class="nm-dato"><span>Neto a pagar</span><strong>{{ pesos(resumen.neto) }}</strong></div>
+        <div class="nm-dato"><span>Aportes de la empresa</span><strong>{{ pesos(resumen.aportes) }}</strong></div>
+        <div class="nm-dato"><span>Provisiones (prestaciones)</span><strong>{{ pesos(resumen.provisiones) }}</strong></div>
+        <div class="nm-dato"><span>Costo real de la nómina</span><strong>{{ pesos(resumen.costo) }}</strong></div>
     </div>
     {% endif %}
 
-    <div class="card shadow mb-4">
+    {% if p.alertas is defined and p.alertas %}
+    <section aria-labelledby="titulo_avisos" class="mb-3">
+        <h2 class="h6 font-weight-bold" id="titulo_avisos">Avisos del cálculo ({{ p.alertas|length }})</h2>
+        {{ avisos(p.alertas) }}
+    </section>
+    {% endif %}
+
+    {% if p.motor_version is defined and p.motor_version %}
+    <p class="nm-ayuda small">Calculado con el motor {{ p.motor_version }}{% if p.parametros_usados %}: salario mínimo {{ pesos(p.parametros_usados.salario_minimo) }}, UVT {{ pesos(p.parametros_usados.uvt) }}, {{ p.parametros_usados.horas_mes }} horas al mes, recargo dominical {{ (p.parametros_usados.recargo_dominical * 100)|round|int }} %{% endif %}.</p>
+    {% elif detalles %}
+    <p class="nm-ayuda small">Este periodo se calculó con una versión anterior del motor. {% if p.estado in ('borrador', 'calculada', 'rechazada') %}Recalcúlelo para aplicar las reglas vigentes.{% endif %}</p>
+    {% endif %}
+
+    <section class="card shadow mb-4" aria-labelledby="titulo_empleados">
         <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Estado: <span class="text-uppercase">{{ p.estado }}</span></h6>
+            <h2 class="h6 m-0 font-weight-bold text-primary" id="titulo_empleados">Empleados ({{ empleados|length }})</h2>
         </div>
         <div class="card-body">
+            {% if empleados %}
             <div class="table-responsive">
-                <table class="table table-bordered table-sm table-nomina nm-cards" id="dataTable" width="100%" cellspacing="0">
+                <table class="table table-bordered table-sm table-nomina nm-cards">
+                    <caption class="sr-only">Liquidación de empleados del periodo</caption>
                     <thead>
                         <tr>
-                            <th>Empleado</th>
-                            <th>Días</th>
-                            <th>Básico</th>
-                            <th>Aux. Trans</th>
-                            <th>Extras</th>
-                            <th>Total Dev.</th>
-                            <th>Salud</th>
-                            <th>Pensión</th>
-                            <th>Deducciones</th>
-                            <th>Neto Pagar</th>
-                            <th>Acciones</th>
+                            <th scope="col">Empleado</th>
+                            <th scope="col">Días</th>
+                            <th scope="col" class="text-right">Básico</th>
+                            <th scope="col" class="text-right">Aux. transporte</th>
+                            <th scope="col" class="text-right">Extras y recargos</th>
+                            <th scope="col" class="text-right">Otros pagos</th>
+                            <th scope="col" class="text-right">Total devengado</th>
+                            <th scope="col" class="text-right">Deducciones</th>
+                            <th scope="col" class="text-right">Neto a pagar</th>
+                            <th scope="col"><span class="sr-only">Desprendible</span></th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for d in detalles %}
-                        {% if d.tipo_vinculacion != 'CONTRATISTA' %}
+                        {% for d in empleados %}
+                        {% set otros = (d.comisiones or 0) + (d.bonificaciones or 0) + (d.incapacidades or 0) + (d.licencias or 0) %}
                         <tr>
-                            <td class="col-nombre" data-label="Empleado">{{ d.nombres }} {{ d.apellidos }}</td>
+                            <th scope="row" class="col-nombre font-weight-normal" data-label="Empleado">
+                                {{ d.nombres }} {{ d.apellidos }}
+                                <small class="text-muted d-block">{{ d.cargo or '' }}</small>
+                                {{ explica(d) }}
+                            </th>
                             <td data-label="Días">{{ d.dias_trabajados }}</td>
-                            <td class="col-cifra text-right" data-label="Básico">{{ '${:,.0f}'.format(d.sueldo_basico) }}</td>
-                            <td class="col-cifra text-right" data-label="Aux. Trans">{{ '${:,.0f}'.format(d.auxilio_transporte) }}</td>
-                            <td class="col-cifra text-right" data-label="Extras">{{ '${:,.0f}'.format(d.horas_extras) }}</td>
-                            <td class="col-cifra text-right font-weight-bold" data-label="Total Dev.">{{ '${:,.0f}'.format(d.total_devengado) }}</td>
-                            <td class="col-cifra text-right" data-label="Salud">{{ '${:,.0f}'.format(d.salud_empleado) }}</td>
-                            <td class="col-cifra text-right" data-label="Pensión">{{ '${:,.0f}'.format(d.pension_empleado) }}</td>
-                            <td class="col-cifra text-right" data-label="Deducciones">{{ '${:,.0f}'.format(d.total_deducido) }}</td>
-                            <td class="col-cifra col-neto text-right" data-label="Neto Pagar">{{ '${:,.0f}'.format(d.neto_pagar) }}</td>
-                            <td class="text-center" data-label="Acciones">
+                            <td class="col-cifra text-right" data-label="Básico">{{ pesos(d.sueldo_basico) }}</td>
+                            <td class="col-cifra text-right" data-label="Aux. transporte">{{ pesos(d.auxilio_transporte) }}</td>
+                            <td class="col-cifra text-right" data-label="Extras y recargos">{{ pesos(d.horas_extras) }}</td>
+                            <td class="col-cifra text-right" data-label="Otros pagos">{{ pesos(otros) }}</td>
+                            <td class="col-cifra text-right font-weight-bold" data-label="Total devengado">{{ pesos(d.total_devengado) }}</td>
+                            <td class="col-cifra text-right" data-label="Deducciones">{{ pesos(d.total_deducido) }}</td>
+                            <td class="col-cifra col-neto text-right" data-label="Neto a pagar">{{ pesos(d.neto_pagar) }}</td>
+                            <td class="text-center" data-label="Desprendible">
                                 <a href="{{ url_for('nomina.periodo_desprendible', periodo_id=p.id, empleado_id=d.empleado_id) }}"
-                                    target="_blank" class="btn btn-sm btn-circle btn-primary"
-                                    title="Imprimir Desprendible">
-                                    <i class="fas fa-print"></i>
+                                    target="_blank" rel="noopener" class="btn btn-sm btn-primary nm-btn"
+                                    aria-label="Desprendible de {{ d.nombres }} {{ d.apellidos }} (abre en otra pestaña)">
+                                    <i class="fas fa-print" aria-hidden="true"></i>
                                 </a>
                             </td>
                         </tr>
-                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="mb-0 text-muted">{{ 'Aún no se ha calculado este periodo.' if not detalles else 'No hay empleados en este periodo.' }}</p>
+            {% endif %}
+        </div>
+    </section>
+
+    {% if empleados and (resumen.aportes or resumen.provisiones) %}
+    <section class="card shadow mb-4" aria-labelledby="titulo_aportes">
+        <div class="card-header py-3">
+            <h2 class="h6 m-0 font-weight-bold text-primary" id="titulo_aportes">Aportes y provisiones de la empresa</h2>
+        </div>
+        <div class="card-body">
+            <p class="nm-ayuda">Lo que la empresa paga además del salario: seguridad social y parafiscales (PILA) y las prestaciones que se van causando.</p>
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm nm-cards">
+                    <caption class="sr-only">Aportes y provisiones por empleado</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Empleado</th>
+                            <th scope="col" class="text-right">Salud 8,5 %</th>
+                            <th scope="col" class="text-right">Pensión 12 %</th>
+                            <th scope="col" class="text-right">ARL</th>
+                            <th scope="col" class="text-right">Caja 4 %</th>
+                            <th scope="col" class="text-right">ICBF + SENA</th>
+                            <th scope="col" class="text-right">Cesantías e intereses</th>
+                            <th scope="col" class="text-right">Prima</th>
+                            <th scope="col" class="text-right">Vacaciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in empleados %}
+                        <tr>
+                            <th scope="row" class="font-weight-normal" data-label="Empleado">{{ d.nombres }} {{ d.apellidos }}</th>
+                            <td class="text-right" data-label="Salud 8,5 %">{{ pesos(d.salud_empleador) }}</td>
+                            <td class="text-right" data-label="Pensión 12 %">{{ pesos(d.pension_empleador) }}</td>
+                            <td class="text-right" data-label="ARL">{{ pesos(d.arl) }}</td>
+                            <td class="text-right" data-label="Caja 4 %">{{ pesos(d.ccf) }}</td>
+                            <td class="text-right" data-label="ICBF + SENA">{{ pesos((d.icbf or 0) + (d.sena or 0)) }}</td>
+                            <td class="text-right" data-label="Cesantías e intereses">{{ pesos((d.cesantias_provision or 0) + (d.intereses_provision or 0)) }}</td>
+                            <td class="text-right" data-label="Prima">{{ pesos(d.prima_provision) }}</td>
+                            <td class="text-right" data-label="Vacaciones">{{ pesos(d.vacaciones_provision) }}</td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
-    </div>
+    </section>
+    {% endif %}
 
-    {% set hay_contratistas = detalles | selectattr('tipo_vinculacion', 'equalto', 'CONTRATISTA') | list %}
-    {% if hay_contratistas %}
-    <div class="card shadow mb-4 card-contratistas">
+    {% if contratistas %}
+    <section class="card shadow mb-4 card-contratistas" aria-labelledby="titulo_contratistas">
         <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold">
-                <i class="fas fa-file-contract"></i> Contratistas — Seguridad Social (Referencia)
-            </h6>
+            <h2 class="h6 m-0 font-weight-bold text-primary" id="titulo_contratistas"><i class="fas fa-file-contract" aria-hidden="true"></i> Contratistas ({{ contratistas|length }})</h2>
         </div>
         <div class="card-body">
-            <p class="contratistas-nota mb-3">
-                Base de cotización: 40% de honorarios. El contratista paga su propia SS.
-                La empresa paga honorarios completos.
-            </p>
+            <p class="contratistas-nota mb-3">El contratista paga su propia seguridad social en la PILA sobre el 40 % de sus honorarios
+                (mínimo un salario mínimo). Verifique la planilla antes de pagar; al pago solo se le resta la retención en la fuente.</p>
             <div class="table-responsive">
                 <table class="table table-bordered table-sm table-contratistas nm-cards">
+                    <caption class="sr-only">Pagos a contratistas del periodo</caption>
                     <thead>
                         <tr>
-                            <th>Contratista</th>
-                            <th class="text-right">Honorarios</th>
-                            <th class="text-right">Base SS (40%)</th>
-                            <th class="text-right">Salud</th>
-                            <th class="text-right">Pensión</th>
-                            <th class="text-right">ARL</th>
-                            <th class="text-right">Total SS Ref.</th>
-                            <th class="text-center">PILA</th>
-                            <th class="text-center">Acción</th>
+                            <th scope="col">Contratista</th>
+                            <th scope="col" class="text-right">Honorarios</th>
+                            <th scope="col" class="text-right">IBC</th>
+                            <th scope="col" class="text-right">Debe pagar en PILA</th>
+                            <th scope="col" class="text-right">Retención</th>
+                            <th scope="col" class="text-right">Neto a pagar</th>
+                            <th scope="col" class="text-center">PILA</th>
+                            <th scope="col"><span class="sr-only">Cuenta de cobro</span></th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for d in detalles %}
-                        {% if d.tipo_vinculacion == 'CONTRATISTA' %}
-                        {% set base_ss = d.sueldo_basico * 0.40 %}
+                        {% for d in contratistas %}
+                        {% set c = d.calculo if d.calculo is defined and d.calculo else none %}
+                        {% set pila = pila_status.get(d.empleado_id) %}
+                        {% set debe = (d.ss_contratista if d.ss_contratista is defined and d.ss_contratista else ((d.salud_empleado or 0) + (d.pension_empleado or 0) + (d.fondo_solidaridad or 0))) %}
                         <tr>
-                            <td class="col-nombre" data-label="Contratista">{{ d.nombres }} {{ d.apellidos }}<br>
-                                <small class="text-muted">{{ d.numero_documento }}</small></td>
-                            <td class="col-cifra text-right" data-label="Honorarios">{{ '${:,.0f}'.format(d.sueldo_basico) }}</td>
-                            <td class="col-cifra text-right text-muted" data-label="Base SS (40%)">{{ '${:,.0f}'.format(base_ss) }}</td>
-                            <td class="col-cifra text-right" data-label="Salud">{{ '${:,.0f}'.format(d.salud_empleado) }}</td>
-                            <td class="col-cifra text-right" data-label="Pensión">{{ '${:,.0f}'.format(d.pension_empleado) }}</td>
-                            <td class="col-cifra text-right" data-label="ARL">{{ '${:,.0f}'.format(d.fondo_solidaridad) }}</td>
-                            <td class="col-cifra text-right font-weight-bold" data-label="Total SS Ref.">{{ '${:,.0f}'.format(d.total_deducido) }}</td>
+                            <th scope="row" class="col-nombre font-weight-normal" data-label="Contratista">{{ d.nombres }} {{ d.apellidos }}
+                                <small class="text-muted d-block">{{ d.numero_documento }}</small>
+                                {{ explica(d) }}
+                            </th>
+                            <td class="col-cifra text-right" data-label="Honorarios">{{ pesos(d.sueldo_basico) }}</td>
+                            <td class="col-cifra text-right text-muted" data-label="IBC">{{ pesos(d.ibc if d.ibc is defined and d.ibc else (d.sueldo_basico or 0) * 0.4) }}</td>
+                            <td class="col-cifra text-right font-weight-bold" data-label="Debe pagar en PILA">{{ pesos(debe) }}</td>
+                            <td class="col-cifra text-right" data-label="Retención">{{ pesos(d.retencion_fuente) }}</td>
+                            <td class="col-cifra col-neto text-right" data-label="Neto a pagar">{{ pesos(d.neto_pagar) }}</td>
                             <td class="text-center" data-label="PILA">
-                                {% if pila_status.get(d.empleado_id, False) %}
-                                <span class="badge badge-success"><i class="fas fa-check"></i> Verificado</span>
+                                {% if pila and pila.verificado %}
+                                <span class="badge badge-success"><i class="fas fa-check" aria-hidden="true"></i> Verificada</span>
+                                {% if pila.valor_pagado and pila.valor_pagado|float < debe|float - 1000 %}
+                                <small class="text-danger d-block">Pagó {{ pesos(pila.valor_pagado) }}: menos de lo esperado</small>
+                                {% endif %}
                                 {% else %}
-                                <span class="badge badge-warning text-dark"><i class="fas fa-clock"></i> Pendiente</span>
+                                <span class="badge badge-warning text-dark"><i class="fas fa-clock" aria-hidden="true"></i> Pendiente</span>
                                 {% endif %}
                             </td>
-                            <td class="text-center" data-label="Acción">
+                            <td class="text-center" data-label="Cuenta de cobro">
                                 <a href="{{ url_for('nomina.periodo_desprendible', periodo_id=p.id, empleado_id=d.empleado_id) }}"
-                                   target="_blank" class="btn btn-sm btn-outline-secondary" title="Cuenta de Cobro">
-                                    <i class="fas fa-file-invoice"></i>
+                                   target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary nm-btn"
+                                   aria-label="Comprobante de {{ d.nombres }} {{ d.apellidos }} (abre en otra pestaña)">
+                                    <i class="fas fa-file-invoice" aria-hidden="true"></i>
                                 </a>
                             </td>
                         </tr>
-                        {% endif %}
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+            <a href="{{ url_for('nomina.contratistas_lista') }}" class="btn btn-outline-primary nm-btn mt-2">Registrar planillas PILA</a>
         </div>
-    </div>
+    </section>
     {% endif %}
 </div>
 {% endblock %}
@@ -185,18 +299,18 @@
 {% block scripts %}{{ super() }}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const btnRechazar = document.getElementById('btn-rechazar');
+    var css = getComputedStyle(document.documentElement);
+    var btnRechazar = document.getElementById('btn-rechazar');
     if (btnRechazar) {
         btnRechazar.addEventListener('click', function () {
             Swal.fire({
-                title: 'Rechazar Periodo',
-                text: 'Ingrese el motivo del rechazo (opcional):',
+                title: 'Rechazar periodo',
+                text: 'Escriba el motivo del rechazo (opcional):',
                 input: 'textarea',
-                inputPlaceholder: 'Motivo del rechazo...',
+                inputPlaceholder: 'Motivo del rechazo…',
                 showCancelButton: true,
-                confirmButtonColor: '#e74a3b',
-                cancelButtonColor: '#858796',
-                confirmButtonText: 'Confirmar Rechazo',
+                confirmButtonColor: css.getPropertyValue('--color-peligro').trim(),
+                confirmButtonText: 'Confirmar rechazo',
                 cancelButtonText: 'Cancelar',
             }).then(function (result) {
                 if (result.isConfirmed) {
@@ -204,6 +318,21 @@ document.addEventListener('DOMContentLoaded', function () {
                     document.getElementById('form-rechazar').submit();
                 }
             });
+        });
+    }
+    var formPagar = document.getElementById('form-pagar');
+    if (formPagar) {
+        formPagar.addEventListener('submit', function (ev) {
+            ev.preventDefault();
+            Swal.fire({
+                title: '¿Marcar como pagado?',
+                text: 'El periodo quedará cerrado y no se podrá modificar.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: (typeof BRAND_COLOR_BTN !== 'undefined' && BRAND_COLOR_BTN) || css.getPropertyValue('--color-primario').trim(),
+                confirmButtonText: 'Sí, ya se pagó',
+                cancelButtonText: 'Cancelar',
+            }).then(function (r) { if (r.isConfirmed) formPagar.submit(); });
         });
     }
 });

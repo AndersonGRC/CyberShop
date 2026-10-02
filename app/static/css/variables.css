@@ -193,6 +193,14 @@
    --color-exito-tinte: #e8f7ed;
    --color-exito-borde: #b7e4c7;
 
+   /* -- Tintes de aviso e información (avisos del módulo de nómina) -- */
+   --color-warning-tinte: #fff8e1;
+   --color-warning-texto: #6b4f00;
+   --color-info-tinte: #e8f4fd;
+   --color-info-texto: #0b5269;
+   --color-exito-texto: #1d6b34;
+   --color-peligro-texto: #a1202c;
+
    /* ============================================
      BLANCO SEMITRANSPARENTE
      Nav chip, session bar, overlays sobre fondos oscuros

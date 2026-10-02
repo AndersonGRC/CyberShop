@@ -1,4 +1,5 @@
 {% extends "public/layout_admin.html" %}
+{% from "nomina_macros.html" import pesos %}
 
 {% block title %}Contratistas{% endblock %}
 
@@ -9,80 +10,90 @@
 
 {% block content %}
 <div class="container-fluid">
-    <h1 class="h3 mb-4 text-gray-800">Gestión de Contratistas</h1>
-    <p class="mb-4">Gestión de pagos y verificación de planillas PILA.</p>
+    <h1 class="h3 mb-2 text-gray-800">Contratistas</h1>
+    <p class="nm-ayuda mb-4">Antes de pagar honorarios, verifique que el contratista pagó su seguridad social del mes (PILA).
+        Cotiza sobre el 40 % de sus honorarios, con mínimo un salario mínimo: salud 12,5 %, pensión 16 %, fondo de solidaridad
+        desde 4 salarios mínimos y ARL según el riesgo (riesgo IV y V la paga la empresa).</p>
 
-    <div class="card shadow mb-4">
+    <section class="card shadow mb-4" aria-labelledby="titulo_lista">
         <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Contratistas Activos</h6>
+            <h2 class="h6 m-0 font-weight-bold text-primary" id="titulo_lista">Contratistas y PILA del mes actual</h2>
         </div>
         <div class="card-body">
+            {% if contratistas %}
             <div class="table-responsive">
-                <table class="table table-bordered nm-cards" id="dataTable" width="100%" cellspacing="0">
+                <table class="table table-bordered nm-cards" width="100%">
+                    <caption class="sr-only">Contratistas con su seguridad social esperada y el estado de la PILA</caption>
                     <thead>
                         <tr>
-                            <th>Contratista</th>
-                            <th>Identificación</th>
-                            <th>Honorarios (Base)</th>
-                            <th>Estado PILA Mes Actual</th>
-                            <th>Acciones</th>
+                            <th scope="col">Contratista</th>
+                            <th scope="col">Identificación</th>
+                            <th scope="col" class="text-right">Honorarios</th>
+                            <th scope="col" class="text-right">IBC</th>
+                            <th scope="col" class="text-right">PILA esperada</th>
+                            <th scope="col">PILA del mes</th>
+                            <th scope="col"><span class="sr-only">Acciones</span></th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for c in contratistas %}
                         <tr>
-                            <td data-label="Contratista">{{ c.nombres }} {{ c.apellidos }}</td>
+                            <th scope="row" class="font-weight-normal" data-label="Contratista">{{ c.nombres }} {{ c.apellidos }}{% if not c.activo %} <span class="badge badge-secondary">Inactivo</span>{% endif %}</th>
                             <td data-label="Identificación">{{ c.tipo_documento }} {{ c.numero_documento }}</td>
-                            <td data-label="Honorarios">{{ '${:,.0f}'.format(c.salario_base) }}</td>
-                            <td data-label="Estado PILA">
+                            <td class="text-right" data-label="Honorarios">{{ pesos(c.salario_base) }}</td>
+                            <td class="text-right" data-label="IBC">{{ pesos(c.ibc) }}</td>
+                            <td class="text-right" data-label="PILA esperada">{{ pesos(c.pila_esperada) }}</td>
+                            <td data-label="PILA del mes">
                                 {% if c.pila_verificada %}
-                                <span class="badge badge-success">Verificado</span>
+                                <span class="badge badge-success"><i class="fas fa-check" aria-hidden="true"></i> Verificada</span>
+                                {% elif c.pila_valor_mes %}
+                                <span class="badge badge-warning text-dark">Pagó {{ pesos(c.pila_valor_mes) }}: incompleta</span>
                                 {% else %}
-                                <span class="badge badge-warning">Pendiente</span>
+                                <span class="badge badge-warning text-dark"><i class="fas fa-clock" aria-hidden="true"></i> Pendiente</span>
                                 {% endif %}
                             </td>
                             <td data-label="Acciones">
-                                <button type="button" class="btn btn-sm btn-primary" data-toggle="modal"
-                                    data-target="#modalPila{{ c.id }}">
-                                    <i class="fas fa-upload"></i> Subir PILA
+                                <button type="button" class="btn btn-sm btn-primary nm-btn" data-toggle="modal" data-target="#modalPila{{ c.id }}">
+                                    <i class="fas fa-file-signature" aria-hidden="true"></i> Registrar PILA
                                 </button>
 
-                                <!-- Modal Subir PILA -->
-                                <div class="modal fade" id="modalPila{{ c.id }}" tabindex="-1" role="dialog"
-                                    aria-labelledby="exampleModalLabel" aria-hidden="true">
+                                <div class="modal fade" id="modalPila{{ c.id }}" tabindex="-1" role="dialog" aria-labelledby="tituloPila{{ c.id }}" aria-hidden="true">
                                     <div class="modal-dialog" role="document">
                                         <div class="modal-content">
                                             <div class="modal-header">
-                                                <h5 class="modal-title" id="exampleModalLabel">Soporte PILA - {{
-                                                    c.nombres }}</h5>
-                                                <button type="button" class="close" data-dismiss="modal"
-                                                    aria-label="Close">
+                                                <h2 class="modal-title h5" id="tituloPila{{ c.id }}">Planilla PILA · {{ c.nombres }} {{ c.apellidos }}</h2>
+                                                <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
                                                     <span aria-hidden="true">&times;</span>
                                                 </button>
                                             </div>
-                                            <form action="{{ url_for('nomina.subir_pila', id=c.id) }}" method="POST"
-                                                enctype="multipart/form-data">
+                                            <form action="{{ url_for('nomina.subir_pila', id=c.id) }}" method="POST">
                                                 <div class="modal-body">
+                                                    <p class="nm-ayuda">Valor esperado del mes: <strong>{{ pesos(c.pila_esperada) }}</strong>.</p>
                                                     <div class="form-group">
-                                                        <label>Número Planilla</label>
-                                                        <input type="text" class="form-control" name="numero_planilla"
-                                                            required>
+                                                        <label for="pila_periodo_{{ c.id }}">Periodo de nómina</label>
+                                                        <select class="form-control" id="pila_periodo_{{ c.id }}" name="periodo_id">
+                                                            <option value="">Sin periodo (mes de la fecha de pago)</option>
+                                                            {% for p in periodos %}
+                                                            <option value="{{ p.id }}">{{ p.anio }}-{{ '%02d'|format(p.mes) }}{% if p.numero_periodo %} · Q{{ p.numero_periodo }}{% endif %} ({{ p.estado }})</option>
+                                                            {% endfor %}
+                                                        </select>
                                                     </div>
                                                     <div class="form-group">
-                                                        <label>Fecha Pago</label>
-                                                        <input type="date" class="form-control" name="fecha_pago"
-                                                            required>
+                                                        <label for="pila_numero_{{ c.id }}">Número de planilla *</label>
+                                                        <input type="text" class="form-control" id="pila_numero_{{ c.id }}" name="numero_planilla" autocomplete="off" required>
                                                     </div>
                                                     <div class="form-group">
-                                                        <label>Valor Pagado</label>
-                                                        <input type="number" step="0.01" class="form-control"
-                                                            name="valor_pagado" required>
+                                                        <label for="pila_fecha_{{ c.id }}">Fecha de pago *</label>
+                                                        <input type="date" class="form-control" id="pila_fecha_{{ c.id }}" name="fecha_pago" required>
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label for="pila_valor_{{ c.id }}">Valor pagado *</label>
+                                                        <input type="number" step="1" min="0" class="form-control" id="pila_valor_{{ c.id }}" name="valor_pagado" inputmode="numeric" required>
                                                     </div>
                                                 </div>
                                                 <div class="modal-footer">
-                                                    <button type="button" class="btn btn-secondary"
-                                                        data-dismiss="modal">Cerrar</button>
-                                                    <button type="submit" class="btn btn-primary">Guardar</button>
+                                                    <button type="button" class="btn btn-secondary nm-btn" data-dismiss="modal">Cerrar</button>
+                                                    <button type="submit" class="btn btn-primary nm-btn">Guardar</button>
                                                 </div>
                                             </form>
                                         </div>
@@ -94,7 +105,10 @@
                     </tbody>
                 </table>
             </div>
+            {% else %}
+            <p class="mb-0">No hay contratistas. Créelos desde <a href="{{ url_for('nomina.empleado_crear') }}">Nuevo empleado</a> con vinculación «Contratista».</p>
+            {% endif %}
         </div>
-    </div>
+    </section>
 </div>
 {% endblock %}

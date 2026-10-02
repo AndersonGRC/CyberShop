@@ -2895,6 +2895,11 @@ def _apply_nomina_op(cur, payload):
             prev = cur.fetchone()
             if prev:
                 raise _DuplicateError(int(prev['remote_id']) if prev['remote_id'] is not None else 0)
+        from services import nomina_service
+        try:
+            nomina_service.validar_periodo_editable(cur, int(payload['periodo_id']))
+        except nomina_service.PeriodoBloqueado as exc:
+            raise _ForbiddenError(str(exc)) from exc
         cur.execute("""
             INSERT INTO nomina_novedades (periodo_id, empleado_id, tipo_novedad, cantidad, valor_total, fecha_novedad, observacion)
             VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id
@@ -2902,49 +2907,37 @@ def _apply_nomina_op(cur, payload):
               float(payload.get('cantidad') or 0), float(payload.get('valor_total') or 0),
               payload.get('fecha_novedad') or None, payload.get('observacion')))
         rid = int(cur.fetchone()['id'])
+        nomina_service.marcar_para_recalculo(cur, int(payload['periodo_id']))
         if u:
             cur.execute("INSERT INTO sync_applied_ops (client_op_uuid, remote_id) VALUES (%s,%s) ON CONFLICT (client_op_uuid) DO NOTHING", (u, rid))
         return rid
 
     if op == 'delete_novedad':
+        from services import nomina_service
         nid = int(payload['novedad_id'])
+        cur.execute('SELECT periodo_id FROM nomina_novedades WHERE id=%s', (nid,))
+        fila = cur.fetchone()
+        if fila and fila['periodo_id']:
+            try:
+                nomina_service.validar_periodo_editable(cur, fila['periodo_id'])
+            except nomina_service.PeriodoBloqueado as exc:
+                raise _ForbiddenError(str(exc)) from exc
         cur.execute('DELETE FROM nomina_novedades WHERE id=%s', (nid,))
+        if fila and fila['periodo_id']:
+            nomina_service.marcar_para_recalculo(cur, fila['periodo_id'])
         return nid
 
     if op == 'calcular_periodo':
-        from nomina_inteligente import calcular_nomina_periodo_inteligente
+        # Mismo cálculo y guardado que la web (services/nomina_service).
+        from services import nomina_service
         pid = int(payload['periodo_id'])
-        cur.execute("SELECT * FROM nomina_periodos WHERE id=%s", (pid,))
-        periodo = cur.fetchone()
-        if not periodo:
+        cur.execute("SELECT id FROM nomina_periodos WHERE id=%s", (pid,))
+        if not cur.fetchone():
             raise _DuplicateError(0)
-        cur.execute("SELECT * FROM nomina_parametros WHERE anio=%s", (periodo['anio'],))
-        params = cur.fetchone()
-        if not params:
-            raise ValueError(f"No hay parámetros de nómina para el año {periodo['anio']}.")
-        cur.execute("SELECT * FROM nomina_empleados WHERE activo = TRUE")
-        empleados = [dict(r) for r in cur.fetchall()]
-        cur.execute("""
-            SELECT periodo_id, empleado_id, UPPER(tipo_novedad) AS tipo_novedad,
-                   COALESCE(SUM(cantidad),0) AS cantidad, COALESCE(SUM(valor_total),0) AS valor_total
-            FROM nomina_novedades WHERE periodo_id=%s GROUP BY periodo_id, empleado_id, UPPER(tipo_novedad)
-        """, (pid,))
-        novedades = [dict(r) for r in cur.fetchall()]
-        resultado = calcular_nomina_periodo_inteligente(dict(periodo), dict(params), empleados, novedades)
-        cur.execute("DELETE FROM nomina_detalle WHERE periodo_id=%s", (pid,))
-        for d in resultado['detalles']:
-            cur.execute("""
-                INSERT INTO nomina_detalle (periodo_id, empleado_id, dias_trabajados, sueldo_basico,
-                    auxilio_transporte, horas_extras, total_devengado, salud_empleado, pension_empleado,
-                    fondo_solidaridad, retencion_fuente, total_deducido, neto_pagar)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-            """, (pid, d['empleado_id'], d['dias_trabajados'], d['sueldo_basico'], d['auxilio_transporte'],
-                  d['horas_extras'], d['total_devengado'], d['salud_empleado'], d['pension_empleado'],
-                  d['fondo_solidaridad'], d['retencion_fuente'], d['total_deducido'], d['neto_pagar']))
         try:
-            cur.execute("UPDATE nomina_periodos SET estado='calculada' WHERE id=%s", (pid,))
-        except Exception:
-            pass
+            nomina_service.calcular_y_guardar_periodo(cur, pid)
+        except nomina_service.PeriodoBloqueado as exc:
+            raise _ForbiddenError(str(exc)) from exc
         return pid
 
     raise ValueError(f'op de nómina no soportada: {op}')

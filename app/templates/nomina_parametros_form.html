@@ -111,8 +111,22 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save"></i> Guardar
+                <fieldset class="nm-fieldset mb-4">
+                    <legend>Exoneración de aportes (Art. 114-1 del Estatuto Tributario)</legend>
+                    <div class="custom-control custom-switch mb-2">
+                        <input type="checkbox" class="custom-control-input" id="exonerado_114_1" name="exonerado_114_1" value="1"
+                            {{ 'checked' if (not p) or p.exonerado_114_1 is none or p.exonerado_114_1 }} aria-describedby="ayuda_exonerado">
+                        <label class="custom-control-label" for="exonerado_114_1">La empresa está exonerada de salud (8,5 %), SENA e ICBF</label>
+                    </div>
+                    <small id="ayuda_exonerado" class="form-text text-muted">
+                        Aplica a sociedades y personas jurídicas, y a personas naturales que emplean a 2 o más trabajadores,
+                        sobre quienes ganan menos de 10 salarios mínimos. Desactívelo si la empresa es persona natural con un solo
+                        trabajador o una entidad sin ánimo de lucro: entonces se calculan los tres aportes.
+                    </small>
+                </fieldset>
+
+                <button type="submit" class="btn btn-primary nm-btn">
+                    <i class="fas fa-save" aria-hidden="true"></i> Guardar
                 </button>
                 <a href="{{ url_for('nomina.parametros_lista') }}" class="btn btn-secondary">Cancelar</a>
             </form>

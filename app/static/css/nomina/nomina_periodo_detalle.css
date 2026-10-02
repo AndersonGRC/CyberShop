@@ -42,7 +42,7 @@
 }
 
 .col-neto {
-    color: var(--color-exito);
+    color: var(--color-exito-texto);
     font-weight: 700;
 }
 
@@ -50,14 +50,9 @@
    SECCIÓN CONTRATISTAS
    ============================ */
 
-.card-contratistas > .card-header {
-    background-color: var(--color-secundario);
-    color: var(--color-blanco);
-    border-bottom: none;
-}
 
 .contratistas-nota {
-    background-color: #fff9e6;
+    background-color: var(--color-warning-tinte);
     border-left: 4px solid var(--color-warning);
     padding: 0.6rem 1rem;
     border-radius: 4px;
@@ -149,4 +144,29 @@
     .col-cifra {
         min-width: 75px;
     }
+}
+
+/* ============================
+   COLUMNA DEL NOMBRE Y CIFRAS (escritorio)
+   ============================ */
+@media (min-width: 769px) {
+    .table-nomina .col-nombre,
+    .table-contratistas .col-nombre {
+        min-width: 190px;
+    }
+
+    .table-nomina .col-cifra,
+    .table-contratistas .col-cifra {
+        white-space: nowrap;
+    }
+
+    .nm-explica summary {
+        white-space: nowrap;
+    }
+}
+
+/* Texto secundario con contraste suficiente sobre filas alternas. */
+.table-nomina .col-nombre small,
+.table-contratistas .col-nombre small {
+    color: var(--color-texto-secundario) !important;
 }

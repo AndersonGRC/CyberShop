@@ -8,179 +8,298 @@
 {% endblock %}
 
 {% block content %}
+{% set tv = e.tipo_vinculacion if e else 'INDEFINIDO' %}
 <div class="container-fluid">
-    <h1 class="h3 mb-4 text-gray-800">{{ 'Editar' if modo == 'editar' else 'Nuevo' }} Empleado</h1>
+    <h1 class="h3 mb-2 text-gray-800">{{ 'Editar' if modo == 'editar' else 'Nuevo' }} empleado o contratista</h1>
+    <p class="nm-ayuda mb-4">Los campos con <span aria-hidden="true">*</span><span class="sr-only">asterisco</span> son obligatorios. Los valores se usan para calcular la nómina con la ley vigente.</p>
 
     <div class="card shadow mb-4">
         <div class="card-body">
-            <form method="POST">
-                <ul class="nav nav-tabs mb-4" id="myTab" role="tablist">
-                    <li class="nav-item">
-                        <a class="nav-link active" id="personal-tab" data-toggle="tab" href="#personal" role="tab">Datos
-                            Personales</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" id="laboral-tab" data-toggle="tab" href="#laboral" role="tab">Datos
-                            Laborales</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" id="seguridad-tab" data-toggle="tab" href="#seguridad" role="tab">Seguridad
-                            Social</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" id="bancario-tab" data-toggle="tab" href="#bancario" role="tab">Datos
-                            Bancarios</a>
-                    </li>
+            <form method="POST" id="form-empleado" novalidate>
+                <ul class="nav nav-tabs mb-4" id="tabsEmpleado" role="tablist">
+                    <li class="nav-item" role="presentation"><a class="nav-link active" id="personal-tab" data-toggle="tab" href="#personal" role="tab" aria-controls="personal" aria-selected="true">Datos personales</a></li>
+                    <li class="nav-item" role="presentation"><a class="nav-link" id="laboral-tab" data-toggle="tab" href="#laboral" role="tab" aria-controls="laboral" aria-selected="false">Contrato y pago</a></li>
+                    <li class="nav-item" role="presentation"><a class="nav-link" id="seguridad-tab" data-toggle="tab" href="#seguridad" role="tab" aria-controls="seguridad" aria-selected="false">Seguridad social</a></li>
+                    <li class="nav-item" role="presentation"><a class="nav-link" id="retencion-tab" data-toggle="tab" href="#retencion" role="tab" aria-controls="retencion" aria-selected="false">Retención en la fuente</a></li>
+                    <li class="nav-item" role="presentation"><a class="nav-link" id="bancario-tab" data-toggle="tab" href="#bancario" role="tab" aria-controls="bancario" aria-selected="false">Datos bancarios</a></li>
                 </ul>
 
-                <div class="tab-content" id="myTabContent">
-                    <!-- Datos Personales -->
-                    <div class="tab-pane fade show active" id="personal" role="tabpanel">
+                <div class="tab-content" id="tabsEmpleadoContenido">
+                    <!-- Datos personales -->
+                    <div class="tab-pane fade show active" id="personal" role="tabpanel" aria-labelledby="personal-tab">
                         <div class="form-row">
                             <div class="form-group col-md-3">
-                                <label>Tipo Documento</label>
-                                <select class="form-control" name="tipo_documento" required>
-                                    <option value="CC" {{ 'selected' if e and e.tipo_documento=='CC' }}>Cédula
-                                        Ciudadanía</option>
-                                    <option value="CE" {{ 'selected' if e and e.tipo_documento=='CE' }}>Cédula
-                                        Extranjería</option>
-                                    <option value="NIT" {{ 'selected' if e and e.tipo_documento=='NIT' }}>NIT</option>
-                                    <option value="PEP" {{ 'selected' if e and e.tipo_documento=='PEP' }}>PEP</option>
+                                <label for="tipo_documento">Tipo de documento *</label>
+                                <select class="form-control" id="tipo_documento" name="tipo_documento" required>
+                                    {% for v, t in [('CC','Cédula de ciudadanía'),('CE','Cédula de extranjería'),('NIT','NIT'),('PEP','PEP / PPT')] %}
+                                    <option value="{{ v }}" {{ 'selected' if e and e.tipo_documento == v }}>{{ t }}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <div class="form-group col-md-3">
-                                <label>Número Documento</label>
-                                <input type="text" class="form-control" name="numero_documento"
+                                <label for="numero_documento">Número de documento *</label>
+                                <input type="text" class="form-control" id="numero_documento" name="numero_documento" inputmode="numeric" autocomplete="off"
                                     value="{{ e.numero_documento if e else '' }}" required>
                             </div>
                             <div class="form-group col-md-3">
-                                <label>Nombres</label>
-                                <input type="text" class="form-control" name="nombres"
+                                <label for="nombres">Nombres *</label>
+                                <input type="text" class="form-control" id="nombres" name="nombres" autocomplete="given-name"
                                     value="{{ e.nombres if e else '' }}" required>
                             </div>
                             <div class="form-group col-md-3">
-                                <label>Apellidos</label>
-                                <input type="text" class="form-control" name="apellidos"
+                                <label for="apellidos">Apellidos *</label>
+                                <input type="text" class="form-control" id="apellidos" name="apellidos" autocomplete="family-name"
                                     value="{{ e.apellidos if e else '' }}" required>
                             </div>
                         </div>
                         <div class="form-row">
                             <div class="form-group col-md-4">
-                                <label>Email</label>
-                                <input type="email" class="form-control" name="email"
-                                    value="{{ e.email if e else '' }}">
+                                <label for="email">Correo</label>
+                                <input type="email" class="form-control" id="email" name="email" autocomplete="email" value="{{ e.email if e and e.email else '' }}">
                             </div>
                             <div class="form-group col-md-3">
-                                <label>Teléfono</label>
-                                <input type="text" class="form-control" name="telefono"
-                                    value="{{ e.telefono if e else '' }}">
+                                <label for="telefono">Teléfono</label>
+                                <input type="tel" class="form-control" id="telefono" name="telefono" autocomplete="tel" value="{{ e.telefono if e and e.telefono else '' }}">
                             </div>
                             <div class="form-group col-md-5">
-                                <label>Dirección</label>
-                                <input type="text" class="form-control" name="direccion"
-                                    value="{{ e.direccion if e else '' }}">
+                                <label for="direccion">Dirección</label>
+                                <input type="text" class="form-control" id="direccion" name="direccion" autocomplete="street-address" value="{{ e.direccion if e and e.direccion else '' }}">
                             </div>
                         </div>
                     </div>
 
-                    <!-- Datos Laborales -->
-                    <div class="tab-pane fade" id="laboral" role="tabpanel">
+                    <!-- Contrato y pago -->
+                    <div class="tab-pane fade" id="laboral" role="tabpanel" aria-labelledby="laboral-tab">
                         <div class="form-row">
                             <div class="form-group col-md-3">
-                                <label>Fecha Ingreso</label>
-                                <input type="date" class="form-control" name="fecha_ingreso"
-                                    value="{{ e.fecha_ingreso if e else '' }}" required>
-                            </div>
-                            <div class="form-group col-md-3">
-                                <label>Tipo Vinculación</label>
-                                <select class="form-control" name="tipo_vinculacion" required>
-                                    <option value="INDEFINIDO" {{ 'selected' if e and e.tipo_vinculacion=='INDEFINIDO'
-                                        }}>Indefinido</option>
-                                    <option value="FIJO" {{ 'selected' if e and e.tipo_vinculacion=='FIJO' }}>Termino
-                                        Fijo</option>
-                                    <option value="OBRA_LABOR" {{ 'selected' if e and e.tipo_vinculacion=='OBRA_LABOR'
-                                        }}>Obra o Labor</option>
-                                    <option value="APRENDIZ_SENA" {{ 'selected' if e and
-                                        e.tipo_vinculacion=='APRENDIZ_SENA' }}>Aprendiz SENA</option>
-                                    <option value="CONTRATISTA" {{ 'selected' if e and e.tipo_vinculacion=='CONTRATISTA'
-                                        }}>Contratista (OPS)</option>
+                                <label for="tipo_vinculacion">Tipo de vinculación *</label>
+                                <select class="form-control" id="tipo_vinculacion" name="tipo_vinculacion" required aria-describedby="ayuda_vinculacion">
+                                    {% for v, t in [('INDEFINIDO','Término indefinido'),('FIJO','Término fijo'),('OBRA_LABOR','Obra o labor'),('APRENDIZ_SENA','Aprendiz SENA'),('CONTRATISTA','Contratista (prestación de servicios)')] %}
+                                    <option value="{{ v }}" {{ 'selected' if tv == v }}>{{ t }}</option>
+                                    {% endfor %}
                                 </select>
+                                <small id="ayuda_vinculacion" class="form-text text-muted">El contratista no recibe prestaciones: paga su propia seguridad social.</small>
                             </div>
                             <div class="form-group col-md-3">
-                                <label>Cargo</label>
-                                <input type="text" class="form-control" name="cargo" value="{{ e.cargo if e else '' }}"
-                                    required>
+                                <label for="fecha_ingreso">Fecha de ingreso *</label>
+                                <input type="date" class="form-control" id="fecha_ingreso" name="fecha_ingreso" value="{{ e.fecha_ingreso if e else '' }}" required>
+                            </div>
+                            <div class="form-group col-md-3" data-ver="FIJO OBRA_LABOR APRENDIZ_SENA CONTRATISTA">
+                                <label for="fecha_fin_contrato">Fecha de terminación</label>
+                                <input type="date" class="form-control" id="fecha_fin_contrato" name="fecha_fin_contrato" value="{{ e.fecha_fin_contrato if e and e.fecha_fin_contrato else '' }}" aria-describedby="ayuda_fin">
+                                <small id="ayuda_fin" class="form-text text-muted">Se usa para la indemnización de contratos a término fijo.</small>
                             </div>
                             <div class="form-group col-md-3">
-                                <label>Salario Base Mensual</label>
-                                <input type="number" step="0.01" class="form-control" name="salario_base"
-                                    value="{{ e.salario_base if e else '' }}" required>
+                                <label for="cargo">Cargo u objeto del contrato *</label>
+                                <input type="text" class="form-control" id="cargo" name="cargo" value="{{ e.cargo if e and e.cargo else '' }}" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label for="salario_base" id="lbl_salario">Salario mensual *</label>
+                                <div class="input-group">
+                                    <div class="input-group-prepend"><span class="input-group-text" aria-hidden="true">$</span></div>
+                                    <input type="number" step="1" min="0" class="form-control" id="salario_base" name="salario_base" inputmode="numeric"
+                                        value="{{ (e.salario_base|float)|round(0)|int if e else '' }}" required aria-describedby="aviso_salario">
+                                </div>
+                                <small id="aviso_salario" class="form-text" role="status" aria-live="polite"></small>
+                            </div>
+                            <div class="form-group col-md-4" data-ver="INDEFINIDO FIJO OBRA_LABOR">
+                                <span class="d-block mb-2 font-weight-bold">Tipo de salario</span>
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" id="salario_integral" name="salario_integral" value="1" {{ 'checked' if e and e.salario_integral }} aria-describedby="ayuda_integral">
+                                    <label class="custom-control-label" for="salario_integral">Salario integral</label>
+                                </div>
+                                <small id="ayuda_integral" class="form-text text-muted">Mínimo 13 salarios mínimos. Cotiza sobre el 70 % y no recibe cesantías ni prima (Art. 132 CST).</small>
+                            </div>
+                            <div class="form-group col-md-4" data-ver="APRENDIZ_SENA">
+                                <label for="aprendiz_etapa">Etapa del aprendiz</label>
+                                <select class="form-control" id="aprendiz_etapa" name="aprendiz_etapa" aria-describedby="ayuda_etapa">
+                                    <option value="LECTIVA" {{ 'selected' if not e or e.aprendiz_etapa != 'PRODUCTIVA' }}>Lectiva (estudio)</option>
+                                    <option value="PRODUCTIVA" {{ 'selected' if e and e.aprendiz_etapa == 'PRODUCTIVA' }}>Productiva (práctica)</option>
+                                </select>
+                                <small id="ayuda_etapa" class="form-text text-muted">Ley 2466 de 2025: 75 % del mínimo en etapa lectiva y 100 % en la productiva.</small>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Seguridad Social -->
-                    <div class="tab-pane fade" id="seguridad" role="tabpanel">
+                    <!-- Seguridad social -->
+                    <div class="tab-pane fade" id="seguridad" role="tabpanel" aria-labelledby="seguridad-tab">
                         <div class="form-row">
                             <div class="form-group col-md-4">
-                                <label>EPS</label>
-                                <input type="text" class="form-control" name="eps" value="{{ e.eps if e else '' }}">
+                                <label for="eps">EPS</label>
+                                <input type="text" class="form-control" id="eps" name="eps" value="{{ e.eps if e and e.eps else '' }}">
                             </div>
                             <div class="form-group col-md-4">
-                                <label>Fondo de Pensiones</label>
-                                <input type="text" class="form-control" name="fondo_pension"
-                                    value="{{ e.fondo_pension if e else '' }}">
+                                <label for="fondo_pension">Fondo de pensiones</label>
+                                <input type="text" class="form-control" id="fondo_pension" name="fondo_pension" value="{{ e.fondo_pension if e and e.fondo_pension else '' }}">
                             </div>
-                            <div class="form-group col-md-4">
-                                <label>Fondo de Cesantías</label>
-                                <input type="text" class="form-control" name="fondo_cesantias"
-                                    value="{{ e.fondo_cesantias if e else '' }}">
+                            <div class="form-group col-md-4" data-ver="INDEFINIDO FIJO OBRA_LABOR APRENDIZ_SENA">
+                                <label for="fondo_cesantias">Fondo de cesantías</label>
+                                <input type="text" class="form-control" id="fondo_cesantias" name="fondo_cesantias" value="{{ e.fondo_cesantias if e and e.fondo_cesantias else '' }}">
                             </div>
                         </div>
                         <div class="form-row">
-                            <div class="form-group col-md-4">
-                                <label>Nivel de Riesgo ARL</label>
-                                <select class="form-control" name="nivel_arl">
-                                    <option value="I" {{ 'selected' if e and e.nivel_arl=='I' }}>Nivel I</option>
-                                    <option value="II" {{ 'selected' if e and e.nivel_arl=='II' }}>Nivel II</option>
-                                    <option value="III" {{ 'selected' if e and e.nivel_arl=='III' }}>Nivel III</option>
-                                    <option value="IV" {{ 'selected' if e and e.nivel_arl=='IV' }}>Nivel IV</option>
-                                    <option value="V" {{ 'selected' if e and e.nivel_arl=='V' }}>Nivel V</option>
+                            <div class="form-group col-md-6">
+                                <label for="nivel_arl">Nivel de riesgo ARL</label>
+                                <select class="form-control" id="nivel_arl" name="nivel_arl" aria-describedby="ayuda_arl">
+                                    {% for v, t in [('I','I · 0,522 % · Oficina, comercio, administrativo'),('II','II · 1,044 % · Algunos procesos manufactureros'),('III','III · 2,436 % · Conductores, procesos industriales'),('IV','IV · 4,350 % · Transporte pesado, procesos de alto riesgo'),('V','V · 6,960 % · Alturas, minería, construcción')] %}
+                                    <option value="{{ v }}" {{ 'selected' if (e and e.nivel_arl == v) or (not e and v == 'I') }}>{{ t }}</option>
+                                    {% endfor %}
                                 </select>
+                                <small id="ayuda_arl" class="form-text text-muted">Para contratistas en riesgo IV o V la ARL la paga la empresa (Decreto 1072 de 2015).</small>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Datos Bancarios -->
-                    <div class="tab-pane fade" id="bancario" role="tabpanel">
+                    <!-- Retención -->
+                    <div class="tab-pane fade" id="retencion" role="tabpanel" aria-labelledby="retencion-tab">
+                        <p class="nm-ayuda">Valores <strong>mensuales</strong> que la persona certificó por escrito. Reducen la base de retención (Arts. 119, 126-1, 387 y 336 del Estatuto Tributario). Si no aplica, déjelos en cero.</p>
+                        <div class="form-row">
+                            <div class="form-group col-md-3">
+                                <span class="d-block mb-2 font-weight-bold">Dependientes</span>
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" id="ret_dependientes" name="ret_dependientes" value="1" {{ 'checked' if e and e.ret_dependientes }}>
+                                    <label class="custom-control-label" for="ret_dependientes">Tiene dependientes económicos</label>
+                                </div>
+                                <small class="form-text text-muted">10 % del ingreso, máximo 32 UVT al mes.</small>
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label for="ret_intereses_vivienda">Intereses de vivienda</label>
+                                <input type="number" min="0" step="1" class="form-control" id="ret_intereses_vivienda" name="ret_intereses_vivienda" value="{{ (e.ret_intereses_vivienda or 0)|float|round(0)|int if e else 0 }}">
+                                <small class="form-text text-muted">Máximo 100 UVT al mes.</small>
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label for="ret_medicina_prepagada">Medicina prepagada</label>
+                                <input type="number" min="0" step="1" class="form-control" id="ret_medicina_prepagada" name="ret_medicina_prepagada" value="{{ (e.ret_medicina_prepagada or 0)|float|round(0)|int if e else 0 }}">
+                                <small class="form-text text-muted">Máximo 16 UVT al mes.</small>
+                            </div>
+                            <div class="form-group col-md-3">
+                                <label for="ret_aportes_voluntarios">Aportes voluntarios / AFC</label>
+                                <input type="number" min="0" step="1" class="form-control" id="ret_aportes_voluntarios" name="ret_aportes_voluntarios" value="{{ (e.ret_aportes_voluntarios or 0)|float|round(0)|int if e else 0 }}">
+                                <small class="form-text text-muted">Hasta 30 % del ingreso y 3.800 UVT al año.</small>
+                            </div>
+                        </div>
+                        <fieldset class="nm-fieldset" data-ver="CONTRATISTA">
+                            <legend>Retención del contratista</legend>
+                            <div class="form-row">
+                                <div class="form-group col-md-4">
+                                    <span class="d-block mb-2 font-weight-bold">¿Tiene 2 o más trabajadores?</span>
+                                    <div class="custom-control custom-switch">
+                                        <input type="checkbox" class="custom-control-input" id="ret_contrata_2_o_mas" name="ret_contrata_2_o_mas" value="1" {{ 'checked' if e and e.ret_contrata_2_o_mas }} aria-describedby="ayuda_383">
+                                        <label class="custom-control-label" for="ret_contrata_2_o_mas">Sí, contrata 2 o más personas</label>
+                                    </div>
+                                    <small id="ayuda_383" class="form-text text-muted">Si no, se aplica la tabla del Art. 383 (como un salario). Si sí, la tarifa del Art. 392.</small>
+                                </div>
+                                <div class="form-group col-md-4">
+                                    <label for="ret_concepto">Concepto del pago</label>
+                                    <select class="form-control" id="ret_concepto" name="ret_concepto">
+                                        <option value="HONORARIOS" {{ 'selected' if not e or e.ret_concepto != 'SERVICIOS' }}>Honorarios (10 % u 11 %)</option>
+                                        <option value="SERVICIOS" {{ 'selected' if e and e.ret_concepto == 'SERVICIOS' }}>Servicios (4 % o 6 %)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group col-md-4">
+                                    <span class="d-block mb-2 font-weight-bold">Declarante de renta</span>
+                                    <div class="custom-control custom-switch">
+                                        <input type="checkbox" class="custom-control-input" id="ret_declarante" name="ret_declarante" value="1" {{ 'checked' if e and e.ret_declarante }}>
+                                        <label class="custom-control-label" for="ret_declarante">Es declarante</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </fieldset>
+                    </div>
+
+                    <!-- Datos bancarios -->
+                    <div class="tab-pane fade" id="bancario" role="tabpanel" aria-labelledby="bancario-tab">
                         <div class="form-row">
                             <div class="form-group col-md-4">
-                                <label>Banco</label>
-                                <input type="text" class="form-control" name="banco" value="{{ e.banco if e else '' }}">
+                                <label for="banco">Banco</label>
+                                <input type="text" class="form-control" id="banco" name="banco" value="{{ e.banco if e and e.banco else '' }}">
                             </div>
                             <div class="form-group col-md-4">
-                                <label>Tipo Cuenta</label>
-                                <select class="form-control" name="tipo_cuenta">
-                                    <option value="AHORROS" {{ 'selected' if e and e.tipo_cuenta=='AHORROS' }}>Ahorros
-                                    </option>
-                                    <option value="CORRIENTE" {{ 'selected' if e and e.tipo_cuenta=='CORRIENTE' }}>
-                                        Corriente</option>
+                                <label for="tipo_cuenta">Tipo de cuenta</label>
+                                <select class="form-control" id="tipo_cuenta" name="tipo_cuenta">
+                                    <option value="AHORROS" {{ 'selected' if e and e.tipo_cuenta=='AHORROS' }}>Ahorros</option>
+                                    <option value="CORRIENTE" {{ 'selected' if e and e.tipo_cuenta=='CORRIENTE' }}>Corriente</option>
                                 </select>
                             </div>
                             <div class="form-group col-md-4">
-                                <label>Número Cuenta</label>
-                                <input type="text" class="form-control" name="numero_cuenta"
-                                    value="{{ e.numero_cuenta if e else '' }}">
+                                <label for="numero_cuenta">Número de cuenta</label>
+                                <input type="text" class="form-control" id="numero_cuenta" name="numero_cuenta" inputmode="numeric" autocomplete="off" value="{{ e.numero_cuenta if e and e.numero_cuenta else '' }}">
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <hr class="mt-4">
-                <button type="submit" class="btn btn-primary">Guardar Empleado</button>
-                <a href="{{ url_for('nomina.empleados_lista') }}" class="btn btn-secondary">Cancelar</a>
+                <button type="submit" class="btn btn-primary nm-btn">Guardar</button>
+                <a href="{{ url_for('nomina.empleados_lista') }}" class="btn btn-secondary nm-btn">Cancelar</a>
             </form>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function () {
+  var form = document.getElementById('form-empleado');
+  var tipo = document.getElementById('tipo_vinculacion');
+  var salario = document.getElementById('salario_base');
+  var integral = document.getElementById('salario_integral');
+  var aviso = document.getElementById('aviso_salario');
+  var lbl = document.getElementById('lbl_salario');
+  var SMMLV = {{ (smmlv or 0)|float }};
+  var fmt = function (n) { return '$' + Math.round(n).toLocaleString('es-CO'); };
+
+  function mostrar() {
+    var t = tipo.value;
+    document.querySelectorAll('[data-ver]').forEach(function (el) {
+      var visible = el.getAttribute('data-ver').split(' ').indexOf(t) !== -1;
+      el.hidden = !visible;
+    });
+    lbl.textContent = t === 'CONTRATISTA' ? 'Honorarios mensuales *' : (t === 'APRENDIZ_SENA' ? 'Apoyo de sostenimiento mensual *' : 'Salario mensual *');
+    revisar();
+  }
+
+  function revisar() {
+    var v = parseFloat(salario.value || '0');
+    var t = tipo.value, msg = '', clase = 'text-muted';
+    if (SMMLV && v > 0) {
+      if (t === 'CONTRATISTA') {
+        msg = 'Cotiza sobre ' + fmt(Math.max(v * 0.4, SMMLV)) + ' (40 % del valor, mínimo un salario mínimo).';
+      } else if (t === 'APRENDIZ_SENA') {
+        var etapa = document.getElementById('aprendiz_etapa').value;
+        var minimo = SMMLV * (etapa === 'LECTIVA' ? 0.75 : 1);
+        if (v < minimo) { msg = 'Debe ser al menos ' + fmt(minimo) + ' en esta etapa.'; clase = 'text-danger'; }
+      } else if (integral && integral.checked && v < 13 * SMMLV) {
+        msg = 'El salario integral debe ser de al menos ' + fmt(13 * SMMLV) + '.'; clase = 'text-danger';
+      } else if (v < SMMLV) {
+        msg = 'Es menor al salario mínimo (' + fmt(SMMLV) + '). Solo es válido en tiempo parcial.'; clase = 'text-danger';
+      } else if (v <= 2 * SMMLV && !(integral && integral.checked)) {
+        msg = 'Recibe auxilio de transporte (gana hasta 2 salarios mínimos).';
+      }
+    }
+    aviso.textContent = msg;
+    aviso.className = 'form-text ' + clase;
+  }
+
+  tipo.addEventListener('change', mostrar);
+  salario.addEventListener('input', revisar);
+  if (integral) integral.addEventListener('change', revisar);
+  document.getElementById('aprendiz_etapa').addEventListener('change', revisar);
+
+  // Si un campo obligatorio está en otra pestaña, abrirla y enfocar el campo.
+  form.addEventListener('submit', function (ev) {
+    var invalido = form.querySelector(':invalid');
+    if (!invalido) return;
+    ev.preventDefault();
+    var panel = invalido.closest('.tab-pane');
+    if (panel && window.jQuery) { window.jQuery('a[href="#' + panel.id + '"]').tab('show'); }
+    setTimeout(function () { invalido.focus(); if (invalido.reportValidity) invalido.reportValidity(); }, 200);
+  });
+  mostrar();
+})();
+</script>
 {% endblock %}
