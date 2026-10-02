@@ -158,3 +158,24 @@ button:hover {
         font-size: 15px;
     }
 }
+/* Recuperar contraseña */
+.login-olvido {
+    margin: 12px 0 4px;
+    text-align: center;
+}
+.login-olvido a {
+    font-weight: 600;
+}
+.login-ayuda {
+    color: var(--color-texto-secundario);
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0 0 16px;
+}
+.login-error {
+    background: var(--color-peligro-tinte);
+    color: var(--color-peligro-texto);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+}

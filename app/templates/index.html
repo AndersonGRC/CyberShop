@@ -46,6 +46,26 @@
       </div>
     </div>
     {% endfor %}
+  {% elif tienda_demo %}
+    {# Tienda nueva sin slides: imagen de muestra (no las fotos de CyberShop). #}
+    <div class="slide active">
+      <img src="{{ url_for('static', filename='img/tu-logo-aqui.svg') }}" data-demo-img data-demo-icono="imagen" data-demo-modo="fondo"
+           data-demo-texto="Tu imagen principal va aquí"
+           data-demo-sub="Pon aquí la foto de tu negocio, tus productos o tu promoción del mes"
+           alt="Imagen de muestra: aquí va la imagen principal de tu negocio" fetchpriority="high" decoding="async">
+      <div class="hero-overlay"></div>
+      <div class="info">
+        <span class="hero-eyebrow"><span class="hero-dot"></span>{{ brand_config.empresa_nombre or datosApp.titulo }}</span>
+        <h2>Así se verá tu tienda</h2>
+        <p>Inicia sesión para poner tu logo, tus fotos y tus textos. Todo se cambia desde tu panel.</p>
+        <div class="hero-ctas">
+          <a href="{{ url_for('auth.login', next=url_for('admin.mi_negocio')) }}" class="hero-btn hero-btn-primary"><i class="fas fa-sign-in-alt"></i> Iniciar sesión y personalizar</a>
+          {% if config_global.get('mostrar_modulo_ventas', true) and config_global.get('mostrar_nav_productos', true) %}
+          <a href="{{ url_for('public.productos') }}" class="hero-btn hero-btn-ghost"><i class="fas fa-store"></i> Ver productos</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
   {% else %}
     <div class="slide active">
       <img src="{{url_for('static',filename='img/Slider-Decuento.png')}}" alt="{{ datosApp.titulo }}" fetchpriority="high" decoding="async">

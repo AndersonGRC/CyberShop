@@ -360,6 +360,7 @@ def inject_config_global():
         active_modules=active_modules,
         current_tenant_id=current_tenant_id,
         integraciones=integraciones,
+        tienda_demo=_tienda_demo(),
         trial_info=trial_info,
         plan_aviso=plan_aviso,
         app_version=Config.APP_VERSION,
@@ -370,6 +371,24 @@ def inject_config_global():
 
 
 _TRIAL_CACHE = {'ts': 0, 'data': None}
+_DEMO_CACHE = {'ts': 0, 'data': False}
+
+
+def _tienda_demo():
+    """¿Tienda creada desde la prueba gratis / compra en línea (autoservicio)?
+    Solo ellas muestran imágenes de muestra («tus imágenes van aquí») en vez de
+    las fotos de CyberShop. Caché de 60 s: una instancia = una tienda."""
+    import time as _time
+    if _time.time() - _DEMO_CACHE['ts'] < 60:
+        return _DEMO_CACHE['data']
+    try:
+        from services.marca_service import es_autoservicio
+        data = es_autoservicio()
+    except Exception:
+        data = False
+    _DEMO_CACHE['ts'] = _time.time()
+    _DEMO_CACHE['data'] = data
+    return data
 _PLAN_CACHE = {'ts': 0, 'data': None}
 
 

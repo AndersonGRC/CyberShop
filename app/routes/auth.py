@@ -121,7 +121,9 @@ def login():
             bind_session_tenant(usuario=usuario)
             # Redirigir a la página pendiente (ej: checkout) si la hay
             next_url = session.pop('login_next', None)
-            if next_url and next_url.startswith('/'):
+            # Un cliente (rol 3) no entra al panel: si venía de la vista previa, a su cuenta.
+            if next_url and next_url.startswith('/') and not (
+                    usuario['rol_id'] == 3 and next_url.startswith('/admin')):
                 return redirect(next_url)
             if usuario['rol_id'] == 1: return redirect(url_for('admin.dashboard_admin'))
             elif usuario['rol_id'] == 2: return redirect(url_for('admin.dashboard_admin'))
@@ -132,8 +134,61 @@ def login():
             elif usuario['rol_id'] == ROL_CONTADOR: return redirect(url_for('contabilidad.dashboard'))
             elif usuario['rol_id'] in (ROL_MESERO, ROL_CAJERO): return redirect(url_for('restaurant_tables.waiter_panel'))
             else: return redirect(url_for('auth.login'))
-        else: return redirect(url_for('auth.login'))
+        else:
+            if not session.get('_flashes'):
+                flash('Correo o contraseña incorrectos. Si no recuerdas tu contraseña, usa «¿Olvidaste tu contraseña?».', 'error')
+            return redirect(url_for('auth.login'))
+    # Volver a una página del panel después de entrar (p. ej. desde la vista
+    # previa de una tienda nueva): solo rutas internas.
+    siguiente = request.args.get('next', '')
+    if siguiente.startswith('/') and not siguiente.startswith(('//', '/\\')):
+        session['login_next'] = siguiente
     return render_template('login.html', datosApp=datosApp)
+
+
+@auth_bp.route('/recuperar-contrasena', methods=['GET', 'POST'])
+@limiter.limit('5 per minute; 20 per hour', methods=['POST'])
+def recuperar_contrasena():
+    """Pide el correo y envía un enlace para crear una contraseña nueva.
+    La respuesta es la misma exista o no la cuenta (no revela correos)."""
+    from services import recuperar_clave_service as rc
+    from services.public_site_service import get_brand_config
+    datosApp = get_common_data()
+    if request.method == 'POST':
+        usuario = rc.usuario_por_email(request.form.get('email'))
+        if usuario:
+            url = url_for('auth.restablecer_contrasena', token=rc.crear_token(usuario), _external=True)
+            negocio = get_brand_config().get('empresa_nombre') or datosApp.get('titulo')
+            try:
+                rc.enviar_correo(usuario, url, negocio)
+            except Exception as exc:  # noqa: BLE001
+                app.logger.error(f'recuperar contraseña: no se pudo enviar el correo: {exc}')
+        flash('Si ese correo tiene una cuenta, te enviamos un enlace para crear una contraseña nueva. '
+              'Revisa también Spam o Promociones.', 'success')
+        return redirect(url_for('auth.login'))
+    return render_template('recuperar_contrasena.html', datosApp=datosApp)
+
+
+@auth_bp.route('/restablecer-contrasena/<token>', methods=['GET', 'POST'])
+@limiter.limit('10 per minute', methods=['POST'])
+def restablecer_contrasena(token):
+    """Crea la contraseña nueva con el enlace del correo (30 min, un solo uso)."""
+    from services import recuperar_clave_service as rc
+    datosApp = get_common_data()
+    usuario = rc.usuario_del_token(token)
+    if not usuario:
+        flash('El enlace venció o ya se usó. Pide uno nuevo.', 'error')
+        return redirect(url_for('auth.recuperar_contrasena'))
+    error = None
+    if request.method == 'POST':
+        nueva = request.form.get('password') or ''
+        error = rc.validar_clave(nueva, request.form.get('confirmacion'))
+        if not error:
+            rc.cambiar_clave(usuario['id'], nueva)
+            flash('Listo: ya puedes entrar con tu contraseña nueva.', 'success')
+            return redirect(url_for('auth.login'))
+    return render_template('restablecer_contrasena.html', datosApp=datosApp,
+                           email=usuario['email'], error=error, minimo=rc.MIN_LARGO)
 
 
 @auth_bp.route('/cliente')

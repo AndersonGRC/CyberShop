@@ -109,6 +109,10 @@
     <script>const BRAND_COLOR_BTN = "{{ brand_config.color_alerta_confirmar or '#122C94' }}";</script>
     {% endif %}
 
+    {% if tienda_demo %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/demo_placeholders.css') }}?v={{ app_version }}">
+    <script src="{{ url_for('static', filename='js/demo_placeholders.js') }}?v={{ app_version }}" defer></script>
+    {% endif %}
 </head>
 <header>
     <div class="logo logo_main">
@@ -191,6 +195,15 @@
 </header>
 
 <body>
+
+    {% if tienda_demo and not session_usuario and not (request.endpoint or '').startswith('auth.') %}
+    {# Tienda nueva: recuerda al dueño que todo se cambia al iniciar sesión. #}
+    <div class="demo-barra" role="note">
+        <span><i class="fas fa-magic" aria-hidden="true"></i>
+            Vista previa de tu tienda: las imágenes y textos son de muestra.</span>
+        <a href="{{ url_for('auth.login', next=url_for('admin.mi_negocio')) }}">Iniciar sesión y personalizar</a>
+    </div>
+    {% endif %}
 
     <!-- Mini-barra de sesión activa (solo clientes logueados) -->
     {% if session_usuario and session_usuario.rol_id == 3 %}

@@ -1,0 +1,21 @@
+{% extends './plantillaindex.html' %}
+{% block titulo %}Contraseña nueva · {{ datosApp.titulo }}{% endblock %}
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="main">
+    <h2>Crea tu contraseña nueva</h2>
+    <p class="login-ayuda">Para <strong>{{ email }}</strong>. Usa al menos {{ minimo }} caracteres.</p>
+    {% if error %}<p class="login-error" role="alert">{{ error }}</p>{% endif %}
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="password">Contraseña nueva:</label>
+        <input type="password" id="password" name="password" minlength="{{ minimo }}" autocomplete="new-password" required autofocus>
+        <label for="confirmacion">Repite la contraseña:</label>
+        <input type="password" id="confirmacion" name="confirmacion" minlength="{{ minimo }}" autocomplete="new-password" required>
+        <button type="submit">Guardar contraseña</button>
+    </form>
+</div>
+{% endblock %}

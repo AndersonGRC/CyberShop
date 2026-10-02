@@ -8,7 +8,12 @@
 <section class="servicios-titulo-seccion">
     <!-- Contenedor de la imagen -->
     <div class="servicios-titulo-fondo">
+        {% if tienda_demo %}
+        <img src="{{ url_for('static', filename='img/tu-logo-aqui.svg') }}" data-demo-img data-demo-icono="imagen" data-demo-modo="fondo" data-demo-alto="420"
+             data-demo-texto="" alt="Imagen de muestra para el encabezado de servicios">
+        {% else %}
         <img src="{{ url_for('static', filename='img/Fondo.jpg') }}" alt="Fondo de servicios">
+        {% endif %}
     </div>
 
     <!-- Contenido del título -->
@@ -37,6 +42,30 @@
     </div>
     {% endfor %}
 </section>
+{% elif tienda_demo %}
+{# ---- Tienda nueva: servicios de muestra (no los de CyberShop) ---- #}
+<section class="servicios">
+    {% for n, titulo, texto in [
+        (1, 'Tu servicio principal', 'Describe aquí lo que más vendes o lo que te hace diferente.'),
+        (2, 'Tu segundo servicio', 'Cuenta en una o dos frases qué incluye y para quién es.'),
+        (3, 'Tu tercer servicio', 'Agrega precios, horarios o condiciones si quieres.')] %}
+    <div class="servicio servicio-demo">
+        <div class="icono">
+            <img src="{{ url_for('static', filename='img/tu-logo-aqui.svg') }}" data-demo-img data-demo-icono="servicio" data-demo-tam="grande" data-demo-alto="900"
+                 data-demo-texto="Tu imagen va aquí" alt="Imagen de muestra del servicio {{ n }}">
+        </div>
+        <div class="texto">
+            <h2>{{ titulo }}</h2>
+            <p>{{ texto }}</p>
+        </div>
+    </div>
+    {% endfor %}
+</section>
+<p class="servicios-demo-cta">
+    Estos servicios son de muestra.
+    <a href="{{ url_for('auth.login', next=url_for('admin.mi_negocio')) }}">Inicia sesión</a>
+    para poner los tuyos desde <strong>Contenido Web → Servicios</strong>.
+</p>
 {% else %}
 {# ---- Fallback: servicios estaticos originales ---- #}
 <section class="servicios">

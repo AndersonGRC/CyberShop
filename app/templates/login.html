@@ -17,6 +17,7 @@
 
         <button type="submit">Ingresar</button>
     </form>
+    <p class="login-olvido"><a href="{{ url_for('auth.recuperar_contrasena') }}">¿Olvidaste tu contraseña?</a></p>
 
     {% if integraciones.google %}
     <div class="separador-google">o</div>

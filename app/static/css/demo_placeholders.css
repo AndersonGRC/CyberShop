@@ -1,0 +1,60 @@
+@import url('variables.css');
+
+/* Tiendas nuevas: barra de vista previa e imágenes de muestra. */
+.demo-barra {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 6px 14px;
+    padding: 10px 16px;
+    background: var(--color-primario-oscuro);
+    color: var(--color-blanco);
+    font-size: 14px;
+    text-align: center;
+    position: relative;
+    z-index: 100;
+}
+
+.demo-barra a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: var(--color-blanco);
+    color: var(--color-primario-oscuro);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.demo-barra a:focus-visible {
+    outline: 3px solid var(--color-hover-menu);
+    outline-offset: 2px;
+}
+
+img[data-demo-img] {
+    background: var(--color-primario);
+}
+
+.servicio-demo .icono img {
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+}
+
+.servicios-demo-cta {
+    max-width: 760px;
+    margin: 8px auto 40px;
+    padding: 0 16px;
+    text-align: center;
+    color: var(--color-texto-secundario);
+}
+
+.servicios-demo-cta a {
+    font-weight: 700;
+}
+
+/* El encabezado de servicios de muestra es oscuro: subtítulo en blanco. */
+.servicios-titulo-contenido p {
+    color: var(--color-blanco);
+}
