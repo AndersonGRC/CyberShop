@@ -6,8 +6,63 @@
  */
 (function () {
     'use strict';
+
+    /* ── Correo: sugerencia si parece mal escrito (gmial.com → gmail.com) ── */
+    var TYPOS = {
+        'gmial.com': 'gmail.com', 'gmal.com': 'gmail.com', 'gamil.com': 'gmail.com', 'gmai.com': 'gmail.com',
+        'gmail.co': 'gmail.com', 'gmail.con': 'gmail.com', 'gmail.cm': 'gmail.com', 'gmaill.com': 'gmail.com',
+        'gnail.com': 'gmail.com', 'gimail.com': 'gmail.com', 'gmail.es': 'gmail.com', 'gmail.om': 'gmail.com',
+        'hotmial.com': 'hotmail.com', 'hotmal.com': 'hotmail.com', 'hotmail.co': 'hotmail.com',
+        'hotmail.con': 'hotmail.com', 'homail.com': 'hotmail.com', 'hotmai.com': 'hotmail.com',
+        'outlok.com': 'outlook.com', 'outloo.com': 'outlook.com', 'outlook.co': 'outlook.com',
+        'outlook.con': 'outlook.com', 'yaho.com': 'yahoo.com', 'yahoo.co': 'yahoo.com',
+        'yahoo.con': 'yahoo.com', 'yhaoo.com': 'yahoo.com', 'icloud.co': 'icloud.com', 'iclod.com': 'icloud.com'
+    };
+    function sugerirCorreo(input, caja) {
+        if (!input || !caja) return;
+        function revisar() {
+            var v = input.value.trim().toLowerCase(), partes = v.split('@');
+            var sugerido = partes.length === 2 && TYPOS[partes[1]] ? partes[0] + '@' + TYPOS[partes[1]] : '';
+            // Si la sugerencia no cambió no se redibuja (al hacer clic en ella el
+            // campo pierde el foco y redibujar borraría el botón en pleno clic).
+            if (caja.dataset.sug === sugerido) return;
+            caja.dataset.sug = sugerido;
+            caja.innerHTML = '';
+            if (!sugerido) return;
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'tg-sug-btn';
+            b.textContent = '¿Quisiste decir ' + sugerido + '? Usar este';
+            b.addEventListener('click', function () {
+                input.value = sugerido; caja.innerHTML = ''; caja.dataset.sug = '';
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+            caja.appendChild(b);
+        }
+        input.addEventListener('input', revisar);
+        input.addEventListener('blur', revisar);
+    }
+
+    /* ── Pantalla «Revisa tu correo»: corregir el correo ── */
+    var corregir = document.getElementById('tgCorregir');
+    if (corregir) {
+        var abrir = document.getElementById('tgMostrarCorregir');
+        corregir.hidden = true;
+        abrir.addEventListener('click', function () {
+            corregir.hidden = !corregir.hidden;
+            if (!corregir.hidden) document.getElementById('tgCorreoNuevo').focus();
+        });
+        sugerirCorreo(document.getElementById('tgCorreoNuevo'), document.getElementById('tgCorreoNuevoSug'));
+        corregir.addEventListener('submit', function () {
+            var btn = corregir.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Enviando…';
+        });
+    }
+
     var form = document.getElementById('tgForm');
     if (!form) return;
+    sugerirCorreo(document.getElementById('tgEmail'), document.getElementById('tgEmailSug'));
     var page = form.closest('.tg-page');
     var pasos = Array.prototype.slice.call(form.querySelectorAll('.tg-step'));
     var bar = document.getElementById('tgBar');
@@ -77,7 +132,25 @@
         }
         btnCrear.disabled = true;
         btnCrear.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Preparando tu tienda…';
+        mostrarCarga();
     });
+
+    /* Capa de carga mientras el servidor valida, reserva y envía el correo. */
+    function mostrarCarga() {
+        var capa = document.getElementById('tgCarga');
+        if (!capa) return;
+        var pasosCarga = capa.querySelectorAll('.tg-carga-pasos li');
+        var titulos = ['Estamos validando tus datos…', 'Reservando tu dirección web…', 'Enviándote el correo de confirmación…'];
+        var i = 0;
+        capa.hidden = false;
+        document.body.style.overflow = 'hidden';
+        function avanzar() {
+            pasosCarga.forEach(function (li, k) { li.className = k < i ? 'is-done' : (k === i ? 'is-on' : ''); });
+            document.getElementById('tgCargaTitulo').textContent = titulos[Math.min(i, titulos.length - 1)];
+            if (i < pasosCarga.length - 1) { i++; setTimeout(avanzar, 1300); }
+        }
+        avanzar();
+    }
 
     /* ── Dirección web: sugerida desde el nombre y verificada en vivo ── */
     function slugify(t) {
@@ -182,6 +255,16 @@
         $('tgrEmail').textContent = $('tgEmail').value.trim() || '(tu correo)';
     }
     $('tgEmail').addEventListener('input', resumen);
+
+    // Volver con «Atrás» del navegador no debe dejar la pantalla de carga pegada.
+    window.addEventListener('pageshow', function (e) {
+        if (!e.persisted) return;
+        var capa = document.getElementById('tgCarga');
+        if (capa) capa.hidden = true;
+        document.body.style.overflow = '';
+        btnCrear.disabled = false;
+        btnCrear.innerHTML = '<i class="fas fa-rocket"></i> Crear mi tienda gratis';
+    });
 
     var errorPaso = Number(form.dataset.errorPaso || 0);
     vistaPrevia();

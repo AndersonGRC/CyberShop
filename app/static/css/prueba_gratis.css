@@ -235,3 +235,61 @@
     .tg-url-pre { display: none; }
     .tg-url input { padding-left: 12px; }
 }
+
+/* ── Verificación del correo ─────────────────────────────── */
+.tg-ok {
+    display: flex; gap: 8px; align-items: flex-start; background: var(--tg-ok-bg); color: var(--tg-ok);
+    border-radius: 10px; padding: 11px 14px; font-size: .88rem; margin: 0 0 14px; text-align: left;
+}
+.tg-candado {
+    display: flex; gap: 12px; align-items: flex-start; text-align: left; background: var(--tg-fondo);
+    border-radius: 12px; padding: 12px 14px; font-size: .86rem; line-height: 1.5; color: var(--tg-suave); margin: 4px 0 16px;
+}
+.tg-candado i { color: var(--tg-primario); font-size: 1.2rem; margin-top: 2px; }
+.tg-candado b { color: #33405c; }
+.tg-correo-acciones { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 12px; }
+.tg-correo-acciones form { margin: 0; }
+.tg-corregir { text-align: left; background: #fff; border: 1.5px solid var(--tg-borde); border-radius: 14px; padding: 14px; margin-bottom: 8px; }
+.tg-corregir label { display: block; font-weight: 700; font-size: .86rem; color: #33405c; margin-bottom: 6px; }
+.tg-corregir-fila { display: flex; gap: 8px; }
+.tg-corregir-fila input {
+    flex: 1; min-width: 0; border: 1.5px solid var(--tg-borde); border-radius: 10px; padding: 12px 14px; font-size: 15px;
+}
+.tg-corregir-fila .tg-btn { flex: none; }
+.tg-sug-btn {
+    margin-top: 6px; border: 1.5px dashed var(--tg-aviso); background: var(--tg-aviso-bg); color: var(--tg-aviso);
+    border-radius: 8px; padding: 6px 10px; font-size: .82rem; font-weight: 700; cursor: pointer;
+}
+
+/* ── Pantalla de carga ───────────────────────────────────── */
+.tg-carga {
+    position: fixed; inset: 0; z-index: 3000; display: flex; align-items: center; justify-content: center;
+    padding: 16px; background: rgba(12, 20, 40, .55); backdrop-filter: blur(3px);
+}
+.tg-carga[hidden] { display: none !important; }
+.tg-carga-caja {
+    width: min(420px, 100%); background: #fff; border-radius: 20px; padding: 28px 26px; text-align: center;
+    box-shadow: 0 24px 60px rgba(8, 14, 31, .35); animation: tg-entra .25s ease;
+}
+.tg-carga-caja h2 { margin: 0 0 14px; font-size: 1.15rem; color: var(--tg-oscuro, #091C5A); }
+.tg-carga-spin {
+    width: 46px; height: 46px; margin: 0 auto 16px; border-radius: 50%;
+    border: 5px solid #e2e9f6; border-top-color: var(--tg-primario, #122C94); animation: tg-gira .9s linear infinite;
+}
+@keyframes tg-gira { to { transform: rotate(360deg); } }
+.tg-carga-pasos { list-style: none; margin: 0 0 12px; padding: 0; text-align: left; display: grid; gap: 9px; }
+.tg-carga-pasos li { position: relative; padding-left: 28px; font-size: .9rem; color: #9aa3b5; transition: color .3s; }
+.tg-carga-pasos li::before {
+    content: ""; position: absolute; left: 2px; top: 2px; width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid #d5dcea; background: #fff;
+}
+.tg-carga-pasos li.is-on { color: #33405c; font-weight: 700; }
+.tg-carga-pasos li.is-on::before { border-color: var(--tg-primario, #122C94); border-top-color: transparent; animation: tg-gira .9s linear infinite; }
+.tg-carga-pasos li.is-done { color: var(--tg-ok); }
+.tg-carga-pasos li.is-done::before {
+    content: "✓"; border-color: var(--tg-ok); background: var(--tg-ok); color: #fff;
+    font-size: 10px; line-height: 14px; text-align: center;
+}
+@media (max-width: 640px) {
+    .tg-corregir-fila { flex-direction: column; }
+}

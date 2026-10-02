@@ -962,6 +962,12 @@ def prueba_gratis():
         telefono, tel_err = pcs.normalizar_whatsapp(form['buyer_telefono'])
         color, color_err = marca_service.validar(form['color_marca'] or marca_service.NEUTRO)
         tipo = form['tipo_negocio'] if form['tipo_negocio'] in TIPOS_NEGOCIO else 'otro'
+        correo, correo_err = (None, None)
+        if not error and len(form['nombre_negocio']) >= 3 and not slug_err and not color_err:
+            from services import correo_service
+            correo, correo_err = correo_service.validar(form['buyer_email'])
+            if correo:
+                form['buyer_email'] = correo
         if not error:
             # El asistente abre el paso donde está el dato a corregir.
             if len(form['nombre_negocio']) < 3:
@@ -972,8 +978,8 @@ def prueba_gratis():
                 error, error_paso = color_err, 3
             elif len(form['buyer_nombre']) < 3:
                 error, error_paso = 'Escribe tu nombre.', 4
-            elif '@' not in form['buyer_email'] or len(form['buyer_email']) < 6:
-                error, error_paso = 'Escribe un correo válido.', 4
+            elif correo_err:
+                error, error_paso = correo_err, 4
             elif tel_err:
                 error, error_paso = tel_err, 4
             elif _slug_ocupado(slug):
@@ -987,21 +993,13 @@ def prueba_gratis():
             if compra_id is None:
                 error, error_paso = res, (2 if 'subdominio' in res else 4)
             else:
-                from helpers_email_templates import generar_email_confirmacion_trial
-                from helpers_gmail import enviar_email_gmail
-                compra = pcs.get_por_id(compra_id)
-                confirmar_url = url_for('public.prueba_gratis_confirmar',
-                                        token=res, _external=True)
-                try:
-                    asunto, texto, html = generar_email_confirmacion_trial(compra, confirmar_url)
-                    enviar_email_gmail(form['buyer_email'], asunto, texto, html=html)
-                except Exception as exc:  # noqa: BLE001
-                    app.logger.error(f"trial: email de confirmación falló: {exc}")
-                    error = 'No pudimos enviar el correo de confirmación. Intenta de nuevo.'
-                if not error:
-                    return render_template('prueba_gratis.html', datosApp=datosApp,
-                                           enviado=True, email_destino=form['buyer_email'],
-                                           form={}, error=None, **sw_colors)
+                # La prueba pendiente queda en la sesión de quien la pidió: así
+                # puede reenviar o corregir su correo sin ver nunca el enlace.
+                session['trial_pendiente'] = compra_id
+                if _enviar_confirmacion_trial(pcs.get_por_id(compra_id)):
+                    return _pantalla_enviado(datosApp, sw_colors, form['buyer_email'])
+                error, error_paso = ('No pudimos enviar el correo de confirmación. '
+                                     'Revisa que tu correo esté bien escrito e intenta de nuevo.'), 4
 
     return render_template('prueba_gratis.html', datosApp=datosApp, enviado=False,
                            form=form, error=error, error_paso=error_paso,
@@ -1009,12 +1007,77 @@ def prueba_gratis():
                            color_neutro=marca_service.NEUTRO, tipos=TIPOS_NEGOCIO, **sw_colors)
 
 
+def _enviar_confirmacion_trial(compra):
+    """Envía el enlace de confirmación. True si salió."""
+    from helpers_email_templates import generar_email_confirmacion_trial
+    from helpers_gmail import enviar_email_gmail
+    try:
+        confirmar_url = url_for('public.prueba_gratis_confirmar', token=compra['token'], _external=True)
+        asunto, texto, html = generar_email_confirmacion_trial(compra, confirmar_url)
+        return bool(enviar_email_gmail(compra['buyer_email'], asunto, texto, html=html))
+    except Exception as exc:  # noqa: BLE001
+        app.logger.error(f"trial: email de confirmación falló: {exc}")
+        return False
+
+
+def _pantalla_enviado(datosApp, sw_colors, email, aviso=None, error=None):
+    from services import plan_compras_service as pcs
+    return render_template('prueba_gratis.html', datosApp=datosApp, enviado=True,
+                           email_destino=email, aviso=aviso, error=error, form={},
+                           horas=pcs.VERIFICACION_HORAS, **sw_colors)
+
+
+@public_bp.route('/prueba-gratis/correo', methods=['POST'])
+def prueba_gratis_correo():
+    """«Reenviar el correo» o «Me equivoqué de correo» en la pantalla de
+    espera. Solo para la prueba de ESTA sesión y mientras no se haya confirmado."""
+    from services import plan_compras_service as pcs
+    from services import correo_service
+    from security import controlar_tasa_solicitudes
+    if not is_public_section_enabled('mostrar_modulo_software', False):
+        return redirect(url_for('public.index'))
+    datosApp = get_common_data()
+    try:
+        from services.public_site_service import get_brand_config
+        sw_colors = _software_colors(get_brand_config() or {})
+    except Exception:
+        sw_colors = _software_colors({})
+    compra = pcs.get_por_id(session.get('trial_pendiente')) if session.get('trial_pendiente') else None
+    if not compra or compra['estado'] != 'TRIAL_PENDIENTE':
+        session.pop('trial_pendiente', None)
+        flash('Ese registro ya fue confirmado o venció. Puedes empezar de nuevo.', 'info')
+        return redirect(url_for('public.prueba_gratis'))
+    ip = request.headers.get('X-Forwarded-For', request.remote_addr or '?').split(',')[0].strip()
+    if not controlar_tasa_solicitudes(f"trial-correo:{ip}", max_requests=6, interval=600):
+        return _pantalla_enviado(datosApp, sw_colors, compra['buyer_email'],
+                                 error='Hiciste muchos intentos seguidos. Espera unos minutos.')
+    if request.form.get('accion') == 'corregir':
+        nuevo, err = correo_service.validar(request.form.get('email'))
+        if err:
+            return _pantalla_enviado(datosApp, sw_colors, compra['buyer_email'], error=err)
+        fila, err = pcs.cambiar_correo_trial(compra['id'], nuevo)
+        if err:
+            return _pantalla_enviado(datosApp, sw_colors, compra['buyer_email'], error=err)
+        if not _enviar_confirmacion_trial(fila):
+            return _pantalla_enviado(datosApp, sw_colors, fila['buyer_email'],
+                                     error='No pudimos enviar el correo. Intenta de nuevo en un momento.')
+        return _pantalla_enviado(datosApp, sw_colors, fila['buyer_email'],
+                                 aviso='Listo: corregimos tu correo y te enviamos un enlace nuevo. '
+                                       'El anterior ya no sirve.')
+    fila = pcs.reenviar_trial(compra['id'])
+    if not fila or not _enviar_confirmacion_trial(fila):
+        return _pantalla_enviado(datosApp, sw_colors, compra['buyer_email'],
+                                 error='No pudimos reenviar el correo. Intenta de nuevo en un momento.')
+    return _pantalla_enviado(datosApp, sw_colors, fila['buyer_email'],
+                             aviso='Te enviamos el correo otra vez. Mira también en spam o promociones.')
+
+
 def _slug_ocupado(slug):
     """Reservado por otra compra/prueba o ya creado en el maestro.
     Si el maestro no responde, se deja pasar: lo vuelve a validar al crear."""
     from services import plan_compras_service as pcs
     from services.master_client import slug_disponible
-    if pcs.slug_reservado(slug):
+    if pcs.slug_reservado(slug, excluir_id=session.get('trial_pendiente')):
         return True
     disponible, _motivo = slug_disponible(slug)
     return disponible is False
@@ -1050,8 +1113,13 @@ def prueba_gratis_confirmar(token):
 
     compra = pcs.get_por_token(token)
     if not compra or not compra.get('es_trial'):
-        flash('El enlace de confirmación no es válido.', 'error')
+        flash('El enlace de confirmación no es válido o fue reemplazado por uno nuevo.', 'error')
         return redirect(url_for('public.index'))
+    if not pcs.confirmacion_vigente(compra):
+        flash(f'Este enlace venció ({pcs.VERIFICACION_HORAS} horas). Regístrate de nuevo con el '
+              'mismo correo y te enviamos uno nuevo.', 'info')
+        return redirect(url_for('public.prueba_gratis'))
+    session.pop('trial_pendiente', None)
 
     if pcs.marcar_trial_verificado(compra['id']):
         # Ya tenemos slug y nombre del negocio desde el registro: activar directo

@@ -52,6 +52,7 @@
   .ac-btn:hover { background: var(--ac-oscuro); transform: translateY(-2px); }
   .ac-status { text-align: center; padding: 14px 0 4px; }
   .ac-status .ic { font-size: 3rem; margin-bottom: 14px; display: block; }
+  .ac-status [hidden] { display: none !important; }
   .ac-spinner { width: 52px; height: 52px; margin: 6px auto 20px; border-radius: 50%;
     border: 5px solid #e2e9f6; border-top-color: var(--ac-acento);
     animation: acspin .9s linear infinite; }
@@ -117,14 +118,15 @@
 
     {% elif compra.estado == 'ACTIVANDO' %}
     <div class="ac-status" id="acCreando" data-estado-url="{{ url_for('public.activar_tienda_estado', token=compra.token) }}">
-      <div class="ac-spinner"></div>
-      <h1>Creando tu tienda…</h1>
-      <p class="sub">Toma <strong>1 a 3 minutos</strong>. No necesitas recargar: esta página se actualiza sola.</p>
+      <div class="ac-spinner" id="acSpinner"></div>
+      <span class="ic" id="acListo" hidden>🎉</span>
+      <h1 id="acTitulo">Estamos validando tus datos…</h1>
+      <p class="sub" id="acSub">Toma <strong>1 a 3 minutos</strong>. No necesitas recargar: esta página se actualiza sola.</p>
       <ol class="ac-etapas" id="acEtapas">
-        <li data-s="0"><b>Reservando tu espacio seguro</b><span>Una base de datos solo para tu negocio.</span></li>
-        <li data-s="20"><b>Preparando tu panel</b><span>Tu usuario de administrador, tus módulos y tu diseño.</span></li>
-        <li data-s="45"><b>Activando tu dirección web</b><span>Con el candado de seguridad (https) para que tus clientes compren tranquilos.</span></li>
-        <li data-s="90"><b>Enviándote tus accesos</b><span>A <strong>{{ compra.buyer_email }}</strong>: la dirección, tu usuario y una contraseña temporal.</span></li>
+        <li data-s="0" data-t="Estamos validando tus datos…"><b>Validando tus datos</b><span>Tu correo ya está confirmado; revisamos el resto.</span></li>
+        <li data-s="4" data-t="Estamos creando tu sitio…"><b>Creando tu sitio</b><span>Tu espacio seguro, tu panel, tus módulos y tu diseño.</span></li>
+        <li data-s="45" data-t="Estamos creando tu sitio…"><b>Activando tu dirección web</b><span>Con el candado de seguridad (https) para que tus clientes compren tranquilos.</span></li>
+        <li data-s="90" data-t="Ya casi…"><b>Enviándote tus accesos</b><span>A <strong>{{ compra.buyer_email }}</strong>: la dirección, tu usuario y una contraseña temporal.</span></li>
       </ol>
     </div>
 
@@ -167,24 +169,38 @@
   if (!caja) return;
   var etapas = Array.prototype.slice.call(document.querySelectorAll('#acEtapas li'));
   var inicio = Date.now();
+  var listo = false, reloj = null;
   function pintar() {
+    if (listo) return;
     var s = (Date.now() - inicio) / 1000;
     etapas.forEach(function (li, i) {
       var desde = Number(li.dataset.s), sig = etapas[i + 1] ? Number(etapas[i + 1].dataset.s) : 1e9;
       li.className = s >= sig ? 'is-done' : (s >= desde ? 'is-on' : '');
+      if (li.className === 'is-on') document.getElementById('acTitulo').textContent = li.dataset.t;
     });
+  }
+  function todoListo() {
+    listo = true;
+    clearInterval(reloj);
+    etapas.forEach(function (li) { li.className = 'is-done'; });
+    document.getElementById('acSpinner').hidden = true;
+    document.getElementById('acListo').hidden = false;
+    document.getElementById('acTitulo').textContent = '¡Todo está listo!';
+    document.getElementById('acSub').textContent = 'Tu tienda ya está en internet. Te mostramos cómo entrar…';
+    setTimeout(function () { window.location.reload(); }, 1800);   // el servidor pinta la pantalla final
   }
   function consultar() {
     fetch(caja.dataset.estadoUrl, { headers: { 'Accept': 'application/json' } })
       .then(function (r) { return r.json(); })
       .then(function (d) {
         if (d.estado === 'ACTIVANDO') { setTimeout(consultar, 3000); return; }
-        window.location.reload();   // ACTIVADA o ERROR: el servidor pinta el resultado
+        if (d.estado === 'ACTIVADA') { todoListo(); return; }
+        window.location.reload();   // ERROR u otro: el servidor muestra qué pasó
       })
       .catch(function () { setTimeout(consultar, 5000); });
   }
   pintar();
-  setInterval(pintar, 1000);
+  reloj = setInterval(pintar, 1000);
   setTimeout(consultar, 3000);
 })();
 (function () {

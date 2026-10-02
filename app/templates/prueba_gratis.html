@@ -20,8 +20,34 @@
     <div class="tg-done">
       <div class="tg-done-ico" aria-hidden="true"><i class="fas fa-envelope-open-text"></i></div>
       <h1>Revisa tu correo</h1>
-      <p class="tg-sub">Te enviamos un enlace a <strong>{{ email_destino }}</strong>. Ábrelo para crear tu tienda
+      <p class="tg-sub">Te enviamos un enlace a <strong id="tgCorreoActual">{{ email_destino }}</strong>. Ábrelo para crear tu tienda
         (llega en menos de un minuto; mira también en spam o promociones).</p>
+      {% if aviso %}<div class="tg-ok" role="status"><i class="fas fa-check-circle"></i> {{ aviso }}</div>{% endif %}
+      {% if error %}<div class="tg-error" role="alert"><i class="fas fa-exclamation-circle"></i> {{ error }}</div>{% endif %}
+      <div class="tg-candado">
+        <i class="fas fa-shield-alt"></i>
+        <span><b>Tu tienda se crea solo cuando confirmes tu correo.</b> Así nos aseguramos de que el correo es tuyo
+          y de que te lleguen tu usuario y tu contraseña. El enlace vale {{ horas or 72 }} horas.</span>
+      </div>
+      <div class="tg-correo-acciones">
+        <form method="POST" action="{{ url_for('public.prueba_gratis_correo') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="accion" value="reenviar">
+          <button type="submit" class="tg-btn-sec"><i class="fas fa-redo"></i> Reenviar el correo</button>
+        </form>
+        <button type="button" class="tg-btn-sec" id="tgMostrarCorregir"><i class="fas fa-pen"></i> Me equivoqué de correo</button>
+      </div>
+      <form method="POST" action="{{ url_for('public.prueba_gratis_correo') }}" class="tg-corregir" id="tgCorregir">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="accion" value="corregir">
+        <label for="tgCorreoNuevo">Escribe tu correo correcto</label>
+        <div class="tg-corregir-fila">
+          <input id="tgCorreoNuevo" type="email" name="email" required maxlength="150" placeholder="tucorreo@gmail.com" autocomplete="email">
+          <button type="submit" class="tg-btn"><i class="fas fa-paper-plane"></i> Enviar al correo correcto</button>
+        </div>
+        <div class="tg-hint" id="tgCorreoNuevoSug" aria-live="polite"></div>
+        <div class="tg-hint">El enlace que enviamos al correo anterior dejará de funcionar.</div>
+      </form>
       <ol class="tg-timeline">
         <li class="is-on"><b>Confirma tu correo</b><span>Con el botón del correo que te enviamos.</span></li>
         <li><b>Creamos tu tienda</b><span>Toma 1 a 2 minutos; verás el avance en pantalla.</span></li>
@@ -163,7 +189,9 @@
           <label for="tgEmail">Tu correo</label>
           <input id="tgEmail" type="email" name="buyer_email" required maxlength="150"
                  value="{{ form.buyer_email or '' }}" placeholder="tucorreo@gmail.com" autocomplete="email">
-          <div class="tg-hint">Será tu usuario para entrar. Aquí te llegan el enlace de confirmación y tu contraseña temporal.</div>
+          <div class="tg-hint tg-sugerencia" id="tgEmailSug" aria-live="polite"></div>
+          <div class="tg-hint">Será tu usuario para entrar. Aquí te llegan el enlace de confirmación y tu contraseña temporal.
+            <b>Sin confirmarlo no se crea la tienda</b>, así que revisa que esté bien escrito.</div>
         </div>
 
         <div class="tg-resumen">
@@ -194,6 +222,18 @@
     </form>
   {% endif %}
   </div>
+  <div class="tg-carga" id="tgCarga" hidden role="alertdialog" aria-live="assertive" aria-label="Procesando tu registro">
+  <div class="tg-carga-caja">
+    <div class="tg-carga-spin" aria-hidden="true"></div>
+    <h2 id="tgCargaTitulo">Estamos validando tus datos…</h2>
+    <ol class="tg-carga-pasos">
+      <li data-p="0">Estamos validando tus datos</li>
+      <li data-p="1">Reservando tu dirección web</li>
+      <li data-p="2">Enviándote el correo de confirmación</li>
+    </ol>
+    <p class="tg-hint">No cierres esta página, toma unos segundos.</p>
+  </div>
+</div>
 </div>
 <script src="{{ url_for('static', filename='js/prueba_gratis.js') }}" defer></script>
 {% endblock %}

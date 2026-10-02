@@ -68,6 +68,8 @@ def _ensure_table():
         cur.execute("ALTER TABLE plan_compras ADD COLUMN IF NOT EXISTS color_marca VARCHAR(7)")
         cur.execute("ALTER TABLE plan_compras ADD COLUMN IF NOT EXISTS tipo_negocio VARCHAR(30)")
         cur.execute("ALTER TABLE plan_compras ADD COLUMN IF NOT EXISTS lema VARCHAR(120)")
+        # Cuándo se envió el último enlace de confirmación (vence a las 72 h).
+        cur.execute("ALTER TABLE plan_compras ADD COLUMN IF NOT EXISTS verificacion_enviada_at TIMESTAMP")
 
 
 def normalizar_whatsapp(valor):
@@ -83,14 +85,29 @@ def normalizar_whatsapp(valor):
 
 
 ESTADOS_QUE_RESERVAN = ('TRIAL_PENDIENTE', 'PAGADO', 'ACTIVANDO', 'ACTIVADA')
+VERIFICACION_HORAS = 72      # el enlace de confirmación vence; mientras, aparta el subdominio
+# Una prueba sin confirmar solo aparta su subdominio mientras su enlace esté
+# vigente: un correo falso o de spam no bloquea direcciones para siempre.
+_RESERVA_VIGENTE = (f"NOT (estado = 'TRIAL_PENDIENTE' AND COALESCE(verificacion_enviada_at, created_at)"
+                    f" < NOW() - INTERVAL '{VERIFICACION_HORAS} hours')")
 
 
-def slug_reservado(slug):
-    """¿Otra compra o prueba ya apartó este subdominio?"""
+def confirmacion_vigente(compra):
+    """¿Este enlace de prueba se puede usar todavía?"""
+    if not compra or compra.get('estado') != 'TRIAL_PENDIENTE':
+        return True          # ya confirmada: el enlace lleva a la página de activación
+    enviado = compra.get('verificacion_enviada_at') or compra.get('created_at')
+    return bool(enviado) and enviado >= datetime.now() - timedelta(hours=VERIFICACION_HORAS)
+
+
+def slug_reservado(slug, excluir_id=None):
+    """¿Otra compra o prueba ya apartó este subdominio? `excluir_id`: la prueba
+    pendiente de la misma persona (su propia reserva no le cuenta como ocupada)."""
     _ensure_table()
     with get_db_cursor() as cur:
-        cur.execute("SELECT 1 FROM plan_compras WHERE slug = %s AND estado = ANY(%s) LIMIT 1",
-                    (slug, list(ESTADOS_QUE_RESERVAN)))
+        cur.execute("SELECT 1 FROM plan_compras WHERE slug = %s AND estado = ANY(%s) "
+                    f"AND id <> COALESCE(%s, 0) AND {_RESERVA_VIGENTE} LIMIT 1",
+                    (slug, list(ESTADOS_QUE_RESERVAN), excluir_id))
         return cur.fetchone() is not None
 
 
@@ -236,7 +253,7 @@ def crear_trial(nombre_negocio, buyer_nombre, buyer_email, slug, telefono='',
             return None, 'Ese correo ya usó una prueba gratis. Escríbenos y te ayudamos.'
         cur.execute(
             "SELECT 1 FROM plan_compras WHERE slug = %s AND estado = ANY(%s) "
-            "AND id <> COALESCE(%s, 0)",
+            f"AND id <> COALESCE(%s, 0) AND {_RESERVA_VIGENTE}",
             (slug, list(ESTADOS_QUE_RESERVAN), previa['id'] if previa else None),
         )
         if cur.fetchone():
@@ -245,7 +262,8 @@ def crear_trial(nombre_negocio, buyer_nombre, buyer_email, slug, telefono='',
             cur.execute(
                 """UPDATE plan_compras
                    SET buyer_nombre = %s, buyer_telefono = %s, nombre_negocio = %s, slug = %s,
-                       color_marca = %s, tipo_negocio = %s, lema = %s
+                       color_marca = %s, tipo_negocio = %s, lema = %s,
+                       verificacion_enviada_at = NOW()
                    WHERE id = %s AND estado = 'TRIAL_PENDIENTE'""",
                 (buyer_nombre, telefono, nombre_negocio, slug, color_marca, tipo_negocio,
                  lema or None, previa['id']),
@@ -258,8 +276,8 @@ def crear_trial(nombre_negocio, buyer_nombre, buyer_email, slug, telefono='',
             INSERT INTO plan_compras
                 (referencia_pedido, plan_key, buyer_nombre, buyer_email,
                  buyer_telefono, nombre_negocio, slug, token, estado,
-                 periodo, es_trial, color_marca, tipo_negocio, lema)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'TRIAL_PENDIENTE', 'mes', TRUE, %s, %s, %s)
+                 periodo, es_trial, color_marca, tipo_negocio, lema, verificacion_enviada_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'TRIAL_PENDIENTE', 'mes', TRUE, %s, %s, %s, NOW())
             RETURNING id
             """,
             (referencia, TRIAL_PLAN_KEY, buyer_nombre, buyer_email,
@@ -277,6 +295,50 @@ def crear_trial(nombre_negocio, buyer_nombre, buyer_email, slug, telefono='',
         except Exception:  # noqa: BLE001
             cur.execute('ROLLBACK TO SAVEPOINT crm_prueba')
         return compra_id, token
+
+
+def reenviar_trial(compra_id):
+    """Pide otro correo de confirmación (mismo enlace, vigencia renovada).
+    Devuelve la fila o None si ya no está pendiente."""
+    _ensure_table()
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute("""UPDATE plan_compras SET verificacion_enviada_at = NOW()
+                       WHERE id = %s AND estado = 'TRIAL_PENDIENTE' RETURNING *""", (compra_id,))
+        return cur.fetchone()
+
+
+def cambiar_correo_trial(compra_id, nuevo_email):
+    """La persona escribió mal su correo: lo cambia y emite un enlace NUEVO
+    (el enviado al correo equivocado deja de servir). También corrige el
+    contacto del CRM que creó este registro. Devuelve (fila, None) o (None, error)."""
+    _ensure_table()
+    nuevo_email = (nuevo_email or '').strip().lower()
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute("SELECT * FROM plan_compras WHERE id = %s FOR UPDATE", (compra_id,))
+        compra = cur.fetchone()
+        if not compra or compra['estado'] != 'TRIAL_PENDIENTE':
+            return None, 'Este registro ya fue confirmado o no existe. Si necesitas ayuda, escríbenos.'
+        if compra['buyer_email'] == nuevo_email:
+            return None, 'Ese es el mismo correo. Si no te llega, revisa spam o pide reenviarlo.'
+        cur.execute("SELECT 1 FROM plan_compras WHERE LOWER(buyer_email) = %s "
+                    "AND referencia_pedido LIKE 'TRIAL-%%' AND id <> %s", (nuevo_email, compra_id))
+        if cur.fetchone():
+            return None, 'Ese correo ya usó una prueba gratis. Escríbenos y te ayudamos.'
+        cur.execute("""UPDATE plan_compras SET buyer_email = %s, token = %s, verificacion_enviada_at = NOW()
+                       WHERE id = %s RETURNING *""", (nuevo_email, secrets.token_urlsafe(24), compra_id))
+        fila = cur.fetchone()
+        try:
+            cur.execute('SAVEPOINT crm_correo')
+            cur.execute("SELECT to_regclass('crm_contactos') IS NOT NULL AS hay")
+            if cur.fetchone()['hay']:
+                cur.execute("""UPDATE crm_contactos SET email = %s, updated_at = CURRENT_TIMESTAMP
+                               WHERE LOWER(email) = %s AND origen = 'prueba_gratis'
+                                 AND NOT EXISTS (SELECT 1 FROM crm_contactos c2 WHERE LOWER(c2.email) = %s)""",
+                            (nuevo_email, compra['buyer_email'].lower(), nuevo_email))
+            cur.execute('RELEASE SAVEPOINT crm_correo')
+        except Exception:  # noqa: BLE001
+            cur.execute('ROLLBACK TO SAVEPOINT crm_correo')
+        return fila, None
 
 
 def marcar_trial_verificado(compra_id):

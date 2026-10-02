@@ -18,6 +18,14 @@ def _email(n=''):
     return f'pytest-trial-{MARCA}{n}@ejemplo.com'
 
 
+@pytest.fixture(autouse=True)
+def _sin_dns(monkeypatch):
+    """Ninguna prueba consulta el DNS real; el dominio «noexiste» se simula."""
+    from services import correo_service
+    monkeypatch.setattr(correo_service, '_dominio_existe',
+                        lambda dominio, segundos=3.0: not dominio.startswith('noexiste'))
+
+
 @pytest.fixture()
 def limpiar(cursor):
     yield
@@ -280,3 +288,79 @@ def test_mi_negocio_cambia_la_paleta_solo_si_cambia_el_color(as_propietario, fla
         assert b['color_primario'] == '#0f766e' and b['color_secundario'] == marca.paleta_desde('#0f766e')['color_secundario']
     r = as_propietario.post('/admin/mi-negocio', data={'color_marca': '#fafafa'}, follow_redirects=True)
     assert 'muy claro' in r.get_data(as_text=True)
+
+
+# ── Correo: validación, corregir, reenviar y vencimiento ───────
+@pytest.mark.parametrize('correo, fragmento', [
+    ('ana@gmial.com', 'ana@gmail.com'), ('ana@hotmial.com', 'ana@hotmail.com'),
+    ('ana@yopmail.com', 'temporal'), ('ana@noexiste-zyx.com', 'no existe'),
+    ('ana@', 'correo válido'), ('ana..b@gmail.com', 'correo válido'),
+])
+def test_correo_invalido_o_mal_escrito(correo, fragmento):
+    from services import correo_service
+    ok, err = correo_service.validar(correo)
+    assert ok is None and fragmento in err
+
+
+def test_correo_valido_se_normaliza():
+    from services import correo_service
+    assert correo_service.validar('  Ana.Perez@Gmail.com ') == ('ana.perez@gmail.com', None)
+
+
+def test_corregir_correo_invalida_el_enlace_anterior(limpiar, cursor):
+    cid, token = pcs.crear_trial('Tienda Zyx', 'Ana Zyx', _email('v'), f'corr-{MARCA}', telefono='3001234567')
+    fila, err = pcs.cambiar_correo_trial(cid, _email('n'))
+    assert err is None and fila['buyer_email'] == _email('n') and fila['token'] != token
+    assert pcs.get_por_token(token) is None, 'el enlace enviado al correo equivocado ya no sirve'
+    with cursor() as cur:
+        cur.execute('SELECT COUNT(*) AS n FROM crm_contactos WHERE email = %s', (_email('n'),))
+        assert cur.fetchone()['n'] == 1, 'el contacto del CRM queda con el correo corregido'
+    assert pcs.cambiar_correo_trial(cid, _email('n'))[1].startswith('Ese es el mismo correo')
+    pcs.marcar_trial_verificado(cid)
+    assert pcs.cambiar_correo_trial(cid, _email('m'))[0] is None, 'confirmada: ya no se cambia'
+
+
+def test_no_corrige_a_un_correo_que_ya_uso_prueba(limpiar):
+    pcs.crear_trial('A', 'Ana Zyx', _email('p1'), f'p1-{MARCA}', telefono='3001234567')
+    cid, _ = pcs.crear_trial('B', 'Bea Zyx', _email('p2'), f'p2-{MARCA}', telefono='3001234568')
+    assert 'ya usó' in pcs.cambiar_correo_trial(cid, _email('p1'))[1]
+
+
+def test_enlace_vence_y_libera_la_direccion(limpiar, cursor, client):
+    cid, token = pcs.crear_trial('Vieja Zyx', 'Ana Zyx', _email('x1'), f'vieja-{MARCA}', telefono='3001234567')
+    assert pcs.slug_reservado(f'vieja-{MARCA}')
+    with cursor() as cur:
+        cur.execute("UPDATE plan_compras SET verificacion_enviada_at = NOW() - INTERVAL '73 hours' WHERE id = %s", (cid,))
+    assert not pcs.confirmacion_vigente(pcs.get_por_id(cid))
+    assert not pcs.slug_reservado(f'vieja-{MARCA}'), 'un correo falso no aparta la dirección para siempre'
+    r = client.get(f'/prueba-gratis/confirmar/{token}')
+    assert r.status_code == 302 and '/prueba-gratis' in r.headers['Location']
+    assert pcs.get_por_id(cid)['estado'] == 'TRIAL_PENDIENTE', 'un enlace vencido no crea nada'
+    assert pcs.reenviar_trial(cid) and pcs.confirmacion_vigente(pcs.get_por_id(cid))
+
+
+def test_pantalla_corregir_correo_por_sesion(limpiar, client, software_visible, monkeypatch):
+    import routes.public as pub
+    enviados = []
+    monkeypatch.setattr(pub, '_enviar_confirmacion_trial', lambda compra: enviados.append(compra['buyer_email']) or True)
+    r = client.post('/prueba-gratis/correo', data={'accion': 'reenviar'})
+    assert r.status_code == 302, 'sin prueba en la sesión no se puede tocar ningún registro'
+    cid, _ = pcs.crear_trial('Ses Zyx', 'Ana Zyx', _email('s1'), f'ses-{MARCA}', telefono='3001234567')
+    with client.session_transaction() as sess:
+        sess['trial_pendiente'] = cid
+    html = client.post('/prueba-gratis/correo', data={'accion': 'corregir', 'email': 'ana@gmial.com'}).get_data(as_text=True)
+    assert 'ana@gmail.com' in html and enviados == []
+    html = client.post('/prueba-gratis/correo', data={'accion': 'corregir', 'email': _email('s2')}).get_data(as_text=True)
+    assert 'corregimos tu correo' in html and _email('s2') in html and enviados == [_email('s2')]
+    html = client.post('/prueba-gratis/correo', data={'accion': 'reenviar'}).get_data(as_text=True)
+    assert 'otra vez' in html and enviados[-1] == _email('s2')
+    assert 'Me equivoqué de correo' in html and 'Tu tienda se crea solo cuando confirmes tu correo' in html
+
+
+def test_registro_con_correo_mal_escrito_vuelve_al_paso_4(client, software_visible, monkeypatch):
+    import routes.public as pub
+    monkeypatch.setattr(pub, '_slug_ocupado', lambda slug: False)
+    html = client.post('/prueba-gratis', data={'nombre_negocio': 'Tienda Zyx', 'buyer_nombre': 'Ana Zyx',
+                                               'buyer_email': 'ana@gmial.com', 'buyer_telefono': '3001234567',
+                                               'subdominio': f'tienda-{MARCA}', 'color_marca': '#1e40af'}).get_data(as_text=True)
+    assert 'ana@gmail.com' in html and 'data-error-paso="4"' in html
