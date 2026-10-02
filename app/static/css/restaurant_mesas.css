@@ -84,6 +84,9 @@
     border: 1px solid var(--rm-border-subtle);
     border-radius: 20px;
     overflow: hidden;
+    /* clip recorta igual pero no crea contenedor de desplazamiento: así la
+       cuenta puede quedarse fija (sticky) mientras se recorren los productos. */
+    overflow: clip;
     min-width: 0;
 }
 
@@ -1181,6 +1184,79 @@
     flex-wrap: wrap;
 }
 
+/* Buscador con Ítem libre y Con nota al lado: siempre a la mano. */
+.rm-tools {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.rm-tools .rm-search {
+    flex: 1;
+    min-width: 0;
+}
+
+.rm-tools .rm-chip {
+    height: 44px;
+    flex-shrink: 0;
+}
+
+/* Categorías: una sola fila deslizable; «Ver todas» las despliega. */
+.rm-cats-wrap {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    min-width: 0;
+}
+
+.rm-cats-wrap .rm-cats {
+    flex: 1;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scrollbar-width: thin;
+    -webkit-mask-image: linear-gradient(to right, var(--rm-white) calc(100% - 36px), transparent);
+    mask-image: linear-gradient(to right, var(--rm-white) calc(100% - 36px), transparent);
+}
+
+.rm-cats-wrap.is-open .rm-cats {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    overflow-y: auto;
+    max-height: 40vh;
+    -webkit-mask-image: none;
+    mask-image: none;
+}
+
+.rm-cats-toggle {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 14px;
+    border: 1.5px solid var(--rm-brand-200);
+    border-radius: 999px;
+    background: var(--rm-white);
+    color: var(--rm-brand-700);
+    font: 700 13px var(--rm-font);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.rm-cats-toggle:hover {
+    background: var(--rm-brand-50);
+}
+
+.rm-cats-n {
+    min-width: 22px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--rm-brand-100);
+    text-align: center;
+}
+
 .rm-libre {
     display: grid;
     grid-template-columns: minmax(0, 2fr) minmax(90px, 1fr) 72px auto;
@@ -1530,6 +1606,38 @@
     display: none;
 }
 
+/* Computador: la cuenta (total y cobro) queda fija a la derecha mientras se
+   recorren los productos, sin importar cuántos haya. */
+@media (min-width: 1101px) {
+    .rm-grid-sale {
+        align-items: start;
+    }
+
+    .rm-side-sale {
+        position: sticky;
+        top: var(--rm-sticky-top, 81px);
+        min-height: 0;
+        max-height: calc(100vh - var(--rm-sticky-top, 81px) - 12px);
+        border-bottom: 1px solid var(--rm-border-subtle);
+        border-bottom-left-radius: 16px;
+    }
+
+    .rm-side-sale .rm-lines-list {
+        flex: 1 1 auto;
+        min-height: 80px;
+    }
+
+    /* Mientras la mesa aún no llega arriba, el total y el cobro se pegan al
+       borde inferior de la pantalla. */
+    .rm-side-sale .rm-pay {
+        position: sticky;
+        bottom: 0;
+        z-index: 1;
+        background: var(--rm-white);
+        border-bottom-left-radius: 16px;
+    }
+}
+
 /* ── Toast ─────────────────────────────────────────────────────── */
 .rm-toast {
     position: fixed;
@@ -1584,6 +1692,20 @@
         font: 700 15px var(--rm-font);
         box-shadow: var(--rm-shadow-brand);
         cursor: pointer;
+    }
+
+    .rm-ver-cuenta.is-cobrar {
+        background: var(--color-exito-texto);
+    }
+
+    .rm-ver-cuenta.is-oculto {
+        display: none;
+    }
+
+    /* La cuenta no se alarga sin fin: los consumos se desplazan dentro y el
+       total con el cobro quedan juntos debajo. */
+    .rm-side-sale .rm-lines-list {
+        max-height: 45vh;
     }
 }
 
@@ -1712,5 +1834,21 @@
 
     .rm-toast {
         bottom: 80px;
+    }
+}
+
+@media (max-width: 760px) {
+    /* En celular Ítem libre y Con nota bajan bajo el buscador. */
+    .rm-tools {
+        flex-wrap: wrap;
+    }
+
+    .rm-tools .rm-search {
+        flex: 1 1 100%;
+    }
+
+    .rm-tools .rm-chip {
+        flex: 1 1 0;
+        justify-content: center;
     }
 }

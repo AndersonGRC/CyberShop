@@ -64,6 +64,8 @@
         get(k) { try { return window.localStorage.getItem(k); } catch (e) { return null; } },
         set(k, v) { try { window.localStorage.setItem(k, v); } catch (e) { /* sin almacenamiento */ } },
     };
+    // Categorías desplegadas o en una sola fila (preferencia de este equipo).
+    S.catsAbiertas = store.get('rm_cats_abiertas') === '1';
 
     async function api(url, payload, method) {
         const res = await fetch(url, {
@@ -847,15 +849,22 @@
                         ${S.menu ? `<div class="rm-menu" role="menu">${opciones}</div>` : ''}
                     </div>` : ''}
                 </div>
-                <div class="rm-search">
-                    <i class="fas fa-barcode"></i>
-                    <input id="rmQ" type="search" placeholder="Buscar producto o escanear código…" value="${esc(S.q)}"
-                        autocomplete="off" aria-label="Buscar producto o escanear su código de barras">
-                </div>
-                <div class="rm-cats">
-                    ${cats.map((c) => `<button type="button" class="rm-chip rm-chip-pill${S.cat === c ? ' is-on' : ''}" data-act="cat" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}
-                    <button type="button" class="rm-chip rm-chip-pill rm-chip-libre${S.libre ? ' is-on' : ''}" data-act="libre"><i class="fas fa-pen"></i>Ítem libre</button>
+                <div class="rm-tools">
+                    <div class="rm-search">
+                        <i class="fas fa-barcode"></i>
+                        <input id="rmQ" type="search" placeholder="Buscar producto o escanear código…" value="${esc(S.q)}"
+                            autocomplete="off" aria-label="Buscar producto o escanear su código de barras">
+                    </div>
+                    <button type="button" class="rm-chip rm-chip-pill rm-chip-libre${S.libre ? ' is-on' : ''}" data-act="libre" aria-pressed="${S.libre}"><i class="fas fa-pen"></i>Ítem libre</button>
                     ${SIMPLE ? '' : `<button type="button" class="rm-chip rm-chip-pill rm-chip-nota${S.conNota ? ' is-on' : ''}" data-act="nota" aria-pressed="${S.conNota}" title="Pide una nota para cocina antes de agregar"><i class="fas fa-comment-alt"></i>Con nota</button>`}
+                </div>
+                <div class="rm-cats-wrap${S.catsAbiertas ? ' is-open' : ''}">
+                    <div class="rm-cats" id="rmCats" role="group" aria-label="Categorías">
+                        ${cats.map((c) => `<button type="button" class="rm-chip rm-chip-pill${S.cat === c ? ' is-on' : ''}" data-act="cat" data-cat="${esc(c)}" aria-pressed="${S.cat === c}">${esc(c)}</button>`).join('')}
+                    </div>
+                    <button type="button" class="rm-cats-toggle" data-act="cats" aria-controls="rmCats" aria-expanded="${S.catsAbiertas}">
+                        ${S.catsAbiertas ? '<i class="fas fa-chevron-up"></i>Ocultar' : `<i class="fas fa-chevron-down"></i>Ver todas <span class="rm-cats-n">${cats.length - 1}</span>`}
+                    </button>
                 </div>
                 ${S.libre ? `
                 <form class="rm-libre" id="rmLibre" autocomplete="off">
@@ -880,8 +889,44 @@
                 </div>
             </div>
         </div>
-        <button type="button" class="rm-ver-cuenta" data-act="ver-cuenta"><i class="fas fa-receipt"></i>Ver cuenta · ${money(tot)}</button>`;
+        <button type="button" class="rm-ver-cuenta${cobrando ? ' is-cobrar' : ''}" data-act="ver-cuenta">
+            <i class="fas fa-${cobrando ? 'cash-register' : 'receipt'}"></i>${cobrando ? 'Cobrar' : 'Ver cuenta'}${lineas.length ? ` (${lineas.length})` : ''} · ${money(tot)}</button>`;
         observar();
+        ajustarCats();
+        vigilarPago();
+    }
+
+    /* Tablet y celular: el botón flotante «Ver cuenta / Cobrar» se esconde
+       cuando el total y el cobro ya están en pantalla (no los tapa). */
+    let ioPago = null;
+    function vigilarPago() {
+        if (ioPago) ioPago.disconnect();
+        const pay = root.querySelector('.rm-pay');
+        const flot = root.querySelector('.rm-ver-cuenta');
+        if (!pay || !flot || !('IntersectionObserver' in window)) return;
+        ioPago = new IntersectionObserver(([e]) => flot.classList.toggle('is-oculto', e.isIntersecting), { threshold: 0.25 });
+        ioPago.observe(pay);
+    }
+
+    /* Categorías en una fila: si caben todas no hace falta el botón; la
+       elegida siempre queda a la vista. */
+    function ajustarCats() {
+        // La cuenta fija empieza bajo el encabezado fijo de la plantilla.
+        const cab = document.querySelector('.header');
+        const alto = cab && getComputedStyle(cab).position === 'fixed' ? cab.getBoundingClientRect().bottom : 0;
+        document.getElementById('rmApp')?.style.setProperty('--rm-sticky-top', `${Math.round(alto + 12)}px`);
+        const wrap = root.querySelector('.rm-cats-wrap');
+        const fila = document.getElementById('rmCats');
+        if (!wrap || !fila) return;
+        const btn = wrap.querySelector('.rm-cats-toggle');
+        if (!S.catsAbiertas) {
+            btn.hidden = fila.scrollWidth <= fila.clientWidth + 2;
+            const on = fila.querySelector('.rm-chip.is-on');
+            if (on) {
+                const a = on.getBoundingClientRect(), b = fila.getBoundingClientRect();
+                if (a.right > b.right - 36 || a.left < b.left) fila.scrollLeft += a.left - b.left - 8;
+            }
+        }
     }
 
     function linea(c) {
@@ -1102,11 +1147,26 @@
         }
         else if (act === 'close-mesa') { S.mesa = null; S.menu = false; renderService(); }
         else if (!mesa) return;
-        else if (act === 'cat') { S.cat = b.dataset.cat; renderMesa(); }
+        else if (act === 'cat') {
+            S.cat = b.dataset.cat;
+            // Al elegir desde la lista completa se vuelve a una fila para dejar espacio a los productos.
+            if (S.catsAbiertas) { S.catsAbiertas = false; store.set('rm_cats_abiertas', '0'); }
+            renderMesa();
+        }
+        else if (act === 'cats') {
+            S.catsAbiertas = !S.catsAbiertas;
+            store.set('rm_cats_abiertas', S.catsAbiertas ? '1' : '0');
+            renderMesa();
+            root.querySelector('.rm-cats-toggle')?.focus();
+        }
         else if (act === 'libre') { S.libre = !S.libre; renderMesa(); if (S.libre) document.getElementById('rmLibreDesc')?.focus(); }
         else if (act === 'nota') { S.conNota = !S.conNota; renderMesa(); }
         else if (act === 'menu') { S.menu = !S.menu; renderMesa(); }
-        else if (act === 'ver-cuenta') document.getElementById('rmCuenta')?.scrollIntoView({ behavior: 'smooth' });
+        else if (act === 'ver-cuenta') {
+            // Lleva al total y al botón de cobro (con los consumos justo encima).
+            const pay = root.querySelector('.rm-pay');
+            if (pay) window.scrollTo({ top: pay.getBoundingClientRect().bottom + window.scrollY - window.innerHeight + 16, behavior: 'smooth' });
+        }
         else if (act === 'add') {
             const p = (P.products || []).find((x) => String(x.id) === b.dataset.pid);
             if (!p) return;
