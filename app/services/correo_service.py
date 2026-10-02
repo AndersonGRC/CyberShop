@@ -10,8 +10,10 @@ antes de esperar un correo que nunca llegará:
 - que el dominio exista (DNS con tiempo límite; si el DNS del servidor falla
   no se bloquea: decide la confirmación).
 """
+import random
 import re
 import socket
+import struct
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as _Timeout
 
 _FORMA = re.compile(r'^[a-z0-9._%+\-]{1,64}@([a-z0-9](?:[a-z0-9\-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9\-]{0,61}[a-z0-9])?)+)$')
@@ -38,21 +40,56 @@ TYPOS = {
 }
 
 _dns = ThreadPoolExecutor(max_workers=4, thread_name_prefix='dns-correo')
+# Resolvers públicos para la consulta MX (la librería estándar no consulta MX).
+_RESOLVERS = (('1.1.1.1', 53), ('8.8.8.8', 53))
+
+
+def _consulta_dns(dominio, tipo=15, servidor=('1.1.1.1', 53), espera=2.0):
+    """Consulta DNS mínima por UDP (tipo 15 = MX). Devuelve el código de
+    respuesta (0 = existe, 3 = NXDOMAIN, el dominio no existe) o None."""
+    try:
+        etiquetas = [e.encode('idna') for e in dominio.strip('.').split('.')]
+        if not etiquetas or any(not e or len(e) > 63 for e in etiquetas):
+            return None
+        tid = random.randint(0, 0xFFFF)
+        pregunta = b''.join(bytes([len(e)]) + e for e in etiquetas) + b'\x00' + struct.pack('>HH', tipo, 1)
+        paquete = struct.pack('>HHHHHH', tid, 0x0100, 1, 0, 0, 0) + pregunta
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.settimeout(espera)
+            sock.sendto(paquete, servidor)
+            datos, _ = sock.recvfrom(1024)
+        if len(datos) < 12:
+            return None
+        rtid, banderas = struct.unpack('>HH', datos[:4])
+        if rtid != tid or not banderas & 0x8000:
+            return None
+        return banderas & 0x000F
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def _dominio_existe(dominio, segundos=3.0):
-    """True/False si el DNS respondió; None si no se pudo saber a tiempo."""
+    """True si el dominio existe, False SOLO si el DNS responde que no existe
+    (NXDOMAIN), None si no se pudo saber.
+
+    Antes se usaba getaddrinfo, que busca el SITIO web (registro A): un dominio
+    corporativo con correo pero sin web en el dominio pelado (p. ej. empresa.com)
+    se rechazaba como inexistente. Un correo vive en el registro MX; aquí solo
+    se rechaza lo que el DNS confirma que no existe."""
     def consultar():
-        try:
+        for servidor in _RESOLVERS:
+            rcode = _consulta_dns(dominio, servidor=servidor)
+            if rcode == 0:
+                return True
+            if rcode == 3:
+                return False
+        try:                      # sin respuesta de los resolvers: solo prueba positiva
             socket.getaddrinfo(dominio, None)
             return True
-        except socket.gaierror as exc:
-            # EAI_NONAME / EAI_NODATA: el dominio no existe. Otros: no se sabe.
-            return False if exc.errno in (socket.EAI_NONAME, getattr(socket, 'EAI_NODATA', -5), 11001) else None
         except Exception:  # noqa: BLE001
             return None
     try:
-        return _dns.submit(consultar).result(timeout=segundos)
+        return _dns.submit(consultar).result(timeout=segundos + 2)
     except _Timeout:
         return None
 
