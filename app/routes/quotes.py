@@ -66,8 +66,37 @@ def cotizar():
     except Exception as e:
         app.logger.error(f"Error cargando productos para cotizacion: {e}")
 
+    # Cotización de una orden de Servicio Técnico: cliente y concepto ya llenos.
+    st_orden, detalles = _orden_servicio_para_cotizar(request.args.get('st_orden'))
+
     return render_template('cotizar.html', datosApp=datosApp, productos=productos,
-                           cotizacion=None, detalles=[])
+                           cotizacion=None, detalles=detalles, st_orden=st_orden)
+
+
+def _orden_servicio_para_cotizar(orden_id):
+    """(orden, detalles) si llega una orden válida del módulo Servicio Técnico
+    activo; si no, (None, []) y la cotización queda como siempre."""
+    if not orden_id or not str(orden_id).isdigit():
+        return None, []
+    try:
+        from tenant_features import MODULE_SERVICIO_TECNICO, is_module_active
+        if not is_module_active(MODULE_SERVICIO_TECNICO):
+            return None, []
+        from services import servicio_tecnico_service as st
+        orden = st.obtener_orden(int(orden_id))
+        if not orden:
+            return None, []
+        equipo = st.descripcion_equipo(orden)
+        detalle = {
+            'descripcion': f"Servicio técnico {orden['numero']}: {equipo}"[:250],
+            'cantidad': 1,
+            'precio_unitario': int(orden['valor_estimado'] or 0),
+            'descuento_porc': 0, 'iva_porc': 0, 'imagen_url': '',
+        }
+        return orden, [detalle]
+    except Exception as exc:  # noqa: BLE001
+        app.logger.warning(f"Cotizar desde orden de servicio: {exc}")
+        return None, []
 
 
 @quotes_bp.route('/admin/cotizar/generar', methods=['POST'])
@@ -245,6 +274,20 @@ def generar_cotizacion():
                 )
         except Exception as _ce:
             app.logger.warning(f"CRM sync cotización: {_ce}")
+
+        # Servicio Técnico: la cotización nueva queda enlazada a su orden.
+        st_orden_id = request.form.get('st_orden_id')
+        if st_orden_id and st_orden_id.isdigit() and not cotizacion_id_edit:
+            try:
+                from services import servicio_tecnico_service as st
+                orden = st.obtener_orden(int(st_orden_id))
+                if orden:
+                    with get_db_cursor() as _cur:
+                        _cur.execute("UPDATE cotizaciones SET crm_contacto_id = %s WHERE id = %s",
+                                     (orden['crm_contacto_id'], cotizacion_id))
+                    st.vincular_cotizacion(orden['id'], cotizacion_id, session.get('usuario_id'))
+            except Exception as _se:
+                app.logger.warning(f"Enlazar cotización a orden de servicio: {_se}")
 
         # 4. Generar PDF
         meses = {
@@ -447,6 +490,10 @@ def _aprobar_cotizacion_core(id):
         # registre el cobro. No toca contabilidad ni la aprobación en sí.
         from services.cartera_service import marcar_pendiente_si_falta
         marcar_pendiente_si_falta('cotizacion', id)
+
+        # Servicio Técnico: su orden pasa a «aprobado» (nunca frena la aprobación).
+        from services.servicio_tecnico_service import al_aprobar_cotizacion
+        al_aprobar_cotizacion(id, session.get('usuario_id'))
 
         # Registrar ingreso en contabilidad (upsert — no duplica si se re-aprueba)
         from routes.contabilidad import sincronizar_movimiento_referencia

@@ -185,6 +185,7 @@ def get_data_app():
         MODULE_AI,
         MODULE_AI_PUBLIC,
         MODULE_CAJA,
+        MODULE_SERVICIO_TECNICO,
         get_active_module_codes,
     )
 
@@ -359,6 +360,19 @@ def get_data_app():
                  "activo_en": ("restaurant_tables.restaurant_tables_builder",)},
                 {"nombre": "Reportes de mesas", "url": "restaurant_tables.restaurant_tables_reports", "icono": "chart-bar", "roles": RESTAURANT_ADMIN,
                  "activo_en": ("restaurant_tables.restaurant_tables_reports",)},
+            ]
+        },
+        {
+            "nombre": "Servicio Técnico",
+            "url": "#",
+            "icono": "tools",
+            "module_code": MODULE_SERVICIO_TECNICO,
+            "submodulos": [
+                {"nombre": "Órdenes", "url": "servicio_tecnico.ordenes", "icono": "clipboard-list", "permiso": ("servicio_tecnico", "ver"),
+                 "activo_en": ("servicio_tecnico.ordenes", "servicio_tecnico.orden_ver")},
+                {"nombre": "Nueva orden", "url": "servicio_tecnico.nueva_orden", "icono": "plus-circle", "permiso": ("servicio_tecnico", "operar")},
+                {"nombre": "Equipos", "url": "servicio_tecnico.equipos", "icono": "laptop-medical", "permiso": ("servicio_tecnico", "ver"),
+                 "activo_en": ("servicio_tecnico.equipos", "servicio_tecnico.equipo_ver", "servicio_tecnico.equipo_editar")},
             ]
         },
         {

@@ -1,0 +1,23 @@
+{% extends "plantillaapp.html" %}
+{# Base del módulo Servicio Técnico. Cada página define st_contenido y la ruta
+   pasa st_activo = ordenes | nueva | equipos. Sin <header>/<main>: Menuapp.css
+   les da estilo en el admin. #}
+
+{% block titulo %}{% block st_titulo %}Servicio Técnico{% endblock %} · {{ brand_config.empresa_nombre or 'CyberShop' }}{% endblock %}
+
+{% block LinkAdicional %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/servicio_tecnico.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="st">
+    <nav class="st-subnav" aria-label="Servicio Técnico">
+        <a href="{{ url_for('servicio_tecnico.ordenes') }}" {% if st_activo == 'ordenes' %}aria-current="page"{% endif %}><i class="fas fa-clipboard-list" aria-hidden="true"></i> Órdenes</a>
+        <a href="{{ url_for('servicio_tecnico.nueva_orden') }}" {% if st_activo == 'nueva' %}aria-current="page"{% endif %}><i class="fas fa-plus-circle" aria-hidden="true"></i> Nueva orden</a>
+        <a href="{{ url_for('servicio_tecnico.equipos') }}" {% if st_activo == 'equipos' %}aria-current="page"{% endif %}><i class="fas fa-laptop-medical" aria-hidden="true"></i> Equipos</a>
+    </nav>
+    {% block st_contenido %}{% endblock %}
+</div>
+{% endblock %}
+
+{% block scripts %}{% block st_scripts %}{% endblock %}{% endblock %}

@@ -1,0 +1,10 @@
+{# Macros del módulo Servicio Técnico (importar con {% from ... import %}). #}
+{% macro chip(codigo, estado_info) -%}
+{%- set e = estado_info.get(codigo) -%}
+{%- if e -%}<span class="st-chip st-chip-{{ e[3] }}"><i class="fas fa-{{ e[2] }}" aria-hidden="true"></i> {{ e[1] }}</span>{%- endif -%}
+{%- endmacro %}
+
+{% macro cop(v) -%}
+{%- if v is not none -%}${{ "{:,.0f}".format(v) | replace(",", ".") }}{%- else -%}<span class="st-vacio-dato">Sin valor</span>{%- endif -%}
+{%- endmacro %}
+

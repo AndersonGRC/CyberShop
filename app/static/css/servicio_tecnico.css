@@ -1,0 +1,313 @@
+@import url('variables.css');
+
+/* ==========================================================================
+   servicio_tecnico.css — Módulo Servicio Técnico
+   Todo va bajo .st para no chocar con el layout del admin. Solo variables de
+   marca (variables.css): nada de colores fijos.
+   ========================================================================== */
+
+.st {
+    --st-radio: 14px;
+    --st-radio-sm: 10px;
+    --st-linea: var(--color-borde-claro);
+    --st-suave: var(--color-texto-secundario);
+    --st-tinta: var(--color-texto-oscuro);
+    color: var(--color-texto);
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    width: min(1180px, 100%);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+}
+.st > *, .st-grid > * { min-width: 0; }
+.st *, .st *::before, .st *::after { box-sizing: border-box; }
+.st [hidden] { display: none !important; }
+.st a { color: inherit; }
+
+/* ── Encabezado con degradado de la marca ───────────────────────────────── */
+.st-hero {
+    background: linear-gradient(135deg, var(--color-primario), var(--color-primario-oscuro));
+    color: var(--color-blanco);
+    border-radius: var(--st-radio);
+    padding: 20px 22px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    box-shadow: var(--marca-sombra-card);
+}
+.st-hero h1 { margin: 0; font-size: 1.35rem; font-weight: 800; line-height: 1.2; }
+.st-hero p { margin: 4px 0 0; opacity: .88; font-size: .92rem; }
+.st-hero .st-btn { background: var(--color-blanco); color: var(--color-primario-oscuro); }
+.st-hero .st-btn:hover { background: var(--color-fondo-alt); }
+
+.st-subnav {
+    display: flex; gap: 4px; padding: 4px; background: var(--color-blanco);
+    border: 1px solid var(--st-linea); border-radius: 12px; overflow-x: auto;
+    width: max-content; max-width: 100%;
+}
+.st-subnav a {
+    display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: 9px;
+    font-weight: 600; font-size: .88rem; color: var(--st-suave); text-decoration: none;
+    white-space: nowrap; min-height: 40px;
+}
+.st-subnav a:hover { background: var(--color-fondo); color: var(--st-tinta); }
+.st-subnav a[aria-current="page"] { background: var(--color-primario); color: var(--color-blanco); }
+
+/* ── Tarjetas y rejilla ─────────────────────────────────────────────────── */
+.st-card {
+    background: var(--color-blanco);
+    border: 1px solid var(--st-linea);
+    border-radius: var(--st-radio);
+    padding: 18px;
+    box-shadow: var(--sombra-suave);
+    min-width: 0;
+}
+.st-card h2, .st-card h3 {
+    margin: 0 0 12px; font-size: 1rem; font-weight: 700; color: var(--st-tinta);
+    display: flex; align-items: center; gap: 8px;
+}
+.st-card h2 i, .st-card h3 i { color: var(--color-primario); }
+.st-grid { display: grid; gap: 18px; grid-template-columns: 1fr; }
+@media (min-width: 760px) { .st-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1100px) {
+    .st-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .st-grid-lateral { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+}
+@media (min-width: 760px) and (max-width: 1099px) { .st-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ── Botones ─────────────────────────────────────────────────────────────── */
+.st-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 44px; padding: 10px 18px; border-radius: var(--st-radio-sm);
+    border: 1px solid transparent; font-weight: 700; font-size: .92rem; cursor: pointer;
+    text-decoration: none; background: var(--color-primario); color: var(--color-blanco);
+    transition: background .15s, box-shadow .15s, transform .15s;
+    font-family: inherit;
+}
+.st-btn:hover { background: var(--color-primario-oscuro); box-shadow: var(--marca-sombra-boton-hover); }
+.st-btn:focus-visible, .st a:focus-visible, .st input:focus-visible, .st select:focus-visible,
+.st textarea:focus-visible, .st button:focus-visible, .st summary:focus-visible {
+    outline: 3px solid var(--color-primario); outline-offset: 2px;
+}
+.st-btn-sec { background: var(--color-blanco); color: var(--color-primario); border-color: var(--color-borde); }
+.st-btn-sec:hover { background: var(--marca-tinte-sutil); }
+.st-btn-ok { background: var(--color-exito-texto); }
+.st-btn-ok:hover { background: var(--color-exito-texto); filter: brightness(.88); }
+.st-btn-peligro { background: var(--color-blanco); color: var(--color-peligro-texto); border-color: var(--color-peligro); }
+.st-btn-peligro:hover { background: var(--color-peligro-tinte); }
+.st-btn-wa { background: var(--color-whatsapp); }
+.st-btn-wa:hover { background: var(--color-whatsapp-hover); }
+.st-btn-sm { min-height: 36px; padding: 6px 12px; font-size: .84rem; }
+.st-acciones { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* ── Chips de estado (color + ícono + texto) ───────────────────────────── */
+.st-chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px;
+    font-size: .8rem; font-weight: 700; white-space: nowrap;
+}
+.st-chip-info    { background: var(--color-info-tinte);    color: var(--color-info-texto); }
+.st-chip-aviso   { background: var(--color-warning-tinte); color: var(--color-warning-texto); }
+.st-chip-exito   { background: var(--color-exito-tinte);   color: var(--color-exito-texto); }
+.st-chip-peligro { background: var(--color-peligro-tinte); color: var(--color-peligro-texto); }
+.st-chip-marca   { background: var(--marca-tinte);         color: var(--color-primario-oscuro); }
+.st-chip-neutro  { background: var(--color-gris-claro);    color: var(--color-gris-oscuro); }
+
+/* Filtros por estado */
+.st-filtros { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.st-filtros a { text-decoration: none; border: 1px solid transparent; }
+.st-filtros a[aria-current="true"] { border-color: currentColor; box-shadow: var(--sombra-suave); }
+.st-filtros .st-n { background: var(--blanco-alpha-80); border-radius: 999px; padding: 0 7px; }
+
+/* ── Formularios ─────────────────────────────────────────────────────────── */
+.st-campos { display: grid; gap: 14px; grid-template-columns: 1fr; }
+@media (min-width: 640px) { .st-campos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.st-campo { display: grid; gap: 6px; min-width: 0; }
+.st-campo-ancho { grid-column: 1 / -1; }
+.st-campo label, .st-label { font-size: .84rem; font-weight: 700; color: var(--st-tinta); }
+.st-campo small { color: var(--st-suave); font-size: .8rem; }
+.st input[type=text], .st input[type=email], .st input[type=tel], .st input[type=number],
+.st input[type=date], .st input[type=search], .st input[type=password], .st select, .st textarea {
+    width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--color-borde);
+    border-radius: var(--st-radio-sm); background: var(--color-blanco); color: var(--color-texto);
+    font: inherit; font-size: .95rem;
+}
+.st textarea { min-height: 96px; resize: vertical; }
+.st input:focus, .st select:focus, .st textarea:focus { border-color: var(--color-primario); }
+.st-busqueda { display: flex; gap: 10px; flex-wrap: wrap; }
+.st-busqueda input[type=search] { flex: 1 1 220px; }
+.st-busqueda select { flex: 0 1 220px; }
+
+.st-checks { display: flex; flex-wrap: wrap; gap: 8px; }
+.st-checks label {
+    display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 8px 12px;
+    border: 1px solid var(--color-borde); border-radius: 999px; font-weight: 600; font-size: .86rem;
+    cursor: pointer; background: var(--color-blanco);
+}
+.st-checks input { width: 18px; height: 18px; accent-color: var(--color-primario); }
+.st-checks label:has(input:checked) { border-color: var(--color-primario); background: var(--marca-tinte-sutil); }
+
+/* Selector de tipo de equipo (tarjetas con ícono) */
+.st-tipos { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+.st-tipos label {
+    display: grid; justify-items: center; gap: 8px; padding: 14px 8px; text-align: center;
+    border: 2px solid var(--color-borde-claro); border-radius: var(--st-radio); cursor: pointer;
+    font-weight: 700; font-size: .84rem; background: var(--color-blanco); min-height: 44px;
+}
+.st-tipos label i { font-size: 1.5rem; color: var(--color-primario); }
+.st-tipos input { position: absolute; opacity: 0; pointer-events: none; }
+.st-tipos label:has(input:checked) { border-color: var(--color-primario); background: var(--marca-tinte-sutil); box-shadow: var(--marca-sombra-sutil); }
+.st-tipos label:has(input:focus-visible) { outline: 3px solid var(--color-primario); outline-offset: 2px; }
+
+/* ── Asistente por pasos (nueva orden) ──────────────────────────────────── */
+.st-pasos-form { display: flex; gap: 8px; list-style: none; margin: 0; padding: 0; overflow-x: auto; }
+.st-pasos-form li {
+    flex: 1 0 auto; display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+    border-radius: var(--st-radio-sm); background: var(--color-blanco); border: 1px solid var(--st-linea);
+    font-weight: 700; font-size: .86rem; color: var(--st-suave); white-space: nowrap;
+}
+.st-pasos-form li span {
+    width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--color-gris-claro); color: var(--color-gris-oscuro); font-size: .8rem;
+}
+.st-pasos-form li[aria-current="step"] { color: var(--color-primario-oscuro); border-color: var(--color-primario); }
+.st-pasos-form li[aria-current="step"] span, .st-pasos-form li.hecho span { background: var(--color-primario); color: var(--color-blanco); }
+
+.st-resultados { display: grid; gap: 8px; margin-top: 10px; }
+.st-opcion {
+    display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; text-align: left;
+    border: 1px solid var(--st-linea); border-radius: var(--st-radio-sm); background: var(--color-blanco);
+    cursor: pointer; font: inherit; color: inherit; min-height: 44px;
+}
+.st-opcion:hover, .st-opcion[aria-pressed="true"] { border-color: var(--color-primario); background: var(--marca-tinte-sutil); }
+.st-opcion i { color: var(--color-primario); font-size: 1.2rem; width: 24px; text-align: center; }
+.st-opcion small { display: block; color: var(--st-suave); }
+.st-elegido {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    padding: 12px 14px; border-radius: var(--st-radio-sm); background: var(--marca-tinte-sutil);
+    border: 1px solid var(--color-primario);
+}
+
+/* ── Barra de pasos de la orden ─────────────────────────────────────────── */
+.st-progreso { display: flex; list-style: none; margin: 0; padding: 0; overflow-x: auto; gap: 0; }
+.st-progreso li {
+    flex: 1 0 92px; display: grid; justify-items: center; gap: 6px; text-align: center;
+    font-size: .76rem; font-weight: 700; color: var(--st-suave); position: relative; padding: 0 4px;
+}
+.st-progreso li::before {
+    content: ''; position: absolute; top: 17px; left: -50%; right: 50%; height: 3px;
+    background: var(--color-gris-claro); z-index: 0;
+}
+.st-progreso li:first-child::before { display: none; }
+.st-progreso .st-punto {
+    width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; z-index: 1;
+    background: var(--color-gris-claro); color: var(--color-gris-oscuro); border: 3px solid var(--color-blanco);
+}
+.st-progreso li.hecho .st-punto, .st-progreso li.actual .st-punto { background: var(--color-primario); color: var(--color-blanco); }
+.st-progreso li.hecho::before, .st-progreso li.actual::before { background: var(--color-primario); }
+.st-progreso li.actual { color: var(--color-primario-oscuro); }
+.st-progreso li.actual .st-punto { box-shadow: 0 0 0 4px var(--marca-tinte-medio); }
+
+/* ── Datos clave/valor ──────────────────────────────────────────────────── */
+.st-datos { display: grid; grid-template-columns: minmax(110px, auto) 1fr; gap: 8px 14px; margin: 0; }
+.st-datos dt { font-size: .82rem; color: var(--st-suave); font-weight: 600; }
+.st-datos dd { margin: 0; font-weight: 600; color: var(--st-tinta); overflow-wrap: break-word; min-width: 0; }
+.st-texto { white-space: pre-wrap; overflow-wrap: break-word; margin: 0; }
+.st-vacio-dato { color: var(--st-suave); font-weight: 400; font-style: italic; }
+
+/* ── Línea de tiempo (bitácora) ─────────────────────────────────────────── */
+.st-tiempo { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.st-tiempo li { display: grid; grid-template-columns: 34px 1fr; gap: 10px; padding-bottom: 14px; position: relative; }
+.st-tiempo li::before {
+    content: ''; position: absolute; left: 16px; top: 34px; bottom: 0; width: 2px; background: var(--st-linea);
+}
+.st-tiempo li:last-child::before { display: none; }
+.st-tiempo .st-ico {
+    width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--marca-tinte); color: var(--color-primario-oscuro); font-size: .85rem;
+}
+.st-tiempo p { margin: 2px 0; overflow-wrap: break-word; }
+.st-tiempo small { color: var(--st-suave); }
+
+/* ── Tablas que pasan a tarjetas en celular ─────────────────────────────── */
+.st-tabla-wrap { overflow-x: auto; position: relative; }
+.st-tabla { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.st-tabla th {
+    text-align: left; font-size: .76rem; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--st-suave); padding: 10px 12px; border-bottom: 1px solid var(--st-linea); white-space: nowrap;
+}
+.st-tabla td { padding: 12px; border-bottom: 1px solid var(--st-linea); vertical-align: middle; overflow-wrap: break-word; }
+.st-tabla tbody tr:hover { background: var(--color-fondo-hover-suave); }
+.st-tabla a.st-fila-link { font-weight: 700; color: var(--color-primario); text-decoration: none; }
+.st-tabla a.st-fila-link:hover { text-decoration: underline; }
+.st-equipo-celda { display: flex; align-items: center; gap: 10px; }
+.st-equipo-celda i { color: var(--color-primario); width: 20px; text-align: center; }
+@media (max-width: 760px) {
+    .st-tabla thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    .st-tabla, .st-tabla tbody, .st-tabla tr, .st-tabla td { display: block; width: 100%; }
+    .st-tabla tr {
+        border: 1px solid var(--st-linea); border-radius: var(--st-radio); padding: 6px 4px;
+        margin-bottom: 12px; background: var(--color-blanco); box-shadow: var(--sombra-suave);
+    }
+    .st-tabla td { border: 0; padding: 7px 12px; }
+    .st-tabla td[data-label]::before {
+        content: attr(data-label); display: block; font-size: .72rem; text-transform: uppercase;
+        letter-spacing: .04em; color: var(--st-suave); font-weight: 700; margin-bottom: 2px;
+    }
+}
+
+/* ── Estado vacío ───────────────────────────────────────────────────────── */
+.st-vacio { text-align: center; padding: 36px 16px; color: var(--st-suave); }
+.st-vacio i { font-size: 2.6rem; color: var(--marca-tinte-medio); margin-bottom: 10px; display: block; }
+.st-vacio h3 { color: var(--st-tinta); justify-content: center; }
+
+/* ── Cabecera de la ficha del equipo ────────────────────────────────────── */
+.st-ficha-cab { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.st-ficha-ico {
+    width: 64px; height: 64px; border-radius: 18px; display: grid; place-items: center; flex: 0 0 auto;
+    background: var(--blanco-alpha-22); font-size: 1.8rem;
+}
+.st-tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--st-linea); overflow-x: auto; margin-bottom: 14px; }
+.st-tabs button {
+    border: 0; background: none; padding: 10px 14px; font: inherit; font-weight: 700; font-size: .88rem;
+    color: var(--st-suave); border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; min-height: 44px;
+}
+.st-tabs button[aria-selected="true"] { color: var(--color-primario); border-bottom-color: var(--color-primario); }
+
+/* ── Avisos ─────────────────────────────────────────────────────────────── */
+.st-aviso { padding: 12px 14px; border-radius: var(--st-radio-sm); background: var(--color-info-tinte); color: var(--color-info-texto); font-size: .9rem; }
+.st-aviso-peligro { background: var(--color-peligro-tinte); color: var(--color-peligro-texto); }
+.st-clave { font-family: ui-monospace, Consolas, monospace; font-size: 1.05rem; letter-spacing: .05em; }
+
+/* ── Barra de acciones fija en celular ──────────────────────────────────── */
+@media (max-width: 760px) {
+    .st-barra-movil {
+        position: sticky; bottom: 0; z-index: 20; margin: 0 -4px; padding: 10px;
+        background: var(--color-blanco); border-top: 1px solid var(--st-linea); box-shadow: var(--sombra-media);
+        border-radius: var(--st-radio) var(--st-radio) 0 0;
+    }
+    .st-barra-movil .st-btn { flex: 1 1 140px; }
+    .st-hero { padding: 16px; }
+    .st-hero h1 { font-size: 1.15rem; }
+    .st-hero .st-acciones { width: 100%; }
+    .st-hero .st-acciones .st-btn { flex: 1 1 auto; }
+    .st-datos { grid-template-columns: 1fr; gap: 2px; }
+    .st-datos dd { margin-bottom: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .st *, .st *::before, .st *::after { transition: none !important; animation: none !important; }
+}
+
+/* Ajustes de la revisión visual */
+.st-grid { align-content: start; }
+.st-hero .st-chip { background: var(--color-blanco); box-shadow: var(--sombra-suave); }
+.st-tabla a.st-fila-link { white-space: nowrap; }
+.st h2[tabindex="-1"]:focus { outline: none; }
+@media (max-width: 760px) {
+    .st-pasos-form li:not([aria-current]) .st-paso-txt { display: none; }
+    .st-pasos-form li { flex: 0 0 auto; }
+    .st-pasos-form li[aria-current] { flex: 1 1 auto; }
+}

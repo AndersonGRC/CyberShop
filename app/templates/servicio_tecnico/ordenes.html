@@ -1,0 +1,74 @@
+{% extends "servicio_tecnico/base.html" %}
+{% from "servicio_tecnico/_macros.html" import chip, cop %}
+{% block st_titulo %}Órdenes de servicio{% endblock %}
+
+{% block st_contenido %}
+<section class="st-hero" aria-labelledby="st-titulo">
+    <div>
+        <h1 id="st-titulo"><i class="fas fa-tools" aria-hidden="true"></i> Servicio Técnico</h1>
+        <p>{{ conteo.values() | sum }} órdenes en total ·
+           {{ (conteo.get('listo', 0)) }} listas para entregar ·
+           {{ (conteo.get('cotizado', 0)) }} esperando respuesta de cotización</p>
+    </div>
+    <div class="st-acciones">
+        <a class="st-btn" href="{{ url_for('servicio_tecnico.nueva_orden') }}"><i class="fas fa-plus" aria-hidden="true"></i> Nueva orden</a>
+    </div>
+</section>
+
+<nav class="st-filtros" aria-label="Filtrar por estado">
+    <a class="st-chip st-chip-marca" href="{{ url_for('servicio_tecnico.ordenes') }}" {% if solo_abiertas %}aria-current="true"{% endif %}>
+        <i class="fas fa-folder-open" aria-hidden="true"></i> En el taller</a>
+    {% for codigo, nombre, icono, tono in estados %}
+    <a class="st-chip st-chip-{{ tono }}" href="{{ url_for('servicio_tecnico.ordenes', estado=codigo) }}"
+       {% if filtro_estado == codigo %}aria-current="true"{% endif %}>
+        <i class="fas fa-{{ icono }}" aria-hidden="true"></i> {{ nombre }} <span class="st-n">{{ conteo.get(codigo, 0) }}</span></a>
+    {% endfor %}
+</nav>
+
+<div class="st-card">
+    <form class="st-busqueda" method="get" role="search" action="{{ url_for('servicio_tecnico.ordenes') }}">
+        {% if filtro_estado %}<input type="hidden" name="estado" value="{{ filtro_estado }}">{% endif %}
+        <input id="st-q" type="search" name="q" aria-label="Buscar órdenes" value="{{ q }}" placeholder="Buscar por número, cliente, serial, IMEI, marca o modelo">
+        <select id="st-tecnico" name="tecnico" aria-label="Técnico">
+            <option value="">Todos los técnicos</option>
+            {% for t in tecnicos %}<option value="{{ t.id }}" {% if filtro_tecnico == t.id %}selected{% endif %}>{{ t.nombre }}</option>{% endfor %}
+        </select>
+        <button class="st-btn st-btn-sec" type="submit"><i class="fas fa-search" aria-hidden="true"></i> Buscar</button>
+    </form>
+</div>
+
+<div class="st-card">
+    {% if ordenes %}
+    <div class="st-tabla-wrap">
+        <table class="st-tabla">
+            <caption class="st-vacio-dato" style="caption-side:bottom;text-align:left;padding-top:8px">
+                {{ ordenes | length }} {{ 'orden' if ordenes|length == 1 else 'órdenes' }}{% if solo_abiertas %} en el taller{% endif %}
+            </caption>
+            <thead><tr><th>Orden</th><th>Cliente</th><th>Equipo</th><th>Estado</th><th>Recibido</th><th>Promesa</th><th>Valor</th><th>Técnico</th></tr></thead>
+            <tbody>
+            {% for o in ordenes %}
+            <tr>
+                <td data-label="Orden"><a class="st-fila-link" href="{{ url_for('servicio_tecnico.orden_ver', orden_id=o.id) }}">{{ o.numero }}</a></td>
+                <td data-label="Cliente">{{ o.cliente_nombre or '—' }}</td>
+                <td data-label="Equipo"><span class="st-equipo-celda"><i class="fas fa-{{ tipo_icono(o.tipo) }}" aria-hidden="true"></i>
+                    {{ tipo_nombre(o.tipo) }}{% if o.marca or o.modelo %} · {{ o.marca or '' }} {{ o.modelo or '' }}{% endif %}</span></td>
+                <td data-label="Estado">{{ chip(o.estado, estado_info) }}</td>
+                <td data-label="Recibido">{{ o.fecha_recibido.strftime('%d/%m/%Y') if o.fecha_recibido else '—' }}</td>
+                <td data-label="Promesa">{{ o.fecha_promesa.strftime('%d/%m/%Y') if o.fecha_promesa else '—' }}</td>
+                <td data-label="Valor">{{ cop(o.valor_final if o.valor_final is not none else o.valor_estimado) }}</td>
+                <td data-label="Técnico">{{ o.tecnico_nombre or 'Sin asignar' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="st-vacio">
+        <i class="fas fa-clipboard-check" aria-hidden="true"></i>
+        <h3>{% if q or filtro_estado %}No hay órdenes con ese filtro{% else %}No hay equipos en el taller{% endif %}</h3>
+        <p>Cuando recibas un equipo, crea su orden: queda la ficha del equipo, el comprobante y el enlace para el cliente.</p>
+        <a class="st-btn" href="{{ url_for('servicio_tecnico.nueva_orden') }}"><i class="fas fa-plus" aria-hidden="true"></i> Crear la primera orden</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -55,6 +55,10 @@ def register_blueprints(app):
     from routes.contabilidad import contabilidad_bp
     app.register_blueprint(contabilidad_bp)
 
+    # Servicio Técnico (equipos de clientes + órdenes de servicio)
+    from routes.servicio_tecnico import servicio_tecnico_bp
+    app.register_blueprint(servicio_tecnico_bp)
+
     # Caja del POS (apertura con base + cuadre/arqueo)
     from routes.caja import caja_bp
     app.register_blueprint(caja_bp)

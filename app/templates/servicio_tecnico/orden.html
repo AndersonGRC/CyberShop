@@ -1,0 +1,199 @@
+{% extends "servicio_tecnico/base.html" %}
+{% from "servicio_tecnico/_macros.html" import chip, cop %}
+{% block st_titulo %}{{ orden.numero }}{% endblock %}
+
+{% block st_contenido %}
+{% set ICONO_EVENTO = {'estado': 'exchange-alt', 'nota': 'sticky-note', 'llamada': 'phone', 'whatsapp': 'comment-dots',
+                       'correo': 'envelope', 'clave': 'key', 'equipo': 'laptop', 'cambio': 'microchip'} %}
+{% set ACCION = {'diagnostico': ('Iniciar diagnóstico', 'stethoscope', ''), 'cotizado': ('Marcar cotizado', 'file-invoice-dollar', ''),
+                 'aprobado': ('Cliente aprobó', 'thumbs-up', 'st-btn-ok'), 'reparacion': ('Pasar a reparación', 'tools', ''),
+                 'listo': ('Equipo listo', 'check-circle', 'st-btn-ok'), 'entregado': ('Entregar al cliente', 'handshake', 'st-btn-ok'),
+                 'garantia': ('Ingresa por garantía', 'shield-alt', 'st-btn-sec'), 'cancelado': ('Cancelar orden', 'ban', 'st-btn-peligro')} %}
+
+<section class="st-hero">
+    <div>
+        <h1><i class="fas fa-{{ tipo_icono(orden.tipo) }}" aria-hidden="true"></i> {{ orden.numero }}</h1>
+        <p>{{ tipo_nombre(orden.tipo) }}{% if orden.marca or orden.modelo %} · {{ orden.marca or '' }} {{ orden.modelo or '' }}{% endif %}
+           · {{ orden.cliente_nombre or 'Sin cliente' }}</p>
+    </div>
+    <div class="st-acciones">
+        {{ chip(orden.estado, estado_info) }}
+        <a class="st-btn st-btn-sm" href="{{ url_for('servicio_tecnico.orden_imprimir', orden_id=orden.id) }}" target="_blank" rel="noopener"><i class="fas fa-print" aria-hidden="true"></i> Comprobante</a>
+    </div>
+</section>
+
+{# Barra de pasos #}
+{% set idx = pasos.index(orden.estado) if orden.estado in pasos else -1 %}
+<div class="st-card" aria-label="Avance de la orden">
+    {% if orden.estado in ('cancelado', 'garantia') %}
+    <p class="st-aviso {% if orden.estado == 'cancelado' %}st-aviso-peligro{% endif %}" style="margin:0 0 12px">
+        {% if orden.estado == 'cancelado' %}Orden cancelada.{% else %}El equipo volvió por garantía.{% endif %}</p>
+    {% endif %}
+    <ol class="st-progreso" tabindex="0" aria-label="Avance de la orden">
+        {% for codigo in pasos %}
+        {% set e = estado_info[codigo] %}
+        <li class="{% if loop.index0 < idx %}hecho{% elif loop.index0 == idx %}actual{% endif %}" {% if loop.index0 == idx %}aria-current="step"{% endif %}>
+            <span class="st-punto"><i class="fas fa-{{ 'check' if loop.index0 < idx else e[2] }}" aria-hidden="true"></i></span>{{ e[1] }}</li>
+        {% endfor %}
+    </ol>
+</div>
+
+<div class="st-grid st-grid-lateral">
+    <div class="st-grid">
+        {# Acciones de estado #}
+        {% if siguientes %}
+        <section class="st-card" aria-labelledby="st-sig">
+            <h2 id="st-sig"><i class="fas fa-forward" aria-hidden="true"></i> Siguiente paso</h2>
+            <div class="st-acciones">
+                {% for s in siguientes %}
+                {% set a = ACCION.get(s, (estado_info[s][1], estado_info[s][2], '')) %}
+                {% if s == 'entregado' %}
+                <details class="st-campo-ancho" style="width:100%">
+                    <summary class="st-btn st-btn-ok" style="list-style:none"><i class="fas fa-{{ a[1] }}" aria-hidden="true"></i> {{ a[0] }}</summary>
+                    <form method="post" action="{{ url_for('servicio_tecnico.orden_estado', orden_id=orden.id) }}" class="st-campos" style="margin-top:12px">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="estado" value="entregado">
+                        <div class="st-campo"><label for="ent-valor">Valor cobrado</label>
+                            <input type="text" id="ent-valor" name="valor_final" inputmode="numeric" value="{{ (orden.valor_final or orden.valor_estimado or '') | int if (orden.valor_final or orden.valor_estimado) else '' }}"></div>
+                        <div class="st-campo"><label for="ent-nota">Nota de entrega</label>
+                            <input type="text" id="ent-nota" name="nota" placeholder="Opcional"></div>
+                        <p class="st-campo-ancho st-vacio-dato" style="margin:0">La garantía de {{ orden.garantia_dias }} días empieza hoy.</p>
+                        <div class="st-campo-ancho"><button class="st-btn st-btn-ok" type="submit"><i class="fas fa-check" aria-hidden="true"></i> Confirmar entrega</button></div>
+                    </form>
+                </details>
+                {% elif s == 'cotizado' and not orden.cotizacion_id %}
+                <a class="st-btn" href="{{ url_for('servicio_tecnico.orden_cotizar', orden_id=orden.id) }}"><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i> Crear cotización</a>
+                {% else %}
+                <form method="post" action="{{ url_for('servicio_tecnico.orden_estado', orden_id=orden.id) }}"
+                      {% if s == 'cancelado' %}onsubmit="return confirm('¿Cancelar la orden {{ orden.numero }}?')"{% endif %}>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="estado" value="{{ s }}">
+                    <button class="st-btn {{ a[2] }}" type="submit"><i class="fas fa-{{ a[1] }}" aria-hidden="true"></i> {{ a[0] }}</button>
+                </form>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        {# Recepción y diagnóstico #}
+        <section class="st-card" aria-labelledby="st-recep">
+            <h2 id="st-recep"><i class="fas fa-clipboard-list" aria-hidden="true"></i> Recepción y diagnóstico</h2>
+            <dl class="st-datos">
+                <dt>Falla reportada</dt><dd><p class="st-texto">{{ orden.falla_reportada }}</p></dd>
+                <dt>Estado físico</dt><dd>{% if orden.estado_fisico %}<p class="st-texto">{{ orden.estado_fisico }}</p>{% else %}<span class="st-vacio-dato">Sin anotar</span>{% endif %}</dd>
+                <dt>Accesorios</dt><dd>{{ orden.accesorios or 'Ninguno' }}</dd>
+                <dt>Clave</dt><dd>
+                    {% if tiene_clave %}
+                    <button type="button" class="st-btn st-btn-sec st-btn-sm" data-st-clave="{{ url_for('servicio_tecnico.orden_clave', orden_id=orden.id) }}" aria-controls="st-clave-valor">
+                        <i class="fas fa-eye" aria-hidden="true"></i> Ver clave</button>
+                    <span id="st-clave-valor" class="st-clave" hidden aria-live="polite"></span>
+                    {% else %}<span class="st-vacio-dato">Sin clave</span>{% endif %}</dd>
+                {% if orden.prediagnostico_ia %}<dt>Sugerencia de IA</dt><dd><p class="st-texto">{{ orden.prediagnostico_ia }}</p></dd>{% endif %}
+            </dl>
+            <details style="margin-top:14px">
+                <summary class="st-btn st-btn-sec st-btn-sm" style="list-style:none"><i class="fas fa-pen" aria-hidden="true"></i> Editar diagnóstico y datos</summary>
+                <form method="post" action="{{ url_for('servicio_tecnico.orden_actualizar', orden_id=orden.id) }}" class="st-campos" style="margin-top:12px">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="st-campo st-campo-ancho"><label for="ed-diag">Diagnóstico del técnico</label>
+                        <textarea id="ed-diag" name="diagnostico">{{ orden.diagnostico or '' }}</textarea></div>
+                    <div class="st-campo st-campo-ancho"><label for="ed-fisico">Estado físico</label>
+                        <textarea id="ed-fisico" name="estado_fisico">{{ orden.estado_fisico or '' }}</textarea></div>
+                    <div class="st-campo st-campo-ancho"><label for="ed-acc">Accesorios</label>
+                        <input type="text" id="ed-acc" name="accesorios" value="{{ orden.accesorios or '' }}"></div>
+                    <div class="st-campo"><label for="ed-tec">Técnico</label>
+                        <select id="ed-tec" name="tecnico_id"><option value="">Sin asignar</option>
+                            {% for t in tecnicos %}<option value="{{ t.id }}" {% if orden.tecnico_id == t.id %}selected{% endif %}>{{ t.nombre }}</option>{% endfor %}</select></div>
+                    <div class="st-campo"><label for="ed-prom">Fecha prometida</label>
+                        <input type="date" id="ed-prom" name="fecha_promesa" value="{{ orden.fecha_promesa or '' }}"></div>
+                    <div class="st-campo"><label for="ed-est">Valor estimado</label>
+                        <input type="text" id="ed-est" name="valor_estimado" inputmode="numeric" value="{{ orden.valor_estimado | int if orden.valor_estimado is not none else '' }}"></div>
+                    <div class="st-campo"><label for="ed-gar">Garantía (días)</label>
+                        <input type="number" id="ed-gar" name="garantia_dias" min="0" max="3650" value="{{ orden.garantia_dias }}"></div>
+                    <div class="st-campo"><label for="ed-clave">Nueva clave de desbloqueo</label>
+                        <input type="password" id="ed-clave" name="clave" autocomplete="off" placeholder="Déjalo vacío para no cambiarla"></div>
+                    <div class="st-campo-ancho"><button class="st-btn" type="submit"><i class="fas fa-save" aria-hidden="true"></i> Guardar</button></div>
+                </form>
+            </details>
+        </section>
+
+        {# Bitácora #}
+        <section class="st-card" id="bitacora" aria-labelledby="st-bit">
+            <h2 id="st-bit"><i class="fas fa-stream" aria-hidden="true"></i> Bitácora</h2>
+            <form method="post" action="{{ url_for('servicio_tecnico.orden_nota', orden_id=orden.id) }}" class="st-busqueda" style="margin-bottom:16px">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <select name="tipo" aria-label="Tipo de registro" style="flex:0 1 160px">
+                    <option value="nota">Nota</option><option value="llamada">Llamada</option>
+                    <option value="whatsapp">WhatsApp</option><option value="correo">Correo</option></select>
+                <input type="text" name="texto" aria-label="Texto de la nota" placeholder="Qué se hizo o qué dijo el cliente" required style="flex:1 1 220px">
+                <button class="st-btn st-btn-sec" type="submit"><i class="fas fa-plus" aria-hidden="true"></i> Agregar</button>
+            </form>
+            {% if eventos %}
+            <ol class="st-tiempo">
+                {% for ev in eventos %}
+                <li><span class="st-ico"><i class="fas fa-{{ ICONO_EVENTO.get(ev.tipo, 'circle') }}" aria-hidden="true"></i></span>
+                    <div><p>{{ ev.detalle }}</p><small>{{ ev.creado_en.strftime('%d/%m/%Y %I:%M %p') }}{% if ev.usuario %} · {{ ev.usuario }}{% endif %}</small></div></li>
+                {% endfor %}
+            </ol>
+            {% else %}<p class="st-vacio-dato">Sin registros.</p>{% endif %}
+        </section>
+    </div>
+
+    <aside class="st-grid" aria-label="Datos de la orden">
+        <section class="st-card" aria-labelledby="st-cli">
+            <h2 id="st-cli"><i class="fas fa-user" aria-hidden="true"></i> Cliente</h2>
+            <dl class="st-datos">
+                <dt>Nombre</dt><dd>{{ orden.cliente_nombre or '—' }}</dd>
+                <dt>WhatsApp</dt><dd>{{ orden.cliente_whatsapp or orden.cliente_telefono or '—' }}</dd>
+                <dt>Correo</dt><dd>{{ orden.cliente_email or '—' }}</dd>
+            </dl>
+            <div class="st-acciones" style="margin-top:12px">
+                <a class="st-btn st-btn-sec st-btn-sm" href="{{ url_for('crm.crm_contacto_ver', id=orden.crm_contacto_id) }}"><i class="fas fa-address-card" aria-hidden="true"></i> Ver en CRM</a>
+                <a class="st-btn st-btn-sec st-btn-sm" href="{{ url_for('servicio_tecnico.nueva_orden', cliente=orden.crm_contacto_id) }}"><i class="fas fa-plus" aria-hidden="true"></i> Otra orden</a>
+            </div>
+        </section>
+
+        <section class="st-card" aria-labelledby="st-eq">
+            <h2 id="st-eq"><i class="fas fa-{{ tipo_icono(orden.tipo) }}" aria-hidden="true"></i> Equipo</h2>
+            <dl class="st-datos">
+                <dt>Tipo</dt><dd>{{ tipo_nombre(orden.tipo) }}</dd>
+                <dt>Marca / modelo</dt><dd>{{ ((orden.marca or '') ~ ' ' ~ (orden.modelo or '')).strip() or '—' }}</dd>
+                {% if orden.serial %}<dt>Serial</dt><dd>{{ orden.serial }}</dd>{% endif %}
+                {% if orden.imei %}<dt>IMEI</dt><dd>{{ orden.imei }}</dd>{% endif %}
+            </dl>
+            <p style="margin:12px 0 0"><a class="st-btn st-btn-sec st-btn-sm" href="{{ url_for('servicio_tecnico.equipo_ver', equipo_id=orden.equipo_id) }}"><i class="fas fa-id-card" aria-hidden="true"></i> Ficha del equipo</a></p>
+        </section>
+
+        <section class="st-card" aria-labelledby="st-val">
+            <h2 id="st-val"><i class="fas fa-calendar-check" aria-hidden="true"></i> Fechas y valor</h2>
+            <dl class="st-datos">
+                <dt>Recibido</dt><dd>{{ orden.fecha_recibido.strftime('%d/%m/%Y %I:%M %p') }}</dd>
+                <dt>Prometido</dt><dd>{{ orden.fecha_promesa.strftime('%d/%m/%Y') if orden.fecha_promesa else '—' }}</dd>
+                {% if orden.fecha_listo %}<dt>Listo</dt><dd>{{ orden.fecha_listo.strftime('%d/%m/%Y') }}</dd>{% endif %}
+                {% if orden.fecha_entregado %}<dt>Entregado</dt><dd>{{ orden.fecha_entregado.strftime('%d/%m/%Y') }}</dd>{% endif %}
+                <dt>Garantía</dt><dd>{{ orden.garantia_dias }} días{% if orden.garantia_hasta %} · hasta {{ orden.garantia_hasta.strftime('%d/%m/%Y') }}{% endif %}</dd>
+                <dt>Técnico</dt><dd>{{ orden.tecnico_nombre or 'Sin asignar' }}</dd>
+                <dt>Estimado</dt><dd>{{ cop(orden.valor_estimado) }}</dd>
+                <dt>Cobrado</dt><dd>{{ cop(orden.valor_final) }}</dd>
+                <dt>Cotización</dt><dd>{% if orden.cotizacion_id %}<a href="{{ url_for('quotes.editar_cotizacion', id=orden.cotizacion_id) }}">COT {{ '%010d' % orden.cotizacion_id }}</a>{% else %}—{% endif %}</dd>
+            </dl>
+            {% if not orden.cotizacion_id and orden.estado not in ('entregado', 'cancelado') %}
+            <p style="margin:12px 0 0"><a class="st-btn st-btn-sec st-btn-sm" href="{{ url_for('servicio_tecnico.orden_cotizar', orden_id=orden.id) }}"><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i> Crear cotización</a></p>
+            {% endif %}
+        </section>
+
+        <section class="st-card" aria-labelledby="st-pub">
+            <h2 id="st-pub"><i class="fas fa-link" aria-hidden="true"></i> Enlace para el cliente</h2>
+            <p class="st-vacio-dato" style="margin:0 0 10px">El cliente ve el estado de su equipo sin iniciar sesión.</p>
+            <div class="st-acciones">
+                <button type="button" class="st-btn st-btn-sec st-btn-sm" data-st-copiar="{{ enlace_publico }}"><i class="fas fa-copy" aria-hidden="true"></i> Copiar enlace</button>
+                <a class="st-btn st-btn-sec st-btn-sm" href="{{ enlace_publico }}" target="_blank" rel="noopener"><i class="fas fa-external-link-alt" aria-hidden="true"></i> Abrir</a>
+            </div>
+        </section>
+    </aside>
+</div>
+{% endblock %}
+
+{% block st_scripts %}
+<script src="{{ url_for('static', filename='js/servicio_tecnico.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends "servicio_tecnico/base.html" %}
+{% from "servicio_tecnico/_macros.html" import chip %}
+{% block st_titulo %}Equipos{% endblock %}
+
+{% block st_contenido %}
+<section class="st-hero">
+    <div>
+        <h1><i class="fas fa-laptop-medical" aria-hidden="true"></i> Equipos atendidos</h1>
+        <p>La ficha de cada dispositivo: características, piezas cambiadas e historial de servicio.</p>
+    </div>
+</section>
+
+<div class="st-card">
+    <form class="st-busqueda" method="get" role="search">
+        <input type="search" name="q" value="{{ q }}" aria-label="Buscar equipos" placeholder="Cliente, marca, modelo, serial o IMEI">
+        <select name="tipo" aria-label="Tipo de equipo">
+            <option value="">Todos los tipos</option>
+            {% for codigo, nombre, icono, cols in tipos_lista %}<option value="{{ codigo }}" {% if filtro_tipo == codigo %}selected{% endif %}>{{ nombre }}</option>{% endfor %}
+        </select>
+        <button class="st-btn st-btn-sec" type="submit"><i class="fas fa-search" aria-hidden="true"></i> Buscar</button>
+    </form>
+</div>
+
+<div class="st-card">
+    {% if equipos %}
+    <div class="st-tabla-wrap">
+        <table class="st-tabla">
+            <thead><tr><th>Equipo</th><th>Cliente</th><th>Serial / IMEI</th><th>Servicios</th><th>Último estado</th></tr></thead>
+            <tbody>
+            {% for e in equipos %}
+            <tr>
+                <td data-label="Equipo"><a class="st-fila-link st-equipo-celda" href="{{ url_for('servicio_tecnico.equipo_ver', equipo_id=e.id) }}">
+                    <i class="fas fa-{{ tipo_icono(e.tipo) }}" aria-hidden="true"></i>
+                    {{ tipo_nombre(e.tipo) }}{% if e.marca or e.modelo %} · {{ e.marca or '' }} {{ e.modelo or '' }}{% endif %}</a></td>
+                <td data-label="Cliente">{{ e.cliente_nombre or '—' }}</td>
+                <td data-label="Serial / IMEI">{{ e.serial or e.imei or '—' }}</td>
+                <td data-label="Servicios">{{ e.ordenes }}</td>
+                <td data-label="Último estado">{% if e.ultimo_estado %}{{ chip(e.ultimo_estado, estado_info) }}{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="st-vacio">
+        <i class="fas fa-laptop" aria-hidden="true"></i>
+        <h3>{% if q or filtro_tipo %}No hay equipos con ese filtro{% else %}Aún no hay equipos registrados{% endif %}</h3>
+        <p>Los equipos se registran al crear una orden de servicio.</p>
+        <a class="st-btn" href="{{ url_for('servicio_tecnico.nueva_orden') }}"><i class="fas fa-plus" aria-hidden="true"></i> Nueva orden</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,35 @@
+{# Campos del equipo. Variables: e (dict con los valores actuales o vacío),
+   etiquetas, tipos_lista. El JS (servicio_tecnico.js) muestra solo las
+   columnas del tipo escogido y dibuja sus campos propios en #st-extras. #}
+<fieldset class="st-campo st-campo-ancho" style="border:0;padding:0;margin:0">
+    <legend class="st-label" style="margin-bottom:8px">Tipo de equipo</legend>
+    <div class="st-tipos">
+        {% for codigo, nombre, icono, cols in tipos_lista %}
+        <label><input type="radio" name="equipo_tipo" value="{{ codigo }}" {% if e.get('tipo') == codigo %}checked{% endif %} data-st-tipo>
+            <i class="fas fa-{{ icono }}" aria-hidden="true"></i>{{ nombre }}</label>
+        {% endfor %}
+    </div>
+</fieldset>
+
+<div class="st-campos" data-st-columnas>
+    {% for col in ['marca', 'modelo', 'serial', 'imei', 'sistema_operativo', 'procesador', 'ram', 'almacenamiento', 'pantalla', 'color'] %}
+    <div class="st-campo" data-col="{{ col }}">
+        <label for="eq-{{ col }}">{{ etiquetas[col] }}</label>
+        <input type="text" id="eq-{{ col }}" name="equipo_{{ col }}" value="{{ e.get(col) or '' }}"
+               {% if col == 'imei' %}inputmode="numeric" maxlength="20" pattern="[0-9 ]{15,20}" aria-describedby="eq-imei-ayuda"{% endif %}
+               {% if col == 'marca' %}autocomplete="off" list="st-marcas"{% endif %}
+               placeholder="{{ {'marca': 'Ej. Lenovo, Samsung, Apple', 'modelo': 'Ej. IdeaPad 3 15ITL6', 'serial': 'Número de serie de la etiqueta', 'ram': 'Ej. 8 GB DDR4', 'almacenamiento': 'Ej. SSD 512 GB', 'pantalla': 'Ej. 15,6\" FHD', 'procesador': 'Ej. Intel Core i5-1135G7', 'sistema_operativo': 'Ej. Windows 11 Home', 'color': '', 'imei': '15 dígitos (marca *#06#)'}[col] }}">
+        {% if col == 'imei' %}<small id="eq-imei-ayuda">Se valida el dígito de control.</small>{% endif %}
+    </div>
+    {% endfor %}
+</div>
+<datalist id="st-marcas">
+    {% for m in ['Acer', 'Apple', 'Asus', 'Dell', 'HP', 'Huawei', 'Lenovo', 'LG', 'Motorola', 'MSI', 'Oppo', 'Samsung', 'Sony', 'Toshiba', 'Xiaomi', 'APC', 'CDP', 'Forza', 'Epson', 'Canon', 'Brother', 'TCL', 'Hisense', 'Kalley', 'ChalLenger', 'PlayStation', 'Xbox', 'Nintendo', 'TP-Link', 'Hikvision'] %}<option value="{{ m }}">{% endfor %}
+</datalist>
+
+<div class="st-campos" id="st-extras" data-valores='{{ (e.get("extras") or {}) | tojson }}' aria-live="polite"></div>
+
+<div class="st-campo st-campo-ancho">
+    <label for="eq-notas">Notas del equipo</label>
+    <textarea id="eq-notas" name="equipo_notas" placeholder="Detalles que sirvan la próxima vez (modificaciones, garantías de fábrica, etc.)">{{ e.get('notas') or '' }}</textarea>
+</div>

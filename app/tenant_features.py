@@ -37,6 +37,7 @@ MODULE_AI_ACTIONS = 'ai_actions'
 MODULE_AI_PUBLIC = 'ai_public'
 MODULE_AI_PUBLIC_COMPAT = 'ai_public_compat'
 MODULE_BULK_UPLOAD = 'bulk_upload'
+MODULE_SERVICIO_TECNICO = 'servicio_tecnico'
 
 MODULE_DEFINITIONS = {
     MODULE_ORDERS: {
@@ -181,6 +182,17 @@ MODULE_DEFINITIONS = {
         'config_key': 'restaurant_tables_habilitado',
         'default': True,
         'orden': 150,
+        'is_core': False,
+    },
+    MODULE_SERVICIO_TECNICO: {
+        'nombre': 'Servicio Tecnico',
+        'descripcion': 'Equipos de los clientes (computadores, celulares, tablets, televisores, UPS...), '
+                       'ordenes de servicio de la recepcion a la entrega, garantia y seguimiento. '
+                       'Apagado por defecto.',
+        'categoria': 'operacion',
+        'config_key': 'servicio_tecnico_habilitado',
+        'default': False,
+        'orden': 155,
         'is_core': False,
     },
     MODULE_FACTURACION_ELECTRONICA: {

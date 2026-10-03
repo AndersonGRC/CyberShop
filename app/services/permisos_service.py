@@ -72,6 +72,7 @@ DEFAULT_MATRIX = {
     'facturacion_electronica': {'ver': ADMIN_CONTADOR,   'operar': ADMIN_CONTADOR},
     'share':        {'ver': ADMIN_STAFF,          'operar': ADMIN_STAFF,          'eliminar': ADMIN_STAFF},
     'ai_assistant': {'ver': ADMIN_STAFF,          'operar': ADMIN_STAFF},
+    'servicio_tecnico': {'ver': ADMIN_STAFF,      'operar': ADMIN_STAFF,          'eliminar': ADMIN_FULL},
 }
 
 # Nómina web: endurecida a Admin+Contador (espejo del guard y del desktop),
@@ -113,7 +114,7 @@ MODULO_ICONOS = {
     'payroll': 'id-card', 'crm': 'address-book', 'accounting': 'chart-line',
     'support': 'headset', 'video': 'video', 'restaurant_tables': 'utensils',
     'facturacion_electronica': 'file-invoice', 'share': 'share-alt',
-    'ai_assistant': 'robot',
+    'ai_assistant': 'robot', 'servicio_tecnico': 'tools',
 }
 
 

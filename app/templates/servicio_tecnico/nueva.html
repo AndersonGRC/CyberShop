@@ -1,0 +1,123 @@
+{% extends "servicio_tecnico/base.html" %}
+{% block st_titulo %}Nueva orden de servicio{% endblock %}
+
+{% block st_contenido %}
+{% set p = previo or {} %}
+<section class="st-hero">
+    <div>
+        <h1><i class="fas fa-clipboard-check" aria-hidden="true"></i> Recibir un equipo</h1>
+        <p>Cliente → equipo → falla y recepción. Al guardar queda la ficha del equipo y el comprobante para imprimir.</p>
+    </div>
+</section>
+
+<ol class="st-pasos-form" aria-label="Pasos" id="st-pasos" tabindex="0" hidden>
+    <li data-paso="1" aria-current="step"><span>1</span> <b class="st-paso-txt">Cliente</b></li>
+    <li data-paso="2"><span>2</span> <b class="st-paso-txt">Equipo</b></li>
+    <li data-paso="3"><span>3</span> <b class="st-paso-txt">Falla y recepción</b></li>
+    <li data-paso="4"><span>4</span> <b class="st-paso-txt">Confirmar</b></li>
+</ol>
+
+<form method="post" id="st-form-orden" novalidate data-api-clientes="{{ url_for('servicio_tecnico.api_clientes') }}"
+      data-api-equipos="{{ url_for('servicio_tecnico.api_equipos_cliente', contacto_id=0) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="crm_contacto_id" id="st-contacto-id" value="{{ (cliente_inicial.id if cliente_inicial else p.get('crm_contacto_id')) or '' }}">
+    <input type="hidden" name="equipo_id" id="st-equipo-id" value="{{ p.get('equipo_id') or '' }}">
+
+    {# ── Paso 1: cliente ── #}
+    <section class="st-card" data-paso="1" aria-labelledby="st-p1">
+        <h2 id="st-p1"><i class="fas fa-user" aria-hidden="true"></i> 1. Cliente</h2>
+        <div id="st-cliente-elegido" class="st-elegido" {% if not cliente_inicial %}hidden{% endif %}>
+            <div><strong id="st-cliente-nombre">{{ cliente_inicial.nombre if cliente_inicial else '' }}</strong>
+                <small id="st-cliente-datos" style="display:block">{% if cliente_inicial %}{{ cliente_inicial.whatsapp or cliente_inicial.telefono or '' }} {{ cliente_inicial.email or '' }}{% endif %}</small></div>
+            <button type="button" class="st-btn st-btn-sec st-btn-sm" id="st-cambiar-cliente">Cambiar</button>
+        </div>
+        <div id="st-cliente-buscar" {% if cliente_inicial %}hidden{% endif %}>
+            <div class="st-campo">
+                <label for="st-buscar-cliente">Buscar cliente (nombre, teléfono o correo)</label>
+                <input type="search" id="st-buscar-cliente" autocomplete="off" placeholder="Escribe al menos 2 letras o números">
+            </div>
+            <div class="st-resultados" id="st-clientes" aria-live="polite"></div>
+            <p style="margin:12px 0 0"><button type="button" class="st-btn st-btn-sec" id="st-cliente-nuevo-btn"><i class="fas fa-user-plus" aria-hidden="true"></i> Es un cliente nuevo</button></p>
+        </div>
+        <div id="st-cliente-nuevo" class="st-campos" style="margin-top:14px" {% if not p.get('cliente_nombre') %}hidden{% endif %}>
+            <div class="st-campo"><label for="cl-nombre">Nombre completo *</label>
+                <input type="text" id="cl-nombre" name="cliente_nombre" value="{{ p.get('cliente_nombre', '') }}" autocomplete="name"></div>
+            <div class="st-campo"><label for="cl-whatsapp">WhatsApp / celular</label>
+                <input type="tel" id="cl-whatsapp" name="cliente_whatsapp" value="{{ p.get('cliente_whatsapp', '') }}" inputmode="tel" placeholder="Ej. 300 123 4567"></div>
+            <div class="st-campo"><label for="cl-email">Correo</label>
+                <input type="email" id="cl-email" name="cliente_email" value="{{ p.get('cliente_email', '') }}" autocomplete="email">
+                <small>Para avisarle el estado y la garantía.</small></div>
+            <div class="st-campo"><label for="cl-ciudad">Ciudad</label>
+                <input type="text" id="cl-ciudad" name="cliente_ciudad" value="{{ p.get('cliente_ciudad', '') }}"></div>
+            <div class="st-campo st-campo-ancho"><label for="cl-direccion">Dirección</label>
+                <input type="text" id="cl-direccion" name="cliente_direccion" value="{{ p.get('cliente_direccion', '') }}"></div>
+        </div>
+    </section>
+
+    {# ── Paso 2: equipo ── #}
+    <section class="st-card" data-paso="2" aria-labelledby="st-p2">
+        <h2 id="st-p2"><i class="fas fa-laptop" aria-hidden="true"></i> 2. Equipo</h2>
+        <div id="st-equipos-cliente" hidden>
+            <p class="st-label" style="margin:0 0 8px">Equipos que ya tiene registrados</p>
+            <div class="st-resultados" id="st-equipos-lista"></div>
+            <p style="margin:12px 0"><button type="button" class="st-btn st-btn-sec" id="st-equipo-nuevo-btn"><i class="fas fa-plus" aria-hidden="true"></i> Es otro equipo</button></p>
+        </div>
+        <div id="st-equipo-nuevo" class="st-campos">
+            {% set e = {'tipo': p.get('equipo_tipo')} %}
+            {% for k, v in p.items() if k.startswith('equipo_') %}{% set _ = e.update({k[7:]: v}) %}{% endfor %}
+            {% include "servicio_tecnico/_campos_equipo.html" %}
+        </div>
+    </section>
+
+    {# ── Paso 3: falla y recepción ── #}
+    <section class="st-card" data-paso="3" aria-labelledby="st-p3">
+        <h2 id="st-p3"><i class="fas fa-stethoscope" aria-hidden="true"></i> 3. Falla y recepción</h2>
+        <div class="st-campos">
+            <div class="st-campo st-campo-ancho"><label for="o-falla">¿Qué falla reporta el cliente? *</label>
+                <textarea id="o-falla" name="falla_reportada" required placeholder="Con las palabras del cliente: no enciende, pantalla rota, se calienta, no carga…">{{ p.get('falla_reportada', '') }}</textarea></div>
+            <div class="st-campo st-campo-ancho"><label for="o-fisico">Estado físico al recibir</label>
+                <textarea id="o-fisico" name="estado_fisico" placeholder="Golpes, rayones, tornillos faltantes, pantalla, bisagras…">{{ p.get('estado_fisico', '') }}</textarea></div>
+            <fieldset class="st-campo st-campo-ancho" style="border:0;padding:0;margin:0">
+                <legend class="st-label" style="margin-bottom:8px">Accesorios que deja</legend>
+                <div class="st-checks">
+                    {% for a in ['Cargador', 'Batería', 'Funda / estuche', 'SIM', 'Memoria SD', 'Cable de poder', 'Control remoto', 'Mouse / teclado', 'Caja'] %}
+                    <label><input type="checkbox" name="accesorios" value="{{ a }}"> {{ a }}</label>
+                    {% endfor %}
+                </div>
+                <input type="text" name="accesorios_otros" aria-label="Otros accesorios" placeholder="Otros accesorios" style="margin-top:8px" value="{{ p.get('accesorios_otros', '') }}">
+            </fieldset>
+            <div class="st-campo"><label for="o-clave">Clave o patrón de desbloqueo</label>
+                <input type="password" id="o-clave" name="clave" autocomplete="off" placeholder="Se guarda cifrada">
+                <small>Solo la ve quien la pida, y queda registrado.</small></div>
+            <div class="st-campo"><label for="o-tecnico">Técnico</label>
+                <select id="o-tecnico" name="tecnico_id"><option value="">Sin asignar</option>
+                    {% for t in tecnicos %}<option value="{{ t.id }}">{{ t.nombre }}</option>{% endfor %}</select></div>
+            <div class="st-campo"><label for="o-valor">Valor estimado</label>
+                <input type="text" id="o-valor" name="valor_estimado" inputmode="numeric" placeholder="$ (opcional)" value="{{ p.get('valor_estimado', '') }}"></div>
+            <div class="st-campo"><label for="o-promesa">Fecha prometida</label>
+                <input type="date" id="o-promesa" name="fecha_promesa" value="{{ p.get('fecha_promesa', '') }}"></div>
+            <div class="st-campo"><label for="o-garantia">Garantía (días)</label>
+                <input type="number" id="o-garantia" name="garantia_dias" min="0" max="3650" inputmode="numeric" value="{{ p.get('garantia_dias', 30) }}"></div>
+        </div>
+    </section>
+
+    {# ── Paso 4: confirmar ── #}
+    <section class="st-card" data-paso="4" aria-labelledby="st-p4" hidden>
+        <h2 id="st-p4"><i class="fas fa-check-double" aria-hidden="true"></i> 4. Confirmar</h2>
+        <dl class="st-datos" id="st-resumen"></dl>
+    </section>
+
+    <p class="st-aviso st-aviso-peligro" id="st-error" role="alert" hidden></p>
+
+    <div class="st-acciones st-barra-movil">
+        <button type="button" class="st-btn st-btn-sec" id="st-atras" hidden><i class="fas fa-arrow-left" aria-hidden="true"></i> Atrás</button>
+        <button type="button" class="st-btn" id="st-siguiente" hidden>Siguiente <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
+        <button type="submit" class="st-btn st-btn-ok" id="st-guardar"><i class="fas fa-save" aria-hidden="true"></i> Crear orden</button>
+    </div>
+</form>
+<script type="application/json" id="st-tipos-json">{{ tipos_json | tojson }}</script>
+{% endblock %}
+
+{% block st_scripts %}
+<script src="{{ url_for('static', filename='js/servicio_tecnico.js') }}"></script>
+{% endblock %}

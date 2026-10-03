@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprobante {{ orden.numero }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/variables.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='fa/css/all.min.css') }}">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body { margin: 0; background: var(--color-fondo); color: var(--color-texto-oscuro);
+               font-family: 'Segoe UI', Roboto, Arial, sans-serif; }
+        .barra { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; padding: 14px; }
+        .barra a, .barra button { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 10px 16px;
+               border-radius: 10px; border: 1px solid var(--color-borde); background: var(--color-blanco);
+               color: var(--color-primario); font: inherit; font-weight: 700; text-decoration: none; cursor: pointer; }
+        .barra button { background: var(--color-primario); color: var(--color-blanco); border-color: var(--color-primario); }
+        .hoja { background: var(--color-blanco); margin: 0 auto 24px; padding: 28px; box-shadow: var(--sombra-media); }
+        .carta { width: min(210mm, 100%); }
+        .tiquete { width: 80mm; padding: 10px; font-size: 12px; }
+        .cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px;
+               border-bottom: 3px solid var(--color-primario); padding-bottom: 12px; margin-bottom: 14px; }
+        .tiquete .cab { flex-direction: column; align-items: center; text-align: center; }
+        .cab img { max-height: 60px; max-width: 180px; }
+        .num { text-align: right; }
+        .tiquete .num { text-align: center; }
+        .num strong { display: block; font-size: 1.4em; color: var(--color-primario-oscuro); }
+        h2 { font-size: 1em; margin: 14px 0 6px; color: var(--color-primario-oscuro); text-transform: uppercase; letter-spacing: .04em; }
+        dl { display: grid; grid-template-columns: 34% 1fr; gap: 4px 10px; margin: 0; }
+        .tiquete dl { grid-template-columns: 1fr; gap: 0; }
+        dt { font-weight: 700; color: var(--color-texto-secundario); }
+        .tiquete dd { margin: 0 0 4px; }
+        dd { margin: 0; white-space: pre-wrap; overflow-wrap: break-word; }
+        .cond { font-size: .82em; color: var(--color-texto-secundario); margin-top: 14px; }
+        .cond li { margin-bottom: 3px; }
+        .firmas { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 46px; }
+        .tiquete .firmas { grid-template-columns: 1fr; gap: 34px; margin-top: 30px; }
+        .firmas div { border-top: 1px solid var(--color-texto-oscuro); padding-top: 4px; text-align: center; font-size: .85em; }
+        .enlace { margin-top: 12px; font-size: .82em; overflow-wrap: anywhere; }
+        @media print {
+            body { background: none; }
+            .barra { display: none; }
+            .hoja { box-shadow: none; margin: 0; }
+            .tiquete { width: 72mm; padding: 0; }
+            @page { margin: {{ '4mm' if formato == 'tiquete' else '12mm' }}; }
+        }
+    </style>
+</head>
+<body>
+<div class="barra">
+    <button type="button" onclick="window.print()"><i class="fas fa-print" aria-hidden="true"></i> Imprimir</button>
+    <a href="{{ url_for('servicio_tecnico.orden_imprimir', orden_id=orden.id, formato='carta' if formato == 'tiquete' else 'tiquete') }}">
+        <i class="fas fa-exchange-alt" aria-hidden="true"></i> {{ 'Tamaño carta' if formato == 'tiquete' else 'Tiquete 80 mm' }}</a>
+    <a href="{{ url_for('servicio_tecnico.orden_ver', orden_id=orden.id) }}"><i class="fas fa-arrow-left" aria-hidden="true"></i> Volver</a>
+</div>
+
+<article class="hoja {{ formato }}">
+    <div class="cab">
+        <div>
+            <img src="{{ brand_config.empresa_logo_url or url_for('static', filename='img/Logo.PNG') }}" alt="{{ brand_config.empresa_nombre or 'Logo' }}">
+            <div><strong>{{ brand_config.empresa_nombre or datosApp.titulo }}</strong></div>
+            {% if brand_config.empresa_telefono %}<div>{{ brand_config.empresa_telefono }}</div>{% endif %}
+            {% if brand_config.empresa_direccion %}<div>{{ brand_config.empresa_direccion }}</div>{% endif %}
+        </div>
+        <div class="num">Orden de servicio<strong>{{ orden.numero }}</strong>
+            {{ orden.fecha_recibido.strftime('%d/%m/%Y %I:%M %p') }}</div>
+    </div>
+
+    <h2>Cliente</h2>
+    <dl>
+        <dt>Nombre</dt><dd>{{ orden.cliente_nombre or '—' }}</dd>
+        <dt>Contacto</dt><dd>{{ orden.cliente_whatsapp or orden.cliente_telefono or '—' }}{% if orden.cliente_email %} · {{ orden.cliente_email }}{% endif %}</dd>
+    </dl>
+
+    <h2>Equipo</h2>
+    <dl>
+        <dt>Equipo</dt><dd>{{ tipo_nombre(orden.tipo) }}{% if orden.marca or orden.modelo %} · {{ orden.marca or '' }} {{ orden.modelo or '' }}{% endif %}</dd>
+        {% if orden.serial %}<dt>Serial</dt><dd>{{ orden.serial }}</dd>{% endif %}
+        {% if orden.imei %}<dt>IMEI</dt><dd>{{ orden.imei }}</dd>{% endif %}
+        {% if orden.color %}<dt>Color</dt><dd>{{ orden.color }}</dd>{% endif %}
+        <dt>Falla reportada</dt><dd>{{ orden.falla_reportada }}</dd>
+        <dt>Estado físico</dt><dd>{{ orden.estado_fisico or 'Sin observaciones' }}</dd>
+        <dt>Accesorios</dt><dd>{{ orden.accesorios or 'Ninguno' }}</dd>
+        {% if orden.valor_estimado is not none %}<dt>Valor estimado</dt><dd>${{ "{:,.0f}".format(orden.valor_estimado) | replace(",", ".") }}</dd>{% endif %}
+        {% if orden.fecha_promesa %}<dt>Fecha estimada</dt><dd>{{ orden.fecha_promesa.strftime('%d/%m/%Y') }}</dd>{% endif %}
+        <dt>Garantía</dt><dd>{{ orden.garantia_dias }} días desde la entrega, sobre el trabajo realizado</dd>
+    </dl>
+
+    <ol class="cond">
+        <li>El valor estimado puede cambiar después del diagnóstico; ningún trabajo adicional se hace sin su aprobación.</li>
+        <li>El taller no responde por la información guardada en el equipo. Haga copia de seguridad antes de entregarlo.</li>
+        <li>Los equipos no reclamados en 90 días después del aviso de «listo» generan costo de bodegaje.</li>
+        <li>La garantía no cubre golpes, humedad, manipulación de terceros ni fallas distintas a la reparada.</li>
+    </ol>
+
+    <p class="enlace">Consulte el estado de su equipo en: <strong>{{ enlace_publico }}</strong></p>
+
+    <div class="firmas">
+        <div>Firma del cliente</div>
+        <div>Recibido por</div>
+    </div>
+</article>
+</body>
+</html>

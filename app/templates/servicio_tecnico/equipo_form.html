@@ -1,0 +1,28 @@
+{% extends "servicio_tecnico/base.html" %}
+{% block st_titulo %}Editar ficha{% endblock %}
+
+{% block st_contenido %}
+<section class="st-hero">
+    <div>
+        <h1><i class="fas fa-pen" aria-hidden="true"></i> Editar ficha del equipo</h1>
+        <p>{{ equipo.cliente_nombre or 'Sin cliente' }}</p>
+    </div>
+</section>
+
+<form method="post" class="st-card">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="st-campos">
+        {% set e = equipo %}
+        {% include "servicio_tecnico/_campos_equipo.html" %}
+    </div>
+    <div class="st-acciones st-barra-movil" style="margin-top:16px">
+        <a class="st-btn st-btn-sec" href="{{ url_for('servicio_tecnico.equipo_ver', equipo_id=equipo.id) }}">Cancelar</a>
+        <button class="st-btn" type="submit"><i class="fas fa-save" aria-hidden="true"></i> Guardar ficha</button>
+    </div>
+</form>
+<script type="application/json" id="st-tipos-json">{{ tipos_json | tojson }}</script>
+{% endblock %}
+
+{% block st_scripts %}
+<script src="{{ url_for('static', filename='js/servicio_tecnico.js') }}"></script>
+{% endblock %}

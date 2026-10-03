@@ -1,0 +1,56 @@
+{% extends './plantillaindex.html' %}
+{% block titulo %}Estado de su equipo · {{ brand_config.empresa_nombre or datosApp.titulo }}{% endblock %}
+{% block LinkAdicional %}
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/servicio_tecnico.css') }}">
+{% endblock %}
+
+{% block body %}
+{% set idx = pasos.index(o.estado) if o.estado in pasos else -1 %}
+{% set e = estado_info.get(o.estado) %}
+<div class="st" style="width:min(760px, 100%); padding:24px 16px 48px">
+    <section class="st-hero">
+        <div>
+            <h1><i class="fas fa-{{ tipo_icono(o.tipo) }}" aria-hidden="true"></i> {% if o.cliente_nombre %}Hola, {{ o.cliente_nombre }}{% else %}Estado de su equipo{% endif %}</h1>
+            <p>{{ o.equipo }} · Orden {{ o.numero }}</p>
+        </div>
+        <span class="st-chip st-chip-{{ e[3] }}" style="font-size:.95rem"><i class="fas fa-{{ e[2] }}" aria-hidden="true"></i> {{ e[1] }}</span>
+    </section>
+
+    <section class="st-card" aria-label="Avance">
+        {% if o.estado == 'cancelado' %}
+        <p class="st-aviso st-aviso-peligro" style="margin:0">Esta orden fue cerrada sin reparación. Comuníquese con nosotros si tiene dudas.</p>
+        {% else %}
+        <ol class="st-progreso" tabindex="0" aria-label="Avance de la orden">
+            {% for codigo in pasos %}
+            {% set p = estado_info[codigo] %}
+            <li class="{% if loop.index0 < idx %}hecho{% elif loop.index0 == idx %}actual{% endif %}" {% if loop.index0 == idx %}aria-current="step"{% endif %}>
+                <span class="st-punto"><i class="fas fa-{{ 'check' if loop.index0 < idx else p[2] }}" aria-hidden="true"></i></span>{{ p[1] }}</li>
+            {% endfor %}
+        </ol>
+        {% endif %}
+    </section>
+
+    <section class="st-card" aria-labelledby="pub-det">
+        <h2 id="pub-det"><i class="fas fa-info-circle" aria-hidden="true"></i> Detalles</h2>
+        <dl class="st-datos">
+            <dt>Recibido</dt><dd>{{ o.fecha_recibido.strftime('%d/%m/%Y') }}</dd>
+            {% if o.fecha_promesa and o.estado not in ('entregado', 'cancelado') %}<dt>Fecha estimada</dt><dd>{{ o.fecha_promesa.strftime('%d/%m/%Y') }}</dd>{% endif %}
+            {% if o.fecha_listo %}<dt>Listo desde</dt><dd>{{ o.fecha_listo.strftime('%d/%m/%Y') }}</dd>{% endif %}
+            {% if o.fecha_entregado %}<dt>Entregado</dt><dd>{{ o.fecha_entregado.strftime('%d/%m/%Y') }}</dd>{% endif %}
+            {% if o.garantia_hasta %}<dt>Garantía hasta</dt><dd>{{ o.garantia_hasta.strftime('%d/%m/%Y') }}</dd>{% endif %}
+            {% if o.valor is not none %}<dt>Valor</dt><dd>${{ "{:,.0f}".format(o.valor) | replace(",", ".") }}</dd>{% endif %}
+        </dl>
+        {% if o.estado == 'listo' %}
+        <p class="st-aviso" style="margin:14px 0 0"><i class="fas fa-check-circle" aria-hidden="true"></i> Su equipo está listo. Puede pasar a recogerlo.</p>
+        {% endif %}
+    </section>
+
+    {% if brand_config.empresa_whatsapp %}
+    <p style="text-align:center;margin:0">
+        <a class="st-btn st-btn-wa" href="https://wa.me/{{ brand_config.empresa_whatsapp | replace(' ', '') | replace('+', '') }}?text={{ ('Hola, quiero saber de mi orden ' ~ o.numero) | urlencode }}" target="_blank" rel="noopener">
+            <i class="fab fa-whatsapp" aria-hidden="true"></i> Escribir por WhatsApp</a>
+    </p>
+    {% endif %}
+</div>
+{% endblock %}
