@@ -374,12 +374,17 @@ def crear_equipo(cur, contacto_id, datos, usuario_id=None):
     d = _datos_equipo(datos)
     if _serial_repetido(cur, contacto_id, d['serial']):
         raise ErrorServicio('Este cliente ya tiene un equipo con ese serial. Escógelo en la lista.')
+    # Texto pegado en el asistente (ya sin datos personales) y su resumen.
+    from services.servicio_tecnico_lector import limpiar_personales
+    info = limpiar_personales(datos.get('info_sistema')) or None
+    resumen = _texto(datos.get('resumen_ia'), 800)
     cur.execute(f"""
-        INSERT INTO st_equipos (crm_contacto_id, tipo, {', '.join(_COLUMNAS_EQUIPO)}, extras, notas, creado_por)
-        VALUES (%s, %s, {', '.join(['%s'] * len(_COLUMNAS_EQUIPO))}, %s::jsonb, %s, %s)
+        INSERT INTO st_equipos (crm_contacto_id, tipo, {', '.join(_COLUMNAS_EQUIPO)}, extras, notas, creado_por,
+                                info_sistema_original, resumen_ia)
+        VALUES (%s, %s, {', '.join(['%s'] * len(_COLUMNAS_EQUIPO))}, %s::jsonb, %s, %s, %s, %s)
         RETURNING id
     """, (contacto_id, d['tipo'], *[d[c] for c in _COLUMNAS_EQUIPO], json.dumps(d['extras']),
-          d['notas'], usuario_id))
+          d['notas'], usuario_id, info, resumen))
     equipo_id = cur.fetchone()[0]
     _evento(cur, None, equipo_id, 'equipo', f"Equipo registrado: {descripcion_equipo(d)}", usuario_id)
     return equipo_id
@@ -787,3 +792,65 @@ def _actividad_crm(cur, contacto_id, tipo, asunto, descripcion, usuario_id=None)
         cur.execute('RELEASE SAVEPOINT st_crm')
     except Exception:  # noqa: BLE001
         cur.execute('ROLLBACK TO SAVEPOINT st_crm')
+
+
+# ── F3: lo que propone la IA y el técnico acepta ────────────────
+def aplicar_info(equipo_id, campos, texto=None, resumen=None, sugerencias=None, usuario_id=None):
+    """Guarda en la ficha SOLO los campos aceptados (columna o extra_<clave>),
+    el texto pegado (sin datos personales), el resumen y las sugerencias."""
+    import json
+    from services.servicio_tecnico_lector import limpiar_personales
+    equipo = obtener_equipo(equipo_id)
+    if not equipo:
+        raise ErrorServicio('El equipo no existe.')
+    datos = {'tipo': equipo['tipo'], 'notas': equipo.get('notas')}
+    for col in _COLUMNAS_EQUIPO:
+        datos[col] = equipo.get(col)
+    extras = dict(equipo.get('extras') or {})
+    aceptados = []
+    for campo, valor in (campos or {}).items():
+        if campo.startswith('extra_'):
+            extras[campo[6:]] = valor
+            aceptados.append(campo[6:])
+        elif campo in _COLUMNAS_EQUIPO:
+            datos[campo] = valor
+            aceptados.append(campo)
+    datos['extras'] = extras
+    d = _datos_equipo(datos)                       # mismas validaciones (IMEI, tipos, opciones)
+    with get_db_cursor() as cur:
+        if _serial_repetido(cur, equipo['crm_contacto_id'], d['serial'], excluir_id=equipo_id):
+            raise ErrorServicio('Este cliente ya tiene otro equipo con ese serial.')
+        sets = [c + ' = %s' for c in _COLUMNAS_EQUIPO] + ['extras = %s::jsonb', 'actualizado_en = NOW()']
+        params = [d[c] for c in _COLUMNAS_EQUIPO] + [json.dumps(d['extras'])]
+        if texto is not None:
+            sets.append('info_sistema_original = %s')
+            params.append(limpiar_personales(texto) or None)
+        if resumen is not None:
+            sets.append('resumen_ia = %s')
+            params.append(_texto(resumen, 800))
+        if sugerencias is not None:
+            sets.append('sugerencias_ia = %s::jsonb')
+            params.append(json.dumps(sugerencias[:8], ensure_ascii=False))
+        cur.execute(f"UPDATE st_equipos SET {', '.join(sets)} WHERE id = %s", (*params, equipo_id))
+        _evento(cur, None, equipo_id, 'equipo',
+                f"Ficha completada desde la información del sistema ({len(aceptados)} campos)"
+                if aceptados else 'Información del sistema guardada', usuario_id)
+    return aceptados
+
+
+def guardar_prediagnostico(orden_id, texto, usuario_id=None):
+    with get_db_cursor() as cur:
+        cur.execute('UPDATE st_ordenes SET prediagnostico_ia = %s, actualizado_en = NOW() WHERE id = %s RETURNING equipo_id',
+                    (_texto(texto, 3000), orden_id))
+        fila = cur.fetchone()
+        if not fila:
+            raise ErrorServicio('La orden no existe.')
+        _evento(cur, orden_id, fila[0], 'nota', 'Pre-diagnóstico sugerido por la IA', usuario_id)
+
+
+def orden_abierta_de_equipo(equipo_id):
+    with get_db_cursor() as cur:
+        cur.execute('SELECT id FROM st_ordenes WHERE equipo_id = %s AND estado = ANY(%s) ORDER BY id DESC LIMIT 1',
+                    (equipo_id, list(ABIERTOS)))
+        fila = cur.fetchone()
+    return fila[0] if fila else None

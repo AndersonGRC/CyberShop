@@ -309,6 +309,10 @@
         if (panel) panel.hidden = !activo;
       });
       if (enfocar) tab.focus();
+      // En celular la barra se desplaza: que la pestaña activa quede a la vista.
+      if (lista.scrollWidth > lista.clientWidth) {
+        lista.scrollLeft = Math.max(0, tab.offsetLeft - (lista.clientWidth - tab.offsetWidth) / 2);
+      }
     }
     tabs.forEach(function (t, i) {
       t.addEventListener('click', function () { activar(t, false); });
@@ -351,6 +355,156 @@
   $$('[data-st-wa-nota]').forEach(function (a) {
     a.addEventListener('click', function () {
       postear(a.getAttribute('data-st-wa-nota'), { estado: a.getAttribute('data-estado') || '' }).catch(function () {});
+    });
+  });
+
+  // ── IA: leer información pegada, especificaciones, mensajes ───
+  function esperando(btn, si, texto) {
+    if (si) {
+      btn.setAttribute('data-antes', btn.innerHTML);
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> ' + (texto || 'Leyendo…');
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = btn.getAttribute('data-antes') || btn.innerHTML;
+    }
+  }
+
+  function enviarJSON(url, datos) {
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF, 'X-Requested-With': 'XMLHttpRequest' },
+      body: JSON.stringify(datos)
+    }).then(function (r) { return r.json(); });
+  }
+
+  // Formulario «actual → sugerido»: el técnico escoge qué guardar.
+  function pintarPropuestas(caja, d, aplicarUrl, texto) {
+    var html = '';
+    if (d.aviso) html += '<p class="st-aviso">' + esc(d.aviso) + '</p>';
+    if (d.resumen) html += '<p class="st-texto st-mensaje"><strong>Resumen:</strong> ' + esc(d.resumen) + '</p>';
+    var props = d.propuestas || [];
+    var sug = d.sugerencias || [];
+    if (!props.length && !sug.length && !d.resumen) {
+      caja.innerHTML = html + '<p class="st-vacio-dato">No se encontraron datos nuevos para la ficha.</p>';
+      return;
+    }
+    html += '<form method="post" action="' + esc(aplicarUrl) + '" class="st-grid" style="gap:12px">' +
+      '<input type="hidden" name="csrf_token" value="' + esc(CSRF) + '">';
+    if (texto !== null) html += '<input type="hidden" name="texto" value="' + esc(texto) + '">';
+    if (d.resumen) html += '<input type="hidden" name="resumen" value="' + esc(d.resumen) + '">';
+    if (sug.length || texto !== null) html += '<input type="hidden" name="sugerencias" value="' + esc(JSON.stringify(sug)) + '">';
+    if (props.length) {
+      html += '<p class="st-label" style="margin:0">Marca lo que quieres guardar en la ficha (puedes corregir el valor):</p>' +
+        '<ul class="st-propuestas">' + props.map(function (pr, i) {
+          var id = 'pr-' + i;
+          var marcado = !pr.actual || pr.fuente === 'lector';
+          return '<li><input type="checkbox" id="' + id + '" name="aplicar" value="' + esc(pr.campo) + '"' + (marcado ? ' checked' : '') + '>' +
+            '<label for="' + id + '"><strong>' + esc(pr.etiqueta) + '</strong>' +
+            (pr.actual ? '<small class="st-tachado">' + esc(pr.actual) + '</small>' : '<small>vacío</small>') +
+            ' <i class="fas fa-arrow-right" aria-hidden="true"></i></label>' +
+            '<input type="text" name="valor_' + esc(pr.campo) + '" value="' + esc(pr.sugerido) + '" aria-label="Nuevo valor de ' + esc(pr.etiqueta) + '">' +
+            '<span class="st-chip st-chip-' + (pr.fuente === 'lector' ? 'exito' : 'info') + '">' + (pr.fuente === 'lector' ? 'Leído' : 'IA') + '</span></li>';
+        }).join('') + '</ul>';
+    }
+    if (sug.length) {
+      html += '<p class="st-label" style="margin:0"><i class="fas fa-lightbulb" aria-hidden="true"></i> Mejoras sugeridas</p><ul class="st-sugerencias">' +
+        sug.map(function (s) { return '<li><strong>' + esc(s.titulo) + '</strong>' + (s.detalle ? '<br><small>' + esc(s.detalle) + '</small>' : '') + '</li>'; }).join('') + '</ul>';
+    }
+    if (d.fuentes && d.fuentes.length) {
+      html += '<p class="st-vacio-dato" style="margin:0">Fuentes: ' + d.fuentes.map(function (f) {
+        return '<a href="' + esc(f.url) + '" target="_blank" rel="noopener nofollow">' + esc(f.dominio) + '</a>';
+      }).join(' · ') + '</p>';
+    }
+    html += '<div><button class="st-btn" type="submit"><i class="fas fa-save" aria-hidden="true"></i> Guardar en la ficha</button></div></form>';
+    caja.innerHTML = html;
+    var primero = caja.querySelector('input, button');
+    if (primero) primero.focus();
+  }
+
+  $$('[data-st-leer]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var texto = $('#st-info-texto').value;
+      var caja = $('#st-propuestas');
+      esperando(btn, true, 'Leyendo…');
+      caja.innerHTML = '<p class="st-vacio-dato">Leyendo la información… (con IA puede tardar hasta un minuto)</p>';
+      enviarJSON(btn.getAttribute('data-st-leer'), { equipo_id: btn.getAttribute('data-equipo'), texto: texto })
+        .then(function (d) {
+          if (!d.ok) { caja.innerHTML = '<p class="st-aviso st-aviso-peligro">' + esc(d.error || 'No se pudo leer.') + '</p>'; return; }
+          pintarPropuestas(caja, d, btn.getAttribute('data-aplicar'), d.texto_limpio || texto);
+        })
+        .catch(function () { caja.innerHTML = '<p class="st-aviso st-aviso-peligro">No se pudo leer. Intenta de nuevo.</p>'; })
+        .then(function () { esperando(btn, false); });
+    });
+  });
+
+  $$('[data-st-specs]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var caja = $('#st-propuestas');
+      esperando(btn, true, 'Buscando…');
+      caja.innerHTML = '<p class="st-vacio-dato">Buscando las especificaciones del modelo…</p>';
+      enviarJSON(btn.getAttribute('data-st-specs'), {})
+        .then(function (d) {
+          if (!d.ok) { caja.innerHTML = '<p class="st-aviso st-aviso-peligro">' + esc(d.error || 'No se pudo buscar.') + '</p>'; return; }
+          pintarPropuestas(caja, d, btn.getAttribute('data-aplicar'), null);
+        })
+        .catch(function () { caja.innerHTML = '<p class="st-aviso st-aviso-peligro">No se pudo buscar. Intenta de nuevo.</p>'; })
+        .then(function () { esperando(btn, false); });
+    });
+  });
+
+  // Asistente de nueva orden: llena los campos del equipo con lo leído.
+  $$('[data-st-llenar]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var salida = $('#st-llenar-resultado');
+      var tipo = tipoActual();
+      salida.hidden = false;
+      if (!tipo) { salida.textContent = 'Escoge primero el tipo de equipo.'; return; }
+      var actual = {};
+      $$('[data-col] input').forEach(function (i) { if (!i.disabled && i.value) actual[i.name.replace('equipo_', '')] = i.value; });
+      esperando(btn, true, 'Leyendo…');
+      salida.textContent = 'Leyendo la información…';
+      enviarJSON(btn.getAttribute('data-st-llenar'), { tipo: tipo, texto: $('#eq-info').value, actual: actual })
+        .then(function (d) {
+          if (!d.ok) { salida.textContent = d.error || 'No se pudo leer.'; return; }
+          var llenos = 0;
+          (d.propuestas || []).forEach(function (pr) {
+            var campo = pr.campo.indexOf('extra_') === 0 ? $('#ex-' + pr.campo.slice(6)) : $('#eq-' + pr.campo);
+            if (campo && !campo.disabled) { campo.value = pr.sugerido; llenos++; }
+          });
+          if (d.texto_limpio) $('#eq-info').value = d.texto_limpio;
+          $('#eq-resumen-ia').value = d.resumen || '';
+          salida.textContent = (llenos ? 'Se llenaron ' + llenos + ' campo(s). Revísalos antes de seguir.' : 'No se encontraron datos nuevos.') +
+            (d.aviso ? ' ' + d.aviso : '');
+        })
+        .catch(function () { salida.textContent = 'No se pudo leer. Intenta de nuevo.'; })
+        .then(function () { esperando(btn, false); });
+    });
+  });
+
+  // Mejorar el mensaje de WhatsApp con IA (orden o bandeja).
+  $$('[data-st-mejorar]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var raiz = btn.closest('[data-st-seg]') || btn.closest('section');
+      var p = raiz && $('.st-mensaje', raiz);
+      var wa = raiz && $('a.st-btn-wa', raiz);
+      esperando(btn, true, 'Escribiendo…');
+      enviarJSON(btn.getAttribute('data-st-mejorar'), { seg_id: btn.getAttribute('data-seg'), orden_id: btn.getAttribute('data-orden') })
+        .then(function (d) {
+          if (!d.ok) { if (p) p.insertAdjacentHTML('afterend', '<p class="st-vacio-dato">' + esc(d.error || 'La IA no respondió.') + '</p>'); return; }
+          if (p) p.textContent = d.texto;
+          if (wa && d.wa_url) wa.href = d.wa_url;
+        })
+        .catch(function () {})
+        .then(function () { esperando(btn, false); });
+    });
+  });
+
+  // Formularios que llaman a la IA: botón en espera para no enviar dos veces.
+  $$('form[data-st-espera]').forEach(function (f) {
+    f.addEventListener('submit', function () {
+      var b = $('button[type="submit"]', f);
+      if (b) esperando(b, true, 'Pensando… (hasta un minuto)');
     });
   });
 

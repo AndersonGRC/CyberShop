@@ -66,6 +66,18 @@
             {% set e = {'tipo': p.get('equipo_tipo')} %}
             {% for k, v in p.items() if k.startswith('equipo_') %}{% set _ = e.update({k[7:]: v}) %}{% endfor %}
             {% include "servicio_tecnico/_campos_equipo.html" %}
+            <details class="st-campo st-campo-ancho st-pegar">
+                <summary class="st-btn st-btn-sec"><i class="fas fa-magic" aria-hidden="true"></i> Pegar información del equipo y llenar los campos</summary>
+                <div class="st-campo" style="margin-top:10px">
+                    <label for="eq-info">Información del equipo (systeminfo, CPU-Z, «Acerca del teléfono», etiqueta de la UPS…)</label>
+                    <textarea id="eq-info" name="equipo_info_sistema" rows="6" placeholder="Escoge primero el tipo de equipo y pega aquí el texto">{{ p.get('equipo_info_sistema', '') }}</textarea>
+                    <input type="hidden" name="equipo_resumen_ia" id="eq-resumen-ia" value="{{ p.get('equipo_resumen_ia', '') }}">
+                    <small>Se quitan usuario, nombre del equipo, correos y teléfonos antes de leerlo.</small>
+                </div>
+                <button type="button" class="st-btn" style="margin-top:8px" data-st-llenar="{{ url_for('servicio_tecnico.api_leer_info') }}">
+                    <i class="fas fa-magic" aria-hidden="true"></i> Leer y llenar</button>
+                <p class="st-aviso" id="st-llenar-resultado" role="status" aria-live="polite" hidden style="margin-top:10px"></p>
+            </details>
         </div>
     </section>
 

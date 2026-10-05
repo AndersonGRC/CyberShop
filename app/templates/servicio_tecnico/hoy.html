@@ -18,7 +18,12 @@
     </div>
     <details class="st-seg-msj">
         <summary>Ver mensaje</summary>
-        <p class="st-texto">{{ s.mensaje }}</p>
+        <p class="st-texto st-mensaje">{{ s.mensaje }}</p>
+        {% if ia_ok and not s.urgente %}
+        <button type="button" class="st-btn st-btn-sec st-btn-sm" style="margin-top:8px"
+                data-st-mejorar="{{ url_for('servicio_tecnico.api_mejorar_mensaje') }}" data-seg="{{ s.id }}">
+            <i class="fas fa-magic" aria-hidden="true"></i> Mejorar con IA</button>
+        {% endif %}
     </details>
     <div class="st-acciones">
         {% if s.wa_url %}

@@ -94,6 +94,10 @@
                         {{ 'Reenviar correo' if aviso.correo_enviado else 'Enviar correo' }}</button>
                 </form>
                 {% endif %}
+                {% if ia_estado[0] %}
+                <button type="button" class="st-btn st-btn-sec" data-st-mejorar="{{ url_for('servicio_tecnico.api_mejorar_mensaje') }}" data-orden="{{ orden.id }}">
+                    <i class="fas fa-magic" aria-hidden="true"></i> Mejorar con IA</button>
+                {% endif %}
                 {% if not aviso.wa_url and not aviso.correo %}<span class="st-vacio-dato">El cliente no tiene WhatsApp ni correo registrados.</span>{% endif %}
             </div>
             {% if aviso.correo_enviado %}<p class="st-vacio-dato" style="margin:10px 0 0"><i class="fas fa-check" aria-hidden="true"></i> El correo de este estado ya salió.</p>{% endif %}
@@ -113,8 +117,15 @@
                         <i class="fas fa-eye" aria-hidden="true"></i> Ver clave</button>
                     <span id="st-clave-valor" class="st-clave" hidden aria-live="polite"></span>
                     {% else %}<span class="st-vacio-dato">Sin clave</span>{% endif %}</dd>
-                {% if orden.prediagnostico_ia %}<dt>Sugerencia de IA</dt><dd><p class="st-texto">{{ orden.prediagnostico_ia }}</p></dd>{% endif %}
+                {% if orden.prediagnostico_ia %}<dt>Sugerencia de IA</dt><dd><p class="st-texto st-mensaje">{{ orden.prediagnostico_ia }}</p></dd>{% endif %}
             </dl>
+            {% if ia_estado[0] and orden.estado not in ('entregado', 'cancelado') %}
+            <form method="post" action="{{ url_for('servicio_tecnico.orden_prediagnostico', orden_id=orden.id) }}" style="margin-top:12px" data-st-espera>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="st-btn st-btn-sec st-btn-sm" type="submit"><i class="fas fa-robot" aria-hidden="true"></i>
+                    {{ 'Repetir pre-diagnóstico con IA' if orden.prediagnostico_ia else 'Pre-diagnóstico con IA' }}</button>
+            </form>
+            {% endif %}
             <details style="margin-top:14px">
                 <summary class="st-btn st-btn-sec st-btn-sm" style="list-style:none"><i class="fas fa-pen" aria-hidden="true"></i> Editar diagnóstico y datos</summary>
                 <form method="post" action="{{ url_for('servicio_tecnico.orden_actualizar', orden_id=orden.id) }}" class="st-campos" style="margin-top:12px">

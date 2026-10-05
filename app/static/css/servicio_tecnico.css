@@ -353,3 +353,25 @@
 .st-calificar-estrellas label:hover, .st-calificar-estrellas label:hover ~ label,
 .st-calificar-estrellas input:checked ~ label { color: var(--color-star-on); }
 .st-calificar-estrellas input:focus-visible + label { outline: 3px solid var(--color-primario); outline-offset: 2px; }
+
+/* ── F3: propuestas de la IA ────────────────────────────────────────────── */
+.st-propuestas { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.st-propuestas li {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1.2fr) auto; gap: 8px 10px; align-items: center;
+    padding: 10px 12px; border: 1px solid var(--st-linea); border-radius: var(--st-radio-sm); background: var(--color-blanco);
+}
+.st-propuestas li:has(input[type=checkbox]:checked) { border-color: var(--color-primario); background: var(--marca-tinte-sutil); }
+.st-propuestas input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--color-primario); }
+.st-propuestas label { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; font-size: .88rem; cursor: pointer; min-width: 0; }
+.st-propuestas label small { color: var(--st-suave); overflow-wrap: anywhere; }
+.st-propuestas label i { color: var(--color-primario); font-size: .8rem; }
+.st-tachado { text-decoration: line-through; }
+@media (max-width: 640px) {
+    .st-propuestas li { grid-template-columns: auto minmax(0, 1fr); }
+    .st-propuestas li > input[type=text] { grid-column: 1 / -1; }
+    .st-propuestas li > .st-chip { grid-column: 2; justify-self: start; }
+}
+.st-sugerencias { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: .9rem; }
+.st-sugerencias small { color: var(--st-suave); }
+.st-pegar > summary { list-style: none; width: max-content; max-width: 100%; }
+.st code { background: var(--color-fondo); padding: 1px 5px; border-radius: 4px; font-size: .85em; }

@@ -62,6 +62,15 @@ def _sin_busqueda_web_real(monkeypatch):
     monkeypatch.setattr(busqueda_web, 'buscar', lambda producto, categoria=None: [])
 
 
+@pytest.fixture(autouse=True)
+def _sin_correos_servicio_tecnico(monkeypatch):
+    """Ninguna prueba manda correos reales a clientes del Servicio Técnico
+    (los avisos de estado salen en un hilo al crear o mover una orden). Quien
+    quiera verlos los simula en su propia prueba."""
+    from services import servicio_tecnico_seguimiento as seg
+    monkeypatch.setattr(seg, '_enviar', lambda *a, **k: True)
+
+
 @pytest.fixture()
 def client(flask_app):
     return flask_app.test_client()

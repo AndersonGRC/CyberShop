@@ -16,6 +16,7 @@ from flask import (Blueprint, abort, flash, jsonify, redirect, render_template,
 from extensions import limiter
 from helpers import get_common_data, get_data_app
 from security import ADMIN_STAFF, permiso_requerido, registrar_guard_permiso, rol_requerido
+from services import servicio_tecnico_ia as st_ia
 from services import servicio_tecnico_mensajes as msj
 from services import servicio_tecnico_seguimiento as seg
 from services import servicio_tecnico_service as st
@@ -131,7 +132,7 @@ def orden_ver(orden_id):
         siguientes=st.TRANSICIONES.get(orden['estado'], ()),
         tecnicos=st.tecnicos(), tiene_clave=bool(orden.get('clave_cifrada')),
         enlace_publico=url_for('servicio_tecnico.publico', token=orden['token_publico'], _external=True),
-        aviso=seg.aviso_estado(orden), seguimientos=seg.de_orden(orden_id),
+        aviso=seg.aviso_estado(orden), seguimientos=seg.de_orden(orden_id), ia_estado=st_ia.estado(),
         calificacion=seg.encuesta_respondida(orden_id),
         st_activo='ordenes'))
 
@@ -233,6 +234,7 @@ def equipo_ver(equipo_id):
         abort(404)
     return render_template('servicio_tecnico/equipo.html', **_ctx(
         equipo=equipo, campos_extra=tipos.campos_extra(equipo['tipo']),
+        orden_abierta=st.orden_abierta_de_equipo(equipo_id), ia_estado=st_ia.estado(),
         columnas=tipos.columnas(equipo['tipo']), cambios=st.cambios_de_equipo(equipo_id),
         ordenes_equipo=st.ordenes_de_equipo(equipo_id), eventos=st.eventos(equipo_id=equipo_id),
         st_activo='equipos'))
@@ -350,7 +352,7 @@ def encuesta(token):
 def hoy():
     grupos = seg.bandeja()
     return render_template('servicio_tecnico/hoy.html', **_ctx(
-        grupos=grupos, total=sum(len(v) for v in grupos.values()), st_activo='hoy'))
+        grupos=grupos, total=sum(len(v) for v in grupos.values()), ia_ok=st_ia.estado()[0], st_activo='hoy'))
 
 
 def _volver_a_bandeja():
@@ -429,3 +431,121 @@ def configuracion():
     return render_template('servicio_tecnico/configuracion.html', **_ctx(
         cfg=msj.config(), dias=msj.DIAS, correos=msj.CORREOS, plantillas=msj.PLANTILLAS,
         st_activo='configuracion'))
+
+
+
+# ── F3: IA ──────────────────────────────────────────────────────
+def _json_entrada():
+    return request.get_json(silent=True) or request.form
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/api/leer-info', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def api_leer_info():
+    """Lee el texto pegado (lector fijo + IA) y devuelve propuestas. No guarda nada."""
+    d = _json_entrada()
+    equipo_id = d.get('equipo_id')
+    if equipo_id and str(equipo_id).isdigit():
+        equipo = st.obtener_equipo(int(equipo_id))
+        if not equipo:
+            return jsonify({'ok': False, 'error': 'El equipo no existe.'}), 404
+    else:
+        tipo = d.get('tipo') or ''
+        if not tipos.es_valido(tipo):
+            return jsonify({'ok': False, 'error': 'Escoge primero el tipo de equipo.'}), 400
+        actual = d.get('actual') if isinstance(d.get('actual'), dict) else {}
+        equipo = {'tipo': tipo, **{k: v for k, v in actual.items() if k != 'extras'},
+                  'extras': actual.get('extras') if isinstance(actual.get('extras'), dict) else {}}
+    res = st_ia.leer_informacion(equipo, d.get('texto') or '', usar_ia=str(d.get('ia', '1')) != '0')
+    return jsonify({'ok': True, **res})
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/equipo/<int:equipo_id>/especificaciones', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def equipo_especificaciones(equipo_id):
+    equipo = st.obtener_equipo(equipo_id)
+    if not equipo:
+        return jsonify({'ok': False, 'error': 'El equipo no existe.'}), 404
+    return jsonify({'ok': True, **st_ia.completar_caracteristicas(equipo)})
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/equipo/<int:equipo_id>/aplicar-info', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def equipo_aplicar_info(equipo_id):
+    import json
+    campos = {c: request.form.get('valor_' + c, '') for c in request.form.getlist('aplicar')}
+    try:
+        sugerencias = json.loads(request.form.get('sugerencias') or 'null')
+    except ValueError:
+        sugerencias = None
+    if sugerencias is not None and not isinstance(sugerencias, list):
+        sugerencias = None
+    try:
+        aceptados = st.aplicar_info(
+            equipo_id, campos,
+            texto=request.form.get('texto') if 'texto' in request.form else None,
+            resumen=request.form.get('resumen') if request.form.get('resumen') else None,
+            sugerencias=[{'titulo': str(s.get('titulo', ''))[:120], 'detalle': str(s.get('detalle', ''))[:300]}
+                         for s in sugerencias if isinstance(s, dict)] if sugerencias is not None else None,
+            usuario_id=_usuario())
+        flash(f'Ficha actualizada: {len(aceptados)} campo(s).' if aceptados else 'Información guardada en la ficha.',
+              'success')
+    except st.ErrorServicio as exc:
+        flash(str(exc), 'warning')
+    return redirect(url_for('servicio_tecnico.equipo_ver', equipo_id=equipo_id) + '#caracteristicas')
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/orden/<int:orden_id>/prediagnostico', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def orden_prediagnostico(orden_id):
+    orden = st.obtener_orden(orden_id)
+    if not orden:
+        abort(404)
+    texto, error = st_ia.prediagnostico(orden)
+    if texto:
+        st.guardar_prediagnostico(orden_id, texto, _usuario())
+        flash('Pre-diagnóstico listo. Es una sugerencia: confírmalo con tus pruebas.', 'success')
+    else:
+        flash(error or 'La IA no respondió.', 'warning')
+    return redirect(url_for('servicio_tecnico.orden_ver', orden_id=orden_id) + '#st-recep')
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/api/mejorar-mensaje', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def api_mejorar_mensaje():
+    """Reescribe con IA la PLANTILLA del mensaje (sin datos del cliente) y la
+    rellena aquí. Devuelve el texto y el enlace de WhatsApp nuevos."""
+    d = _json_entrada()
+    cfg = msj.config()
+    if d.get('seg_id') and str(d.get('seg_id')).isdigit():
+        fila = seg.obtener(int(d['seg_id']))
+        if not fila:
+            return jsonify({'ok': False, 'error': 'El seguimiento no existe.'}), 404
+        tipo = fila['tipo']
+        datos = seg._datos_mensaje(fila, msj.datos_negocio())
+        telefono = fila.get('telefono')
+    elif d.get('orden_id') and str(d.get('orden_id')).isdigit():
+        orden = st.obtener_orden(int(d['orden_id']))
+        if not orden or orden['estado'] not in seg.ESTADOS_CON_CORREO:
+            return jsonify({'ok': False, 'error': 'Este estado no tiene mensaje.'}), 400
+        tipo = orden['estado']
+        datos = seg._datos_orden(orden, tipo)
+        telefono = orden.get('cliente_whatsapp') or orden.get('cliente_telefono')
+    else:
+        return jsonify({'ok': False, 'error': 'Falta el mensaje a mejorar.'}), 400
+    plantilla = cfg['plantillas'].get(tipo) or ''
+    nueva, error = st_ia.mejorar_plantilla(msj.PLANTILLA_POR_TIPO[tipo][1], plantilla, datos.get('equipo', ''))
+    if not nueva:
+        return jsonify({'ok': False, 'error': error}), 200
+    texto = msj.rellenar(nueva, datos)
+    return jsonify({'ok': True, 'texto': texto, 'wa_url': seg.whatsapp_url(telefono, texto)})

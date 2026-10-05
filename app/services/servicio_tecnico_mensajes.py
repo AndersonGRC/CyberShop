@@ -198,3 +198,12 @@ def html_correo(asunto, texto, negocio, enlace=None, boton='Ver mi orden'):
             f'<h2 style="color:{_h.escape(color)};margin-bottom:6px">{_h.escape(negocio)}</h2>'
             f'<p style="font-size:15px;line-height:1.55">{_h.escape(texto)}</p>{boton_html}'
             f'<p style="font-size:12px;color:#6b7280">{_h.escape(asunto)}</p></div>')
+
+
+def rellenar(texto, datos):
+    """Rellena una plantilla con los datos (variables desconocidas quedan vacías)."""
+    try:
+        texto = texto.format_map(_Seguro({k: ('' if v is None else str(v)) for k, v in datos.items()}))
+    except (ValueError, IndexError, AttributeError):
+        pass
+    return ' '.join(texto.split())
