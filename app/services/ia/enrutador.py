@@ -80,7 +80,8 @@ def _nombre_tras(original, normal, fin):
             desplazado += len(con)
             break
     nombre = original[desplazado:].strip(' ?¿!¡.,;:"\'')
-    return nombre if len(nombre) >= 3 else None
+    # Un número de documento («la cotización 15») también sirve, aunque sea corto.
+    return nombre if len(nombre) >= 3 or nombre.isdigit() else None
 
 
 def enrutar(texto, capacidades):
@@ -147,11 +148,19 @@ def enrutar_panel_seguro(texto, capacidades, historial=None):
         return []                         # filtros que esta ruta no sabe aplicar
 
     # Dos intenciones diferentes no se pueden reducir a la frase más larga.
-    coincidencias = {
-        h.code for h in capacidades
-        for disparador in h.disparadores
-        if normalizar(disparador) in normal
-    }
+    # Pero si dos frases se pisan sobre las MISMAS palabras («la cotización» y
+    # «la cotización más grande»), es una sola lectura: vale la más larga.
+    tramos = []
+    for h in capacidades:
+        for disparador in h.disparadores:
+            d = normalizar(disparador)
+            for m in re.finditer(re.escape(d), normal):
+                tramos.append((m.end() - m.start(), m.start(), m.end(), h.code))
+    aceptados = []
+    for largo, ini, fin, code in sorted(tramos, reverse=True):
+        if not any(ini < f and i < fin for _, i, f, _ in aceptados):
+            aceptados.append((largo, ini, fin, code))
+    coincidencias = {code for _, _, _, code in aceptados}
     if len(coincidencias) != 1:
         return []
 

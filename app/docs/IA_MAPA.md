@@ -14,7 +14,7 @@ Así decide el asistente qué hacer con una pregunta:
 
 En todos los casos, los datos los pone la consulta: el modelo solo redacta con lo que recibe.
 
-**Capacidades registradas: 55**
+**Capacidades registradas: 58**
 
 ## Caja
 
@@ -47,11 +47,14 @@ En todos los casos, los datos los pone la consulta: el modelo solo redacta con l
 | Función | Qué responde | Se dispara con | Parámetros | Canal | Motor | Permiso |
 |---|---|---|---|---|---|---|
 | `buscar_contactos` | Busca contactos del CRM (clientes, proveedores, leads, socios) por nombre, empresa, correo o teléfono y muestra su ID y datos de contacto. Sin nombre, los más recientes. | `busca el contacto` · `buscar contacto` · `buscar el contacto` · `datos del contacto` · `ficha del contacto` · `id del contacto` · `mis contactos` · `lista de contactos` · `muestrame los contactos` · `telefono del contacto` · `correo del contacto` | texto, limite | Panel | A · cualquiera | crm · módulo crm |
-| `cartera_pendiente` | Cartera por cobrar: qué cotizaciones aprobadas y cuentas de cobro están aprobadas pero todavía no las han pagado, cuánto suman, quién debe y qué está vencido. | `cuanto me deben` · `quien me debe` · `cartera` · `por cobrar` · `sin cobrar` · `pendiente de pago` | — | Panel | A · cualquiera | billing · módulo billing |
-| `cotizaciones_estado` | Cotizaciones de un período: cuántas, por cuánto, cuántas se aprobaron y cuáles llevan días sin respuesta. | `cotizaciones` · `cuantas cotizaciones` · `cotizaciones aprobadas` · `cotizaciones sin respuesta` | periodo | Panel | A · cualquiera | quotes · módulo quotes |
+| `cartera_pendiente` | Cartera por cobrar (lo que le DEBEN): cotizaciones aprobadas y cuentas de cobro que todavía no han pagado, cuánto suman, quién debe (deudores, morosos) y qué está vencido y hace cuántos días. | `cuanto me deben` · `quien me debe` · `quienes me deben` · `me deben` · `cartera` · `por cobrar` · `sin cobrar` · `pendiente de pago` · `pendientes de pago` · `no me han pagado` · `no han pagado` · `no me pagan` · `morosos` · `en mora` · `deudores` · `facturas vencidas` · `cuentas vencidas` · `facturas estan vencidas` · `cuentas estan vencidas` · `cobros vencidos` · `pagos pendientes` · `lo que me deben` | — | Panel | A · cualquiera | billing · módulo billing |
+| `cobros_recibidos` | Lo que de verdad le PAGARON en un período (dinero recibido): cotizaciones y cuentas de cobro marcadas como pagadas, por fecha de pago, quién pagó y los últimos pagos. No es lo que le deben (eso es cartera_pendiente) ni las ventas de la tienda. | `cuanto cobre` · `cuanto he cobrado` · `cuanto hemos cobrado` · `cuanto me pagaron` · `cuanto nos pagaron` · `pagos recibidos` · `pagos que recibi` · `que pagos recibi` · `quien me pago` · `quienes me pagaron` · `cuanto recaude` · `recaudo del` | periodo | Panel | A · cualquiera | billing · módulo billing |
+| `cotizacion_detalle` | UNA cotización por su número (COT 0000000012 o 12) o las cotizaciones de UN cliente por su nombre: qué incluye, por cuánto, si la aprobaron o rechazaron, días sin respuesta y si ya la pagaron. | `la cotizacion de` · `la cotizacion` · `cotizacion numero` · `cotizacion de` · `le cotizamos a` · `le cotice a` · `el presupuesto de` · `la propuesta de` | texto | Panel | A · cualquiera | quotes · módulo quotes |
+| `cotizaciones_estado` | Resumen de las cotizaciones (presupuestos, propuestas) de un período: cuántas y por cuánto se cotizó, cuántas se aprobaron, rechazaron o siguen pendientes, tasa de aprobación, las más grandes, a qué clientes se les cotiza más y cuáles llevan días sin respuesta. Para UNA cotización usa cotizacion_detalle. | `cotizaciones` · `cuantas cotizaciones` · `cotizaciones aprobadas` · `cotizaciones sin respuesta` · `cotizaciones pendientes` · `cotizaciones rechazadas` · `cuanto he cotizado` · `cuanto cotice` · `cuanto cotizamos` · `cuanto hemos cotizado` · `monto cotizado` · `tasa de aprobacion` · `cotizacion mas grande` · `cotizaciones mas grandes` · `le he cotizado mas` · `le cotizo mas` · `presupuestos` · `propuestas enviadas` · `propuestas comerciales` | periodo | Panel | A · cualquiera | quotes · módulo quotes |
 | `crm_pipeline` | Negocios y oportunidades en curso del CRM: cuánto hay por etapa, cuánto se espera cerrar, ganados y perdidos, y qué cierra pronto. | `oportunidades` · `pipeline` · `negocios en curso` · `embudo` · `negocios puedo cerrar` · `puedo cerrar` | — | Panel | B · mejor con el bueno | crm · módulo crm |
 | `crm_seguimiento` | A quién hay que atender hoy: tareas vencidas o del día por responsable y clientes sin contacto hace más de un mes. | `tareas pendientes` · `tengo que llamar` · `a quien llamar` · `seguimiento` · `tareas vencidas` · `que tengo que hacer hoy` | — | Panel | A · cualquiera | crm · módulo crm |
-| `cuentas_cobro_periodo` | Cuentas de cobro emitidas en un período, a qué clientes y cuáles siguen sin pagarse. | `cuentas de cobro` · `cuentas emitidas` | periodo | Panel | A · cualquiera | billing · módulo billing |
+| `cuenta_cobro_detalle` | UNA cuenta de cobro por su número (CC-0007) o las cuentas de cobro de UN cliente por su nombre: labores cobradas, valor, si ya la pagaron, cuándo vence y cuántos días de mora lleva. | `la cuenta de cobro de` · `la cuenta de cobro` · `cuenta de cobro de` · `cuenta de cobro numero` · `la cuenta cc` | texto | Panel | A · cualquiera | billing · módulo billing |
+| `cuentas_cobro_periodo` | Resumen de las cuentas de cobro (honorarios, cobros a clientes) emitidas en un período: cuántas, por cuánto, a qué clientes y cuánto de eso sigue sin pagarse. Para UNA cuenta usa cuenta_cobro_detalle. | `cuentas de cobro` · `cuentas emitidas` · `cuantas cuentas de cobro` · `facture en cuentas de cobro` · `honorarios` · `cuentas de cobro que hice` · `pase cuentas de cobro` | periodo | Panel | A · cualquiera | billing · módulo billing |
 | `resenas_estado` | Reseñas de los clientes: calificación promedio, cuáles faltan por aprobar o responder y los productos peor calificados. | `resenas` · `calificaciones` · `que opinan los clientes` · `estrellas` · `comentarios de los clientes` | — | Panel | A · cualquiera | content |
 | `tareas_pendientes` | Tareas pendientes del CRM con su ID, contacto, prioridad y fecha de vencimiento (primero las vencidas), para completarlas o cambiarlas. | `mis tareas` · `tareas pendientes con id` · `lista de tareas` · `que tareas tengo` · `muestrame las tareas` · `tareas por hacer` | limite | Panel | A · cualquiera | crm · módulo crm |
 
@@ -168,11 +171,27 @@ Las usa la prueba del enrutador: cada una debe caer en su función.
 - «¿Cuál es el ID del contacto Andes?» → `buscar_contactos`
 - «¿Cuánto me deben?» → `cartera_pendiente`
 - «¿Qué está vencido sin cobrar?» → `cartera_pendiente`
+- «¿Quiénes no me han pagado?» → `cartera_pendiente`
+- «¿Qué clientes están morosos?» → `cartera_pendiente`
+- «¿Cuánto cobré este mes?» → `cobros_recibidos`
+- «¿Cuánto me pagaron esta semana?» → `cobros_recibidos`
+- «¿Qué pagos recibí este mes?» → `cobros_recibidos`
+- «¿Qué le cotizamos a Juan Pérez?» → `cotizacion_detalle`
+- «Muéstrame la cotización COT 0000000012» → `cotizacion_detalle`
+- «¿Ya me aprobaron la cotización de Juan Pérez?» → `cotizacion_detalle`
+- «¿Cuánto fue la cotización 15?» → `cotizacion_detalle`
 - «¿Cómo van mis cotizaciones?» → `cotizaciones_estado`
+- «¿Cuánto he cotizado este año?» → `cotizaciones_estado`
+- «¿Cuántos presupuestos envié este mes?» → `cotizaciones_estado`
+- «¿Cuál fue la cotización más grande del mes?» → `cotizaciones_estado`
 - «¿Cómo va el pipeline?» → `crm_pipeline`
 - «¿Qué negocios puedo cerrar este mes?» → `crm_pipeline`
 - «¿A quién tengo que llamar hoy?» → `crm_seguimiento`
+- «Muéstrame la cuenta de cobro de María López» → `cuenta_cobro_detalle`
+- «¿Ya pagaron la cuenta de cobro CC-0007?» → `cuenta_cobro_detalle`
 - «¿Cuántas cuentas de cobro emití este mes?» → `cuentas_cobro_periodo`
+- «¿Cuánto facturé en cuentas de cobro este año?» → `cuentas_cobro_periodo`
+- «¿Cuánto he facturado en honorarios este año?» → `cuentas_cobro_periodo`
 - «¿Qué opinan los clientes de mis productos?» → `resenas_estado`
 - «¿Qué tareas tengo?» → `tareas_pendientes`
 - «Muéstrame las tareas pendientes» → `tareas_pendientes`

@@ -160,6 +160,18 @@ def cotizaciones_estado(periodo='mes', **_):
         viejas = [{'cliente': r['cliente_nombre'], 'monto': formatear_moneda(float(r['total'] or 0)),
                    'fecha': r['fecha'].isoformat() if hasattr(r['fecha'], 'isoformat') else str(r['fecha'])}
                   for r in cur.fetchall()]
+        cur.execute(f"""SELECT id, cliente_nombre, total, {estado_sql} AS estado FROM cotizaciones
+                        WHERE {_sql_periodo(p, 'fecha')} ORDER BY total DESC NULLS LAST LIMIT 5""")
+        grandes = [{'numero': f"COT {r['id']:010d}", 'cliente': r['cliente_nombre'],
+                    'monto': formatear_moneda(float(r['total'] or 0)), 'estado': r['estado'].capitalize()}
+                   for r in cur.fetchall()]
+        cur.execute(f"""SELECT COALESCE(cliente_nombre, 'Sin nombre') AS cliente, COUNT(*) AS n,
+                               COALESCE(SUM(total), 0) AS total,
+                               COUNT(*) FILTER (WHERE {estado_sql} = 'aprobada') AS aprobadas
+                        FROM cotizaciones WHERE {_sql_periodo(p, 'fecha')}
+                        GROUP BY 1 ORDER BY total DESC LIMIT 5""")
+        clientes = [{'cliente': r['cliente'], 'cotizaciones': int(r['n']), 'aprobadas': int(r['aprobadas']),
+                     'monto': formatear_moneda(float(r['total']))} for r in cur.fetchall()]
         cobro = _cobro_por_estado(cur, 'cotizaciones', _sql_periodo(p, 'fecha'),
                                   f"{estado_sql} = 'aprobada'")
     n_total = sum(n for n, _ in totales.values())
@@ -175,6 +187,8 @@ def cotizaciones_estado(periodo='mes', **_):
         'aprobadas': aprobadas[0], 'monto_aprobado': formatear_moneda(aprobadas[1]),
         'tasa_de_aprobacion': f'{aprobadas[0] / n_total * 100:.0f}%',
         'pendientes_hace_mas_de_15_dias': viejas,
+        'las_mas_grandes': grandes,
+        'a_quien_se_cotiza_mas': clientes,
     }
     if cobro:
         salida['cobro_de_las_aprobadas'] = cobro

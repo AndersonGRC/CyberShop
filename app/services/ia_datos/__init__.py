@@ -24,6 +24,7 @@ from services.ia_datos.base import (
 from services.ia_datos import alertas as _ale
 from services.ia_datos import analitica as _ana
 from services.ia_datos import caja as _caj
+from services.ia_datos import cobros as _cob
 from services.ia_datos import comercial as _com
 from services.ia_datos import contactos as _con
 from services.ia_datos import documentos as _doc
@@ -154,16 +155,35 @@ registrar('crm_seguimiento', _com.crm_seguimiento,
           [], etiqueta='tus tareas y seguimientos', dominio='comercial',
           modulos=('crm',), permiso='crm')
 registrar('cotizaciones_estado', _com.cotizaciones_estado,
-          "Cotizaciones de un período: cuántas, por cuánto, cuántas se aprobaron y cuáles llevan días sin respuesta.",
+          "Resumen de las cotizaciones (presupuestos, propuestas) de un período: cuántas y por cuánto se cotizó, "
+          "cuántas se aprobaron, rechazaron o siguen pendientes, tasa de aprobación, las más grandes, a qué "
+          "clientes se les cotiza más y cuáles llevan días sin respuesta. Para UNA cotización usa cotizacion_detalle.",
           ['periodo'], etiqueta='tus cotizaciones', dominio='comercial',
           modulos=('quotes',), permiso='quotes')
+registrar('cotizacion_detalle', _cob.cotizacion_detalle,
+          "UNA cotización por su número (COT 0000000012 o 12) o las cotizaciones de UN cliente por su nombre: "
+          "qué incluye, por cuánto, si la aprobaron o rechazaron, días sin respuesta y si ya la pagaron.",
+          ['texto'], etiqueta='esa cotización', dominio='comercial',
+          modulos=('quotes',), permiso='quotes')
 registrar('cuentas_cobro_periodo', _com.cuentas_cobro_periodo,
-          "Cuentas de cobro emitidas en un período, a qué clientes y cuáles siguen sin pagarse.",
+          "Resumen de las cuentas de cobro (honorarios, cobros a clientes) emitidas en un período: cuántas, "
+          "por cuánto, a qué clientes y cuánto de eso sigue sin pagarse. Para UNA cuenta usa cuenta_cobro_detalle.",
           ['periodo'], etiqueta='tus cuentas de cobro', dominio='comercial',
           modulos=('billing',), permiso='billing')
+registrar('cuenta_cobro_detalle', _cob.cuenta_cobro_detalle,
+          "UNA cuenta de cobro por su número (CC-0007) o las cuentas de cobro de UN cliente por su nombre: "
+          "labores cobradas, valor, si ya la pagaron, cuándo vence y cuántos días de mora lleva.",
+          ['texto'], etiqueta='esa cuenta de cobro', dominio='comercial',
+          modulos=('billing',), permiso='billing')
+registrar('cobros_recibidos', _cob.cobros_recibidos,
+          "Lo que de verdad le PAGARON en un período (dinero recibido): cotizaciones y cuentas de cobro marcadas "
+          "como pagadas, por fecha de pago, quién pagó y los últimos pagos. No es lo que le deben (eso es "
+          "cartera_pendiente) ni las ventas de la tienda.",
+          ['periodo'], etiqueta='lo que te pagaron', dominio='comercial',
+          modulos=('billing',), permiso='billing')
 registrar('cartera_pendiente', _com.cartera_pendiente,
-          "Cartera por cobrar: qué cotizaciones aprobadas y cuentas de cobro están aprobadas pero "
-          "todavía no las han pagado, cuánto suman, quién debe y qué está vencido.",
+          "Cartera por cobrar (lo que le DEBEN): cotizaciones aprobadas y cuentas de cobro que todavía no "
+          "han pagado, cuánto suman, quién debe (deudores, morosos) y qué está vencido y hace cuántos días.",
           [], etiqueta='tu cartera por cobrar', dominio='comercial',
           modulos=('billing',), permiso='billing')
 registrar('cliente_historial', _com.cliente_historial,
@@ -377,6 +397,15 @@ REGLA DE PERÍODOS: 'hoy', 'esta semana', 'este mes' y 'este año' son rangos de
 calendario actual; 'la semana pasada' y 'el mes pasado' son los anteriores
 completos. Si un período da 0 ventas pero el negocio tiene ventas históricas,
 acláralo (no afirmes que "nunca ha vendido").
+
+COTIZACIONES Y COBROS (no los confundas):
+- Cotización (presupuesto, propuesta): precio que se le ofrece al cliente; queda
+  pendiente, aprobada o rechazada. Aprobarla NO significa que ya pagó.
+- Cuenta de cobro (honorarios): documento que cobra un trabajo o servicio.
+- Cartera (cartera_pendiente): lo aprobado o emitido que TODAVÍA NO pagan.
+- Cobros recibidos (cobros_recibidos): lo que YA pagaron, por fecha de pago.
+- Para UN documento (un número como COT 0000000012 o CC-0007, o el nombre de
+  un cliente) usa cotizacion_detalle o cuenta_cobro_detalle, no el resumen.
 
 REGLA DE CONFIABILIDAD: las tendencias y los segmentos traen el campo
 'confiabilidad'. Si es 'baja' o 'insuficiente', dilo claramente y NO hagas
