@@ -35,7 +35,7 @@ cliente para el chat público previsto. El modelo local o Anthropic solo
 selecciona/redacta en los flujos que lo requieren; las consultas tienen SQL
 predefinido. Las operaciones de escritura están separadas en `ia_acciones.py`.
 
-El registro de 46 capacidades se llena al importar `services.ia_datos`; importar
+El registro de 51 capacidades se llena al importar `services.ia_datos`; importar
 solo `services.ia` no lo puebla. El mapa de funciones y frases se genera con
 `tools/ia_mapa.py` en [IA_MAPA.md](IA_MAPA.md); no se edita a mano.
 
@@ -49,9 +49,9 @@ frase se haya probado contra una base real.
 | --- | --- |
 | `ia/__init__.py` | Expone el contrato del registro; no carga por sí solo las capacidades. |
 | `ia/registro.py` | Define capacidades, canales, metadatos y registro único. |
-| `ia/intenciones.py` | Frases disparadoras y metadatos de las 46 capacidades. |
+| `ia/intenciones.py` | Frases disparadoras y metadatos de las 51 capacidades. |
 | `ia/enrutador.py` | Reconoce preguntas inequívocas y parámetros sin llamar al modelo. |
-| `ia_datos/__init__.py` | Importa dominios, registra las 46 consultas, valida parámetros y ejecuta. |
+| `ia_datos/__init__.py` | Importa dominios, registra las 51 consultas, valida parámetros y ejecuta. |
 | `ia_datos/acceso.py` | Contexto de canal, módulos y permisos por rol. |
 | `ia_datos/base.py` | Utilidades comunes de fechas, esquema, rangos y SQL. También lo usan `cartera_service.py` e `ia_rag/`. |
 | `ia_datos/ventas.py` | Ventas, productos, clientes, pedidos y tendencias. |
@@ -62,6 +62,7 @@ frase se haya probado contra una base real.
 | `ia_datos/finanzas.py` | Resultados y márgenes. |
 | `ia_datos/caja.py` | Caja y medios de pago. |
 | `ia_datos/restaurante.py` | Mesas y desempeño del restaurante. |
+| `ia_datos/servicio_tecnico.py` | Taller: estado, seguimientos, una orden, historial de equipos y desempeño (sin claves; nombres de clientes solo en local). |
 | `ia_datos/nomina.py` | Resúmenes de nómina y empleados según permiso. |
 | `ia_datos/publico.py` | Cinco consultas de catálogo, servicios y negocio para el canal público previsto. |
 | `ia_datos/alertas.py` | Alertas por regla; también se usa directamente desde panel y correo. |

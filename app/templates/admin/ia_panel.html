@@ -53,6 +53,11 @@
         </div>
 
         <div class="gem-chat-sugerencias" id="gem-chat-sug">
+            {% if taller %}
+            <button class="gem-chip" type="button">¿Cómo está el taller?</button>
+            <button class="gem-chip" type="button">¿Qué seguimientos del taller tengo pendientes?</button>
+            <button class="gem-chip" type="button">¿Cómo le fue al taller este mes?</button>
+            {% endif %}
             <button class="gem-chip" type="button">¿Cuánto vendí este mes?</button>
             <button class="gem-chip" type="button">¿Vendí más que el mes pasado?</button>
             <button class="gem-chip" type="button">¿Qué productos tienen poco stock?</button>

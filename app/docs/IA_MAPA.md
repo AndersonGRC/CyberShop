@@ -14,7 +14,7 @@ Así decide el asistente qué hacer con una pregunta:
 
 En todos los casos, los datos los pone la consulta: el modelo solo redacta con lo que recibe.
 
-**Capacidades registradas: 50**
+**Capacidades registradas: 55**
 
 ## Caja
 
@@ -120,6 +120,16 @@ En todos los casos, los datos los pone la consulta: el modelo solo redacta con l
 | `restaurante_ahora` | Cómo está el salón AHORA: mesas ocupadas o libres, cuentas abiertas, cuánto llevan consumido y cuáles se demoran. | `las mesas` · `mesas abiertas` · `como va el salon` · `mesas ocupadas` | — | Panel | A · cualquiera | restaurant_tables · módulo restaurant_tables |
 | `restaurante_desempeno` | Cómo le fue al restaurante en un período: mesas atendidas, ticket por mesa y por persona, duración, horas pico, platos más pedidos y anulaciones. | `le fue al restaurante` · `rotacion de mesas` · `desempeno del restaurante` · `ventas del restaurante` | periodo | Panel | A · cualquiera | restaurant_tables · módulo restaurant_tables |
 
+## Servicio_tecnico
+
+| Función | Qué responde | Se dispara con | Parámetros | Canal | Motor | Permiso |
+|---|---|---|---|---|---|---|
+| `taller_desempeno` | Cómo le fue al servicio técnico en un período: órdenes recibidas y entregadas, días de reparación, lo cobrado, equipos más atendidos, aprobación de cotizaciones y satisfacción de los clientes. | `desempeno del taller` · `como le fue al taller` · `cuantas reparaciones` · `reparaciones del mes` · `satisfaccion de los clientes del taller` · `tiempo de reparacion` · `cuanto cobro el taller` · `ingresos del taller` | periodo | Panel | B · mejor con el bueno | servicio_tecnico · módulo servicio_tecnico |
+| `taller_equipo_historial` | Equipos de UN cliente por su nombre, o el equipo de un serial o IMEI: características, piezas cambiadas, próximas revisiones, mejoras sugeridas e historial de reparaciones. | `que equipos tiene` · `equipos del cliente` · `historial del equipo` · `ficha del equipo de` · `equipo con serial` · `equipo con imei` | texto | Panel | A · cualquiera | servicio_tecnico · módulo servicio_tecnico |
+| `taller_estado` | Servicio técnico AHORA: equipos en el taller por estado, listos para entregar, entregas prometidas vencidas, órdenes sin técnico y carga de cada técnico. | `como esta el taller` · `equipos en el taller` · `que hay en el taller` · `equipos listos` · `listos para entregar` · `equipos por entregar` · `ordenes de servicio` · `ordenes abiertas del taller` · `equipos en reparacion` · `carga de los tecnicos` · `entregas atrasadas` | limite | Panel | A · cualquiera | servicio_tecnico · módulo servicio_tecnico |
+| `taller_orden` | Detalle de UNA orden de servicio técnico por su número (OS-000012) o las órdenes de un cliente: estado, equipo, falla, diagnóstico, valores, fechas y últimos movimientos. | `como va la orden` · `estado de la orden` · `detalle de la orden` · `que paso con la orden` · `informacion de la orden` | texto | Panel | A · cualquiera | servicio_tecnico · módulo servicio_tecnico |
+| `taller_seguimientos` | A quién hay que contactar hoy en el servicio técnico: cotizaciones sin respuesta, equipos listos sin recoger, preguntar cómo le fue al cliente, garantías, mantenimientos y calificaciones bajas. | `seguimientos del taller` · `clientes del taller por contactar` · `a quien llamar del taller` · `seguimiento de clientes del taller` · `calificaciones bajas` · `clientes inconformes` · `pendientes del taller` | limite | Panel | A · cualquiera | servicio_tecnico · módulo servicio_tecnico |
+
 ## Ventas
 
 | Función | Qué responde | Se dispara con | Parámetros | Canal | Motor | Permiso |
@@ -196,6 +206,17 @@ Las usa la prueba del enrutador: cada una debe caer en su función.
 - «¿Qué pedidos tengo por despachar?» → `pedidos_por_despachar`
 - «¿Cómo van las mesas?» → `restaurante_ahora`
 - «¿Cómo le fue al restaurante esta semana?» → `restaurante_desempeno`
+- «¿Cómo le fue al taller este mes?» → `taller_desempeno`
+- «¿Cuántas reparaciones hicimos el mes pasado?» → `taller_desempeno`
+- «¿Qué equipos tiene Laura Gómez?» → `taller_equipo_historial`
+- «¿Historial del equipo con serial PF3ABC12?» → `taller_equipo_historial`
+- «¿Cómo está el taller?» → `taller_estado`
+- «¿Qué equipos están listos para entregar?» → `taller_estado`
+- «¿Hay entregas atrasadas?» → `taller_estado`
+- «¿Cómo va la orden OS-000012?» → `taller_orden`
+- «¿Estado de la orden de Laura Gómez?» → `taller_orden`
+- «¿Qué seguimientos del taller tengo pendientes?» → `taller_seguimientos`
+- «¿Hay calificaciones bajas de los clientes?» → `taller_seguimientos`
 - «¿Crecieron mis ventas este mes?» → `comparativo_ventas`
 - «Compara mis ventas con el período anterior» → `comparativo_ventas`
 - «¿A qué hora vendo más?» → `patron_horario`

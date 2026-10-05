@@ -33,6 +33,7 @@ from services.ia_datos import nomina as _nom
 from services.ia_datos import operacion as _ope
 from services.ia_datos import publico as _pub
 from services.ia_datos import restaurante as _res
+from services.ia_datos import servicio_tecnico as _stc
 from services.ia_datos import ventas as _ven
 
 
@@ -118,6 +119,30 @@ registrar('restaurante_desempeno', _res.restaurante_desempeno,
           "Cómo le fue al restaurante en un período: mesas atendidas, ticket por mesa y por persona, duración, horas pico, platos más pedidos y anulaciones.",
           ['periodo'], etiqueta='el desempeño de tu restaurante', dominio='restaurante',
           modulos=('restaurant_tables',), permiso='restaurant_tables')
+
+# ── Servicio Técnico (taller de reparación) ───────────────────
+# Las que nombran clientes son solo locales (nube=False). Nunca exponen la
+# clave del equipo ni el enlace público.
+registrar('taller_estado', _stc.taller_estado,
+          "Servicio técnico AHORA: equipos en el taller por estado, listos para entregar, entregas prometidas vencidas, órdenes sin técnico y carga de cada técnico.",
+          ['limite'], etiqueta='el estado de tu taller', dominio='servicio_tecnico',
+          modulos=('servicio_tecnico',), permiso='servicio_tecnico', extra={'nube': False})
+registrar('taller_seguimientos', _stc.taller_seguimientos,
+          "A quién hay que contactar hoy en el servicio técnico: cotizaciones sin respuesta, equipos listos sin recoger, preguntar cómo le fue al cliente, garantías, mantenimientos y calificaciones bajas.",
+          ['limite'], etiqueta='los seguimientos del taller', dominio='servicio_tecnico',
+          modulos=('servicio_tecnico',), permiso='servicio_tecnico', extra={'nube': False})
+registrar('taller_orden', _stc.taller_orden,
+          "Detalle de UNA orden de servicio técnico por su número (OS-000012) o las órdenes de un cliente: estado, equipo, falla, diagnóstico, valores, fechas y últimos movimientos.",
+          ['texto'], etiqueta='esa orden de servicio', dominio='servicio_tecnico',
+          modulos=('servicio_tecnico',), permiso='servicio_tecnico', extra={'nube': False})
+registrar('taller_equipo_historial', _stc.taller_equipo_historial,
+          "Equipos de UN cliente por su nombre, o el equipo de un serial o IMEI: características, piezas cambiadas, próximas revisiones, mejoras sugeridas e historial de reparaciones.",
+          ['texto'], etiqueta='el historial de ese equipo', dominio='servicio_tecnico',
+          modulos=('servicio_tecnico',), permiso='servicio_tecnico', extra={'nube': False})
+registrar('taller_desempeno', _stc.taller_desempeno,
+          "Cómo le fue al servicio técnico en un período: órdenes recibidas y entregadas, días de reparación, lo cobrado, equipos más atendidos, aprobación de cotizaciones y satisfacción de los clientes.",
+          ['periodo'], etiqueta='el desempeño de tu taller', dominio='servicio_tecnico',
+          modulos=('servicio_tecnico',), permiso='servicio_tecnico')
 
 # ── Comercial (CRM, cotizaciones, clientes, reseñas) ──────────
 registrar('crm_pipeline', _com.crm_pipeline,

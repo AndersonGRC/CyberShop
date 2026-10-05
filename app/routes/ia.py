@@ -121,7 +121,20 @@ def panel():
     except Exception:
         faltan = 0
     return render_template('admin/ia_panel.html', datosApp=datosApp,
-                           estado=estado, faltan=faltan, nube=_estado_nube())
+                           estado=estado, faltan=faltan, nube=_estado_nube(),
+                           taller=_taller_activo())
+
+
+def _taller_activo():
+    """Preguntas del taller en las sugerencias: solo con Servicio Técnico
+    encendido y si el rol puede verlo."""
+    try:
+        from services.permisos_service import tiene_permiso
+        from tenant_features import MODULE_SERVICIO_TECNICO, is_module_active
+        return bool(is_module_active(MODULE_SERVICIO_TECNICO)
+                    and tiene_permiso(session.get('rol_id'), 'servicio_tecnico', 'ver'))
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def _estado_nube():

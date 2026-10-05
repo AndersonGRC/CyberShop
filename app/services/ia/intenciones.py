@@ -25,6 +25,44 @@ PANEL = ('panel',)
 PUBLICO = ('publico',)
 
 INTENCIONES = {
+    # ── Servicio Técnico ──────────────────────────────────────
+    'taller_estado': {
+        'disparadores': ('como esta el taller', 'equipos en el taller', 'que hay en el taller',
+                         'equipos listos', 'listos para entregar', 'equipos por entregar',
+                         'ordenes de servicio', 'ordenes abiertas del taller', 'equipos en reparacion',
+                         'carga de los tecnicos', 'entregas atrasadas'),
+        'ejemplos': ('¿Cómo está el taller?', '¿Qué equipos están listos para entregar?',
+                     '¿Hay entregas atrasadas?'),
+        'canales': PANEL, 'motor': 'A',
+    },
+    'taller_seguimientos': {
+        'disparadores': ('seguimientos del taller', 'clientes del taller por contactar',
+                         'a quien llamar del taller', 'seguimiento de clientes del taller',
+                         'calificaciones bajas', 'clientes inconformes', 'pendientes del taller'),
+        'ejemplos': ('¿Qué seguimientos del taller tengo pendientes?',
+                     '¿Hay calificaciones bajas de los clientes?'),
+        'canales': PANEL, 'motor': 'A',
+    },
+    'taller_orden': {
+        'disparadores': ('como va la orden', 'estado de la orden', 'detalle de la orden',
+                         'que paso con la orden', 'informacion de la orden'),
+        'ejemplos': ('¿Cómo va la orden OS-000012?', '¿Estado de la orden de Laura Gómez?'),
+        'canales': PANEL, 'motor': 'A',
+    },
+    'taller_equipo_historial': {
+        'disparadores': ('que equipos tiene', 'equipos del cliente', 'historial del equipo',
+                         'ficha del equipo de', 'equipo con serial', 'equipo con imei'),
+        'ejemplos': ('¿Qué equipos tiene Laura Gómez?', '¿Historial del equipo con serial PF3ABC12?'),
+        'canales': PANEL, 'motor': 'A',
+    },
+    'taller_desempeno': {
+        'disparadores': ('desempeno del taller', 'como le fue al taller', 'cuantas reparaciones',
+                         'reparaciones del mes', 'satisfaccion de los clientes del taller',
+                         'tiempo de reparacion', 'cuanto cobro el taller', 'ingresos del taller'),
+        'ejemplos': ('¿Cómo le fue al taller este mes?', '¿Cuántas reparaciones hicimos el mes pasado?'),
+        'canales': PANEL, 'motor': 'B',
+    },
+
     # ── Ventas ────────────────────────────────────────────────
     'ventas_periodo': {
         'disparadores': ('cuanto vendi', 'cuanto vendimos', 'cuanto se vendio', 'cuanto he vendido',
