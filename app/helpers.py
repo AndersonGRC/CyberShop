@@ -192,6 +192,15 @@ def get_data_app():
     active_modules = get_active_module_codes()
     rol_actual = _s.get('rol_id')
 
+    # Servicio Técnico: seguimientos de hoy o atrasados junto a «Hoy».
+    st_pendientes = 0
+    if MODULE_SERVICIO_TECNICO in active_modules:
+        try:
+            from services.servicio_tecnico_seguimiento import contar_pendientes_cache
+            st_pendientes = contar_pendientes_cache()
+        except Exception:
+            st_pendientes = 0
+
     # Regla de visibilidad: cada ítem lleva 'roles' = ESPEJO EXACTO del
     # @rol_requerido de su ruta destino. Así el menú nunca muestra módulos que
     # el rol no puede abrir (nada de "No tienes permiso" al hacer clic).
@@ -368,11 +377,13 @@ def get_data_app():
             "icono": "tools",
             "module_code": MODULE_SERVICIO_TECNICO,
             "submodulos": [
+                {"nombre": f"Hoy ({st_pendientes})" if st_pendientes else "Hoy", "url": "servicio_tecnico.hoy", "icono": "bell", "permiso": ("servicio_tecnico", "ver")},
                 {"nombre": "Órdenes", "url": "servicio_tecnico.ordenes", "icono": "clipboard-list", "permiso": ("servicio_tecnico", "ver"),
                  "activo_en": ("servicio_tecnico.ordenes", "servicio_tecnico.orden_ver")},
                 {"nombre": "Nueva orden", "url": "servicio_tecnico.nueva_orden", "icono": "plus-circle", "permiso": ("servicio_tecnico", "operar")},
                 {"nombre": "Equipos", "url": "servicio_tecnico.equipos", "icono": "laptop-medical", "permiso": ("servicio_tecnico", "ver"),
                  "activo_en": ("servicio_tecnico.equipos", "servicio_tecnico.equipo_ver", "servicio_tecnico.equipo_editar")},
+                {"nombre": "Configuración", "url": "servicio_tecnico.configuracion", "icono": "sliders-h", "permiso": ("servicio_tecnico", "operar")},
             ]
         },
         {

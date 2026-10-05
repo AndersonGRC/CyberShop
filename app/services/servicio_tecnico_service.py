@@ -472,6 +472,8 @@ def registrar_cambio(equipo_id, datos, usuario_id=None, orden_id=None):
                      proxima, usuario_id))
         cambio_id = cur.fetchone()[0]
         _evento(cur, orden_id, equipo_id, 'cambio', f'Pieza cambiada: {componente}', usuario_id)
+        from services import servicio_tecnico_seguimiento as seg
+        seg.al_registrar_cambio(cur, cambio_id, equipo_id, proxima, orden_id)
     return cambio_id
 
 
@@ -618,6 +620,7 @@ def cambiar_estado(orden_id, nuevo, usuario_id=None, nota=None, datos=None):
             raise ErrorServicio(f'No se puede pasar de «{ESTADO_POR_CODIGO[actual][1]}» '
                                 f'a «{ESTADO_POR_CODIGO[nuevo][1]}».')
         sets, params = ['estado = %s', 'actualizado_en = NOW()'], [nuevo]
+        garantia_hasta = None
         if nuevo == 'listo':
             sets.append('fecha_listo = NOW()')
         if nuevo == 'entregado':
@@ -627,8 +630,9 @@ def cambiar_estado(orden_id, nuevo, usuario_id=None, nota=None, datos=None):
                 params.append(valor_final)
             sets.append('fecha_entregado = NOW()')
             dias = int(orden['garantia_dias'] or 0)
+            garantia_hasta = date.today() + timedelta(days=dias) if dias > 0 else None
             sets.append('garantia_hasta = %s')
-            params.append(date.today() + timedelta(days=dias) if dias > 0 else None)
+            params.append(garantia_hasta)
         if datos.get('diagnostico'):
             sets.append('diagnostico = %s')
             params.append(_texto(datos.get('diagnostico'), 4000))
@@ -640,6 +644,9 @@ def cambiar_estado(orden_id, nuevo, usuario_id=None, nota=None, datos=None):
         _actividad_crm(cur, orden['crm_contacto_id'], 'nota',
                        f"Servicio técnico {orden['numero']}: {ESTADO_POR_CODIGO[nuevo][1]}",
                        texto, usuario_id)
+        # Recordatorios que nacen o se cierran con este cambio (misma transacción).
+        from services import servicio_tecnico_seguimiento as seg
+        seg.al_cambiar_estado(cur, orden, nuevo, garantia_hasta)
     return nuevo
 
 

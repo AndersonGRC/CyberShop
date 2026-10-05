@@ -286,6 +286,8 @@ def generar_cotizacion():
                         _cur.execute("UPDATE cotizaciones SET crm_contacto_id = %s WHERE id = %s",
                                      (orden['crm_contacto_id'], cotizacion_id))
                     st.vincular_cotizacion(orden['id'], cotizacion_id, session.get('usuario_id'))
+                    from services.servicio_tecnico_seguimiento import correo_estado
+                    correo_estado(orden['id'], 'cotizado')
             except Exception as _se:
                 app.logger.warning(f"Enlazar cotización a orden de servicio: {_se}")
 

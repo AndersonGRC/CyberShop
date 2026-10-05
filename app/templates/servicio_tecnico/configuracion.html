@@ -1,0 +1,61 @@
+{% extends "servicio_tecnico/base.html" %}
+{% block st_titulo %}Configuración{% endblock %}
+
+{% block st_contenido %}
+<section class="st-hero">
+    <div>
+        <h1><i class="fas fa-sliders-h" aria-hidden="true"></i> Avisos y seguimiento</h1>
+        <p>Cuándo recordar, qué correos salen solos y cómo se escriben los mensajes.</p>
+    </div>
+</section>
+
+<form method="post" class="st-grid">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <section class="st-card" aria-labelledby="cf-dias">
+        <h2 id="cf-dias"><i class="fas fa-calendar-check" aria-hidden="true"></i> Cuándo recordar</h2>
+        <div class="st-campos">
+            {% for clave, defecto, etiqueta in dias %}
+            <div class="st-campo"><label for="{{ clave }}">{{ etiqueta }}</label>
+                <input type="number" id="{{ clave }}" name="{{ clave }}" min="0" max="3650" inputmode="numeric" value="{{ cfg[clave] }}"></div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="st-card" aria-labelledby="cf-correos">
+        <h2 id="cf-correos"><i class="fas fa-envelope" aria-hidden="true"></i> Correos automáticos al cliente</h2>
+        <p class="st-vacio-dato" style="margin-top:0">Solo salen si el cliente tiene correo. WhatsApp siempre se envía desde la bandeja «Hoy» con un clic.</p>
+        <div class="st-checks" style="display:grid;gap:8px">
+            {% for clave, defecto, etiqueta in correos %}
+            <label><input type="checkbox" name="{{ clave }}" value="1" {% if cfg[clave] %}checked{% endif %}> {{ etiqueta }}</label>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="st-card" aria-labelledby="cf-resumen">
+        <h2 id="cf-resumen"><i class="fas fa-inbox" aria-hidden="true"></i> Resumen diario para ti</h2>
+        <div class="st-checks"><label><input type="checkbox" name="st_resumen_activo" value="1" {% if cfg.resumen_activo %}checked{% endif %}>
+            Enviarme cada mañana lo que hay que atender (seguimientos, entregas prometidas, equipos en el taller)</label></div>
+        <div class="st-campo" style="margin-top:12px"><label for="st_resumen_destinos">Correos que lo reciben</label>
+            <input type="text" id="st_resumen_destinos" name="st_resumen_destinos" value="{{ cfg.resumen_destinos | join(', ') }}"
+                   placeholder="Vacío = los dueños del negocio">
+            <small>Separados por coma.{% if cfg.resumen_ultimo %} Último envío: {{ cfg.resumen_ultimo }}.{% endif %}</small></div>
+    </section>
+
+    <section class="st-card" aria-labelledby="cf-msj">
+        <h2 id="cf-msj"><i class="fas fa-comment-dots" aria-hidden="true"></i> Mensajes</h2>
+        <p class="st-vacio-dato" style="margin-top:0">Puedes usar {cliente}, {negocio}, {numero}, {equipo}, {enlace}, {valor}, {garantia} y {pieza}.
+            Si lo dejas igual al original, recibirás las mejoras futuras del texto.</p>
+        <div class="st-campos">
+            {% for tipo, nombre, asunto, original in plantillas %}
+            <div class="st-campo st-campo-ancho"><label for="msg-{{ tipo }}">{{ nombre }}{% if tipo in cfg.plantillas_editadas %} <span class="st-chip st-chip-marca">Personalizado</span>{% endif %}</label>
+                <textarea id="msg-{{ tipo }}" name="st_msg_{{ tipo }}" rows="3">{{ cfg.plantillas[tipo] }}</textarea></div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <div class="st-acciones st-barra-movil">
+        <button class="st-btn" type="submit"><i class="fas fa-save" aria-hidden="true"></i> Guardar configuración</button>
+    </div>
+</form>
+{% endblock %}

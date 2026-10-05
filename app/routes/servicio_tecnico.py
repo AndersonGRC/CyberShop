@@ -16,6 +16,8 @@ from flask import (Blueprint, abort, flash, jsonify, redirect, render_template,
 from extensions import limiter
 from helpers import get_common_data, get_data_app
 from security import ADMIN_STAFF, permiso_requerido, registrar_guard_permiso, rol_requerido
+from services import servicio_tecnico_mensajes as msj
+from services import servicio_tecnico_seguimiento as seg
 from services import servicio_tecnico_service as st
 from services import servicio_tecnico_tipos as tipos
 from tenant_features import MODULE_SERVICIO_TECNICO, is_module_active, module_required
@@ -36,6 +38,8 @@ def _tablas():
                 flash('El módulo de Servicio Técnico está pendiente de actualizar en esta tienda.', 'warning')
                 return redirect(url_for('admin.dashboard_admin'))
             abort(404)
+        if request.path.startswith(PREFIJO) and is_module_active(MODULE_SERVICIO_TECNICO):
+            seg.recordar_url_base()
     return None
 
 
@@ -105,7 +109,8 @@ def nueva_orden():
                 cliente_inicial=st.obtener_cliente(cid) if cid else None,
                 st_activo='nueva')), 400
         orden = st.obtener_orden(orden_id)
-        flash(f"Orden {orden['numero']} creada. Imprime el comprobante para el cliente.", 'success')
+        aviso = ' Le enviamos un correo con el enlace de estado.' if seg.correo_estado(orden_id, 'recibido') else ''
+        flash(f"Orden {orden['numero']} creada. Imprime el comprobante para el cliente.{aviso}", 'success')
         return redirect(url_for('servicio_tecnico.orden_ver', orden_id=orden_id))
     return render_template('servicio_tecnico/nueva.html', **_ctx(
         previo={}, tipos_json=tipos.para_plantilla(), tecnicos=st.tecnicos(),
@@ -126,6 +131,8 @@ def orden_ver(orden_id):
         siguientes=st.TRANSICIONES.get(orden['estado'], ()),
         tecnicos=st.tecnicos(), tiene_clave=bool(orden.get('clave_cifrada')),
         enlace_publico=url_for('servicio_tecnico.publico', token=orden['token_publico'], _external=True),
+        aviso=seg.aviso_estado(orden), seguimientos=seg.de_orden(orden_id),
+        calificacion=seg.encuesta_respondida(orden_id),
         st_activo='ordenes'))
 
 
@@ -138,7 +145,8 @@ def orden_estado(orden_id):
     try:
         st.cambiar_estado(orden_id, nuevo, _usuario(), nota=request.form.get('nota'),
                           datos=_form_dict())
-        flash(f"Estado actualizado: {st.ESTADO_POR_CODIGO[nuevo][1]}.", 'success')
+        aviso = ' Se le envió un correo al cliente.' if seg.correo_estado(orden_id, nuevo) else ''
+        flash(f"Estado actualizado: {st.ESTADO_POR_CODIGO[nuevo][1]}.{aviso}", 'success')
     except st.ErrorServicio as exc:
         flash(str(exc), 'warning')
     return redirect(url_for('servicio_tecnico.orden_ver', orden_id=orden_id))
@@ -307,5 +315,117 @@ def publico(token):
         'valor': orden['valor_final'] if orden['valor_final'] is not None else (
             orden['valor_estimado'] if orden['estado'] in ('aprobado', 'reparacion', 'listo') else None),
         'cliente_nombre': (orden.get('cliente_nombre') or '').split(' ')[0],
+        'token': token,
     }
-    return render_template('servicio_tecnico/publico.html', **_ctx(o=visible, datosApp=get_common_data()))
+    if orden['estado'] == 'cotizado' and orden.get('cotizacion_id'):
+        visible['valor'] = seg.total_cotizacion(orden['cotizacion_id'])
+    encuesta = None
+    if orden['estado'] in ('entregado', 'garantia'):
+        encuesta = {'respondida': seg.encuesta_respondida(orden['id']),
+                    'gracias': request.args.get('gracias') == '1'}
+    return render_template('servicio_tecnico/publico.html', **_ctx(o=visible, encuesta=encuesta,
+                                                                    datosApp=get_common_data()))
+
+
+@servicio_tecnico_bp.route('/servicio/<token>/encuesta', methods=['POST'])
+@limiter.limit('5 per minute; 20 per hour')
+def encuesta(token):
+    if not is_module_active(MODULE_SERVICIO_TECNICO) or len(token or '') > 64:
+        abort(404)
+    orden = st.obtener_orden(token=token)
+    if not orden or orden['estado'] not in ('entregado', 'garantia'):
+        abort(404)
+    try:
+        seg.registrar_encuesta(orden, request.form.get('calificacion'), request.form.get('comentario'))
+    except ValueError as exc:
+        flash(str(exc), 'warning')
+        return redirect(url_for('servicio_tecnico.publico', token=token) + '#encuesta')
+    return redirect(url_for('servicio_tecnico.publico', token=token, gracias=1) + '#encuesta')
+
+
+# ── Seguimiento: bandeja «Hoy» ──────────────────────────────────
+@servicio_tecnico_bp.route(PREFIJO + '/hoy')
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+def hoy():
+    grupos = seg.bandeja()
+    return render_template('servicio_tecnico/hoy.html', **_ctx(
+        grupos=grupos, total=sum(len(v) for v in grupos.values()), st_activo='hoy'))
+
+
+def _volver_a_bandeja():
+    destino = request.form.get('volver') or ''
+    if destino.startswith(PREFIJO):
+        return redirect(destino)
+    return redirect(url_for('servicio_tecnico.hoy'))
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/seguimiento/<int:seg_id>/completar', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def seguimiento_completar(seg_id):
+    estado = 'omitido' if request.form.get('estado') == 'omitido' else 'hecho'
+    canal = request.form.get('canal')
+    canal = canal if canal in ('whatsapp', 'llamada', 'correo', 'presencial') else None
+    hecho = seg.completar(seg_id, estado, canal, (request.form.get('comentario') or '').strip() or None, _usuario())
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'ok': bool(hecho)})
+    if hecho:
+        flash('Seguimiento ' + ('omitido.' if estado == 'omitido' else 'registrado.'), 'success')
+    return _volver_a_bandeja()
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/seguimiento/<int:seg_id>/correo', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def seguimiento_correo(seg_id):
+    ok, error = seg.enviar_correo_seguimiento(seg_id, _usuario())
+    flash('Correo enviado al cliente.' if ok else error, 'success' if ok else 'warning')
+    return _volver_a_bandeja()
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/orden/<int:orden_id>/correo-estado', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def orden_correo_estado(orden_id):
+    orden = st.obtener_orden(orden_id)
+    if not orden:
+        abort(404)
+    if not orden.get('cliente_email'):
+        flash('El cliente no tiene correo registrado.', 'warning')
+    elif seg.correo_estado(orden_id, orden['estado'], forzar=True):
+        flash('Correo enviado al cliente.', 'success')
+    else:
+        flash('Este estado no tiene correo para el cliente.', 'warning')
+    return redirect(url_for('servicio_tecnico.orden_ver', orden_id=orden_id))
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/orden/<int:orden_id>/whatsapp', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def orden_whatsapp(orden_id):
+    """Deja en la bitácora que se abrió WhatsApp con el aviso del estado."""
+    nombre = st.ESTADO_POR_CODIGO.get(request.form.get('estado', ''), ('', 'estado'))[1]
+    try:
+        st.agregar_nota(orden_id, f'Aviso por WhatsApp: {nombre}', _usuario(), tipo='whatsapp')
+    except st.ErrorServicio:
+        return jsonify({'ok': False}), 404
+    return jsonify({'ok': True})
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/configuracion', methods=['GET', 'POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def configuracion():
+    if request.method == 'POST':
+        msj.guardar_config(request.form)
+        flash('Configuración guardada.', 'success')
+        return redirect(url_for('servicio_tecnico.configuracion'))
+    return render_template('servicio_tecnico/configuracion.html', **_ctx(
+        cfg=msj.config(), dias=msj.DIAS, correos=msj.CORREOS, plantillas=msj.PLANTILLAS,
+        st_activo='configuracion'))

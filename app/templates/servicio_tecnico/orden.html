@@ -76,6 +76,30 @@
         </section>
         {% endif %}
 
+        {# Avisar al cliente del estado actual #}
+        {% if aviso %}
+        <section class="st-card" aria-labelledby="st-avisar">
+            <h2 id="st-avisar"><i class="fas fa-paper-plane" aria-hidden="true"></i> Avisar al cliente</h2>
+            <p class="st-texto st-mensaje">{{ aviso.texto }}</p>
+            <div class="st-acciones" style="margin-top:12px">
+                {% if aviso.wa_url %}
+                <a class="st-btn st-btn-wa" href="{{ aviso.wa_url }}" target="_blank" rel="noopener"
+                   data-st-wa-nota="{{ url_for('servicio_tecnico.orden_whatsapp', orden_id=orden.id) }}" data-estado="{{ aviso.estado }}">
+                    <i class="fab fa-whatsapp" aria-hidden="true"></i> Enviar por WhatsApp</a>
+                {% endif %}
+                {% if aviso.correo %}
+                <form method="post" action="{{ url_for('servicio_tecnico.orden_correo_estado', orden_id=orden.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="st-btn st-btn-sec" type="submit"><i class="fas fa-envelope" aria-hidden="true"></i>
+                        {{ 'Reenviar correo' if aviso.correo_enviado else 'Enviar correo' }}</button>
+                </form>
+                {% endif %}
+                {% if not aviso.wa_url and not aviso.correo %}<span class="st-vacio-dato">El cliente no tiene WhatsApp ni correo registrados.</span>{% endif %}
+            </div>
+            {% if aviso.correo_enviado %}<p class="st-vacio-dato" style="margin:10px 0 0"><i class="fas fa-check" aria-hidden="true"></i> El correo de este estado ya salió.</p>{% endif %}
+        </section>
+        {% endif %}
+
         {# Recepción y diagnóstico #}
         <section class="st-card" aria-labelledby="st-recep">
             <h2 id="st-recep"><i class="fas fa-clipboard-list" aria-hidden="true"></i> Recepción y diagnóstico</h2>
@@ -180,6 +204,25 @@
             {% if not orden.cotizacion_id and orden.estado not in ('entregado', 'cancelado') %}
             <p style="margin:12px 0 0"><a class="st-btn st-btn-sec st-btn-sm" href="{{ url_for('servicio_tecnico.orden_cotizar', orden_id=orden.id) }}"><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i> Crear cotización</a></p>
             {% endif %}
+        </section>
+
+        <section class="st-card" aria-labelledby="st-segs">
+            <h2 id="st-segs"><i class="fas fa-bell" aria-hidden="true"></i> Seguimiento</h2>
+            {% if calificacion %}
+            <p style="margin:0 0 10px"><span class="st-estrellas" aria-label="Calificación del cliente: {{ calificacion }} de 5">{{ '★' * calificacion }}<span class="st-estrellas-off">{{ '★' * (5 - calificacion) }}</span></span></p>
+            {% endif %}
+            {% if seguimientos %}
+            <ul class="st-lista-simple">
+                {% for s in seguimientos %}
+                <li><i class="fas fa-{{ s.tipo_icono }}" aria-hidden="true"></i>
+                    <span><strong>{{ s.tipo_nombre }}</strong><br>
+                    <small>{% if s.estado == 'pendiente' %}Programado para el {{ s.fecha_programada.strftime('%d/%m/%Y') }}
+                           {% else %}{{ 'Hecho' if s.estado == 'hecho' else 'Omitido' }}{% if s.canal %} · {{ s.canal }}{% endif %}{% if s.hecho_en %} · {{ s.hecho_en.strftime('%d/%m/%Y') }}{% endif %}{% endif %}</small>
+                    {% if s.comentario %}<br><small>«{{ s.comentario }}»</small>{% endif %}</span></li>
+                {% endfor %}
+            </ul>
+            {% else %}<p class="st-vacio-dato" style="margin:0">Los recordatorios se programan solos al avanzar la orden.</p>{% endif %}
+            <p style="margin:12px 0 0"><a class="st-btn st-btn-sec st-btn-sm" href="{{ url_for('servicio_tecnico.hoy') }}"><i class="fas fa-bell" aria-hidden="true"></i> Ir a «Hoy»</a></p>
         </section>
 
         <section class="st-card" aria-labelledby="st-pub">

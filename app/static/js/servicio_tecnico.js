@@ -323,6 +323,37 @@
     activar(porHash || tabs[0], false);
   });
 
+  // ── WhatsApp desde la bandeja «Hoy» y desde la orden ─────────
+  // El enlace abre WhatsApp como siempre; además se registra en segundo plano
+  // (bandeja: el seguimiento queda hecho; orden: nota en la bitácora).
+  function postear(url, datos) {
+    var fd = new FormData();
+    Object.keys(datos || {}).forEach(function (k) { fd.append(k, datos[k]); });
+    return fetch(url, {
+      method: 'POST', body: fd, keepalive: true,
+      headers: { 'X-CSRFToken': CSRF, 'X-Requested-With': 'XMLHttpRequest' }
+    }).then(function (r) { return r.json(); });
+  }
+  var avisoSeg = $('#st-seg-aviso');
+  $$('[data-st-wa-marcar]').forEach(function (a) {
+    a.addEventListener('click', function () {
+      var tarjeta = a.closest('[data-st-seg]');
+      postear(a.getAttribute('data-st-wa-marcar'), { canal: 'whatsapp' }).then(function (d) {
+        if (!d || !d.ok) return;
+        if (tarjeta) {
+          tarjeta.style.opacity = '.45';
+          $$('button, a, summary', tarjeta).forEach(function (el) { el.setAttribute('tabindex', '-1'); el.setAttribute('aria-disabled', 'true'); });
+        }
+        if (avisoSeg) { avisoSeg.hidden = false; avisoSeg.textContent = 'Listo: el seguimiento quedó registrado como enviado por WhatsApp.'; }
+      }).catch(function () { /* sin conexión: se puede marcar «Hecho» a mano */ });
+    });
+  });
+  $$('[data-st-wa-nota]').forEach(function (a) {
+    a.addEventListener('click', function () {
+      postear(a.getAttribute('data-st-wa-nota'), { estado: a.getAttribute('data-estado') || '' }).catch(function () {});
+    });
+  });
+
   // ── Copiar enlace ──────────────────────────────────────────────
   $$('[data-st-copiar]').forEach(function (btn) {
     btn.addEventListener('click', function () {

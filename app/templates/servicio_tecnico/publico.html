@@ -46,6 +46,34 @@
         {% endif %}
     </section>
 
+    {% if encuesta %}
+    <section class="st-card" id="encuesta" aria-labelledby="pub-enc">
+        <h2 id="pub-enc"><i class="fas fa-star" aria-hidden="true"></i> ¿Cómo le fue con el servicio?</h2>
+        {% if encuesta.respondida %}
+        <p class="st-aviso" role="status" style="margin:0">
+            {% if encuesta.gracias %}¡Gracias por su calificación! Nos ayuda a mejorar.{% else %}Ya recibimos su calificación. ¡Gracias!{% endif %}
+            <span class="st-estrellas" aria-label="{{ encuesta.respondida }} de 5">{{ '★' * encuesta.respondida }}<span class="st-estrellas-off">{{ '★' * (5 - encuesta.respondida) }}</span></span>
+        </p>
+        {% else %}
+        <form method="post" action="{{ url_for('servicio_tecnico.encuesta', token=o.token) }}" class="st-grid" style="gap:14px">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <fieldset class="st-calificar">
+                <legend class="st-label">Califique de 1 a 5 estrellas</legend>
+                <div class="st-calificar-estrellas">
+                    {% for n in [5, 4, 3, 2, 1] %}
+                    <input type="radio" id="cal-{{ n }}" name="calificacion" value="{{ n }}" required>
+                    <label for="cal-{{ n }}" title="{{ n }} {{ 'estrella' if n == 1 else 'estrellas' }}"><span aria-hidden="true">★</span><span class="st-sr">{{ n }} {{ 'estrella' if n == 1 else 'estrellas' }}</span></label>
+                    {% endfor %}
+                </div>
+            </fieldset>
+            <div class="st-campo"><label for="enc-com">¿Algo que quiera contarnos? (opcional)</label>
+                <textarea id="enc-com" name="comentario" maxlength="1000" rows="3"></textarea></div>
+            <div><button class="st-btn" type="submit"><i class="fas fa-paper-plane" aria-hidden="true"></i> Enviar calificación</button></div>
+        </form>
+        {% endif %}
+    </section>
+    {% endif %}
+
     {% if brand_config.empresa_whatsapp %}
     <p style="text-align:center;margin:0">
         <a class="st-btn st-btn-wa" href="https://wa.me/{{ brand_config.empresa_whatsapp | replace(' ', '') | replace('+', '') }}?text={{ ('Hola, quiero saber de mi orden ' ~ o.numero) | urlencode }}" target="_blank" rel="noopener">
