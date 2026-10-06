@@ -35,10 +35,15 @@ def test_ruta_rapida_solo_acepta_preguntas_inequivocas():
         ('ventas_periodo', {'periodo': 'todo'})]
     assert enrutar_panel_seguro('¿Cuánto vendí hoy?', [VENTAS], historial=[{'pregunta': 'x'}]) == [
         ('ventas_periodo', {'periodo': 'hoy'})]
-    for pregunta in ('¿Cuánto vendí hoy y ayer?', '¿Cuánto vendí en agosto?',
-                     '¿Cuánto vendí en 2025?', '¿Cuánto vendí en efectivo?',
-                     '¿Cuánto vendí hoy y qué está agotado?'):
+    for pregunta in ('¿Cuánto vendí en agosto?', '¿Cuánto vendí en 2025?', '¿Cuánto vendí en efectivo?',
+                     '¿Cuánto vendí en agosto y qué está agotado?', '¿Cuánto vendí hoy y qué tal el clima del mes?'):
         assert enrutar_panel_seguro(pregunta, [VENTAS, STOCK]) == []
+    # Dos períodos o dos temas que se entienden solos: una consulta por cada uno,
+    # explícitas (nunca se reducen en silencio a una sola).
+    assert enrutar_panel_seguro('¿Cuánto vendí hoy y ayer?', [VENTAS, STOCK]) == [
+        ('ventas_periodo', {'periodo': 'hoy'}), ('ventas_periodo', {'periodo': 'ayer'})]
+    assert enrutar_panel_seguro('¿Cuánto vendí hoy y qué está agotado?', [VENTAS, STOCK]) == [
+        ('ventas_periodo', {'periodo': 'hoy'}), ('productos_bajo_stock', {})]
     assert enrutar_panel_seguro('¿Y el mes pasado?', [VENTAS],
                                historial=[{'pregunta': '¿Cuánto vendí este mes?'}]) == []
     assert enrutar_panel_seguro('Detalle del producto Cable HDMI este mes', [PRODUCTO]) == []

@@ -54,12 +54,15 @@ def test_cada_forma_de_preguntar_va_a_su_consulta(pregunta, esperada, params):
             assert elegidas[0][1].get(k) == v
 
 
-def test_dos_intenciones_distintas_siguen_yendo_al_modelo():
+def test_dos_intenciones_distintas_son_dos_consultas():
+    """Cada parte se entiende sola → una consulta por parte (nunca una sola)."""
     import services.ia_datos as d
     from services.ia.enrutador import enrutar_panel_seguro
-    caps = list(d.REGISTRO.values())
-    assert enrutar_panel_seguro('¿Cuánto me deben y cuánto cobré este mes?', caps) == []
-    assert enrutar_panel_seguro('¿Cuántas cotizaciones hice y cuánto vendí hoy?', caps) == []
+    caps = [h for h in d.REGISTRO.values() if 'panel' in h.canales]
+    assert enrutar_panel_seguro('¿Cuánto me deben y cuánto cobré este mes?', caps) == [
+        ('cartera_pendiente', {}), ('cobros_recibidos', {'periodo': 'mes'})]
+    assert enrutar_panel_seguro('¿Cuántas cotizaciones hice y cuánto vendí hoy?', caps) == [
+        ('cotizaciones_estado', {'periodo': 'hoy'}), ('ventas_periodo', {'periodo': 'hoy'})]
 
 
 # ── Datos ───────────────────────────────────────────────────────

@@ -64,7 +64,21 @@ def main():
     print(f'Seguimientos: {len(SEGUIMIENTOS) - len(mal_seg)}/{len(SEGUIMIENTOS)}')
     for anterior, q, r, esperado in mal_seg:
         print(f'  FALLA  tras {anterior}: «{q}» → {r} (esperaba {esperado})')
-    return 0 if not (mal or falsos or mal_pub or mal_seg) else 1
+    # Preguntas compuestas y seguimientos con nombre.
+    from tests.banco_preguntas_panel import COMPUESTAS, SEGUIMIENTOS_NOMBRE
+    mal_comp = [(q, e, enrutar_panel_seguro(q, caps)) for q, e in COMPUESTAS if enrutar_panel_seguro(q, caps) != e]
+    print(f'Compuestas: {len(COMPUESTAS) - len(mal_comp)}/{len(COMPUESTAS)}')
+    for q, e, r in mal_comp:
+        print(f'  FALLA  «{q}» → {r} (esperaba {e})')
+    mal_nom = []
+    for anterior, q, params in SEGUIMIENTOS_NOMBRE:
+        r = enrutar_panel_seguro(q, caps, historial=[{'pregunta': 'x', 'herramienta': anterior}])
+        if r != ([(anterior, params)] if params else []):
+            mal_nom.append((anterior, q, r))
+    print(f'Seguimientos con nombre: {len(SEGUIMIENTOS_NOMBRE) - len(mal_nom)}/{len(SEGUIMIENTOS_NOMBRE)}')
+    for anterior, q, r in mal_nom:
+        print(f'  FALLA  tras {anterior}: «{q}» → {r}')
+    return 0 if not (mal or falsos or mal_pub or mal_seg or mal_comp or mal_nom) else 1
 
 
 if __name__ == '__main__':

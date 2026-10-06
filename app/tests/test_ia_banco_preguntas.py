@@ -132,3 +132,56 @@ def test_chat_del_panel_resuelve_el_seguimiento_sin_modelo(flask_app, monkeypatc
                                      contexto=tools.Contexto(rol_id=2, usuario_id=1))
     assert err is None and '$ 99' in res['respuesta']
     assert consultas == [('ventas_periodo', {'periodo': 'mes_anterior'})]
+
+
+# ── Preguntas compuestas y seguimientos con nombre ──────────────
+@pytest.mark.parametrize('pregunta, esperado',
+                         __import__('tests.banco_preguntas_panel', fromlist=['COMPUESTAS']).COMPUESTAS)
+def test_pregunta_compuesta(pregunta, esperado):
+    from services.ia.enrutador import enrutar_panel_seguro
+    assert enrutar_panel_seguro(pregunta, _panel()) == esperado
+
+
+@pytest.mark.parametrize('anterior, pregunta, params',
+                         __import__('tests.banco_preguntas_panel', fromlist=['SEGUIMIENTOS_NOMBRE']).SEGUIMIENTOS_NOMBRE)
+def test_seguimiento_con_nombre(anterior, pregunta, params):
+    from services.ia.enrutador import enrutar_panel_seguro
+    r = enrutar_panel_seguro(pregunta, _panel(), historial=[{'pregunta': 'x', 'herramienta': anterior}])
+    assert r == ([(anterior, params)] if params else []), r
+
+
+def test_chat_ejecuta_las_dos_consultas_de_una_pregunta_compuesta(flask_app, monkeypatch):
+    import services.ai_service as ai
+    import services.ai_tools as tools
+    from services import ia_motores
+    consultas = []
+    monkeypatch.setattr(tools, 'ejecutar', lambda code, params, ctx: consultas.append((code, params)) or
+                        {'dato': code})
+    monkeypatch.setattr(ai, '_contexto_tenant', lambda: 'Tienda')
+    monkeypatch.setattr(ai, '_contexto_panel', lambda: 'Tienda')
+    monkeypatch.setattr(ai, '_modelo_en_memoria',
+                        lambda *_: (_ for _ in ()).throw(AssertionError('no debe esperar Ollama')))
+    monkeypatch.setattr(ai, '_chat', lambda *_a, **_k: (_ for _ in ()).throw(AssertionError('no debe llamar modelo')))
+    monkeypatch.setattr(ai, '_registrar_consulta', lambda *a: None)
+    monkeypatch.setattr(ia_motores, 'motor_para', lambda *_a, **_k: (None, 'sin motor'))
+    with flask_app.test_request_context('/'):
+        res, err = ai.responder_chat('¿Cuánto vendí hoy y qué está agotado?',
+                                     contexto=tools.Contexto(rol_id=2, usuario_id=1))
+    assert err is None
+    assert consultas == [('ventas_periodo', {'periodo': 'hoy'}), ('productos_bajo_stock', {})]
+    assert 'ventas_periodo' in res['respuesta'] and 'productos_bajo_stock' in res['respuesta']
+
+
+def test_el_anio_pasado_es_un_rango_exacto_no_este_anio():
+    from datetime import date
+    from services.ia.enrutador import enrutar_panel_seguro
+    a = date.today().year - 1
+    rango = {'desde': f'{a}-01-01', 'hasta': f'{a}-12-31'}
+    assert enrutar_panel_seguro('¿Cuánto vendí el año pasado?', _panel()) == [('ventas_periodo', rango)]
+    assert enrutar_panel_seguro('¿Cuánto gané el año anterior?', _panel()) == [('finanzas_periodo', rango)]
+    assert enrutar_panel_seguro('¿Cuánto vendí el año pasado y cuánto gasté?', _panel()) == [
+        ('ventas_periodo', rango), ('finanzas_periodo', rango)]
+    assert enrutar_panel_seguro('¿Cuánto vendí este año?', _panel()) == [('ventas_periodo', {'periodo': 'anio'})]
+    # Otra fecha en la misma pregunta, o una consulta sin período: al modelo.
+    assert enrutar_panel_seguro('¿Cuánto vendí el año pasado y este mes?', _panel()) == []
+    assert enrutar_panel_seguro('¿Qué está agotado el año pasado?', _panel()) == []

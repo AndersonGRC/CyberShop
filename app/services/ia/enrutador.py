@@ -198,32 +198,115 @@ def seguimiento_de_periodo(texto, historial, capacidades):
     return [(codigo, {'periodo': periodos.pop()})]
 
 
-def enrutar_panel_seguro(texto, capacidades, historial=None):
-    """Ruta rápida solo para preguntas inequívocas del panel.
+_APERTURA_SEGUIMIENTO = re.compile(r'^[¿\s]*(?:y\b|ahora\b|tambien\b|lo mismo\b|ese\b|esa\b|esos\b|esas\b)')
+# Lo que se quita al inicio de «¿Y de Laura?», «¿y qué tal el de Juan?»,
+# «¿lo mismo pero para Ana?» para quedarse con el nombre.
+_RELLENO_NOMBRE = re.compile(
+    r'^(?:\s|[¿?¡!,.;:]|\b(?:y|e|ahora|tambi[eé]n|lo|mismo|pero|de|del|el|la|los|las|para|con|sobre|a|al|'
+    r'qu[eé]|tal|c[oó]mo|va|ese|esa|eso|esos|esas)\b)+', re.I)
+_FECHAS_CONCRETAS = re.compile(
+    r'\b(?:19|20)\d{2}\b|\b(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b')
+# Ventanas que no tienen código de período: van al planificador. «El año
+# pasado» no es «este año» (antes se leía «del año» dentro de la frase).
+_VENTANAS_RARAS = re.compile(r'\b(?:trimestre|quincena|ultimos?\s+\d+\s+dias?|entre\s+el\s+\d+|del\s+\d+\s+al\s+\d+|'
+                             r'ano\s+(?:pasado|anterior)|semestre)\b')
+# Palabras que no cuentan como «contenido extra» al revisar una comparación de períodos.
+_RELLENO_COMPARACION = {'cuanto', 'cuanta', 'cuantos', 'cuantas', 'fueron', 'como', 'esta', 'este', 'tambien',
+                        'ademas', 'entre', 'comparado', 'comparar', 'frente', 'contra', 'versus', 'pasado',
+                        'pasada', 'anterior', 'semana', 'tuve', 'tuvimos', 'hubo'}
 
-    El enrutador general sirve también al chat público y elige una coincidencia
-    por longitud. En el panel, responder sin modelo exige más cautela: una
-    comparación, una fecha que no sabemos interpretar o dos intenciones nunca
-    deben convertirse silenciosamente en una consulta distinta.
-    """
-    texto = expandir((texto or '').strip())
-    normal = normalizar(texto)
-    if not normal:
-        return []
-    if historial and re.match(r'^[¿\s]*(?:y\b|ahora\b|tambien\b|lo mismo\b|ese\b|esa\b|esos\b|esas\b)', normal):
-        # Un cambio de período sobre la consulta anterior se resuelve aquí;
-        # cualquier otro seguimiento necesita al modelo con la conversación.
-        return seguimiento_de_periodo(texto, historial, capacidades)
-    if re.search(r'\b(?:19|20)\d{2}\b|\b(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b', normal):
-        return []                         # fechas concretas: las interpreta el planificador
-    if re.search(r'\b(?:trimestre|quincena|ultimos?\s+\d+\s+dias?|entre\s+el\s+\d+|del\s+\d+\s+al\s+\d+)\b', normal):
-        return []
-    filtro_desconocido = re.search(
-        r'\b(?:en efectivo|con tarjeta|por vendedor|por sucursal|por canal|en linea|en la web|por empleado)\b', normal)
 
-    # Dos intenciones diferentes no se pueden reducir a la frase más larga.
-    # Pero si dos frases se pisan sobre las MISMAS palabras («la cotización» y
-    # «la cotización más grande»), es una sola lectura: vale la más larga.
+def _sobra_contenido(normal, capacidades, codigo):
+    """¿Queda algo en la pregunta además de las frases de `codigo`, los períodos
+    y el relleno? («¿cuánto vendí hoy y qué tal el clima del mes?» → «clima»)."""
+    buscable = fonetico(normal)
+    h = next(c for c in capacidades if c.code == codigo)
+    for d in h.disparadores:
+        buscable = buscable.replace(fonetico(normalizar(d)), ' ' * len(d))
+    for frase, _ in _PERIODOS_TEXTO:
+        buscable = _RE_PERIODO[frase].sub(lambda m: ' ' * len(m.group(0)), buscable)
+    vocabulario = _vocabulario(capacidades)
+    return any(w not in vocabulario and w not in _RELLENO_COMPARACION
+               for w in re.findall(r'[a-z0-9]{4,}', buscable))
+_FILTROS = re.compile(
+    r'\b(?:en efectivo|con tarjeta|por vendedor|por sucursal|por canal|en linea|en la web|por empleado)\b')
+# Partes de una pregunta compuesta: «…hoy y qué está agotado», «…, además…».
+_SEPARADOR = re.compile(r'\s*(?:[,;]|\by\b|\be\b|\btambi[eé]n\b|\badem[aá]s\b)\s*', re.I)
+_MAX_PARTES = 3
+# Pares «actual / anterior» para el comparativo: «este mes y el mes pasado» = mes.
+_ACTUAL_DE = {'mes_anterior': 'mes', 'semana_anterior': 'semana', 'ayer': 'hoy'}
+
+
+def seguimiento_de_nombre(texto, historial, capacidades):
+    """«¿Y de Laura?» justo después de una consulta que pide un nombre (cliente,
+    producto, empleado o texto) → la MISMA consulta con el nombre nuevo. Si lo
+    que queda menciona un período u otro tema, va al modelo."""
+    if not historial or not isinstance(historial, list) or not isinstance(historial[-1], dict):
+        return []
+    codigo = str(historial[-1].get('herramienta') or '').strip()
+    if not codigo or ',' in codigo or ':' in codigo:
+        return []
+    h = next((c for c in capacidades if c.code == codigo), None)
+    if h is None:
+        return []
+    campos = [p for p in h.params if p in _PARAMS_NOMBRE]
+    if len(campos) != 1:
+        return []
+    nombre = _RELLENO_NOMBRE.sub('', texto or '').strip(' ?¿!¡.,;:"\'')
+    if len(nombre) < 3 and not nombre.isdigit():
+        return []
+    plano = normalizar(nombre)
+    if periodo_de(plano) or _FECHAS_CONCRETAS.search(plano):
+        return []
+    buscable = fonetico(plano)
+    for c in capacidades:
+        if c.code != codigo and any(fonetico(normalizar(d)) in buscable for d in c.disparadores):
+            return []                     # otro tema, no un nombre
+    # «¿Y los gastos?» no nombra a nadie: si alguna palabra es del vocabulario
+    # del negocio (la que usan las frases de las capacidades), no es un nombre.
+    vocabulario = _vocabulario(capacidades)
+    if any(fonetico(w) in vocabulario for w in re.findall(r'[a-z0-9]{4,}', plano)):
+        return []
+    return [(codigo, {campos[0]: nombre})]
+
+
+def _vocabulario(capacidades):
+    """Palabras de 4+ letras de las frases de todas las capacidades («gastos»,
+    «ventas», «stock»…), sin tildes y en su forma fonética."""
+    clave = tuple(c.code for c in capacidades)
+    if _VOCABULARIO_CACHE.get('clave') != clave:
+        palabras = set()
+        for c in capacidades:
+            for d in c.disparadores:
+                palabras.update(fonetico(w) for w in re.findall(r'[a-z0-9]{4,}', normalizar(d)))
+        _VOCABULARIO_CACHE.update(clave=clave, palabras=palabras - _NO_VOCABULARIO)
+    return _VOCABULARIO_CACHE['palabras']
+
+
+_VOCABULARIO_CACHE = {}
+# Palabras de las frases que también aparecen en nombres propios o productos.
+_NO_VOCABULARIO = {'para', 'como', 'cual', 'cuanto', 'cuanta', 'cuantos', 'cuantas', 'esta', 'este', 'tengo',
+                   'tiene', 'tienen', 'donde', 'quien', 'quienes'}
+
+
+def _periodos_en(normal):
+    """[(inicio, fin, periodo)] sin solapes, en orden del texto."""
+    menciones = []
+    sin_dias = _NO_ES_PERIODO.sub(lambda m: ' ' * len(m.group(0)), normal)
+    for frase, periodo in sorted(_PERIODOS_TEXTO, key=lambda x: len(x[0]), reverse=True):
+        for match in _RE_PERIODO[frase].finditer(sin_dias):
+            tramo = (match.start(), match.end())
+            if not any(tramo[0] < fin and inicio < tramo[1] for inicio, fin, _ in menciones):
+                menciones.append((*tramo, periodo))
+    return sorted(menciones)
+
+
+def _coincidencias(normal, capacidades):
+    """Capacidades cuyas frases aparecen. Si dos frases se pisan sobre las
+    MISMAS palabras («la cotización» y «la cotización más grande»), es una sola
+    lectura: vale la más larga. Dos frases encadenadas de la misma capacidad
+    («cómo vamos frente al» + «frente al mes pasado») cubren juntas el tramo y
+    dejan fuera a la más corta de otra («cómo vamos»)."""
     tramos = []
     buscable = fonetico(normal)
     for h in capacidades:
@@ -233,30 +316,44 @@ def enrutar_panel_seguro(texto, capacidades, historial=None):
                 tramos.append((m.end() - m.start(), m.start(), m.end(), h.code))
     aceptados = []
     for largo, ini, fin, code in sorted(tramos, reverse=True):
-        # Solo choca con lo aceptado de OTRA capacidad: dos frases de la misma
-        # que se encadenan («cómo vamos frente al» + «frente al mes pasado»)
-        # cubren juntas el tramo y dejan fuera a la más corta de otra.
         if not any(ini < f and i < fin and c != code for _, i, f, c in aceptados):
             aceptados.append((largo, ini, fin, code))
-    coincidencias = {code for _, _, _, code in aceptados}
+    return {code for _, _, _, code in aceptados}
+
+
+def _ruta_unica(texto, capacidades):
+    """Una sola capacidad reconocida sin dudas → [(code, params)]; una sola
+    capacidad con dos o tres períodos → la misma consulta por cada período.
+    Cualquier otra cosa → []."""
+    normal = normalizar(texto)
+    if not normal:
+        return []
+    coincidencias = _coincidencias(normal, capacidades)
     if len(coincidencias) != 1:
         return []
     # «En efectivo», «con tarjeta»… son filtros que las ventas no saben aplicar,
     # pero son justo el tema de medios de pago y de la caja.
-    if filtro_desconocido and not coincidencias & {'metodos_pago', 'caja_estado'}:
+    if _FILTROS.search(normal) and not coincidencias & {'metodos_pago', 'caja_estado'}:
         return []
 
-    # Detecta dos períodos independientes, respetando que «mes pasado» contiene
-    # «mes» y «semana pasada» puede contener «la semana».
-    menciones = []
-    sin_dias = _NO_ES_PERIODO.sub(lambda m: ' ' * len(m.group(0)), normal)
-    for frase, periodo in sorted(_PERIODOS_TEXTO, key=lambda x: len(x[0]), reverse=True):
-        for match in _RE_PERIODO[frase].finditer(sin_dias):
-            tramo = (match.start(), match.end())
-            if not any(tramo[0] < fin and inicio < tramo[1] for inicio, fin, _ in menciones):
-                menciones.append((*tramo, periodo))
-    if len({p for _, _, p in menciones}) > 1:
-        return []
+    menciones = _periodos_en(normal)
+    periodos = list(dict.fromkeys(p for _, _, p in menciones))
+    if len(periodos) > 1:
+        code = next(iter(coincidencias))
+        h = next(c for c in capacidades if c.code == code)
+        if 'periodo' not in h.params or any(p in _PARAMS_NOMBRE for p in h.params) or len(periodos) > _MAX_PARTES:
+            return []
+        if _sobra_contenido(normal, capacidades, code):
+            return []                     # un período puede ser de otra cosa: que decida el modelo
+        if code == 'comparativo_ventas':
+            # El comparativo ya compara con el período anterior: «este mes y el
+            # mes pasado» es una sola consulta del mes actual.
+            if len(periodos) == 2 and _ACTUAL_DE.get(periodos[1]) == periodos[0]:
+                return [(code, {'periodo': periodos[0]})]
+            if len(periodos) == 2 and _ACTUAL_DE.get(periodos[0]) == periodos[1]:
+                return [(code, {'periodo': periodos[1]})]
+            return []
+        return [(code, {'periodo': p}) for p in periodos]
 
     elegidas = enrutar(texto, capacidades)
     if len(elegidas) != 1 or elegidas[0][0] not in coincidencias:
@@ -270,3 +367,83 @@ def enrutar_panel_seguro(texto, capacidades, historial=None):
         # del panel: sin fecha explícita, histórico completo.
         params['periodo'] = 'mes' if code == 'comparativo_ventas' else 'todo'
     return [(code, params)]
+
+
+def _ruta_compuesta(texto, capacidades):
+    """«¿Cuánto vendí hoy y qué está agotado?» → una consulta por parte, si
+    CADA parte se reconoce sola y sin dudas (máximo tres). Un único período
+    dicho en una parte vale para las demás que lo admitan («cuánto vendí y
+    cuánto gasté este mes»). Si alguna parte no se entiende, va al modelo."""
+    partes = [p.strip(' ¿?¡!.') for p in _SEPARADOR.split(texto) if p and p.strip(' ¿?¡!.')]
+    if not 2 <= len(partes) <= _MAX_PARTES:
+        return []
+    rutas = []
+    for parte in partes:
+        r = _ruta_unica(parte, capacidades)
+        if len(r) != 1:
+            return []
+        rutas.append(r[0])
+    if len({(c, tuple(sorted(p.items()))) for c, p in rutas}) != len(rutas):
+        return []                         # la misma consulta dos veces: algo se entendió mal
+    periodos = {p for _, _, p in _periodos_en(normalizar(texto))}
+    if len(periodos) == 1:
+        unico = periodos.pop()
+        sin_fecha = [i for i, parte in enumerate(partes) if not _periodos_en(normalizar(parte))]
+        for i in sin_fecha:
+            code, params = rutas[i]
+            h = next(c for c in capacidades if c.code == code)
+            if 'periodo' in h.params:
+                rutas[i] = (code, {**params, 'periodo': unico})
+    return rutas
+
+
+def enrutar_panel_seguro(texto, capacidades, historial=None):
+    """Ruta rápida del panel: resuelve sin modelo solo lo inequívoco.
+
+    - Una pregunta de una sola capacidad → esa consulta.
+    - Una capacidad con dos o tres períodos → la misma consulta por período.
+    - Una pregunta compuesta («¿cuánto vendí hoy y qué está agotado?») → una
+      consulta por parte, si cada parte se entiende sola.
+    - Un seguimiento («¿y el mes pasado?», «¿y de Laura?») → la consulta del
+      turno anterior con el período o el nombre nuevo.
+    Lo demás (fechas concretas, filtros que no sabemos aplicar, partes que no
+    se entienden) va al modelo: nunca se convierte en silencio en otra consulta.
+    """
+    texto = expandir((texto or '').strip())
+    normal = normalizar(texto)
+    if not normal:
+        return []
+    if historial and _APERTURA_SEGUIMIENTO.match(normal):
+        return (seguimiento_de_periodo(texto, historial, capacidades)
+                or seguimiento_de_nombre(texto, historial, capacidades))
+    anio_pasado = _ANIO_PASADO.search(normal)
+    if anio_pasado:
+        return _con_anio_pasado(texto, anio_pasado, capacidades)
+    if _FECHAS_CONCRETAS.search(normal) or _VENTANAS_RARAS.search(normal):
+        return []                         # fechas concretas: las interpreta el planificador
+    return _ruta_unica(texto, capacidades) or _ruta_compuesta(texto, capacidades)
+
+
+_ANIO_PASADO = re.compile(r'\b(?:en\s+el\s+|el\s+|del\s+)?ano\s+(?:pasado|anterior)\b')
+
+
+def _con_anio_pasado(texto, coincidencia, capacidades):
+    """«¿Cuánto vendí el año pasado?» → la consulta con el rango exacto del año
+    anterior (1-ene a 31-dic). Si la pregunta trae otra fecha, o ninguna de sus
+    consultas admite período, va al modelo."""
+    from datetime import date
+    ini, fin = coincidencia.span()
+    limpio = texto[:ini] + ' ' * (fin - ini) + texto[fin:]
+    plano = normalizar(limpio)
+    if _FECHAS_CONCRETAS.search(plano) or _VENTANAS_RARAS.search(plano) or _periodos_en(plano):
+        return []
+    rutas = _ruta_unica(limpio, capacidades) or _ruta_compuesta(limpio, capacidades)
+    anio = date.today().year - 1
+    salida, alguna = [], False
+    for code, params in rutas:
+        if 'periodo' in params:
+            alguna = True
+            params = {k: v for k, v in params.items() if k != 'periodo'}
+            params.update(desde=f'{anio}-01-01', hasta=f'{anio}-12-31')
+        salida.append((code, params))
+    return salida if alguna else []

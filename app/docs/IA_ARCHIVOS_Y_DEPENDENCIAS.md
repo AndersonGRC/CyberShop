@@ -47,8 +47,14 @@ sin pisar las de otra capacidad. El enrutador tolera b/v, s/z/c y abreviaturas
 («q», «x», «pa») y toma los períodos como palabras completas. Los seguimientos
 de período («¿y el mes pasado?») repiten sin modelo la consulta del turno
 anterior (`seguimiento_de_periodo`, solo si esa consulta fue una sola y admite
-período). El mismo archivo trae el banco del chat del sitio (`PUBLICO`) y el de
-seguimientos (`SEGUIMIENTOS`). Al modelo le llegan,
+período); «¿y de Laura?» repite la del turno anterior con el nombre nuevo
+(`seguimiento_de_nombre`, si no es una palabra del negocio como «gastos»). Las
+preguntas compuestas («¿cuánto vendí hoy y qué está agotado?») se parten y dan
+una consulta por parte si cada una se entiende sola; una capacidad con dos
+períodos («hoy y ayer») da una consulta por período, salvo que quede contenido
+ajeno. «El año pasado» va como rango exacto (desde/hasta del año anterior).
+El mismo archivo trae los bancos `PUBLICO`, `SEGUIMIENTOS`, `COMPUESTAS` y
+`SEGUIMIENTOS_NOMBRE`. Al modelo le llegan,
 además del catálogo, un glosario coloquial y un ejemplo por capacidad permitida
 (`services/ia/clarificaciones.py`).
 
