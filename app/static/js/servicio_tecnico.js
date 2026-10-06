@@ -398,13 +398,15 @@
       html += '<p class="st-label" style="margin:0">Marca lo que quieres guardar en la ficha (puedes corregir el valor):</p>' +
         '<ul class="st-propuestas">' + props.map(function (pr, i) {
           var id = 'pr-' + i;
-          var marcado = !pr.actual || pr.fuente === 'lector';
+          var marcado = pr.verificado !== false && (!pr.actual || pr.fuente === 'lector');
           return '<li><input type="checkbox" id="' + id + '" name="aplicar" value="' + esc(pr.campo) + '"' + (marcado ? ' checked' : '') + '>' +
             '<label for="' + id + '"><strong>' + esc(pr.etiqueta) + '</strong>' +
             (pr.actual ? '<small class="st-tachado">' + esc(pr.actual) + '</small>' : '<small>vacío</small>') +
             ' <i class="fas fa-arrow-right" aria-hidden="true"></i></label>' +
             '<input type="text" name="valor_' + esc(pr.campo) + '" value="' + esc(pr.sugerido) + '" aria-label="Nuevo valor de ' + esc(pr.etiqueta) + '">' +
-            '<span class="st-chip st-chip-' + (pr.fuente === 'lector' ? 'exito' : 'info') + '">' + (pr.fuente === 'lector' ? 'Leído' : 'IA') + '</span></li>';
+            (pr.verificado === false
+              ? '<span class="st-chip st-chip-aviso" title="La IA lo propuso pero no aparece tal cual en el texto">Revisar</span>'
+              : '<span class="st-chip st-chip-' + (pr.fuente === 'lector' ? 'exito' : 'info') + '">' + (pr.fuente === 'lector' ? 'Leído' : 'IA') + '</span>') + '</li>';
         }).join('') + '</ul>';
     }
     if (sug.length) {
@@ -469,6 +471,7 @@
           if (!d.ok) { salida.textContent = d.error || 'No se pudo leer.'; return; }
           var llenos = 0;
           (d.propuestas || []).forEach(function (pr) {
+            if (pr.verificado === false) return;     // lo no verificado no se llena solo
             var campo = pr.campo.indexOf('extra_') === 0 ? $('#ex-' + pr.campo.slice(6)) : $('#eq-' + pr.campo);
             if (campo && !campo.disabled) { campo.value = pr.sugerido; llenos++; }
           });

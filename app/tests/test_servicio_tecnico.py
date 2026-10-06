@@ -128,17 +128,18 @@ def test_extras_solo_del_tipo():
     assert tipos.limpiar_extras('televisor', {'smart': 'on'}) == {'smart': 'si'}
 
 
-def test_migracion_del_maestro_igual_al_codigo():
+@pytest.mark.parametrize('archivo, atributo', [('0018_servicio_tecnico.sql', 'DDL_0018'),
+                                               ('0019_servicio_tecnico_solucion.sql', 'DDL_0019')])
+def test_migracion_del_maestro_igual_al_codigo(archivo, atributo):
     from services import servicio_tecnico_service as st
     app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    ruta = os.path.normpath(os.path.join(app_dir, '..', '..', 'CyberShopAdmin', 'migrations', 'tenant',
-                                         '0018_servicio_tecnico.sql'))
+    ruta = os.path.normpath(os.path.join(app_dir, '..', '..', 'CyberShopAdmin', 'migrations', 'tenant', archivo))
     if not os.path.exists(ruta):
         pytest.skip('El repo del maestro no está al lado (servidor).')
     sql = open(ruta, encoding='utf-8').read()
     sql = '\n'.join(l for l in sql.splitlines() if not l.strip().startswith('--'))
     norm = lambda s: re.sub(r'\s+', ' ', s).strip()
-    assert norm(sql) == norm(st.DDL)
+    assert norm(sql) == norm(getattr(st, atributo))
 
 
 # ── Módulo apagado ──────────────────────────────────────────────

@@ -94,12 +94,14 @@
         {% if ordenes_equipo %}
         <div class="st-tabla-wrap">
             <table class="st-tabla">
-                <thead><tr><th>Orden</th><th>Falla</th><th>Estado</th><th>Recibido</th><th>Cobrado</th></tr></thead>
+                <thead><tr><th>Orden</th><th>Falla y solución</th><th>Estado</th><th>Recibido</th><th>Cobrado</th></tr></thead>
                 <tbody>
                 {% for o in ordenes_equipo %}
                 <tr>
                     <td data-label="Orden"><a class="st-fila-link" href="{{ url_for('servicio_tecnico.orden_ver', orden_id=o.id) }}">{{ o.numero }}</a></td>
-                    <td data-label="Falla">{{ o.falla_reportada | truncate(90) }}</td>
+                    <td data-label="Falla y solución">{{ o.falla_reportada | truncate(90) }}
+                        {% if o.solucion %}<br><small><i class="fas fa-wrench" aria-hidden="true"></i> {{ o.solucion | truncate(110) }}</small>
+                        {% elif o.resumen_caso %}<br><small>{{ o.resumen_caso }}</small>{% endif %}</td>
                     <td data-label="Estado">{{ chip(o.estado, estado_info) }}</td>
                     <td data-label="Recibido">{{ o.fecha_recibido.strftime('%d/%m/%Y') }}</td>
                     <td data-label="Cobrado">{{ cop(o.valor_final) }}</td>

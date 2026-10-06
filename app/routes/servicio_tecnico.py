@@ -16,6 +16,7 @@ from flask import (Blueprint, abort, flash, jsonify, redirect, render_template,
 from extensions import limiter
 from helpers import get_common_data, get_data_app
 from security import ADMIN_STAFF, permiso_requerido, registrar_guard_permiso, rol_requerido
+from services import servicio_tecnico_clasificador as clasif
 from services import servicio_tecnico_ia as st_ia
 from services import servicio_tecnico_mensajes as msj
 from services import servicio_tecnico_seguimiento as seg
@@ -133,6 +134,9 @@ def orden_ver(orden_id):
         tecnicos=st.tecnicos(), tiene_clave=bool(orden.get('clave_cifrada')),
         enlace_publico=url_for('servicio_tecnico.publico', token=orden['token_publico'], _external=True),
         aviso=seg.aviso_estado(orden), seguimientos=seg.de_orden(orden_id), ia_estado=st_ia.estado(),
+        fallas=clasif.FALLAS, componentes=clasif.COMPONENTES, soluciones=clasif.SOLUCIONES,
+        nombre_falla=clasif.NOMBRE_FALLA, nombre_componente=clasif.NOMBRE_COMPONENTE,
+        nombre_solucion=clasif.NOMBRE_SOLUCION,
         calificacion=seg.encuesta_respondida(orden_id),
         st_activo='ordenes'))
 
@@ -147,6 +151,8 @@ def orden_estado(orden_id):
         st.cambiar_estado(orden_id, nuevo, _usuario(), nota=request.form.get('nota'),
                           datos=_form_dict())
         aviso = ' Se le envió un correo al cliente.' if seg.correo_estado(orden_id, nuevo) else ''
+        if nuevo in ('diagnostico', 'reparacion', 'listo', 'entregado', 'cancelado') or request.form.get('solucion'):
+            clasif.clasificar_en_segundo_plano(orden_id)
         flash(f"Estado actualizado: {st.ESTADO_POR_CODIGO[nuevo][1]}.{aviso}", 'success')
     except st.ErrorServicio as exc:
         flash(str(exc), 'warning')
@@ -158,11 +164,13 @@ def orden_estado(orden_id):
 @module_required(MODULE_SERVICIO_TECNICO)
 @permiso_requerido('servicio_tecnico', 'operar')
 def orden_actualizar(orden_id):
-    permitidos = ('diagnostico', 'estado_fisico', 'accesorios', 'valor_estimado', 'valor_final',
+    permitidos = ('diagnostico', 'solucion', 'estado_fisico', 'accesorios', 'valor_estimado', 'valor_final',
                   'fecha_promesa', 'tecnico_id', 'garantia_dias', 'clave')
     datos = {k: request.form.get(k) for k in permitidos if k in request.form}
     try:
         st.actualizar_orden(orden_id, datos, _usuario())
+        if any(k in datos for k in ('diagnostico', 'solucion')):
+            clasif.clasificar_en_segundo_plano(orden_id)
         flash('Orden actualizada.', 'success')
     except st.ErrorServicio as exc:
         flash(str(exc), 'warning')
@@ -272,6 +280,8 @@ def equipo_cambio(equipo_id):
     try:
         st.registrar_cambio(equipo_id, _form_dict(), _usuario(),
                             orden_id=request.form.get('orden_id', type=int))
+        if request.form.get('orden_id', type=int):
+            clasif.clasificar_en_segundo_plano(request.form.get('orden_id', type=int))
         flash('Pieza registrada en la ficha del equipo.', 'success')
     except st.ErrorServicio as exc:
         flash(str(exc), 'warning')
@@ -549,3 +559,46 @@ def api_mejorar_mensaje():
         return jsonify({'ok': False, 'error': error}), 200
     texto = msj.rellenar(nueva, datos)
     return jsonify({'ok': True, 'texto': texto, 'wa_url': seg.whatsapp_url(telefono, texto)})
+
+
+
+# ── Clasificación del caso (historial consultable) ──────────────
+@servicio_tecnico_bp.route(PREFIJO + '/orden/<int:orden_id>/clasificar', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def orden_clasificar(orden_id):
+    """Clasifica ya (reglas + IA si está disponible) y vuelve a la orden."""
+    resultado = clasif.clasificar_orden(orden_id, usar_ia=True)
+    if resultado is None:
+        flash('Esta orden tiene una clasificación hecha a mano: corrígela abajo si hace falta.', 'warning')
+    else:
+        flash('Caso clasificado con IA.' if resultado['fuente'] == 'ia'
+              else 'Caso clasificado con las reglas automáticas (la IA no está disponible).', 'success')
+    return redirect(url_for('servicio_tecnico.orden_ver', orden_id=orden_id) + '#st-caso')
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/orden/<int:orden_id>/clasificacion', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def orden_clasificacion_manual(orden_id):
+    try:
+        clasif.clasificar_manual(orden_id, request.form.get('falla_categoria'), request.form.get('componente'),
+                                 request.form.get('solucion_categoria'), _usuario())
+        flash('Clasificación guardada.', 'success')
+    except ValueError as exc:
+        flash(str(exc), 'warning')
+    return redirect(url_for('servicio_tecnico.orden_ver', orden_id=orden_id) + '#st-caso')
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/clasificar-historial', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def clasificar_historial():
+    """Órdenes viejas sin clasificar: reglas al instante (rápido). La IA las
+    refina después, una por una o con el proceso de la noche."""
+    hechas = clasif.clasificar_pendientes(limite=200, usar_ia=False)
+    flash(f'{hechas} orden(es) clasificadas.' if hechas else 'No había órdenes sin clasificar.', 'success')
+    return redirect(url_for('servicio_tecnico.configuracion'))

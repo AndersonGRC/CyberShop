@@ -157,6 +157,7 @@ def taller_orden(texto='', **_):
         if not _existe(cur, 'st_ordenes'):
             return _SIN_MODULO
         base = """SELECT o.id, o.numero, o.estado, o.falla_reportada, o.diagnostico, o.estado_fisico, o.accesorios,
+                         o.solucion, o.falla_categoria, o.solucion_categoria, o.resumen_caso,
                          o.valor_estimado, o.valor_final, o.fecha_recibido, o.fecha_promesa, o.fecha_listo,
                          o.fecha_entregado, o.garantia_hasta, o.cotizacion_id,
                          e.tipo, e.marca, e.modelo, e.serial, c.nombre AS cliente, u.nombre AS tecnico
@@ -184,6 +185,9 @@ def taller_orden(texto='', **_):
                 'orden': f['numero'], 'estado': _NOMBRE_ESTADO.get(f['estado'], f['estado']),
                 'cliente': f['cliente'], 'equipo': _equipo(f), 'serial': f['serial'],
                 'falla_reportada': f['falla_reportada'], 'diagnostico': f['diagnostico'],
+                'solucion': f['solucion'], 'tipo_de_falla': _nombres_clasificacion()[0].get(f['falla_categoria']),
+                'tipo_de_solucion': _nombres_clasificacion()[1].get(f['solucion_categoria']),
+                'resumen_del_caso': f['resumen_caso'],
                 'estado_fisico': f['estado_fisico'], 'accesorios': f['accesorios'],
                 'tecnico': f['tecnico'] or 'Sin asignar',
                 'valor_estimado': _dinero(f['valor_estimado']), 'valor_cobrado': _dinero(f['valor_final']),
@@ -222,10 +226,13 @@ def taller_equipo_historial(texto='', **_):
             return {'conclusion': f'No encontré equipos con «{texto}».'}
         salida = []
         for e in equipos:
-            cur.execute("""SELECT numero, estado, falla_reportada, fecha_recibido, valor_final
+            cur.execute("""SELECT numero, estado, falla_reportada, solucion, falla_categoria, fecha_recibido,
+                                  valor_final
                            FROM st_ordenes WHERE equipo_id = %s ORDER BY id DESC LIMIT 10""", (e['id'],))
             ordenes = [{'orden': o['numero'], 'estado': _NOMBRE_ESTADO.get(o['estado'], o['estado']),
-                        'falla': (o['falla_reportada'] or '')[:160], 'recibido': o['fecha_recibido'].strftime('%d/%m/%Y'),
+                        'falla': (o['falla_reportada'] or '')[:160], 'solucion': (o['solucion'] or '')[:200] or None,
+                        'tipo_de_falla': _nombres_clasificacion()[0].get(o['falla_categoria']),
+                        'recibido': o['fecha_recibido'].strftime('%d/%m/%Y'),
                         'cobrado': _dinero(o['valor_final'])} for o in cur.fetchall()]
             cur.execute("""SELECT componente, detalle, fecha, proxima_revision FROM st_cambios
                            WHERE equipo_id = %s ORDER BY fecha DESC LIMIT 10""", (e['id'],))
@@ -297,4 +304,152 @@ def taller_desempeno(periodo='mes', **_):
         'satisfaccion': calif,
         'confiabilidad': 'baja' if pocos else 'normal',
         'nota': 'Hay pocas órdenes en el período: las cifras sirven de referencia, no de tendencia.' if pocos else None,
+    }
+
+
+# ── 6. Casos: qué falla tuvo un equipo y cómo se solucionó ─────
+_VACIAS = set('que cual cuales fue fueron como se le lo la las el los un una unos unas de del al a en con '
+              'por para y o mi mis nuestro nuestra su sus tuvo tenia tiene paso pasaron novedad novedades falla '
+              'fallas problema problemas solucion soluciono solucionamos solucionaron arreglo arreglamos caso '
+              'casos atendimos atendido atendidos atendio ultimo ultima ultimos ultimas hizo hicimos hubo hay '
+              'equipo equipos cliente esta este estos esa ese'.split())
+_TIPOS_PALABRA = {
+    'computador': ('computador', 'portatil'), 'computadores': ('computador', 'portatil'),
+    'pc': ('computador', 'portatil'), 'escritorio': ('computador',), 'portatil': ('portatil',),
+    'portatiles': ('portatil',), 'laptop': ('portatil',), 'celular': ('celular',), 'celulares': ('celular',),
+    'telefono': ('celular',), 'movil': ('celular',), 'tablet': ('tablet',), 'tablets': ('tablet',),
+    'televisor': ('televisor',), 'tv': ('televisor',), 'monitor': ('monitor',), 'impresora': ('impresora',),
+    'ups': ('ups',), 'consola': ('consola',),
+}
+
+
+def _nombres_clasificacion():
+    from services import servicio_tecnico_clasificador as c
+    return c.NOMBRE_FALLA, c.NOMBRE_SOLUCION, c.NOMBRE_COMPONENTE
+
+
+def taller_casos(texto='', limite=8, **_):
+    """Casos atendidos que coinciden con lo que se pregunta (cliente, marca,
+    modelo, tipo de equipo, falla o solución): qué falla tuvo y cómo se
+    solucionó. Sin texto: los últimos casos atendidos."""
+    from services.servicio_tecnico_clasificador import _REGLAS_FALLA, _aparece, normalizar
+    limite = _limite(limite, 8, 20)
+    pregunta = normalizar(texto)
+    palabras = [p for p in re.findall(r'[a-z0-9\-]{2,}', pregunta) if p not in _VACIAS]
+    tipos_buscados = set()
+    for p in palabras:
+        tipos_buscados.update(_TIPOS_PALABRA.get(p, ()))
+    terminos = [p for p in palabras if p not in _TIPOS_PALABRA]
+    categoria = None
+    if pregunta:
+        mejor = 0
+        for codigo, claves in _REGLAS_FALLA:
+            n = sum(1 for k in claves if _aparece(k, pregunta))
+            if n > mejor:
+                categoria, mejor = codigo, n
+    nombre_falla, nombre_solucion, _ = _nombres_clasificacion()
+    with get_db_cursor(dict_cursor=True) as cur:
+        if not _existe(cur, 'st_ordenes'):
+            return _SIN_MODULO
+        cur.execute("""
+            SELECT o.numero, o.estado, o.fecha_recibido, o.fecha_entregado, o.falla_reportada, o.diagnostico,
+                   o.solucion, o.falla_categoria, o.solucion_categoria, o.resumen_caso, o.etiquetas,
+                   e.tipo, e.marca, e.modelo, e.serial, c.nombre AS cliente
+            FROM st_ordenes o JOIN st_equipos e ON e.id = o.equipo_id
+            LEFT JOIN crm_contactos c ON c.id = o.crm_contacto_id
+            ORDER BY o.id DESC LIMIT 600""")
+        filas = cur.fetchall()
+    puntuados = []
+    for f in filas:
+        if tipos_buscados and f['tipo'] not in tipos_buscados:
+            continue
+        cliente = normalizar(f['cliente'] or '')
+        equipo_txt = normalizar(' '.join(filter(None, (f['marca'], f['modelo'], f['serial']))))
+        caso_txt = normalizar(' '.join(filter(None, (f['falla_reportada'], f['diagnostico'], f['solucion'],
+                                                      f['etiquetas'], f['resumen_caso']))))
+        puntos = 0
+        for t in terminos:
+            if t in cliente:
+                puntos += 3
+            if t in equipo_txt:
+                puntos += 3
+            if t in caso_txt:
+                puntos += 2
+        if categoria and f['falla_categoria'] == categoria:
+            puntos += 4
+        if terminos and puntos == 0:
+            continue
+        puntuados.append((puntos, f))
+    puntuados.sort(key=lambda x: (x[0], x[1]['fecha_recibido']), reverse=True)
+    elegidos = [f for _, f in puntuados[:limite]]
+    if not elegidos:
+        return {'casos_encontrados': 0,
+                'conclusion': f'No encontré casos atendidos con «{texto}».' if texto else 'Todavía no hay casos atendidos.'}
+    casos = [{
+        'orden': f['numero'], 'recibido': f['fecha_recibido'].strftime('%d/%m/%Y'),
+        'entregado': f['fecha_entregado'].strftime('%d/%m/%Y') if f['fecha_entregado'] else None,
+        'estado': _NOMBRE_ESTADO.get(f['estado'], f['estado']), 'cliente': f['cliente'], 'equipo': _equipo(f),
+        'falla_reportada': f['falla_reportada'], 'diagnostico': f['diagnostico'],
+        'solucion': f['solucion'] or ('(sin registrar)' if f['estado'] in ('entregado', 'garantia')
+                                      else '(todavía en el taller)'),
+        'tipo_de_falla': nombre_falla.get(f['falla_categoria']),
+        'tipo_de_solucion': nombre_solucion.get(f['solucion_categoria']),
+        'resumen': f['resumen_caso'],
+    } for f in elegidos]
+    salida = {'casos_encontrados': len(puntuados), 'mostrando': len(casos), 'casos': casos}
+    if categoria:
+        salida['tipo_de_falla_buscado'] = nombre_falla.get(categoria)
+        conteo = {}
+        for _, f in puntuados:
+            if f['falla_categoria'] == categoria and f['solucion_categoria']:
+                conteo[f['solucion_categoria']] = conteo.get(f['solucion_categoria'], 0) + 1
+        if conteo:
+            salida['como_se_ha_solucionado_esta_falla'] = {
+                nombre_solucion.get(k, k): v for k, v in sorted(conteo.items(), key=lambda kv: kv[1], reverse=True)}
+    return salida
+
+
+# ── 7. Fallas más comunes (solo agregados) ──────────────────────
+def taller_fallas_frecuentes(periodo='todo', **_):
+    """Qué se daña más y cómo se soluciona: fallas, piezas y soluciones más
+    comunes, por tipo de equipo y marca, y cuánto tardan."""
+    p = _periodo(periodo)
+    nombre_falla, nombre_solucion, nombre_componente = _nombres_clasificacion()
+    with get_db_cursor(dict_cursor=True) as cur:
+        if not _existe(cur, 'st_ordenes'):
+            return _SIN_MODULO
+        filtro = _sql_periodo(p, 'o.fecha_recibido')
+        cur.execute(f"""SELECT COUNT(*) AS n, COUNT(*) FILTER (WHERE o.falla_categoria IS NULL) AS sin
+                        FROM st_ordenes o WHERE {filtro}""")
+        r = cur.fetchone()
+        total, sin_clasificar = int(r['n']), int(r['sin'])
+
+        def _top(col, nombres):
+            cur.execute(f"""SELECT o.{col} AS c, COUNT(*) AS n FROM st_ordenes o
+                            WHERE {filtro} AND o.{col} IS NOT NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 8""")
+            return {nombres.get(x['c'], x['c']): int(x['n']) for x in cur.fetchall()}
+        fallas = _top('falla_categoria', nombre_falla)
+        piezas = _top('componente', nombre_componente)
+        soluciones = _top('solucion_categoria', nombre_solucion)
+        cur.execute(f"""SELECT o.falla_categoria AS c,
+                               AVG(EXTRACT(EPOCH FROM (o.fecha_entregado - o.fecha_recibido)) / 86400) AS dias
+                        FROM st_ordenes o WHERE {filtro} AND o.fecha_entregado IS NOT NULL
+                          AND o.falla_categoria IS NOT NULL GROUP BY 1""")
+        dias = {nombre_falla.get(x['c'], x['c']): round(float(x['dias']), 1)
+                for x in cur.fetchall() if x['dias'] is not None}
+        cur.execute(f"""SELECT e.tipo, COALESCE(NULLIF(e.marca, ''), 'Sin marca') AS marca, COUNT(*) AS n
+                        FROM st_ordenes o JOIN st_equipos e ON e.id = o.equipo_id
+                        WHERE {filtro} GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 8""")
+        marcas = [{'equipo': f"{_tipo(x['tipo'])} {x['marca']}", 'casos': int(x['n'])} for x in cur.fetchall()]
+    if not total:
+        return {'periodo': _label_periodo(p), 'conclusion': 'No hay órdenes en ese período.'}
+    return {
+        'periodo': _label_periodo(p), 'ordenes': total,
+        'fallas_mas_comunes': fallas, 'piezas_mas_cambiadas_o_afectadas': piezas,
+        'soluciones_mas_usadas': soluciones, 'dias_promedio_por_tipo_de_falla': dias,
+        'equipos_y_marcas_con_mas_casos': marcas,
+        'sin_clasificar': sin_clasificar,
+        'confiabilidad': 'baja' if total < 10 else 'normal',
+        'nota': (f'{sin_clasificar} orden(es) aún sin clasificar: se pueden clasificar en Servicio Técnico → '
+                 'Configuración.' if sin_clasificar else None),
     }

@@ -69,6 +69,11 @@ def _sin_correos_servicio_tecnico(monkeypatch):
     quiera verlos los simula en su propia prueba."""
     from services import servicio_tecnico_seguimiento as seg
     monkeypatch.setattr(seg, '_enviar', lambda *a, **k: True)
+    # La clasificación de casos tampoco llama a la IA real (cargaría el modelo
+    # en el equipo del dueño) ni deja hilos sueltos tocando la base de pruebas.
+    from services import servicio_tecnico_clasificador as clasif
+    monkeypatch.setattr(clasif, '_por_ia', lambda caso, base: None)
+    monkeypatch.setattr(clasif, '_lanzar', lambda fn: fn())
 
 
 @pytest.fixture()

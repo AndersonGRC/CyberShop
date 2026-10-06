@@ -71,13 +71,75 @@ def _campos_del_tipo(tipo):
     return '\n'.join(lineas)
 
 
+# ── Texto largo: qué líneas leer y cómo verificar lo que dice la IA ──
+_LINEA_TECNICA = re.compile(
+    r'(procesador|processor|cpu|core|ryzen|intel|amd|apple|snapdragon|exynos|mediatek|memoria|memory|ram|ddr|'
+    r'disco|disk|drive|ssd|hdd|nvme|almacenamiento|storage|capacidad|capacity|serial|serie|s/n|imei|modelo|model|'
+    r'marca|fabricante|manufacturer|vendor|sistema|system|windows|android|ios|version|versión|bios|board|placa|'
+    r'grafic|graphic|gpu|video|pantalla|display|resoluci|pulgad|inch|bateria|batería|battery|design capacity|'
+    r'full charge|ranura|slot|bank|dimm|va\b|watts?\b|\bw\b|ah\b|voltaje|voltage|color|operador|carrier)', re.I)
+MAX_PARA_IA = 6000
+
+
+def recortar_relevante(texto, limite=MAX_PARA_IA):
+    """Si el texto no cabe, se quedan las líneas con datos técnicos (en su
+    orden y sin repetidas) en vez de cortarlo a la mitad: un `systeminfo` con
+    200 parches de Windows ya no esconde la RAM ni el disco al final.
+    Devuelve (texto, {'lineas_totales', 'lineas_usadas'} o None)."""
+    if len(texto) <= limite:
+        return texto, None
+    lineas = [l.rstrip() for l in texto.split('\n')]
+    vistas, elegidas = set(), []
+    for i, linea in enumerate(lineas):
+        clave = linea.strip().lower()
+        if not clave or clave in vistas:
+            continue
+        if i < 15 or _LINEA_TECNICA.search(linea) or re.search(r'[:\t].*\d', linea):
+            if re.match(r'^\s*\[\d+\]:\s*KB\d+', linea):   # lista de parches de Windows
+                continue
+            vistas.add(clave)
+            elegidas.append(linea)
+    salida, largo = [], 0
+    for linea in elegidas:
+        if largo + len(linea) + 1 > limite:
+            break
+        salida.append(linea)
+        largo += len(linea) + 1
+    return '\n'.join(salida), {'lineas_totales': len([l for l in lineas if l.strip()]), 'lineas_usadas': len(salida)}
+
+
+def _plano(texto):
+    import unicodedata
+    t = unicodedata.normalize('NFD', str(texto or '').lower())
+    return ''.join(ch for ch in t if unicodedata.category(ch) != 'Mn')
+
+
+def verificado(valor, texto_plano):
+    """¿El valor que propone la IA aparece de verdad en el texto pegado?
+    Todos sus números deben estar, y al menos 6 de cada 10 de sus palabras."""
+    v = _plano(valor)
+    numeros = re.findall(r'\d+(?:[.,]\d+)?', v)
+    for n in numeros:
+        variantes = {n, n.replace(',', '.'), n.replace('.', ',')}
+        if not any(x in texto_plano for x in variantes):
+            return False
+    palabras = [w for w in re.findall(r'[a-z][a-z0-9\-]{1,}', v) if w not in ('gb', 'mb', 'tb', 'de', 'con')]
+    if not palabras:
+        return bool(numeros)
+    presentes = sum(1 for w in palabras if w in texto_plano)
+    return presentes / len(palabras) >= 0.6
+
+
 def _validar(tipo, crudo):
-    """Solo claves conocidas y valores razonables → {'columnas':{}, 'extras':{}}."""
+    """Solo claves conocidas y valores razonables → {'columnas':{}, 'extras':{}}.
+    Acepta «clave: valor» o «clave: {valor, linea}» (la línea es la evidencia)."""
     columnas, extras = {}, {}
     if not isinstance(crudo, dict):
         return {'columnas': columnas, 'extras': extras}
     permitidas = set(tipos.columnas(tipo))
     for clave, valor in crudo.items():
+        if isinstance(valor, dict):
+            valor = valor.get('valor')
         if valor in (None, '', [], {}):
             continue
         valor = str(valor).strip()
@@ -95,23 +157,31 @@ def _validar(tipo, crudo):
     return {'columnas': columnas, 'extras': extras}
 
 
-def _propuestas(equipo, leido, fuente_por_campo):
-    """Lista «actual → sugerido» solo de los campos que cambian."""
+def _propuestas(equipo, leido, fuente_por_campo, texto_plano=None):
+    """Lista «actual → sugerido» solo de los campos que cambian. Con
+    `texto_plano`, lo que propone la IA y no aparece en el texto queda como
+    no verificado (no se marca solo para guardar)."""
     actuales_extras = equipo.get('extras') or {}
     salida = []
     for clave, valor in leido['columnas'].items():
         actual = equipo.get(clave) or ''
         if str(valor).strip() and str(valor).strip() != str(actual).strip():
+            fuente = fuente_por_campo.get(clave, 'ia')
             salida.append({'campo': clave, 'etiqueta': tipos.ETIQUETAS_COMUNES.get(clave, clave),
-                           'actual': actual, 'sugerido': valor, 'extra': False,
-                           'fuente': fuente_por_campo.get(clave, 'ia')})
+                           'actual': actual, 'sugerido': valor, 'extra': False, 'fuente': fuente,
+                           'verificado': fuente == 'lector' or texto_plano is None or verificado(valor, texto_plano)})
     etiquetas = {c[0]: c[1] for c in tipos.campos_extra(equipo['tipo'])}
     for clave, valor in leido['extras'].items():
         actual = actuales_extras.get(clave) or ''
         if str(valor).strip() != str(actual).strip():
+            fuente = fuente_por_campo.get('extra_' + clave, 'ia')
+            # Los campos de opción (tipo de disco, sí/no…) son una lectura del texto, no una copia:
+            # basta con que algo de su valor aparezca.
+            ok = fuente == 'lector' or texto_plano is None or verificado(valor, texto_plano) or (
+                str(valor).lower() in ('si', 'no') or any(w in texto_plano for w in _plano(valor).split() if len(w) > 2))
             salida.append({'campo': 'extra_' + clave, 'etiqueta': etiquetas.get(clave, clave),
-                           'actual': actual, 'sugerido': valor, 'extra': True,
-                           'fuente': fuente_por_campo.get('extra_' + clave, 'ia')})
+                           'actual': actual, 'sugerido': valor, 'extra': True, 'fuente': fuente,
+                           'verificado': ok})
     return salida
 
 
@@ -130,6 +200,7 @@ def leer_informacion(equipo, texto, usar_ia=True):
                          'pantalla «Acerca del teléfono»).'}
 
     fijo = lector.leer(limpio, tipo)
+    para_ia, recorte = recortar_relevante(limpio)
     fuente = {k: 'lector' for k in fijo['columnas']}
     fuente.update({'extra_' + k: 'lector' for k in fijo['extras']})
     combinado = {'columnas': dict(fijo['columnas']), 'extras': dict(fijo['extras'])}
@@ -140,10 +211,14 @@ def leer_informacion(equipo, texto, usar_ia=True):
         if ok:
             user = (f'Tipo de equipo: {tipos.nombre(tipo)}.\n'
                     f'Esta es la información técnica que pegó el técnico (puede venir de systeminfo, '
-                    f'CPU-Z, la pantalla de información del teléfono o una etiqueta):\n'
-                    f'<<<\n{limpio[:6000]}\n>>>\n\n'
+                    f'CPU-Z, la pantalla de información del teléfono o una etiqueta)'
+                    f'{" — solo las líneas con datos técnicos, porque era muy largo" if recorte else ""}:\n'
+                    f'<<<\n{para_ia}\n>>>\n\n'
                     f'Ubica cada dato en estos campos (usa exactamente estas claves):\n{_campos_del_tipo(tipo)}\n\n'
-                    'Responde SOLO un JSON así: {"campos": {"clave": "valor", "extra.clave": "valor"}, '
+                    'Reglas: copia cada valor TAL CUAL aparece en el texto (no conviertas ni completes). Si un '
+                    'dato no está en el texto, NO lo pongas. En «linea» copia la línea del texto donde lo viste.\n'
+                    'Responde SOLO un JSON así: {"campos": {"clave": {"valor": "...", "linea": "..."}, '
+                    '"extra.clave": {"valor": "...", "linea": "..."}}, '
                     '"resumen": "2 o 3 frases con lo importante del equipo para el técnico", '
                     '"sugerencias": [{"titulo": "...", "detalle": "..."}]}. '
                     'En sugerencias pon mejoras reales que el dato justifique (ranura de RAM libre, disco '
@@ -174,9 +249,15 @@ def leer_informacion(equipo, texto, usar_ia=True):
                                 {**(equipo.get('extras') or {}), **combinado['extras']})
     titulos = {s['titulo'].lower() for s in reglas}
     sugerencias = reglas + [s for s in sugerencias_ia if s['titulo'].lower() not in titulos]
-    return {'propuestas': _propuestas({**equipo, 'tipo': tipo}, combinado, fuente),
-            'resumen': resumen, 'sugerencias': sugerencias, 'texto_limpio': limpio,
-            'ia': uso_ia, 'aviso': aviso}
+    propuestas = _propuestas({**equipo, 'tipo': tipo}, combinado, fuente, _plano(limpio))
+    sin_verificar = sum(1 for x in propuestas if not x['verificado'])
+    avisos = [a for a in (aviso,
+                          (f"El texto era largo: se leyeron {recorte['lineas_usadas']} de {recorte['lineas_totales']} "
+                           'líneas, las que traen datos técnicos.') if recorte else None,
+                          (f'{sin_verificar} dato(s) de la IA no aparecen tal cual en el texto: quedan sin marcar '
+                           'para que los revises.') if sin_verificar else None) if a]
+    return {'propuestas': propuestas, 'resumen': resumen, 'sugerencias': sugerencias, 'texto_limpio': limpio,
+            'ia': uso_ia, 'aviso': ' '.join(avisos) or None, 'recorte': recorte}
 
 
 # ── 2. Completar características con referencias de internet ────
@@ -210,7 +291,8 @@ def completar_caracteristicas(equipo):
     leido['columnas'] = {k: v for k, v in leido['columnas'].items() if not equipo.get(k)}
     actuales = equipo.get('extras') or {}
     leido['extras'] = {k: v for k, v in leido['extras'].items() if not actuales.get(k)}
-    return {'propuestas': _propuestas(equipo, leido, {}), 'fuentes': refs, 'aviso': None}
+    referencias = _plano(' '.join(r.get('texto', '') + ' ' + r.get('titulo', '') for r in refs))
+    return {'propuestas': _propuestas(equipo, leido, {}, referencias), 'fuentes': refs, 'aviso': None}
 
 
 # ── 3. Pre-diagnóstico ──────────────────────────────────────────

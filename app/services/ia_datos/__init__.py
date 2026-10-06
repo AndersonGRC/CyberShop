@@ -140,6 +140,17 @@ registrar('taller_equipo_historial', _stc.taller_equipo_historial,
           "Equipos de UN cliente por su nombre, o el equipo de un serial o IMEI: características, piezas cambiadas, próximas revisiones, mejoras sugeridas e historial de reparaciones.",
           ['texto'], etiqueta='el historial de ese equipo', dominio='servicio_tecnico',
           modulos=('servicio_tecnico',), permiso='servicio_tecnico', extra={'nube': False})
+registrar('taller_casos', _stc.taller_casos,
+          "Historial de casos del servicio técnico: qué equipo se atendió, qué falla o novedad tuvo y cómo se "
+          "solucionó. Busca por cliente, marca, modelo, serial, tipo de equipo (computador, celular…) o por la "
+          "falla (pantalla, no carga, virus…). Sin texto: los últimos casos atendidos.",
+          ['texto', 'limite'], etiqueta='los casos atendidos en el taller', dominio='servicio_tecnico',
+          modulos=('servicio_tecnico',), permiso='servicio_tecnico', extra={'nube': False, 'texto_opcional': True})
+registrar('taller_fallas_frecuentes', _stc.taller_fallas_frecuentes,
+          "Qué se daña más en el taller y cómo se soluciona: fallas, piezas y soluciones más comunes, días por "
+          "tipo de falla y equipos o marcas con más casos (solo cifras, sin clientes).",
+          ['periodo'], etiqueta='las fallas más comunes del taller', dominio='servicio_tecnico',
+          modulos=('servicio_tecnico',), permiso='servicio_tecnico')
 registrar('taller_desempeno', _stc.taller_desempeno,
           "Cómo le fue al servicio técnico en un período: órdenes recibidas y entregadas, días de reparación, lo cobrado, equipos más atendidos, aprobación de cotizaciones y satisfacción de los clientes.",
           ['periodo'], etiqueta='el desempeño de tu taller', dominio='servicio_tecnico',

@@ -44,6 +44,11 @@ def main():
             return 1
 
         seg.sincronizar_cotizaciones()
+        if not prueba:
+            from services import servicio_tecnico_clasificador as clasif
+            hechas = clasif.clasificar_pendientes(limite=50, usar_ia=True, refinar=True)
+            if hechas:
+                print(f'[OK] órdenes clasificadas: {hechas}')
         if prueba:
             res = seg.enviar_resumen(prueba=True)
             pendientes = seg.contar_pendientes()

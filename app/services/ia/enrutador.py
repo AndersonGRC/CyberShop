@@ -122,6 +122,8 @@ def enrutar(texto, capacidades):
         elif p in _PARAMS_NOMBRE:
             nombre = _nombre_tras(original, normal, fin)
             if not nombre:
+                if (getattr(h, 'extra', None) or {}).get('texto_opcional'):
+                    continue             # la consulta sirve sin nombre (p. ej. «los últimos casos»)
                 return []                # sin el nombre la consulta no sirve: que decida el modelo
             params[p] = nombre
     return [(h.code, params)]

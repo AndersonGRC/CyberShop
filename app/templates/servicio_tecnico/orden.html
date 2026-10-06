@@ -47,7 +47,19 @@
             <div class="st-acciones">
                 {% for s in siguientes %}
                 {% set a = ACCION.get(s, (estado_info[s][1], estado_info[s][2], '')) %}
-                {% if s == 'entregado' %}
+                {% if s == 'listo' %}
+                <details class="st-campo-ancho" style="width:100%">
+                    <summary class="st-btn st-btn-ok" style="list-style:none"><i class="fas fa-{{ a[1] }}" aria-hidden="true"></i> {{ a[0] }}</summary>
+                    <form method="post" action="{{ url_for('servicio_tecnico.orden_estado', orden_id=orden.id) }}" class="st-campos" style="margin-top:12px">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="estado" value="listo">
+                        <div class="st-campo st-campo-ancho"><label for="lis-sol">¿Qué se le hizo? (solución)</label>
+                            <textarea id="lis-sol" name="solucion" rows="3" placeholder="Ej. Cambio de pantalla y limpieza del pin de carga. Si no tenía arreglo, dilo aquí.">{{ orden.solucion or '' }}</textarea>
+                            <small>Queda en la ficha del equipo y sirve para consultar el historial.</small></div>
+                        <div class="st-campo-ancho"><button class="st-btn st-btn-ok" type="submit"><i class="fas fa-check" aria-hidden="true"></i> Marcar listo</button></div>
+                    </form>
+                </details>
+                {% elif s == 'entregado' %}
                 <details class="st-campo-ancho" style="width:100%">
                     <summary class="st-btn st-btn-ok" style="list-style:none"><i class="fas fa-{{ a[1] }}" aria-hidden="true"></i> {{ a[0] }}</summary>
                     <form method="post" action="{{ url_for('servicio_tecnico.orden_estado', orden_id=orden.id) }}" class="st-campos" style="margin-top:12px">
@@ -57,6 +69,10 @@
                             <input type="text" id="ent-valor" name="valor_final" inputmode="numeric" value="{{ (orden.valor_final or orden.valor_estimado or '') | int if (orden.valor_final or orden.valor_estimado) else '' }}"></div>
                         <div class="st-campo"><label for="ent-nota">Nota de entrega</label>
                             <input type="text" id="ent-nota" name="nota" placeholder="Opcional"></div>
+                        {% if not orden.solucion %}
+                        <div class="st-campo st-campo-ancho"><label for="ent-sol">¿Qué se le hizo? (solución)</label>
+                            <textarea id="ent-sol" name="solucion" rows="2"></textarea></div>
+                        {% endif %}
                         <p class="st-campo-ancho st-vacio-dato" style="margin:0">La garantía de {{ orden.garantia_dias }} días empieza hoy.</p>
                         <div class="st-campo-ancho"><button class="st-btn st-btn-ok" type="submit"><i class="fas fa-check" aria-hidden="true"></i> Confirmar entrega</button></div>
                     </form>
@@ -117,6 +133,8 @@
                         <i class="fas fa-eye" aria-hidden="true"></i> Ver clave</button>
                     <span id="st-clave-valor" class="st-clave" hidden aria-live="polite"></span>
                     {% else %}<span class="st-vacio-dato">Sin clave</span>{% endif %}</dd>
+                <dt>Diagnóstico</dt><dd>{% if orden.diagnostico %}<p class="st-texto">{{ orden.diagnostico }}</p>{% else %}<span class="st-vacio-dato">Sin diagnóstico todavía</span>{% endif %}</dd>
+                <dt>Solución</dt><dd>{% if orden.solucion %}<p class="st-texto">{{ orden.solucion }}</p>{% else %}<span class="st-vacio-dato">Se escribe al marcar el equipo listo</span>{% endif %}</dd>
                 {% if orden.prediagnostico_ia %}<dt>Sugerencia de IA</dt><dd><p class="st-texto st-mensaje">{{ orden.prediagnostico_ia }}</p></dd>{% endif %}
             </dl>
             {% if ia_estado[0] and orden.estado not in ('entregado', 'cancelado') %}
@@ -132,6 +150,8 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="st-campo st-campo-ancho"><label for="ed-diag">Diagnóstico del técnico</label>
                         <textarea id="ed-diag" name="diagnostico">{{ orden.diagnostico or '' }}</textarea></div>
+                    <div class="st-campo st-campo-ancho"><label for="ed-sol">Solución (qué se hizo)</label>
+                        <textarea id="ed-sol" name="solucion">{{ orden.solucion or '' }}</textarea></div>
                     <div class="st-campo st-campo-ancho"><label for="ed-fisico">Estado físico</label>
                         <textarea id="ed-fisico" name="estado_fisico">{{ orden.estado_fisico or '' }}</textarea></div>
                     <div class="st-campo st-campo-ancho"><label for="ed-acc">Accesorios</label>
@@ -215,6 +235,41 @@
             {% if not orden.cotizacion_id and orden.estado not in ('entregado', 'cancelado') %}
             <p style="margin:12px 0 0"><a class="st-btn st-btn-sec st-btn-sm" href="{{ url_for('servicio_tecnico.orden_cotizar', orden_id=orden.id) }}"><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i> Crear cotización</a></p>
             {% endif %}
+        </section>
+
+        <section class="st-card" id="st-caso" aria-labelledby="st-caso-tit">
+            <h2 id="st-caso-tit"><i class="fas fa-tags" aria-hidden="true"></i> Caso</h2>
+            {% if orden.falla_categoria %}
+            <div class="st-acciones" style="gap:6px;margin-bottom:10px">
+                <span class="st-chip st-chip-aviso" title="Tipo de falla"><i class="fas fa-bug" aria-hidden="true"></i> {{ nombre_falla.get(orden.falla_categoria, orden.falla_categoria) }}</span>
+                {% if orden.componente %}<span class="st-chip st-chip-info" title="Pieza"><i class="fas fa-microchip" aria-hidden="true"></i> {{ nombre_componente.get(orden.componente, orden.componente) }}</span>{% endif %}
+                {% if orden.solucion_categoria %}<span class="st-chip st-chip-exito" title="Solución"><i class="fas fa-wrench" aria-hidden="true"></i> {{ nombre_solucion.get(orden.solucion_categoria, orden.solucion_categoria) }}</span>{% endif %}
+            </div>
+            {% if orden.resumen_caso %}<p class="st-texto st-mensaje" style="margin:0 0 8px">{{ orden.resumen_caso }}</p>{% endif %}
+            <p class="st-vacio-dato" style="margin:0 0 10px">Clasificado {{ {'ia': 'por la IA', 'reglas': 'automáticamente', 'manual': 'a mano'}.get(orden.clasificacion_fuente, '') }}{% if orden.etiquetas %} · {{ orden.etiquetas }}{% endif %}</p>
+            {% else %}
+            <p class="st-vacio-dato" style="margin:0 0 10px">Se clasifica solo al escribir el diagnóstico o la solución.</p>
+            {% endif %}
+            <div class="st-acciones">
+                <form method="post" action="{{ url_for('servicio_tecnico.orden_clasificar', orden_id=orden.id) }}" data-st-espera>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="st-btn st-btn-sec st-btn-sm" type="submit"><i class="fas fa-{{ 'robot' if ia_estado[0] else 'magic' }}" aria-hidden="true"></i>
+                        {{ 'Clasificar con IA' if ia_estado[0] else 'Clasificar' }}</button>
+                </form>
+                <details>
+                    <summary class="st-btn st-btn-sec st-btn-sm" style="list-style:none"><i class="fas fa-pen" aria-hidden="true"></i> Corregir</summary>
+                    <form method="post" action="{{ url_for('servicio_tecnico.orden_clasificacion_manual', orden_id=orden.id) }}" class="st-campos" style="margin-top:10px">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="st-campo st-campo-ancho"><label for="cl-falla">Tipo de falla</label>
+                            <select id="cl-falla" name="falla_categoria">{% for c, n in fallas %}<option value="{{ c }}" {% if orden.falla_categoria == c %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+                        <div class="st-campo st-campo-ancho"><label for="cl-comp">Pieza</label>
+                            <select id="cl-comp" name="componente"><option value="">—</option>{% for c, n in componentes %}<option value="{{ c }}" {% if orden.componente == c %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+                        <div class="st-campo st-campo-ancho"><label for="cl-sol">Solución</label>
+                            <select id="cl-sol" name="solucion_categoria"><option value="">Aún sin solución</option>{% for c, n in soluciones %}<option value="{{ c }}" {% if orden.solucion_categoria == c %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+                        <div class="st-campo-ancho"><button class="st-btn st-btn-sm" type="submit">Guardar clasificación</button></div>
+                    </form>
+                </details>
+            </div>
         </section>
 
         <section class="st-card" aria-labelledby="st-segs">

@@ -50,8 +50,9 @@ def _sin_secretos(resultado):
 def test_estado_del_taller(taller):
     r = _ej('taller_estado')
     _sin_secretos(r)
-    assert r['equipos_en_taller'] == 2 and r['listos_para_entregar'] == 1
-    ordenes = {o['orden']: o for o in r['ordenes']}
+    assert r['equipos_en_taller'] >= 2 and r['listos_para_entregar'] >= 1   # puede haber otras órdenes en la base
+    ordenes = {o['orden']: o for o in _ej('taller_estado', {'limite': 40})['ordenes']}
+    assert f"OS-{taller['entregada']:06d}" not in ordenes                   # la entregada ya no está en el taller
     lista = ordenes[f"OS-{taller['lista']:06d}"]
     assert lista['estado'] == 'Listo para entregar' and lista['dias_listo_sin_recoger'] == 4
     assert ordenes[f"OS-{taller['vencida']:06d}"]['promesa_vencida'] is True

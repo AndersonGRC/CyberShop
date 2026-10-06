@@ -58,4 +58,15 @@
         <button class="st-btn" type="submit"><i class="fas fa-save" aria-hidden="true"></i> Guardar configuración</button>
     </div>
 </form>
+
+<section class="st-card" aria-labelledby="cf-hist">
+    <h2 id="cf-hist"><i class="fas fa-tags" aria-hidden="true"></i> Historial consultable</h2>
+    <p class="st-vacio-dato" style="margin-top:0">Cada orden se clasifica sola (tipo de falla, pieza y solución) para poder preguntarle
+        al asistente cosas como «¿qué falla tuvo el portátil de Laura y cómo se solucionó?». Las órdenes viejas sin
+        clasificar se pueden clasificar aquí de una vez; la IA las refina en el proceso de la noche.</p>
+    <form method="post" action="{{ url_for('servicio_tecnico.clasificar_historial') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="st-btn st-btn-sec" type="submit"><i class="fas fa-magic" aria-hidden="true"></i> Clasificar órdenes sin clasificar</button>
+    </form>
+</section>
 {% endblock %}

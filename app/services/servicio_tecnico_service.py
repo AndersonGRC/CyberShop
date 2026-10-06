@@ -20,6 +20,7 @@ tests/test_servicio_tecnico.py).
 import base64
 import hashlib
 import os
+import re
 import secrets
 from datetime import date, timedelta
 
@@ -28,7 +29,7 @@ from flask import current_app
 from database import get_db_cursor
 from services import servicio_tecnico_tipos as tipos
 
-DDL = """
+DDL_0018 = """
 CREATE TABLE IF NOT EXISTS st_equipos (
     id                    SERIAL       PRIMARY KEY,
     crm_contacto_id       INTEGER      NOT NULL,
@@ -134,6 +135,24 @@ CREATE TABLE IF NOT EXISTS st_seguimientos (
 );
 CREATE INDEX IF NOT EXISTS ix_st_seguimientos_pendientes ON st_seguimientos (estado, fecha_programada);
 """
+
+# 0019: solución de la orden y su clasificación (tipo de falla, pieza, tipo de
+# solución, etiquetas y resumen del caso) para buscar y consultar el historial.
+DDL_0019 = """
+ALTER TABLE st_ordenes ADD COLUMN IF NOT EXISTS solucion TEXT;
+ALTER TABLE st_ordenes ADD COLUMN IF NOT EXISTS falla_categoria VARCHAR(40);
+ALTER TABLE st_ordenes ADD COLUMN IF NOT EXISTS componente VARCHAR(40);
+ALTER TABLE st_ordenes ADD COLUMN IF NOT EXISTS solucion_categoria VARCHAR(40);
+ALTER TABLE st_ordenes ADD COLUMN IF NOT EXISTS etiquetas VARCHAR(300);
+ALTER TABLE st_ordenes ADD COLUMN IF NOT EXISTS resumen_caso VARCHAR(400);
+ALTER TABLE st_ordenes ADD COLUMN IF NOT EXISTS clasificacion_fuente VARCHAR(10);
+ALTER TABLE st_ordenes ADD COLUMN IF NOT EXISTS clasificado_en TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS ix_st_ordenes_falla_categoria ON st_ordenes (falla_categoria);
+CREATE INDEX IF NOT EXISTS ix_st_ordenes_solucion_categoria ON st_ordenes (solucion_categoria);
+"""
+
+# Lo que asegurar_tablas crea si las migraciones aún no llegaron (en orden).
+DDL = DDL_0018 + DDL_0019
 
 TABLAS = ('st_equipos', 'st_ordenes', 'st_eventos', 'st_cambios', 'st_seguimientos')
 
@@ -578,8 +597,10 @@ def listar_ordenes(estado='', q='', tecnico_id=None, abiertas=False, limite=200)
         patron = f'%{q}%'
         filtros.append("""(lower(o.numero) LIKE %s OR lower(COALESCE(c.nombre,'')) LIKE %s
                           OR lower(COALESCE(e.serial,'')) LIKE %s OR COALESCE(e.imei,'') LIKE %s
-                          OR lower(COALESCE(e.marca,'') || ' ' || COALESCE(e.modelo,'')) LIKE %s)""")
-        params += [patron] * 5
+                          OR lower(COALESCE(e.marca,'') || ' ' || COALESCE(e.modelo,'')) LIKE %s
+                          OR lower(COALESCE(o.falla_reportada,'') || ' ' || COALESCE(o.diagnostico,'') || ' '
+                                   || COALESCE(o.solucion,'') || ' ' || COALESCE(o.etiquetas,'')) LIKE %s)""")
+        params += [patron] * 6
     donde = ('WHERE ' + ' AND '.join(filtros)) if filtros else ''
     with get_db_cursor(dict_cursor=True) as cur:
         cur.execute(f"""
@@ -598,7 +619,8 @@ def listar_ordenes(estado='', q='', tecnico_id=None, abiertas=False, limite=200)
 
 def ordenes_de_equipo(equipo_id):
     with get_db_cursor(dict_cursor=True) as cur:
-        cur.execute("""SELECT id, numero, estado, falla_reportada, fecha_recibido, fecha_entregado, valor_final
+        cur.execute("""SELECT id, numero, estado, falla_reportada, fecha_recibido, fecha_entregado, valor_final,
+                              solucion, resumen_caso, falla_categoria
                        FROM st_ordenes WHERE equipo_id = %s ORDER BY id DESC""", (equipo_id,))
         return [dict(r) for r in cur.fetchall()]
 
@@ -641,6 +663,9 @@ def cambiar_estado(orden_id, nuevo, usuario_id=None, nota=None, datos=None):
         if datos.get('diagnostico'):
             sets.append('diagnostico = %s')
             params.append(_texto(datos.get('diagnostico'), 4000))
+        if datos.get('solucion'):
+            sets.append('solucion = %s')
+            params.append(_texto(datos.get('solucion'), 4000))
         cur.execute(f"UPDATE st_ordenes SET {', '.join(sets)} WHERE id = %s", (*params, orden_id))
         texto = f"{ESTADO_POR_CODIGO[actual][1]} → {ESTADO_POR_CODIGO[nuevo][1]}"
         if nota:
@@ -658,7 +683,7 @@ def cambiar_estado(orden_id, nuevo, usuario_id=None, nota=None, datos=None):
 def actualizar_orden(orden_id, datos, usuario_id=None):
     """Campos editables de la orden (no el estado)."""
     sets, params = [], []
-    for campo, largo in (('diagnostico', 4000), ('estado_fisico', 2000), ('accesorios', 1000)):
+    for campo, largo in (('diagnostico', 4000), ('solucion', 4000), ('estado_fisico', 2000), ('accesorios', 1000)):
         if campo in datos:
             sets.append(f'{campo} = %s')
             params.append(_texto(datos.get(campo), largo))
@@ -729,7 +754,11 @@ def eventos(orden_id=None, equipo_id=None):
         cur.execute(f"""SELECT e.tipo, e.detalle, e.creado_en, u.nombre AS usuario
                         FROM st_eventos e LEFT JOIN usuarios u ON u.id = e.usuario_id
                         WHERE {campo} = %s ORDER BY e.creado_en DESC, e.id DESC LIMIT 200""", (valor,))
-        return [dict(r) for r in cur.fetchall()]
+        filas = [dict(r) for r in cur.fetchall()]
+    # «correo:listo · …» es la marca que evita repetir el correo; en pantalla sobra.
+    for f in filas:
+        f['detalle'] = re.sub(r'^correo:\w+ · ', '', f['detalle'] or '')
+    return filas
 
 
 def vincular_cotizacion(orden_id, cotizacion_id, usuario_id=None):

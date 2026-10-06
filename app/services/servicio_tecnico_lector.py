@@ -24,7 +24,7 @@ _LINEAS_PERSONALES = re.compile(
     re.I)
 _CORREO = re.compile(r'[\w.+-]+@[\w-]+\.[\w.-]+')
 _TELEFONO = re.compile(r'(?<!\d)(?:\+?57\s?)?3\d{2}[\s-]?\d{3}[\s-]?\d{4}(?!\d)')
-MAX_TEXTO = 12000
+MAX_TEXTO = 60000          # se guarda completo; a la IA va solo lo técnico (recortar_relevante)
 
 
 def limpiar_personales(texto):
