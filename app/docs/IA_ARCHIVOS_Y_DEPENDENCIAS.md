@@ -39,6 +39,15 @@ El registro de 56 capacidades se llena al importar `services.ia_datos`; importar
 solo `services.ia` no lo puebla. El mapa de funciones y frases se genera con
 `tools/ia_mapa.py` en [IA_MAPA.md](IA_MAPA.md); no se edita a mano.
 
+Cuánto entiende el panel sin modelo se mide con `python tools/ia_banco.py`
+sobre el banco de preguntas reales `tests/banco_preguntas_panel.py` (coloquiales,
+sin tildes, con errores de escritura). Para enseñarle una forma nueva de
+preguntar: agregarla al banco, medir, y sumar la frase en `services/ia/intenciones.py`
+sin pisar las de otra capacidad. El enrutador tolera b/v, s/z/c y abreviaturas
+(«q», «x», «pa») y toma los períodos como palabras completas. Al modelo le llegan,
+además del catálogo, un glosario coloquial y un ejemplo por capacidad permitida
+(`services/ia/clarificaciones.py`).
+
 ## Inventario de `services/ia/` y `services/ia_datos/`
 
 Todos los archivos de esta tabla están conectados por importaciones del

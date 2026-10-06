@@ -45,11 +45,47 @@ def normalizar(texto):
     return ''.join(c for c in plano if unicodedata.category(c) != 'Mn')
 
 
+# Errores de escritura comunes que no cambian el sentido: b/v, s/z, s/c (ce, ci).
+# Se cambia letra por letra (misma longitud) para no perder las posiciones con
+# las que se recorta el nombre del texto original.
+_FONETICA = str.maketrans({'v': 'b', 'z': 's'})
+
+
+def fonetico(texto_normalizado):
+    """«cuanto bendi» = «cuanto vendi»; «cotisaciones» = «cotizaciones»."""
+    t = texto_normalizado.translate(_FONETICA)
+    return re.sub(r'c(?=[ei])', 's', t)
+
+
+# Abreviaturas de chat: se expanden ANTES de todo (en el texto original), así
+# las posiciones del original y del normalizado siguen cuadrando.
+_ABREVIATURAS = (
+    (r'\bq\b', 'que'), (r'\bk\b', 'que'), (r'\bke\b', 'que'), (r'\bxq\b', 'por que'), (r'\bpq\b', 'por que'),
+    (r'\bx\b', 'por'), (r'\bpa\b', 'para'), (r'\btb\b', 'tambien'), (r'\btmb\b', 'tambien'),
+    (r'\bmsj\b', 'mensaje'), (r'\bcel\b', 'celular'), (r'\bcompu\b', 'computador'),
+)
+
+
+def expandir(texto):
+    t = texto or ''
+    for patron, reemplazo in _ABREVIATURAS:
+        t = re.sub(patron, reemplazo, t, flags=re.I)
+    return t
+
+
+# «Qué día de la semana se vende más» habla del día, no de «esta semana».
+_NO_ES_PERIODO = re.compile(r'\bdias? de (?:la|una) semana\b')
+
+
+# Cada frase de período como palabra completa: «anual» no está en «manual».
+_RE_PERIODO = {frase: re.compile(r'\b' + re.escape(frase) + r'\b') for frase, _ in _PERIODOS_TEXTO}
+
+
 def periodo_de(texto):
     """Período mencionado en la pregunta, o None si no menciona ninguno."""
-    t = normalizar(texto)
+    t = _NO_ES_PERIODO.sub(' ', normalizar(texto))
     for frase, periodo in _PERIODOS_TEXTO:
-        if frase in t:
+        if _RE_PERIODO[frase].search(t):
             return periodo
     return None
 
@@ -91,16 +127,17 @@ def enrutar(texto, capacidades):
     decida el modelo. `capacidades` ya viene filtrada por permisos y canal, así
     que el enrutador no puede llegar a algo que quien pregunta no podría usar.
     """
-    original = (texto or '').strip()
+    original = expandir((texto or '').strip())
     if not original:
         return []
     normal = normalizar(original)
+    buscable = fonetico(normal)
 
     mejor = None                         # (largo_del_disparador, capacidad, fin)
     for h in capacidades:
         for disparador in h.disparadores:
-            d = normalizar(disparador)
-            pos = normal.find(d)
+            d = fonetico(normalizar(disparador))
+            pos = buscable.find(d)
             if pos < 0:
                 continue
             if mejor is None or len(d) > mejor[0]:
@@ -137,7 +174,8 @@ def enrutar_panel_seguro(texto, capacidades, historial=None):
     comparación, una fecha que no sabemos interpretar o dos intenciones nunca
     deben convertirse silenciosamente en una consulta distinta.
     """
-    normal = normalizar((texto or '').strip())
+    texto = expandir((texto or '').strip())
+    normal = normalizar(texto)
     if not normal:
         return []
     if historial and re.match(r'^[¿\s]*(?:y\b|ahora\b|tambien\b|lo mismo\b|ese\b|esa\b|esos\b|esas\b)', normal):
@@ -146,17 +184,18 @@ def enrutar_panel_seguro(texto, capacidades, historial=None):
         return []                         # fechas concretas: las interpreta el planificador
     if re.search(r'\b(?:trimestre|quincena|ultimos?\s+\d+\s+dias?|entre\s+el\s+\d+|del\s+\d+\s+al\s+\d+)\b', normal):
         return []
-    if re.search(r'\b(?:en efectivo|con tarjeta|por vendedor|por sucursal|por canal|en linea|en la web|por empleado)\b', normal):
-        return []                         # filtros que esta ruta no sabe aplicar
+    filtro_desconocido = re.search(
+        r'\b(?:en efectivo|con tarjeta|por vendedor|por sucursal|por canal|en linea|en la web|por empleado)\b', normal)
 
     # Dos intenciones diferentes no se pueden reducir a la frase más larga.
     # Pero si dos frases se pisan sobre las MISMAS palabras («la cotización» y
     # «la cotización más grande»), es una sola lectura: vale la más larga.
     tramos = []
+    buscable = fonetico(normal)
     for h in capacidades:
         for disparador in h.disparadores:
-            d = normalizar(disparador)
-            for m in re.finditer(re.escape(d), normal):
+            d = fonetico(normalizar(disparador))
+            for m in re.finditer(re.escape(d), buscable):
                 tramos.append((m.end() - m.start(), m.start(), m.end(), h.code))
     aceptados = []
     for largo, ini, fin, code in sorted(tramos, reverse=True):
@@ -165,12 +204,17 @@ def enrutar_panel_seguro(texto, capacidades, historial=None):
     coincidencias = {code for _, _, _, code in aceptados}
     if len(coincidencias) != 1:
         return []
+    # «En efectivo», «con tarjeta»… son filtros que las ventas no saben aplicar,
+    # pero son justo el tema de medios de pago y de la caja.
+    if filtro_desconocido and not coincidencias & {'metodos_pago', 'caja_estado'}:
+        return []
 
     # Detecta dos períodos independientes, respetando que «mes pasado» contiene
     # «mes» y «semana pasada» puede contener «la semana».
     menciones = []
+    sin_dias = _NO_ES_PERIODO.sub(lambda m: ' ' * len(m.group(0)), normal)
     for frase, periodo in sorted(_PERIODOS_TEXTO, key=lambda x: len(x[0]), reverse=True):
-        for match in re.finditer(re.escape(frase), normal):
+        for match in _RE_PERIODO[frase].finditer(sin_dias):
             tramo = (match.start(), match.end())
             if not any(tramo[0] < fin and inicio < tramo[1] for inicio, fin, _ in menciones):
                 menciones.append((*tramo, periodo))

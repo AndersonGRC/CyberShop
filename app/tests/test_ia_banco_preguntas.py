@@ -1,0 +1,78 @@
+# -*- coding: utf-8 -*-
+"""Entrenamiento del asistente del panel: el banco de preguntas reales
+(tests/banco_preguntas_panel.py) debe llegar a su consulta SIN modelo, y lo que
+mezcla temas debe seguir yendo al modelo. Más las piezas que lo hacen posible:
+tolerancia a errores de escritura, abreviaturas, períodos como palabras
+completas, canal del panel y ejemplos guía para el modelo.
+
+Para medir a mano: python tools/ia_banco.py"""
+import pytest
+
+from tests.banco_preguntas_panel import AL_MODELO, BANCO
+
+
+def _panel():
+    import services.ia_datos as d
+    return [h for h in d.REGISTRO.values() if 'panel' in h.canales]
+
+
+@pytest.mark.parametrize('pregunta, esperada', BANCO)
+def test_banco_llega_a_su_consulta_sin_modelo(pregunta, esperada):
+    from services.ia.enrutador import enrutar_panel_seguro
+    r = enrutar_panel_seguro(pregunta, _panel())
+    assert r and r[0][0] == esperada, f'«{pregunta}» → {r}'
+
+
+@pytest.mark.parametrize('pregunta', AL_MODELO)
+def test_lo_ambiguo_va_al_modelo(pregunta):
+    from services.ia.enrutador import enrutar_panel_seguro
+    assert enrutar_panel_seguro(pregunta, _panel()) == []
+
+
+def test_errores_de_escritura_y_abreviaturas():
+    from services.ia.enrutador import expandir, fonetico, normalizar
+    assert fonetico(normalizar('Cuanto bendi')) == fonetico(normalizar('cuánto vendí'))
+    assert fonetico('cotisaciones') == fonetico('cotizaciones')
+    assert len(fonetico('precio de cierre')) == len('precio de cierre')     # misma longitud
+    assert expandir('q cotizaciones tengo x cobrar') == 'que cotizaciones tengo por cobrar'
+    assert expandir('Taxi') == 'Taxi' and expandir('x64') == 'x64'           # solo palabras sueltas
+
+
+def test_periodos_solo_como_palabra_completa():
+    from services.ia.enrutador import periodo_de
+    assert periodo_de('¿Qué dice el manual de garantías?') is None           # «anual» ≠ «manual»
+    assert periodo_de('¿Qué día de la semana se vende más?') is None
+    assert periodo_de('ventas de la semana') == 'semana'
+    assert periodo_de('¿cuánto vendí hoy?') == 'hoy'
+
+
+def test_patron_horario_no_toma_dia_de_la_semana_como_periodo():
+    from services.ia.enrutador import enrutar_panel_seguro
+    r = enrutar_panel_seguro('¿Qué día de la semana se vende más?', _panel())
+    assert r == [('patron_horario', {'periodo': 'todo'})]
+
+
+def test_en_efectivo_vale_para_medios_de_pago_pero_no_para_ventas():
+    from services.ia.enrutador import enrutar_panel_seguro
+    assert enrutar_panel_seguro('¿Cuánto entró en efectivo y cuánto por transferencia?', _panel())[0][0] == 'metodos_pago'
+    assert enrutar_panel_seguro('¿Cuánto vendí en efectivo?', _panel()) == []
+
+
+def test_el_panel_no_usa_lo_exclusivo_del_sitio_publico(flask_app, monkeypatch):
+    import services.ia_datos as d
+    from services.ia_datos.acceso import Contexto, puede_usar
+    monkeypatch.setattr('services.ia_datos.acceso._modulo_activo', lambda code: True)
+    with flask_app.test_request_context('/'):
+        assert not puede_usar(d.REGISTRO['buscar_productos'], Contexto(rol_id=2))
+        assert puede_usar(d.REGISTRO['ventas_periodo'], Contexto(rol_id=2))
+        from services.ia_datos.acceso import CANAL_PUBLICO
+        assert puede_usar(d.REGISTRO['buscar_productos'], Contexto(canal=CANAL_PUBLICO))
+
+
+def test_el_modelo_recibe_glosario_y_ejemplos_solo_de_lo_permitido():
+    import services.ia_datos as d
+    from services.ia.clarificaciones import instrucciones_para_catalogo
+    texto = instrucciones_para_catalogo([d.REGISTRO['ventas_periodo'], d.REGISTRO['cartera_pendiente']])
+    assert '«plata»' in texto and '«me deben» = cartera' in texto
+    assert '→ ventas_periodo' in texto and '→ cartera_pendiente' in texto
+    assert 'nomina_empleado' not in texto and 'taller_casos' not in texto

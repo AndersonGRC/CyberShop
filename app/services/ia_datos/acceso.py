@@ -72,6 +72,14 @@ def puede_usar(h, ctx):
         from services.ia.registro import CANAL_PUBLICO as DECLARADA_PUBLICA
         return DECLARADA_PUBLICA in getattr(h, 'canales', ()) and h.sensible is None
 
+    # El panel solo usa lo declarado para el panel: la búsqueda del catálogo
+    # público («¿tienen…?», «necesito…») le robaba preguntas como «¿qué
+    # productos tienen poco stock?» cuando el chat del sitio estaba encendido.
+    if ctx.canal == CANAL_WEB:
+        from services.ia.registro import CANAL_PANEL
+        if CANAL_PANEL not in getattr(h, 'canales', (CANAL_PANEL,)):
+            return False
+
     publica = h.permiso is None and h.sensible is None
     if ctx.canal == CANAL_ESCRITORIO:
         return publica

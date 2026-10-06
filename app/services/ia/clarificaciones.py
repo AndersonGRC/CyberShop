@@ -234,4 +234,35 @@ def instrucciones_para_catalogo(disponibles):
                       'Para fechas concretas entrega desde/hasta en AAAA-MM-DD. '
                       'Si la expresión temporal es vaga, no adivines: el servidor '
                       'pedirá fechas. Conserva los dos períodos de una comparación.')
+    partes.append(GLOSARIO)
+    ejemplos = ejemplos_para_catalogo(disponibles)
+    if ejemplos:
+        partes.append(ejemplos)
     return '\n'.join(partes)
+
+
+# Cómo habla la gente del negocio (Colombia). Sin nombres de herramientas: así
+# no se le muestra al modelo nada que el rol no pueda usar.
+GLOSARIO = (
+    'Lenguaje del dueño: «plata», «lucas» o «billete» = dinero; «cómo voy» = cómo van las ventas; '
+    '«mercancía» o «bodega» = inventario; «se acabó» o «se agotó» = sin stock; «toca pedir» = qué '
+    'reponer; «me deben» = cartera por cobrar; «me pagaron» o «cobré» = pagos recibidos; «presupuesto» '
+    'o «propuesta» = cotización; «honorarios» = cuentas de cobro; «el taller», «equipo», «orden» o '
+    '«caso» = servicio técnico; «novedad» = falla. Las preguntas pueden venir sin tildes o con errores '
+    '(«bendi», «cotisacion», «q»): interprétalas por su sentido.'
+)
+
+
+def ejemplos_para_catalogo(disponibles, maximo=60):
+    """Una pregunta real por proceso permitido → su código: el modelo chico
+    acierta mucho más con ejemplos que solo con descripciones."""
+    lineas = []
+    for h in disponibles:
+        ejemplos = getattr(h, 'ejemplos', ()) or ()
+        if ejemplos:
+            lineas.append(f'«{ejemplos[0]}» → {h.code}')
+        if len(lineas) >= maximo:
+            break
+    if not lineas:
+        return ''
+    return 'Ejemplos de cómo se interpretan las preguntas:\n' + '\n'.join(lineas)
