@@ -44,7 +44,11 @@ sobre el banco de preguntas reales `tests/banco_preguntas_panel.py` (coloquiales
 sin tildes, con errores de escritura). Para enseñarle una forma nueva de
 preguntar: agregarla al banco, medir, y sumar la frase en `services/ia/intenciones.py`
 sin pisar las de otra capacidad. El enrutador tolera b/v, s/z/c y abreviaturas
-(«q», «x», «pa») y toma los períodos como palabras completas. Al modelo le llegan,
+(«q», «x», «pa») y toma los períodos como palabras completas. Los seguimientos
+de período («¿y el mes pasado?») repiten sin modelo la consulta del turno
+anterior (`seguimiento_de_periodo`, solo si esa consulta fue una sola y admite
+período). El mismo archivo trae el banco del chat del sitio (`PUBLICO`) y el de
+seguimientos (`SEGUIMIENTOS`). Al modelo le llegan,
 además del catálogo, un glosario coloquial y un ejemplo por capacidad permitida
 (`services/ia/clarificaciones.py`).
 

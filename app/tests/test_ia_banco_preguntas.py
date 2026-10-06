@@ -76,3 +76,59 @@ def test_el_modelo_recibe_glosario_y_ejemplos_solo_de_lo_permitido():
     assert '«plata»' in texto and '«me deben» = cartera' in texto
     assert '→ ventas_periodo' in texto and '→ cartera_pendiente' in texto
     assert 'nomina_empleado' not in texto and 'taller_casos' not in texto
+
+
+# ── Chat del sitio público ──────────────────────────────────────
+@pytest.mark.parametrize('pregunta, esperada', __import__('tests.banco_preguntas_panel', fromlist=['PUBLICO']).PUBLICO)
+def test_chat_publico_llega_a_su_consulta(pregunta, esperada):
+    import services.ia_datos as d
+    from services.ia.enrutador import enrutar
+    publicas = [h for h in d.REGISTRO.values() if 'publico' in h.canales]
+    r = enrutar(pregunta, publicas)
+    assert r and r[0][0] == esperada, f'«{pregunta}» → {r}'
+
+
+# ── Seguimientos: «¿y el mes pasado?» ───────────────────────────
+@pytest.mark.parametrize('anterior, pregunta, periodo',
+                         __import__('tests.banco_preguntas_panel', fromlist=['SEGUIMIENTOS']).SEGUIMIENTOS)
+def test_seguimiento_de_periodo(anterior, pregunta, periodo):
+    from services.ia.enrutador import enrutar_panel_seguro
+    historial = [{'pregunta': 'pregunta anterior', 'respuesta': '...', 'herramienta': anterior}]
+    r = enrutar_panel_seguro(pregunta, _panel(), historial=historial)
+    if periodo is None:
+        assert r == [], f'«{pregunta}» tras {anterior} debía ir al modelo: {r}'
+    else:
+        assert r == [(anterior, {'periodo': periodo})], r
+
+
+def test_seguimiento_sin_herramienta_previa_va_al_modelo():
+    from services.ia.enrutador import enrutar_panel_seguro
+    assert enrutar_panel_seguro('¿Y el mes pasado?', _panel(), historial=[{'pregunta': 'hola'}]) == []
+    assert enrutar_panel_seguro('¿Y el mes pasado?', _panel(),
+                                historial=[{'pregunta': 'x', 'herramienta': 'aclaracion:ventas'}]) == []
+    # Una capacidad que el rol no tiene no se usa aunque el historial la nombre.
+    sin_nomina = [h for h in _panel() if h.code != 'nomina_resumen']
+    assert enrutar_panel_seguro('¿Y el mes pasado?', sin_nomina,
+                                historial=[{'pregunta': 'x', 'herramienta': 'nomina_resumen'}]) == []
+
+
+def test_chat_del_panel_resuelve_el_seguimiento_sin_modelo(flask_app, monkeypatch):
+    import services.ai_service as ai
+    import services.ai_tools as tools
+    from services import ia_motores
+    consultas = []
+    monkeypatch.setattr(tools, 'ejecutar', lambda code, params, ctx: consultas.append((code, params)) or
+                        {'periodo': 'el mes pasado', 'total': '$ 99'})
+    monkeypatch.setattr(ai, '_contexto_tenant', lambda: 'Tienda')
+    monkeypatch.setattr(ai, '_contexto_panel', lambda: 'Tienda')
+    monkeypatch.setattr(ai, '_modelo_en_memoria',
+                        lambda *_: (_ for _ in ()).throw(AssertionError('no debe esperar Ollama')))
+    monkeypatch.setattr(ai, '_chat', lambda *_a, **_k: (_ for _ in ()).throw(AssertionError('no debe llamar modelo')))
+    monkeypatch.setattr(ai, '_registrar_consulta', lambda *a: None)
+    monkeypatch.setattr(ia_motores, 'motor_para', lambda *_a, **_k: (None, 'sin motor'))
+    historial = [{'pregunta': '¿Cuánto vendí este mes?', 'respuesta': '$ 10', 'herramienta': 'ventas_periodo'}]
+    with flask_app.test_request_context('/'):
+        res, err = ai.responder_chat('¿Y el mes pasado?', historial=historial,
+                                     contexto=tools.Contexto(rol_id=2, usuario_id=1))
+    assert err is None and '$ 99' in res['respuesta']
+    assert consultas == [('ventas_periodo', {'periodo': 'mes_anterior'})]

@@ -27,7 +27,7 @@ PUBLICO = ('publico',)
 INTENCIONES = {
     # ── Servicio Técnico ──────────────────────────────────────
     'taller_estado': {
-        'disparadores': ('hay en reparacion', 'equipos hay en el taller', 'cuantos equipos tengo en el taller', 'que equipos estan listos', 'como esta el taller', 'equipos en el taller', 'que hay en el taller',
+        'disparadores': ('pendientes en el taller', 'pendiente el tecnico', 'tiene pendiente el tecnico', 'equipos pendientes', 'hay en reparacion', 'equipos hay en el taller', 'cuantos equipos tengo en el taller', 'que equipos estan listos', 'como esta el taller', 'equipos en el taller', 'que hay en el taller',
                          'equipos listos', 'listos para entregar', 'equipos por entregar',
                          'ordenes de servicio', 'ordenes abiertas del taller', 'equipos en reparacion',
                          'carga de los tecnicos', 'entregas atrasadas'),
@@ -67,7 +67,7 @@ INTENCIONES = {
         'canales': PANEL, 'motor': 'A',
     },
     'taller_fallas_frecuentes': {
-        'disparadores': ('fallas mas comunes', 'fallas frecuentes', 'problemas mas comunes', 'que se dana mas',
+        'disparadores': ('lo que mas se dana', 'mas se danan', 'se dana mas', 'fallas mas comunes', 'fallas frecuentes', 'problemas mas comunes', 'que se dana mas',
                          'reparaciones mas comunes', 'que falla mas', 'piezas que mas se cambian',
                          'soluciones mas usadas'),
         'ejemplos': ('¿Cuáles son las fallas más comunes?', '¿Qué se daña más en los equipos?'),
@@ -83,7 +83,7 @@ INTENCIONES = {
 
     # ── Ventas ────────────────────────────────────────────────
     'ventas_periodo': {
-        'disparadores': ('cuanta plata entro', 'plata entro', 'cuanto entro', 'llevo vendido', 'total vendido', 'cuanto llevo en ventas', 'cuanto se ha vendido', 'como van las ventas', 'cuanto vendi', 'cuanto vendimos', 'cuanto se vendio', 'cuanto he vendido',
+        'disparadores': ('lo que vendi', 'lo que vendimos', 'lo que se vendio', 'ventas hoy', 'ventas ayer', 'ventas esta semana', 'ventas este mes', 'en ventas', 'cuanta plata entro', 'plata entro', 'cuanto entro', 'llevo vendido', 'total vendido', 'cuanto llevo en ventas', 'cuanto se ha vendido', 'como van las ventas', 'cuanto vendi', 'cuanto vendimos', 'cuanto se vendio', 'cuanto he vendido',
                          'ventas de', 'ventas del', 'total de ventas', 'cuanto facture',
                          'como estuvieron las ventas', 'ingresos de'),
         'ejemplos': ('¿Cuánto vendí hoy?', '¿Cuánto vendimos el mes pasado?',
@@ -91,7 +91,7 @@ INTENCIONES = {
         'canales': PANEL, 'motor': 'A',
     },
     'comparativo_ventas': {
-        'disparadores': ('vendi mas que', 'vendi menos que', 'vendimos mas que', 'vendimos menos que', 'subieron o bajaron las ventas', 'ventas frente al', 'ventas comparadas con', 'compara mis ventas', 'comparacion de ventas', 'comparar ventas',
+        'disparadores': ('como vamos frente al', 'como vamos comparado con', 'frente al mes pasado', 'frente al mes anterior', 'comparado con el mes', 'contra el mes pasado', 'comparar las ventas', 'compara las ventas', 'vendi mas que', 'vendi menos que', 'vendimos mas que', 'vendimos menos que', 'subieron o bajaron las ventas', 'ventas frente al', 'ventas comparadas con', 'compara mis ventas', 'comparacion de ventas', 'comparar ventas',
                          'crecieron mis ventas', 'cayeron mis ventas', 'variacion de ventas'),
         'ejemplos': ('¿Crecieron mis ventas este mes?', 'Compara mis ventas con el período anterior'),
         'canales': PANEL, 'motor': 'A',
@@ -103,19 +103,19 @@ INTENCIONES = {
         'canales': PANEL, 'motor': 'A',
     },
     'top_productos': {
-        'disparadores': ('producto estrella', 'productos estrella', 'lo que mas sale', 'que mas sale', 'lo mas vendido', 'que se vende mejor', 'lo que mas me compran', 'que se vende mas', 'producto mas vendido', 'productos mas vendidos',
+        'disparadores': ('top 3 productos', 'top 5 productos', 'top 10 productos', 'top 20 productos', 'mejores productos', 'productos top', 'producto estrella', 'productos estrella', 'lo que mas sale', 'que mas sale', 'lo mas vendido', 'que se vende mejor', 'lo que mas me compran', 'que se vende mas', 'producto mas vendido', 'productos mas vendidos',
                          'mas vendidos', 'lo que mas se vende', 'top de productos'),
         'ejemplos': ('¿Qué es lo que más se vende?', '¿Cuáles fueron los 5 más vendidos del mes?'),
         'canales': PANEL, 'motor': 'A',
     },
     'top_clientes': {
-        'disparadores': ('quien me compra mas', 'quienes me compran mas', 'clientes que mas me compran', 'cliente que mas compra', 'mejores clientes', 'quien compra mas', 'clientes que mas compran',
+        'disparadores': ('top 3 clientes', 'top 5 clientes', 'top 10 clientes', 'clientes top', 'quien me compra mas', 'quienes me compran mas', 'clientes que mas me compran', 'cliente que mas compra', 'mejores clientes', 'quien compra mas', 'clientes que mas compran',
                          'top de clientes'),
         'ejemplos': ('¿Quiénes son mis mejores clientes?',),
         'canales': PANEL, 'motor': 'A',
     },
     'patron_horario': {
-        'disparadores': ('dia de la semana se vende', 'que dia se vende', 'horas pico', 'hora pico', 'dias de mas venta', 'a que horas se vende', 'a que hora vendo', 'a que hora se vende', 'mejor hora', 'mejores horas',
+        'disparadores': ('mas los fines de semana', 'fines de semana', 'fin de semana', 'dia de la semana se vende', 'que dia se vende', 'horas pico', 'hora pico', 'dias de mas venta', 'a que horas se vende', 'a que hora vendo', 'a que hora se vende', 'mejor hora', 'mejores horas',
                          'que dia se vende mas', 'mejor dia', 'horario de mas ventas'),
         'ejemplos': ('¿A qué hora vendo más?', '¿Cuál es mi mejor día de la semana?'),
         'canales': PANEL, 'motor': 'A',
@@ -139,7 +139,7 @@ INTENCIONES = {
         'canales': PANEL, 'motor': 'A',
     },
     'pedidos_por_despachar': {
-        'disparadores': ('falta por enviar', 'por enviar', 'pendiente por enviar', 'pedidos sin enviar', 'por despachar', 'falta despachar', 'pedidos pendientes de envio',
+        'disparadores': ('por mandar', 'faltan por despachar', 'sin despachar', 'faltan por enviar', 'falta por enviar', 'por enviar', 'pendiente por enviar', 'pedidos sin enviar', 'por despachar', 'falta despachar', 'pedidos pendientes de envio',
                          'que tengo que enviar'),
         'ejemplos': ('¿Qué pedidos tengo por despachar?',),
         'canales': PANEL, 'motor': 'A',
@@ -153,14 +153,14 @@ INTENCIONES = {
 
     # ── Inventario ────────────────────────────────────────────
     'productos_bajo_stock': {
-        'disparadores': ('se acabaron', 'se acabo', 'poco stock', 'pocas unidades', 'sin stock', 'quedan pocos', 'que me queda poco', 'stock bajo', 'bajo stock', 'se esta agotando', 'se me esta acabando',
+        'disparadores': ('falta en inventario', 'hace falta en inventario', 'falta en bodega', 'se acabaron', 'se acabo', 'poco stock', 'pocas unidades', 'sin stock', 'quedan pocos', 'que me queda poco', 'stock bajo', 'bajo stock', 'se esta agotando', 'se me esta acabando',
                          'estan agotados', 'productos agotados', 'agotado',
                          'sin existencias', 'queda poco'),
         'ejemplos': ('¿Qué productos están agotados?', '¿Qué se me está acabando?'),
         'canales': PANEL, 'motor': 'A',
     },
     'sugerencia_reorden': {
-        'disparadores': ('toca pedir', 'pedir al proveedor', 'que pido', 'que toca comprar', 'que hay que pedir', 'que debo pedir', 'que debo comprar', 'que tengo que comprar', 'que reponer', 'que pedir',
+        'disparadores': ('lista de compras', 'compras para el proveedor', 'pedido al proveedor', 'toca pedir', 'pedir al proveedor', 'que pido', 'que toca comprar', 'que hay que pedir', 'que debo pedir', 'que debo comprar', 'que tengo que comprar', 'que reponer', 'que pedir',
                          'reorden', 'que se va a agotar'),
         'ejemplos': ('¿Qué debo comprar esta semana?',),
         'canales': PANEL, 'motor': 'B',
@@ -185,7 +185,7 @@ INTENCIONES = {
         'canales': PANEL, 'motor': 'A',
     },
     'inventario_sin_rotacion': {
-        'disparadores': ('quieto', 'quieta', 'sin venderse', 'mercancia quieta', 'no se mueve', 'no rota', 'no se han vendido', 'no se estan vendiendo', 'no se venden', 'no se vende', 'sin rotacion',
+        'disparadores': ('estancado', 'estancados', 'estancada', 'mercancia parada', 'no salen', 'productos parados', 'quieto', 'quieta', 'sin venderse', 'mercancia quieta', 'no se mueve', 'no rota', 'no se han vendido', 'no se estan vendiendo', 'no se venden', 'no se vende', 'sin rotacion',
                          'productos quietos', 'lleva sin venderse', 'plata parada'),
         'ejemplos': ('¿Qué productos no se están vendiendo?',),
         'canales': PANEL, 'motor': 'B',
@@ -204,7 +204,7 @@ INTENCIONES = {
 
     # ── Finanzas ──────────────────────────────────────────────
     'finanzas_periodo': {
-        'disparadores': ('ganando o perdiendo', 'estoy ganando', 'estoy perdiendo', 'me quedo de ganancia', 'cuanto me quedo', 'ganancia del', 'cuanto me queda libre', 'ingresos y egresos', 'cuanto gane', 'cuanta ganancia', 'utilidad del',
+        'disparadores': ('cuanta utilidad', 'utilidad dejo', 'cuanto deje de utilidad', 'se me fue la plata', 'en que se fue la plata', 'en que gaste', 'ganando o perdiendo', 'estoy ganando', 'estoy perdiendo', 'me quedo de ganancia', 'cuanto me quedo', 'ganancia del', 'cuanto me queda libre', 'ingresos y egresos', 'cuanto gane', 'cuanta ganancia', 'utilidad del',
                          'balance del', 'gastos del', 'cuanto gaste'),
         'ejemplos': ('¿Cuánto gané este mes?', '¿Cuáles fueron mis gastos del mes pasado?'),
         'canales': PANEL, 'motor': 'A',
@@ -224,7 +224,7 @@ INTENCIONES = {
 
     # ── Caja ──────────────────────────────────────────────────
     'caja_estado': {
-        'disparadores': ('en caja', 'arqueo', 'cierre de caja', 'cuadre de caja'),
+        'disparadores': ('en la caja', 'la caja', 'cerraron la caja', 'cerro la caja', 'caja abierta', 'turno de caja', 'deberia haber en caja', 'en caja', 'arqueo', 'cierre de caja', 'cuadre de caja'),
         'ejemplos': ('¿Cuánto hay en caja?', '¿Cómo va el arqueo de hoy?'),
         'canales': PANEL, 'motor': 'A',
     },
@@ -319,7 +319,7 @@ INTENCIONES = {
         'canales': PANEL, 'motor': 'A',
     },
     'cobros_recibidos': {
-        'disparadores': ('cuanto cobre', 'cuanto he cobrado', 'cuanto hemos cobrado', 'cuanto me pagaron',
+        'disparadores': ('recibi en pagos', 'cuanto recibi', 'pagos que me hicieron', 'me han pagado', 'cuanto cobre', 'cuanto he cobrado', 'cuanto hemos cobrado', 'cuanto me pagaron',
                          'cuanto nos pagaron', 'pagos recibidos', 'pagos que recibi', 'que pagos recibi',
                          'quien me pago', 'quienes me pagaron', 'cuanto recaude', 'recaudo del'),
         'ejemplos': ('¿Cuánto cobré este mes?', '¿Cuánto me pagaron esta semana?', '¿Qué pagos recibí este mes?'),
@@ -356,7 +356,7 @@ INTENCIONES = {
 
     # ── Restaurante ───────────────────────────────────────────
     'restaurante_ahora': {
-        'disparadores': ('mesas estan ocupadas', 'mesas libres', 'mesas estan libres', 'como esta el salon', 'las mesas', 'mesas abiertas', 'como va el salon', 'mesas ocupadas'),
+        'disparadores': ('mesas hay ocupadas', 'mesas hay libres', 'mesas hay abiertas', 'mesas estan ocupadas', 'mesas libres', 'mesas estan libres', 'como esta el salon', 'las mesas', 'mesas abiertas', 'como va el salon', 'mesas ocupadas'),
         'ejemplos': ('¿Cómo van las mesas?',),
         'canales': PANEL, 'motor': 'A',
     },
@@ -369,13 +369,13 @@ INTENCIONES = {
 
     # ── Nómina (sensible: solo dueño y contador) ──────────────
     'nomina_resumen': {
-        'disparadores': ('nomina', 'planilla', 'cuanto pago de sueldos'),
+        'disparadores': ('cuestan los empleados', 'cuanto me cuestan los empleados', 'costo de los empleados', 'pago a los empleados', 'costo de la nomina', 'nomina', 'planilla', 'cuanto pago de sueldos'),
         'ejemplos': ('¿Cuánto pagué de nómina este mes?',),
         'canales': PANEL, 'motor': 'A',
     },
     'nomina_empleado': {
         # Necesita el nombre del empleado.
-        'disparadores': ('cuanto gana', 'salario de', 'sueldo de'),
+        'disparadores': ('cuanto le pago a', 'le pago a', 'cuanto se le paga a', 'cuanto gana', 'salario de', 'sueldo de'),
         'ejemplos': ('¿Cuánto gana Juan Gómez?',),
         'canales': PANEL, 'motor': 'A',
     },
@@ -410,7 +410,7 @@ INTENCIONES = {
     # Lo ÚNICO que ve un visitante anónimo. El canal está declarado aquí y en
     # ninguna otra parte: si no dice 'publico', no se expone.
     'buscar_productos': {
-        'disparadores': ('tienen', 'tienes', 'venden', 'cuanto vale', 'cuanto cuesta',
+        'disparadores': ('manejan', 'tendran', 'consiguen', 'tienen', 'tienes', 'venden', 'cuanto vale', 'cuanto cuesta',
                          'precio de', 'busco', 'estoy buscando', 'necesito',
                          'quiero comprar', 'quisiera comprar', 'me gustaria comprar',
                          'necesito comprar', 'quiero', 'quisiera'),
@@ -424,7 +424,7 @@ INTENCIONES = {
         'canales': PUBLICO, 'motor': 'A',
     },
     'servicios_publicos': {
-        'disparadores': ('que servicios', 'prestan servicio', 'hacen mantenimiento',
+        'disparadores': ('reparan', 'arreglan', 'reparacion de', 'arreglo de', 'hacen reparacion', 'revisan', 'que servicios', 'prestan servicio', 'hacen mantenimiento',
                          'hacen instalacion', 'tienen servicio de', 'tienen servicio',
                          'ofrecen'),
         'ejemplos': ('¿Qué servicios prestan?', '¿Hacen mantenimiento?'),
@@ -437,7 +437,7 @@ INTENCIONES = {
         'canales': PUBLICO, 'motor': 'A',
     },
     'como_comprar': {
-        'disparadores': ('como compro', 'como puedo comprar', 'como hago el pedido', 'como comprar',
+        'disparadores': ('hago un pedido', 'hacer un pedido', 'como hago un pedido', 'como compro', 'como puedo comprar', 'como hago el pedido', 'como comprar',
                          'como se compra', 'como hago una compra',
                          'puedo comprar en linea', 'como pido'),
         'ejemplos': ('¿Cómo compro?', '¿Puedo comprar en línea?'),

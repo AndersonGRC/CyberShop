@@ -166,6 +166,38 @@ def enrutar(texto, capacidades):
     return [(h.code, params)]
 
 
+# Palabras que acompañan a un seguimiento de período sin cambiar su sentido:
+# «¿y el mes pasado?», «¿lo mismo pero de ayer?», «¿ahora la semana pasada?».
+_RELLENO_SEGUIMIENTO = set('y e en el la los las de del para con ahora lo mismo pero que tal como fue fueron '
+                           'va vamos ese esa eso por favor porfa dame muestrame y ya'.split())
+
+
+def seguimiento_de_periodo(texto, historial, capacidades):
+    """«¿Y el mes pasado?» justo después de una consulta con período → la MISMA
+    consulta con el período nuevo, sin modelo. Solo si el último turno usó una
+    sola capacidad que admite período y la pregunta no dice nada más que el
+    período (un nombre, otro tema o dos períodos van al modelo)."""
+    if not historial or not isinstance(historial, list) or not isinstance(historial[-1], dict):
+        return []
+    codigo = str(historial[-1].get('herramienta') or '').strip()
+    if not codigo or ',' in codigo or ':' in codigo:
+        return []
+    h = next((c for c in capacidades if c.code == codigo), None)
+    if h is None or 'periodo' not in h.params:
+        return []
+    normal = normalizar(expandir(texto))
+    resto, periodos = normal, set()
+    for frase, periodo in sorted(_PERIODOS_TEXTO, key=lambda x: len(x[0]), reverse=True):
+        if _RE_PERIODO[frase].search(resto):
+            periodos.add(periodo)
+            resto = _RE_PERIODO[frase].sub(' ', resto)
+    if len(periodos) != 1:
+        return []
+    if any(w not in _RELLENO_SEGUIMIENTO for w in re.findall(r'[a-z0-9]+', resto)):
+        return []
+    return [(codigo, {'periodo': periodos.pop()})]
+
+
 def enrutar_panel_seguro(texto, capacidades, historial=None):
     """Ruta rápida solo para preguntas inequívocas del panel.
 
@@ -179,7 +211,9 @@ def enrutar_panel_seguro(texto, capacidades, historial=None):
     if not normal:
         return []
     if historial and re.match(r'^[¿\s]*(?:y\b|ahora\b|tambien\b|lo mismo\b|ese\b|esa\b|esos\b|esas\b)', normal):
-        return []                         # este seguimiento requiere contexto
+        # Un cambio de período sobre la consulta anterior se resuelve aquí;
+        # cualquier otro seguimiento necesita al modelo con la conversación.
+        return seguimiento_de_periodo(texto, historial, capacidades)
     if re.search(r'\b(?:19|20)\d{2}\b|\b(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b', normal):
         return []                         # fechas concretas: las interpreta el planificador
     if re.search(r'\b(?:trimestre|quincena|ultimos?\s+\d+\s+dias?|entre\s+el\s+\d+|del\s+\d+\s+al\s+\d+)\b', normal):
@@ -199,7 +233,10 @@ def enrutar_panel_seguro(texto, capacidades, historial=None):
                 tramos.append((m.end() - m.start(), m.start(), m.end(), h.code))
     aceptados = []
     for largo, ini, fin, code in sorted(tramos, reverse=True):
-        if not any(ini < f and i < fin for _, i, f, _ in aceptados):
+        # Solo choca con lo aceptado de OTRA capacidad: dos frases de la misma
+        # que se encadenan («cómo vamos frente al» + «frente al mes pasado»)
+        # cubren juntas el tramo y dejan fuera a la más corta de otra.
+        if not any(ini < f and i < fin and c != code for _, i, f, c in aceptados):
             aceptados.append((largo, ini, fin, code))
     coincidencias = {code for _, _, _, code in aceptados}
     if len(coincidencias) != 1:

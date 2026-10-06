@@ -43,7 +43,28 @@ def main():
     if '--todo' in sys.argv:
         for q, r in bien:
             print(f'  ok     «{q}» → {r}')
-    return 0 if not (mal or falsos) else 1
+
+    # Chat del sitio público (visitante anónimo).
+    from services.ia.enrutador import enrutar
+    from tests.banco_preguntas_panel import PUBLICO, SEGUIMIENTOS
+    publicas = [h for h in d.REGISTRO.values() if 'publico' in h.canales]
+    mal_pub = [(q, e, enrutar(q, publicas)) for q, e in PUBLICO
+               if not (enrutar(q, publicas) and enrutar(q, publicas)[0][0] == e)]
+    print(f'Chat del sitio: {len(PUBLICO) - len(mal_pub)}/{len(PUBLICO)}')
+    for q, e, r in mal_pub:
+        print(f'  FALLA  «{q}» → {r} (esperaba {e})')
+
+    # Seguimientos «¿y el mes pasado?» tras una consulta.
+    mal_seg = []
+    for anterior, q, periodo in SEGUIMIENTOS:
+        r = enrutar_panel_seguro(q, caps, historial=[{'pregunta': 'x', 'herramienta': anterior}])
+        esperado = [(anterior, {'periodo': periodo})] if periodo else []
+        if r != esperado:
+            mal_seg.append((anterior, q, r, esperado))
+    print(f'Seguimientos: {len(SEGUIMIENTOS) - len(mal_seg)}/{len(SEGUIMIENTOS)}')
+    for anterior, q, r, esperado in mal_seg:
+        print(f'  FALLA  tras {anterior}: «{q}» → {r} (esperaba {esperado})')
+    return 0 if not (mal or falsos or mal_pub or mal_seg) else 1
 
 
 if __name__ == '__main__':
