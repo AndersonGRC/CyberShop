@@ -12,6 +12,7 @@ Las renovaciones son filas nuevas con `renovacion_de` apuntando a la compra
 original; al aprobarse el pago extienden `proximo_pago` del padre.
 """
 
+import calendar
 import secrets
 from datetime import date, datetime, timedelta
 
@@ -377,19 +378,41 @@ def marcar_error(compra_id, detalle):
 
 # ── Cobro recurrente ───────────────────────────────────────────
 
+def _sumar_meses(d, meses):
+    """La misma fecha `meses` meses después (el 31 en un mes corto es su último día)."""
+    m = d.month - 1 + meses
+    anio, mes = d.year + m // 12, m % 12 + 1
+    return date(anio, mes, min(d.day, calendar.monthrange(anio, mes)[1]))
+
+
+def siguiente_vencimiento(proximo_pago, periodo='mes', hoy=None):
+    """Próximo cobro tras pagar UN período, sobre la fecha de corte: el día de
+    pago no cambia aunque pague tarde (vencía el 18, paga el 7 → vuelve a vencer
+    el 18). Si aun así queda atrás de hoy (más de un período de atraso), avanza
+    períodos completos en el mismo día hasta quedar al día: el pago en línea es
+    de un período y no se acumula deuda. Antes contaba 30 días desde HOY y el
+    día de cobro se corría."""
+    hoy = hoy or date.today()
+    meses = 12 if periodo == 'año' else 1
+    if not proximo_pago:
+        return _sumar_meses(hoy, meses)
+    veces = 1
+    nueva = _sumar_meses(proximo_pago, meses)
+    while nueva < hoy:
+        veces += 1
+        nueva = _sumar_meses(proximo_pago, meses * veces)   # desde el corte: sin arrastrar el día
+    return nueva
+
+
 def extender_periodo(compra_id):
-    """Renovación pagada: corre proximo_pago un período y limpia recordatorios.
-    Devuelve la fila actualizada."""
+    """Renovación pagada: corre proximo_pago un período (ver
+    `siguiente_vencimiento`) y limpia recordatorios. Devuelve la fila actualizada."""
     with get_db_cursor(dict_cursor=True) as cur:
         cur.execute("SELECT periodo, proximo_pago FROM plan_compras WHERE id = %s", (compra_id,))
         row = cur.fetchone()
         if not row:
             return None
-        delta = timedelta(days=365) if row['periodo'] == 'año' else timedelta(days=30)
-        base = row['proximo_pago'] or date.today()
-        # Si pagó tarde, el nuevo período corre desde HOY (no acumula deuda de días)
-        if base < date.today():
-            base = date.today()
+        nueva = siguiente_vencimiento(row['proximo_pago'], row['periodo'])
         cur.execute(
             """
             UPDATE plan_compras
@@ -398,7 +421,7 @@ def extender_periodo(compra_id):
             WHERE id = %s
             RETURNING *
             """,
-            (base + delta, compra_id),
+            (nueva, compra_id),
         )
         return cur.fetchone()
 
