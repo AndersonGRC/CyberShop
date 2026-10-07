@@ -4,8 +4,9 @@ Reglas:
   - Al modelo SOLO le llega información del equipo (tipo, marca, modelo,
     características, síntomas). Nunca nombre, teléfono, correo, clave ni
     dirección del cliente: el texto pegado pasa antes por
-    `lector.limpiar_personales` y los mensajes se reescriben como plantilla
-    con {cliente}, {negocio}… sin rellenar.
+    `lector.limpiar_personales`, lo que escribe el técnico (falla,
+    diagnóstico) por `lector.sin_datos_personales`, y los mensajes se
+    reescriben como plantilla con {cliente}, {negocio}… sin rellenar.
   - La IA PROPONE; el usuario acepta campo por campo. Nada se guarda solo.
   - Sin IA (apagada, fría o sin plan) todo funciona: el lector fijo y las
     sugerencias por reglas siguen respondiendo.
@@ -216,7 +217,8 @@ def leer_informacion(equipo, texto, usar_ia=True):
                     f'<<<\n{para_ia}\n>>>\n\n'
                     f'Ubica cada dato en estos campos (usa exactamente estas claves):\n{_campos_del_tipo(tipo)}\n\n'
                     'Reglas: copia cada valor TAL CUAL aparece en el texto (no conviertas ni completes). Si un '
-                    'dato no está en el texto, NO lo pongas. En «linea» copia la línea del texto donde lo viste.\n'
+                    'dato no está en el texto, NO lo pongas. En «linea» copia solo el pedazo del texto donde lo '
+                    'viste (máximo 60 caracteres).\n'
                     'Responde SOLO un JSON así: {"campos": {"clave": {"valor": "...", "linea": "..."}, '
                     '"extra.clave": {"valor": "...", "linea": "..."}}, '
                     '"resumen": "2 o 3 frases con lo importante del equipo para el técnico", '
@@ -224,7 +226,8 @@ def leer_informacion(equipo, texto, usar_ia=True):
                     'En sugerencias pon mejoras reales que el dato justifique (ranura de RAM libre, disco '
                     'mecánico, batería gastada, sistema sin soporte); si no hay, lista vacía. '
                     'Valores cortos, sin unidades repetidas, sin inventar.')
-            texto_ia, err = _ia()._chat(SISTEMA, user, max_tokens=700, temperature=0.1, espera_frio=40,
+            # Un portátil tiene ~17 campos con su evidencia: con menos tokens el JSON se corta.
+            texto_ia, err = _ia()._chat(SISTEMA, user, max_tokens=1100, temperature=0.1, espera_frio=40,
                                         tarea='contenido')
             datos = _json_de(texto_ia) if texto_ia else None
             if isinstance(datos, dict):
@@ -239,6 +242,8 @@ def leer_informacion(equipo, texto, usar_ia=True):
                     if isinstance(s, dict) and s.get('titulo'):
                         sugerencias_ia.append({'titulo': str(s['titulo'])[:120],
                                                'detalle': str(s.get('detalle') or '')[:300]})
+            elif texto_ia:
+                aviso = 'La respuesta de la IA llegó incompleta. Se usó el lector automático.'
             else:
                 aviso = (err or 'La IA no respondió a tiempo.') + ' Se usó el lector automático.'
         else:
@@ -300,12 +305,15 @@ def prediagnostico(orden):
     ok, motivo = estado()
     if not ok:
         return None, motivo
+    # Lo escribe el técnico a mano: puede traer el nombre o el celular del cliente.
+    def limpio(texto):
+        return lector.sin_datos_personales(texto, (orden.get('cliente_nombre'),))
     datos = [f'Equipo: {tipos.nombre(orden.get("tipo"))} {orden.get("marca") or ""} {orden.get("modelo") or ""}'.strip(),
-             f'Falla que reporta el cliente: {orden.get("falla_reportada") or ""}']
+             f'Falla que reporta el cliente: {limpio(orden.get("falla_reportada") or "")}']
     if orden.get('estado_fisico'):
-        datos.append(f'Estado físico al recibir: {orden["estado_fisico"]}')
+        datos.append(f'Estado físico al recibir: {limpio(orden["estado_fisico"])}')
     if orden.get('diagnostico'):
-        datos.append(f'Notas del técnico: {orden["diagnostico"]}')
+        datos.append(f'Notas del técnico: {limpio(orden["diagnostico"])}')
     user = ('\n'.join(datos) + '\n\nEscribe un pre-diagnóstico para el técnico con tres partes cortas:\n'
             'Causas probables: (de la más a la menos probable, máximo 4)\n'
             'Pruebas a hacer: (en orden, máximo 5)\n'
@@ -318,7 +326,7 @@ def prediagnostico(orden):
 
 
 # ── 4. Redactar mensajes ────────────────────────────────────────
-_VARIABLES = re.compile(r'\{(cliente|negocio|numero|equipo|enlace|valor|garantia|pieza|telefono)\}')
+_VARIABLES = re.compile(r'\{(cliente|negocio|numero|equipo|enlace|valor|garantia|pieza|telefono|motivo)\}')
 
 
 def mejorar_plantilla(tipo_mensaje, plantilla, equipo_desc=''):

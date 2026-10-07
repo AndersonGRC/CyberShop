@@ -631,6 +631,21 @@ def crm_contacto_ver(id):
         total_cotizado = sum(float(c['total'] or 0) for c in cotizaciones)
         total_facturado = sum(float(c['total'] or 0) for c in cuentas_cobro)
 
+    # Equipos en Servicio Técnico (solo si la tienda tiene el módulo). Va fuera
+    # de la conexión de arriba: la primera vez puede crear las tablas del módulo.
+    st_equipos, st_activo, st_operar = [], False, False
+    try:
+        from services.permisos_service import tiene_permiso
+        from tenant_features import MODULE_SERVICIO_TECNICO, is_module_active
+        st_activo = (is_module_active(MODULE_SERVICIO_TECNICO)
+                     and tiene_permiso(session.get('rol_id'), 'servicio_tecnico', 'ver'))
+        st_operar = st_activo and tiene_permiso(session.get('rol_id'), 'servicio_tecnico', 'operar')
+        if st_activo:
+            from services.servicio_tecnico_service import resumen_equipos_de_contacto
+            st_equipos = resumen_equipos_de_contacto(id)
+    except Exception as exc:  # noqa: BLE001 — el CRM no depende del taller
+        app.logger.warning(f'CRM: no se pudieron cargar los equipos del contacto {id}: {exc}')
+
     return render_template(
         'crm_contacto_ver.html',
         contacto=contacto,
@@ -643,6 +658,9 @@ def crm_contacto_ver(id):
         total_comprado=total_comprado,
         total_cotizado=total_cotizado,
         total_facturado=total_facturado,
+        st_equipos=st_equipos,
+        st_activo=st_activo,
+        st_operar=st_operar,
         hoy=date.today(),
     )
 

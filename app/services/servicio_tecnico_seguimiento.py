@@ -32,7 +32,11 @@ TIPOS = {
     'mantenimiento': ('Mantenimiento preventivo', 'tools', 'cliente'),
     'revision_pieza': ('Revisión de pieza', 'microchip', 'cliente'),
     'calificacion_baja': ('Calificación baja: llamar', 'exclamation-triangle', 'urgente'),
+    'recordatorio': ('Recordatorio', 'bell', 'cliente'),
 }
+# Canales de un recordatorio programado a mano («interno» = solo para el equipo de trabajo).
+CANALES_RECORDATORIO = [('whatsapp', 'WhatsApp'), ('correo', 'Correo'), ('llamada', 'Llamada'),
+                        ('interno', 'Solo para nosotros')]
 # Los que el cron puede mandar solos por correo.
 AUTO_CORREO = ('listo_sin_recoger', 'satisfaccion', 'garantia_por_vencer', 'mantenimiento', 'revision_pieza')
 CLAVE_URL_BASE = 'st_url_base'
@@ -107,8 +111,8 @@ def programar(cur, tipo, fecha, *, orden_id=None, equipo_id=None, cambio_id=None
     cur.execute("""SELECT id FROM st_seguimientos
                    WHERE tipo = %s AND estado = 'pendiente'
                      AND orden_id IS NOT DISTINCT FROM %s AND cambio_id IS NOT DISTINCT FROM %s
-                     AND cotizacion_id IS NOT DISTINCT FROM %s LIMIT 1""",
-                (tipo, orden_id, cambio_id, cotizacion_id))
+                     AND cotizacion_id IS NOT DISTINCT FROM %s AND equipo_id IS NOT DISTINCT FROM %s LIMIT 1""",
+                (tipo, orden_id, cambio_id, cotizacion_id, equipo_id))
     if cur.fetchone():
         return None
     cur.execute("""INSERT INTO st_seguimientos (orden_id, equipo_id, cambio_id, cotizacion_id, crm_contacto_id,
@@ -126,6 +130,62 @@ def cerrar_pendientes(cur, orden_id, tipos=None, estado='omitido', comentario=No
         sql += ' AND tipo = ANY(%s)'
         params.append(list(tipos))
     cur.execute(sql, params)
+
+
+def cerrar_de_equipo(cur, equipo_id, tipos, comentario, estado='omitido', solo_sin_orden=False):
+    """Cierra los seguimientos pendientes del equipo de esos tipos (los de sus
+    órdenes también, salvo `solo_sin_orden`)."""
+    sql = ("UPDATE st_seguimientos SET estado = %s, hecho_en = NOW(), comentario = COALESCE(comentario, %s) "
+           "WHERE equipo_id = %s AND estado = 'pendiente' AND tipo = ANY(%s)")
+    if solo_sin_orden:
+        sql += ' AND orden_id IS NULL'
+    cur.execute(sql, (estado, comentario, equipo_id, list(tipos)))
+
+
+def programar_recordatorio(equipo_id, fecha, motivo, canal='whatsapp', usuario_id=None):
+    """Recordatorio puesto a mano en la ficha del equipo (llamar, revisar, ofrecer…)."""
+    from services.servicio_tecnico_service import ErrorServicio, _evento, _fecha, _texto
+    fecha = _fecha(fecha)
+    if not fecha:
+        raise ErrorServicio('Escoge la fecha del recordatorio.')
+    if fecha < date.today():
+        raise ErrorServicio('La fecha del recordatorio ya pasó.')
+    motivo = _texto(motivo, 300)
+    if not motivo:
+        raise ErrorServicio('Escribe para qué es el recordatorio.')
+    if canal not in dict(CANALES_RECORDATORIO):
+        canal = 'whatsapp'
+    with get_db_cursor() as cur:
+        cur.execute('SELECT crm_contacto_id FROM st_equipos WHERE id = %s', (equipo_id,))
+        fila = cur.fetchone()
+        if not fila:
+            raise ErrorServicio('El equipo no existe.')
+        cur.execute("""INSERT INTO st_seguimientos (equipo_id, crm_contacto_id, tipo, fecha_programada, canal, motivo)
+                       VALUES (%s, %s, 'recordatorio', %s, %s, %s) RETURNING id""",
+                    (equipo_id, _uno(fila), fecha, canal, motivo))
+        seg_id = _uno(cur.fetchone())
+        _evento(cur, None, equipo_id, 'nota', f"Recordatorio para el {fecha.strftime('%d/%m/%Y')}: {motivo}", usuario_id)
+    return seg_id
+
+
+def de_equipo(equipo_id, hechos=10):
+    """Seguimientos del equipo (de sus órdenes y propios): pendientes con el
+    mensaje listo y los últimos ya atendidos."""
+    cfg = msj.config()
+    negocio = msj.datos_negocio()
+    hoy = date.today()
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute(_SQL_SEGUIMIENTO + """
+            WHERE COALESCE(s.equipo_id, o.equipo_id) = %s AND s.estado = 'pendiente'
+            ORDER BY s.fecha_programada, s.id""", (equipo_id,))
+        pendientes = [_enriquecer(f, negocio, cfg) for f in cur.fetchall()]
+        cur.execute(_SQL_SEGUIMIENTO + """
+            WHERE COALESCE(s.equipo_id, o.equipo_id) = %s AND s.estado <> 'pendiente'
+            ORDER BY s.hecho_en DESC NULLS LAST, s.id DESC LIMIT %s""", (equipo_id, hechos))
+        atendidos = [_enriquecer(f, negocio, cfg) for f in cur.fetchall()]
+    for f in pendientes:
+        f['dias'] = (hoy - f['fecha_programada']).days
+    return pendientes, atendidos
 
 
 def al_cambiar_estado(cur, orden, nuevo, garantia_hasta=None, cfg=None):
@@ -146,10 +206,21 @@ def al_cambiar_estado(cur, orden, nuevo, garantia_hasta=None, cfg=None):
             aviso = garantia_hasta - timedelta(days=cfg['st_dias_garantia'])
             if aviso > hoy:
                 programar(cur, 'garantia_por_vencer', aviso, **base)
-        if cfg['st_meses_mantenimiento'] > 0:
+        if cfg['st_meses_mantenimiento'] > 0 and not _tiene_plan(cur, orden['equipo_id']):
             programar(cur, 'mantenimiento', _sumar_meses(hoy, cfg['st_meses_mantenimiento']), **base)
     elif nuevo == 'cancelado':
         cerrar_pendientes(cur, orden['id'], comentario='Orden cancelada')
+
+
+def _tiene_plan(cur, equipo_id):
+    """El equipo tiene su propio plan de mantenimiento (entonces sobra el aviso
+    general de «N meses después de entregar»)."""
+    cur.execute('SELECT mant_cada_meses, mant_proximo FROM st_equipos WHERE id = %s', (equipo_id,))
+    fila = cur.fetchone()
+    if not fila:
+        return False
+    valores = list(fila.values()) if isinstance(fila, dict) else list(fila)
+    return bool(valores[0] or valores[1])
 
 
 def al_registrar_cambio(cur, cambio_id, equipo_id, proxima_revision, orden_id=None):
@@ -209,6 +280,7 @@ def _datos_mensaje(fila, negocio):
         'valor': ('$' + '{:,.0f}'.format(float(valor)).replace(',', '.')) if valor is not None else '',
         'garantia': fila['garantia_hasta'].strftime('%d/%m/%Y') if fila.get('garantia_hasta') else '',
         'pieza': (fila.get('componente') or 'la pieza').lower(),
+        'motivo': (fila.get('motivo') or '').strip().rstrip('.'),
     }
 
 
@@ -234,8 +306,14 @@ def _enriquecer(fila, negocio, cfg):
     fila.update(tipo_nombre=nombre, tipo_icono=icono, urgente=(quien == 'urgente'))
     asunto, texto = msj.armar(fila['tipo'], _datos_mensaje(fila, negocio), cfg)
     telefono = fila.get('cliente_whatsapp') or fila.get('cot_telefono')
-    fila.update(asunto=asunto, mensaje=texto, wa_url=whatsapp_url(telefono, texto),
-                telefono=telefono, tiene_correo=bool(fila.get('cliente_email')),
+    interno = fila['tipo'] == 'recordatorio' and fila.get('canal') == 'interno'
+    if interno:
+        # Recordatorio para el equipo de trabajo: no se le escribe al cliente.
+        fila.update(tipo_nombre='Recordatorio interno', tipo_icono='clipboard-check')
+        texto = fila.get('motivo') or texto
+    fila.update(asunto=asunto, mensaje=texto, wa_url=None if interno else whatsapp_url(telefono, texto),
+                telefono=telefono, tiene_correo=bool(fila.get('cliente_email')) and not interno,
+                interno=interno,
                 nombre_cliente=fila.get('cliente_nombre') or fila.get('cot_cliente') or 'Cliente')
     return fila
 

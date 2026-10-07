@@ -6,7 +6,10 @@
 <section class="st-hero">
     <div>
         <h1><i class="fas fa-laptop-medical" aria-hidden="true"></i> Equipos atendidos</h1>
-        <p>La ficha de cada dispositivo: características, piezas cambiadas e historial de servicio.</p>
+        <p>La hoja de vida de cada dispositivo: ficha técnica, fotos, mantenimientos, recordatorios y servicios.</p>
+    </div>
+    <div class="st-acciones">
+        <a class="st-btn st-btn-sm" href="{{ url_for('servicio_tecnico.equipo_nuevo') }}"><i class="fas fa-plus" aria-hidden="true"></i> Registrar equipo</a>
     </div>
 </section>
 
@@ -25,7 +28,7 @@
     {% if equipos %}
     <div class="st-tabla-wrap">
         <table class="st-tabla">
-            <thead><tr><th>Equipo</th><th>Cliente</th><th>Serial / IMEI</th><th>Servicios</th><th>Último estado</th></tr></thead>
+            <thead><tr><th>Equipo</th><th>Cliente</th><th>Serial / IMEI</th><th>Servicios</th><th>Próximo mantenimiento</th><th>Último estado</th></tr></thead>
             <tbody>
             {% for e in equipos %}
             <tr>
@@ -35,6 +38,7 @@
                 <td data-label="Cliente">{{ e.cliente_nombre or '—' }}</td>
                 <td data-label="Serial / IMEI">{{ e.serial or e.imei or '—' }}</td>
                 <td data-label="Servicios">{{ e.ordenes }}</td>
+                <td data-label="Próximo mantenimiento">{% if e.mant_proximo %}{{ e.mant_proximo.strftime('%d/%m/%Y') }}{% else %}—{% endif %}</td>
                 <td data-label="Último estado">{% if e.ultimo_estado %}{{ chip(e.ultimo_estado, estado_info) }}{% else %}—{% endif %}</td>
             </tr>
             {% endfor %}
@@ -45,8 +49,11 @@
     <div class="st-vacio">
         <i class="fas fa-laptop" aria-hidden="true"></i>
         <h3>{% if q or filtro_tipo %}No hay equipos con ese filtro{% else %}Aún no hay equipos registrados{% endif %}</h3>
-        <p>Los equipos se registran al crear una orden de servicio.</p>
-        <a class="st-btn" href="{{ url_for('servicio_tecnico.nueva_orden') }}"><i class="fas fa-plus" aria-hidden="true"></i> Nueva orden</a>
+        <p>Regístralo con su ficha, fotos y plan de mantenimiento, o recíbelo directamente en una orden de servicio.</p>
+        <div class="st-acciones" style="justify-content:center">
+            <a class="st-btn" href="{{ url_for('servicio_tecnico.equipo_nuevo') }}"><i class="fas fa-plus" aria-hidden="true"></i> Registrar equipo</a>
+            <a class="st-btn st-btn-sec" href="{{ url_for('servicio_tecnico.nueva_orden') }}"><i class="fas fa-clipboard-check" aria-hidden="true"></i> Nueva orden</a>
+        </div>
     </div>
     {% endif %}
 </div>

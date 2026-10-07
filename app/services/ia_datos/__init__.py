@@ -127,17 +127,17 @@ registrar('restaurante_desempeno', _res.restaurante_desempeno,
 registrar('taller_estado', _stc.taller_estado,
           "Servicio técnico AHORA: equipos en el taller por estado, listos para entregar, entregas prometidas vencidas, órdenes sin técnico y carga de cada técnico.",
           ['limite'], etiqueta='el estado de tu taller', dominio='servicio_tecnico',
-          modulos=('servicio_tecnico',), permiso='servicio_tecnico', extra={'nube': False})
+          modulos=('servicio_tecnico',), permiso='servicio_tecnico', extra={'nube': False, 'limite_defecto': 15})
 registrar('taller_seguimientos', _stc.taller_seguimientos,
-          "A quién hay que contactar hoy en el servicio técnico: cotizaciones sin respuesta, equipos listos sin recoger, preguntar cómo le fue al cliente, garantías, mantenimientos y calificaciones bajas.",
+          "A quién hay que contactar hoy en el servicio técnico: cotizaciones sin respuesta, equipos listos sin recoger, preguntar cómo le fue al cliente, garantías, mantenimientos, recordatorios programados (con su motivo) y calificaciones bajas.",
           ['limite'], etiqueta='los seguimientos del taller', dominio='servicio_tecnico',
-          modulos=('servicio_tecnico',), permiso='servicio_tecnico', extra={'nube': False})
+          modulos=('servicio_tecnico',), permiso='servicio_tecnico', extra={'nube': False, 'limite_defecto': 20})
 registrar('taller_orden', _stc.taller_orden,
           "Detalle de UNA orden de servicio técnico por su número (OS-000012) o las órdenes de un cliente: estado, equipo, falla, diagnóstico, valores, fechas y últimos movimientos.",
           ['texto'], etiqueta='esa orden de servicio', dominio='servicio_tecnico',
           modulos=('servicio_tecnico',), permiso='servicio_tecnico', extra={'nube': False})
 registrar('taller_equipo_historial', _stc.taller_equipo_historial,
-          "Equipos de UN cliente por su nombre, o el equipo de un serial o IMEI: características, piezas cambiadas, próximas revisiones, mejoras sugeridas e historial de reparaciones.",
+          "Hoja de vida de los equipos de UN cliente por su nombre, de un serial o IMEI, o descritos con palabras (el portátil de Laura): características, plan y mantenimientos hechos, recordatorios pendientes, fotos, piezas cambiadas, mejoras sugeridas e historial de reparaciones.",
           ['texto'], etiqueta='el historial de ese equipo', dominio='servicio_tecnico',
           modulos=('servicio_tecnico',), permiso='servicio_tecnico', extra={'nube': False})
 registrar('taller_casos', _stc.taller_casos,
@@ -151,6 +151,10 @@ registrar('taller_fallas_frecuentes', _stc.taller_fallas_frecuentes,
           "tipo de falla y equipos o marcas con más casos (solo cifras, sin clientes).",
           ['periodo'], etiqueta='las fallas más comunes del taller', dominio='servicio_tecnico',
           modulos=('servicio_tecnico',), permiso='servicio_tecnico')
+registrar('taller_mantenimientos', _stc.taller_mantenimientos,
+          "Mantenimientos del servicio técnico: qué equipos tienen mantenimiento vencido o les toca en el período (según su plan), los preventivos y correctivos hechos con lo cobrado, revisiones de piezas, UPS con baterías de más de 2 años y equipos sin plan de mantenimiento.",
+          ['periodo', 'limite'], etiqueta='los mantenimientos del taller', dominio='servicio_tecnico',
+          modulos=('servicio_tecnico',), permiso='servicio_tecnico', extra={'nube': False, 'limite_defecto': 20})
 registrar('taller_desempeno', _stc.taller_desempeno,
           "Cómo le fue al servicio técnico en un período: órdenes recibidas y entregadas, días de reparación, lo cobrado, equipos más atendidos, aprobación de cotizaciones y satisfacción de los clientes.",
           ['periodo'], etiqueta='el desempeño de tu taller', dominio='servicio_tecnico',
@@ -345,10 +349,13 @@ def sanear_params(h, params):
             clave = str(params['periodo']).strip().lower().replace(' ', '_')
             safe['periodo'] = _periodo(_ALIAS_PERIODO.get(clave, clave))
     if 'limite' in h.params:
+        # Cada capacidad puede declarar su propio tope por defecto (extra
+        # 'limite_defecto'); las demás siguen con 5.
+        defecto = int((getattr(h, 'extra', None) or {}).get('limite_defecto', 5))
         try:
-            safe['limite'] = int(params.get('limite', 5))
+            safe['limite'] = int(params.get('limite', defecto))
         except Exception:
-            safe['limite'] = 5
+            safe['limite'] = defecto
     if 'umbral' in h.params:
         try:
             safe['umbral'] = int(params.get('umbral', 5))

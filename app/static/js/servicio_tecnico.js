@@ -1,6 +1,8 @@
 /* Servicio Técnico: comportamiento de las pantallas del módulo.
  *  - Campos del equipo según el tipo (columnas comunes + campos propios).
  *  - Asistente de nueva orden: cliente → equipo → falla → confirmar.
+ *  - Registrar equipo (una página): cliente del CRM, ficha, fotos y plan.
+ *  - Vista previa de fotos y validación del IMEI mientras se escribe.
  *  - Ver la clave de desbloqueo (POST con CSRF; queda en la bitácora).
  *  - Pestañas de la ficha del equipo y botón «Copiar enlace».
  * Sin JS todo el formulario se ve completo y se puede enviar igual.
@@ -70,6 +72,156 @@
   $$('[data-st-tipo]').forEach(function (r) { r.addEventListener('change', aplicarTipo); });
   if ($('[data-st-tipo]')) aplicarTipo();
 
+  // ── IMEI: 15 dígitos + dígito de control (Luhn) ────────────────
+  function imeiValido(imei) {
+    var d = String(imei || '').replace(/\D/g, '');
+    if (d.length !== 15) return false;
+    var t = 0;
+    for (var i = 0; i < 15; i++) {
+      var n = Number(d[i]);
+      if (i % 2 === 1) { n *= 2; if (n > 9) n -= 9; }
+      t += n;
+    }
+    return t % 10 === 0;
+  }
+  var imeiInput = $('#eq-imei'), imeiAyuda = $('#eq-imei-ayuda');
+  if (imeiInput && imeiAyuda) {
+    var ayudaBase = imeiAyuda.textContent;
+    var revisarImei = function () {
+      var d = imeiInput.value.replace(/\D/g, '');
+      imeiAyuda.classList.remove('st-ok', 'st-mal');
+      if (!d) { imeiAyuda.textContent = ayudaBase; imeiInput.removeAttribute('aria-invalid'); return; }
+      if (d.length < 15) { imeiAyuda.textContent = 'Faltan ' + (15 - d.length) + ' dígitos.'; imeiInput.removeAttribute('aria-invalid'); return; }
+      var ok = imeiValido(d);
+      imeiAyuda.textContent = ok ? 'IMEI válido.' : 'El IMEI no es válido: revisa los dígitos (márcalo con *#06#).';
+      imeiAyuda.classList.add(ok ? 'st-ok' : 'st-mal');
+      if (ok) imeiInput.removeAttribute('aria-invalid'); else imeiInput.setAttribute('aria-invalid', 'true');
+    };
+    imeiInput.addEventListener('input', revisarImei);
+    revisarImei();
+  }
+
+  // ── Cliente: buscar en el CRM, escoger o crear ─────────────────
+  // al.elegir(id), al.cambiar(), al.nuevo(): lo propio de cada formulario.
+  function iniciarCliente(form, al) {
+    al = al || {};
+    var contactoId = $('#st-contacto-id', form);
+    var apiClientes = form.getAttribute('data-api-clientes');
+    var buscar = $('#st-buscar-cliente', form), lista = $('#st-clientes', form), temporizador = null;
+    if (!contactoId || !buscar || !lista) return;
+
+    buscar.addEventListener('input', function () {
+      clearTimeout(temporizador);
+      var q = buscar.value.trim();
+      if (q.length < 2) { lista.innerHTML = ''; return; }
+      temporizador = setTimeout(function () {
+        fetch(apiClientes + '?q=' + encodeURIComponent(q), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            var cs = (d && d.clientes) || [];
+            lista.innerHTML = cs.length ? cs.map(function (c) {
+              var datos = [c.whatsapp || c.telefono, c.email, c.empresa].filter(Boolean).join(' · ');
+              return '<button type="button" class="st-opcion" data-id="' + c.id + '" data-nombre="' + esc(c.nombre) +
+                '" data-datos="' + esc(datos) + '"><i class="fas fa-user" aria-hidden="true"></i><span><strong>' +
+                esc(c.nombre) + '</strong><small>' + esc(datos || 'Sin datos de contacto') + '</small></span></button>';
+            }).join('') : '<p class="st-vacio-dato">No hay clientes con ese dato. Créalo como cliente nuevo.</p>';
+          })
+          .catch(function () { lista.innerHTML = '<p class="st-vacio-dato">No se pudo buscar. Intenta de nuevo.</p>'; });
+      }, 250);
+    });
+
+    lista.addEventListener('click', function (ev) {
+      var b = ev.target.closest('.st-opcion');
+      if (!b) return;
+      contactoId.value = b.getAttribute('data-id');
+      $('#st-cliente-nombre', form).textContent = b.getAttribute('data-nombre');
+      $('#st-cliente-datos', form).textContent = b.getAttribute('data-datos') || '';
+      $('#st-cliente-elegido', form).hidden = false;
+      $('#st-cliente-buscar', form).hidden = true;
+      $('#st-cliente-nuevo', form).hidden = true;
+      if (al.elegir) al.elegir(contactoId.value);
+    });
+
+    $('#st-cambiar-cliente', form).addEventListener('click', function () {
+      contactoId.value = '';
+      $('#st-cliente-elegido', form).hidden = true;
+      $('#st-cliente-buscar', form).hidden = false;
+      if (al.cambiar) al.cambiar();
+      buscar.focus();
+    });
+
+    $('#st-cliente-nuevo-btn', form).addEventListener('click', function () {
+      contactoId.value = '';
+      $('#st-cliente-nuevo', form).hidden = false;
+      var q = buscar.value.trim();
+      if (q && !/\d{5,}/.test(q) && !$('#cl-nombre', form).value) $('#cl-nombre', form).value = q;
+      if (/^[\d\s+]{7,}$/.test(q) && !$('#cl-whatsapp', form).value) $('#cl-whatsapp', form).value = q;
+      if (al.nuevo) al.nuevo();
+      $('#cl-nombre', form).focus();
+    });
+  }
+
+  function clienteValido(form) {
+    var nuevo = !$('#st-cliente-nuevo', form).hidden;
+    if (!$('#st-contacto-id', form).value && !(nuevo && $('#cl-nombre', form).value.trim())) {
+      return 'Escoge un cliente de la lista o escribe el nombre del cliente nuevo.';
+    }
+    var correo = $('#cl-email', form).value.trim();
+    if (nuevo && correo && correo.indexOf('@') === -1) return 'El correo del cliente no es válido.';
+    return '';
+  }
+
+  // ── Vista previa de las fotos escogidas ────────────────────────
+  $$('[data-st-fotos]').forEach(function (input) {
+    var vista = $(input.getAttribute('data-st-fotos'));
+    if (!vista) return;
+    input.addEventListener('change', function () {
+      vista.innerHTML = '';
+      Array.prototype.slice.call(input.files || []).forEach(function (archivo) {
+        var li = document.createElement('li');
+        li.className = 'st-foto';
+        if (/^image\//.test(archivo.type) && window.URL && URL.createObjectURL) {
+          var img = document.createElement('img');
+          img.src = URL.createObjectURL(archivo);
+          img.alt = 'Vista previa: ' + archivo.name;
+          img.onload = function () { URL.revokeObjectURL(img.src); };
+          li.appendChild(img);
+        }
+        var pie = document.createElement('div');
+        pie.className = 'st-foto-pie';
+        var mb = archivo.size / 1048576;
+        pie.textContent = archivo.name + ' · ' + (mb >= 1 ? mb.toFixed(1) + ' MB' : Math.max(1, Math.round(archivo.size / 1024)) + ' KB') +
+          (archivo.size > 15 * 1048576 ? ' · pesa más de 15 MB, no se subirá' : '');
+        li.appendChild(pie);
+        vista.appendChild(li);
+      });
+    });
+  });
+
+  // ── Registrar equipo (una sola página) ─────────────────────────
+  var formEquipo = $('#st-form-equipo');
+  if (formEquipo) {
+    iniciarCliente(formEquipo);
+    var errorEq = $('#st-error', formEquipo);
+    formEquipo.addEventListener('submit', function (ev) {
+      var e = clienteValido(formEquipo);
+      if (!e && !tipoActual()) e = 'Escoge el tipo de equipo.';
+      var imei = ($('#eq-imei') || {}).value || '';
+      if (!e && imei && !($('#eq-imei').disabled) && !imeiValido(imei)) e = 'El IMEI no es válido: revisa los 15 dígitos (márcalo con *#06#).';
+      if (e) {
+        ev.preventDefault();
+        errorEq.textContent = e;
+        errorEq.hidden = false;
+        errorEq.scrollIntoView({ block: 'center' });
+        return;
+      }
+      errorEq.hidden = true;
+      var b = $('#st-guardar', formEquipo);
+      b.disabled = true;
+      b.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Guardando…';
+    });
+  }
+
   // ── Asistente de nueva orden ───────────────────────────────────
   var form = $('#st-form-orden');
   if (form) {
@@ -105,12 +257,8 @@
 
     function valida(n) {
       if (n === 1) {
-        var nuevo = !$('#st-cliente-nuevo').hidden;
-        if (!contactoId.value && !(nuevo && $('#cl-nombre').value.trim())) {
-          return 'Escoge un cliente de la lista o escribe el nombre del cliente nuevo.';
-        }
-        var correo = $('#cl-email').value.trim();
-        if (nuevo && correo && correo.indexOf('@') === -1) return 'El correo del cliente no es válido.';
+        var errCliente = clienteValido(form);
+        if (errCliente) return errCliente;
       }
       if (n === 2 && !equipoId.value) {
         if (!tipoActual()) return 'Escoge el tipo de equipo.';
@@ -119,18 +267,6 @@
       }
       if (n === 3 && !$('#o-falla').value.trim()) return 'Describe la falla que reporta el cliente.';
       return '';
-    }
-
-    function imeiValido(imei) {
-      var d = imei.replace(/\D/g, '');
-      if (d.length !== 15) return false;
-      var t = 0;
-      for (var i = 0; i < 15; i++) {
-        var n = Number(d[i]);
-        if (i % 2 === 1) { n *= 2; if (n > 9) n -= 9; }
-        t += n;
-      }
-      return t % 10 === 0;
     }
 
     function resumen() {
@@ -178,66 +314,19 @@
       if (ev.key === 'Enter' && ev.target.tagName === 'INPUT' && paso < TOTAL) { ev.preventDefault(); btnSig.click(); }
     });
 
-    // Cliente: búsqueda
-    var apiClientes = form.getAttribute('data-api-clientes');
+    // Cliente: buscador compartido + los equipos que ya tiene registrados.
     var apiEquipos = form.getAttribute('data-api-equipos');
-    var buscar = $('#st-buscar-cliente'), lista = $('#st-clientes'), temporizador = null;
-
-    buscar.addEventListener('input', function () {
-      clearTimeout(temporizador);
-      var q = buscar.value.trim();
-      if (q.length < 2) { lista.innerHTML = ''; return; }
-      temporizador = setTimeout(function () {
-        fetch(apiClientes + '?q=' + encodeURIComponent(q), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-          .then(function (r) { return r.json(); })
-          .then(function (d) {
-            var cs = (d && d.clientes) || [];
-            lista.innerHTML = cs.length ? cs.map(function (c) {
-              var datos = [c.whatsapp || c.telefono, c.email, c.empresa].filter(Boolean).join(' · ');
-              return '<button type="button" class="st-opcion" data-id="' + c.id + '" data-nombre="' + esc(c.nombre) +
-                '" data-datos="' + esc(datos) + '"><i class="fas fa-user" aria-hidden="true"></i><span><strong>' +
-                esc(c.nombre) + '</strong><small>' + esc(datos || 'Sin datos de contacto') + '</small></span></button>';
-            }).join('') : '<p class="st-vacio-dato">No hay clientes con ese dato. Créalo como cliente nuevo.</p>';
-          })
-          .catch(function () { lista.innerHTML = '<p class="st-vacio-dato">No se pudo buscar. Intenta de nuevo.</p>'; });
-      }, 250);
-    });
-
-    lista.addEventListener('click', function (ev) {
-      var b = ev.target.closest('.st-opcion');
-      if (!b) return;
-      elegirCliente(b.getAttribute('data-id'), b.getAttribute('data-nombre'), b.getAttribute('data-datos'));
-    });
-
-    function elegirCliente(id, nombre, datos) {
-      contactoId.value = id;
-      $('#st-cliente-nombre').textContent = nombre;
-      $('#st-cliente-datos').textContent = datos || '';
-      $('#st-cliente-elegido').hidden = false;
-      $('#st-cliente-buscar').hidden = true;
-      $('#st-cliente-nuevo').hidden = true;
-      cargarEquipos(id);
-    }
-
-    $('#st-cambiar-cliente').addEventListener('click', function () {
-      contactoId.value = '';
-      equipoId.value = '';
-      $('#st-cliente-elegido').hidden = true;
-      $('#st-cliente-buscar').hidden = false;
-      $('#st-equipos-cliente').hidden = true;
-      $('#st-equipo-nuevo').hidden = false;
-      buscar.focus();
-    });
-
-    $('#st-cliente-nuevo-btn').addEventListener('click', function () {
-      contactoId.value = '';
-      $('#st-cliente-nuevo').hidden = false;
-      $('#st-equipos-cliente').hidden = true;
-      $('#st-equipo-nuevo').hidden = false;
-      var q = buscar.value.trim();
-      if (q && !/\d{5,}/.test(q) && !$('#cl-nombre').value) $('#cl-nombre').value = q;
-      if (/^[\d\s+]{7,}$/.test(q) && !$('#cl-whatsapp').value) $('#cl-whatsapp').value = q;
-      $('#cl-nombre').focus();
+    iniciarCliente(form, {
+      elegir: function (id) { cargarEquipos(id); },
+      cambiar: function () {
+        equipoId.value = '';
+        $('#st-equipos-cliente').hidden = true;
+        $('#st-equipo-nuevo').hidden = false;
+      },
+      nuevo: function () {
+        $('#st-equipos-cliente').hidden = true;
+        $('#st-equipo-nuevo').hidden = false;
+      }
     });
 
     // Equipos del cliente escogido
@@ -325,6 +414,17 @@
     });
     var porHash = tabs.filter(function (t) { return '#' + t.getAttribute('aria-controls') === location.hash; })[0];
     activar(porHash || tabs[0], false);
+    window.addEventListener('hashchange', function () {
+      var t = tabs.filter(function (x) { return '#' + x.getAttribute('aria-controls') === location.hash; })[0];
+      if (t) { activar(t, false); lista.scrollIntoView({ block: 'start' }); }
+    });
+  });
+
+  // Formularios que piden confirmación (p. ej. quitar una foto).
+  $$('form[data-st-confirmar]').forEach(function (f) {
+    f.addEventListener('submit', function (ev) {
+      if (!window.confirm(f.getAttribute('data-st-confirmar'))) ev.preventDefault();
+    });
   });
 
   // ── WhatsApp desde la bandeja «Hoy» y desde la orden ─────────

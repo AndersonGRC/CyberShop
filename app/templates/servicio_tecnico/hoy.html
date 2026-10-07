@@ -1,65 +1,7 @@
 {% extends "servicio_tecnico/base.html" %}
 {% block st_titulo %}Hoy{% endblock %}
 
-{% macro tarjeta(s, grupo) %}
-<li class="st-card st-seg {% if s.urgente %}st-seg-urgente{% elif grupo == 'atrasados' %}st-seg-atrasado{% endif %}" data-st-seg>
-    <div class="st-seg-cab">
-        <span class="st-seg-ico"><i class="fas fa-{{ s.tipo_icono }}" aria-hidden="true"></i></span>
-        <div class="st-seg-tit">
-            <h3>{{ s.tipo_nombre }} · {{ s.nombre_cliente }}</h3>
-            <p>
-                {% if s.numero %}<a href="{{ url_for('servicio_tecnico.orden_ver', orden_id=s.orden_id) }}">{{ s.numero }}</a> · {% endif %}
-                {% if s.cotizacion_id and not s.numero %}Cotización COT {{ '%010d' % s.cotizacion_id }} · {% endif %}
-                {% if grupo == 'atrasados' %}<strong>atrasado {{ s.dias }} {{ 'día' if s.dias == 1 else 'días' }}</strong>
-                {% elif grupo == 'hoy' %}para hoy
-                {% else %}{{ s.fecha_programada.strftime('%d/%m') }}{% endif %}
-            </p>
-        </div>
-    </div>
-    <details class="st-seg-msj">
-        <summary>Ver mensaje</summary>
-        <p class="st-texto st-mensaje">{{ s.mensaje }}</p>
-        {% if ia_ok and not s.urgente %}
-        <button type="button" class="st-btn st-btn-sec st-btn-sm" style="margin-top:8px"
-                data-st-mejorar="{{ url_for('servicio_tecnico.api_mejorar_mensaje') }}" data-seg="{{ s.id }}">
-            <i class="fas fa-magic" aria-hidden="true"></i> Mejorar con IA</button>
-        {% endif %}
-    </details>
-    <div class="st-acciones">
-        {% if s.wa_url %}
-        <a class="st-btn st-btn-wa st-btn-sm" href="{{ s.wa_url }}" target="_blank" rel="noopener"
-           data-st-wa-marcar="{{ url_for('servicio_tecnico.seguimiento_completar', seg_id=s.id) }}">
-            <i class="fab fa-whatsapp" aria-hidden="true"></i> WhatsApp</a>
-        {% endif %}
-        {% if s.tiene_correo and not s.urgente %}
-        <form method="post" action="{{ url_for('servicio_tecnico.seguimiento_correo', seg_id=s.id) }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="st-btn st-btn-sec st-btn-sm" type="submit"><i class="fas fa-envelope" aria-hidden="true"></i> Correo</button>
-        </form>
-        {% endif %}
-        <details class="st-seg-llamada">
-            <summary class="st-btn st-btn-sec st-btn-sm"><i class="fas fa-phone" aria-hidden="true"></i> Llamé</summary>
-            <form method="post" action="{{ url_for('servicio_tecnico.seguimiento_completar', seg_id=s.id) }}" class="st-campos" style="margin-top:10px">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="canal" value="llamada">
-                <div class="st-campo st-campo-ancho"><label for="ll-{{ s.id }}">¿Qué dijo el cliente?</label>
-                    <input type="text" id="ll-{{ s.id }}" name="comentario" placeholder="Opcional"></div>
-                <div class="st-campo-ancho"><button class="st-btn st-btn-sm" type="submit">Guardar llamada</button></div>
-            </form>
-        </details>
-        <form method="post" action="{{ url_for('servicio_tecnico.seguimiento_completar', seg_id=s.id) }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="st-btn st-btn-ok st-btn-sm" type="submit"><i class="fas fa-check" aria-hidden="true"></i> Hecho</button>
-        </form>
-        <form method="post" action="{{ url_for('servicio_tecnico.seguimiento_completar', seg_id=s.id) }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="estado" value="omitido">
-            <button class="st-btn st-btn-sec st-btn-sm" type="submit" aria-label="Omitir este seguimiento">Omitir</button>
-        </form>
-        {% if not s.telefono and not s.tiene_correo %}<span class="st-vacio-dato">Sin teléfono ni correo</span>{% endif %}
-    </div>
-</li>
-{% endmacro %}
+{% from "servicio_tecnico/_seguimiento.html" import tarjeta with context %}
 
 {% block st_contenido %}
 <section class="st-hero">

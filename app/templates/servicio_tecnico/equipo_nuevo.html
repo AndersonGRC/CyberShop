@@ -1,0 +1,113 @@
+{% extends "servicio_tecnico/base.html" %}
+{% block st_titulo %}Registrar equipo{% endblock %}
+
+{% block st_contenido %}
+{% set p = previo or {} %}
+<section class="st-hero">
+    <div>
+        <h1><i class="fas fa-laptop-medical" aria-hidden="true"></i> Registrar equipo</h1>
+        <p>La hoja de vida del equipo sin abrir una orden: cliente, ficha técnica, fotos y plan de mantenimiento.
+           Después, desde la ficha, le abres órdenes, registras mantenimientos y programas recordatorios.</p>
+    </div>
+</section>
+
+<form method="post" enctype="multipart/form-data" id="st-form-equipo" novalidate
+      data-api-clientes="{{ url_for('servicio_tecnico.api_clientes') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="crm_contacto_id" id="st-contacto-id" value="{{ (cliente_inicial.id if cliente_inicial else p.get('crm_contacto_id')) or '' }}">
+
+    {# ── Cliente (contacto del CRM) ── #}
+    <section class="st-card" aria-labelledby="eqn-cliente">
+        <h2 id="eqn-cliente"><i class="fas fa-user" aria-hidden="true"></i> Cliente</h2>
+        <div id="st-cliente-elegido" class="st-elegido" {% if not cliente_inicial %}hidden{% endif %}>
+            <div><strong id="st-cliente-nombre">{{ cliente_inicial.nombre if cliente_inicial else '' }}</strong>
+                <small id="st-cliente-datos" style="display:block">{% if cliente_inicial %}{{ cliente_inicial.whatsapp or cliente_inicial.telefono or '' }} {{ cliente_inicial.email or '' }}{% endif %}</small></div>
+            <button type="button" class="st-btn st-btn-sec st-btn-sm" id="st-cambiar-cliente">Cambiar</button>
+        </div>
+        <div id="st-cliente-buscar" {% if cliente_inicial %}hidden{% endif %}>
+            <div class="st-campo">
+                <label for="st-buscar-cliente">Buscar en los contactos del CRM (nombre, teléfono o correo)</label>
+                <input type="search" id="st-buscar-cliente" autocomplete="off" placeholder="Escribe al menos 2 letras o números">
+            </div>
+            <div class="st-resultados" id="st-clientes" aria-live="polite"></div>
+            <p style="margin:12px 0 0"><button type="button" class="st-btn st-btn-sec" id="st-cliente-nuevo-btn"><i class="fas fa-user-plus" aria-hidden="true"></i> Es un cliente nuevo</button></p>
+        </div>
+        <div id="st-cliente-nuevo" class="st-campos" style="margin-top:14px" {% if not p.get('cliente_nombre') %}hidden{% endif %}>
+            <div class="st-campo"><label for="cl-nombre">Nombre completo *</label>
+                <input type="text" id="cl-nombre" name="cliente_nombre" value="{{ p.get('cliente_nombre', '') }}" autocomplete="name"></div>
+            <div class="st-campo"><label for="cl-whatsapp">WhatsApp / celular</label>
+                <input type="tel" id="cl-whatsapp" name="cliente_whatsapp" value="{{ p.get('cliente_whatsapp', '') }}" inputmode="tel" placeholder="Ej. 300 123 4567">
+                <small>Para enviarle los recordatorios de mantenimiento.</small></div>
+            <div class="st-campo"><label for="cl-email">Correo</label>
+                <input type="email" id="cl-email" name="cliente_email" value="{{ p.get('cliente_email', '') }}" autocomplete="email"></div>
+            <div class="st-campo"><label for="cl-ciudad">Ciudad</label>
+                <input type="text" id="cl-ciudad" name="cliente_ciudad" value="{{ p.get('cliente_ciudad', '') }}"></div>
+            <div class="st-campo st-campo-ancho"><label for="cl-direccion">Dirección</label>
+                <input type="text" id="cl-direccion" name="cliente_direccion" value="{{ p.get('cliente_direccion', '') }}"></div>
+            <p class="st-vacio-dato st-campo-ancho" style="margin:0">Queda creado como contacto en el CRM.</p>
+        </div>
+    </section>
+
+    {# ── Ficha técnica ── #}
+    <section class="st-card" aria-labelledby="eqn-ficha">
+        <h2 id="eqn-ficha"><i class="fas fa-clipboard-list" aria-hidden="true"></i> Ficha técnica</h2>
+        <div class="st-campos">
+            {% set e = {'tipo': p.get('equipo_tipo')} %}
+            {% for k, v in p.items() if k.startswith('equipo_') %}{% set _ = e.update({k[7:]: v}) %}{% endfor %}
+            {% include "servicio_tecnico/_campos_equipo.html" %}
+            <details class="st-campo st-campo-ancho st-pegar" {% if p.get('equipo_info_sistema') %}open{% endif %}>
+                <summary class="st-btn st-btn-sec"><i class="fas fa-magic" aria-hidden="true"></i> Pegar información del equipo y llenar los campos</summary>
+                <div class="st-campo" style="margin-top:10px">
+                    <label for="eq-info">Información del equipo (systeminfo, msinfo32, CPU-Z, «Acerca del teléfono», etiqueta de la UPS…)</label>
+                    <textarea id="eq-info" name="equipo_info_sistema" rows="7" placeholder="Escoge primero el tipo de equipo y pega aquí el texto">{{ p.get('equipo_info_sistema', '') }}</textarea>
+                    <input type="hidden" name="equipo_resumen_ia" id="eq-resumen-ia" value="{{ p.get('equipo_resumen_ia', '') }}">
+                    <small>Se quitan usuario, nombre del equipo, correos y teléfonos antes de leerlo. Cada dato se verifica contra el texto.</small>
+                </div>
+                <button type="button" class="st-btn" style="margin-top:8px" data-st-llenar="{{ url_for('servicio_tecnico.api_leer_info') }}">
+                    <i class="fas fa-magic" aria-hidden="true"></i> Leer y llenar</button>
+                <p class="st-aviso" id="st-llenar-resultado" role="status" aria-live="polite" hidden style="margin-top:10px"></p>
+            </details>
+        </div>
+    </section>
+
+    {# ── Fotos ── #}
+    <section class="st-card" aria-labelledby="eqn-fotos">
+        <h2 id="eqn-fotos"><i class="fas fa-camera" aria-hidden="true"></i> Fotos</h2>
+        <div class="st-campo">
+            <label for="eqn-fotos-input">Fotos del equipo: estado físico, golpes, etiqueta con el serial, accesorios</label>
+            <input type="file" id="eqn-fotos-input" name="fotos" accept="image/*" multiple data-st-fotos="#eqn-fotos-vista"
+                   aria-describedby="eqn-fotos-ayuda">
+            <small id="eqn-fotos-ayuda">Desde el celular puedes tomarlas con la cámara. JPG, PNG o WEBP; se reducen y se les quita la ubicación.</small>
+        </div>
+        <ul class="st-fotos st-fotos-vista" id="eqn-fotos-vista" aria-live="polite"></ul>
+    </section>
+
+    {# ── Mantenimiento preventivo ── #}
+    <section class="st-card" aria-labelledby="eqn-mant">
+        <h2 id="eqn-mant"><i class="fas fa-calendar-check" aria-hidden="true"></i> Mantenimiento preventivo</h2>
+        <div class="st-campos">
+            <div class="st-campo"><label for="eqn-cada">¿Cada cuánto?</label>
+                <select id="eqn-cada" name="mant_cada_meses">
+                    {% for v, t in [('', 'Sin plan por ahora'), ('3', 'Cada 3 meses'), ('4', 'Cada 4 meses'), ('6', 'Cada 6 meses'), ('12', 'Cada año'), ('24', 'Cada 2 años')] %}
+                    <option value="{{ v }}" {% if p.get('mant_cada_meses', '') == v %}selected{% endif %}>{{ t }}</option>
+                    {% endfor %}
+                </select></div>
+            <div class="st-campo"><label for="eqn-proximo">Primer mantenimiento</label>
+                <input type="date" id="eqn-proximo" name="mant_proximo" value="{{ p.get('mant_proximo', '') }}" aria-describedby="eqn-proximo-ayuda">
+                <small id="eqn-proximo-ayuda">Si lo dejas vacío se calcula con la frecuencia. Ese día aparece en «Hoy» con el mensaje listo para el cliente.</small></div>
+        </div>
+    </section>
+
+    <p class="st-aviso st-aviso-peligro" id="st-error" role="alert" hidden></p>
+
+    <div class="st-acciones st-barra-movil">
+        <a class="st-btn st-btn-sec" href="{{ url_for('servicio_tecnico.equipos') }}">Cancelar</a>
+        <button type="submit" class="st-btn st-btn-ok" id="st-guardar"><i class="fas fa-save" aria-hidden="true"></i> Registrar equipo</button>
+    </div>
+</form>
+<script type="application/json" id="st-tipos-json">{{ tipos_json | tojson }}</script>
+{% endblock %}
+
+{% block st_scripts %}
+<script src="{{ url_for('static', filename='js/servicio_tecnico.js') }}"></script>
+{% endblock %}

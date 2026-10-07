@@ -164,3 +164,64 @@ def test_sugerencias_del_taller_en_el_panel(modulo, dueno, monkeypatch):
     assert r.status_code == 200 and '¿Cómo está el taller?' in r.get_data(as_text=True)
     modulo(False)
     assert '¿Cómo está el taller?' not in dueno.get('/admin/ia/').get_data(as_text=True)
+
+
+# ── Hoja de vida por palabras y mantenimientos ──────────────────
+def test_hoja_de_vida_se_encuentra_con_palabras(taller):
+    """El nombre llega con relleno («al portátil de…», «registrados…»): igual
+    encuentra el equipo, y el tipo de equipo filtra."""
+    r = _ej('taller_equipo_historial', {'texto': f'al portátil de {MARCA} Ana'})
+    assert r['equipos_encontrados'] == 1 and r['equipos'][0]['equipo'] == 'Portátil Lenovo IdeaPad 3'
+    assert _ej('taller_equipo_historial', {'texto': f'registrados {MARCA} Ana'})['equipos_encontrados'] == 3
+    assert _ej('taller_equipo_historial', {'texto': f'Samsung de {MARCA}'})['equipos_encontrados'] == 2
+    assert 'No encontré' in _ej('taller_equipo_historial', {'texto': f'impresora de {MARCA}'})['conclusion']
+
+
+def test_mantenimientos_agenda_hechos_y_hoja_de_vida(taller, cursor):
+    from datetime import date, timedelta
+
+    import services.ia_datos as d
+    from services import servicio_tecnico_seguimiento as seg
+    from services import servicio_tecnico_service as st
+    portatil = st.obtener_orden(taller['vencida'])['equipo_id']
+    st.guardar_plan_mantenimiento(portatil, 6, (date.today() + timedelta(days=12)).isoformat())
+    st.registrar_mantenimiento(portatil, {'tipo': 'correctivo', 'descripcion': 'Cambio de ventilador',
+                                          'costo': '80000'})
+    seg.programar_recordatorio(portatil, date.today().isoformat(), 'Ofrecer SSD', 'whatsapp')
+    celular = st.obtener_orden(taller['lista'])['equipo_id']
+    with cursor() as cur:                      # un mantenimiento atrasado de otro equipo
+        cur.execute("""INSERT INTO st_seguimientos (equipo_id, tipo, fecha_programada)
+                       VALUES (%s, 'mantenimiento', CURRENT_DATE - 3)""", (celular,))
+    r = _ej('taller_mantenimientos', {'limite': 50})
+    _sin_secretos(r)
+    mios = [x for x in r['por_hacer'] if (x['cliente'] or '').startswith(MARCA)]
+    assert any(x['equipo'] == 'Portátil Lenovo IdeaPad 3' and x['cada_meses'] == 6 and not x['vencido'] for x in mios)
+    assert any(x['vencido'] and x['dias_de_atraso'] == 3 for x in mios) and r['vencidos'] >= 1
+    mes = _ej('taller_mantenimientos', {'periodo': 'mes', 'limite': 50})
+    assert mes['hechos_en_el_periodo']['correctivos'] >= 1
+    assert any(h['que_se_hizo'] == 'Cambio de ventilador' and h['costo'] for h in mes['ultimos_hechos'])
+    hoja = _ej('taller_equipo_historial', {'texto': 'VEN-' + MARCA})['equipos'][0]
+    assert hoja['plan_de_mantenimiento']['cada_meses'] == 6
+    assert hoja['mantenimientos'][0]['que_se_hizo'] == 'Cambio de ventilador'
+    assert 'Ofrecer SSD' in [x['que'] for x in hoja['recordatorios_pendientes']]
+    seguimientos = _ej('taller_seguimientos')['seguimientos']
+    assert any(s['motivo'] == 'Ofrecer SSD' for s in seguimientos)
+    # Nombran clientes: solo con el modelo local, nunca con el respaldo en la nube.
+    assert d.REGISTRO['taller_mantenimientos'].extra.get('nube') is False
+
+
+def test_el_taller_le_gana_al_crm_solo_cuando_la_pregunta_lo_dice():
+    import services.ia_datos as d
+    from services.ia.enrutador import enrutar_panel_seguro
+    caps = [h for h in d.REGISTRO.values() if 'panel' in h.canales]
+    assert enrutar_panel_seguro('¿A quién tengo que llamar hoy del taller?', caps) == [('taller_seguimientos', {})]
+    assert enrutar_panel_seguro('¿A quién tengo que llamar hoy?', caps)[0][0] == 'crm_seguimiento'
+    assert enrutar_panel_seguro('¿Cuánto hemos cobrado en mantenimientos este año?', caps) == [
+        ('taller_mantenimientos', {'periodo': 'anio'})]
+    assert enrutar_panel_seguro('¿Cuánto hemos cobrado este año?', caps)[0][0] == 'cobros_recibidos'
+    # Un equipo puntual va a su hoja de vida (trae el plan y la fecha).
+    assert enrutar_panel_seguro('¿Cuándo le toca mantenimiento al portátil de Laura Gómez?', caps) == [
+        ('taller_equipo_historial', {'texto': 'portátil de Laura Gómez'})]
+    # «Hoja de vida» de una persona y «características» de un producto no son del taller.
+    assert enrutar_panel_seguro('¿Cuál es la hoja de vida de Pedro Ruiz?', caps) == []
+    assert enrutar_panel_seguro('¿Qué características tiene el mouse inalámbrico?', caps) == []

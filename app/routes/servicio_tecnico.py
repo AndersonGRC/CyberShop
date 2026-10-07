@@ -22,7 +22,7 @@ from services import servicio_tecnico_mensajes as msj
 from services import servicio_tecnico_seguimiento as seg
 from services import servicio_tecnico_service as st
 from services import servicio_tecnico_tipos as tipos
-from tenant_features import MODULE_SERVICIO_TECNICO, is_module_active, module_required
+from tenant_features import MODULE_CRM, MODULE_SERVICIO_TECNICO, is_module_active, module_required
 
 servicio_tecnico_bp = Blueprint('servicio_tecnico', __name__)
 
@@ -233,6 +233,49 @@ def equipos():
         equipos=st.listar_equipos(q=q, tipo=tipo), q=q, filtro_tipo=tipo, st_activo='equipos'))
 
 
+@servicio_tecnico_bp.route(PREFIJO + '/equipos/nuevo', methods=['GET', 'POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def equipo_nuevo():
+    """Registrar un equipo sin abrir una orden: cliente del CRM, ficha,
+    información del sistema, fotos y plan de mantenimiento en una sola página."""
+    if request.method == 'POST':
+        f = request.form
+        datos = {
+            'crm_contacto_id': f.get('crm_contacto_id', type=int),
+            'cliente': {k: f.get('cliente_' + k) for k in ('nombre', 'telefono', 'whatsapp', 'email',
+                                                           'direccion', 'ciudad')},
+            'equipo': {**{k[7:]: v for k, v in f.items() if k.startswith('equipo_')},
+                       'tipo': f.get('equipo_tipo')},
+            'mant_cada_meses': f.get('mant_cada_meses'),
+            'mant_proximo': f.get('mant_proximo'),
+        }
+        try:
+            equipo_id = st.registrar_equipo(datos, _usuario())
+        except st.ErrorServicio as exc:
+            flash(str(exc), 'warning')
+            cid = f.get('crm_contacto_id', type=int)
+            return render_template('servicio_tecnico/equipo_nuevo.html', **_ctx(
+                previo=f, tipos_json=tipos.para_plantilla(), momentos=st.MOMENTOS_FOTO,
+                cliente_inicial=st.obtener_cliente(cid) if cid else None,
+                st_activo='equipo_nuevo')), 400
+        guardadas, errores = st.guardar_fotos(equipo_id, request.files.getlist('fotos'), 'recepcion',
+                                              usuario_id=_usuario())
+        texto = 'Equipo registrado.'
+        if guardadas:
+            texto += f" Se guardaron {guardadas} foto{'s' if guardadas != 1 else ''}."
+        flash(texto, 'success')
+        for e in errores[:5]:
+            flash(e, 'warning')
+        return redirect(url_for('servicio_tecnico.equipo_ver', equipo_id=equipo_id))
+    cid = request.args.get('cliente', type=int)
+    return render_template('servicio_tecnico/equipo_nuevo.html', **_ctx(
+        previo={}, tipos_json=tipos.para_plantilla(), momentos=st.MOMENTOS_FOTO,
+        cliente_inicial=st.obtener_cliente(cid) if cid else None,
+        st_activo='equipo_nuevo'))
+
+
 @servicio_tecnico_bp.route(PREFIJO + '/equipo/<int:equipo_id>')
 @rol_requerido(ADMIN_STAFF)
 @module_required(MODULE_SERVICIO_TECNICO)
@@ -240,12 +283,119 @@ def equipo_ver(equipo_id):
     equipo = st.obtener_equipo(equipo_id)
     if not equipo:
         abort(404)
+    fotos = st.fotos_de_equipo(equipo_id)
+    pendientes, atendidos = seg.de_equipo(equipo_id)
+    ordenes_equipo = st.ordenes_de_equipo(equipo_id)
+    mantenimientos = st.mantenimientos_de_equipo(equipo_id)
     return render_template('servicio_tecnico/equipo.html', **_ctx(
+        hoja_vida=st.hoja_de_vida(mantenimientos, ordenes_equipo),
+        crm_activo=is_module_active(MODULE_CRM),
         equipo=equipo, campos_extra=tipos.campos_extra(equipo['tipo']),
         orden_abierta=st.orden_abierta_de_equipo(equipo_id), ia_estado=st_ia.estado(),
+        ia_ok=st_ia.estado()[0],
         columnas=tipos.columnas(equipo['tipo']), cambios=st.cambios_de_equipo(equipo_id),
-        ordenes_equipo=st.ordenes_de_equipo(equipo_id), eventos=st.eventos(equipo_id=equipo_id),
+        ordenes_equipo=ordenes_equipo, eventos=st.eventos(equipo_id=equipo_id),
+        fotos=fotos, momentos=st.MOMENTOS_FOTO, nombre_momento=st.MOMENTO_FOTO, fotos_max=st.FOTOS_MAX,
+        mantenimientos=mantenimientos, tipos_mant=st.TIPOS_MANTENIMIENTO,
+        tipo_mant=st.TIPO_MANTENIMIENTO, tecnicos=st.tecnicos(),
+        recordatorios=pendientes, atendidos=atendidos, canales=seg.CANALES_RECORDATORIO,
+        validacion=st.validacion_equipo(equipo, fotos=len(fotos), recordatorios=len(pendientes)),
         st_activo='equipos'))
+
+
+def _a_la_ficha(equipo_id, seccion=''):
+    return redirect(url_for('servicio_tecnico.equipo_ver', equipo_id=equipo_id) + (('#' + seccion) if seccion else ''))
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/equipo/<int:equipo_id>/fotos', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def equipo_fotos(equipo_id):
+    try:
+        guardadas, errores = st.guardar_fotos(equipo_id, request.files.getlist('fotos'),
+                                              request.form.get('momento', 'ficha'), request.form.get('descripcion'),
+                                              _usuario(), orden_id=request.form.get('orden_id', type=int))
+    except st.ErrorServicio as exc:
+        flash(str(exc), 'warning')
+        return _a_la_ficha(equipo_id, 'fotos')
+    if guardadas:
+        flash(f"Se guardaron {guardadas} foto{'s' if guardadas != 1 else ''}.", 'success')
+    elif not errores:
+        flash('Escoge al menos una foto.', 'warning')
+    for e in errores[:5]:
+        flash(e, 'warning')
+    return _a_la_ficha(equipo_id, 'fotos')
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/foto/<int:foto_id>')
+@servicio_tecnico_bp.route(PREFIJO + '/foto/<int:foto_id>/mini', endpoint='foto_mini')
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+def foto_ver(foto_id):
+    contenido = st.foto_contenido(foto_id, miniatura=request.endpoint.endswith('foto_mini'))
+    if not contenido:
+        abort(404)
+    from flask import Response
+    respuesta = Response(contenido[1], mimetype=contenido[0])
+    # Solo con sesión: que ningún intermediario (Cloudflare) la guarde.
+    respuesta.headers['Cache-Control'] = 'private, max-age=86400'
+    respuesta.headers['X-Content-Type-Options'] = 'nosniff'
+    return respuesta
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/foto/<int:foto_id>/quitar', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def foto_quitar(foto_id):
+    equipo_id = st.quitar_foto(foto_id, _usuario())
+    if not equipo_id:
+        abort(404)
+    flash('Foto retirada de la ficha.', 'success')
+    return _a_la_ficha(equipo_id, 'fotos')
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/equipo/<int:equipo_id>/plan', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def equipo_plan(equipo_id):
+    try:
+        proximo = st.guardar_plan_mantenimiento(equipo_id, request.form.get('mant_cada_meses'),
+                                                request.form.get('mant_proximo'), _usuario())
+        flash(f"Próximo mantenimiento: {proximo.strftime('%d/%m/%Y')}. Aparecerá en «Hoy» ese día."
+              if proximo else 'Plan de mantenimiento retirado.', 'success')
+    except st.ErrorServicio as exc:
+        flash(str(exc), 'warning')
+    return _a_la_ficha(equipo_id, 'mantenimientos')
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/equipo/<int:equipo_id>/mantenimiento', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def equipo_mantenimiento(equipo_id):
+    try:
+        st.registrar_mantenimiento(equipo_id, _form_dict(), _usuario())
+        flash('Mantenimiento registrado en la hoja de vida del equipo.', 'success')
+    except st.ErrorServicio as exc:
+        flash(str(exc), 'warning')
+    return _a_la_ficha(equipo_id, 'mantenimientos')
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/equipo/<int:equipo_id>/recordatorio', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def equipo_recordatorio(equipo_id):
+    try:
+        seg.programar_recordatorio(equipo_id, request.form.get('fecha'), request.form.get('motivo'),
+                                   request.form.get('canal', 'whatsapp'), _usuario())
+        flash('Recordatorio programado. Aparecerá en «Hoy» ese día.', 'success')
+    except st.ErrorServicio as exc:
+        flash(str(exc), 'warning')
+    return _a_la_ficha(equipo_id, 'recordatorios')
 
 
 @servicio_tecnico_bp.route(PREFIJO + '/equipo/<int:equipo_id>/editar', methods=['GET', 'POST'])

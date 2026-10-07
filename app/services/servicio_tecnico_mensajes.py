@@ -8,7 +8,7 @@ clave `st_msg_<tipo>`). Variables disponibles en las plantillas:
   {numero}   número de la orden (OS-…)      {equipo}    tipo, marca y modelo
   {enlace}   página de estado / encuesta    {valor}     valor (cotizado o cobrado)
   {garantia} fecha fin de garantía          {pieza}     pieza a revisar
-  {telefono} teléfono / WhatsApp del negocio
+  {telefono} teléfono / WhatsApp del negocio {motivo}    motivo del recordatorio
 
 Una variable mal escrita no rompe el mensaje: queda vacía.
 """
@@ -72,6 +72,9 @@ PLANTILLAS = [
     ('calificacion_baja', 'Calificación baja', 'Un cliente quedó inconforme',
      'Hola {cliente}, vimos tu calificación del servicio de tu {equipo}. Queremos entender qué pasó '
      'y solucionarlo. ¿Podemos llamarte?'),
+    ('recordatorio', 'Recordatorio programado', 'Un recordatorio sobre tu {equipo}',
+     'Hola {cliente}, te escribimos de {negocio} sobre tu {equipo}: {motivo}. '
+     '¿Te queda bien que lo revisemos? Escríbenos y te damos un espacio.'),
 ]
 PLANTILLA_POR_TIPO = {p[0]: p for p in PLANTILLAS}
 

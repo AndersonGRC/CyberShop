@@ -151,10 +151,56 @@ CREATE INDEX IF NOT EXISTS ix_st_ordenes_falla_categoria ON st_ordenes (falla_ca
 CREATE INDEX IF NOT EXISTS ix_st_ordenes_solucion_categoria ON st_ordenes (solucion_categoria);
 """
 
-# Lo que asegurar_tablas crea si las migraciones aún no llegaron (en orden).
-DDL = DDL_0018 + DDL_0019
+# 0020: fotos del equipo (en la base del cliente: el código es compartido entre
+# tiendas y así cada foto queda solo en la base de su dueño), mantenimientos
+# preventivos y correctivos, plan de mantenimiento del equipo y el motivo de los
+# recordatorios que se programan a mano.
+DDL_0020 = """
+CREATE TABLE IF NOT EXISTS st_fotos (
+    id           SERIAL       PRIMARY KEY,
+    equipo_id    INTEGER      NOT NULL REFERENCES st_equipos(id),
+    orden_id     INTEGER      REFERENCES st_ordenes(id),
+    momento      VARCHAR(20)  NOT NULL DEFAULT 'ficha',
+    descripcion  VARCHAR(200),
+    mime         VARCHAR(40)  NOT NULL,
+    ancho        INTEGER,
+    alto         INTEGER,
+    bytes        INTEGER      NOT NULL,
+    contenido    BYTEA        NOT NULL,
+    miniatura    BYTEA        NOT NULL,
+    activo       BOOLEAN      NOT NULL DEFAULT TRUE,
+    creado_por   INTEGER,
+    creado_en    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_st_fotos_equipo ON st_fotos (equipo_id, activo);
 
-TABLAS = ('st_equipos', 'st_ordenes', 'st_eventos', 'st_cambios', 'st_seguimientos')
+CREATE TABLE IF NOT EXISTS st_mantenimientos (
+    id             SERIAL        PRIMARY KEY,
+    equipo_id      INTEGER       NOT NULL REFERENCES st_equipos(id),
+    orden_id       INTEGER       REFERENCES st_ordenes(id),
+    tipo           VARCHAR(20)   NOT NULL,
+    fecha          DATE          NOT NULL DEFAULT CURRENT_DATE,
+    descripcion    TEXT          NOT NULL,
+    hallazgos      TEXT,
+    tecnico_id     INTEGER,
+    costo          NUMERIC(14,2),
+    proxima_fecha  DATE,
+    creado_por     INTEGER,
+    creado_en      TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_st_mantenimientos_equipo ON st_mantenimientos (equipo_id, fecha);
+
+ALTER TABLE st_equipos ADD COLUMN IF NOT EXISTS mant_cada_meses SMALLINT;
+ALTER TABLE st_equipos ADD COLUMN IF NOT EXISTS mant_proximo DATE;
+ALTER TABLE st_seguimientos ADD COLUMN IF NOT EXISTS motivo VARCHAR(300);
+CREATE INDEX IF NOT EXISTS ix_st_seguimientos_equipo ON st_seguimientos (equipo_id, estado);
+"""
+
+# Lo que asegurar_tablas crea si las migraciones aún no llegaron (en orden).
+DDL = DDL_0018 + DDL_0019 + DDL_0020
+
+TABLAS = ('st_equipos', 'st_ordenes', 'st_eventos', 'st_cambios', 'st_seguimientos',
+          'st_fotos', 'st_mantenimientos')
 
 # ── Estados de la orden ──────────────────────────────────────────
 # (código, nombre, ícono, tono del chip)
@@ -445,6 +491,31 @@ def obtener_equipo(equipo_id):
     return dict(fila) if fila else None
 
 
+def resumen_equipos_de_contacto(contacto_id):
+    """Equipos del cliente para su ficha en el CRM: servicios, orden abierta,
+    próximo mantenimiento y recordatorios pendientes."""
+    if not asegurar_tablas():
+        return []
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute("""
+            SELECT e.id, e.tipo, e.marca, e.modelo, e.serial, e.imei, e.mant_proximo,
+                   (SELECT COUNT(*) FROM st_ordenes o WHERE o.equipo_id = e.id) AS ordenes,
+                   (SELECT o.estado FROM st_ordenes o WHERE o.equipo_id = e.id ORDER BY o.id DESC LIMIT 1) AS ultimo_estado,
+                   (SELECT COUNT(*) FROM st_seguimientos s WHERE s.equipo_id = e.id AND s.estado = 'pendiente') AS recordatorios
+            FROM st_equipos e
+            WHERE e.crm_contacto_id = %s AND e.activo
+            ORDER BY e.actualizado_en DESC LIMIT 30
+        """, (contacto_id,))
+        filas = [dict(r) for r in cur.fetchall()]
+    for f in filas:
+        f['descripcion'] = descripcion_equipo(f)
+        f['icono'] = tipos.icono(f['tipo'])
+        estado = ESTADO_POR_CODIGO.get(f['ultimo_estado'])
+        f['estado_nombre'] = estado[1] if estado else None
+        f['abierta'] = f['ultimo_estado'] in ABIERTOS
+    return filas
+
+
 def equipos_de_cliente(contacto_id):
     with get_db_cursor(dict_cursor=True) as cur:
         cur.execute("""SELECT id, tipo, marca, modelo, serial, imei FROM st_equipos
@@ -467,7 +538,7 @@ def listar_equipos(q='', tipo='', limite=200):
         params += [patron] * 5
     with get_db_cursor(dict_cursor=True) as cur:
         cur.execute(f"""
-            SELECT e.id, e.tipo, e.marca, e.modelo, e.serial, e.imei, e.actualizado_en,
+            SELECT e.id, e.tipo, e.marca, e.modelo, e.serial, e.imei, e.actualizado_en, e.mant_proximo,
                    c.nombre AS cliente_nombre,
                    (SELECT COUNT(*) FROM st_ordenes o WHERE o.equipo_id = e.id) AS ordenes,
                    (SELECT o.estado FROM st_ordenes o WHERE o.equipo_id = e.id
@@ -883,3 +954,364 @@ def orden_abierta_de_equipo(equipo_id):
                     (equipo_id, list(ABIERTOS)))
         fila = cur.fetchone()
     return fila[0] if fila else None
+
+
+# ── Registrar un equipo sin orden (ficha, plan y fotos) ─────────
+def _cada_meses(valor):
+    if valor in (None, ''):
+        return 0
+    try:
+        meses = int(valor)
+    except (TypeError, ValueError):
+        raise ErrorServicio('La frecuencia del mantenimiento debe ser un número de meses.')
+    if meses < 0 or meses > 36:
+        raise ErrorServicio('La frecuencia del mantenimiento va de 1 a 36 meses.')
+    return meses
+
+
+def registrar_equipo(datos, usuario_id=None):
+    """Cliente (existente o nuevo) + ficha del equipo + plan de mantenimiento,
+    en una transacción. Las fotos se guardan aparte (`guardar_fotos`), para que
+    una foto dañada no impida registrar el equipo. Devuelve el id del equipo."""
+    meses = _cada_meses(datos.get('mant_cada_meses'))
+    proximo = _fecha(datos.get('mant_proximo'))
+    if proximo and proximo < date.today():
+        raise ErrorServicio('La fecha del próximo mantenimiento ya pasó.')
+    from services import servicio_tecnico_seguimiento as seg
+    if meses and not proximo:
+        proximo = seg._sumar_meses(date.today(), meses)
+    with get_db_cursor() as cur:
+        contacto_id = datos.get('crm_contacto_id')
+        if contacto_id:
+            cur.execute('SELECT id FROM crm_contactos WHERE id = %s', (contacto_id,))
+            if not cur.fetchone():
+                raise ErrorServicio('El cliente escogido no existe.')
+        else:
+            contacto_id = crear_cliente(cur, datos.get('cliente') or {})
+        equipo = datos.get('equipo') or {}
+        equipo_id = crear_equipo(cur, contacto_id, equipo, usuario_id)
+        if meses or proximo:
+            cur.execute('UPDATE st_equipos SET mant_cada_meses = %s, mant_proximo = %s WHERE id = %s',
+                        (meses or None, proximo, equipo_id))
+            if proximo:
+                seg.programar(cur, 'mantenimiento', proximo, equipo_id=equipo_id, contacto_id=contacto_id)
+        _actividad_crm(cur, contacto_id, 'nota', 'Servicio técnico: equipo registrado',
+                       descripcion_equipo(_datos_equipo(equipo)), usuario_id)
+    return equipo_id
+
+
+# ── Fotos del equipo ────────────────────────────────────────────
+FOTOS_MAX = 24                         # fotos activas por equipo
+FOTO_MAX_BYTES = 15 * 1024 * 1024      # lo que llega del celular, antes de reducirla
+FOTO_LADO = 1600                       # lado mayor de la foto guardada
+MINI_LADO = 360                        # lado mayor de la miniatura
+MOMENTOS_FOTO = [
+    ('ficha', 'Ficha del equipo'),
+    ('recepcion', 'Al recibirlo'),
+    ('etiqueta', 'Etiqueta / placa'),
+    ('reparacion', 'Durante la reparación'),
+    ('entrega', 'Al entregarlo'),
+]
+MOMENTO_FOTO = dict(MOMENTOS_FOTO)
+
+
+def preparar_foto(datos):
+    """Bytes subidos → (jpeg, miniatura, ancho, alto).
+
+    Gira la foto según la cámara y le quita los metadatos (ubicación GPS,
+    modelo del celular). Lo que no sea imagen se rechaza aunque traiga
+    extensión de imagen."""
+    from io import BytesIO
+
+    from PIL import Image, ImageOps, UnidentifiedImageError
+    if not datos:
+        raise ErrorServicio('La foto llegó vacía.')
+    if len(datos) > FOTO_MAX_BYTES:
+        raise ErrorServicio('La foto pesa más de 15 MB.')
+    try:
+        img = Image.open(BytesIO(datos))
+        formato = img.format
+        img.load()
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
+        raise ErrorServicio('El archivo no es una imagen válida (usa JPG, PNG o WEBP).')
+    if formato not in ('JPEG', 'MPO', 'PNG', 'WEBP', 'GIF', 'BMP'):
+        raise ErrorServicio('Formato de imagen no admitido (usa JPG, PNG o WEBP).')
+    img = ImageOps.exif_transpose(img)
+    if img.mode in ('RGBA', 'LA', 'P'):
+        img = img.convert('RGBA')
+        fondo = Image.new('RGB', img.size, (255, 255, 255))
+        fondo.paste(img, mask=img.split()[-1])
+        img = fondo
+    elif img.mode != 'RGB':
+        img = img.convert('RGB')
+
+    def _jpeg(lado, calidad):
+        copia = img.copy()
+        copia.thumbnail((lado, lado), Image.LANCZOS)
+        salida = BytesIO()
+        copia.save(salida, 'JPEG', quality=calidad, optimize=True, progressive=True)
+        return salida.getvalue(), copia.size
+
+    grande, (ancho, alto) = _jpeg(FOTO_LADO, 82)
+    mini, _ = _jpeg(MINI_LADO, 72)
+    return grande, mini, ancho, alto
+
+
+def guardar_fotos(equipo_id, archivos, momento='ficha', descripcion=None, usuario_id=None, orden_id=None):
+    """Guarda las fotos que se puedan. Devuelve (guardadas, errores)."""
+    if momento not in MOMENTO_FOTO:
+        momento = 'ficha'
+    descripcion = _texto(descripcion, 200)
+    archivos = [a for a in (archivos or []) if a and getattr(a, 'filename', '')]
+    if not archivos:
+        return 0, []
+    guardadas, errores = 0, []
+    with get_db_cursor() as cur:
+        cur.execute('SELECT id FROM st_equipos WHERE id = %s FOR UPDATE', (equipo_id,))
+        if not cur.fetchone():
+            raise ErrorServicio('El equipo no existe.')
+        if orden_id:
+            cur.execute('SELECT 1 FROM st_ordenes WHERE id = %s AND equipo_id = %s', (orden_id, equipo_id))
+            if not cur.fetchone():
+                orden_id = None
+        cur.execute('SELECT COUNT(*) FROM st_fotos WHERE equipo_id = %s AND activo', (equipo_id,))
+        cupo = FOTOS_MAX - int(cur.fetchone()[0])
+        for archivo in archivos:
+            nombre = (archivo.filename or 'foto')[:60]
+            if cupo <= 0:
+                errores.append(f'{nombre}: el equipo ya tiene {FOTOS_MAX} fotos. Quita alguna para subir más.')
+                continue
+            try:
+                grande, mini, ancho, alto = preparar_foto(archivo.read(FOTO_MAX_BYTES + 1))
+            except ErrorServicio as exc:
+                errores.append(f'{nombre}: {exc}')
+                continue
+            cur.execute("""INSERT INTO st_fotos (equipo_id, orden_id, momento, descripcion, mime, ancho, alto,
+                                                 bytes, contenido, miniatura, creado_por)
+                           VALUES (%s, %s, %s, %s, 'image/jpeg', %s, %s, %s, %s, %s, %s)""",
+                        (equipo_id, orden_id, momento, descripcion, ancho, alto, len(grande),
+                         grande, mini, usuario_id))
+            guardadas += 1
+            cupo -= 1
+        if guardadas:
+            _evento(cur, orden_id, equipo_id, 'foto',
+                    f"{guardadas} foto{'s' if guardadas != 1 else ''} agregada{'s' if guardadas != 1 else ''} "
+                    f"({MOMENTO_FOTO[momento].lower()})", usuario_id)
+            cur.execute('UPDATE st_equipos SET actualizado_en = NOW() WHERE id = %s', (equipo_id,))
+    return guardadas, errores
+
+
+def fotos_de_equipo(equipo_id):
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute("""SELECT f.id, f.orden_id, f.momento, f.descripcion, f.ancho, f.alto, f.bytes, f.creado_en,
+                              o.numero AS orden_numero
+                       FROM st_fotos f LEFT JOIN st_ordenes o ON o.id = f.orden_id
+                       WHERE f.equipo_id = %s AND f.activo ORDER BY f.creado_en DESC, f.id DESC""",
+                    (equipo_id,))
+        return [dict(r) for r in cur.fetchall()]
+
+
+def foto_contenido(foto_id, miniatura=False):
+    """(mime, bytes) de una foto activa, o None."""
+    columna = 'miniatura' if miniatura else 'contenido'
+    with get_db_cursor() as cur:
+        cur.execute(f'SELECT mime, {columna} FROM st_fotos WHERE id = %s AND activo', (foto_id,))
+        fila = cur.fetchone()
+    return (fila[0], bytes(fila[1])) if fila else None
+
+
+def quitar_foto(foto_id, usuario_id=None):
+    """Retira la foto de la ficha (queda guardada, no se borra). Devuelve el
+    id del equipo o None."""
+    with get_db_cursor() as cur:
+        cur.execute('UPDATE st_fotos SET activo = FALSE WHERE id = %s AND activo RETURNING equipo_id, orden_id',
+                    (foto_id,))
+        fila = cur.fetchone()
+        if not fila:
+            return None
+        _evento(cur, fila[1], fila[0], 'foto', 'Foto retirada de la ficha', usuario_id)
+    return fila[0]
+
+
+# ── Mantenimientos preventivos y correctivos ────────────────────
+TIPOS_MANTENIMIENTO = [
+    ('preventivo', 'Preventivo', 'shield-alt'),
+    ('correctivo', 'Correctivo', 'wrench'),
+]
+TIPO_MANTENIMIENTO = {t[0]: t for t in TIPOS_MANTENIMIENTO}
+
+
+def guardar_plan_mantenimiento(equipo_id, cada_meses, proximo=None, usuario_id=None):
+    """Cada cuántos meses se le hace mantenimiento preventivo y cuándo toca el
+    próximo. Reemplaza el recordatorio de mantenimiento pendiente del equipo."""
+    meses = _cada_meses(cada_meses)
+    proximo = _fecha(proximo)
+    hoy = date.today()
+    if proximo and proximo < hoy:
+        raise ErrorServicio('La fecha del próximo mantenimiento ya pasó.')
+    from services import servicio_tecnico_seguimiento as seg
+    if meses and not proximo:
+        proximo = seg._sumar_meses(hoy, meses)
+    with get_db_cursor() as cur:
+        cur.execute('SELECT crm_contacto_id FROM st_equipos WHERE id = %s FOR UPDATE', (equipo_id,))
+        fila = cur.fetchone()
+        if not fila:
+            raise ErrorServicio('El equipo no existe.')
+        cur.execute('UPDATE st_equipos SET mant_cada_meses = %s, mant_proximo = %s, actualizado_en = NOW() '
+                    'WHERE id = %s', (meses or None, proximo, equipo_id))
+        if proximo:
+            seg.cerrar_de_equipo(cur, equipo_id, ['mantenimiento'], 'Reemplazado por el plan del equipo')
+            seg.programar(cur, 'mantenimiento', proximo, equipo_id=equipo_id, contacto_id=fila[0])
+            detalle = (f'Plan de mantenimiento: cada {meses} meses, próximo el {proximo.strftime("%d/%m/%Y")}'
+                       if meses else f'Mantenimiento programado para el {proximo.strftime("%d/%m/%Y")}')
+        else:
+            seg.cerrar_de_equipo(cur, equipo_id, ['mantenimiento'], 'Plan de mantenimiento retirado',
+                                 solo_sin_orden=True)
+            detalle = 'Plan de mantenimiento retirado'
+        _evento(cur, None, equipo_id, 'equipo', detalle, usuario_id)
+    return proximo
+
+
+def registrar_mantenimiento(equipo_id, datos, usuario_id=None):
+    """Registra un mantenimiento hecho. El preventivo cierra el recordatorio
+    pendiente y programa el siguiente (fecha dada o según el plan)."""
+    tipo = (datos.get('tipo') or '').strip()
+    if tipo not in TIPO_MANTENIMIENTO:
+        raise ErrorServicio('Escoge si el mantenimiento fue preventivo o correctivo.')
+    descripcion = _texto(datos.get('descripcion'), 4000)
+    if not descripcion:
+        raise ErrorServicio('Describe qué se le hizo al equipo.')
+    hoy = date.today()
+    fecha = _fecha(datos.get('fecha')) or hoy
+    if fecha > hoy:
+        raise ErrorServicio('La fecha del mantenimiento no puede ser futura: para programarlo usa el plan o un recordatorio.')
+    proxima = _fecha(datos.get('proxima_fecha'))
+    if proxima and proxima <= fecha:
+        raise ErrorServicio('El próximo mantenimiento debe ser posterior a este.')
+    costo = _numero(datos.get('costo'))
+    try:
+        tecnico_id = int(datos.get('tecnico_id')) if datos.get('tecnico_id') else None
+        orden_id = int(datos.get('orden_id')) if datos.get('orden_id') else None
+    except (TypeError, ValueError):
+        raise ErrorServicio('Datos del mantenimiento no válidos.')
+    from services import servicio_tecnico_seguimiento as seg
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute('SELECT id, crm_contacto_id, mant_cada_meses FROM st_equipos WHERE id = %s FOR UPDATE',
+                    (equipo_id,))
+        equipo = cur.fetchone()
+        if not equipo:
+            raise ErrorServicio('El equipo no existe.')
+        if orden_id:
+            cur.execute('SELECT 1 FROM st_ordenes WHERE id = %s AND equipo_id = %s', (orden_id, equipo_id))
+            if not cur.fetchone():
+                raise ErrorServicio('La orden escogida no es de este equipo.')
+        if not proxima and tipo == 'preventivo' and equipo['mant_cada_meses']:
+            proxima = seg._sumar_meses(fecha, int(equipo['mant_cada_meses']))
+            if proxima <= hoy:
+                proxima = seg._sumar_meses(hoy, int(equipo['mant_cada_meses']))
+        cur.execute("""INSERT INTO st_mantenimientos (equipo_id, orden_id, tipo, fecha, descripcion, hallazgos,
+                                                      tecnico_id, costo, proxima_fecha, creado_por)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id""",
+                    (equipo_id, orden_id, tipo, fecha, descripcion, _texto(datos.get('hallazgos'), 4000),
+                     tecnico_id, costo, proxima, usuario_id))
+        mant_id = cur.fetchone()['id']
+        if tipo == 'preventivo':
+            seg.cerrar_de_equipo(cur, equipo_id, ['mantenimiento'], 'Mantenimiento hecho', estado='hecho')
+        if proxima:
+            seg.cerrar_de_equipo(cur, equipo_id, ['mantenimiento'], 'Reprogramado')
+            seg.programar(cur, 'mantenimiento', proxima, equipo_id=equipo_id,
+                          contacto_id=equipo['crm_contacto_id'])
+            cur.execute('UPDATE st_equipos SET mant_proximo = %s WHERE id = %s', (proxima, equipo_id))
+        elif tipo == 'preventivo':
+            cur.execute('UPDATE st_equipos SET mant_proximo = NULL WHERE id = %s', (equipo_id,))
+        cur.execute('UPDATE st_equipos SET actualizado_en = NOW() WHERE id = %s', (equipo_id,))
+        nombre = TIPO_MANTENIMIENTO[tipo][1]
+        _evento(cur, orden_id, equipo_id, 'mantenimiento', f'Mantenimiento {nombre.lower()}: {descripcion[:160]}',
+                usuario_id)
+        _actividad_crm(cur, equipo['crm_contacto_id'], 'nota', f'Servicio técnico: mantenimiento {nombre.lower()}',
+                       descripcion[:500], usuario_id)
+    return mant_id
+
+
+def hoja_de_vida(mantenimientos, ordenes):
+    """Mantenimientos registrados y servicios del taller en una sola línea de
+    tiempo (lo más reciente primero)."""
+    filas = []
+    for m in mantenimientos:
+        filas.append({'fecha': m['fecha'], 'clase': m['tipo'],
+                      'titulo': f"Mantenimiento {TIPO_MANTENIMIENTO.get(m['tipo'], (m['tipo'], m['tipo']))[1].lower()}",
+                      'detalle': m['descripcion'], 'hallazgos': m.get('hallazgos'),
+                      'tecnico': m.get('tecnico_nombre'), 'costo': m.get('costo'),
+                      'proxima': m.get('proxima_fecha'), 'orden_id': m.get('orden_id'),
+                      'orden_numero': m.get('orden_numero')})
+    for o in ordenes:
+        recibido = o['fecha_recibido']
+        filas.append({'fecha': recibido.date() if hasattr(recibido, 'date') else recibido, 'clase': 'orden',
+                      'titulo': f"Servicio {o['numero']}", 'detalle': o.get('falla_reportada'),
+                      'solucion': o.get('solucion') or o.get('resumen_caso'), 'estado': o.get('estado'),
+                      'costo': o.get('valor_final'), 'orden_id': o['id'], 'orden_numero': o['numero']})
+    filas.sort(key=lambda f: f['fecha'], reverse=True)
+    return filas
+
+
+def mantenimientos_de_equipo(equipo_id):
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute("""SELECT m.*, u.nombre AS tecnico_nombre, o.numero AS orden_numero
+                       FROM st_mantenimientos m
+                       LEFT JOIN usuarios u ON u.id = m.tecnico_id
+                       LEFT JOIN st_ordenes o ON o.id = m.orden_id
+                       WHERE m.equipo_id = %s ORDER BY m.fecha DESC, m.id DESC""", (equipo_id,))
+        return [dict(r) for r in cur.fetchall()]
+
+
+# ── Validación de la ficha ──────────────────────────────────────
+def validacion_equipo(equipo, fotos=0, recordatorios=0):
+    """Revisión de la ficha: qué está bien, qué conviene completar y qué está
+    mal. Devuelve {'puntaje': 0-100, 'revisiones': [(estado, texto), ...]} con
+    estado ok | aviso | error. Solo reglas fijas: no usa IA."""
+    revisiones = []
+    columnas = tipos.columnas(equipo['tipo'])
+    extras = equipo.get('extras') or {}
+
+    faltan = [tipos.ETIQUETAS_COMUNES[c].lower() for c in ('marca', 'modelo') if not equipo.get(c)]
+    revisiones.append(('aviso', 'Falta ' + ' y '.join(faltan)) if faltan else ('ok', 'Marca y modelo registrados'))
+
+    if 'imei' in columnas:
+        if not equipo.get('imei'):
+            revisiones.append(('aviso', 'Sin IMEI: márcalo con *#06# en el equipo'))
+        elif imei_valido(equipo['imei']):
+            revisiones.append(('ok', 'IMEI válido (dígito de control correcto)'))
+        else:
+            revisiones.append(('error', 'El IMEI no pasa la validación: revísalo'))
+    if equipo.get('serial'):
+        with get_db_cursor() as cur:
+            cur.execute("""SELECT COUNT(*) FROM st_equipos WHERE activo AND id <> %s AND lower(serial) = lower(%s)""",
+                        (equipo['id'], equipo['serial']))
+            otros = int(cur.fetchone()[0])
+        revisiones.append(('aviso', f'El serial también aparece en {otros} equipo(s) de otro cliente: confírmalo')
+                          if otros else ('ok', 'Serial registrado y sin repetir'))
+    else:
+        revisiones.append(('aviso', 'Sin serial: tómalo de la etiqueta del equipo'))
+
+    claves = list(columnas) + tipos.claves_extra(equipo['tipo'])
+    llenos = sum(1 for c in columnas if equipo.get(c)) + sum(1 for c in tipos.claves_extra(equipo['tipo']) if extras.get(c))
+    porcentaje = round(100 * llenos / len(claves)) if claves else 100
+    revisiones.append(('ok' if porcentaje >= 70 else 'aviso', f'Características completas al {porcentaje}%'))
+
+    revisiones.append(('ok', f'{fotos} foto(s) del equipo') if fotos else ('aviso', 'Sin fotos: agrega al menos una del estado del equipo'))
+    revisiones.append(('ok', 'Información del sistema leída') if equipo.get('info_sistema_original')
+                      else ('aviso', 'Sin información del sistema (systeminfo, «Acerca del teléfono», etiqueta)'))
+    if equipo.get('cliente_whatsapp') or equipo.get('cliente_telefono') or equipo.get('cliente_email'):
+        revisiones.append(('ok', 'El cliente tiene cómo recibir recordatorios'))
+    else:
+        revisiones.append(('aviso', 'El cliente no tiene WhatsApp ni correo: no podrá recibir recordatorios'))
+    if equipo.get('mant_proximo'):
+        revisiones.append(('ok', f"Próximo mantenimiento: {equipo['mant_proximo'].strftime('%d/%m/%Y')}"))
+    elif recordatorios:
+        revisiones.append(('ok', f'{recordatorios} recordatorio(s) pendiente(s)'))
+    else:
+        revisiones.append(('aviso', 'Sin plan de mantenimiento ni recordatorios'))
+
+    puntos = sum(1 if e == 'ok' else 0 for e, _ in revisiones)
+    return {'puntaje': round(100 * puntos / len(revisiones)), 'revisiones': revisiones,
+            'errores': sum(1 for e, _ in revisiones if e == 'error')}

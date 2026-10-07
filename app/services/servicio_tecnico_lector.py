@@ -27,6 +27,48 @@ _TELEFONO = re.compile(r'(?<!\d)(?:\+?57\s?)?3\d{2}[\s-]?\d{3}[\s-]?\d{4}(?!\d)'
 MAX_TEXTO = 60000          # se guarda completo; a la IA va solo lo técnico (recortar_relevante)
 
 
+# Fijos de Colombia (601 234 5678) y documentos («C.C. 1.027.150.819», «NIT 900…»).
+_FIJO = re.compile(r'(?<!\d)\(?60\d\)?[\s-]?\d{3}[\s-]?\d{4}(?!\d)')
+_DOCUMENTO = re.compile(r'\b(?:c\.?\s?c\.?|c[eé]dula|nit|documento|t\.?\s?i\.?)\s*(?:n[°ºo.]?\s*)?[:#]?\s*'
+                        r'\d[\d.\s-]{5,14}\d', re.I)
+# Nombres que también son palabras («la luz del cargador»): solos no se tapan.
+_NOMBRES_QUE_SON_PALABRAS = set('luz rosa flor sol mar paz angel cruz blanca perla reina alba aurora dulce cielo '
+                                'estrella esperanza victoria dolores mercedes consuelo gloria pilar amparo caridad '
+                                'socorro rocio nieves luna salvador leon santos franco celeste milagros'.split())
+
+
+def _sin_tildes(texto):
+    import unicodedata
+    return ''.join(ch for ch in unicodedata.normalize('NFD', texto) if unicodedata.category(ch) != 'Mn')
+
+
+def _patron_nombre(fragmento):
+    """Regex que encuentra el nombre con o sin tildes y sin importar mayúsculas."""
+    clases = {'a': '[aáàäâ]', 'e': '[eéèëê]', 'i': '[iíìïî]', 'o': '[oóòöô]', 'u': '[uúùüû]', 'n': '[nñ]'}
+    cuerpo = ''.join(r'\s+' if ch == ' ' else clases.get(ch, re.escape(ch)) for ch in _sin_tildes(fragmento.lower()))
+    return re.compile(r'(?<!\w)' + cuerpo + r'(?!\w)', re.I)
+
+
+def sin_datos_personales(texto, nombres=()):
+    """Texto libre del taller (falla, diagnóstico, solución) listo para la IA:
+    sin correos, celulares, teléfonos fijos, documentos ni el nombre del
+    cliente (completo o por partes)."""
+    t = _CORREO.sub('[correo]', texto or '')
+    t = _DOCUMENTO.sub('[documento]', t)
+    t = _TELEFONO.sub('[teléfono]', t)
+    t = _FIJO.sub('[teléfono]', t)
+    for nombre in nombres:
+        nombre = ' '.join(str(nombre or '').split())
+        if len(nombre) < 3:
+            continue
+        palabras = nombre.split()
+        partes = ({nombre} | {' '.join(palabras[k:k + 2]) for k in range(len(palabras) - 1)}
+                  | {p for p in palabras if len(p) >= 3 and _sin_tildes(p.lower()) not in _NOMBRES_QUE_SON_PALABRAS})
+        for parte in sorted(partes, key=len, reverse=True):
+            t = _patron_nombre(parte).sub('[cliente]', t)
+    return t
+
+
 def limpiar_personales(texto):
     """Texto sin líneas ni datos que identifiquen a una persona."""
     texto = (texto or '')[:MAX_TEXTO * 2]

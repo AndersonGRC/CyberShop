@@ -313,10 +313,25 @@ def get_data_app():
             "nombre": "Soporte",
             "url": "#",
             "icono": "headset",
-            "module_code": MODULE_SUPPORT,
+            # Sin module_code de grupo: cada ítem trae el suyo. Los tickets son
+            # del módulo Soporte y el resto de Servicio Técnico (equipos de los
+            # clientes del CRM). Si ningún ítem aplica, el grupo no se muestra.
             "submodulos": [
-                {"nombre": "Tickets clientes", "url": "soporte.admin_tickets",     "icono": "ticket-alt", "permiso": ("support", "ver")},
-                {"nombre": "Configuración",     "url": "soporte.admin_soporte_config", "icono": "sliders-h", "permiso": ("support", "ver")},
+                {"nombre": "Tickets clientes", "url": "soporte.admin_tickets",     "icono": "ticket-alt", "module_code": MODULE_SUPPORT, "permiso": ("support", "ver")},
+                {"nombre": f"Seguimientos hoy ({st_pendientes})" if st_pendientes else "Seguimientos hoy", "url": "servicio_tecnico.hoy", "icono": "bell",
+                 "module_code": MODULE_SERVICIO_TECNICO, "permiso": ("servicio_tecnico", "ver")},
+                {"nombre": "Órdenes de servicio", "url": "servicio_tecnico.ordenes", "icono": "clipboard-list", "module_code": MODULE_SERVICIO_TECNICO,
+                 "permiso": ("servicio_tecnico", "ver"), "activo_en": ("servicio_tecnico.ordenes", "servicio_tecnico.orden_ver")},
+                {"nombre": "Nueva orden de servicio", "url": "servicio_tecnico.nueva_orden", "icono": "plus-circle", "module_code": MODULE_SERVICIO_TECNICO,
+                 "permiso": ("servicio_tecnico", "operar")},
+                {"nombre": "Equipos", "url": "servicio_tecnico.equipos", "icono": "laptop-medical", "module_code": MODULE_SERVICIO_TECNICO,
+                 "permiso": ("servicio_tecnico", "ver"),
+                 "activo_en": ("servicio_tecnico.equipos", "servicio_tecnico.equipo_ver", "servicio_tecnico.equipo_editar")},
+                {"nombre": "Registrar equipo", "url": "servicio_tecnico.equipo_nuevo", "icono": "plus-square", "module_code": MODULE_SERVICIO_TECNICO,
+                 "permiso": ("servicio_tecnico", "operar")},
+                {"nombre": "Configuración",     "url": "soporte.admin_soporte_config", "icono": "sliders-h", "module_code": MODULE_SUPPORT, "permiso": ("support", "ver")},
+                {"nombre": "Config. servicio técnico", "url": "servicio_tecnico.configuracion", "icono": "tools", "module_code": MODULE_SERVICIO_TECNICO,
+                 "permiso": ("servicio_tecnico", "operar")},
             ]
         },
         {
@@ -369,21 +384,6 @@ def get_data_app():
                  "activo_en": ("restaurant_tables.restaurant_tables_builder",)},
                 {"nombre": "Reportes de mesas", "url": "restaurant_tables.restaurant_tables_reports", "icono": "chart-bar", "roles": RESTAURANT_ADMIN,
                  "activo_en": ("restaurant_tables.restaurant_tables_reports",)},
-            ]
-        },
-        {
-            "nombre": "Servicio Técnico",
-            "url": "#",
-            "icono": "tools",
-            "module_code": MODULE_SERVICIO_TECNICO,
-            "submodulos": [
-                {"nombre": f"Hoy ({st_pendientes})" if st_pendientes else "Hoy", "url": "servicio_tecnico.hoy", "icono": "bell", "permiso": ("servicio_tecnico", "ver")},
-                {"nombre": "Órdenes", "url": "servicio_tecnico.ordenes", "icono": "clipboard-list", "permiso": ("servicio_tecnico", "ver"),
-                 "activo_en": ("servicio_tecnico.ordenes", "servicio_tecnico.orden_ver")},
-                {"nombre": "Nueva orden", "url": "servicio_tecnico.nueva_orden", "icono": "plus-circle", "permiso": ("servicio_tecnico", "operar")},
-                {"nombre": "Equipos", "url": "servicio_tecnico.equipos", "icono": "laptop-medical", "permiso": ("servicio_tecnico", "ver"),
-                 "activo_en": ("servicio_tecnico.equipos", "servicio_tecnico.equipo_ver", "servicio_tecnico.equipo_editar")},
-                {"nombre": "Configuración", "url": "servicio_tecnico.configuracion", "icono": "sliders-h", "permiso": ("servicio_tecnico", "operar")},
             ]
         },
         {

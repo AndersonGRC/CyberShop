@@ -246,10 +246,14 @@ def _por_ia(caso, base):
     except Exception:  # noqa: BLE001
         return None
     from services import servicio_tecnico_tipos as tipos
+    from services.servicio_tecnico_lector import sin_datos_personales
+
+    def limpio(texto):
+        return sin_datos_personales(texto, (caso.get('cliente'),)) if texto else '-'
     user = (f"Equipo: {tipos.nombre(caso.get('tipo'))} {caso.get('marca') or ''} {caso.get('modelo') or ''}\n"
-            f"Falla que reportó el cliente: {caso.get('falla') or '-'}\n"
-            f"Diagnóstico del técnico: {caso.get('diagnostico') or '-'}\n"
-            f"Solución aplicada: {caso.get('solucion') or '-'}\n"
+            f"Falla que reportó el cliente: {limpio(caso.get('falla'))}\n"
+            f"Diagnóstico del técnico: {limpio(caso.get('diagnostico'))}\n"
+            f"Solución aplicada: {limpio(caso.get('solucion'))}\n"
             f"Piezas cambiadas: {', '.join(caso.get('piezas') or []) or '-'}\n\n"
             'Clasifica el caso. Usa EXACTAMENTE uno de estos códigos en cada campo:\n'
             f"falla_categoria: {', '.join(c for c, _ in FALLAS)}\n"
@@ -286,8 +290,9 @@ def _por_ia(caso, base):
 def caso_de_orden(orden_id):
     with get_db_cursor(dict_cursor=True) as cur:
         cur.execute("""SELECT o.id, o.falla_reportada, o.diagnostico, o.solucion, o.clasificacion_fuente,
-                              e.tipo, e.marca, e.modelo
-                       FROM st_ordenes o JOIN st_equipos e ON e.id = o.equipo_id WHERE o.id = %s""", (orden_id,))
+                              e.tipo, e.marca, e.modelo, c.nombre AS cliente
+                       FROM st_ordenes o JOIN st_equipos e ON e.id = o.equipo_id
+                       LEFT JOIN crm_contactos c ON c.id = o.crm_contacto_id WHERE o.id = %s""", (orden_id,))
         o = cur.fetchone()
         if not o:
             return None
@@ -295,7 +300,8 @@ def caso_de_orden(orden_id):
         piezas = [r['componente'] for r in cur.fetchall()]
     return {'id': o['id'], 'tipo': o['tipo'], 'marca': o['marca'], 'modelo': o['modelo'],
             'falla': o['falla_reportada'], 'diagnostico': o['diagnostico'], 'solucion': o['solucion'],
-            'piezas': piezas, 'fuente_actual': o['clasificacion_fuente']}
+            'piezas': piezas, 'fuente_actual': o['clasificacion_fuente'],
+            'cliente': o['cliente']}          # solo para taparlo antes de la IA; no se le manda
 
 
 def _guardar(orden_id, c, fuente):

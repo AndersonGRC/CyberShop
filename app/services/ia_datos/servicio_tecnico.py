@@ -8,13 +8,14 @@ Consultas de SOLO LECTURA sobre las tablas st_* del módulo. Reglas:
   - Si el negocio no tiene las tablas, responden con una conclusión clara.
 """
 
+import calendar
 import re
-from datetime import date
+from datetime import date, timedelta
 
 from database import get_db_cursor
 from helpers import formatear_moneda
 
-from services.ia_datos.base import _existe, _label_periodo, _periodo, _sql_periodo
+from services.ia_datos.base import Rango, _existe, _label_periodo, _periodo, _sql_periodo
 
 _NOMBRE_ESTADO = {
     'recibido': 'Recibido', 'diagnostico': 'En diagnóstico', 'cotizado': 'Cotizado (esperando respuesta)',
@@ -110,8 +111,10 @@ def taller_seguimientos(limite=20, **_):
     with get_db_cursor(dict_cursor=True) as cur:
         if not _existe(cur, 'st_seguimientos'):
             return _SIN_MODULO
-        cur.execute("""
-            SELECT s.tipo, s.fecha_programada, o.numero, e.tipo AS equipo_tipo, e.marca, e.modelo,
+        con_motivo = 'motivo' in _columnas_de(cur, 'st_seguimientos')
+        cur.execute(f"""
+            SELECT s.tipo, s.fecha_programada, s.canal, o.numero, e.tipo AS equipo_tipo, e.marca, e.modelo,
+                   {'s.motivo' if con_motivo else 'NULL'} AS motivo,
                    COALESCE(c.nombre, ct.cliente_nombre) AS cliente, ct.total AS cotizacion_total,
                    (CURRENT_DATE - s.fecha_programada) AS dias_atraso
             FROM st_seguimientos s
@@ -124,6 +127,9 @@ def taller_seguimientos(limite=20, **_):
             LIMIT %s""", (limite,))
         filas = cur.fetchall()
         cur.execute("""SELECT COUNT(*) AS n FROM st_seguimientos
+                       WHERE estado = 'pendiente' AND fecha_programada <= CURRENT_DATE""")
+        total = int(cur.fetchone()['n'])
+        cur.execute("""SELECT COUNT(*) AS n FROM st_seguimientos
                        WHERE estado = 'pendiente' AND fecha_programada BETWEEN CURRENT_DATE + 1 AND CURRENT_DATE + 7""")
         proximos = int(cur.fetchone()['n'])
     from services.servicio_tecnico_seguimiento import TIPOS
@@ -131,7 +137,9 @@ def taller_seguimientos(limite=20, **_):
         return {'seguimientos_para_hoy': 0, 'proximos_7_dias': proximos,
                 'conclusion': 'No hay seguimientos del taller pendientes para hoy.'}
     lista = [{
-        'que_hacer': TIPOS.get(f['tipo'], (f['tipo'],))[0],
+        'que_hacer': ('Recordatorio interno' if f['tipo'] == 'recordatorio' and f['canal'] == 'interno'
+                      else TIPOS.get(f['tipo'], (f['tipo'],))[0]),
+        'motivo': f['motivo'] or None,
         'cliente': f['cliente'], 'orden': f['numero'],
         'equipo': _equipo({'tipo': f['equipo_tipo'], 'marca': f['marca'], 'modelo': f['modelo']}) if f['equipo_tipo'] else None,
         'valor_cotizado': _dinero(f['cotizacion_total']) if f['tipo'] == 'cotizacion_sin_respuesta' else None,
@@ -140,7 +148,7 @@ def taller_seguimientos(limite=20, **_):
     } for f in filas]
     urgentes = sum(1 for x in lista if x['urgente'])
     return {
-        'seguimientos_para_hoy': len(lista), 'proximos_7_dias': proximos, 'seguimientos': lista,
+        'seguimientos_para_hoy': total, 'mostrando': len(lista), 'proximos_7_dias': proximos, 'seguimientos': lista,
         'nota': (f'{urgentes} cliente(s) calificaron mal el servicio: conviene llamarlos primero.' if urgentes else
                  'Se atienden desde Servicio Técnico → Hoy (WhatsApp con el mensaje listo, correo o llamada).'),
     }
@@ -202,26 +210,88 @@ def taller_orden(texto='', **_):
 
 
 # ── 4. Equipos de un cliente / por serial o IMEI ────────────────
+# Palabras que no ayudan a encontrar un equipo («¿qué equipos tiene registrados…?»).
+_VACIAS_EQUIPO = set('de del la el los las a al mi mis su sus un una unos unas equipo equipos registrado '
+                     'registrados registrada registradas tiene tienen tenemos que cual cuales cuando ficha hoja '
+                     'vida historial caracteristicas datos con serial imei cliente clientes le les toca '
+                     'mantenimiento mantenimientos piezas pieza cambiado cambiaron se han ha y o'.split())
+
+
+def _columnas_de(cur, tabla):
+    cur.execute("""SELECT column_name FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = %s""", (tabla,))
+    return {r[0] for r in cur.fetchall()}
+
+
+def _buscar_equipos(cur, texto, limite=8):
+    """Equipos por IMEI o serial exactos, o por palabras: cliente, marca,
+    modelo y tipo («el portátil de Laura Gómez», «Samsung de Carlos»). Cada
+    palabra tiene que aparecer al comienzo de alguna palabra del equipo."""
+    from services.servicio_tecnico_clasificador import normalizar
+    texto = (texto or '').strip()
+    base = """SELECT e.*, c.nombre AS cliente FROM st_equipos e
+              LEFT JOIN crm_contactos c ON c.id = e.crm_contacto_id WHERE e.activo"""
+    digitos = re.sub(r'\D', '', texto)
+    if len(digitos) == 15:
+        cur.execute(base + ' AND e.imei = %s ORDER BY e.actualizado_en DESC LIMIT %s', (digitos, limite))
+        filas = cur.fetchall()
+        if filas:
+            return filas
+    cur.execute(base + " AND lower(COALESCE(e.serial, '')) = lower(%s) ORDER BY e.actualizado_en DESC LIMIT %s",
+                (texto, limite))
+    filas = cur.fetchall()
+    if filas:
+        return filas
+    palabras = [w for w in re.findall(r'[a-z0-9\-]{2,}', normalizar(texto)) if w not in _VACIAS_EQUIPO]
+    tipos_buscados = set()
+    for w in palabras:
+        tipos_buscados.update(_TIPOS_PALABRA.get(w, ()))
+    terminos = [w for w in palabras if w not in _TIPOS_PALABRA]
+    if not terminos and not tipos_buscados:
+        return []
+    patrones = [re.compile(r'(?:^|[^a-z0-9])' + re.escape(t)) for t in terminos]
+    cur.execute(base + ' ORDER BY e.actualizado_en DESC LIMIT 800')
+    elegidos = []
+    for f in cur.fetchall():
+        if tipos_buscados and f['tipo'] not in tipos_buscados:
+            continue
+        datos = normalizar(' '.join(filter(None, (f['cliente'], f['marca'], f['modelo'], f['serial'], f['imei']))))
+        if all(pt.search(datos) for pt in patrones):
+            elegidos.append(f)
+            if len(elegidos) >= limite:
+                break
+    return elegidos
+
+
+def _asegurar_tablas_0020():
+    """Fotos y mantenimientos (migración 0020). Se crean ANTES de abrir el
+    cursor de la consulta (un ALTER con la consulta abierta se quedaría
+    esperando) y solo en negocios que ya usan el módulo."""
+    try:
+        with get_db_cursor() as cur:
+            if not _existe(cur, 'st_equipos'):
+                return False
+            if _existe(cur, 'st_mantenimientos'):
+                return True
+        from services.servicio_tecnico_service import asegurar_tablas
+        return asegurar_tablas()
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def taller_equipo_historial(texto='', **_):
-    """Equipos de UN cliente (por nombre) o el equipo con ese serial o IMEI:
-    características, piezas cambiadas, próximas revisiones e historial de servicios."""
+    """Hoja de vida de los equipos de UN cliente (por nombre), de un serial o
+    IMEI, o descritos con palabras («el portátil de Laura»): características,
+    plan y registro de mantenimientos, recordatorios, piezas cambiadas y
+    reparaciones."""
     texto = (texto or '').strip()
     if not texto:
         return {'conclusion': 'Dime el nombre del cliente, el serial o el IMEI del equipo.'}
+    completo = _asegurar_tablas_0020()
     with get_db_cursor(dict_cursor=True) as cur:
         if not _existe(cur, 'st_equipos'):
             return _SIN_MODULO
-        digitos = re.sub(r'\D', '', texto)
-        cur.execute("""
-            SELECT e.id, e.tipo, e.marca, e.modelo, e.serial, e.imei, e.procesador, e.ram, e.almacenamiento,
-                   e.sistema_operativo, e.extras, e.resumen_ia, e.sugerencias_ia, c.nombre AS cliente
-            FROM st_equipos e LEFT JOIN crm_contactos c ON c.id = e.crm_contacto_id
-            WHERE e.activo AND (lower(COALESCE(e.serial, '')) = lower(%s)
-                                OR (%s <> '' AND e.imei = %s)
-                                OR lower(COALESCE(c.nombre, '')) LIKE %s)
-            ORDER BY e.actualizado_en DESC LIMIT 8""",
-                    (texto, digitos if len(digitos) == 15 else '', digitos, f'%{texto.lower()}%'))
-        equipos = cur.fetchall()
+        equipos = _buscar_equipos(cur, texto, 8)
         if not equipos:
             return {'conclusion': f'No encontré equipos con «{texto}».'}
         salida = []
@@ -239,14 +309,36 @@ def taller_equipo_historial(texto='', **_):
             piezas = [{'pieza': p['componente'], 'detalle': p['detalle'], 'fecha': str(p['fecha']),
                        'proxima_revision': str(p['proxima_revision']) if p['proxima_revision'] else None}
                       for p in cur.fetchall()]
-            caracteristicas = {k: e[k] for k in ('procesador', 'ram', 'almacenamiento', 'sistema_operativo') if e[k]}
+            caracteristicas = {k: e[k] for k in ('procesador', 'ram', 'almacenamiento', 'sistema_operativo', 'pantalla')
+                               if e.get(k)}
             caracteristicas.update({k: v for k, v in (e['extras'] or {}).items() if v})
-            salida.append({
+            hoja = {
                 'equipo': _equipo(e), 'cliente': e['cliente'], 'serial': e['serial'], 'imei': e['imei'],
                 'caracteristicas': caracteristicas, 'resumen': e['resumen_ia'],
                 'mejoras_sugeridas': [s.get('titulo') for s in (e['sugerencias_ia'] or []) if isinstance(s, dict)],
                 'servicios': ordenes, 'piezas_cambiadas': piezas,
-            })
+            }
+            if completo:
+                hoja['plan_de_mantenimiento'] = (
+                    {'cada_meses': e.get('mant_cada_meses'),
+                     'proximo': e['mant_proximo'].strftime('%d/%m/%Y') if e.get('mant_proximo') else None}
+                    if e.get('mant_cada_meses') or e.get('mant_proximo') else 'Sin plan de mantenimiento')
+                cur.execute("""SELECT tipo, fecha, descripcion, costo, proxima_fecha FROM st_mantenimientos
+                               WHERE equipo_id = %s ORDER BY fecha DESC, id DESC LIMIT 8""", (e['id'],))
+                hoja['mantenimientos'] = [{'tipo': m['tipo'], 'fecha': m['fecha'].strftime('%d/%m/%Y'),
+                                           'que_se_hizo': (m['descripcion'] or '')[:200], 'costo': _dinero(m['costo'])}
+                                          for m in cur.fetchall()]
+                cur.execute("""SELECT tipo, fecha_programada, motivo, canal FROM st_seguimientos
+                               WHERE equipo_id = %s AND estado = 'pendiente' ORDER BY fecha_programada LIMIT 8""",
+                            (e['id'],))
+                from services.servicio_tecnico_seguimiento import TIPOS
+                hoja['recordatorios_pendientes'] = [
+                    {'que': s['motivo'] or TIPOS.get(s['tipo'], (s['tipo'],))[0],
+                     'fecha': s['fecha_programada'].strftime('%d/%m/%Y'),
+                     'interno': s['canal'] == 'interno'} for s in cur.fetchall()]
+                cur.execute('SELECT COUNT(*) AS n FROM st_fotos WHERE equipo_id = %s AND activo', (e['id'],))
+                hoja['fotos'] = int(cur.fetchone()['n'])
+            salida.append(hoja)
     return {'equipos_encontrados': len(salida), 'equipos': salida}
 
 
@@ -452,4 +544,156 @@ def taller_fallas_frecuentes(periodo='todo', **_):
         'confiabilidad': 'baja' if total < 10 else 'normal',
         'nota': (f'{sin_clasificar} orden(es) aún sin clasificar: se pueden clasificar en Servicio Técnico → '
                  'Configuración.' if sin_clasificar else None),
+    }
+
+
+# ── 8. Mantenimientos: agenda y lo hecho ────────────────────────
+def _ventana(periodo):
+    """(desde, hasta) del período completo, también hacia adelante («este mes» =
+    del 1 al último día). Sin período: todo lo vencido y lo que viene (hasta=None)."""
+    hoy = date.today()
+    p = _periodo(periodo)
+    if isinstance(p, Rango):
+        return p.desde, p.hasta
+    if p in ('hoy', 'ayer', 'anteayer'):
+        d = hoy - timedelta(days={'hoy': 0, 'ayer': 1, 'anteayer': 2}[p])
+        return d, d
+    if p in ('semana', 'semana_anterior'):
+        lunes = hoy - timedelta(days=hoy.weekday() + (7 if p == 'semana_anterior' else 0))
+        return lunes, lunes + timedelta(days=6)
+    if p in ('mes', 'mes_anterior'):
+        base = hoy.replace(day=1)
+        if p == 'mes_anterior':
+            base = (base - timedelta(days=1)).replace(day=1)
+        return base, base.replace(day=calendar.monthrange(base.year, base.month)[1])
+    if p == 'anio':
+        return date(hoy.year, 1, 1), date(hoy.year, 12, 31)
+    return None, None
+
+
+def _fecha_iso(valor):
+    try:
+        return date.fromisoformat(str(valor)[:10])
+    except (TypeError, ValueError):
+        return None
+
+
+def taller_mantenimientos(periodo='todo', limite=20, **_):
+    """Mantenimientos del taller: los que tocan (vencidos y del período, por el
+    plan de cada equipo), los hechos en el período (preventivos y correctivos,
+    con lo cobrado), revisiones de piezas, UPS con baterías viejas y equipos sin
+    plan de mantenimiento."""
+    limite = _limite(limite, 20, 50)
+    if not _asegurar_tablas_0020():
+        return _SIN_MODULO
+    hoy = date.today()
+    desde, hasta = _ventana(periodo)
+    inicio, fin = desde or date(1900, 1, 1), hasta or date(9999, 12, 31)
+    p = _periodo(periodo)
+    with get_db_cursor(dict_cursor=True) as cur:
+        # Lo que toca: el plan del equipo y los avisos de mantenimiento pendientes.
+        cur.execute("""
+            SELECT e.tipo, e.marca, e.modelo, e.serial, e.mant_cada_meses, c.nombre AS cliente,
+                   LEAST(e.mant_proximo, s.fecha) AS fecha
+            FROM st_equipos e
+            LEFT JOIN crm_contactos c ON c.id = e.crm_contacto_id
+            LEFT JOIN (SELECT equipo_id, MIN(fecha_programada) AS fecha FROM st_seguimientos
+                       WHERE estado = 'pendiente' AND tipo = 'mantenimiento' AND equipo_id IS NOT NULL
+                       GROUP BY equipo_id) s ON s.equipo_id = e.id
+            WHERE e.activo AND COALESCE(e.mant_proximo, s.fecha) IS NOT NULL
+              AND (LEAST(e.mant_proximo, s.fecha) < %s
+                   OR LEAST(e.mant_proximo, s.fecha) BETWEEN %s AND %s)
+            ORDER BY 7 LIMIT %s""", (hoy, inicio, fin, limite))
+        filas_programados = cur.fetchall()
+        cur.execute("""
+            SELECT COUNT(*) AS n,
+                   COUNT(*) FILTER (WHERE LEAST(e.mant_proximo, s.fecha) < %s) AS vencidos
+            FROM st_equipos e
+            LEFT JOIN (SELECT equipo_id, MIN(fecha_programada) AS fecha FROM st_seguimientos
+                       WHERE estado = 'pendiente' AND tipo = 'mantenimiento' AND equipo_id IS NOT NULL
+                       GROUP BY equipo_id) s ON s.equipo_id = e.id
+            WHERE e.activo AND COALESCE(e.mant_proximo, s.fecha) IS NOT NULL
+              AND (LEAST(e.mant_proximo, s.fecha) < %s
+                   OR LEAST(e.mant_proximo, s.fecha) BETWEEN %s AND %s)""", (hoy, hoy, inicio, fin))
+        conteo = cur.fetchone()
+        total_por_hacer, vencidos = int(conteo['n']), int(conteo['vencidos'])
+        programados = [{
+            'equipo': _equipo(f), 'cliente': f['cliente'], 'serial': f['serial'],
+            'fecha': f['fecha'].strftime('%d/%m/%Y'),
+            'vencido': f['fecha'] < hoy, 'dias_de_atraso': (hoy - f['fecha']).days if f['fecha'] < hoy else 0,
+            'cada_meses': f['mant_cada_meses'],
+        } for f in filas_programados]
+
+        filtro = _sql_periodo(p, 'm.fecha')
+        cur.execute(f"""SELECT m.tipo, COUNT(*) AS n, COALESCE(SUM(m.costo), 0) AS total
+                        FROM st_mantenimientos m WHERE {filtro} GROUP BY m.tipo""")
+        resumen = {r['tipo']: (int(r['n']), float(r['total'])) for r in cur.fetchall()}
+        cur.execute(f"""SELECT m.tipo, m.fecha, m.descripcion, m.costo, e.tipo AS equipo_tipo, e.marca, e.modelo,
+                               c.nombre AS cliente
+                        FROM st_mantenimientos m JOIN st_equipos e ON e.id = m.equipo_id
+                        LEFT JOIN crm_contactos c ON c.id = e.crm_contacto_id
+                        WHERE {filtro} ORDER BY m.fecha DESC, m.id DESC LIMIT %s""", (limite,))
+        hechos = [{
+            'tipo': f['tipo'], 'fecha': f['fecha'].strftime('%d/%m/%Y'), 'cliente': f['cliente'],
+            'equipo': _equipo({'tipo': f['equipo_tipo'], 'marca': f['marca'], 'modelo': f['modelo']}),
+            'que_se_hizo': (f['descripcion'] or '')[:160], 'costo': _dinero(f['costo']),
+        } for f in cur.fetchall()]
+
+        cur.execute("""SELECT cb.componente, cb.proxima_revision, e.tipo, e.marca, e.modelo, c.nombre AS cliente
+                       FROM st_cambios cb JOIN st_equipos e ON e.id = cb.equipo_id
+                       LEFT JOIN crm_contactos c ON c.id = e.crm_contacto_id
+                       WHERE e.activo AND cb.proxima_revision IS NOT NULL
+                         AND (cb.proxima_revision < %s OR cb.proxima_revision BETWEEN %s AND %s)
+                       ORDER BY cb.proxima_revision LIMIT %s""", (hoy, inicio, fin, limite))
+        piezas = [{'pieza': f['componente'], 'equipo': _equipo(f), 'cliente': f['cliente'],
+                   'revisar': f['proxima_revision'].strftime('%d/%m/%Y'), 'vencida': f['proxima_revision'] < hoy}
+                  for f in cur.fetchall()]
+
+        cur.execute("""SELECT e.tipo, e.marca, e.modelo, e.extras->>'baterias_ultimo_cambio' AS ultimo,
+                              c.nombre AS cliente
+                       FROM st_equipos e LEFT JOIN crm_contactos c ON c.id = e.crm_contacto_id
+                       WHERE e.activo AND e.tipo IN ('ups', 'bateria')
+                         AND COALESCE(e.extras->>'baterias_ultimo_cambio', '') <> ''
+                       LIMIT 300""")
+        baterias = []
+        for f in cur.fetchall():
+            ultimo = _fecha_iso(f['ultimo'])
+            if ultimo and (hoy - ultimo).days > 730:
+                baterias.append({'equipo': _equipo(f), 'cliente': f['cliente'],
+                                 'ultimo_cambio_de_baterias': ultimo.strftime('%d/%m/%Y'),
+                                 'anios': round((hoy - ultimo).days / 365, 1)})
+        baterias.sort(key=lambda b: -b['anios'])
+
+        sin_plan_sql = """FROM st_equipos e LEFT JOIN crm_contactos c ON c.id = e.crm_contacto_id
+                          WHERE e.activo AND e.mant_cada_meses IS NULL AND e.mant_proximo IS NULL
+                            AND NOT EXISTS (SELECT 1 FROM st_seguimientos s WHERE s.equipo_id = e.id
+                                            AND s.estado = 'pendiente' AND s.tipo = 'mantenimiento')"""
+        cur.execute('SELECT COUNT(*) AS n ' + sin_plan_sql)
+        sin_plan_total = int(cur.fetchone()['n'])
+        cur.execute('SELECT e.tipo, e.marca, e.modelo, c.nombre AS cliente ' + sin_plan_sql +
+                    ' ORDER BY e.actualizado_en DESC LIMIT %s', (limite,))
+        sin_plan = [{'equipo': _equipo(f), 'cliente': f['cliente']} for f in cur.fetchall()]
+
+    preventivos, correctivos = resumen.get('preventivo', (0, 0.0)), resumen.get('correctivo', (0, 0.0))
+    if not (programados or hechos or piezas or baterias or sin_plan_total):
+        return {'periodo': _label_periodo(p),
+                'conclusion': 'No hay equipos registrados con mantenimientos todavía. Se programan en la ficha de '
+                              'cada equipo (Soporte → Equipos → pestaña Mantenimientos).'}
+    agenda = (f"del {desde.strftime('%d/%m/%Y')} al {hasta.strftime('%d/%m/%Y')}" if desde
+              else 'vencidos y próximos, en orden de fecha')
+    return {
+        'periodo': _label_periodo(p),
+        'agenda': agenda,
+        'por_hacer': programados,
+        'total_por_hacer': total_por_hacer,
+        'vencidos': vencidos,
+        'hechos_en_el_periodo': {'preventivos': preventivos[0], 'correctivos': correctivos[0],
+                                 'cobrado': formatear_moneda(preventivos[1] + correctivos[1])},
+        'ultimos_hechos': hechos,
+        'revisiones_de_piezas': piezas,
+        'ups_con_baterias_de_mas_de_2_anios': baterias,
+        'equipos_sin_plan_de_mantenimiento': sin_plan_total,
+        'sin_plan': sin_plan,
+        'nota': (f'{vencidos} mantenimiento(s) vencido(s): aparecen en Soporte → Seguimientos hoy con el mensaje '
+                 'listo para el cliente.' if vencidos else None),
     }

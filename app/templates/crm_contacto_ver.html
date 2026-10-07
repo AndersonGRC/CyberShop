@@ -268,6 +268,47 @@
             </div>
             {% endif %}
 
+            <!-- Card Servicio técnico (solo si la tienda tiene el módulo) -->
+            {% if st_activo %}
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-wrap justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-laptop-medical mr-1"></i>Equipos en servicio técnico
+                    </h6>
+                    {% if st_operar %}
+                    <span>
+                        <a href="{{ url_for('servicio_tecnico.equipo_nuevo', cliente=contacto.id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-plus"></i> Registrar equipo</a>
+                        <a href="{{ url_for('servicio_tecnico.nueva_orden', cliente=contacto.id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-clipboard-check"></i> Nueva orden</a>
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="card-body p-0">
+                    {% if st_equipos %}
+                    <div class="table-responsive">
+                        <table class="table table-sm crm-tabla-interna mb-0">
+                            <thead><tr><th>Equipo</th><th>Serial / IMEI</th><th>Servicios</th><th>Estado</th><th>Próx. mantenimiento</th></tr></thead>
+                            <tbody>
+                                {% for e in st_equipos %}
+                                <tr>
+                                    <td class="small"><a href="{{ url_for('servicio_tecnico.equipo_ver', equipo_id=e.id) }}"><i class="fas fa-{{ e.icono }} mr-1"></i>{{ e.descripcion }}</a></td>
+                                    <td class="small">{{ e.serial or e.imei or '—' }}</td>
+                                    <td>{{ e.ordenes }}</td>
+                                    <td>{% if e.estado_nombre %}<span class="badge badge-{{ 'warning' if e.abierta else 'secondary' }}">{{ e.estado_nombre }}</span>{% else %}—{% endif %}</td>
+                                    <td class="small">{{ e.mant_proximo.strftime('%d/%m/%Y') if e.mant_proximo else '—' }}{% if e.recordatorios %} <span class="badge badge-info" title="Recordatorios pendientes"><i class="fas fa-bell"></i> {{ e.recordatorios }}</span>{% endif %}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center my-3"><i class="fas fa-laptop"></i> Sin equipos registrados</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Card Oportunidades -->
             {% if oportunidades %}
             <div class="card shadow mb-4">

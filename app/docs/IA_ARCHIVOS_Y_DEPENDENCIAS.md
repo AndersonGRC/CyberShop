@@ -35,7 +35,7 @@ cliente para el chat público previsto. El modelo local o Anthropic solo
 selecciona/redacta en los flujos que lo requieren; las consultas tienen SQL
 predefinido. Las operaciones de escritura están separadas en `ia_acciones.py`.
 
-El registro de 56 capacidades se llena al importar `services.ia_datos`; importar
+El registro de 57 capacidades se llena al importar `services.ia_datos`; importar
 solo `services.ia` no lo puebla. El mapa de funciones y frases se genera con
 `tools/ia_mapa.py` en [IA_MAPA.md](IA_MAPA.md); no se edita a mano.
 
@@ -54,7 +54,11 @@ una consulta por parte si cada una se entiende sola; una capacidad con dos
 períodos («hoy y ayer») da una consulta por período, salvo que quede contenido
 ajeno. «El año pasado» va como rango exacto (desde/hasta del año anterior).
 El mismo archivo trae los bancos `PUBLICO`, `SEGUIMIENTOS`, `COMPUESTAS` y
-`SEGUIMIENTOS_NOMBRE`. Al modelo le llegan,
+`SEGUIMIENTOS_NOMBRE`. Las frases que nombran el dominio («del taller», «del
+servicio técnico») son más largas que las genéricas del CRM o de cobros y les
+ganan solo cuando la pregunta lo dice. Una capacidad puede declarar en `extra`
+su `limite_defecto` (por defecto se piden 5 filas); los totales que reporta
+deben salir de un conteo, no de la lista recortada. Al modelo le llegan,
 además del catálogo, un glosario coloquial y un ejemplo por capacidad permitida
 (`services/ia/clarificaciones.py`).
 
@@ -68,9 +72,9 @@ frase se haya probado contra una base real.
 | --- | --- |
 | `ia/__init__.py` | Expone el contrato del registro; no carga por sí solo las capacidades. |
 | `ia/registro.py` | Define capacidades, canales, metadatos y registro único. |
-| `ia/intenciones.py` | Frases disparadoras y metadatos de las 56 capacidades. |
+| `ia/intenciones.py` | Frases disparadoras y metadatos de las 57 capacidades. |
 | `ia/enrutador.py` | Reconoce preguntas inequívocas y parámetros sin llamar al modelo. |
-| `ia_datos/__init__.py` | Importa dominios, registra las 56 consultas, valida parámetros y ejecuta. |
+| `ia_datos/__init__.py` | Importa dominios, registra las 57 consultas, valida parámetros y ejecuta. |
 | `ia_datos/acceso.py` | Contexto de canal, módulos y permisos por rol. |
 | `ia_datos/base.py` | Utilidades comunes de fechas, esquema, rangos y SQL. También lo usan `cartera_service.py` e `ia_rag/`. |
 | `ia_datos/ventas.py` | Ventas, productos, clientes, pedidos y tendencias. |

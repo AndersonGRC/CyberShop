@@ -11,6 +11,7 @@ import pytest
 
 from services import servicio_tecnico_ia as st_ia
 from services import servicio_tecnico_lector as lector
+from services.servicio_tecnico_clasificador import _por_ia as _POR_IA_REAL  # antes de que conftest la reemplace
 from tests.test_servicio_tecnico import MARCA, _crear, dueno, limpiar, modulo  # noqa: F401  (fixtures)
 
 WINDOWS = """Nombre de host:                            DESKTOP-ANA123
@@ -228,3 +229,62 @@ def test_mejorar_mensaje_ruta(modulo, dueno, limpiar, ia_falsa):
     assert d['ok'] and d['texto'].startswith(f'¡Hola {MARCA}!') and '/servicio/' in d['texto']
     assert d['wa_url'].startswith('https://wa.me/573001234567?text=')
     assert MARCA not in llamadas[-1] and '300 123 4567' not in llamadas[-1]
+
+
+# ── Texto libre del técnico: sin datos personales antes de la IA ─
+def test_texto_libre_sin_datos_personales():
+    texto = ('Laura dice que no carga; llamar al 300 123 4567 o laura.gomez@gmail.com. CC 1.027.150.819. '
+             'Fijo 601 234 5678. Luz Marina lo trajo. La luz del cargador no prende. Modelo SM-A546E serial R58W123ABC')
+    limpio = lector.sin_datos_personales(texto, ('Laura Gómez', 'Luz Marina Peña'))
+    for dato in ('Laura', '300 123 4567', 'laura.gomez', '1.027.150.819', '601 234 5678', 'Luz Marina'):
+        assert dato not in limpio, dato
+    # Lo técnico queda; «luz» del cargador no es un nombre.
+    assert 'La luz del cargador' in limpio and 'SM-A546E' in limpio and 'R58W123ABC' in limpio
+    assert lector.sin_datos_personales('Pantalla de Ana. Banana.', ('Ana Pérez',)) == 'Pantalla de [cliente]. Banana.'
+
+
+def test_prediagnostico_no_manda_nombre_ni_celular(modulo, dueno, limpiar, ia_falsa):
+    llamadas, respuesta = ia_falsa
+    from services import servicio_tecnico_service as st
+    oid = _crear(dueno, falla_reportada=f'{MARCA} Ana dice que no carga. Llamarla al 310 555 1234 o a ana@correo.com',
+                 estado_fisico='Golpe en la esquina, lo trajo Ana')
+    respuesta['texto'] = 'Causas probables:\n- Pin de carga'
+    dueno.post(f'/admin/servicio-tecnico/orden/{oid}/prediagnostico')
+    prompt = llamadas[-1]
+    for dato in (MARCA, 'Ana', '310 555 1234', 'ana@correo.com'):
+        assert dato not in prompt, dato
+    assert 'no carga' in prompt and 'Golpe en la esquina' in prompt
+    assert st.obtener_orden(oid)['prediagnostico_ia'].startswith('Causas probables')
+
+
+def test_clasificador_no_manda_nombre_ni_celular(monkeypatch):
+    import services.ai_service as ai
+    enviado = []
+    monkeypatch.setattr(ai, 'estado_ia', lambda: (True, 'ok'))
+    monkeypatch.setattr(ai, '_chat', lambda system, user, **kw: (enviado.append(user) or
+                        '{"falla_categoria": "carga", "componente": "pin_carga", "solucion_categoria": null}', None))
+    caso = {'tipo': 'celular', 'marca': 'Samsung', 'modelo': 'A54', 'cliente': 'Carlos Pérez',
+            'falla': 'Carlos dice que no carga, su número es 3001234567', 'diagnostico': 'Pin de carga sucio',
+            'solucion': '', 'piezas': []}
+    _POR_IA_REAL(caso, {'etiquetas': []})
+    assert enviado and 'Carlos' not in enviado[0] and '3001234567' not in enviado[0]
+    assert 'no carga' in enviado[0] and 'Pin de carga sucio' in enviado[0]
+
+
+def test_mejorar_el_recordatorio_conserva_el_motivo(flask_app, ia_falsa):
+    llamadas, respuesta = ia_falsa
+    plantilla = 'Hola {cliente}, te escribimos de {negocio} sobre tu {equipo}: {motivo}.'
+    respuesta['texto'] = '¡Hola {cliente}! 😊 En {negocio} queremos contarte algo de tu {equipo}: {motivo}.'
+    texto, err = st_ia.mejorar_plantilla('Recordatorio programado', plantilla)
+    assert err is None and '{motivo}' in texto and '{motivo}' in llamadas[-1]
+    respuesta['texto'] = '¡Hola {cliente}! En {negocio} revisamos tu {equipo}.'      # se comió el motivo
+    texto, err = st_ia.mejorar_plantilla('Recordatorio programado', plantilla)
+    assert texto is None and 'original' in err
+
+
+def test_respuesta_cortada_de_la_ia_avisa_y_usa_el_lector(flask_app, ia_falsa):
+    llamadas, respuesta = ia_falsa
+    respuesta['texto'] = '{"campos": {"marca": {"valor": "LENOVO", "linea": "Fabricante del sistema: LENOVO"'
+    r = st_ia.leer_informacion({'tipo': 'portatil'}, WINDOWS)
+    assert 'incompleta' in r['aviso'] and not r['ia']
+    assert any(p['campo'] == 'marca' and p['fuente'] == 'lector' for p in r['propuestas'])

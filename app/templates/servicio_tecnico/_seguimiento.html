@@ -1,0 +1,72 @@
+{# Tarjeta de un seguimiento con sus acciones (WhatsApp, correo, llamada,
+   hecho, omitir). La usan «Hoy» y la ficha del equipo. Importar «with context»
+   (usa ia_ok y csrf_token). volver = a dónde regresar después de la acción. #}
+{% macro tarjeta(s, grupo, volver='') %}
+<li class="st-card st-seg {% if s.urgente %}st-seg-urgente{% elif grupo == 'atrasados' %}st-seg-atrasado{% endif %}" data-st-seg>
+    <div class="st-seg-cab">
+        <span class="st-seg-ico"><i class="fas fa-{{ s.tipo_icono }}" aria-hidden="true"></i></span>
+        <div class="st-seg-tit">
+            <h3>{{ s.tipo_nombre }} · {{ s.nombre_cliente }}</h3>
+            <p>
+                {% if s.numero %}<a href="{{ url_for('servicio_tecnico.orden_ver', orden_id=s.orden_id) }}">{{ s.numero }}</a> ·
+                {% elif s.equipo_id and not volver %}<a href="{{ url_for('servicio_tecnico.equipo_ver', equipo_id=s.equipo_id) }}">{{ tipo_nombre(s.equipo_tipo) }}{% if s.marca or s.modelo %} {{ s.marca or '' }} {{ s.modelo or '' }}{% endif %}</a> · {% endif %}
+                {% if s.cotizacion_id and not s.numero %}Cotización COT {{ '%010d' % s.cotizacion_id }} · {% endif %}
+                {% if grupo == 'atrasados' %}<strong>atrasado {{ s.dias }} {{ 'día' if s.dias == 1 else 'días' }}</strong>
+                {% elif grupo == 'hoy' %}para hoy
+                {% else %}{{ s.fecha_programada.strftime('%d/%m') }}{% endif %}
+            </p>
+            {% if s.motivo %}<p class="st-seg-motivo"><i class="fas fa-thumbtack" aria-hidden="true"></i> {{ s.motivo }}</p>{% endif %}
+        </div>
+    </div>
+    {% if not s.interno %}
+    <details class="st-seg-msj">
+        <summary>Ver mensaje</summary>
+        <p class="st-texto st-mensaje">{{ s.mensaje }}</p>
+        {% if ia_ok and not s.urgente %}
+        <button type="button" class="st-btn st-btn-sec st-btn-sm" style="margin-top:8px"
+                data-st-mejorar="{{ url_for('servicio_tecnico.api_mejorar_mensaje') }}" data-seg="{{ s.id }}">
+            <i class="fas fa-magic" aria-hidden="true"></i> Mejorar con IA</button>
+        {% endif %}
+    </details>
+    {% endif %}
+    <div class="st-acciones">
+        {% if s.wa_url %}
+        <a class="st-btn st-btn-wa st-btn-sm" href="{{ s.wa_url }}" target="_blank" rel="noopener"
+           data-st-wa-marcar="{{ url_for('servicio_tecnico.seguimiento_completar', seg_id=s.id) }}">
+            <i class="fab fa-whatsapp" aria-hidden="true"></i> WhatsApp</a>
+        {% endif %}
+        {% if s.tiene_correo and not s.urgente %}
+        <form method="post" action="{{ url_for('servicio_tecnico.seguimiento_correo', seg_id=s.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% if volver %}<input type="hidden" name="volver" value="{{ volver }}">{% endif %}
+            <button class="st-btn st-btn-sec st-btn-sm" type="submit"><i class="fas fa-envelope" aria-hidden="true"></i> Correo</button>
+        </form>
+        {% endif %}
+        {% if not s.interno %}
+        <details class="st-seg-llamada">
+            <summary class="st-btn st-btn-sec st-btn-sm"><i class="fas fa-phone" aria-hidden="true"></i> Llamé</summary>
+            <form method="post" action="{{ url_for('servicio_tecnico.seguimiento_completar', seg_id=s.id) }}" class="st-campos" style="margin-top:10px">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="canal" value="llamada">
+                {% if volver %}<input type="hidden" name="volver" value="{{ volver }}">{% endif %}
+                <div class="st-campo st-campo-ancho"><label for="ll-{{ s.id }}">¿Qué dijo el cliente?</label>
+                    <input type="text" id="ll-{{ s.id }}" name="comentario" placeholder="Opcional"></div>
+                <div class="st-campo-ancho"><button class="st-btn st-btn-sm" type="submit">Guardar llamada</button></div>
+            </form>
+        </details>
+        {% endif %}
+        <form method="post" action="{{ url_for('servicio_tecnico.seguimiento_completar', seg_id=s.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% if volver %}<input type="hidden" name="volver" value="{{ volver }}">{% endif %}
+            <button class="st-btn st-btn-ok st-btn-sm" type="submit"><i class="fas fa-check" aria-hidden="true"></i> Hecho</button>
+        </form>
+        <form method="post" action="{{ url_for('servicio_tecnico.seguimiento_completar', seg_id=s.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="estado" value="omitido">
+            {% if volver %}<input type="hidden" name="volver" value="{{ volver }}">{% endif %}
+            <button class="st-btn st-btn-sec st-btn-sm" type="submit" aria-label="Omitir este seguimiento">Omitir</button>
+        </form>
+        {% if not s.interno and not s.telefono and not s.tiene_correo %}<span class="st-vacio-dato">Sin teléfono ni correo</span>{% endif %}
+    </div>
+</li>
+{% endmacro %}

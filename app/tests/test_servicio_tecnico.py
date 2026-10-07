@@ -67,6 +67,10 @@ def limpiar(cursor):
                 cur.execute("SELECT id FROM st_equipos WHERE crm_contacto_id = ANY(%s)", (ids,))
                 eqs = [r['id'] for r in cur.fetchall()]
                 cur.execute("DELETE FROM st_seguimientos WHERE orden_id = ANY(%s) OR equipo_id = ANY(%s)", (ords, eqs))
+                cur.execute("SELECT to_regclass('public.st_fotos') AS t")
+                if cur.fetchone()['t']:
+                    cur.execute("DELETE FROM st_fotos WHERE equipo_id = ANY(%s)", (eqs,))
+                    cur.execute("DELETE FROM st_mantenimientos WHERE equipo_id = ANY(%s)", (eqs,))
                 cur.execute("DELETE FROM st_eventos WHERE orden_id = ANY(%s) OR equipo_id = ANY(%s)", (ords, eqs))
                 cur.execute("DELETE FROM st_cambios WHERE equipo_id = ANY(%s)", (eqs,))
                 cur.execute("DELETE FROM st_ordenes WHERE id = ANY(%s)", (ords,))
@@ -129,7 +133,8 @@ def test_extras_solo_del_tipo():
 
 
 @pytest.mark.parametrize('archivo, atributo', [('0018_servicio_tecnico.sql', 'DDL_0018'),
-                                               ('0019_servicio_tecnico_solucion.sql', 'DDL_0019')])
+                                               ('0019_servicio_tecnico_solucion.sql', 'DDL_0019'),
+                                               ('0020_servicio_tecnico_fotos_mantenimiento.sql', 'DDL_0020')])
 def test_migracion_del_maestro_igual_al_codigo(archivo, atributo):
     from services import servicio_tecnico_service as st
     app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
