@@ -2,7 +2,7 @@
 {% block titulo %}Estado de su equipo · {{ brand_config.empresa_nombre or datosApp.titulo }}{% endblock %}
 {% block LinkAdicional %}
 <meta name="robots" content="noindex, nofollow">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/servicio_tecnico.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/servicio_tecnico.css') }}?v={{ config.APP_VERSION }}">
 {% endblock %}
 
 {% block body %}
