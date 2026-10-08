@@ -1,12 +1,12 @@
 {% extends "servicio_tecnico/base.html" %}
-{% block st_titulo %}Hoy{% endblock %}
+{% block st_titulo %}Pendientes{% endblock %}
 
 {% from "servicio_tecnico/_seguimiento.html" import tarjeta with context %}
 
 {% block st_contenido %}
 <section class="st-hero">
     <div>
-        <h1><i class="fas fa-bell" aria-hidden="true"></i> Hoy</h1>
+        <h1><i class="fas fa-bell" aria-hidden="true"></i> Pendientes con los clientes</h1>
         <p>{% if total %}{{ grupos.atrasados | length }} atrasados · {{ grupos.hoy | length }} para hoy · {{ grupos.proximos | length }} en los próximos días
            {% else %}Todo al día{% endif %}</p>
     </div>

@@ -318,20 +318,19 @@ def get_data_app():
             # clientes del CRM). Si ningún ítem aplica, el grupo no se muestra.
             "submodulos": [
                 {"nombre": "Tickets clientes", "url": "soporte.admin_tickets",     "icono": "ticket-alt", "module_code": MODULE_SUPPORT, "permiso": ("support", "ver")},
-                {"nombre": f"Seguimientos hoy ({st_pendientes})" if st_pendientes else "Seguimientos hoy", "url": "servicio_tecnico.hoy", "icono": "bell",
+                # Servicio técnico: tres entradas; lo demás (recibir, registrar,
+                # ajustes) está dentro del módulo, sin repetir el menú.
+                {"nombre": "Servicio técnico", "url": "servicio_tecnico.ordenes", "icono": "tools", "module_code": MODULE_SERVICIO_TECNICO,
+                 "permiso": ("servicio_tecnico", "ver"),
+                 "activo_en": ("servicio_tecnico.ordenes", "servicio_tecnico.orden_ver", "servicio_tecnico.nueva_orden",
+                               "servicio_tecnico.configuracion")},
+                {"nombre": f"Pendientes ({st_pendientes})" if st_pendientes else "Pendientes", "url": "servicio_tecnico.hoy", "icono": "bell",
                  "module_code": MODULE_SERVICIO_TECNICO, "permiso": ("servicio_tecnico", "ver")},
-                {"nombre": "Órdenes de servicio", "url": "servicio_tecnico.ordenes", "icono": "clipboard-list", "module_code": MODULE_SERVICIO_TECNICO,
-                 "permiso": ("servicio_tecnico", "ver"), "activo_en": ("servicio_tecnico.ordenes", "servicio_tecnico.orden_ver")},
-                {"nombre": "Nueva orden de servicio", "url": "servicio_tecnico.nueva_orden", "icono": "plus-circle", "module_code": MODULE_SERVICIO_TECNICO,
-                 "permiso": ("servicio_tecnico", "operar")},
                 {"nombre": "Equipos", "url": "servicio_tecnico.equipos", "icono": "laptop-medical", "module_code": MODULE_SERVICIO_TECNICO,
                  "permiso": ("servicio_tecnico", "ver"),
-                 "activo_en": ("servicio_tecnico.equipos", "servicio_tecnico.equipo_ver", "servicio_tecnico.equipo_editar")},
-                {"nombre": "Registrar equipo", "url": "servicio_tecnico.equipo_nuevo", "icono": "plus-square", "module_code": MODULE_SERVICIO_TECNICO,
-                 "permiso": ("servicio_tecnico", "operar")},
+                 "activo_en": ("servicio_tecnico.equipos", "servicio_tecnico.equipo_ver", "servicio_tecnico.equipo_editar",
+                               "servicio_tecnico.equipo_nuevo")},
                 {"nombre": "Configuración",     "url": "soporte.admin_soporte_config", "icono": "sliders-h", "module_code": MODULE_SUPPORT, "permiso": ("support", "ver")},
-                {"nombre": "Config. servicio técnico", "url": "servicio_tecnico.configuracion", "icono": "tools", "module_code": MODULE_SERVICIO_TECNICO,
-                 "permiso": ("servicio_tecnico", "operar")},
             ]
         },
         {

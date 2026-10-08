@@ -50,9 +50,13 @@ def _usuario():
 
 
 def _ctx(**extra):
+    try:
+        pendientes = seg.contar_pendientes_cache()
+    except Exception:  # noqa: BLE001
+        pendientes = 0
     base = dict(datosApp=get_data_app(), estados=st.ESTADOS, estado_info=st.ESTADO_POR_CODIGO,
                 pasos=st.PASOS, tipos_lista=tipos.TIPOS, tipo_nombre=tipos.nombre,
-                tipo_icono=tipos.icono, etiquetas=tipos.ETIQUETAS_COMUNES)
+                tipo_icono=tipos.icono, etiquetas=tipos.ETIQUETAS_COMUNES, st_pendientes=pendientes)
     base.update(extra)
     return base
 
@@ -287,13 +291,14 @@ def equipo_ver(equipo_id):
     pendientes, atendidos = seg.de_equipo(equipo_id)
     ordenes_equipo = st.ordenes_de_equipo(equipo_id)
     mantenimientos = st.mantenimientos_de_equipo(equipo_id)
+    cambios = st.cambios_de_equipo(equipo_id)
     return render_template('servicio_tecnico/equipo.html', **_ctx(
-        hoja_vida=st.hoja_de_vida(mantenimientos, ordenes_equipo),
+        hoja_vida=st.hoja_de_vida(mantenimientos, ordenes_equipo, cambios),
         crm_activo=is_module_active(MODULE_CRM),
         equipo=equipo, campos_extra=tipos.campos_extra(equipo['tipo']),
         orden_abierta=st.orden_abierta_de_equipo(equipo_id), ia_estado=st_ia.estado(),
         ia_ok=st_ia.estado()[0],
-        columnas=tipos.columnas(equipo['tipo']), cambios=st.cambios_de_equipo(equipo_id),
+        columnas=tipos.columnas(equipo['tipo']), cambios=cambios,
         ordenes_equipo=ordenes_equipo, eventos=st.eventos(equipo_id=equipo_id),
         fotos=fotos, momentos=st.MOMENTOS_FOTO, nombre_momento=st.MOMENTO_FOTO, fotos_max=st.FOTOS_MAX,
         mantenimientos=mantenimientos, tipos_mant=st.TIPOS_MANTENIMIENTO,

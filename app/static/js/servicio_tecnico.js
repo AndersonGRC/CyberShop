@@ -420,6 +420,28 @@
     });
   });
 
+  // Un enlace a algo plegado («Pegar información», «#st-caso»…) lo abre solo.
+  function abrirDestino(hash) {
+    if (!hash || hash.length < 2) return;
+    var el = null;
+    try { el = document.getElementById(decodeURIComponent(hash.slice(1))); } catch (e) { el = null; }
+    if (!el) return;
+    if (el.tagName === 'DETAILS') el.open = true;
+    var padre = el.parentElement ? el.parentElement.closest('details') : null;
+    while (padre) {
+      padre.open = true;
+      padre = padre.parentElement ? padre.parentElement.closest('details') : null;
+    }
+  }
+  abrirDestino(location.hash);
+  window.addEventListener('hashchange', function () { abrirDestino(location.hash); });
+  $$('a[data-st-abrir]').forEach(function (a) {
+    a.addEventListener('click', function () {
+      var destino = a.getAttribute('href') || '';
+      if (destino.charAt(0) === '#') abrirDestino(destino);
+    });
+  });
+
   // Formularios que piden confirmación (p. ej. quitar una foto).
   $$('form[data-st-confirmar]').forEach(function (f) {
     f.addEventListener('submit', function (ev) {

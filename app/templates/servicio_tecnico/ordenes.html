@@ -1,17 +1,17 @@
 {% extends "servicio_tecnico/base.html" %}
 {% from "servicio_tecnico/_macros.html" import chip, cop %}
-{% block st_titulo %}Órdenes de servicio{% endblock %}
+{% block st_titulo %}Taller{% endblock %}
 
 {% block st_contenido %}
 <section class="st-hero" aria-labelledby="st-titulo">
     <div>
-        <h1 id="st-titulo"><i class="fas fa-tools" aria-hidden="true"></i> Servicio Técnico</h1>
-        <p>{{ conteo.values() | sum }} órdenes en total ·
-           {{ (conteo.get('listo', 0)) }} listas para entregar ·
-           {{ (conteo.get('cotizado', 0)) }} esperando respuesta de cotización</p>
+        <h1 id="st-titulo"><i class="fas fa-tools" aria-hidden="true"></i> Taller</h1>
+        <p>{{ (conteo.get('listo', 0)) }} listos para entregar ·
+           {{ (conteo.get('cotizado', 0)) }} esperando que el cliente apruebe la cotización</p>
     </div>
     <div class="st-acciones">
-        <a class="st-btn" href="{{ url_for('servicio_tecnico.nueva_orden') }}"><i class="fas fa-plus" aria-hidden="true"></i> Nueva orden</a>
+        <a class="st-btn" href="{{ url_for('servicio_tecnico.nueva_orden') }}"><i class="fas fa-plus" aria-hidden="true"></i> Recibir un equipo</a>
+        <a class="st-btn st-btn-claro" href="{{ url_for('servicio_tecnico.equipo_nuevo') }}"><i class="fas fa-laptop-medical" aria-hidden="true"></i> Registrar equipo sin orden</a>
     </div>
 </section>
 

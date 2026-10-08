@@ -92,10 +92,14 @@
         </section>
         {% endif %}
 
-        {# Avisar al cliente del estado actual #}
-        {% if aviso %}
+        {# Avisar al cliente: mensaje del estado actual y enlace para que vea su equipo #}
         <section class="st-card" aria-labelledby="st-avisar">
             <h2 id="st-avisar"><i class="fas fa-paper-plane" aria-hidden="true"></i> Avisar al cliente</h2>
+            {% if calificacion %}
+            <p style="margin:0 0 10px">Calificó el servicio:
+                <span class="st-estrellas" aria-label="{{ calificacion }} de 5">{{ '★' * calificacion }}<span class="st-estrellas-off">{{ '★' * (5 - calificacion) }}</span></span></p>
+            {% endif %}
+            {% if aviso %}
             <p class="st-texto st-mensaje">{{ aviso.texto }}</p>
             <div class="st-acciones" style="margin-top:12px">
                 {% if aviso.wa_url %}
@@ -117,8 +121,15 @@
                 {% if not aviso.wa_url and not aviso.correo %}<span class="st-vacio-dato">El cliente no tiene WhatsApp ni correo registrados.</span>{% endif %}
             </div>
             {% if aviso.correo_enviado %}<p class="st-vacio-dato" style="margin:10px 0 0"><i class="fas fa-check" aria-hidden="true"></i> El correo de este estado ya salió.</p>{% endif %}
+            {% endif %}
+            <div class="st-enlace{% if not aviso %} st-enlace-solo{% endif %}">
+                <span><i class="fas fa-link" aria-hidden="true"></i> El cliente puede ver cómo va su equipo con este enlace, sin iniciar sesión.</span>
+                <div class="st-acciones">
+                    <button type="button" class="st-btn st-btn-sec st-btn-sm" data-st-copiar="{{ enlace_publico }}"><i class="fas fa-copy" aria-hidden="true"></i> Copiar enlace</button>
+                    <a class="st-btn st-btn-sec st-btn-sm" href="{{ enlace_publico }}" target="_blank" rel="noopener"><i class="fas fa-external-link-alt" aria-hidden="true"></i> Abrir</a>
+                </div>
+            </div>
         </section>
-        {% endif %}
 
         {# Recepción y diagnóstico #}
         <section class="st-card" aria-labelledby="st-recep">
@@ -174,14 +185,14 @@
 
         {# Bitácora #}
         <section class="st-card" id="bitacora" aria-labelledby="st-bit">
-            <h2 id="st-bit"><i class="fas fa-stream" aria-hidden="true"></i> Bitácora</h2>
+            <h2 id="st-bit"><i class="fas fa-stream" aria-hidden="true"></i> Historial de la orden</h2>
             <form method="post" action="{{ url_for('servicio_tecnico.orden_nota', orden_id=orden.id) }}" class="st-busqueda" style="margin-bottom:16px">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <select name="tipo" aria-label="Tipo de registro" style="flex:0 1 160px">
                     <option value="nota">Nota</option><option value="llamada">Llamada</option>
                     <option value="whatsapp">WhatsApp</option><option value="correo">Correo</option></select>
-                <input type="text" name="texto" aria-label="Texto de la nota" placeholder="Qué se hizo o qué dijo el cliente" required style="flex:1 1 220px">
-                <button class="st-btn st-btn-sec" type="submit"><i class="fas fa-plus" aria-hidden="true"></i> Agregar</button>
+                <input type="text" name="texto" aria-label="Qué pasó" placeholder="Anota qué se hizo o qué dijo el cliente" required style="flex:1 1 220px">
+                <button class="st-btn st-btn-sec" type="submit"><i class="fas fa-plus" aria-hidden="true"></i> Anotar</button>
             </form>
             {% if eventos %}
             <ol class="st-tiempo">
@@ -191,6 +202,66 @@
                 {% endfor %}
             </ol>
             {% else %}<p class="st-vacio-dato">Sin registros.</p>{% endif %}
+        </section>
+
+        {# Lo avanzado, plegado: recordatorios de la orden y clasificación del caso #}
+        <section class="st-card" aria-labelledby="st-mas">
+            <h2 id="st-mas"><i class="fas fa-ellipsis-h" aria-hidden="true"></i> Más detalles</h2>
+            <div class="st-acordeon">
+                <details>
+                    <summary><i class="fas fa-bell" aria-hidden="true"></i> Recordatorios de esta orden ({{ seguimientos | length }})</summary>
+                    <div class="st-acordeon-cuerpo">
+                        {% if seguimientos %}
+            <ul class="st-lista-simple">
+                {% for s in seguimientos %}
+                <li><i class="fas fa-{{ s.tipo_icono }}" aria-hidden="true"></i>
+                    <span><strong>{{ s.tipo_nombre }}</strong><br>
+                    <small>{% if s.estado == 'pendiente' %}Programado para el {{ s.fecha_programada.strftime('%d/%m/%Y') }}
+                           {% else %}{{ 'Hecho' if s.estado == 'hecho' else 'Omitido' }}{% if s.canal %} · {{ s.canal }}{% endif %}{% if s.hecho_en %} · {{ s.hecho_en.strftime('%d/%m/%Y') }}{% endif %}{% endif %}</small>
+                    {% if s.comentario %}<br><small>«{{ s.comentario }}»</small>{% endif %}</span></li>
+                {% endfor %}
+            </ul>
+            {% else %}<p class="st-vacio-dato" style="margin:0">Los recordatorios se programan solos al avanzar la orden.</p>{% endif %}
+                        <p style="margin:12px 0 0"><a class="st-btn st-btn-sec st-btn-sm" href="{{ url_for('servicio_tecnico.hoy') }}"><i class="fas fa-bell" aria-hidden="true"></i> Ver todos los pendientes</a></p>
+                    </div>
+                </details>
+                <details id="st-caso">
+                    <summary><i class="fas fa-tags" aria-hidden="true"></i> Tipo de falla y solución (para buscar casos parecidos)</summary>
+                    <div class="st-acordeon-cuerpo">
+                        {% if orden.falla_categoria %}
+            <div class="st-acciones" style="gap:6px;margin-bottom:10px">
+                <span class="st-chip st-chip-aviso" title="Tipo de falla"><i class="fas fa-bug" aria-hidden="true"></i> {{ nombre_falla.get(orden.falla_categoria, orden.falla_categoria) }}</span>
+                {% if orden.componente %}<span class="st-chip st-chip-info" title="Pieza"><i class="fas fa-microchip" aria-hidden="true"></i> {{ nombre_componente.get(orden.componente, orden.componente) }}</span>{% endif %}
+                {% if orden.solucion_categoria %}<span class="st-chip st-chip-exito" title="Solución"><i class="fas fa-wrench" aria-hidden="true"></i> {{ nombre_solucion.get(orden.solucion_categoria, orden.solucion_categoria) }}</span>{% endif %}
+            </div>
+            {% if orden.resumen_caso %}<p class="st-texto st-mensaje" style="margin:0 0 8px">{{ orden.resumen_caso }}</p>{% endif %}
+            <p class="st-vacio-dato" style="margin:0 0 10px">Clasificado {{ {'ia': 'por la IA', 'reglas': 'automáticamente', 'manual': 'a mano'}.get(orden.clasificacion_fuente, '') }}{% if orden.etiquetas %} · {{ orden.etiquetas }}{% endif %}</p>
+            {% else %}
+            <p class="st-vacio-dato" style="margin:0 0 10px">Se clasifica solo al escribir el diagnóstico o la solución.</p>
+            {% endif %}
+            <div class="st-acciones">
+                <form method="post" action="{{ url_for('servicio_tecnico.orden_clasificar', orden_id=orden.id) }}" data-st-espera>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="st-btn st-btn-sec st-btn-sm" type="submit"><i class="fas fa-{{ 'robot' if ia_estado[0] else 'magic' }}" aria-hidden="true"></i>
+                        {{ 'Clasificar con IA' if ia_estado[0] else 'Clasificar' }}</button>
+                </form>
+                <details>
+                    <summary class="st-btn st-btn-sec st-btn-sm" style="list-style:none"><i class="fas fa-pen" aria-hidden="true"></i> Corregir</summary>
+                    <form method="post" action="{{ url_for('servicio_tecnico.orden_clasificacion_manual', orden_id=orden.id) }}" class="st-campos" style="margin-top:10px">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="st-campo st-campo-ancho"><label for="cl-falla">Tipo de falla</label>
+                            <select id="cl-falla" name="falla_categoria">{% for c, n in fallas %}<option value="{{ c }}" {% if orden.falla_categoria == c %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+                        <div class="st-campo st-campo-ancho"><label for="cl-comp">Pieza</label>
+                            <select id="cl-comp" name="componente"><option value="">—</option>{% for c, n in componentes %}<option value="{{ c }}" {% if orden.componente == c %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+                        <div class="st-campo st-campo-ancho"><label for="cl-sol">Solución</label>
+                            <select id="cl-sol" name="solucion_categoria"><option value="">Aún sin solución</option>{% for c, n in soluciones %}<option value="{{ c }}" {% if orden.solucion_categoria == c %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+                        <div class="st-campo-ancho"><button class="st-btn st-btn-sm" type="submit">Guardar clasificación</button></div>
+                    </form>
+                </details>
+            </div>
+                    </div>
+                </details>
+            </div>
         </section>
     </div>
 
@@ -237,68 +308,6 @@
             {% endif %}
         </section>
 
-        <section class="st-card" id="st-caso" aria-labelledby="st-caso-tit">
-            <h2 id="st-caso-tit"><i class="fas fa-tags" aria-hidden="true"></i> Caso</h2>
-            {% if orden.falla_categoria %}
-            <div class="st-acciones" style="gap:6px;margin-bottom:10px">
-                <span class="st-chip st-chip-aviso" title="Tipo de falla"><i class="fas fa-bug" aria-hidden="true"></i> {{ nombre_falla.get(orden.falla_categoria, orden.falla_categoria) }}</span>
-                {% if orden.componente %}<span class="st-chip st-chip-info" title="Pieza"><i class="fas fa-microchip" aria-hidden="true"></i> {{ nombre_componente.get(orden.componente, orden.componente) }}</span>{% endif %}
-                {% if orden.solucion_categoria %}<span class="st-chip st-chip-exito" title="Solución"><i class="fas fa-wrench" aria-hidden="true"></i> {{ nombre_solucion.get(orden.solucion_categoria, orden.solucion_categoria) }}</span>{% endif %}
-            </div>
-            {% if orden.resumen_caso %}<p class="st-texto st-mensaje" style="margin:0 0 8px">{{ orden.resumen_caso }}</p>{% endif %}
-            <p class="st-vacio-dato" style="margin:0 0 10px">Clasificado {{ {'ia': 'por la IA', 'reglas': 'automáticamente', 'manual': 'a mano'}.get(orden.clasificacion_fuente, '') }}{% if orden.etiquetas %} · {{ orden.etiquetas }}{% endif %}</p>
-            {% else %}
-            <p class="st-vacio-dato" style="margin:0 0 10px">Se clasifica solo al escribir el diagnóstico o la solución.</p>
-            {% endif %}
-            <div class="st-acciones">
-                <form method="post" action="{{ url_for('servicio_tecnico.orden_clasificar', orden_id=orden.id) }}" data-st-espera>
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="st-btn st-btn-sec st-btn-sm" type="submit"><i class="fas fa-{{ 'robot' if ia_estado[0] else 'magic' }}" aria-hidden="true"></i>
-                        {{ 'Clasificar con IA' if ia_estado[0] else 'Clasificar' }}</button>
-                </form>
-                <details>
-                    <summary class="st-btn st-btn-sec st-btn-sm" style="list-style:none"><i class="fas fa-pen" aria-hidden="true"></i> Corregir</summary>
-                    <form method="post" action="{{ url_for('servicio_tecnico.orden_clasificacion_manual', orden_id=orden.id) }}" class="st-campos" style="margin-top:10px">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <div class="st-campo st-campo-ancho"><label for="cl-falla">Tipo de falla</label>
-                            <select id="cl-falla" name="falla_categoria">{% for c, n in fallas %}<option value="{{ c }}" {% if orden.falla_categoria == c %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
-                        <div class="st-campo st-campo-ancho"><label for="cl-comp">Pieza</label>
-                            <select id="cl-comp" name="componente"><option value="">—</option>{% for c, n in componentes %}<option value="{{ c }}" {% if orden.componente == c %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
-                        <div class="st-campo st-campo-ancho"><label for="cl-sol">Solución</label>
-                            <select id="cl-sol" name="solucion_categoria"><option value="">Aún sin solución</option>{% for c, n in soluciones %}<option value="{{ c }}" {% if orden.solucion_categoria == c %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
-                        <div class="st-campo-ancho"><button class="st-btn st-btn-sm" type="submit">Guardar clasificación</button></div>
-                    </form>
-                </details>
-            </div>
-        </section>
-
-        <section class="st-card" aria-labelledby="st-segs">
-            <h2 id="st-segs"><i class="fas fa-bell" aria-hidden="true"></i> Seguimiento</h2>
-            {% if calificacion %}
-            <p style="margin:0 0 10px"><span class="st-estrellas" aria-label="Calificación del cliente: {{ calificacion }} de 5">{{ '★' * calificacion }}<span class="st-estrellas-off">{{ '★' * (5 - calificacion) }}</span></span></p>
-            {% endif %}
-            {% if seguimientos %}
-            <ul class="st-lista-simple">
-                {% for s in seguimientos %}
-                <li><i class="fas fa-{{ s.tipo_icono }}" aria-hidden="true"></i>
-                    <span><strong>{{ s.tipo_nombre }}</strong><br>
-                    <small>{% if s.estado == 'pendiente' %}Programado para el {{ s.fecha_programada.strftime('%d/%m/%Y') }}
-                           {% else %}{{ 'Hecho' if s.estado == 'hecho' else 'Omitido' }}{% if s.canal %} · {{ s.canal }}{% endif %}{% if s.hecho_en %} · {{ s.hecho_en.strftime('%d/%m/%Y') }}{% endif %}{% endif %}</small>
-                    {% if s.comentario %}<br><small>«{{ s.comentario }}»</small>{% endif %}</span></li>
-                {% endfor %}
-            </ul>
-            {% else %}<p class="st-vacio-dato" style="margin:0">Los recordatorios se programan solos al avanzar la orden.</p>{% endif %}
-            <p style="margin:12px 0 0"><a class="st-btn st-btn-sec st-btn-sm" href="{{ url_for('servicio_tecnico.hoy') }}"><i class="fas fa-bell" aria-hidden="true"></i> Ir a «Hoy»</a></p>
-        </section>
-
-        <section class="st-card" aria-labelledby="st-pub">
-            <h2 id="st-pub"><i class="fas fa-link" aria-hidden="true"></i> Enlace para el cliente</h2>
-            <p class="st-vacio-dato" style="margin:0 0 10px">El cliente ve el estado de su equipo sin iniciar sesión.</p>
-            <div class="st-acciones">
-                <button type="button" class="st-btn st-btn-sec st-btn-sm" data-st-copiar="{{ enlace_publico }}"><i class="fas fa-copy" aria-hidden="true"></i> Copiar enlace</button>
-                <a class="st-btn st-btn-sec st-btn-sm" href="{{ enlace_publico }}" target="_blank" rel="noopener"><i class="fas fa-external-link-alt" aria-hidden="true"></i> Abrir</a>
-            </div>
-        </section>
     </aside>
 </div>
 {% endblock %}

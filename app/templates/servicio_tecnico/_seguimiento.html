@@ -70,3 +70,26 @@
     </div>
 </li>
 {% endmacro %}
+
+{#- Fila corta de un recordatorio (ficha del equipo): qué, cuándo, WhatsApp y
+    Hecho. Correo, llamada y omitir están en «Pendientes». -#}
+{% macro fila(s, volver='') %}
+<li class="st-rec{% if s.dias > 0 %} st-rec-atrasado{% endif %}" data-st-seg>
+    <span class="st-rec-ico"><i class="fas fa-{{ s.tipo_icono }}" aria-hidden="true"></i></span>
+    <span class="st-rec-texto">
+        <strong>{{ s.motivo or s.tipo_nombre }}</strong>
+        <small>{% if s.dias > 0 %}Atrasado {{ s.dias }} {{ 'día' if s.dias == 1 else 'días' }}{% elif s.dias == 0 %}Para hoy{% else %}{{ s.fecha_programada.strftime('%d/%m/%Y') }}{% endif %}{% if s.interno %} · solo para el equipo de trabajo{% elif s.motivo %} · {{ s.tipo_nombre }}{% endif %}</small>
+    </span>
+    <span class="st-acciones">
+        {% if s.wa_url %}
+        <a class="st-btn st-btn-wa st-btn-sm" href="{{ s.wa_url }}" target="_blank" rel="noopener"
+           data-st-wa-marcar="{{ url_for('servicio_tecnico.seguimiento_completar', seg_id=s.id) }}"><i class="fab fa-whatsapp" aria-hidden="true"></i> WhatsApp</a>
+        {% endif %}
+        <form method="post" action="{{ url_for('servicio_tecnico.seguimiento_completar', seg_id=s.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% if volver %}<input type="hidden" name="volver" value="{{ volver }}">{% endif %}
+            <button class="st-btn st-btn-ok st-btn-sm" type="submit"><i class="fas fa-check" aria-hidden="true"></i> Hecho</button>
+        </form>
+    </span>
+</li>
+{% endmacro %}

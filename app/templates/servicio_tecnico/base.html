@@ -1,23 +1,28 @@
 {% extends "plantillaapp.html" %}
 {# Base del módulo Servicio Técnico. Cada página define st_contenido y la ruta
-   pasa st_activo = ordenes | nueva | equipos. Sin <header>/<main>: Menuapp.css
-   les da estilo en el admin. #}
+   pasa st_activo = ordenes | nueva | hoy | equipos | equipo_nuevo | configuracion.
+   Sin <header>/<main>: Menuapp.css les da estilo en el admin. #}
 
 {% block titulo %}{% block st_titulo %}Servicio Técnico{% endblock %} · {{ brand_config.empresa_nombre or 'CyberShop' }}{% endblock %}
 
 {% block LinkAdicional %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/servicio_tecnico.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/servicio_tecnico.css') }}?v={{ config.APP_VERSION }}">
 {% endblock %}
 
 {% block body %}
 <div class="st">
-    <nav class="st-subnav" aria-label="Servicio Técnico">
-        <a href="{{ url_for('servicio_tecnico.hoy') }}" {% if st_activo == 'hoy' %}aria-current="page"{% endif %}><i class="fas fa-bell" aria-hidden="true"></i> Hoy</a>
-        <a href="{{ url_for('servicio_tecnico.ordenes') }}" {% if st_activo == 'ordenes' %}aria-current="page"{% endif %}><i class="fas fa-clipboard-list" aria-hidden="true"></i> Órdenes</a>
-        <a href="{{ url_for('servicio_tecnico.nueva_orden') }}" {% if st_activo == 'nueva' %}aria-current="page"{% endif %}><i class="fas fa-plus-circle" aria-hidden="true"></i> Nueva orden</a>
-        <a href="{{ url_for('servicio_tecnico.equipos') }}" {% if st_activo == 'equipos' %}aria-current="page"{% endif %}><i class="fas fa-laptop-medical" aria-hidden="true"></i> Equipos</a>
-        <a href="{{ url_for('servicio_tecnico.equipo_nuevo') }}" {% if st_activo == 'equipo_nuevo' %}aria-current="page"{% endif %}><i class="fas fa-plus-square" aria-hidden="true"></i> Registrar equipo</a>
-        <a href="{{ url_for('servicio_tecnico.configuracion') }}" {% if st_activo == 'configuracion' %}aria-current="page"{% endif %}><i class="fas fa-sliders-h" aria-hidden="true"></i> Configuración</a>
+    {#- Cuatro lugares, siempre visibles (también en el celular). Recibir o
+        registrar un equipo son botones dentro de «Taller» y «Equipos». -#}
+    <nav class="st-subnav" aria-label="Servicio técnico">
+        <a href="{{ url_for('servicio_tecnico.ordenes') }}" {% if st_activo in ('ordenes', 'nueva') %}aria-current="page"{% endif %}>
+            <i class="fas fa-tools" aria-hidden="true"></i><span>Taller</span></a>
+        <a href="{{ url_for('servicio_tecnico.hoy') }}" {% if st_activo == 'hoy' %}aria-current="page"{% endif %}>
+            <i class="fas fa-bell" aria-hidden="true"></i><span>Pendientes</span>
+            {% if st_pendientes %}<b class="st-contador" aria-label="{{ st_pendientes }} para hoy o atrasados">{{ st_pendientes }}</b>{% endif %}</a>
+        <a href="{{ url_for('servicio_tecnico.equipos') }}" {% if st_activo in ('equipos', 'equipo_nuevo') %}aria-current="page"{% endif %}>
+            <i class="fas fa-laptop-medical" aria-hidden="true"></i><span>Equipos</span></a>
+        <a href="{{ url_for('servicio_tecnico.configuracion') }}" {% if st_activo == 'configuracion' %}aria-current="page"{% endif %}>
+            <i class="fas fa-sliders-h" aria-hidden="true"></i><span>Ajustes</span></a>
     </nav>
     {% block st_contenido %}{% endblock %}
 </div>

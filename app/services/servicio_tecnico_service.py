@@ -574,8 +574,10 @@ def registrar_cambio(equipo_id, datos, usuario_id=None, orden_id=None):
 
 def cambios_de_equipo(equipo_id):
     with get_db_cursor(dict_cursor=True) as cur:
-        cur.execute("""SELECT id, orden_id, componente, detalle, fecha, proxima_revision
-                       FROM st_cambios WHERE equipo_id = %s ORDER BY fecha DESC, id DESC""",
+        cur.execute("""SELECT c.id, c.orden_id, c.componente, c.detalle, c.fecha, c.proxima_revision,
+                              o.numero AS orden_numero
+                       FROM st_cambios c LEFT JOIN st_ordenes o ON o.id = c.orden_id
+                       WHERE c.equipo_id = %s ORDER BY c.fecha DESC, c.id DESC""",
                     (equipo_id,))
         return [dict(r) for r in cur.fetchall()]
 
@@ -1233,10 +1235,14 @@ def registrar_mantenimiento(equipo_id, datos, usuario_id=None):
     return mant_id
 
 
-def hoja_de_vida(mantenimientos, ordenes):
-    """Mantenimientos registrados y servicios del taller en una sola línea de
-    tiempo (lo más reciente primero)."""
+def hoja_de_vida(mantenimientos, ordenes, cambios=()):
+    """Servicios del taller, mantenimientos y piezas cambiadas en una sola
+    línea de tiempo (lo más reciente primero)."""
     filas = []
+    for c in cambios:
+        filas.append({'fecha': c['fecha'], 'clase': 'pieza', 'titulo': f"Pieza cambiada: {c['componente']}",
+                      'detalle': c.get('detalle'), 'proxima': c.get('proxima_revision'),
+                      'orden_id': c.get('orden_id'), 'orden_numero': c.get('orden_numero')})
     for m in mantenimientos:
         filas.append({'fecha': m['fecha'], 'clase': m['tipo'],
                       'titulo': f"Mantenimiento {TIPO_MANTENIMIENTO.get(m['tipo'], (m['tipo'], m['tipo']))[1].lower()}",
@@ -1266,52 +1272,56 @@ def mantenimientos_de_equipo(equipo_id):
 
 # ── Validación de la ficha ──────────────────────────────────────
 def validacion_equipo(equipo, fotos=0, recordatorios=0):
-    """Revisión de la ficha: qué está bien, qué conviene completar y qué está
-    mal. Devuelve {'puntaje': 0-100, 'revisiones': [(estado, texto), ...]} con
-    estado ok | aviso | error. Solo reglas fijas: no usa IA."""
+    """¿Está completa la ficha? Lista de revisiones (estado, texto, ir):
+    estado ok | aviso | error; `ir` dice dónde se arregla (editar, fotos,
+    datos, crm, mantenimiento o None). Solo reglas fijas: no usa IA.
+    Devuelve {'puntaje', 'revisiones', 'faltan', 'errores'}."""
     revisiones = []
     columnas = tipos.columnas(equipo['tipo'])
     extras = equipo.get('extras') or {}
 
-    faltan = [tipos.ETIQUETAS_COMUNES[c].lower() for c in ('marca', 'modelo') if not equipo.get(c)]
-    revisiones.append(('aviso', 'Falta ' + ' y '.join(faltan)) if faltan else ('ok', 'Marca y modelo registrados'))
+    faltan_mm = [tipos.ETIQUETAS_COMUNES[c].lower() for c in ('marca', 'modelo') if not equipo.get(c)]
+    revisiones.append(('aviso', 'Falta ' + ' y '.join('la ' + f for f in faltan_mm), 'editar') if faltan_mm
+                      else ('ok', 'Marca y modelo', None))
 
     if 'imei' in columnas:
         if not equipo.get('imei'):
-            revisiones.append(('aviso', 'Sin IMEI: márcalo con *#06# en el equipo'))
+            revisiones.append(('aviso', 'Falta el IMEI (márcalo con *#06# en el equipo)', 'editar'))
         elif imei_valido(equipo['imei']):
-            revisiones.append(('ok', 'IMEI válido (dígito de control correcto)'))
+            revisiones.append(('ok', 'IMEI correcto', None))
         else:
-            revisiones.append(('error', 'El IMEI no pasa la validación: revísalo'))
+            revisiones.append(('error', 'El IMEI está mal escrito: revísalo', 'editar'))
     if equipo.get('serial'):
         with get_db_cursor() as cur:
             cur.execute("""SELECT COUNT(*) FROM st_equipos WHERE activo AND id <> %s AND lower(serial) = lower(%s)""",
                         (equipo['id'], equipo['serial']))
             otros = int(cur.fetchone()[0])
-        revisiones.append(('aviso', f'El serial también aparece en {otros} equipo(s) de otro cliente: confírmalo')
-                          if otros else ('ok', 'Serial registrado y sin repetir'))
+        revisiones.append(('aviso', 'Ese serial también está en otro equipo: confírmalo', 'editar')
+                          if otros else ('ok', 'Serial', None))
     else:
-        revisiones.append(('aviso', 'Sin serial: tómalo de la etiqueta del equipo'))
+        revisiones.append(('aviso', 'Falta el serial (está en la etiqueta del equipo)', 'editar'))
 
     claves = list(columnas) + tipos.claves_extra(equipo['tipo'])
     llenos = sum(1 for c in columnas if equipo.get(c)) + sum(1 for c in tipos.claves_extra(equipo['tipo']) if extras.get(c))
     porcentaje = round(100 * llenos / len(claves)) if claves else 100
-    revisiones.append(('ok' if porcentaje >= 70 else 'aviso', f'Características completas al {porcentaje}%'))
+    sin_llenar = len(claves) - llenos
+    revisiones.append(('ok', 'Datos técnicos', None) if porcentaje >= 70
+                      else ('aviso', f'Faltan {sin_llenar} datos técnicos: pégalos desde la información del equipo', 'datos'))
 
-    revisiones.append(('ok', f'{fotos} foto(s) del equipo') if fotos else ('aviso', 'Sin fotos: agrega al menos una del estado del equipo'))
-    revisiones.append(('ok', 'Información del sistema leída') if equipo.get('info_sistema_original')
-                      else ('aviso', 'Sin información del sistema (systeminfo, «Acerca del teléfono», etiqueta)'))
+    revisiones.append(('ok', f'{fotos} foto(s)', None) if fotos
+                      else ('aviso', 'No tiene fotos del equipo', 'fotos'))
     if equipo.get('cliente_whatsapp') or equipo.get('cliente_telefono') or equipo.get('cliente_email'):
-        revisiones.append(('ok', 'El cliente tiene cómo recibir recordatorios'))
+        revisiones.append(('ok', 'Contacto del cliente', None))
     else:
-        revisiones.append(('aviso', 'El cliente no tiene WhatsApp ni correo: no podrá recibir recordatorios'))
+        revisiones.append(('aviso', 'El cliente no tiene WhatsApp ni correo para avisarle', 'crm'))
     if equipo.get('mant_proximo'):
-        revisiones.append(('ok', f"Próximo mantenimiento: {equipo['mant_proximo'].strftime('%d/%m/%Y')}"))
+        revisiones.append(('ok', f"Mantenimiento programado: {equipo['mant_proximo'].strftime('%d/%m/%Y')}", None))
     elif recordatorios:
-        revisiones.append(('ok', f'{recordatorios} recordatorio(s) pendiente(s)'))
+        revisiones.append(('ok', f'{recordatorios} recordatorio(s) pendiente(s)', None))
     else:
-        revisiones.append(('aviso', 'Sin plan de mantenimiento ni recordatorios'))
+        revisiones.append(('aviso', 'No tiene mantenimiento ni recordatorios programados', 'mantenimiento'))
 
-    puntos = sum(1 if e == 'ok' else 0 for e, _ in revisiones)
+    puntos = sum(1 for r in revisiones if r[0] == 'ok')
     return {'puntaje': round(100 * puntos / len(revisiones)), 'revisiones': revisiones,
-            'errores': sum(1 for e, _ in revisiones if e == 'error')}
+            'faltan': [r for r in revisiones if r[0] != 'ok'],
+            'errores': sum(1 for r in revisiones if r[0] == 'error')}

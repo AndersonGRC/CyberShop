@@ -443,3 +443,140 @@
 .st-campo small.st-mal { color: var(--color-peligro-texto); font-weight: 700; }
 .st input[aria-invalid="true"] { border-color: var(--color-peligro); }
 @media (prefers-reduced-motion: reduce) { .st-kpis a { transition: none; } .st-kpis a:hover { transform: none; } }
+
+/* ==========================================================================
+   Lectura más fácil (1.9.2): letra más grande, menos gris, botones más altos,
+   un solo menú de 4 lugares y la ficha del equipo en una sola página.
+   ========================================================================== */
+.st { font-size: 1rem; line-height: 1.5; }
+.st-card h2 { font-size: 1.12rem; }
+.st-card h3 { font-size: 1rem; }
+.st-hero p { font-size: 1rem; }
+.st-btn { font-size: .95rem; }
+.st-btn-sm { min-height: 42px; padding: 8px 14px; font-size: .9rem; }
+.st-chip { font-size: .85rem; }
+.st-campo label, .st-label { font-size: .92rem; }
+.st-campo small { font-size: .86rem; }
+.st-datos dt { font-size: .9rem; }
+.st-vacio-dato { font-style: normal; }
+.st-nota { margin: 8px 0 0; color: var(--st-suave); font-size: .92rem; }
+.st-hero .st-btn.st-btn-claro { background: transparent; color: var(--color-blanco); border: 1px solid var(--blanco-alpha-80); }
+.st-hero .st-btn.st-btn-claro:hover { background: var(--blanco-alpha-22); }
+
+/* Menú del módulo: 4 lugares, siempre a la vista (en el celular, ícono arriba). */
+.st-subnav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; max-width: 640px; overflow: visible; }
+.st-subnav a { justify-content: center; font-size: .95rem; min-height: 48px; position: relative; }
+.st-contador {
+    display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px;
+    border-radius: 999px; background: var(--color-peligro); color: var(--color-blanco); font-size: .75rem; font-weight: 800;
+}
+@media (max-width: 560px) {
+    .st-subnav a { flex-direction: column; gap: 3px; padding: 8px 2px; font-size: .8rem; }
+    .st-subnav a i { font-size: 1.1rem; }
+    .st-contador { position: absolute; top: 3px; right: 10%; }
+}
+
+/* Qué le falta a la ficha */
+.st-faltan { border-left: 4px solid var(--color-warning-texto); }
+.st-faltan ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.st-faltan li {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+    padding: 10px 12px; border-radius: var(--st-radio-sm);
+    background: var(--color-warning-tinte); color: var(--color-warning-texto); font-weight: 600;
+}
+.st-faltan li > span { display: inline-flex; align-items: baseline; gap: 8px; }
+.st-faltan li.st-faltan-error { background: var(--color-peligro-tinte); color: var(--color-peligro-texto); }
+.st-completa {
+    margin: 0; padding: 12px 16px; border-radius: var(--st-radio-sm);
+    background: var(--color-exito-tinte); color: var(--color-exito-texto); font-weight: 700;
+}
+
+/* Índice de la ficha (saltar a una sección) */
+.st-indice {
+    display: flex; flex-wrap: wrap; gap: 6px; padding: 6px;
+    background: var(--color-blanco); border: 1px solid var(--st-linea); border-radius: 12px;
+    box-shadow: var(--marca-sombra-sutil);
+}
+.st-indice a {
+    flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    min-height: 44px; padding: 8px 12px; border-radius: 9px;
+    font-weight: 700; color: var(--st-tinta); text-decoration: none;
+}
+.st-indice a:hover { background: var(--marca-tinte); }
+.st-indice a i { color: var(--color-primario); }
+.st-seccion { scroll-margin-top: 90px; }
+@media (min-width: 900px) { .st-indice { position: sticky; top: 12px; z-index: 15; } }
+@media (max-width: 560px) {
+    .st-indice { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .st-indice a { font-size: .88rem; padding: 8px 6px; }
+}
+
+/* Datos del equipo: solo lo que tiene, en recuadros fáciles de leer */
+.st-datos.st-datos-lista { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.st-datos-lista > div { padding: 10px 12px; border-radius: var(--st-radio-sm); background: var(--color-fondo); min-width: 0; }
+.st-datos-lista dt { margin: 0 0 2px; }
+.st-datos-lista dd { font-size: 1rem; }
+.st-seccion h3 { margin: 18px 0 8px; }
+
+/* Acordeón: acciones y detalles que se abren al tocarlos */
+.st-acordeon { display: grid; gap: 8px; margin-top: 14px; }
+.st-acordeon > details { border: 1px solid var(--st-linea); border-radius: var(--st-radio-sm); background: var(--color-blanco); }
+.st-acordeon > details > summary {
+    list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px;
+    min-height: 50px; padding: 12px 14px; font-weight: 700; color: var(--st-tinta);
+}
+.st-acordeon > details > summary::-webkit-details-marker { display: none; }
+.st-acordeon > details > summary::after {
+    content: ''; margin-left: auto; width: 9px; height: 9px; flex: 0 0 auto;
+    border-right: 2px solid var(--st-suave); border-bottom: 2px solid var(--st-suave);
+    transform: rotate(45deg); transition: transform .15s ease;
+}
+.st-acordeon > details[open] > summary::after { transform: rotate(-135deg); }
+.st-acordeon > details[open] > summary { border-bottom: 1px solid var(--st-linea); }
+.st-acordeon > details > summary:hover { background: var(--marca-tinte-sutil); }
+.st-acordeon > details > summary i { width: 20px; text-align: center; color: var(--color-primario); }
+.st-acordeon-cuerpo { padding: 14px; }
+
+/* Próximo mantenimiento */
+.st-proximo {
+    display: flex; align-items: center; gap: 14px; padding: 14px 16px;
+    border-radius: var(--st-radio-sm); background: var(--marca-tinte);
+}
+.st-proximo > i { font-size: 1.6rem; color: var(--color-primario); }
+.st-proximo strong { display: block; font-size: 1.05rem; color: var(--st-tinta); }
+.st-proximo span { color: var(--st-suave); font-size: .92rem; }
+.st-proximo.st-proximo-vacio { background: var(--color-warning-tinte); }
+.st-proximo.st-proximo-vacio > i { color: var(--color-warning-texto); }
+
+/* Orden: enlace de estado para el cliente, dentro de «Avisar al cliente» */
+.st-enlace {
+    margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--st-linea);
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
+    color: var(--st-suave); font-size: .92rem;
+}
+@media (prefers-reduced-motion: reduce) { .st-acordeon > details > summary::after { transition: none; } }
+
+/* Recordatorios en la ficha: una fila por recordatorio */
+.st-recs { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.st-rec {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px;
+    padding: 10px 12px; border: 1px solid var(--st-linea); border-left: 4px solid var(--color-primario);
+    border-radius: var(--st-radio-sm); background: var(--color-blanco);
+}
+.st-rec.st-rec-atrasado { border-left-color: var(--color-peligro); }
+.st-rec-ico {
+    width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--marca-tinte); color: var(--color-primario-oscuro);
+}
+.st-rec-texto { display: grid; min-width: 0; }
+.st-rec-texto strong { color: var(--st-tinta); overflow-wrap: anywhere; }
+.st-rec-texto small { color: var(--st-suave); font-size: .86rem; }
+.st-rec-atrasado .st-rec-texto small { color: var(--color-peligro-texto); font-weight: 700; }
+.st-rec .st-acciones { gap: 6px; }
+@media (max-width: 560px) {
+    .st-rec { grid-template-columns: auto minmax(0, 1fr); }
+    .st-rec .st-acciones { grid-column: 1 / -1; }
+    .st-rec .st-acciones > * { flex: 1 1 0; }
+    .st-rec .st-acciones .st-btn { width: 100%; }
+}
+.st-enlace.st-enlace-solo { margin-top: 0; padding-top: 0; border-top: 0; }

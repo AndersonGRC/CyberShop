@@ -234,7 +234,7 @@ def test_mantenimiento_preventivo_cierra_el_aviso_y_programa_el_siguiente(modulo
         st.registrar_mantenimiento(equipo_id, {'tipo': 'otro', 'descripcion': 'x'})
     st.registrar_mantenimiento(equipo_id, {'tipo': 'correctivo', 'descripcion': 'Cambio de pin de carga'})
     html = dueno.get(f'/admin/servicio-tecnico/equipo/{equipo_id}').get_data(as_text=True)
-    assert 'Hoja de vida' in html and 'Cambio de pin de carga' in html and 'Mantenimiento preventivo' in html
+    assert 'Historial del equipo' in html and 'Cambio de pin de carga' in html and 'Mantenimiento preventivo' in html
 
 
 def test_plan_del_equipo_reemplaza_el_aviso_general_al_entregar(modulo, dueno, cursor, limpiar):
@@ -293,16 +293,23 @@ def test_validacion_de_la_ficha(modulo, dueno, limpiar):
     from services import servicio_tecnico_service as st
     equipo_id = _registrar(dueno, fotos=[(_imagen(), 'f.png')])
     v = st.validacion_equipo(st.obtener_equipo(equipo_id), fotos=1)
-    textos = [t for _, t in v['revisiones']]
-    assert v['errores'] == 0 and 'IMEI válido (dígito de control correcto)' in textos
-    assert any(t.startswith('Próximo mantenimiento') for t in textos)
+    textos = [t for _, t, _ in v['revisiones']]
+    assert v['errores'] == 0 and 'IMEI correcto' in textos
+    assert any(t.startswith('Mantenimiento programado') for t in textos)
     malo = dict(st.obtener_equipo(equipo_id), imei='490154203237519', marca=None, mant_proximo=None)
     v2 = st.validacion_equipo(malo, fotos=0)
     assert v2['errores'] == 1 and v2['puntaje'] < v['puntaje']
-    assert ('aviso', 'Falta marca') in v2['revisiones']
+    # Lo que falta dice dónde arreglarlo.
+    assert ('aviso', 'Falta la marca', 'editar') in v2['revisiones']
+    assert ('aviso', 'No tiene fotos del equipo', 'fotos') in v2['faltan']
+    assert ('error', 'El IMEI está mal escrito: revísalo', 'editar') in v2['faltan']
     html = dueno.get(f'/admin/servicio-tecnico/equipo/{equipo_id}').get_data(as_text=True)
-    assert 'Validación de la ficha' in html and 'role="progressbar"' in html
-    assert f'/admin/servicio-tecnico/foto/' in html and 'Recordatorios' in html
+    # Una sola página: lo que falta, el índice y las cuatro secciones.
+    assert 'Para completar la ficha' in html and 'Pegar información' in html
+    for seccion in ('id="datos"', 'id="fotos"', 'id="mantenimiento"', 'id="historial"'):
+        assert seccion in html
+    assert 'role="tablist"' not in html
+    assert f'/admin/servicio-tecnico/foto/' in html and 'Recordatorios pendientes' in html
 
 
 # ── Menú: el módulo vive en «Soporte» ───────────────────────────
@@ -320,7 +327,10 @@ def test_menu_soporte_con_y_sin_servicio_tecnico(modulo, flask_app, client):
     import tenant_features as tf
     con = _menu(flask_app, client)
     assert 'Servicio Técnico' not in con
-    assert {'Órdenes de servicio', 'Equipos', 'Registrar equipo', 'Config. servicio técnico'} <= set(con['Soporte'])
+    # Tres entradas del taller: lo demás (recibir, registrar, ajustes) está dentro del módulo.
+    taller = [n for n in con['Soporte'] if n not in ('Tickets clientes', 'Configuración')]
+    assert taller[0] == 'Servicio técnico' and taller[1].startswith('Pendientes') and taller[2] == 'Equipos'
+    assert len(taller) == 3
     modulo(False)
     sin = _menu(flask_app, client)
     soporte_activo = tf.is_module_active(tf.MODULE_SUPPORT)

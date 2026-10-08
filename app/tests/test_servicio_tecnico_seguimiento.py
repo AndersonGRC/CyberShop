@@ -232,7 +232,7 @@ def test_menu_resumen_y_cron(modulo, dueno, cursor, limpiar, aislado, correos, m
     from services import servicio_tecnico_seguimiento as seg
     seg._CONTEO.clear()
     html = dueno.get('/admin/servicio-tecnico/').get_data(as_text=True)
-    assert 'Seguimientos hoy (' in html      # contador en el menú (grupo Soporte)
+    assert 'Pendientes (' in html            # contador en el menú (grupo Soporte)
 
     res = seg.enviar_resumen(prueba=True)
     assert 'Listo sin recoger' in res['texto'] and 'OS-' in res['texto']
