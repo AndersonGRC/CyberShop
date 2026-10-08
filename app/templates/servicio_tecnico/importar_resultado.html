@@ -1,0 +1,105 @@
+{% extends "servicio_tecnico/base.html" %}
+{% from "servicio_tecnico/_importar.html" import pasos %}
+{% block st_titulo %}Importación #{{ lote.id }}{% endblock %}
+
+{#- Paso 4: lo que quedó guardado (o que se deshizo / descartó). -#}
+{% block st_contenido %}
+{% set res = lote.resultado or {} %}
+{% set r = res.resumen or {} %}
+<section class="st-hero">
+    <div>
+        {% if lote.estado == 'importada' %}
+        <h1><i class="fas fa-check-circle" aria-hidden="true"></i> Listo: equipos importados</h1>
+        <p>Importación #{{ lote.id }} del {{ lote.importado_en.strftime('%d/%m/%Y %H:%M') if lote.importado_en else '' }}.
+           Cada equipo ya tiene su ficha, su hoja de vida y sus recordatorios.</p>
+        {% elif lote.estado == 'deshecha' %}
+        <h1><i class="fas fa-undo" aria-hidden="true"></i> Importación deshecha</h1>
+        <p>Importación #{{ lote.id }}, deshecha el {{ lote.deshecho_en.strftime('%d/%m/%Y %H:%M') if lote.deshecho_en else '' }}.
+           Lo que creó quedó retirado (no se borró nada).</p>
+        {% else %}
+        <h1><i class="fas fa-times-circle" aria-hidden="true"></i> Importación descartada</h1>
+        <p>Importación #{{ lote.id }}: no se guardó nada en los equipos.</p>
+        {% endif %}
+    </div>
+    <div class="st-acciones">
+        <a class="st-btn st-btn-sm" href="{{ url_for('servicio_tecnico.equipos') }}"><i class="fas fa-laptop-medical" aria-hidden="true"></i> Ir a Equipos</a>
+        <a class="st-btn st-btn-sm st-btn-claro" href="{{ url_for('servicio_tecnico.importar') }}"><i class="fas fa-file-import" aria-hidden="true"></i> Traer más archivos</a>
+    </div>
+</section>
+
+{{ pasos(4) }}
+
+{% if lote.estado in ('importada', 'deshecha') %}
+<section class="st-card" aria-labelledby="res-tit">
+    <h2 id="res-tit"><i class="fas fa-list-ol" aria-hidden="true"></i> Qué se guardó</h2>
+    <ul class="st-imp-cifras">
+        <li class="st-imp-cifra-grande"><b>{{ r.equipos_creados or 0 }}</b> <span>equipo{{ '' if r.equipos_creados == 1 else 's' }} nuevo{{ '' if r.equipos_creados == 1 else 's' }}</span></li>
+        <li><b>{{ r.equipos_completados or 0 }}</b> <span>equipo{{ '' if r.equipos_completados == 1 else 's' }} que ya estaba{{ '' if r.equipos_completados == 1 else 'n' }} y se completó</span></li>
+        <li><b>{{ r.contactos_creados or 0 }}</b> <span>cliente{{ '' if r.contactos_creados == 1 else 's' }} nuevo{{ '' if r.contactos_creados == 1 else 's' }} en el CRM</span></li>
+        <li><b>{{ r.mantenimientos or 0 }}</b> <span>mantenimiento{{ '' if r.mantenimientos == 1 else 's' }} en las hojas de vida</span></li>
+        <li><b>{{ r.recordatorios or 0 }}</b> <span>recordatorio{{ '' if r.recordatorios == 1 else 's' }} de mantenimiento</span></li>
+        <li><b>{{ r.documentos or 0 }}</b> <span>documento{{ '' if r.documentos == 1 else 's' }}</span></li>
+    </ul>
+    {% if lote.estado == 'deshecha' and res.deshecho %}
+    {% set d = res.deshecho %}
+    <p class="st-aviso" style="margin-top:14px">Al deshacer: {{ d.equipos_retirados }} equipo(s) retirados, {{ d.datos_devueltos }} dato(s) devueltos
+        a como estaban y {{ d.contactos_archivados }} cliente(s) archivados en el CRM.
+        {% if d.equipos_conservados %}Se dejaron {{ d.equipos_conservados | length }} equipo(s) porque ya tienen órdenes de servicio.{% endif %}
+        {% if d.contactos_conservados %}{{ d.contactos_conservados }} cliente(s) se dejaron porque ya se usan para otras cosas.{% endif %}</p>
+    {% endif %}
+</section>
+{% endif %}
+
+{% if equipos_lote %}
+<section class="st-card" aria-labelledby="res-eq-tit">
+    <h2 id="res-eq-tit"><i class="fas fa-laptop-medical" aria-hidden="true"></i> Equipos de esta importación ({{ equipos_lote | length }})</h2>
+    <div class="st-tabla-wrap">
+        <table class="st-tabla">
+            <thead><tr><th>Equipo</th><th>Cliente</th><th>Serial / IMEI</th><th>Mantenimientos traídos</th><th>Próximo mantenimiento</th><th>Estado</th></tr></thead>
+            <tbody>
+            {% for e in equipos_lote %}
+            <tr>
+                <td data-label="Equipo"><a class="st-fila-link st-equipo-celda" href="{{ url_for('servicio_tecnico.equipo_ver', equipo_id=e.id) }}">
+                    <i class="fas fa-{{ tipo_icono(e.tipo) }}" aria-hidden="true"></i> {{ e.descripcion }}</a></td>
+                <td data-label="Cliente">{{ e.cliente_nombre or '—' }}</td>
+                <td data-label="Serial / IMEI">{{ e.serial or e.imei or '—' }}</td>
+                <td data-label="Mantenimientos traídos">{{ e.mantenimientos }}</td>
+                <td data-label="Próximo mantenimiento">{{ e.mant_proximo.strftime('%d/%m/%Y') if e.mant_proximo else '—' }}</td>
+                <td data-label="Estado">
+                    {% if not e.activo %}<span class="st-chip st-chip-neutro">Retirado</span>
+                    {% elif e.nuevo %}<span class="st-chip st-chip-exito">Nuevo</span>
+                    {% else %}<span class="st-chip st-chip-info">Completado</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+{% if lote.estado == 'importada' %}
+<section class="st-card" aria-labelledby="res-desh-tit">
+    <h2 id="res-desh-tit"><i class="fas fa-undo" aria-hidden="true"></i> ¿Algo salió mal?</h2>
+    <div class="st-acordeon" style="margin-top:0">
+        <details>
+            <summary><i class="fas fa-undo" aria-hidden="true"></i> Deshacer esta importación</summary>
+            <div class="st-acordeon-cuerpo">
+                <p style="margin-top:0">Se retiran los equipos, mantenimientos, recordatorios y documentos que trajo esta importación,
+                    y los datos que completó en equipos que ya existían vuelven a quedar vacíos. No se borra nada: queda en el historial.</p>
+                <p class="st-nota">Los equipos que ya tengan órdenes de servicio se dejan como están. Los clientes nuevos se archivan
+                    solo si no se han usado para nada más.</p>
+                <form method="post" action="{{ url_for('servicio_tecnico.importacion_deshacer', lote_id=lote.id) }}"
+                      data-st-confirmar="¿Deshacer la importación #{{ lote.id }}?">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="st-btn st-btn-peligro" type="submit"><i class="fas fa-undo" aria-hidden="true"></i> Deshacer la importación</button>
+                </form>
+            </div>
+        </details>
+    </div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block st_scripts %}
+<script src="{{ url_for('static', filename='js/servicio_tecnico.js') }}?v={{ config.APP_VERSION }}"></script>
+{% endblock %}

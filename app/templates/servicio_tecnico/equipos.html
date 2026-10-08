@@ -10,6 +10,7 @@
     </div>
     <div class="st-acciones">
         <a class="st-btn st-btn-sm" href="{{ url_for('servicio_tecnico.equipo_nuevo') }}"><i class="fas fa-plus" aria-hidden="true"></i> Registrar equipo</a>
+        <a class="st-btn st-btn-sm st-btn-claro" href="{{ url_for('servicio_tecnico.importar') }}"><i class="fas fa-file-import" aria-hidden="true"></i> Traer desde Excel o PDF</a>
     </div>
 </section>
 
@@ -53,6 +54,7 @@
         <div class="st-acciones" style="justify-content:center">
             <a class="st-btn" href="{{ url_for('servicio_tecnico.equipo_nuevo') }}"><i class="fas fa-plus" aria-hidden="true"></i> Registrar equipo</a>
             <a class="st-btn st-btn-sec" href="{{ url_for('servicio_tecnico.nueva_orden') }}"><i class="fas fa-clipboard-check" aria-hidden="true"></i> Nueva orden</a>
+            <a class="st-btn st-btn-sec" href="{{ url_for('servicio_tecnico.importar') }}"><i class="fas fa-file-import" aria-hidden="true"></i> Traer desde Excel o PDF</a>
         </div>
     </div>
     {% endif %}

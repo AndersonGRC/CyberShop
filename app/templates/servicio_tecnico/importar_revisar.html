@@ -1,0 +1,287 @@
+{% extends "servicio_tecnico/base.html" %}
+{% from "servicio_tecnico/_importar.html" import pasos, estado_parte %}
+{% block st_titulo %}Revisar la importación #{{ lote.id }}{% endblock %}
+
+{#- Paso 3: lo que se va a guardar, fila por fila. Nada está guardado todavía. -#}
+{% macro fecha_iso(x) %}{% if x %}{{ x[8:10] }}/{{ x[5:7] }}/{{ x[:4] }}{% endif %}{% endmacro %}
+{% macro tel(t) %}{% if t and t | length == 10 %}{{ t[:3] }} {{ t[3:6] }} {{ t[6:] }}{% else %}{{ t or '' }}{% endif %}{% endmacro %}
+{% macro ocultos() %}
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{% if ver %}<input type="hidden" name="ver" value="{{ ver }}">{% endif %}
+{% if pagina > 1 %}<input type="hidden" name="pagina" value="{{ pagina }}">{% endif %}
+{% endmacro %}
+
+{% block st_contenido %}
+{% set r = resumen %}
+<section class="st-hero">
+    <div>
+        <h1><i class="fas fa-clipboard-check" aria-hidden="true"></i> Revisa lo que encontramos</h1>
+        <p>Nada se ha guardado todavía. Corrige lo que haga falta y luego importa: después también se puede deshacer.</p>
+    </div>
+</section>
+
+{{ pasos(3) }}
+
+{# ── Resumen y botón principal ── #}
+<section class="st-card st-imp-resumen" aria-labelledby="imp-res-tit">
+    <h2 id="imp-res-tit"><i class="fas fa-list-ol" aria-hidden="true"></i> Resumen</h2>
+    <ul class="st-imp-cifras">
+        <li class="st-imp-cifra-grande"><b>{{ r.incluidas }}</b> <span>equipo{{ '' if r.incluidas == 1 else 's' }} para importar</span></li>
+        {% if r.nuevos %}<li><b>{{ r.nuevos }}</b> <span>ficha{{ '' if r.nuevos == 1 else 's' }} nueva{{ '' if r.nuevos == 1 else 's' }}</span></li>{% endif %}
+        {% if r.existentes %}<li><b>{{ r.existentes }}</b> <span>ya estaba{{ '' if r.existentes == 1 else 'n' }} registrado{{ '' if r.existentes == 1 else 's' }}: se completa{{ '' if r.existentes == 1 else 'n' }}</span></li>{% endif %}
+        {% if r.unidas %}<li><b>{{ r.unidas }}</b> <span>fila{{ '' if r.unidas == 1 else 's' }} se junta{{ '' if r.unidas == 1 else 'n' }} con otra del mismo equipo</span></li>{% endif %}
+        <li><b>{{ r.clientes_nuevos }}</b> <span>cliente{{ '' if r.clientes_nuevos == 1 else 's' }} nuevo{{ '' if r.clientes_nuevos == 1 else 's' }} en el CRM ({{ r.clientes_existentes }} ya estaba{{ '' if r.clientes_existentes == 1 else 'n' }})</span></li>
+        <li><b>{{ r.mantenimientos }}</b> <span>mantenimiento{{ '' if r.mantenimientos == 1 else 's' }} para las hojas de vida</span></li>
+        <li><b>{{ r.planes }}</b> <span>recordatorio{{ '' if r.planes == 1 else 's' }} de mantenimiento</span></li>
+        <li><b>{{ r.documentos }}</b> <span>documento{{ '' if r.documentos == 1 else 's' }} guardado{{ '' if r.documentos == 1 else 's' }}</span></li>
+    </ul>
+    {% if r.error %}<p class="st-aviso st-aviso-peligro" style="margin-top:14px">{{ r.error }} fila{{ '' if r.error == 1 else 's' }} no se puede{{ '' if r.error == 1 else 'n' }} importar todavía: corrígela{{ '' if r.error == 1 else 's' }} o quíta{{ 'la' if r.error == 1 else 'las' }}.</p>{% endif %}
+    {% if r.vencidos %}<p class="st-aviso" style="margin-top:10px">{{ r.vencidos }} equipo{{ '' if r.vencidos == 1 else 's' }} tiene{{ '' if r.vencidos == 1 else 'n' }} el mantenimiento vencido. En «Ajustes» escoges si se programa{{ '' if r.vencidos == 1 else 'n' }} para hoy o para el siguiente.</p>{% endif %}
+    <div class="st-acciones" style="margin-top:16px">
+        {% if r.incluidas %}
+        <form method="post" action="{{ url_for('servicio_tecnico.importacion_importar', lote_id=lote.id) }}"
+              data-st-confirmar="¿Importar {{ r.incluidas }} equipo(s)? Podrás deshacerlo después.">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="st-btn st-btn-ok" type="submit" id="imp-importar"><i class="fas fa-check" aria-hidden="true"></i> Importar {{ r.incluidas }} equipo{{ '' if r.incluidas == 1 else 's' }}</button>
+        </form>
+        {% endif %}
+        {% if se_puede_releer and ia_ok %}
+        <form method="post" action="{{ url_for('servicio_tecnico.importacion_releer', lote_id=lote.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="st-btn st-btn-sec" type="submit"><i class="fas fa-robot" aria-hidden="true"></i> Leer con IA lo que se leyó sin ella</button>
+        </form>
+        {% endif %}
+        <form method="post" action="{{ url_for('servicio_tecnico.importacion_descartar', lote_id=lote.id) }}"
+              data-st-confirmar="¿Descartar esta importación? No se guarda nada.">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="st-btn st-btn-peligro" type="submit"><i class="fas fa-times" aria-hidden="true"></i> Descartar</button>
+        </form>
+    </div>
+</section>
+
+{# ── Ajustes para todo el lote ── #}
+<section class="st-card st-seccion" id="ajustes" aria-labelledby="imp-aj-tit">
+    <h2 id="imp-aj-tit"><i class="fas fa-sliders-h" aria-hidden="true"></i> Ajustes para todos los equipos</h2>
+    {% set con_defecto = ajustes.cliente_id or ajustes.cliente_nuevo %}
+    <p class="st-nota" style="margin-top:0">
+        Cliente para los que no dicen de quién son: <strong>{% if cliente_defecto %}{{ cliente_defecto.nombre }}{% elif ajustes.cliente_nuevo %}{{ ajustes.cliente_nuevo.nombre }} (nuevo){% else %}ninguno{% endif %}</strong> ·
+        Plan de mantenimiento: <strong>{% if ajustes.plan_meses %}cada {{ ajustes.plan_meses }} meses{% else %}el que diga cada archivo{% endif %}</strong> ·
+        Vencidos: <strong>{{ dict(vencidos).get(ajustes.vencidos or 'siguiente') | lower }}</strong>.
+    </p>
+    <div class="st-acordeon">
+        <details {% if r.error and not con_defecto %}open{% endif %}>
+            <summary><i class="fas fa-pen" aria-hidden="true"></i> Cambiar los ajustes</summary>
+            <form method="post" action="{{ url_for('servicio_tecnico.importacion_ajustes', lote_id=lote.id) }}"
+                  class="st-acordeon-cuerpo" id="st-form-ajustes" data-api-clientes="{{ url_for('servicio_tecnico.api_clientes') }}">
+                {{ ocultos() }}
+                <h3 style="margin-top:0">Cliente para los equipos que no dicen de quién son</h3>
+                <p class="st-nota" style="margin-top:0">Por ejemplo, el inventario de una empresa: todos sus equipos quedan a nombre de ella.</p>
+                <input type="hidden" name="cliente_id" id="st-contacto-id" value="{{ ajustes.cliente_id or '' }}">
+                <div id="st-cliente-elegido" class="st-elegido" {% if not cliente_defecto %}hidden{% endif %}>
+                    <div><strong id="st-cliente-nombre">{{ cliente_defecto.nombre if cliente_defecto else '' }}</strong>
+                        <small id="st-cliente-datos" style="display:block">{% if cliente_defecto %}{{ cliente_defecto.whatsapp or cliente_defecto.telefono or '' }} {{ cliente_defecto.email or '' }}{% endif %}</small></div>
+                    <button type="button" class="st-btn st-btn-sec st-btn-sm" id="st-cambiar-cliente">Cambiar</button>
+                </div>
+                <div id="st-cliente-buscar" {% if cliente_defecto %}hidden{% endif %}>
+                    <div class="st-campo">
+                        <label for="st-buscar-cliente">Buscar en los contactos del CRM</label>
+                        <input type="search" id="st-buscar-cliente" autocomplete="off" placeholder="Nombre, teléfono o correo">
+                    </div>
+                    <div class="st-resultados" id="st-clientes" aria-live="polite"></div>
+                    <p style="margin:12px 0 0"><button type="button" class="st-btn st-btn-sec" id="st-cliente-nuevo-btn"><i class="fas fa-user-plus" aria-hidden="true"></i> Es un cliente nuevo</button></p>
+                </div>
+                <div id="st-cliente-nuevo" class="st-campos" style="margin-top:12px" {% if not ajustes.cliente_nuevo %}hidden{% endif %}>
+                    {% set cn = ajustes.cliente_nuevo or {} %}
+                    <div class="st-campo"><label for="cl-nombre">Nombre del cliente o de la empresa</label>
+                        <input type="text" id="cl-nombre" name="cliente_nombre" value="{{ cn.nombre or '' }}"></div>
+                    <div class="st-campo"><label for="cl-whatsapp">WhatsApp / celular</label>
+                        <input type="tel" id="cl-whatsapp" name="cliente_telefono" inputmode="tel" value="{{ cn.telefono or '' }}"></div>
+                    <div class="st-campo"><label for="cl-email">Correo</label>
+                        <input type="email" id="cl-email" name="cliente_email" value="{{ cn.email or '' }}"></div>
+                </div>
+
+                <h3>Plan de mantenimiento para los que no traen uno</h3>
+                <div class="st-campo" style="max-width:320px"><label for="aj-plan">¿Cada cuánto?</label>
+                    <select id="aj-plan" name="plan_meses">
+                        {% for v, t in [('', 'Sin plan (el que diga cada archivo)'), ('3', 'Cada 3 meses'), ('4', 'Cada 4 meses'), ('6', 'Cada 6 meses'), ('12', 'Cada año')] %}
+                        <option value="{{ v }}" {% if (ajustes.plan_meses or '') | string == v %}selected{% endif %}>{{ t }}</option>
+                        {% endfor %}
+                    </select></div>
+
+                <h3>Mantenimientos que ya se pasaron</h3>
+                <fieldset class="st-radios">
+                    <legend class="st-sr">Qué hacer con los mantenimientos vencidos</legend>
+                    {% for v, t in vencidos %}
+                    <label><input type="radio" name="vencidos" value="{{ v }}" {% if (ajustes.vencidos or 'siguiente') == v %}checked{% endif %}> {{ t }}</label>
+                    {% endfor %}
+                </fieldset>
+                <div class="st-acciones" style="margin-top:14px"><button class="st-btn" type="submit"><i class="fas fa-check" aria-hidden="true"></i> Aplicar</button></div>
+            </form>
+        </details>
+    </div>
+</section>
+
+{# ── Archivos leídos ── #}
+<section class="st-card" aria-labelledby="imp-arch-tit">
+    <h2 id="imp-arch-tit"><i class="fas fa-folder-open" aria-hidden="true"></i> Archivos ({{ lote.archivos | length }})</h2>
+    <ul class="st-imp-partes">
+        {% for a in lote.archivos %}
+        <li>
+            <i class="fas fa-{{ 'file-pdf' if a.clase == 'pdf' else ('file-excel' if a.clase in ('excel', 'csv') else 'file-alt') }}" aria-hidden="true"></i>
+            <span>
+                <strong><a href="{{ url_for('servicio_tecnico.documento_ver', doc_id=a.id) }}" target="_blank" rel="noopener">{{ a.nombre }}</a></strong>
+                {% if a.error %}<small class="st-mal">{{ a.error }}</small>{% endif %}
+                {% if a.repetido %}<small class="st-mal">Este mismo archivo ya se subió en la importación #{{ a.repetido.lote }} ({{ a.repetido.fecha }}).</small>{% endif %}
+                {% for p in a.partes %}
+                <small>{% if a.partes | length > 1 or a.clase == 'excel' %}{{ p.titulo }}: {% endif %}{% if p.tipo == 'tabla' %}tabla de {{ p.filas_leidas }} fila{{ '' if p.filas_leidas == 1 else 's' }}{% elif p.tipo == 'escaneado' %}escaneado, sin texto{% else %}ficha o documento{% endif %}{% if p.sin_mapear %} · columnas que van a las notas: {{ p.sin_mapear | join(', ') }}{% endif %}{% if p.aviso %} · {{ p.aviso }}{% endif %}</small>
+                {% endfor %}
+                {% if not a.partes and not a.error %}<small>No se encontró nada para importar.</small>{% endif %}
+            </span>
+            <span class="st-imp-chips">{% for p in a.partes[:1] %}{{ estado_parte(p) }}{% endfor %}</span>
+        </li>
+        {% endfor %}
+    </ul>
+</section>
+
+{# ── Filas ── #}
+<nav class="st-filtros st-imp-filtros" aria-label="Ver filas">
+    {% for clave, texto, tono, n in [('', 'Todas', 'marca', r.equipos + r.adjuntos), ('revisar', 'Para revisar', 'aviso', r.aviso),
+                                     ('error', 'No se pueden importar', 'peligro', r.error), ('quitadas', 'Quitadas', 'neutro', r.quitadas)] %}
+    <a class="st-chip st-chip-{{ tono }}" href="{{ url_for('servicio_tecnico.importacion', lote_id=lote.id, ver=clave or None) }}"
+       {% if ver == clave %}aria-current="true"{% endif %}>{{ texto }} <span class="st-n">{{ n }}</span></a>
+    {% endfor %}
+</nav>
+
+{% if not filas %}
+<div class="st-card st-vacio"><i class="fas fa-check-circle" aria-hidden="true"></i><h3>No hay filas en esta vista</h3></div>
+{% endif %}
+
+<div class="st-imp-lista">
+{% for v in filas %}
+{% set f = v.fila %}{% set e = f.equipo %}{% set c = f.cliente %}
+{% set estado = {'ok': ('check-circle', 'Lista para importar'), 'aviso': ('exclamation-triangle', 'Revisar'),
+                 'error': ('times-circle', 'No se puede importar'), 'quitada': ('eye-slash', 'Quitada')}.get(v.estado, ('circle', '')) %}
+<article class="st-card st-imp-fila st-imp-{{ v.estado }}" id="fila-{{ v.n }}" aria-labelledby="fila-{{ v.n }}-tit">
+    <div class="st-imp-cab">
+        <span class="st-imp-estado"><i class="fas fa-{{ estado[0] }}" aria-hidden="true"></i> {{ estado[1] }}</span>
+        <span class="st-imp-num">Fila {{ v.n }}</span>
+        {% if v.fuente == 'ia' %}<span class="st-chip st-chip-marca"><i class="fas fa-robot" aria-hidden="true"></i> Leído con IA</span>{% endif %}
+    </div>
+    <h3 id="fila-{{ v.n }}-tit"><i class="fas fa-{{ v.icono }}" aria-hidden="true"></i> {{ v.titulo }}</h3>
+    <p class="st-imp-origen">{{ v.origen }}</p>
+
+    {% if v.clase == 'equipo' %}
+    <dl class="st-imp-datos">
+        {% if e.serial or e.imei %}<div><dt>Serial / IMEI</dt><dd>{{ e.serial or '' }}{% if e.serial and e.imei %} · {% endif %}{{ e.imei or '' }}</dd></div>{% endif %}
+        {% if v.specs %}<div><dt>Características</dt><dd>{{ v.specs }}</dd></div>{% endif %}
+        <div><dt>Cliente</dt><dd>
+            {% if v.cliente_accion == 'existente' and v.contacto %}{{ v.contacto.nombre }} <small>(ya está en el CRM)</small>
+            {% elif v.cliente_accion == 'nuevo' %}{{ c.nombre or c.empresa }}{% if c.telefono %} · {{ tel(c.telefono) }}{% endif %} <small>(cliente nuevo)</small>
+            {% elif v.cliente_accion == 'defecto' %}{{ v.contacto.nombre if v.contacto else vista.defecto.nuevo.nombre }} <small>(el de los equipos sin dueño)</small>
+            {% elif v.cliente_accion == 'del_equipo' %}{{ v.existente.cliente_nombre or '—' }} <small>(el del equipo ya registrado)</small>
+            {% elif v.cliente_accion == 'de_la_fila' %}<small>El de la fila {{ v.mismo_que }}</small>
+            {% else %}<span class="st-mal">Falta</span>{% endif %}</dd></div>
+        {% if v.historial %}<div><dt>Hoja de vida</dt><dd>{{ v.historial | length }} mantenimiento{{ '' if v.historial | length == 1 else 's' }} · el último el {{ fecha_iso(v.historial[-1].fecha) }}</dd></div>{% endif %}
+        {% if v.plan[1] %}<div><dt>Próximo mantenimiento</dt><dd>{{ v.plan[1].strftime('%d/%m/%Y') }}{% if v.plan[0] %} · cada {{ v.plan[0] }} meses{% endif %}</dd></div>{% endif %}
+        {% if f.documento_id %}<div><dt>Documento</dt><dd><a href="{{ url_for('servicio_tecnico.documento_ver', doc_id=f.documento_id) }}" target="_blank" rel="noopener">{{ f.archivo }}</a></dd></div>{% endif %}
+    </dl>
+    {% endif %}
+
+    {% if v.mensajes %}
+    <ul class="st-imp-mensajes">
+        {% for nivel, texto in v.mensajes %}
+        <li class="st-imp-m-{{ nivel }}"><i class="fas fa-{{ {'ok': 'check', 'aviso': 'exclamation-circle', 'error': 'times-circle'}[nivel] }}" aria-hidden="true"></i>
+            <span><span class="st-sr">{{ {'ok': 'Bien:', 'aviso': 'Ojo:', 'error': 'Error:'}[nivel] }}</span> {{ texto }}</span></li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if v.historial or v.notas or f.resumen %}
+    <details class="st-imp-mas">
+        <summary>Ver {% if v.historial %}la hoja de vida{% endif %}{% if v.historial and (v.notas or f.resumen) %} y {% endif %}{% if v.notas or f.resumen %}las notas{% endif %}</summary>
+        {% if v.historial %}
+        <ul class="st-imp-hist">
+            {% for h in v.historial %}
+            <li><strong>{{ fecha_iso(h.fecha) }}</strong> · {{ 'Preventivo' if h.tipo == 'preventivo' else 'Correctivo' }} · {{ h.descripcion }}{% if h.costo %} · ${{ "{:,.0f}".format(h.costo) | replace(",", ".") }}{% endif %}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% if f.resumen %}<p class="st-texto"><i class="fas fa-robot" aria-hidden="true"></i> {{ f.resumen }}</p>{% endif %}
+        {% if v.notas %}<p class="st-texto">{{ v.notas | join('\n') }}</p>{% endif %}
+    </details>
+    {% endif %}
+
+    <div class="st-acciones st-imp-acciones">
+        {% set accion_url = url_for('servicio_tecnico.importacion_fila', lote_id=lote.id, n=v.n) %}
+        {% if v.clase == 'adjunto' %}
+        <form method="post" action="{{ accion_url }}" class="st-imp-adjuntar">
+            {{ ocultos() }}<input type="hidden" name="accion" value="adjuntar">
+            <label for="adj-{{ v.n }}">Guardarlo en el equipo:</label>
+            <select id="adj-{{ v.n }}" name="con">
+                <option value="">Ninguno (no se guarda)</option>
+                {% for n, titulo in equipos_lista %}<option value="{{ n }}" {% if f.adjuntar_a == n %}selected{% endif %}>Fila {{ n }} · {{ titulo }}</option>{% endfor %}
+            </select>
+            <button class="st-btn st-btn-sec st-btn-sm" type="submit">Guardar</button>
+        </form>
+        {% elif v.estado == 'quitada' %}
+        <form method="post" action="{{ accion_url }}">{{ ocultos() }}<input type="hidden" name="accion" value="incluir">
+            <button class="st-btn st-btn-sec st-btn-sm" type="submit"><i class="fas fa-undo" aria-hidden="true"></i> Volver a incluir</button></form>
+        {% else %}
+        <details class="st-imp-corregir">
+            <summary class="st-btn st-btn-sec st-btn-sm"><i class="fas fa-pen" aria-hidden="true"></i> Corregir</summary>
+            <form method="post" action="{{ accion_url }}" class="st-campos">
+                {{ ocultos() }}<input type="hidden" name="accion" value="corregir">
+                <div class="st-campo"><label for="c{{ v.n }}-tipo">Tipo de equipo</label>
+                    <select id="c{{ v.n }}-tipo" name="tipo">{% for codigo, nombre, icono, cols in tipos_lista %}<option value="{{ codigo }}" {% if codigo == e.tipo %}selected{% endif %}>{{ nombre }}</option>{% endfor %}</select></div>
+                <div class="st-campo"><label for="c{{ v.n }}-marca">Marca</label><input id="c{{ v.n }}-marca" name="marca" value="{{ e.marca or '' }}" maxlength="80"></div>
+                <div class="st-campo"><label for="c{{ v.n }}-modelo">Modelo</label><input id="c{{ v.n }}-modelo" name="modelo" value="{{ e.modelo or '' }}" maxlength="120"></div>
+                <div class="st-campo"><label for="c{{ v.n }}-serial">Serial</label><input id="c{{ v.n }}-serial" name="serial" value="{{ e.serial or '' }}" maxlength="120"></div>
+                <div class="st-campo"><label for="c{{ v.n }}-imei">IMEI</label><input id="c{{ v.n }}-imei" name="imei" value="{{ e.imei or '' }}" inputmode="numeric" maxlength="20"></div>
+                <div class="st-campo"><label for="c{{ v.n }}-nombre">Cliente</label><input id="c{{ v.n }}-nombre" name="nombre" value="{{ c.nombre or c.empresa or '' }}"></div>
+                <div class="st-campo"><label for="c{{ v.n }}-tel">Celular del cliente</label><input id="c{{ v.n }}-tel" name="telefono" type="tel" inputmode="tel" value="{{ c.telefono or '' }}"></div>
+                <div class="st-campo"><label for="c{{ v.n }}-email">Correo del cliente</label><input id="c{{ v.n }}-email" name="email" type="email" value="{{ c.email or '' }}"></div>
+                <div class="st-campo st-campo-ancho"><label for="c{{ v.n }}-usar">Cliente en el CRM</label>
+                    <select id="c{{ v.n }}-usar" name="usar_contacto">
+                        <option value="">Buscarlo solo (por correo, celular o nombre)</option>
+                        <option value="nuevo" {% if f.usar_contacto == 'nuevo' %}selected{% endif %}>Crearlo como cliente nuevo</option>
+                        {% if v.contacto %}<option value="{{ v.contacto.id }}" {% if f.usar_contacto == v.contacto.id %}selected{% endif %}>Usar «{{ v.contacto.nombre }}» del CRM</option>{% endif %}
+                    </select></div>
+                <div class="st-campo-ancho"><button class="st-btn" type="submit"><i class="fas fa-save" aria-hidden="true"></i> Guardar corrección</button></div>
+            </form>
+        </details>
+        <form method="post" action="{{ accion_url }}">{{ ocultos() }}<input type="hidden" name="accion" value="quitar">
+            <button class="st-btn st-btn-sec st-btn-sm" type="submit" aria-label="Quitar la fila {{ v.n }} de la importación"><i class="fas fa-eye-slash" aria-hidden="true"></i> Quitar</button></form>
+        {% if v.posible_duplicado %}
+        <form method="post" action="{{ accion_url }}">{{ ocultos() }}<input type="hidden" name="accion" value="unir"><input type="hidden" name="con" value="{{ v.posible_duplicado }}">
+            <button class="st-btn st-btn-sec st-btn-sm" type="submit"><i class="fas fa-link" aria-hidden="true"></i> Es el mismo de la fila {{ v.posible_duplicado }}: unir</button></form>
+        {% endif %}
+        {% if f.unir_con %}
+        <form method="post" action="{{ accion_url }}">{{ ocultos() }}<input type="hidden" name="accion" value="separar">
+            <button class="st-btn st-btn-sec st-btn-sm" type="submit"><i class="fas fa-unlink" aria-hidden="true"></i> No es el mismo: separar</button></form>
+        {% endif %}
+        {% endif %}
+    </div>
+</article>
+{% endfor %}
+</div>
+
+{% if paginas > 1 %}
+<nav class="st-paginas" aria-label="Páginas">
+    {% for p in range(1, paginas + 1) %}
+    <a class="st-btn st-btn-sm {{ '' if p == pagina else 'st-btn-sec' }}" href="{{ url_for('servicio_tecnico.importacion', lote_id=lote.id, ver=ver or None, pagina=p) }}"
+       {% if p == pagina %}aria-current="page"{% endif %}>{{ p }}</a>
+    {% endfor %}
+</nav>
+{% endif %}
+
+{% if r.incluidas %}
+<div class="st-imp-barra">
+    <span>{{ r.incluidas }} equipo{{ '' if r.incluidas == 1 else 's' }} para importar</span>
+    <a class="st-btn st-btn-ok st-btn-sm" href="#imp-res-tit"><i class="fas fa-arrow-up" aria-hidden="true"></i> Ir a importar</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block st_scripts %}
+<script src="{{ url_for('static', filename='js/servicio_tecnico.js') }}?v={{ config.APP_VERSION }}"></script>
+{% endblock %}

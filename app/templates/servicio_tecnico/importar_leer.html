@@ -1,0 +1,53 @@
+{% extends "servicio_tecnico/base.html" %}
+{% from "servicio_tecnico/_importar.html" import pasos, estado_parte %}
+{% block st_titulo %}Leyendo los archivos{% endblock %}
+
+{#- Paso 2: la IA lee una parte por llamada (cada llamada es corta). Si el
+    navegador se cierra, se retoma al volver a esta página. -#}
+{% block st_contenido %}
+<section class="st-hero">
+    <div>
+        <h1><i class="fas fa-robot" aria-hidden="true"></i> Leyendo tus archivos</h1>
+        <p>La IA lee los documentos uno por uno. Puede tardar unos minutos: puedes esperar aquí o seguir sin ella.</p>
+    </div>
+</section>
+
+{{ pasos(2) }}
+
+<section class="st-card" aria-labelledby="imp-leer-tit"
+         data-st-leer-lote="{{ url_for('servicio_tecnico.importacion_leer', lote_id=lote.id) }}"
+         data-st-listo="{{ url_for('servicio_tecnico.importacion', lote_id=lote.id) }}">
+    <h2 id="imp-leer-tit"><i class="fas fa-tasks" aria-hidden="true"></i> Avance</h2>
+    <progress class="st-progreso" id="imp-progreso" max="{{ [conteo.total, 1] | max }}" value="{{ conteo.total - conteo.pendientes }}"
+              aria-label="Partes leídas">{{ conteo.total - conteo.pendientes }} de {{ conteo.total }}</progress>
+    <p class="st-nota" id="imp-estado" role="status" aria-live="polite">Leídas {{ conteo.total - conteo.pendientes }} de {{ conteo.total }}.</p>
+    <ul class="st-imp-partes">
+        {% for a in lote.archivos %}
+        {% for p in a.partes %}
+        <li data-st-parte="{{ a.id }}-{{ p.i }}">
+            <i class="fas fa-{{ 'file-pdf' if a.clase == 'pdf' else ('file-excel' if a.clase in ('excel', 'csv') else 'file-alt') }}" aria-hidden="true"></i>
+            <span><strong>{{ a.nombre }}</strong>{% if a.partes | length > 1 or a.clase == 'excel' %} · {{ p.titulo }}{% endif %}</span>
+            {{ estado_parte(p) }}
+        </li>
+        {% endfor %}
+        {% endfor %}
+    </ul>
+    <div class="st-acciones" style="margin-top:16px">
+        <noscript>
+            <form method="post" action="{{ url_for('servicio_tecnico.importacion_leer', lote_id=lote.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="st-btn" type="submit"><i class="fas fa-play" aria-hidden="true"></i> Leer el siguiente</button>
+            </form>
+        </noscript>
+        <form method="post" action="{{ url_for('servicio_tecnico.importacion_seguir', lote_id=lote.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="st-btn st-btn-sec" type="submit"><i class="fas fa-forward" aria-hidden="true"></i> Seguir sin esperar a la IA</button>
+        </form>
+    </div>
+    <p class="st-nota">Si sigues sin la IA, queda lo que leyó el lector automático y lo revisas en el siguiente paso.</p>
+</section>
+{% endblock %}
+
+{% block st_scripts %}
+<script src="{{ url_for('static', filename='js/servicio_tecnico.js') }}?v={{ config.APP_VERSION }}"></script>
+{% endblock %}

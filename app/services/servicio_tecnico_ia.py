@@ -11,10 +11,14 @@ Reglas:
   - Sin IA (apagada, fría o sin plan) todo funciona: el lector fijo y las
     sugerencias por reglas siguen respondiendo.
   - Usa el motor del propio cliente (`ai_service._chat`, aislado por tenant).
+  - Importador: la IA lee documentos viejos y columnas de Excel con títulos
+    raros; cada valor, fecha y mantenimiento que propone se busca en el
+    documento y lo que no aparece se descarta.
 """
 
 import json
 import re
+from datetime import date, timedelta
 
 from services import servicio_tecnico_lector as lector
 from services import servicio_tecnico_tipos as tipos
@@ -82,20 +86,22 @@ _LINEA_TECNICA = re.compile(
 MAX_PARA_IA = 6000
 
 
-def recortar_relevante(texto, limite=MAX_PARA_IA):
+def recortar_relevante(texto, limite=MAX_PARA_IA, patron=None):
     """Si el texto no cabe, se quedan las líneas con datos técnicos (en su
     orden y sin repetidas) en vez de cortarlo a la mitad: un `systeminfo` con
     200 parches de Windows ya no esconde la RAM ni el disco al final.
+    `patron`: qué líneas sirven (por defecto, las técnicas).
     Devuelve (texto, {'lineas_totales', 'lineas_usadas'} o None)."""
     if len(texto) <= limite:
         return texto, None
+    patron = patron or _LINEA_TECNICA
     lineas = [l.rstrip() for l in texto.split('\n')]
     vistas, elegidas = set(), []
     for i, linea in enumerate(lineas):
         clave = linea.strip().lower()
         if not clave or clave in vistas:
             continue
-        if i < 15 or _LINEA_TECNICA.search(linea) or re.search(r'[:\t].*\d', linea):
+        if i < 15 or patron.search(linea) or re.search(r'[:\t].*\d', linea):
             if re.match(r'^\s*\[\d+\]:\s*KB\d+', linea):   # lista de parches de Windows
                 continue
             vistas.add(clave)
@@ -348,3 +354,220 @@ def mejorar_plantilla(tipo_mensaje, plantilla, equipo_desc=''):
     if sorted(set(_VARIABLES.findall(texto))) != variables or re.search(r'\{(?!(?:' + '|'.join(variables or ['x']) + r')\})', texto):
         return None, 'La IA cambió los datos del mensaje; se deja el original.'
     return texto, None
+
+
+# ── 5. Importador: documentos viejos y columnas de Excel ────────
+# Líneas útiles de una hoja de vida o un historial: las técnicas, las que
+# traen fecha y las que hablan de mantenimientos.
+_LINEA_DOCUMENTO = re.compile(
+    _LINEA_TECNICA.pattern + r'|\d{1,4}[/\-.]\d{1,2}[/\-.]\d{2,4}|mantenimiento|mtto|limpieza|preventiv|correctiv|'
+    r'repar|cambio|instal|formate|revisi|diagn|actualiz|servicio|tipo de equipo|frecuencia|pr[oó]xim', re.I)
+# Campos extra que se le piden a la IA en un documento (los del tipo se filtran después).
+_EXTRAS_DOCUMENTO = ('tipo_disco', 'ram_ranuras_total', 'ram_ranuras_libres', 'tarjeta_video', 'bateria_desgaste',
+                     'bateria_salud', 'version_sistema', 'imei2', 'capacidad_va', 'capacidad_w', 'autonomia_min',
+                     'baterias_cantidad', 'baterias_voltaje', 'baterias_ultimo_cambio', 'pulgadas', 'tecnologia',
+                     'contador_paginas', 'licencia_windows')
+_FRECUENCIA_PALABRAS = {1: ('mensual',), 2: ('bimestral',), 3: ('trimestral',), 4: ('cuatrimestral',),
+                        6: ('semestral', 'dos veces al ano'), 12: ('anual', 'una vez al ano', 'cada ano')}
+_MESES = ('ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic')
+
+
+def _campos_para_documento():
+    lineas = [f'- {c}: {tipos.ETIQUETAS_COMUNES[c]}' for c in _COLUMNAS]
+    vistos = set()
+    for codigo in tipos.CODIGOS:
+        for clave, etiqueta, tipo_input, opciones in tipos.campos_extra(codigo):
+            if clave not in _EXTRAS_DOCUMENTO or clave in vistos:
+                continue
+            vistos.add(clave)
+            extra = f" (una de: {', '.join(opciones)})" if opciones else (' (sí/no)' if tipo_input == 'si_no' else '')
+            extra += ' (AAAA-MM-DD)' if tipo_input == 'fecha' else ''
+            extra += ' (solo el número)' if tipo_input == 'numero' else ''
+            lineas.append(f'- extra.{clave}: {etiqueta}{extra}')
+    return '\n'.join(lineas)
+
+
+def _fecha_doc(valor, hoy):
+    try:
+        f = date.fromisoformat(str(valor or '').strip()[:10])
+    except ValueError:
+        return None
+    return f if date(1990, 1, 1) <= f <= hoy + timedelta(days=3 * 366) else None
+
+
+def fecha_en_texto(f, plano):
+    """¿La fecha aparece en el documento? (15/03/2025, 15-3-25, 2025-03-15,
+    03/15/2025 o «15 de marzo de 2025»). `plano`: texto en minúscula y sin tildes."""
+    d, m, a = f.day, f.month, f.year
+    variantes = set()
+    for dd in {str(d), f'{d:02d}'}:
+        for mm in {str(m), f'{m:02d}'}:
+            for sep in '/-.':
+                for aa in {str(a), f'{a % 100:02d}'}:
+                    variantes.add(f'{dd}{sep}{mm}{sep}{aa}')
+                    variantes.add(f'{mm}{sep}{dd}{sep}{aa}')
+                variantes.add(f'{a}{sep}{mm}{sep}{dd}')
+    if re.search(r'(?<!\d)(?:' + '|'.join(re.escape(v) for v in variantes) + r')(?!\d)', plano):
+        return True
+    return bool(re.search(rf'(?<!\d){d}\s*(?:de\s+)?{_MESES[m - 1]}\w*\.?\s*(?:de\s+|del\s+)?{a}(?!\d)', plano))
+
+
+def _meses_ok(meses, plano):
+    if not isinstance(meses, int) or not 1 <= meses <= 36:
+        return False
+    if re.search(rf'(?<!\d){meses}\s*mes', plano):
+        return True
+    return any(p in plano for p in _FRECUENCIA_PALABRAS.get(meses, ()))
+
+
+def _palabras_presentes(texto, plano, minimo):
+    palabras = [w for w in re.findall(r'[a-z]{3,}', _plano(texto)) if w not in ('del', 'los', 'las', 'con', 'por', 'para')]
+    if not palabras:
+        return True
+    return sum(1 for w in palabras if w in plano) / len(palabras) >= minimo
+
+
+def _motor_preparando(err):
+    try:
+        return bool(err) and err == _ia().MSG_MOTOR_PREPARANDO
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def interpretar_documento(texto, tipo_sugerido=None, nombres=(), hoy=None):
+    """Equipos que describe un documento viejo (ficha técnica, hoja de vida,
+    historial de mantenimientos): ficha, mantenimientos con fecha y el próximo.
+
+    El texto pasa antes por `limpiar_personales` y `sin_datos_personales` (con
+    los nombres que el importador encontró con reglas fijas): a la IA no le
+    llegan nombre, teléfono, correo ni documento del cliente. Cada valor, fecha
+    y mantenimiento que propone se busca en el documento; lo que no aparece se
+    descarta. Devuelve {'equipos': [...], 'ia': bool, 'aviso': str|None,
+    'reintentar': bool, 'descartados': int}."""
+    hoy = hoy or date.today()
+    salida = {'equipos': [], 'ia': False, 'aviso': None, 'reintentar': False, 'descartados': 0}
+    limpio = lector.sin_datos_personales(lector.limpiar_personales(texto), nombres)
+    if len(re.sub(r'\s', '', limpio)) < 20:
+        salida['aviso'] = 'El documento casi no tiene texto para leer.'
+        return salida
+    ok, motivo = estado()
+    if not ok:
+        salida['aviso'] = motivo
+        return salida
+    para_ia, recorte = recortar_relevante(limpio, patron=_LINEA_DOCUMENTO)
+    sugerido = (f'Por las reglas parece: {tipos.nombre(tipo_sugerido)}.\n'
+                if tipo_sugerido and tipo_sugerido != 'otro' else '')
+    user = ('Documento de un taller de reparación (ficha técnica, hoja de vida o historial de mantenimiento)'
+            f'{" — solo las líneas útiles, porque era muy largo" if recorte else ""}:\n<<<\n{para_ia}\n>>>\n\n'
+            f'{sugerido}'
+            'Tipos de equipo (usa el código): ' + ', '.join(f'{c} = {tipos.nombre(c)}' for c in tipos.CODIGOS) + '.\n'
+            f'Campos del equipo (usa exactamente estas claves):\n{_campos_para_documento()}\n\n'
+            'Reglas: copia cada valor TAL CUAL aparece en el documento (no conviertas ni completes). Si un dato no '
+            'está, NO lo pongas. Fechas en AAAA-MM-DD. Un equipo por cada equipo distinto que describa el documento '
+            '(máximo 8); el monitor, el teclado y el mouse de un computador NO son equipos aparte. En «mantenimientos» '
+            'van solo los que tienen fecha en el documento (máximo 15 por equipo).\n'
+            'Responde SOLO un JSON así: {"equipos": [{"tipo": "portatil", "campos": {"marca": "...", '
+            '"extra.tipo_disco": "..."}, "mantenimientos": [{"fecha": "AAAA-MM-DD", "tipo": "preventivo o correctivo", '
+            '"que_se_hizo": "..."}], "proximo_mantenimiento": "AAAA-MM-DD o vacío", "cada_meses": número o null, '
+            '"resumen": "1 o 2 frases sobre el equipo"}]}')
+    texto_ia, err = _ia()._chat(SISTEMA, user, max_tokens=1600, temperature=0.1, espera_frio=25, tarea='contenido')
+    datos = _json_de(texto_ia) if texto_ia else None
+    if not isinstance(datos, dict):
+        salida['reintentar'] = not texto_ia and _motor_preparando(err)
+        salida['aviso'] = ('La respuesta de la IA llegó incompleta.' if texto_ia
+                           else (err or 'La IA no respondió a tiempo.'))
+        return salida
+    lista = datos.get('equipos')
+    if not isinstance(lista, list):
+        lista = [datos] if isinstance(datos.get('campos'), dict) else []
+    plano = _plano(limpio)
+    descartados = 0
+    for e in lista[:8]:
+        if not isinstance(e, dict):
+            continue
+        tipo = str(e.get('tipo') or '').strip().lower()
+        if not tipos.es_valido(tipo):
+            tipo = tipos.tipo_desde_texto(tipo) or tipo_sugerido or 'otro'
+        leido = _validar(tipo, e.get('campos') if isinstance(e.get('campos'), dict) else {})
+        columnas, extras = {}, {}
+        for clave, valor in leido['columnas'].items():
+            if verificado(valor, plano):
+                columnas[clave] = valor
+            else:
+                descartados += 1
+        for clave, valor in leido['extras'].items():
+            if verificado(valor, plano) or str(valor).lower() in ('si', 'no') or any(
+                    w in plano for w in _plano(valor).split() if len(w) > 2):
+                extras[clave] = valor
+            else:
+                descartados += 1
+        historial = []
+        for m in (e.get('mantenimientos') or [])[:30]:
+            if not isinstance(m, dict):
+                continue
+            f = _fecha_doc(m.get('fecha'), hoy)
+            que = ' '.join(str(m.get('que_se_hizo') or m.get('descripcion') or '').split())[:500]
+            if not f or f > hoy or not fecha_en_texto(f, plano) or not _palabras_presentes(que, plano, 0.5):
+                descartados += 1
+                continue
+            historial.append({'fecha': f.isoformat(),
+                              'tipo': 'correctivo' if 'correct' in str(m.get('tipo') or '').lower() else 'preventivo',
+                              'descripcion': que})
+        proximo = _fecha_doc(e.get('proximo_mantenimiento'), hoy)
+        if proximo and not fecha_en_texto(proximo, plano):
+            proximo, descartados = None, descartados + 1
+        try:
+            cada = int(e.get('cada_meses')) if e.get('cada_meses') not in (None, '') else None
+        except (TypeError, ValueError):
+            cada = None
+        if cada is not None and not _meses_ok(cada, plano):
+            cada = None
+        if not columnas and not extras and not historial:
+            continue
+        salida['equipos'].append({'tipo': tipo, 'columnas': columnas, 'extras': extras, 'historial': historial,
+                                  'proximo': proximo.isoformat() if proximo else None, 'cada_meses': cada,
+                                  'resumen': str(e.get('resumen') or '').strip()[:400]})
+    salida.update(ia=True, descartados=descartados)
+    if descartados:
+        salida['aviso'] = (f'La IA propuso {descartados} dato(s) que no aparecen tal cual en el documento: '
+                           'no se usaron.')
+    return salida
+
+
+def mapear_columnas(columnas, destinos):
+    """Columnas de un Excel con un título que las reglas no entienden → campo.
+
+    `columnas`: [{'col': n, 'encabezado': str, 'ejemplos': [str]}]; los ejemplos
+    ya vienen sin datos personales. `destinos`: {clave: descripción}. Devuelve
+    {'mapeo': {col: clave}, 'ia': bool, 'aviso': str|None, 'reintentar': bool}."""
+    salida = {'mapeo': {}, 'ia': False, 'aviso': None, 'reintentar': False}
+    if not columnas:
+        return salida
+    ok, motivo = estado()
+    if not ok:
+        salida['aviso'] = motivo
+        return salida
+    lineas = [f'- columna {c["col"]}: «{c["encabezado"] or "(sin título)"}» → ejemplos: '
+              + ' | '.join(f'«{e}»' for e in (c.get('ejemplos') or [])[:4]) for c in columnas[:40]]
+    user = ('Estas columnas de un Excel de equipos de un taller tienen un título que no reconocimos:\n'
+            + '\n'.join(lineas)
+            + '\n\nCampos posibles (usa exactamente la clave):\n'
+            + '\n'.join(f'- {k}: {v}' for k, v in destinos.items())
+            + '\n\nPara cada columna di a qué campo corresponde por su título y sus ejemplos. Si es un dato que no '
+              'está en la lista, «notas»; si no sirve (números de fila, vacía), «ignorar». '
+              'Responde SOLO un JSON: {"columnas": {"<número de columna>": "clave"}}')
+    texto_ia, err = _ia()._chat(SISTEMA, user, max_tokens=500, temperature=0.1, espera_frio=25, tarea='contenido')
+    datos = _json_de(texto_ia) if texto_ia else None
+    if not isinstance(datos, dict):
+        salida['reintentar'] = not texto_ia and _motor_preparando(err)
+        salida['aviso'] = ('La respuesta de la IA llegó incompleta.' if texto_ia
+                           else (err or 'La IA no respondió a tiempo.'))
+        return salida
+    validas = {str(c['col']) for c in columnas}
+    crudo = datos.get('columnas') if isinstance(datos.get('columnas'), dict) else {}
+    for col, clave in crudo.items():
+        clave = str(clave or '').strip()
+        if str(col) in validas and clave in destinos:
+            salida['mapeo'][int(col)] = clave
+    salida['ia'] = True
+    return salida

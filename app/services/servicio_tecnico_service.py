@@ -196,11 +196,59 @@ ALTER TABLE st_seguimientos ADD COLUMN IF NOT EXISTS motivo VARCHAR(300);
 CREATE INDEX IF NOT EXISTS ix_st_seguimientos_equipo ON st_seguimientos (equipo_id, estado);
 """
 
+# 0021: documentos del equipo (PDF, Excel, imágenes de fichas) y lotes de
+# importación («Traer desde Excel o PDF»). Un lote se puede deshacer: lo que
+# creó queda activo = FALSE (por eso st_mantenimientos gana `activo`); nada se
+# borra. `importacion_id` dice de qué lote salió cada equipo y mantenimiento.
+DDL_0021 = """
+CREATE TABLE IF NOT EXISTS st_importaciones (
+    id              SERIAL       PRIMARY KEY,
+    estado          VARCHAR(20)  NOT NULL DEFAULT 'leyendo',
+    archivos        JSONB        NOT NULL DEFAULT '[]'::jsonb,
+    filas           JSONB        NOT NULL DEFAULT '[]'::jsonb,
+    ajustes         JSONB        NOT NULL DEFAULT '{}'::jsonb,
+    resultado       JSONB,
+    creado_por      INTEGER,
+    creado_en       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    actualizado_en  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    importado_por   INTEGER,
+    importado_en    TIMESTAMPTZ,
+    deshecho_por    INTEGER,
+    deshecho_en     TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS ix_st_importaciones_creado ON st_importaciones (creado_en);
+
+CREATE TABLE IF NOT EXISTS st_documentos (
+    id              SERIAL        PRIMARY KEY,
+    equipo_id       INTEGER       REFERENCES st_equipos(id),
+    orden_id        INTEGER       REFERENCES st_ordenes(id),
+    importacion_id  INTEGER       REFERENCES st_importaciones(id),
+    nombre          VARCHAR(200)  NOT NULL,
+    descripcion     VARCHAR(200),
+    mime            VARCHAR(120)  NOT NULL,
+    bytes           INTEGER       NOT NULL,
+    huella          VARCHAR(64)   NOT NULL,
+    contenido       BYTEA         NOT NULL,
+    texto           TEXT,
+    activo          BOOLEAN       NOT NULL DEFAULT TRUE,
+    creado_por      INTEGER,
+    creado_en       TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_st_documentos_equipo ON st_documentos (equipo_id, activo);
+CREATE INDEX IF NOT EXISTS ix_st_documentos_importacion ON st_documentos (importacion_id);
+CREATE INDEX IF NOT EXISTS ix_st_documentos_huella ON st_documentos (huella);
+
+ALTER TABLE st_equipos ADD COLUMN IF NOT EXISTS importacion_id INTEGER;
+ALTER TABLE st_mantenimientos ADD COLUMN IF NOT EXISTS importacion_id INTEGER;
+ALTER TABLE st_mantenimientos ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL DEFAULT TRUE;
+CREATE INDEX IF NOT EXISTS ix_st_equipos_importacion ON st_equipos (importacion_id);
+"""
+
 # Lo que asegurar_tablas crea si las migraciones aún no llegaron (en orden).
-DDL = DDL_0018 + DDL_0019 + DDL_0020
+DDL = DDL_0018 + DDL_0019 + DDL_0020 + DDL_0021
 
 TABLAS = ('st_equipos', 'st_ordenes', 'st_eventos', 'st_cambios', 'st_seguimientos',
-          'st_fotos', 'st_mantenimientos')
+          'st_fotos', 'st_mantenimientos', 'st_importaciones', 'st_documentos')
 
 # ── Estados de la orden ──────────────────────────────────────────
 # (código, nombre, ícono, tono del chip)
@@ -1266,7 +1314,7 @@ def mantenimientos_de_equipo(equipo_id):
                        FROM st_mantenimientos m
                        LEFT JOIN usuarios u ON u.id = m.tecnico_id
                        LEFT JOIN st_ordenes o ON o.id = m.orden_id
-                       WHERE m.equipo_id = %s ORDER BY m.fecha DESC, m.id DESC""", (equipo_id,))
+                       WHERE m.equipo_id = %s AND m.activo ORDER BY m.fecha DESC, m.id DESC""", (equipo_id,))
         return [dict(r) for r in cur.fetchall()]
 
 
@@ -1325,3 +1373,124 @@ def validacion_equipo(equipo, fotos=0, recordatorios=0):
     return {'puntaje': round(100 * puntos / len(revisiones)), 'revisiones': revisiones,
             'faltan': [r for r in revisiones if r[0] != 'ok'],
             'errores': sum(1 for r in revisiones if r[0] == 'error')}
+
+
+# ── Documentos del equipo (PDF, Excel, Word…) ───────────────────
+DOCUMENTO_MAX_BYTES = 20 * 1024 * 1024
+DOCUMENTOS_MAX = 40                     # documentos activos por equipo
+# extensión → (mime, firma con la que empieza el archivo; None = texto)
+TIPOS_DOCUMENTO = {
+    'pdf': ('application/pdf', b'%PDF-'),
+    'xlsx': ('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', b'PK\x03\x04'),
+    'xlsm': ('application/vnd.ms-excel.sheet.macroEnabled.12', b'PK\x03\x04'),
+    'xls': ('application/vnd.ms-excel', b'\xd0\xcf\x11\xe0'),
+    'docx': ('application/vnd.openxmlformats-officedocument.wordprocessingml.document', b'PK\x03\x04'),
+    'doc': ('application/msword', b'\xd0\xcf\x11\xe0'),
+    'ods': ('application/vnd.oasis.opendocument.spreadsheet', b'PK\x03\x04'),
+    'odt': ('application/vnd.oasis.opendocument.text', b'PK\x03\x04'),
+    'csv': ('text/csv', None),
+    'txt': ('text/plain', None),
+}
+ACEPTA_DOCUMENTOS = ','.join('.' + e for e in TIPOS_DOCUMENTO)
+
+
+def nombre_archivo(nombre):
+    """Nombre para mostrar y descargar: sin carpetas ni caracteres raros."""
+    nombre = os.path.basename(str(nombre or '').replace('\\', '/')).strip()
+    nombre = re.sub(r'[\x00-\x1f<>:"/\\|?*]+', '_', nombre)
+    return (nombre or 'documento')[:200]
+
+
+def validar_documento(nombre, datos):
+    """(nombre, extensión, mime) si el archivo es de un tipo admitido y su
+    contenido corresponde a la extensión; si no, ErrorServicio."""
+    nombre = nombre_archivo(nombre)
+    ext = nombre.rsplit('.', 1)[-1].lower() if '.' in nombre else ''
+    if ext not in TIPOS_DOCUMENTO:
+        raise ErrorServicio(f'{nombre}: tipo de archivo no admitido (usa PDF, Excel, Word, CSV o texto).')
+    if not datos:
+        raise ErrorServicio(f'{nombre}: el archivo llegó vacío.')
+    if len(datos) > DOCUMENTO_MAX_BYTES:
+        raise ErrorServicio(f'{nombre}: pesa más de 20 MB.')
+    mime, firma = TIPOS_DOCUMENTO[ext]
+    if firma and not datos.startswith(firma):
+        raise ErrorServicio(f'{nombre}: el contenido no corresponde a un archivo .{ext}.')
+    if firma is None and b'\x00' in datos[:4096]:
+        raise ErrorServicio(f'{nombre}: no es un archivo de texto.')
+    return nombre, ext, mime
+
+
+def guardar_documento(cur, nombre, mime, datos, texto=None, equipo_id=None, importacion_id=None,
+                      usuario_id=None, descripcion=None, orden_id=None):
+    """Guarda el archivo en la base del cliente. Devuelve su id."""
+    cur.execute("""INSERT INTO st_documentos (equipo_id, orden_id, importacion_id, nombre, descripcion, mime, bytes,
+                                              huella, contenido, texto, creado_por)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id""",
+                (equipo_id, orden_id, importacion_id, nombre_archivo(nombre), _texto(descripcion, 200), mime,
+                 len(datos), hashlib.sha256(datos).hexdigest(), datos, (texto or '')[:200000] or None, usuario_id))
+    return cur.fetchone()[0]
+
+
+def adjuntar_documentos(equipo_id, archivos, descripcion=None, usuario_id=None):
+    """Documentos subidos desde la ficha. Guarda los que se puedan y devuelve
+    (guardados, errores)."""
+    archivos = [a for a in (archivos or []) if a and getattr(a, 'filename', '')]
+    if not archivos:
+        return 0, []
+    guardados, errores = 0, []
+    with get_db_cursor() as cur:
+        cur.execute('SELECT id FROM st_equipos WHERE id = %s FOR UPDATE', (equipo_id,))
+        if not cur.fetchone():
+            raise ErrorServicio('El equipo no existe.')
+        cur.execute('SELECT COUNT(*) FROM st_documentos WHERE equipo_id = %s AND activo', (equipo_id,))
+        cupo = DOCUMENTOS_MAX - int(cur.fetchone()[0])
+        for archivo in archivos:
+            nombre = nombre_archivo(archivo.filename)
+            if cupo <= 0:
+                errores.append(f'{nombre}: el equipo ya tiene {DOCUMENTOS_MAX} documentos. Quita alguno para subir más.')
+                continue
+            datos = archivo.read(DOCUMENTO_MAX_BYTES + 1)
+            try:
+                nombre, _ext, mime = validar_documento(nombre, datos)
+            except ErrorServicio as exc:
+                errores.append(str(exc))
+                continue
+            guardar_documento(cur, nombre, mime, datos, equipo_id=equipo_id, usuario_id=usuario_id,
+                              descripcion=descripcion)
+            guardados += 1
+            cupo -= 1
+        if guardados:
+            _evento(cur, None, equipo_id, 'documento',
+                    f"{guardados} documento{'s' if guardados != 1 else ''} agregado{'s' if guardados != 1 else ''}",
+                    usuario_id)
+            cur.execute('UPDATE st_equipos SET actualizado_en = NOW() WHERE id = %s', (equipo_id,))
+    return guardados, errores
+
+
+def documentos_de_equipo(equipo_id):
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute("""SELECT id, nombre, descripcion, mime, bytes, creado_en, importacion_id
+                       FROM st_documentos WHERE equipo_id = %s AND activo
+                       ORDER BY creado_en DESC, id DESC""", (equipo_id,))
+        return [dict(r) for r in cur.fetchall()]
+
+
+def documento_contenido(doc_id):
+    """(mime, nombre, bytes) de un documento activo, o None."""
+    with get_db_cursor() as cur:
+        cur.execute('SELECT mime, nombre, contenido FROM st_documentos WHERE id = %s AND activo', (doc_id,))
+        fila = cur.fetchone()
+    return (fila[0], fila[1], bytes(fila[2])) if fila else None
+
+
+def quitar_documento(doc_id, usuario_id=None):
+    """Retira el documento de la ficha (queda guardado, no se borra). Devuelve
+    el id del equipo o None."""
+    with get_db_cursor() as cur:
+        cur.execute("""UPDATE st_documentos SET activo = FALSE
+                       WHERE id = %s AND activo AND equipo_id IS NOT NULL RETURNING equipo_id, nombre""", (doc_id,))
+        fila = cur.fetchone()
+        if not fila:
+            return None
+        _evento(cur, None, fila[0], 'documento', f'Documento retirado de la ficha: {fila[1]}', usuario_id)
+    return fila[0]

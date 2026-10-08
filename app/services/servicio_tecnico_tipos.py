@@ -198,3 +198,51 @@ def para_plantilla():
         }
         for codigo, nom, ico, cols in TIPOS
     }
+
+
+# ── Reconocer el tipo en un texto libre (listas y documentos viejos) ──
+# «Portátil HP», «CPU Dell», «Smart TV 50"», «UPS 1000 VA»… En minúscula y
+# sin tildes; gana la palabra que aparece primero en el texto.
+_PALABRAS_TIPO = (
+    ('portatil', ('portatil', 'portatiles', 'laptop', 'notebook', 'macbook', 'netbook', 'ultrabook', 'chromebook')),
+    ('computador', ('computador de escritorio', 'computador', 'computadora', 'computadores', 'escritorio', 'desktop',
+                    'torre', 'cpu', 'all in one', 'aio', 'todo en uno', 'imac', 'pc', 'mini pc', 'workstation')),
+    ('celular', ('celular', 'celulares', 'smartphone', 'movil', 'iphone', 'telefono celular', 'telefono movil')),
+    ('tablet', ('tablet', 'tablets', 'tableta', 'ipad')),
+    ('televisor', ('televisor', 'televisores', 'television', 'smart tv', 'tv')),
+    ('monitor', ('monitor', 'monitores')),
+    ('impresora', ('impresora', 'impresoras', 'multifuncional', 'printer', 'escaner', 'scanner', 'plotter',
+                   'fotocopiadora')),
+    ('ups', ('ups', 'regulador', 'no break', 'nobreak', 'estabilizador', 'inversor')),
+    ('bateria', ('bateria', 'baterias')),
+    ('consola', ('consola', 'playstation', 'play station', 'xbox', 'nintendo', 'ps4', 'ps5')),
+    ('red', ('router', 'switch', 'access point', 'camara de seguridad', 'camara ip', 'dvr', 'nvr', 'modem',
+             'repetidor', 'firewall', 'equipo de red')),
+    ('otro', ('otro', 'otro dispositivo')),
+)
+
+
+def _plano(texto):
+    import re
+    import unicodedata
+    t = unicodedata.normalize('NFD', str(texto or '').lower())
+    t = ''.join(ch for ch in t if unicodedata.category(ch) != 'Mn')
+    return ' '.join(re.sub(r'[^a-z0-9]+', ' ', t).split())
+
+
+def tipo_desde_texto(texto):
+    """Código del tipo que dice un texto libre, o None si no lo dice."""
+    import re
+    t = _plano(texto)
+    if not t:
+        return None
+    for codigo, nom, _ico, _cols in TIPOS:            # «Portátil», «UPS / regulador»…
+        if t in (codigo, _plano(nom)):
+            return codigo
+    mejor = None
+    for codigo, palabras in _PALABRAS_TIPO:
+        for palabra in palabras:
+            m = re.search(r'(?<![a-z0-9])' + re.escape(palabra) + r'(?![a-z0-9])', t)
+            if m and (mejor is None or (m.start(), -len(palabra)) < (mejor[0], -mejor[1])):
+                mejor = (m.start(), len(palabra), codigo)
+    return mejor[2] if mejor else None

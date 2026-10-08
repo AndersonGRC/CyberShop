@@ -6,6 +6,7 @@ Equipos de los clientes (computadores, celulares, tablets, televisores, UPS…),
 lógica vive en services/servicio_tecnico_service.py; aquí solo HTTP.
 
   /admin/servicio-tecnico/...   panel (módulo activo + permiso 'servicio_tecnico')
+                                («Traer desde Excel o PDF»: /equipos/importar e /importacion/<id>)
   /servicio/<token>             estado de la orden para el cliente (sin sesión,
                                 sin datos sensibles, con límite de peticiones)
 """
@@ -18,6 +19,7 @@ from helpers import get_common_data, get_data_app
 from security import ADMIN_STAFF, permiso_requerido, registrar_guard_permiso, rol_requerido
 from services import servicio_tecnico_clasificador as clasif
 from services import servicio_tecnico_ia as st_ia
+from services import servicio_tecnico_importar as imp
 from services import servicio_tecnico_mensajes as msj
 from services import servicio_tecnico_seguimiento as seg
 from services import servicio_tecnico_service as st
@@ -305,7 +307,8 @@ def equipo_ver(equipo_id):
         tipo_mant=st.TIPO_MANTENIMIENTO, tecnicos=st.tecnicos(),
         recordatorios=pendientes, atendidos=atendidos, canales=seg.CANALES_RECORDATORIO,
         validacion=st.validacion_equipo(equipo, fotos=len(fotos), recordatorios=len(pendientes)),
-        st_activo='equipos'))
+        documentos=st.documentos_de_equipo(equipo_id), acepta_documentos=st.ACEPTA_DOCUMENTOS,
+        documentos_max=st.DOCUMENTOS_MAX, st_activo='equipos'))
 
 
 def _a_la_ficha(equipo_id, seccion=''):
@@ -441,6 +444,259 @@ def equipo_cambio(equipo_id):
     except st.ErrorServicio as exc:
         flash(str(exc), 'warning')
     return redirect(url_for('servicio_tecnico.equipo_ver', equipo_id=equipo_id) + '#piezas')
+
+
+# ── Traer equipos desde Excel o PDF (importador) ────────────────
+def _a_la_importacion(lote_id, ancla=''):
+    destino = url_for('servicio_tecnico.importacion', lote_id=lote_id)
+    ver = request.form.get('ver') or request.args.get('ver')
+    pagina = request.form.get('pagina') or request.args.get('pagina')
+    params = '&'.join(f'{k}={v}' for k, v in (('ver', ver), ('pagina', pagina))
+                      if v and str(v).replace('_', '').isalnum())
+    return redirect(destino + (('?' + params) if params else '') + (('#' + ancla) if ancla else ''))
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/equipos/importar', methods=['GET', 'POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def importar():
+    """Paso 1: subir los archivos (Excel, CSV, PDF o texto)."""
+    if request.method == 'POST':
+        try:
+            lote_id, errores = imp.crear_lote(request.files.getlist('archivos'), _usuario())
+        except st.ErrorServicio as exc:
+            flash(str(exc), 'warning')
+            return redirect(url_for('servicio_tecnico.importar'))
+        for e in errores[:6]:
+            flash(e, 'warning')
+        return redirect(url_for('servicio_tecnico.importacion', lote_id=lote_id))
+    return render_template('servicio_tecnico/importar.html', **_ctx(
+        lotes=imp.lotes_recientes(), estados_lote=imp.ESTADOS_LOTE, acepta=imp.ACEPTA,
+        archivos_max=imp.ARCHIVOS_MAX, ia_ok=st_ia.estado()[0], st_activo='equipos'))
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/importacion/plantilla.xlsx')
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+def importacion_plantilla():
+    from flask import Response
+    respuesta = Response(imp.plantilla_excel(),
+                         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    respuesta.headers['Content-Disposition'] = 'attachment; filename="plantilla_equipos.xlsx"'
+    respuesta.headers['Cache-Control'] = 'private, no-store'
+    return respuesta
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/importacion/<int:lote_id>')
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def importacion(lote_id):
+    """Paso 2 (leyendo con IA), 3 (revisar) o 4 (resultado), según el lote."""
+    lote = imp.obtener_lote(lote_id)
+    if not lote:
+        abort(404)
+    base = dict(lote=lote, estados_lote=imp.ESTADOS_LOTE, st_activo='equipos')
+    if lote['estado'] == 'leyendo':
+        return render_template('servicio_tecnico/importar_leer.html', **_ctx(
+            conteo=imp._conteo_lectura(lote['archivos']), **base))
+    if lote['estado'] != 'revision':
+        return render_template('servicio_tecnico/importar_resultado.html', **_ctx(
+            equipos_lote=imp.equipos_del_resultado(lote), **base))
+    vista = imp.revisar(lote)
+    ver = request.args.get('ver', '')
+    filas = vista['filas']
+    if ver == 'revisar':
+        filas = [v for v in filas if v['estado'] == 'aviso']
+    elif ver == 'error':
+        filas = [v for v in filas if v['estado'] == 'error']
+    elif ver == 'quitadas':
+        filas = [v for v in filas if v['estado'] == 'quitada']
+    else:
+        ver = ''
+    por_pagina = 40
+    paginas = max(1, (len(filas) + por_pagina - 1) // por_pagina)
+    pagina = min(max(request.args.get('pagina', 1, type=int), 1), paginas)
+    equipos_lista = [(v['n'], v['titulo']) for v in vista['filas']
+                     if v['clase'] == 'equipo' and v['estado'] in ('ok', 'aviso')]
+    return render_template('servicio_tecnico/importar_revisar.html', **_ctx(
+        vista=vista, resumen=vista['resumen'], filas=filas[(pagina - 1) * por_pagina:pagina * por_pagina],
+        ver=ver, pagina=pagina, paginas=paginas, equipos_lista=equipos_lista,
+        ajustes=lote.get('ajustes') or {}, vencidos=imp.VENCIDOS, tipos_lista=tipos.TIPOS,
+        ia_ok=st_ia.estado()[0], se_puede_releer=imp.se_puede_releer(lote),
+        cliente_defecto=(st.obtener_cliente(lote['ajustes']['cliente_id'])
+                         if (lote.get('ajustes') or {}).get('cliente_id') else None),
+        **base))
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/importacion/<int:lote_id>/leer', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def importacion_leer(lote_id):
+    """Lee con IA la siguiente parte (JSON para la pantalla; sin JS, vuelve a la página)."""
+    try:
+        res = imp.leer_siguiente(lote_id)
+    except st.ErrorServicio as exc:
+        if request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+            flash(str(exc), 'warning')
+            return redirect(url_for('servicio_tecnico.importar'))
+        return jsonify({'ok': False, 'error': str(exc)}), 404
+    if request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+        return redirect(url_for('servicio_tecnico.importacion', lote_id=lote_id))
+    return jsonify({'ok': True, **res})
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/importacion/<int:lote_id>/seguir', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def importacion_seguir(lote_id):
+    try:
+        imp.terminar_lectura(lote_id)
+    except st.ErrorServicio as exc:
+        flash(str(exc), 'warning')
+    return redirect(url_for('servicio_tecnico.importacion', lote_id=lote_id))
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/importacion/<int:lote_id>/releer', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def importacion_releer(lote_id):
+    try:
+        imp.volver_a_leer(lote_id)
+    except st.ErrorServicio as exc:
+        flash(str(exc), 'warning')
+    return redirect(url_for('servicio_tecnico.importacion', lote_id=lote_id))
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/importacion/<int:lote_id>/ajustes', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def importacion_ajustes(lote_id):
+    try:
+        imp.guardar_ajustes(lote_id, _form_dict())
+        flash('Listo: se aplicó a la revisión.', 'success')
+    except st.ErrorServicio as exc:
+        flash(str(exc), 'warning')
+    return _a_la_importacion(lote_id, 'ajustes')
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/importacion/<int:lote_id>/fila/<int:n>', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def importacion_fila(lote_id, n):
+    try:
+        imp.editar_fila(lote_id, n, _form_dict())
+    except st.ErrorServicio as exc:
+        flash(str(exc), 'warning')
+    return _a_la_importacion(lote_id, f'fila-{n}')
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/importacion/<int:lote_id>/importar', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def importacion_importar(lote_id):
+    try:
+        res = imp.importar(lote_id, _usuario())
+    except st.ErrorServicio as exc:
+        flash(f'No se importó nada: {exc}', 'warning')
+        return _a_la_importacion(lote_id)
+    r = res['resumen']
+    flash(f"Listo: {r['equipos_creados']} equipo(s) nuevos, {r['equipos_completados']} completado(s), "
+          f"{r['contactos_creados']} cliente(s) nuevos en el CRM y {r['mantenimientos']} mantenimiento(s) "
+          'en las hojas de vida.', 'success')
+    return redirect(url_for('servicio_tecnico.importacion', lote_id=lote_id))
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/importacion/<int:lote_id>/deshacer', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def importacion_deshacer(lote_id):
+    try:
+        d = imp.deshacer(lote_id, _usuario())
+        texto = f"Importación deshecha: {d['equipos_retirados']} equipo(s) retirados."
+        if d['equipos_conservados']:
+            texto += f" {len(d['equipos_conservados'])} se dejaron porque ya tienen órdenes de servicio."
+        flash(texto, 'success')
+    except st.ErrorServicio as exc:
+        flash(str(exc), 'warning')
+    return redirect(url_for('servicio_tecnico.importacion', lote_id=lote_id))
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/importacion/<int:lote_id>/descartar', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def importacion_descartar(lote_id):
+    try:
+        imp.descartar(lote_id, _usuario())
+        flash('Importación descartada: no se guardó nada.', 'success')
+    except st.ErrorServicio as exc:
+        flash(str(exc), 'warning')
+        return redirect(url_for('servicio_tecnico.importacion', lote_id=lote_id))
+    return redirect(url_for('servicio_tecnico.importar'))
+
+
+# ── Documentos del equipo ───────────────────────────────────────
+@servicio_tecnico_bp.route(PREFIJO + '/documento/<int:doc_id>')
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+def documento_ver(doc_id):
+    contenido = st.documento_contenido(doc_id)
+    if not contenido:
+        abort(404)
+    mime, nombre, datos = contenido
+    from urllib.parse import quote
+
+    from flask import Response
+    # Solo el PDF se abre en el navegador; lo demás se descarga.
+    en_linea = mime == 'application/pdf' and request.args.get('descargar') != '1'
+    simple = ''.join(ch for ch in nombre if 32 <= ord(ch) < 127 and ch not in '"\\;') or 'documento'
+    respuesta = Response(datos, mimetype=mime)
+    respuesta.headers['Content-Disposition'] = (f'{"inline" if en_linea else "attachment"}; filename="{simple}"; '
+                                                f"filename*=UTF-8''{quote(nombre)}")
+    respuesta.headers['Cache-Control'] = 'private, max-age=3600'
+    respuesta.headers['X-Content-Type-Options'] = 'nosniff'
+    return respuesta
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/equipo/<int:equipo_id>/documentos', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def equipo_documentos(equipo_id):
+    try:
+        guardados, errores = st.adjuntar_documentos(equipo_id, request.files.getlist('documentos'),
+                                                    request.form.get('descripcion'), _usuario())
+    except st.ErrorServicio as exc:
+        flash(str(exc), 'warning')
+        return _a_la_ficha(equipo_id, 'documentos')
+    if guardados:
+        flash(f"Se guardaron {guardados} documento{'s' if guardados != 1 else ''}.", 'success')
+    elif not errores:
+        flash('Escoge al menos un documento.', 'warning')
+    for e in errores[:5]:
+        flash(e, 'warning')
+    return _a_la_ficha(equipo_id, 'documentos')
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/documento/<int:doc_id>/quitar', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def documento_quitar(doc_id):
+    equipo_id = st.quitar_documento(doc_id, _usuario())
+    if not equipo_id:
+        abort(404)
+    flash('Documento retirado de la ficha.', 'success')
+    return _a_la_ficha(equipo_id, 'documentos')
 
 
 # ── Búsquedas para el formulario ────────────────────────────────

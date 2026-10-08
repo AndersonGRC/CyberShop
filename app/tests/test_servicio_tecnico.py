@@ -134,7 +134,8 @@ def test_extras_solo_del_tipo():
 
 @pytest.mark.parametrize('archivo, atributo', [('0018_servicio_tecnico.sql', 'DDL_0018'),
                                                ('0019_servicio_tecnico_solucion.sql', 'DDL_0019'),
-                                               ('0020_servicio_tecnico_fotos_mantenimiento.sql', 'DDL_0020')])
+                                               ('0020_servicio_tecnico_fotos_mantenimiento.sql', 'DDL_0020'),
+                                               ('0021_servicio_tecnico_documentos_importacion.sql', 'DDL_0021')])
 def test_migracion_del_maestro_igual_al_codigo(archivo, atributo):
     from services import servicio_tecnico_service as st
     app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

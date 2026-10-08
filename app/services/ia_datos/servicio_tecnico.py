@@ -264,14 +264,15 @@ def _buscar_equipos(cur, texto, limite=8):
 
 
 def _asegurar_tablas_0020():
-    """Fotos y mantenimientos (migración 0020). Se crean ANTES de abrir el
-    cursor de la consulta (un ALTER con la consulta abierta se quedaría
-    esperando) y solo en negocios que ya usan el módulo."""
+    """Fotos y mantenimientos (0020) y documentos e importaciones (0021, que
+    agrega `activo` a los mantenimientos). Se crean ANTES de abrir el cursor de
+    la consulta (un ALTER con la consulta abierta se quedaría esperando) y solo
+    en negocios que ya usan el módulo."""
     try:
         with get_db_cursor() as cur:
             if not _existe(cur, 'st_equipos'):
                 return False
-            if _existe(cur, 'st_mantenimientos'):
+            if _existe(cur, 'st_mantenimientos') and _existe(cur, 'st_documentos'):
                 return True
         from services.servicio_tecnico_service import asegurar_tablas
         return asegurar_tablas()
@@ -324,7 +325,7 @@ def taller_equipo_historial(texto='', **_):
                      'proximo': e['mant_proximo'].strftime('%d/%m/%Y') if e.get('mant_proximo') else None}
                     if e.get('mant_cada_meses') or e.get('mant_proximo') else 'Sin plan de mantenimiento')
                 cur.execute("""SELECT tipo, fecha, descripcion, costo, proxima_fecha FROM st_mantenimientos
-                               WHERE equipo_id = %s ORDER BY fecha DESC, id DESC LIMIT 8""", (e['id'],))
+                               WHERE equipo_id = %s AND activo ORDER BY fecha DESC, id DESC LIMIT 8""", (e['id'],))
                 hoja['mantenimientos'] = [{'tipo': m['tipo'], 'fecha': m['fecha'].strftime('%d/%m/%Y'),
                                            'que_se_hizo': (m['descripcion'] or '')[:200], 'costo': _dinero(m['costo'])}
                                           for m in cur.fetchall()]
@@ -626,13 +627,14 @@ def taller_mantenimientos(periodo='todo', limite=20, **_):
 
         filtro = _sql_periodo(p, 'm.fecha')
         cur.execute(f"""SELECT m.tipo, COUNT(*) AS n, COALESCE(SUM(m.costo), 0) AS total
-                        FROM st_mantenimientos m WHERE {filtro} GROUP BY m.tipo""")
+                        FROM st_mantenimientos m JOIN st_equipos e ON e.id = m.equipo_id
+                        WHERE {filtro} AND m.activo AND e.activo GROUP BY m.tipo""")
         resumen = {r['tipo']: (int(r['n']), float(r['total'])) for r in cur.fetchall()}
         cur.execute(f"""SELECT m.tipo, m.fecha, m.descripcion, m.costo, e.tipo AS equipo_tipo, e.marca, e.modelo,
                                c.nombre AS cliente
                         FROM st_mantenimientos m JOIN st_equipos e ON e.id = m.equipo_id
                         LEFT JOIN crm_contactos c ON c.id = e.crm_contacto_id
-                        WHERE {filtro} ORDER BY m.fecha DESC, m.id DESC LIMIT %s""", (limite,))
+                        WHERE {filtro} AND m.activo AND e.activo ORDER BY m.fecha DESC, m.id DESC LIMIT %s""", (limite,))
         hechos = [{
             'tipo': f['tipo'], 'fecha': f['fecha'].strftime('%d/%m/%Y'), 'cliente': f['cliente'],
             'equipo': _equipo({'tipo': f['equipo_tipo'], 'marca': f['marca'], 'modelo': f['modelo']}),

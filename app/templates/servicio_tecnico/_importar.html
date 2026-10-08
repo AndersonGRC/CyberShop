@@ -1,0 +1,23 @@
+{# Piezas del importador («Traer desde Excel o PDF»). #}
+
+{#- Los 4 pasos, con el actual marcado. -#}
+{% macro pasos(actual) %}
+<ol class="st-pasos-form st-imp-pasos" aria-label="Pasos para traer equipos">
+    {% for n, texto in [(1, 'Subir archivos'), (2, 'Leer'), (3, 'Revisar'), (4, 'Listo')] %}
+    <li {% if n == actual %}aria-current="step"{% elif n < actual %}class="hecho"{% endif %}><span>{{ n }}</span> <b class="st-paso-txt">{{ texto }}</b></li>
+    {% endfor %}
+</ol>
+{% endmacro %}
+
+{#- Estado de lectura de una parte de un archivo. -#}
+{% macro estado_parte(p) %}
+{%- if p.tipo == 'escaneado' -%}
+<span class="st-chip st-chip-aviso" data-st-estado-parte><i class="fas fa-camera" aria-hidden="true"></i> Escaneado, sin texto</span>
+{%- else -%}
+{%- set info = {'pendiente': ('info', 'clock', 'En cola'), 'leyendo': ('marca', 'spinner', 'Leyendo…'),
+                'hecha': ('exito', 'robot', 'Leído con IA'), 'no_aplica': ('exito', 'check', 'Leído'),
+                'sin_ia': ('neutro', 'check', 'Leído sin IA'), 'omitida': ('neutro', 'check', 'Leído sin IA'),
+                'fallo': ('aviso', 'exclamation-triangle', 'Leído sin IA')}.get(p.ia, ('neutro', 'check', p.ia)) -%}
+<span class="st-chip st-chip-{{ info[0] }}" data-st-estado-parte><i class="fas fa-{{ info[1] }}" aria-hidden="true"></i> {{ info[2] }}</span>
+{%- endif -%}
+{%- endmacro %}

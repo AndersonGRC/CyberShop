@@ -1,0 +1,92 @@
+{% extends "servicio_tecnico/base.html" %}
+{% from "servicio_tecnico/_importar.html" import pasos %}
+{% block st_titulo %}Traer equipos desde Excel o PDF{% endblock %}
+
+{#- Paso 1 del importador: escoger los archivos. Nada se guarda en los equipos
+    hasta que el usuario revisa y confirma. -#}
+{% block st_contenido %}
+<section class="st-hero">
+    <div>
+        <h1><i class="fas fa-file-import" aria-hidden="true"></i> Traer equipos desde Excel o PDF</h1>
+        <p>Sube tus listas de equipos, hojas de vida, fichas técnicas o historiales de mantenimiento.
+           Te mostramos lo que entendimos y solo se guarda lo que apruebes.</p>
+    </div>
+    <div class="st-acciones">
+        <a class="st-btn st-btn-sm st-btn-claro" href="{{ url_for('servicio_tecnico.equipos') }}"><i class="fas fa-arrow-left" aria-hidden="true"></i> Volver a Equipos</a>
+    </div>
+</section>
+
+{{ pasos(1) }}
+
+<section class="st-card" aria-labelledby="imp-subir">
+    <h2 id="imp-subir"><i class="fas fa-upload" aria-hidden="true"></i> Escoge los archivos</h2>
+    <form method="post" enctype="multipart/form-data" id="st-form-importar" data-st-importar
+          data-max-total="{{ config.MAX_CONTENT_LENGTH or 52428800 }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="st-soltar" data-st-soltar>
+            <i class="fas fa-cloud-upload-alt" aria-hidden="true"></i>
+            <label for="imp-archivos"><strong>Escoge los archivos</strong> o arrástralos aquí</label>
+            <input type="file" id="imp-archivos" name="archivos" multiple required accept="{{ acepta }}"
+                   aria-describedby="imp-ayuda">
+            <small id="imp-ayuda">Excel (.xlsx), CSV, PDF o texto. Hasta {{ archivos_max }} archivos de 20 MB cada uno
+                y {{ ((config.MAX_CONTENT_LENGTH or 52428800) / 1048576) | round | int }} MB en total por vez.</small>
+        </div>
+        <ul class="st-imp-archivos" id="imp-lista" aria-live="polite"></ul>
+        <p class="st-aviso st-aviso-peligro" id="imp-error" role="alert" hidden></p>
+        <div class="st-acciones" style="margin-top:14px">
+            <button class="st-btn st-btn-ok" type="submit" id="imp-enviar"><i class="fas fa-search" aria-hidden="true"></i> Leer los archivos</button>
+        </div>
+        <p class="st-nota">
+            {% if ia_ok %}<i class="fas fa-robot" aria-hidden="true"></i> La IA del negocio lee los documentos y las columnas con títulos raros.
+            {% else %}<i class="fas fa-info-circle" aria-hidden="true"></i> La IA no está disponible ahora: se leen con el lector automático y después puedes pedir que la IA los vuelva a leer.{% endif %}
+            Los nombres, teléfonos y correos de tus clientes no se le envían a la IA, y las claves que aparezcan en los archivos no se guardan.
+        </p>
+    </form>
+</section>
+
+<section class="st-card" aria-labelledby="imp-que">
+    <h2 id="imp-que"><i class="fas fa-question-circle" aria-hidden="true"></i> ¿Qué puedo subir?</h2>
+    <ul class="st-imp-tipos">
+        <li><i class="fas fa-table" aria-hidden="true"></i>
+            <span><strong>Listas de equipos en Excel</strong> Una fila por equipo: cliente, tipo, marca, modelo, serial, características…
+            Los títulos de las columnas pueden ser los tuyos.</span></li>
+        <li><i class="fas fa-file-pdf" aria-hidden="true"></i>
+            <span><strong>Hojas de vida y fichas técnicas</strong> En PDF o en Excel (una hoja por equipo). Se lee la ficha,
+            el historial de mantenimientos y el próximo mantenimiento; el PDF queda guardado en el equipo.</span></li>
+        <li><i class="fas fa-history" aria-hidden="true"></i>
+            <span><strong>Historiales de servicios</strong> Una fila por servicio: las filas con el mismo serial se juntan
+            en un solo equipo con toda su hoja de vida.</span></li>
+    </ul>
+    <p class="st-nota"><i class="fas fa-camera" aria-hidden="true"></i> Los PDF escaneados (fotos de papel) no tienen texto para leer:
+        se guardan como documento del equipo que escojas.</p>
+    <p style="margin:12px 0 0"><a class="st-btn st-btn-sec st-btn-sm" href="{{ url_for('servicio_tecnico.importacion_plantilla') }}">
+        <i class="fas fa-file-excel" aria-hidden="true"></i> Descargar plantilla de Excel</a></p>
+</section>
+
+{% if lotes %}
+<section class="st-card" aria-labelledby="imp-antes">
+    <h2 id="imp-antes"><i class="fas fa-folder-open" aria-hidden="true"></i> Importaciones anteriores</h2>
+    <div class="st-tabla-wrap">
+        <table class="st-tabla">
+            <thead><tr><th>Importación</th><th>Fecha</th><th>Estado</th><th>Archivos</th><th>Equipos</th></tr></thead>
+            <tbody>
+            {% for l in lotes %}
+            {% set r = (l.resultado or {}).get('resumen') or {} %}
+            <tr>
+                <td data-label="Importación"><a class="st-fila-link" href="{{ url_for('servicio_tecnico.importacion', lote_id=l.id) }}">#{{ l.id }}</a></td>
+                <td data-label="Fecha">{{ l.creado_en.strftime('%d/%m/%Y %H:%M') }}</td>
+                <td data-label="Estado"><span class="st-chip st-chip-{{ {'importada': 'exito', 'revision': 'aviso', 'leyendo': 'info'}.get(l.estado, 'neutro') }}">{{ estados_lote.get(l.estado, l.estado) }}</span></td>
+                <td data-label="Archivos">{{ l.archivos }}</td>
+                <td data-label="Equipos">{% if l.estado == 'importada' %}{{ (r.equipos_creados or 0) + (r.equipos_completados or 0) }}{% else %}{{ l.filas }}{% endif %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block st_scripts %}
+<script src="{{ url_for('static', filename='js/servicio_tecnico.js') }}?v={{ config.APP_VERSION }}"></script>
+{% endblock %}

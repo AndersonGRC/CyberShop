@@ -580,3 +580,134 @@
     .st-rec .st-acciones .st-btn { width: 100%; }
 }
 .st-enlace.st-enlace-solo { margin-top: 0; padding-top: 0; border-top: 0; }
+
+/* ==========================================================================
+   Traer equipos desde Excel o PDF (1.9.3): subir, leer, revisar y resultado.
+   También la sección «Documentos» de la ficha del equipo.
+   ========================================================================== */
+.st-imp-pasos { margin: 0; }
+
+/* Paso 1: recuadro para escoger o soltar los archivos */
+.st-soltar {
+    display: grid; justify-items: center; gap: 8px; text-align: center;
+    padding: 26px 16px; border: 2px dashed var(--color-borde); border-radius: var(--st-radio);
+    background: var(--marca-tinte-sutil); transition: border-color .15s ease, background .15s ease;
+}
+.st-soltar > i { font-size: 2.2rem; color: var(--color-primario); }
+.st-soltar label { font-size: 1.02rem; color: var(--st-tinta); }
+.st-soltar input[type=file] { max-width: 100%; }
+.st-soltar small { color: var(--st-suave); }
+.st-soltar.st-soltar-encima { border-color: var(--color-primario); background: var(--marca-tinte); }
+.st-imp-archivos { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; }
+.st-imp-archivos:empty { display: none; }
+.st-imp-archivos li {
+    display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+    border: 1px solid var(--st-linea); border-radius: var(--st-radio-sm); background: var(--color-blanco);
+}
+.st-imp-archivos li > i { color: var(--color-primario); font-size: 1.2rem; }
+.st-imp-archivos li span { display: grid; min-width: 0; }
+.st-imp-archivos li strong { overflow-wrap: anywhere; }
+.st-imp-archivos li small { color: var(--st-suave); }
+.st-imp-archivos li.st-imp-malo { border-color: var(--color-peligro); background: var(--color-peligro-tinte); }
+.st-imp-archivos li.st-imp-malo small { color: var(--color-peligro-texto); font-weight: 700; }
+.st-imp-tipos { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+.st-imp-tipos li { display: flex; gap: 12px; padding: 12px; border-radius: var(--st-radio-sm); background: var(--color-fondo); }
+.st-imp-tipos li > i { font-size: 1.4rem; color: var(--color-primario); margin-top: 2px; }
+.st-imp-tipos strong { display: block; color: var(--st-tinta); margin-bottom: 2px; }
+.st-imp-tipos span { color: var(--st-suave); font-size: .94rem; }
+
+/* Paso 2: avance de la lectura */
+.st-progreso { width: 100%; height: 14px; accent-color: var(--color-primario); }
+.st-imp-partes { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.st-imp-partes li {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px;
+    padding: 10px 12px; border: 1px solid var(--st-linea); border-radius: var(--st-radio-sm); background: var(--color-blanco);
+}
+.st-imp-partes li > i { color: var(--color-primario); font-size: 1.2rem; }
+.st-imp-partes li > span:not(.st-chip):not(.st-imp-chips) { display: grid; min-width: 0; }
+.st-imp-partes strong { overflow-wrap: anywhere; }
+.st-imp-partes small { color: var(--st-suave); overflow-wrap: anywhere; }
+.st .st-mal { color: var(--color-peligro-texto); font-weight: 700; }
+@media (max-width: 560px) {
+    .st-imp-partes li { grid-template-columns: auto minmax(0, 1fr); }
+    .st-imp-partes li > .st-chip, .st-imp-partes li > .st-imp-chips { grid-column: 2; justify-self: start; }
+}
+
+/* Paso 3: resumen, filas y acciones */
+.st-imp-cifras { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+.st-imp-cifras li { padding: 10px 12px; border-radius: var(--st-radio-sm); background: var(--color-fondo); }
+.st-imp-cifras b { display: block; font-size: 1.4rem; color: var(--st-tinta); line-height: 1.1; }
+.st-imp-cifras span { color: var(--st-suave); font-size: .92rem; }
+.st-imp-cifras .st-imp-cifra-grande { background: var(--marca-tinte); }
+.st-imp-cifras .st-imp-cifra-grande b { color: var(--color-primario-oscuro); font-size: 1.8rem; }
+.st-radios { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; }
+.st-radios label { display: flex; align-items: center; gap: 10px; min-height: 40px; font-weight: 600; color: var(--st-tinta); }
+.st-radios input { width: 20px; height: 20px; accent-color: var(--color-primario); }
+.st-imp-filtros { flex-wrap: wrap; }
+.st-imp-lista { display: grid; gap: 12px; }
+.st-imp-fila { border-left: 5px solid var(--color-exito-texto); }
+.st-imp-fila.st-imp-aviso { border-left-color: var(--color-warning-texto); }
+.st-imp-fila.st-imp-error { border-left-color: var(--color-peligro); }
+.st-imp-fila.st-imp-quitada { border-left-color: var(--color-borde); }
+.st-imp-fila h3 { margin: 6px 0 2px; font-size: 1.05rem; overflow-wrap: anywhere; }
+.st-imp-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.st-imp-estado { font-weight: 800; color: var(--color-exito-texto); }
+.st-imp-aviso .st-imp-estado { color: var(--color-warning-texto); }
+.st-imp-error .st-imp-estado { color: var(--color-peligro-texto); }
+.st-imp-quitada .st-imp-estado { color: var(--st-suave); }
+.st-imp-num { color: var(--st-suave); font-size: .9rem; }
+.st-imp-origen { margin: 0 0 10px; color: var(--st-suave); font-size: .88rem; overflow-wrap: anywhere; }
+.st-imp-datos { display: grid; gap: 8px 16px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); margin: 0 0 10px; }
+.st-imp-datos > div { min-width: 0; }
+.st-imp-datos dt { font-size: .84rem; color: var(--st-suave); font-weight: 700; }
+.st-imp-datos dd { margin: 0; color: var(--st-tinta); overflow-wrap: anywhere; }
+.st-imp-datos small { color: var(--st-suave); }
+.st-imp-mensajes { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 6px; }
+.st-imp-mensajes li { display: flex; gap: 8px; align-items: baseline; padding: 8px 10px; border-radius: var(--st-radio-sm); font-size: .93rem; }
+.st-imp-m-ok { background: var(--color-exito-tinte); color: var(--color-exito-texto); }
+.st-imp-m-aviso { background: var(--color-warning-tinte); color: var(--color-warning-texto); }
+.st-imp-m-error { background: var(--color-peligro-tinte); color: var(--color-peligro-texto); font-weight: 700; }
+.st-imp-mas { margin: 0 0 10px; }
+.st-imp-mas > summary { cursor: pointer; font-weight: 700; color: var(--color-primario); min-height: 36px; display: flex; align-items: center; }
+.st-imp-hist { margin: 8px 0; padding-left: 18px; display: grid; gap: 4px; }
+.st-imp-acciones { align-items: flex-start; }
+.st-imp-corregir { flex: 0 0 auto; }
+.st-imp-corregir[open] { flex: 1 1 100%; }
+.st-imp-corregir > summary { list-style: none; display: inline-flex; }
+.st-imp-corregir > summary::-webkit-details-marker { display: none; }
+.st-imp-corregir[open] > summary { margin-bottom: 12px; }
+.st-imp-corregir > form { padding: 14px; border: 1px solid var(--st-linea); border-radius: var(--st-radio-sm); background: var(--color-fondo); }
+.st-imp-adjuntar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.st-imp-adjuntar select { max-width: 100%; }
+.st-paginas { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.st-imp-barra {
+    position: sticky; bottom: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 10px 14px; border-radius: var(--st-radio) var(--st-radio) 0 0;
+    background: var(--color-blanco); box-shadow: var(--marca-sombra-card); font-weight: 700; color: var(--st-tinta);
+}
+@media (min-width: 900px) { .st-imp-barra { display: none; } }
+@media (min-width: 700px) { .st-imp-corregir > form.st-campos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Documentos de la ficha del equipo */
+.st-docs { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.st-doc {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px;
+    padding: 10px 12px; border: 1px solid var(--st-linea); border-radius: var(--st-radio-sm); background: var(--color-blanco);
+}
+.st-doc-ico {
+    width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center;
+    background: var(--marca-tinte); color: var(--color-primario-oscuro); font-size: 1.2rem;
+}
+.st-doc-texto { display: grid; min-width: 0; }
+.st-doc-texto a { font-weight: 700; color: var(--color-primario); overflow-wrap: anywhere; }
+.st-doc-texto small { color: var(--st-suave); font-size: .86rem; }
+@media (prefers-reduced-motion: reduce) { .st-soltar { transition: none; } }
+
+/* Botones que son enlaces: el color del botón, no el del texto de alrededor
+   (.st a { color: inherit } les ganaba y dejaba letra oscura sobre el color).
+   Los de WhatsApp siguen con letra oscura: el verde es claro. */
+.st a.st-btn:not(.st-btn-wa) { color: var(--color-blanco); }
+.st a.st-btn.st-btn-sec { color: var(--color-primario); }
+.st a.st-btn.st-btn-peligro { color: var(--color-peligro-texto); }
+.st .st-hero a.st-btn { color: var(--color-primario-oscuro); }
+.st .st-hero a.st-btn.st-btn-claro { color: var(--color-blanco); }

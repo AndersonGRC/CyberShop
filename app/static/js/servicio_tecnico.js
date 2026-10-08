@@ -5,6 +5,8 @@
  *  - Vista previa de fotos y validación del IMEI mientras se escribe.
  *  - Ver la clave de desbloqueo (POST con CSRF; queda en la bitácora).
  *  - Pestañas de la ficha del equipo y botón «Copiar enlace».
+ *  - Traer equipos desde Excel o PDF: archivos escogidos, lectura con IA
+ *    paso a paso y buscador del cliente para los equipos sin dueño.
  * Sin JS todo el formulario se ve completo y se puede enviar igual.
  */
 (function () {
@@ -646,4 +648,104 @@
       else window.prompt('Copia el enlace:', texto);
     });
   });
+
+  // ── Traer equipos desde Excel o PDF ────────────────────────────
+  // Paso 1: lista de archivos escogidos (con aviso de los que no sirven) y
+  // soltar archivos arrastrados sobre el recuadro.
+  var formImportar = $('form[data-st-importar]');
+  if (formImportar) {
+    var entrada = $('#imp-archivos', formImportar), listaImp = $('#imp-lista', formImportar);
+    var errorImp = $('#imp-error', formImportar), zona = $('[data-st-soltar]', formImportar);
+    var aceptadas = (entrada.getAttribute('accept') || '').split(',').map(function (x) { return x.trim().toLowerCase(); });
+    var tamano = function (b) { var mb = b / 1048576; return mb >= 1 ? mb.toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB'; };
+    var revisarArchivos = function () {
+      var archivos = Array.prototype.slice.call(entrada.files || []);
+      listaImp.innerHTML = archivos.map(function (a) {
+        var ext = (a.name.match(/\.[^.]+$/) || [''])[0].toLowerCase();
+        var problema = ext === '.xls' ? 'Excel viejo: ábrelo y guárdalo como .xlsx' :
+          (aceptadas.indexOf(ext) === -1 ? 'Formato no admitido' : (a.size > 20 * 1048576 ? 'Pesa más de 20 MB' : ''));
+        var icono = ext === '.pdf' ? 'file-pdf' : (ext === '.txt' ? 'file-alt' : 'file-excel');
+        return '<li' + (problema ? ' class="st-imp-malo"' : '') + '><i class="fas fa-' + icono + '" aria-hidden="true"></i><span><strong>' +
+          esc(a.name) + '</strong><small>' + tamano(a.size) + (problema ? ' · ' + esc(problema) + ' (no se leerá)' : '') + '</small></span></li>';
+      }).join('');
+      errorImp.hidden = true;
+    };
+    entrada.addEventListener('change', revisarArchivos);
+    if (zona) {
+      ['dragenter', 'dragover'].forEach(function (t) {
+        zona.addEventListener(t, function (ev) { ev.preventDefault(); zona.classList.add('st-soltar-encima'); });
+      });
+      ['dragleave', 'drop'].forEach(function (t) {
+        zona.addEventListener(t, function () { zona.classList.remove('st-soltar-encima'); });
+      });
+      zona.addEventListener('drop', function (ev) {
+        ev.preventDefault();
+        if (ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files.length) {
+          try { entrada.files = ev.dataTransfer.files; } catch (e) { return; }
+          revisarArchivos();
+        }
+      });
+    }
+    var maxTotal = Number(formImportar.getAttribute('data-max-total')) || 52428800;
+    formImportar.addEventListener('submit', function (ev) {
+      if (!entrada.files || !entrada.files.length) {
+        ev.preventDefault();
+        errorImp.textContent = 'Escoge al menos un archivo.';
+        errorImp.hidden = false;
+        return;
+      }
+      var total = Array.prototype.reduce.call(entrada.files, function (s, a) { return s + a.size; }, 0);
+      if (total > maxTotal) {
+        ev.preventDefault();
+        errorImp.textContent = 'Los archivos pesan ' + tamano(total) + ' y por vez se pueden subir ' + tamano(maxTotal) +
+          '. Súbelos en varias importaciones.';
+        errorImp.hidden = false;
+        return;
+      }
+      esperando($('#imp-enviar', formImportar), true, 'Leyendo los archivos…');
+    });
+  }
+
+  // Paso 2: la IA lee una parte por llamada; se repite hasta terminar.
+  var cajaLectura = $('[data-st-leer-lote]');
+  if (cajaLectura) {
+    var urlLeer = cajaLectura.getAttribute('data-st-leer-lote'), urlListo = cajaLectura.getAttribute('data-st-listo');
+    var estadoTxt = $('#imp-estado', cajaLectura), barra = $('#imp-progreso', cajaLectura);
+    var fallos = 0;
+    var dormir = function (ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); };
+    var avance = function (d) {
+      if (d.total) {
+        barra.max = d.total;
+        barra.value = d.total - d.pendientes;
+        barra.textContent = (d.total - d.pendientes) + ' de ' + d.total;
+      }
+      var texto = 'Leídas ' + (d.total - d.pendientes) + ' de ' + d.total + '.';
+      if (d.esperar && d.estado === 'pendiente') texto += ' La IA se está preparando (puede tardar 1 a 3 minutos la primera vez)…';
+      else if (d.archivo) texto += ' Último: ' + d.archivo + (d.parte && d.parte !== 'PDF' ? ' · ' + d.parte : '') + '.';
+      estadoTxt.textContent = texto;
+    };
+    var paso = function () {
+      return fetch(urlLeer, { method: 'POST', headers: { 'X-CSRFToken': CSRF, 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+        .then(function (d) {
+          fallos = 0;
+          if (!d.ok) { estadoTxt.textContent = d.error || 'No se pudo seguir leyendo.'; return null; }
+          if (d.listo) { window.location.href = urlListo; return null; }
+          avance(d);
+          return dormir((d.esperar || 0) * 1000).then(paso);
+        })
+        .catch(function () {
+          // nginx corta a los 60 s: la lectura sigue en el servidor; se espera y se pregunta otra vez.
+          fallos += 1;
+          if (fallos > 6) { estadoTxt.textContent = 'No hay respuesta del servidor. Puedes seguir sin la IA.'; return null; }
+          estadoTxt.textContent = 'La lectura está tardando; se vuelve a preguntar en unos segundos…';
+          return dormir(15000).then(paso);
+        });
+    };
+    paso();
+  }
+
+  // Paso 3: cliente para los equipos sin dueño (mismo buscador del CRM).
+  var formAjustes = $('#st-form-ajustes');
+  if (formAjustes) iniciarCliente(formAjustes);
 })();
