@@ -133,7 +133,7 @@
                 {% if a.error %}<small class="st-mal">{{ a.error }}</small>{% endif %}
                 {% if a.repetido %}<small class="st-mal">Este mismo archivo ya se subió en la importación #{{ a.repetido.lote }} ({{ a.repetido.fecha }}).</small>{% endif %}
                 {% for p in a.partes %}
-                <small>{% if a.partes | length > 1 or a.clase == 'excel' %}{{ p.titulo }}: {% endif %}{% if p.tipo == 'tabla' %}tabla de {{ p.filas_leidas }} fila{{ '' if p.filas_leidas == 1 else 's' }}{% elif p.tipo == 'escaneado' %}escaneado, sin texto{% else %}ficha o documento{% endif %}{% if p.sin_mapear %} · columnas que van a las notas: {{ p.sin_mapear | join(', ') }}{% endif %}{% if p.aviso %} · {{ p.aviso }}{% endif %}</small>
+                <small>{% if a.partes | length > 1 or a.clase == 'excel' %}{{ p.titulo }}: {% endif %}{% if p.tipo == 'tabla' %}tabla de {{ p.filas_leidas }} fila{{ '' if p.filas_leidas == 1 else 's' }}{% elif p.tipo == 'escaneado' %}escaneado, sin texto{% elif p.tipo == 'ficha' %}ficha técnica del taller (se lee completa){% else %}ficha o documento{% endif %}{% if p.sin_mapear %} · columnas que van a las notas: {{ p.sin_mapear | join(', ') }}{% endif %}{% if p.aviso %} · {{ p.aviso }}{% endif %}</small>
                 {% endfor %}
                 {% if not a.partes and not a.error %}<small>No se encontró nada para importar.</small>{% endif %}
             </span>

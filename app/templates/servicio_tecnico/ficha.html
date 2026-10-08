@@ -1,0 +1,140 @@
+{% extends "servicio_tecnico/base.html" %}
+{% block st_titulo %}Ficha técnica · {{ marca_modelo(equipo) or tipo_nombre(equipo.tipo) }}{% endblock %}
+
+{#- La ficha técnica en PDF del equipo (el formato que se entrega al cliente).
+    Roja si el equipo presenta inconvenientes; azul si está en buen estado.
+    Lo que se deja vacío sale de los datos del equipo. -#}
+{% block st_contenido %}
+{% set nombre_equipo = marca_modelo(equipo) or tipo_nombre(equipo.tipo) %}
+{% set elegidas = d.fotos_elegidas or (d.fotos | map(attribute='id') | list) %}
+<section class="st-hero">
+    <div>
+        <h1><i class="fas fa-file-pdf" aria-hidden="true"></i> Ficha técnica</h1>
+        <p>{{ nombre_equipo }}{% if d.asignado_a %} · asignado a {{ d.asignado_a }}{% endif %}{% if d.empresa %} ({{ d.empresa }}){% endif %} ·
+           {% if d.codigo %}código {{ d.codigo }}{% else %}el código se asigna al generar el PDF{% endif %}</p>
+    </div>
+    <div class="st-acciones">
+        <a class="st-btn st-btn-sm st-btn-claro" href="{{ url_for('servicio_tecnico.equipo_ver', equipo_id=equipo.id) }}"><i class="fas fa-arrow-left" aria-hidden="true"></i> Volver al equipo</a>
+    </div>
+</section>
+
+<form method="post" action="{{ url_for('servicio_tecnico.equipo_ficha', equipo_id=equipo.id) }}" id="st-form-ficha"
+      class="st-grid" data-st-proponer-url="{{ url_for('servicio_tecnico.equipo_ficha_proponer', equipo_id=equipo.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    {# ── 1. Cómo está el equipo: define el color de la ficha ── #}
+    <section class="st-card" aria-labelledby="fi-estado">
+        <h2 id="fi-estado"><i class="fas fa-traffic-light" aria-hidden="true"></i> ¿Cómo está el equipo?</h2>
+        <fieldset class="st-ficha-estados">
+            <legend class="st-sr">Estado del equipo</legend>
+            <label class="st-ficha-estado st-ficha-azul">
+                <input type="radio" name="estado" value="bueno" {% if d.estado != 'inconveniente' %}checked{% endif %}>
+                <span><strong><i class="fas fa-check-circle" aria-hidden="true"></i> En buen estado</strong>
+                    <small>Ficha azul: no presenta fallas.</small></span>
+            </label>
+            <label class="st-ficha-estado st-ficha-roja">
+                <input type="radio" name="estado" value="inconveniente" {% if d.estado == 'inconveniente' %}checked{% endif %}>
+                <span><strong><i class="fas fa-exclamation-triangle" aria-hidden="true"></i> Presenta inconvenientes</strong>
+                    <small>Ficha roja: lo que falla se resalta en rojo.</small></span>
+            </label>
+        </fieldset>
+        <div class="st-acciones" style="margin-top:14px">
+            <button type="button" class="st-btn st-btn-sec" data-st-proponer>
+                <i class="fas fa-magic" aria-hidden="true"></i> Proponer textos{% if ia_ok %} con IA{% endif %}</button>
+            <span class="st-nota" style="margin:0;align-self:center">{% if ia_ok %}La IA escribe con el estilo de tus fichas, solo con los datos técnicos.{% else %}Sin IA ahora: se proponen con las reglas del taller.{% endif %}</span>
+        </div>
+        <p class="st-aviso" id="fi-aviso" role="status" aria-live="polite" hidden style="margin-top:12px"></p>
+    </section>
+
+    {# ── 2. Lo principal ── #}
+    <section class="st-card" aria-labelledby="fi-principal">
+        <h2 id="fi-principal"><i class="fas fa-align-left" aria-hidden="true"></i> Lo que dice la ficha</h2>
+        <div class="st-campos">
+            <div class="st-campo"><label for="fi-asignado">Equipo asignado a</label>
+                <input type="text" id="fi-asignado" name="asignado_a" maxlength="150" value="{{ (equipo.ficha or {}).get('asignado_a') or '' }}"
+                       placeholder="{{ d.asignado_a }}"><small>La persona que usa el equipo. Vacío: el cliente.</small></div>
+            <div class="st-campo"><label for="fi-empresa">Empresa</label>
+                <input type="text" id="fi-empresa" name="empresa" maxlength="150" value="{{ (equipo.ficha or {}).get('empresa') or '' }}"
+                       placeholder="{{ d.empresa }}"><small>Sale después del nombre: «… - EMPRESA».</small></div>
+            <div class="st-campo st-campo-ancho"><label for="fi-desc">Descripción general del equipo</label>
+                <textarea id="fi-desc" name="descripcion" rows="4" maxlength="1500" placeholder="Este equipo de cómputo es un portátil…">{{ d.descripcion }}</textarea></div>
+            <div class="st-campo st-campo-ancho"><label for="fi-problema">Descripción del problema</label>
+                <textarea id="fi-problema" name="problema" rows="3" maxlength="1500" placeholder="N/A - El equipo no presenta fallas.">{{ d.problema }}</textarea></div>
+            <div class="st-campo st-campo-ancho"><label for="fi-req">Detalle técnico de requerimientos</label>
+                <textarea id="fi-req" name="requerimientos" rows="3" maxlength="2500" placeholder="Mantenimiento preventivo…">{{ d.requerimientos }}</textarea></div>
+            <div class="st-campo st-campo-ancho"><label for="fi-vida">Vida útil</label>
+                <textarea id="fi-vida" name="vida_util" rows="3" maxlength="2500" placeholder="La vida útil estimada de un portátil como este…">{{ d.vida_util }}</textarea></div>
+            <div class="st-campo st-campo-ancho"><label for="fi-recs">Recomendaciones (una por línea)</label>
+                <textarea id="fi-recs" name="recomendaciones" rows="5" placeholder="Conectarlo a un regulador de voltaje o UPS.">{{ d.recomendaciones | join('\n') }}</textarea></div>
+        </div>
+    </section>
+
+    {# ── 3. Lo demás, plegado ── #}
+    <section class="st-card" aria-labelledby="fi-mas">
+        <h2 id="fi-mas"><i class="fas fa-list" aria-hidden="true"></i> Características, fotos y encabezado</h2>
+        <div class="st-acordeon">
+            <details>
+                <summary><i class="fas fa-microchip" aria-hidden="true"></i> Características globales</summary>
+                <div class="st-acordeon-cuerpo">
+                    <p class="st-nota" style="margin-top:0">Lo que dejes vacío sale de los datos del equipo (en gris).
+                        Marca «Resaltar» en lo que muestra el problema: en la ficha roja sale en rojo.</p>
+                    <div class="st-ficha-filas">
+                        {% for f in d.filas %}
+                        <div class="st-ficha-fila">
+                            <input type="hidden" name="etiqueta_{{ loop.index0 }}" value="{{ f.etiqueta }}">
+                            <label for="fi-fila-{{ loop.index0 }}">{{ f.etiqueta }}</label>
+                            <textarea id="fi-fila-{{ loop.index0 }}" name="fila_{{ loop.index0 }}" rows="1" maxlength="600"
+                                      placeholder="{{ f.auto or 'Sin dato' }}">{{ f.valor if f.propio else '' }}</textarea>
+                            <label class="st-ficha-resaltar"><input type="checkbox" name="destacar_{{ loop.index0 }}" value="1"
+                                   data-etiqueta="{{ f.etiqueta }}" {% if f.destacar %}checked{% endif %}> Resaltar</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </details>
+            <details>
+                <summary><i class="fas fa-camera" aria-hidden="true"></i> Fotos de la ficha (hasta {{ fotos_max }})</summary>
+                <div class="st-acordeon-cuerpo">
+                    {% if fotos_equipo %}
+                    <ul class="st-ficha-fotos" data-st-maximo="{{ fotos_max }}">
+                        {% for f in fotos_equipo %}
+                        <li><label>
+                            <input type="checkbox" name="fotos" value="{{ f.id }}" {% if f.id in elegidas %}checked{% endif %}>
+                            <img src="{{ url_for('servicio_tecnico.foto_mini', foto_id=f.id) }}" alt="Foto del {{ f.creado_en.strftime('%d/%m/%Y') }}{% if f.descripcion %}: {{ f.descripcion }}{% endif %}" loading="lazy" width="120" height="90">
+                        </label></li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}<p class="st-nota" style="margin:0">El equipo no tiene fotos. Agrégalas en su ficha y saldrán aquí.</p>{% endif %}
+                </div>
+            </details>
+            <details>
+                <summary><i class="fas fa-heading" aria-hidden="true"></i> Encabezado y fabricante</summary>
+                <div class="st-acordeon-cuerpo st-campos">
+                    <div class="st-campo"><label for="fi-fecha">Fecha de la ficha</label>
+                        <input type="date" id="fi-fecha" name="fecha" value="{{ (equipo.ficha or {}).get('fecha') or '' }}">
+                        <small>Vacío: la del último mantenimiento ({{ d.fecha.strftime('%d/%m/%Y') }}).</small></div>
+                    <div class="st-campo"><label for="fi-version">Versión</label>
+                        <input type="number" id="fi-version" name="version" min="1" max="999" inputmode="numeric" value="{{ d.version }}"></div>
+                    <div class="st-campo"><label for="fi-fab">Fabricante</label>
+                        <input type="text" id="fi-fab" name="fabricante" maxlength="150" value="{{ (equipo.ficha or {}).get('fabricante') or '' }}" placeholder="{{ d.fabricante }}"></div>
+                    <div class="st-campo"><label for="fi-fabdet">Modelo y placa base (enlace al soporte)</label>
+                        <input type="text" id="fi-fabdet" name="fabricante_detalle" maxlength="250" value="{{ (equipo.ficha or {}).get('fabricante_detalle') or '' }}" placeholder="{{ d.fabricante_detalle }}"></div>
+                    <p class="st-nota st-campo-ancho" style="margin:0">Próximo mantenimiento: {{ d.proximo.strftime('%d/%m/%Y') if d.proximo else 'sin programar' }} (se cambia en la ficha del equipo, sección Mantenimiento).</p>
+                </div>
+            </details>
+        </div>
+    </section>
+
+    <div class="st-acciones st-barra-movil">
+        <button class="st-btn st-btn-sec" type="submit"><i class="fas fa-save" aria-hidden="true"></i> Guardar</button>
+        <button class="st-btn st-btn-ok" type="submit" formaction="{{ url_for('servicio_tecnico.equipo_ficha_pdf', equipo_id=equipo.id) }}"
+                formtarget="_blank" name="guardar" value="1" data-st-recargar>
+            <i class="fas fa-file-pdf" aria-hidden="true"></i> Guardar y generar PDF</button>
+        <label class="st-ficha-copia"><input type="checkbox" name="copia" value="1"> Guardar una copia en Documentos</label>
+    </div>
+</form>
+{% endblock %}
+
+{% block st_scripts %}
+<script src="{{ url_for('static', filename='js/servicio_tecnico.js') }}?v={{ config.APP_VERSION }}"></script>
+{% endblock %}

@@ -29,15 +29,16 @@
     {% if equipos %}
     <div class="st-tabla-wrap">
         <table class="st-tabla">
-            <thead><tr><th>Equipo</th><th>Cliente</th><th>Serial / IMEI</th><th>Servicios</th><th>Próximo mantenimiento</th><th>Último estado</th></tr></thead>
+            <thead><tr><th>Equipo</th><th>Cliente</th><th>Serial / IMEI</th><th>Estado del equipo</th><th>Servicios</th><th>Próximo mantenimiento</th><th>Último estado</th></tr></thead>
             <tbody>
             {% for e in equipos %}
             <tr>
                 <td data-label="Equipo"><a class="st-fila-link st-equipo-celda" href="{{ url_for('servicio_tecnico.equipo_ver', equipo_id=e.id) }}">
                     <i class="fas fa-{{ tipo_icono(e.tipo) }}" aria-hidden="true"></i>
-                    {{ tipo_nombre(e.tipo) }}{% if e.marca or e.modelo %} · {{ e.marca or '' }} {{ e.modelo or '' }}{% endif %}</a></td>
+                    {{ tipo_nombre(e.tipo) }}{% if e.marca or e.modelo %} · {{ marca_modelo(e) }}{% endif %}</a></td>
                 <td data-label="Cliente">{{ e.cliente_nombre or '—' }}</td>
                 <td data-label="Serial / IMEI">{{ e.serial or e.imei or '—' }}</td>
+                <td data-label="Estado del equipo">{% if e.ficha_estado == 'inconveniente' %}<span class="st-chip st-chip-peligro"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i> Inconvenientes</span>{% elif e.ficha_estado == 'bueno' %}<span class="st-chip st-chip-info"><i class="fas fa-check-circle" aria-hidden="true"></i> Buen estado</span>{% else %}—{% endif %}</td>
                 <td data-label="Servicios">{{ e.ordenes }}</td>
                 <td data-label="Próximo mantenimiento">{% if e.mant_proximo %}{{ e.mant_proximo.strftime('%d/%m/%Y') }}{% else %}—{% endif %}</td>
                 <td data-label="Último estado">{% if e.ultimo_estado %}{{ chip(e.ultimo_estado, estado_info) }}{% else %}—{% endif %}</td>

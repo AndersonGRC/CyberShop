@@ -107,9 +107,19 @@ def _entero(valor, defecto, minimo=0, maximo=3650):
     return max(minimo, min(maximo, n))
 
 
+# Prefijo del código de la ficha técnica en PDF (CYBER-F00-CS-012).
+CLAVE_PREFIJO_FICHA = 'st_ficha_prefijo'
+
+
+def limpiar_prefijo(valor):
+    import re
+    return re.sub(r'[^A-Za-z0-9._-]', '', str(valor or '')).upper()[:30]
+
+
 def config():
     """Configuración efectiva (con valores por defecto)."""
-    claves = ([c[0] for c in DIAS] + [c[0] for c in CORREOS] + [CLAVE_RESUMEN, CLAVE_DESTINOS, CLAVE_ULTIMO_RESUMEN]
+    claves = ([c[0] for c in DIAS] + [c[0] for c in CORREOS] + [CLAVE_RESUMEN, CLAVE_DESTINOS, CLAVE_ULTIMO_RESUMEN,
+                                                                 CLAVE_PREFIJO_FICHA]
               + ['st_msg_' + p[0] for p in PLANTILLAS])
     v = _leer(claves)
     cfg = {c[0]: _entero(v.get(c[0]), c[1]) for c in DIAS}
@@ -117,6 +127,7 @@ def config():
     cfg['resumen_activo'] = _bool(v.get(CLAVE_RESUMEN), False)
     cfg['resumen_destinos'] = [d.strip() for d in (v.get(CLAVE_DESTINOS) or '').split(',') if '@' in d]
     cfg['resumen_ultimo'] = v.get(CLAVE_ULTIMO_RESUMEN) or None
+    cfg['ficha_prefijo'] = limpiar_prefijo(v.get(CLAVE_PREFIJO_FICHA))
     cfg['plantillas'] = {p[0]: (v.get('st_msg_' + p[0]) or '').strip() or p[3] for p in PLANTILLAS}
     cfg['plantillas_editadas'] = {p[0] for p in PLANTILLAS if (v.get('st_msg_' + p[0]) or '').strip()}
     return cfg
@@ -135,6 +146,9 @@ def guardar_config(form):
                                grupo='servicio_tecnico', descripcion=etiqueta)
         set_cliente_config(cur, CLAVE_RESUMEN, 'true' if form.get(CLAVE_RESUMEN) else 'false',
                            tipo='boolean', grupo='servicio_tecnico', descripcion='Resumen diario al dueño')
+        if CLAVE_PREFIJO_FICHA in form:
+            set_cliente_config(cur, CLAVE_PREFIJO_FICHA, limpiar_prefijo(form.get(CLAVE_PREFIJO_FICHA)),
+                               grupo='servicio_tecnico', descripcion='Prefijo del código de la ficha técnica')
         destinos = ','.join(d.strip() for d in (form.get(CLAVE_DESTINOS) or '').split(',') if '@' in d)[:500]
         set_cliente_config(cur, CLAVE_DESTINOS, destinos, grupo='servicio_tecnico',
                            descripcion='Correos del resumen diario')

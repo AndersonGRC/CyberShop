@@ -711,3 +711,41 @@
 .st a.st-btn.st-btn-peligro { color: var(--color-peligro-texto); }
 .st .st-hero a.st-btn { color: var(--color-primario-oscuro); }
 .st .st-hero a.st-btn.st-btn-claro { color: var(--color-blanco); }
+
+/* ==========================================================================
+   Ficha técnica en PDF (1.9.4): estado (azul / roja), filas, fotos.
+   ========================================================================== */
+.st-ficha-estados { border: 0; margin: 0; padding: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.st-ficha-estado {
+    display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; cursor: pointer;
+    border: 2px solid var(--color-borde); border-radius: var(--st-radio-sm); background: var(--color-blanco);
+}
+.st-ficha-estado input { width: 22px; height: 22px; margin-top: 2px; accent-color: var(--color-primario); flex: 0 0 auto; }
+.st-ficha-estado strong { display: block; color: var(--st-tinta); }
+.st-ficha-estado small { color: var(--st-suave); }
+.st-ficha-azul strong i { color: var(--color-info-texto); }
+.st-ficha-roja strong i { color: var(--color-peligro-texto); }
+.st-ficha-azul:has(input:checked) { border-color: var(--color-info-texto); background: var(--color-info-tinte); }
+.st-ficha-roja:has(input:checked) { border-color: var(--color-peligro); background: var(--color-peligro-tinte); }
+.st-ficha-filas { display: grid; gap: 8px; }
+.st-ficha-fila {
+    display: grid; grid-template-columns: minmax(150px, 220px) minmax(0, 1fr) auto; align-items: center; gap: 10px;
+    padding: 6px 0; border-bottom: 1px solid var(--st-linea);
+}
+.st-ficha-fila > label:first-of-type { font-weight: 700; color: var(--st-tinta); font-size: .92rem; }
+.st-ficha-fila textarea { min-height: 42px; resize: vertical; }
+.st-ficha-resaltar { display: inline-flex; align-items: center; gap: 6px; font-size: .88rem; color: var(--st-suave); white-space: nowrap; }
+.st-ficha-resaltar input { width: 18px; height: 18px; accent-color: var(--color-peligro); }
+@media (max-width: 640px) {
+    .st-ficha-fila { grid-template-columns: minmax(0, 1fr) auto; }
+    .st-ficha-fila textarea { grid-column: 1 / -1; grid-row: 2; }
+}
+.st-ficha-fotos { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+.st-ficha-fotos label { display: grid; gap: 6px; justify-items: start; cursor: pointer; }
+.st-ficha-fotos img { width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--st-radio-sm); border: 2px solid var(--st-linea); }
+.st-ficha-fotos input { width: 20px; height: 20px; accent-color: var(--color-primario); }
+.st-ficha-fotos input:checked + img { border-color: var(--color-primario); }
+.st-ficha-copia { display: inline-flex; align-items: center; gap: 8px; font-size: .92rem; color: var(--st-tinta); }
+.st-ficha-copia input { width: 18px; height: 18px; accent-color: var(--color-primario); }
+/* Línea de tiempo y listas: un nombre de archivo largo (sin espacios) se parte en vez de ensanchar la página. */
+.st-tiempo li > div, .st-tiempo p, .st-lista-simple span { min-width: 0; overflow-wrap: anywhere; }

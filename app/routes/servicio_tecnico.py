@@ -18,6 +18,7 @@ from extensions import limiter
 from helpers import get_common_data, get_data_app
 from security import ADMIN_STAFF, permiso_requerido, registrar_guard_permiso, rol_requerido
 from services import servicio_tecnico_clasificador as clasif
+from services import servicio_tecnico_ficha as ficha_st
 from services import servicio_tecnico_ia as st_ia
 from services import servicio_tecnico_importar as imp
 from services import servicio_tecnico_mensajes as msj
@@ -57,7 +58,7 @@ def _ctx(**extra):
     except Exception:  # noqa: BLE001
         pendientes = 0
     base = dict(datosApp=get_data_app(), estados=st.ESTADOS, estado_info=st.ESTADO_POR_CODIGO,
-                pasos=st.PASOS, tipos_lista=tipos.TIPOS, tipo_nombre=tipos.nombre,
+                pasos=st.PASOS, tipos_lista=tipos.TIPOS, tipo_nombre=tipos.nombre, marca_modelo=st.marca_modelo,
                 tipo_icono=tipos.icono, etiquetas=tipos.ETIQUETAS_COMUNES, st_pendientes=pendientes)
     base.update(extra)
     return base
@@ -697,6 +698,82 @@ def documento_quitar(doc_id):
         abort(404)
     flash('Documento retirado de la ficha.', 'success')
     return _a_la_ficha(equipo_id, 'documentos')
+
+
+# ── Ficha técnica en PDF ────────────────────────────────────────
+def _datos_form_ficha():
+    datos = request.form.to_dict()
+    datos['fotos'] = request.form.getlist('fotos')
+    return datos
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/equipo/<int:equipo_id>/ficha', methods=['GET', 'POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def equipo_ficha(equipo_id):
+    """La ficha técnica del equipo: qué dice y de qué color sale (roja o azul)."""
+    if request.method == 'POST':
+        try:
+            ficha_st.guardar(equipo_id, _datos_form_ficha(), _usuario())
+            flash('Ficha técnica guardada.', 'success')
+        except st.ErrorServicio as exc:
+            flash(str(exc), 'warning')
+        return redirect(url_for('servicio_tecnico.equipo_ficha', equipo_id=equipo_id))
+    try:
+        datos = ficha_st.armar(equipo_id)
+    except st.ErrorServicio:
+        abort(404)
+    return render_template('servicio_tecnico/ficha.html', **_ctx(
+        d=datos, equipo=datos['equipo'], fotos_equipo=st.fotos_de_equipo(equipo_id),
+        fotos_max=ficha_st.FOTOS_EN_FICHA, ia_ok=st_ia.estado()[0], st_activo='equipos'))
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/equipo/<int:equipo_id>/ficha.pdf', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def equipo_ficha_pdf(equipo_id):
+    """Genera la ficha en PDF (si viene del formulario, primero la guarda). La
+    primera vez le asigna su código consecutivo."""
+    if not st.obtener_equipo(equipo_id):
+        abort(404)
+    if request.form.get('guardar') == '1':
+        try:
+            ficha_st.guardar(equipo_id, _datos_form_ficha(), _usuario())
+        except st.ErrorServicio as exc:
+            flash(str(exc), 'warning')
+            return redirect(url_for('servicio_tecnico.equipo_ficha', equipo_id=equipo_id))
+    ficha_st.asignar_codigo(equipo_id)
+    datos = ficha_st.armar(equipo_id)
+    contenido = ficha_st.pdf(datos)
+    nombre = ficha_st.nombre_pdf(datos)
+    if request.form.get('copia') == '1':
+        ficha_st.guardar_copia(equipo_id, nombre, contenido, datos['codigo'], _usuario())
+    from urllib.parse import quote
+
+    from flask import Response
+    simple = ''.join(ch for ch in nombre if 32 <= ord(ch) < 127 and ch not in '"\\;') or 'ficha.pdf'
+    respuesta = Response(contenido, mimetype='application/pdf')
+    respuesta.headers['Content-Disposition'] = f"inline; filename=\"{simple}\"; filename*=UTF-8''{quote(nombre)}"
+    respuesta.headers['Cache-Control'] = 'private, no-store'
+    respuesta.headers['X-Content-Type-Options'] = 'nosniff'
+    return respuesta
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/equipo/<int:equipo_id>/ficha/proponer', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def equipo_ficha_proponer(equipo_id):
+    """Textos de la ficha: con IA (estilo del taller) o con reglas. No guarda."""
+    try:
+        datos = ficha_st.armar(equipo_id)
+    except st.ErrorServicio as exc:
+        return jsonify({'ok': False, 'error': str(exc)}), 404
+    borrador = ficha_st.borrador(datos['equipo'])
+    filas = [(f['etiqueta'], f['valor']) for f in datos['filas']]
+    return jsonify({'ok': True, **st_ia.redactar_ficha(datos['equipo'], filas, borrador)})
 
 
 # ── Búsquedas para el formulario ────────────────────────────────

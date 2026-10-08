@@ -244,8 +244,19 @@ ALTER TABLE st_mantenimientos ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL D
 CREATE INDEX IF NOT EXISTS ix_st_equipos_importacion ON st_equipos (importacion_id);
 """
 
+# 0022: la ficha técnica del equipo (el PDF «FICHA TECNICA» que se entrega al
+# cliente): `ficha` guarda su contenido (estado rojo/azul, asignado a, filas,
+# vida útil, recomendaciones, problema, requerimientos…) y `ficha_codigo` el
+# consecutivo (CYBER-F00-CS-012). El código no se repite entre equipos activos.
+DDL_0022 = """
+ALTER TABLE st_equipos ADD COLUMN IF NOT EXISTS ficha JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE st_equipos ADD COLUMN IF NOT EXISTS ficha_codigo VARCHAR(40);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_st_equipos_ficha_codigo ON st_equipos (lower(ficha_codigo))
+    WHERE ficha_codigo IS NOT NULL AND activo;
+"""
+
 # Lo que asegurar_tablas crea si las migraciones aún no llegaron (en orden).
-DDL = DDL_0018 + DDL_0019 + DDL_0020 + DDL_0021
+DDL = DDL_0018 + DDL_0019 + DDL_0020 + DDL_0021 + DDL_0022
 
 TABLAS = ('st_equipos', 'st_ordenes', 'st_eventos', 'st_cambios', 'st_seguimientos',
           'st_fotos', 'st_mantenimientos', 'st_importaciones', 'st_documentos')
@@ -521,11 +532,19 @@ def actualizar_equipo(equipo_id, datos, usuario_id=None):
         _evento(cur, None, equipo_id, 'equipo', 'Ficha del equipo actualizada', usuario_id)
 
 
+def marca_modelo(e):
+    """«HP Laptop 15-gw0»: marca y modelo sin repetir la marca si el modelo ya la trae."""
+    marca, modelo = e.get('marca'), e.get('modelo')
+    if marca and modelo and modelo.lower().startswith(marca.lower() + ' '):
+        marca = None                       # «HP» + «HP Laptop 15-gw0» → «HP Laptop 15-gw0»
+    return ' '.join(p for p in (marca, modelo) if p)
+
+
 def descripcion_equipo(e):
     partes = [tipos.nombre(e.get('tipo'))]
-    marca_modelo = ' '.join(p for p in (e.get('marca'), e.get('modelo')) if p)
-    if marca_modelo:
-        partes.append(marca_modelo)
+    marca_modelo_txt = marca_modelo(e)
+    if marca_modelo_txt:
+        partes.append(marca_modelo_txt)
     return ' · '.join(partes)
 
 
@@ -587,6 +606,7 @@ def listar_equipos(q='', tipo='', limite=200):
     with get_db_cursor(dict_cursor=True) as cur:
         cur.execute(f"""
             SELECT e.id, e.tipo, e.marca, e.modelo, e.serial, e.imei, e.actualizado_en, e.mant_proximo,
+                   e.ficha->>'estado' AS ficha_estado, e.ficha_codigo,
                    c.nombre AS cliente_nombre,
                    (SELECT COUNT(*) FROM st_ordenes o WHERE o.equipo_id = e.id) AS ordenes,
                    (SELECT o.estado FROM st_ordenes o WHERE o.equipo_id = e.id

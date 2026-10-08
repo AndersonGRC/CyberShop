@@ -1,12 +1,12 @@
 {% extends "servicio_tecnico/base.html" %}
 {% from "servicio_tecnico/_macros.html" import chip, cop %}
 {% from "servicio_tecnico/_seguimiento.html" import fila with context %}
-{% block st_titulo %}{{ ((equipo.marca or '') ~ ' ' ~ (equipo.modelo or '')).strip() or tipo_nombre(equipo.tipo) }}{% endblock %}
+{% block st_titulo %}{{ marca_modelo(equipo) or tipo_nombre(equipo.tipo) }}{% endblock %}
 
 {#- Ficha del equipo en UNA página: datos, fotos, documentos, mantenimiento e
     historial. Sin pestañas: todo se ve bajando, con un índice arriba para saltar. -#}
 {% block st_contenido %}
-{% set nombre_equipo = ((equipo.marca or '') ~ ' ' ~ (equipo.modelo or '')).strip() or tipo_nombre(equipo.tipo) %}
+{% set nombre_equipo = marca_modelo(equipo) or tipo_nombre(equipo.tipo) %}
 {% set extras = equipo.extras or {} %}
 {% set ficha_url = url_for('servicio_tecnico.equipo_ver', equipo_id=equipo.id) %}
 {% set editar_url = url_for('servicio_tecnico.equipo_editar', equipo_id=equipo.id) %}
@@ -18,12 +18,16 @@
         <div>
             <h1>{{ nombre_equipo }}</h1>
             <p>{{ tipo_nombre(equipo.tipo) }} de <strong>{{ equipo.cliente_nombre or 'cliente sin nombre' }}</strong>
-               {% if equipo.serial %} · Serial {{ equipo.serial }}{% endif %}{% if equipo.imei %} · IMEI {{ equipo.imei }}{% endif %}</p>
+               {% if equipo.serial %} · Serial {{ equipo.serial }}{% endif %}{% if equipo.imei %} · IMEI {{ equipo.imei }}{% endif %}
+               {% set fx = equipo.ficha or {} %}{% if fx.get('asignado_a') %} · Asignado a {{ fx.asignado_a }}{% endif %}</p>
+            {% if fx.get('estado') %}<p style="margin-top:8px">{% if fx.estado == 'inconveniente' %}<span class="st-chip st-chip-peligro"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i> Presenta inconvenientes</span>{% else %}<span class="st-chip st-chip-info"><i class="fas fa-check-circle" aria-hidden="true"></i> En buen estado</span>{% endif %}
+               {% if equipo.ficha_codigo %}<span class="st-chip st-chip-neutro">Ficha {{ equipo.ficha_codigo }}</span>{% endif %}</p>{% endif %}
         </div>
     </div>
     <div class="st-acciones">
         <a class="st-btn st-btn-sm" href="{{ url_for('servicio_tecnico.nueva_orden', cliente=equipo.crm_contacto_id) }}"><i class="fas fa-tools" aria-hidden="true"></i> Recibir para reparación</a>
         <a class="st-btn st-btn-sm" href="{{ editar_url }}"><i class="fas fa-pen" aria-hidden="true"></i> Editar datos</a>
+        <a class="st-btn st-btn-sm" href="{{ url_for('servicio_tecnico.equipo_ficha', equipo_id=equipo.id) }}"><i class="fas fa-file-pdf" aria-hidden="true"></i> Ficha técnica</a>
         {% if crm_url %}<a class="st-btn st-btn-sm" href="{{ crm_url }}"><i class="fas fa-address-card" aria-hidden="true"></i> Ver cliente</a>{% endif %}
     </div>
 </section>

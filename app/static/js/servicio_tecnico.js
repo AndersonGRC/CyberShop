@@ -7,6 +7,7 @@
  *  - Pestañas de la ficha del equipo y botón «Copiar enlace».
  *  - Traer equipos desde Excel o PDF: archivos escogidos, lectura con IA
  *    paso a paso y buscador del cliente para los equipos sin dueño.
+ *  - Ficha técnica (PDF): «Proponer textos», fotos de la ficha y recargar.
  * Sin JS todo el formulario se ve completo y se puede enviar igual.
  */
 (function () {
@@ -748,4 +749,58 @@
   // Paso 3: cliente para los equipos sin dueño (mismo buscador del CRM).
   var formAjustes = $('#st-form-ajustes');
   if (formAjustes) iniciarCliente(formAjustes);
+
+  // ── Ficha técnica (PDF) ────────────────────────────────────────
+  // «Proponer textos»: la IA (o las reglas) llena descripción, problema,
+  // requerimientos, vida útil y recomendaciones; nada se guarda hasta «Guardar».
+  var formFicha = $('#st-form-ficha');
+  if (formFicha) {
+    var avisoFicha = $('#fi-aviso', formFicha);
+    var campo = function (n) { return formFicha.elements[n]; };
+    $$('[data-st-proponer]', formFicha).forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var nombres = ['descripcion', 'problema', 'requerimientos', 'vida_util', 'recomendaciones'];
+        var llenos = nombres.filter(function (n) { return campo(n) && campo(n).value.trim(); });
+        if (llenos.length && !window.confirm('¿Cambiar los textos que ya están por la propuesta? No se guarda hasta que presiones «Guardar».')) return;
+        esperando(btn, true, 'Redactando… (hasta un minuto)');
+        fetch(formFicha.getAttribute('data-st-proponer-url'), {
+          method: 'POST', headers: { 'X-CSRFToken': CSRF, 'X-Requested-With': 'XMLHttpRequest' }
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (!d.ok) { avisoFicha.textContent = d.error || 'No se pudo proponer.'; avisoFicha.hidden = false; return; }
+            var p = d.propuesta || {};
+            ['descripcion', 'problema', 'requerimientos', 'vida_util'].forEach(function (n) {
+              if (campo(n) && p[n]) campo(n).value = p[n];
+            });
+            if (campo('recomendaciones') && p.recomendaciones) campo('recomendaciones').value = p.recomendaciones.join('\n');
+            var radio = $('input[name="estado"][value="' + (p.estado === 'inconveniente' ? 'inconveniente' : 'bueno') + '"]', formFicha);
+            if (radio) radio.checked = true;
+            var destacar = p.destacar || [];
+            $$('input[data-etiqueta]', formFicha).forEach(function (c) { c.checked = destacar.indexOf(c.getAttribute('data-etiqueta')) !== -1; });
+            avisoFicha.textContent = (d.ia ? 'La IA propuso los textos con el estilo de tus fichas.' + (d.aviso ? ' ' + d.aviso : '')
+              : (d.aviso || 'Se propusieron los textos con las reglas del taller.')) + ' Revísalos y presiona «Guardar».';
+            avisoFicha.hidden = false;
+          })
+          .catch(function () { avisoFicha.textContent = 'No se pudo proponer. Intenta de nuevo.'; avisoFicha.hidden = false; })
+          .then(function () { esperando(btn, false); });
+      });
+    });
+    // Fotos de la ficha: máximo las que caben.
+    $$('[data-st-maximo]', formFicha).forEach(function (lista) {
+      var maximo = Number(lista.getAttribute('data-st-maximo')) || 3;
+      lista.addEventListener('change', function (ev) {
+        var marcadas = $$('input[type="checkbox"]:checked', lista);
+        if (marcadas.length > maximo && ev.target.checked) {
+          ev.target.checked = false;
+          avisoFicha.textContent = 'En la ficha caben ' + maximo + ' fotos: quita una para escoger otra.';
+          avisoFicha.hidden = false;
+        }
+      });
+    });
+    // Al generar el PDF (pestaña nueva) se recarga para ver el código asignado.
+    $$('[data-st-recargar]', formFicha).forEach(function (b) {
+      b.addEventListener('click', function () { setTimeout(function () { window.location.reload(); }, 3000); });
+    });
+  }
 })();

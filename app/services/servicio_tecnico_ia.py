@@ -571,3 +571,150 @@ def mapear_columnas(columnas, destinos):
             salida['mapeo'][int(col)] = clave
     salida['ia'] = True
     return salida
+
+
+# ── 6. Ficha técnica: redactar los textos con el estilo del taller ──
+# Dos fichas reales del taller, sin nombres ni usuarios: la IA aprende el tono,
+# el largo y el orden (descripción, vida útil, recomendaciones, problema y
+# requerimientos). Ficha roja = presenta inconvenientes; azul = buen estado.
+_EJEMPLOS_FICHA = (
+    'Ejemplo 1. Datos: portátil HP Laptop 15-gw0; AMD Ryzen 3 3250U (2 núcleos / 4 hilos); 8 GB DDR4, 1 de 2 '
+    'ranuras en uso; memoria disponible 1,01 GB; SSD NVMe 239 GB; Windows 11 Home.\n'
+    '{"estado": "inconveniente", "descripcion": "Este equipo de cómputo es un portátil HP Laptop 15-gw0 con procesador '
+    'AMD Ryzen 3 3250U (2 núcleos / 4 hilos), gráficos Radeon integrados y 8 GB de RAM. Es un equipo de gama básica apto '
+    'para ofimática, navegación en internet, videoconferencias y tareas de productividad ligera.", "vida_util": "La vida '
+    'útil estimada de un portátil como este (AMD Ryzen 3 3250U, 8 GB de RAM) es de 4 a 6 años desde su fabricación, '
+    'dependiendo del uso, el mantenimiento y las actualizaciones realizadas. Actualmente presenta muy poca memoria '
+    'disponible (1,01 GB), lo que afecta el rendimiento; se recomienda ampliar la RAM. Recomendaciones:", '
+    '"recomendaciones": ["Conectarlo a un regulador de voltaje o UPS.", "Realizar mantenimiento periódico al sistema de '
+    'enfriamiento y cambio de pasta térmica.", "Ampliar la memoria RAM para mejorar el rendimiento.", "Desinstalar '
+    'programas innecesarios y mantener Windows 11 actualizado.", "Mantenerlo limpio y libre de polvo (teclado, rejillas y '
+    'ventilador)."], "problema": "Memoria RAM insuficiente: 8 GB instalados con solo 1,01 GB disponibles, lo que afecta '
+    'el rendimiento.", "requerimientos": "Ampliación de memoria RAM a 16 GB (mínimo recomendado) aprovechando el slot '
+    'SO-DIMM libre: agregar un módulo de 8 GB DDR4. Incluye mantenimiento preventivo: limpieza interna y cambio de pasta '
+    'térmica.", "destacar": ["Memoria RAM"]}\n\n'
+    'Ejemplo 2. Datos: portátil Lenovo IdeaPad Slim 3 15ABR8; AMD Ryzen 7 5825U (8 núcleos / 16 hilos); 16 GB DDR4 '
+    'soldada, sin ranuras libres; SSD 512 GB; Windows 11 Home.\n'
+    '{"estado": "bueno", "descripcion": "Este equipo de cómputo es un portátil Lenovo IdeaPad Slim 3 15ABR8 con '
+    'procesador AMD Ryzen 7 5825U (8 núcleos / 16 hilos), gráficos Radeon integrados y 16 GB de RAM, apto para '
+    'ofimática, navegación en internet, videoconferencias, multimedia y aplicaciones de productividad de exigencia '
+    'media-alta.", "vida_util": "La vida útil estimada de un portátil como este (AMD Ryzen 7 5825U, 16 GB de RAM) es de '
+    '5 a 7 años desde su fabricación, dependiendo del uso, el mantenimiento y las actualizaciones realizadas. Al contar '
+    'con 16 GB de RAM tiene buen margen de rendimiento para ofimática, navegación y videoconferencia. Recomendaciones:", '
+    '"recomendaciones": ["Conectarlo a un regulador de voltaje o UPS.", "Realizar mantenimiento periódico al sistema de '
+    'enfriamiento y cambio de pasta térmica.", "Cuidar el ciclo de carga de la batería y evitar descargas totales.", '
+    '"Desinstalar programas innecesarios y mantener Windows 11 actualizado.", "Mantenerlo limpio y libre de polvo '
+    '(teclado, rejillas y ventilador)."], "problema": "N/A - El equipo no presenta fallas.", "requerimientos": '
+    '"Mantenimiento preventivo. El equipo cumple el mínimo recomendado de 16 GB de RAM DDR4 (memoria soldada, sin slots '
+    'disponibles para ampliación). Se recomienda limpieza interna, cambio de pasta térmica y verificación de la unidad '
+    'de almacenamiento.", "destacar": []}')
+# Filas de la ficha que NO van a la IA (identifican a la persona o al equipo en su red).
+_FILAS_PRIVADAS = ('nombre de usuario', 'usuario', 'directorios del sistema', 'zona horaria')
+_DATO_TECNICO = re.compile(r'(\d+(?:[.,]\d+)?)\s*(gb|mb|tb|ghz|nucleos|hilos|anos|ranuras?|slots?|modulos?)\b')
+
+
+def _datos_para_ficha(equipo, filas):
+    """Solo lo técnico del equipo, en una línea por dato (nada de la persona)."""
+    lineas = [f'Tipo de equipo: {tipos.nombre(equipo.get("tipo"))}']
+    for c in _COLUMNAS:
+        if equipo.get(c) and c not in ('serial', 'imei'):
+            lineas.append(f'{tipos.ETIQUETAS_COMUNES[c]}: {equipo[c]}')
+    etiquetas = {c[0]: c[1] for c in tipos.campos_extra(equipo.get('tipo'))}
+    for clave, valor in (equipo.get('extras') or {}).items():
+        if clave in etiquetas and valor:
+            lineas.append(f'{etiquetas[clave]}: {valor}')
+    for etiqueta, valor in filas:
+        if valor and _plano(etiqueta) not in _FILAS_PRIVADAS:
+            lineas.append(f'{etiqueta}: {valor}')
+    vistos, salida = set(), []
+    for linea in lineas:
+        if linea not in vistos:
+            vistos.add(linea)
+            salida.append(lector.sin_datos_personales(linea))
+    return '\n'.join(salida)
+
+
+_TAMANOS_ESTANDAR = {'1', '2', '4', '8', '16', '32', '64', '128', '256', '512'}
+
+
+def _sin_datos_inventados(texto, datos_plano, permitidos=()):
+    """¿Cada cantidad técnica del texto (GB, GHz, núcleos…) está en los datos?
+    `permitidos`: cantidades que se aceptan aunque no estén (p. ej. «ampliar a
+    16 GB» en los requerimientos)."""
+    for numero, unidad in _DATO_TECNICO.findall(_plano(texto)):
+        if unidad in ('anos', 'ranura', 'ranuras', 'slot', 'slots', 'modulo', 'modulos') or numero in permitidos:
+            continue                                # años de vida útil y cantidades de piezas a cambiar
+        variantes = {numero, numero.replace(',', '.'), numero.replace('.', ','), numero.split(',')[0].split('.')[0]}
+        if not any(re.search(r'(?<![\d.,])' + re.escape(v) + r'(?![\d])', datos_plano) for v in variantes):
+            return False
+    return True
+
+
+def redactar_ficha(equipo, filas, borrador):
+    """Textos de la ficha técnica redactados por la IA con el estilo del taller.
+
+    `filas`: [(etiqueta, valor)] de las características; `borrador`: lo que
+    proponen las reglas (la IA lo mejora). A la IA solo le llegan datos
+    técnicos. Un texto que menciona una cantidad que no está en los datos se
+    cambia por el de las reglas. Devuelve {'propuesta', 'ia', 'aviso'}."""
+    salida = {'propuesta': dict(borrador), 'ia': False, 'aviso': None}
+    ok, motivo = estado()
+    if not ok:
+        salida['aviso'] = f'{motivo} Se propusieron los textos con las reglas.'
+        return salida
+    datos = _datos_para_ficha(equipo, filas)
+    etiquetas = [e for e, v in filas if v]
+    user = ('Redacta la ficha técnica de un equipo con el MISMO estilo, tono y largo de estos ejemplos del taller:\n\n'
+            f'{_EJEMPLOS_FICHA}\n\n'
+            f'Datos del equipo (usa SOLO estos; no inventes cantidades ni piezas):\n<<<\n{datos}\n>>>\n\n'
+            f'Borrador hecho con reglas (corrígelo y mejóralo): {json.dumps(borrador, ensure_ascii=False)}\n\n'
+            '«estado» es «inconveniente» si el equipo necesita algo además del mantenimiento preventivo (memoria '
+            'insuficiente, disco mecánico, batería gastada, arranque seguro desactivado, sistema sin soporte…); si no, '
+            '«bueno» y el problema es «N/A - El equipo no presenta fallas.». En «destacar» van las filas que muestran el '
+            f'problema, escogidas de: {", ".join(etiquetas) or "ninguna"}.\n'
+            'Responde SOLO un JSON con las claves estado, descripcion, vida_util, recomendaciones (lista de 4 a 7 frases '
+            'cortas), problema, requerimientos y destacar.')
+    texto_ia, err = _ia()._chat(SISTEMA, user, max_tokens=1100, temperature=0.3, espera_frio=30, tarea='contenido')
+    respuesta = _json_de(texto_ia) if texto_ia else None
+    if not isinstance(respuesta, dict):
+        salida['aviso'] = (('La respuesta de la IA llegó incompleta.' if texto_ia else (err or 'La IA no respondió a '
+                                                                                                'tiempo.'))
+                           + ' Se propusieron los textos con las reglas.')
+        return salida
+    plano = _plano(datos)
+    metas = _TAMANOS_ESTANDAR | {n for n, _u in _DATO_TECNICO.findall(_plano(json.dumps(borrador, ensure_ascii=False)))}
+    propuesta, cambiados, tomados = dict(borrador), [], 0
+    for clave, largo in (('descripcion', 1500), ('vida_util', 2500), ('problema', 1500), ('requerimientos', 2500)):
+        valor = ' '.join(str(respuesta.get(clave) or '').split())[:largo]
+        if not valor:
+            continue
+        if _sin_datos_inventados(valor, plano, metas if clave in ('problema', 'requerimientos') else ()):
+            propuesta[clave] = valor
+            tomados += 1
+        else:
+            cambiados.append(clave)
+    recomendaciones = [' '.join(str(r).split())[:300] for r in (respuesta.get('recomendaciones') or [])
+                       if isinstance(r, str) and r.strip()][:8]
+    if recomendaciones:
+        if all(_sin_datos_inventados(r, plano, metas) for r in recomendaciones):
+            propuesta['recomendaciones'] = recomendaciones
+            tomados += 1
+        else:
+            cambiados.append('recomendaciones')
+    if not tomados:
+        # Nada de la respuesta sirvió: se queda TODO lo de las reglas (también el color y lo resaltado).
+        salida['aviso'] = ('La IA no devolvió textos utilizables'
+                           + (' (mencionó datos que no están en el equipo)' if cambiados else '')
+                           + '. Se propusieron los textos con las reglas.')
+        return salida
+    if respuesta.get('estado') in ('bueno', 'inconveniente'):
+        propuesta['estado'] = respuesta['estado']
+    destacar = [d for d in (respuesta.get('destacar') or []) if isinstance(d, str) and d in etiquetas]
+    if propuesta['estado'] == 'bueno':
+        destacar = []
+    propuesta['destacar'] = destacar if 'destacar' in respuesta else borrador.get('destacar', [])
+    salida.update(propuesta=propuesta, ia=True)
+    if cambiados:
+        salida['aviso'] = ('La IA mencionó datos que no están en el equipo; en ' + ', '.join(cambiados)
+                           + ' quedó el texto de las reglas.')
+    return salida

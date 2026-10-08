@@ -42,6 +42,15 @@
             <small>Separados por coma.{% if cfg.resumen_ultimo %} Último envío: {{ cfg.resumen_ultimo }}.{% endif %}</small></div>
     </section>
 
+    <section class="st-card" aria-labelledby="cf-ficha">
+        <h2 id="cf-ficha"><i class="fas fa-file-pdf" aria-hidden="true"></i> Ficha técnica (PDF)</h2>
+        <div class="st-campo" style="max-width:380px"><label for="st_ficha_prefijo">Prefijo del código de la ficha</label>
+            <input type="text" id="st_ficha_prefijo" name="st_ficha_prefijo" value="{{ cfg.ficha_prefijo }}" maxlength="30"
+                   placeholder="Ej. CYBER-F00-CS-" autocapitalize="characters" aria-describedby="cf-ficha-ayuda">
+            <small id="cf-ficha-ayuda">Cada ficha nueva toma el siguiente número de esa serie (CYBER-F00-CS-015).
+                Vacío: sigue la serie que más se usa en tus fichas, o empieza en FT-001.</small></div>
+    </section>
+
     <section class="st-card" aria-labelledby="cf-msj">
         <h2 id="cf-msj"><i class="fas fa-comment-dots" aria-hidden="true"></i> Mensajes</h2>
         <p class="st-vacio-dato" style="margin-top:0">Puedes usar {cliente}, {negocio}, {numero}, {equipo}, {enlace}, {valor}, {garantia} y {pieza}.
