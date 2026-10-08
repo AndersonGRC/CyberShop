@@ -52,6 +52,10 @@ METODO_PAGO_MAP = {
     'CREDIT_CARD':  '48',
     'DEBIT_CARD':   '48',
     'TRANSFERENCIA': '20',
+    # Medios de pago del POS y del cobro de mesas (metodos_pago_pos).
+    'TARJETA':      '48',   # Tarjeta crédito/débito
+    'NEQUI':        '20',   # Billetera digital = transferencia
+    'DAVIPLATA':    '20',
 }
 
 # Mapa de municipios Colombia (los más comunes)

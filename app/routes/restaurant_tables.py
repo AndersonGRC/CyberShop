@@ -30,6 +30,7 @@ from services.restaurant_tables_service import (
     PAYMENT_METHODS,
     TABLE_STATES,
     add_consumption,
+    buscar_productos,
     cancel_closed_order,
     cancel_open_table_order,
     close_table_order,
@@ -42,6 +43,7 @@ from services.restaurant_tables_service import (
     rename_salon,
     list_floor_tables,
     list_restaurant_reports,
+    metodos_pago,
     update_consumption_state,
     remove_consumption,
     set_consumption_quantity,
@@ -127,7 +129,9 @@ def _restaurant_context(*, view_mode, page_title, page_description, area=None, r
         'products': _serialize_products() if view_mode == 'service' else [],
         'table_states': TABLE_STATES,
         'consumption_states': CONSUMPTION_STATES,
-        'payment_methods': PAYMENT_METHODS,
+        # Los mismos medios de pago del POS (Nequi, Daviplata…), configurables.
+        'payment_methods': {m['codigo']: m['nombre'] for m in metodos_pago()},
+        'payment_methods_info': metodos_pago(),
         'fe_habilitada': _fe_habilitada(),
         'accounting_statuses': ACCOUNTING_STATUSES,
         'report_data': report_data,
@@ -255,6 +259,16 @@ def restaurant_tables_data():
         **list_floor_tables(area=request.args.get('area', '').strip() or None),
         'salones': list_salones(),
     })
+
+
+@restaurant_tables_bp.route('/admin/restaurante/productos/buscar')
+@rol_requerido(RESTAURANT_SERVICE_ACCESS)
+@module_required(MODULE_RESTAURANT_TABLES)
+def restaurant_productos_buscar():
+    """Productos por nombre, referencia o código de barras, leídos de nuevo de la
+    base: «Atender» carga el catálogo al abrir y así encuentra los productos
+    registrados después (escribiendo o con el lector) sin recargar la página."""
+    return jsonify({'success': True, **buscar_productos(request.args.get('q', ''))})
 
 
 @restaurant_tables_bp.route('/admin/restaurante/mesas/layout', methods=['POST'])

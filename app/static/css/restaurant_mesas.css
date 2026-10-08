@@ -1552,6 +1552,33 @@
     background: var(--rm-brand-50);
 }
 
+/* Medios de pago con el color que el dueño les dio en el POS (Nequi, Daviplata…).
+   El color se oscurece un poco para que el texto blanco se lea bien. */
+.rm-method.rm-method-color {
+    --pago-fondo: color-mix(in srgb, var(--pago) 78%, var(--rm-ink-900));
+    position: relative;
+    border-color: transparent;
+    color: var(--rm-white);
+    background: linear-gradient(135deg, var(--pago-fondo), color-mix(in srgb, var(--pago) 58%, var(--rm-ink-900)));
+}
+
+.rm-method.rm-method-color:hover {
+    filter: brightness(1.08);
+}
+
+.rm-method.rm-method-color.is-on {
+    border-color: transparent;
+    background: linear-gradient(135deg, var(--pago-fondo), color-mix(in srgb, var(--pago) 58%, var(--rm-ink-900)));
+    box-shadow: 0 0 0 3px var(--rm-white), 0 0 0 5px var(--pago-fondo);
+}
+
+.rm-method-ok {
+    position: absolute;
+    top: 5px;
+    right: 6px;
+    font-size: 13px !important;
+}
+
 .rm-fe {
     display: flex;
     align-items: center;

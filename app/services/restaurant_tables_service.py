@@ -26,12 +26,34 @@ CONSUMPTION_STATES = {
     'servido': 'Servido',
 }
 
+# Códigos que la mesa aceptaba antes de usar la lista del POS. Se siguen
+# aceptando (la app de escritorio y ventas viejas los usan) y dan su nombre.
 PAYMENT_METHODS = {
     'EFECTIVO': 'Efectivo',
     'TARJETA': 'Tarjeta',
     'TRANSFERENCIA': 'Transferencia',
     'MIXTO': 'Mixto',
 }
+
+
+def metodos_pago():
+    """Medios de pago para cobrar una mesa: los MISMOS del POS (Efectivo,
+    Nequi, Daviplata, Tarjeta…), con su color e ícono. El dueño los configura
+    en el POS → «Configurar métodos de pago»."""
+    from services import metodos_pago_service as mps
+    lista = [dict(m) for m in mps.listar()]
+    return lista or [{'codigo': 'EFECTIVO', 'nombre': 'Efectivo', 'color': '#16a34a',
+                      'icono': 'fa-money-bill-wave'}]
+
+
+def etiquetas_pago():
+    """{código: nombre} de todo medio válido: los del POS (también apagados)
+    y los códigos de antes."""
+    from services import metodos_pago_service as mps
+    try:
+        return {**PAYMENT_METHODS, **mps.nombres()}
+    except Exception:  # noqa: BLE001
+        return dict(PAYMENT_METHODS)
 
 ACCOUNTING_STATUSES = {
     'pendiente': 'Pendiente',
@@ -452,6 +474,40 @@ def _serialize_consumption(item):
     }
 
 
+def normalizar_codigo(valor):
+    """Código comparable: sin espacios, guiones ni puntos, en mayúsculas y, si
+    es solo números, sin ceros a la izquierda (el lector a veces los agrega o
+    los quita: UPC-A frente a EAN-13). Igual que `compacto` en restaurant_mesas.js."""
+    import re
+    c = re.sub(r'[\s.\-]', '', str(valor or '')).upper()
+    return c.lstrip('0') or c if c.isdigit() else c
+
+
+def buscar_productos(q, limite=30):
+    """Productos del catálogo por nombre, referencia o código de barras,
+    leídos de nuevo de la base (los creados después de abrir «Atender» también
+    salen). {'exacto': producto con ese código o None, 'productos': [...]}."""
+    q = (q or '').strip()
+    if not q:
+        return {'exacto': None, 'productos': []}
+    codigo = normalizar_codigo(q)
+    texto = q.lower()
+    exacto, coinciden = None, []
+    for p in get_product_catalog():
+        p = dict(p)
+        p['precio'] = float(p.get('precio') or 0)
+        p['stock'] = int(p.get('stock') or 0)
+        codigos = [normalizar_codigo(p.get('referencia')), normalizar_codigo(p.get('barcode'))]
+        if codigo and codigo in codigos:
+            exacto = exacto or p
+        if (texto in str(p.get('nombre') or '').lower()
+                or (codigo and any(codigo in c for c in codigos if c))):
+            coinciden.append(p)
+    if exacto and exacto not in coinciden:
+        coinciden.insert(0, exacto)
+    return {'exacto': exacto, 'productos': coinciden[:limite]}
+
+
 def get_product_catalog():
     """Retorna productos disponibles para agregar a una mesa, con categoría."""
     try:
@@ -620,6 +676,7 @@ def list_floor_tables(area=None):
 
 def list_restaurant_reports(filters=None):
     """Retorna reportes operativos y contables del módulo."""
+    etiquetas = etiquetas_pago()
     _ensure_module_schema()
     filters = filters or {}
 
@@ -718,7 +775,7 @@ def list_restaurant_reports(filters=None):
         duration_minutes = _minutes_between(row.get('opened_at'), row.get('closed_at') or row.get('cancelled_at') or datetime.now())
         row['total_acumulado'] = total
         row['duration_minutes'] = duration_minutes
-        row['payment_method_label'] = PAYMENT_METHODS.get(row.get('payment_method') or '', row.get('payment_method') or 'Sin definir')
+        row['payment_method_label'] = etiquetas.get(row.get('payment_method') or '', row.get('payment_method') or 'Sin definir')
         row['accounting_status_label'] = ACCOUNTING_STATUSES.get(accounting_status, accounting_status.replace('_', ' ').title())
         row['can_cancel_sale'] = status_value == 'cerrada'
 
@@ -746,7 +803,7 @@ def list_restaurant_reports(filters=None):
         summary['ticket_promedio'] = round(summary['ingresos_totales'] / summary['ventas_cerradas'], 2)
 
     payment_items = [
-        {'code': key, 'label': PAYMENT_METHODS.get(key, key.replace('_', ' ').title()), 'total': round(total, 2)}
+        {'code': key, 'label': etiquetas.get(key, key.replace('_', ' ').title()), 'total': round(total, 2)}
         for key, total in sorted(payment_breakdown.items(), key=lambda item: item[1], reverse=True)
     ]
     top_table_items = [
@@ -1630,7 +1687,7 @@ def close_table_order(user_id, table_id, payload=None, caja_sesion_id=None):
     _ensure_module_schema()
     payload = payload or {}
     payment_method = (payload.get('payment_method') or 'EFECTIVO').strip().upper()
-    if payment_method not in PAYMENT_METHODS:
+    if payment_method not in etiquetas_pago():
         raise ValueError('El método de pago no es válido.')
 
     with get_db_cursor(dict_cursor=True) as cur:

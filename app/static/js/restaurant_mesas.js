@@ -37,6 +37,24 @@
     const PAGO_ICON = { EFECTIVO: 'money-bill-wave', TARJETA: 'credit-card', TRANSFERENCIA: 'mobile-alt', MIXTO: 'coins' };
     const MAX_CAP = 30;
 
+    /* Medios de pago: los MISMOS del POS (Efectivo, Nequi, Daviplata…), con el
+       color y el ícono que el dueño les dio allá. Acepta también la lista vieja
+       de pares [código, nombre]. */
+    function metodosPago() {
+        const crudos = Array.isArray(P.paymentMethods) && P.paymentMethods.length
+            ? P.paymentMethods : [['EFECTIVO', 'Efectivo']];
+        return crudos.map((m) => (Array.isArray(m) ? { codigo: m[0], nombre: m[1] } : m));
+    }
+    function metodoInicial() {
+        const ms = metodosPago();
+        return (ms.find((m) => m.codigo === 'EFECTIVO') || ms[0]).codigo;
+    }
+    function iconoPago(m) {
+        const ic = String(m.icono || ('fa-' + (PAGO_ICON[m.codigo] || 'wallet')));
+        return /^fa-[a-z0-9-]+$/.test(ic) ? ic : 'fa-wallet';
+    }
+    const colorPago = (m) => (/^#[0-9a-f]{3,8}$/i.test(String(m.color || '')) ? m.color : '');
+
     const S = {
         view: P.view === 'builder' ? 'builder' : 'service',
         tables: [],
@@ -45,7 +63,7 @@
         // Crear mesas
         sel: null, drag: null, pal: null, saving: 0, saveError: false,
         // Atender
-        mesa: null, filtro: 'todas', q: '', cat: 'Todos', metodo: 'EFECTIVO',
+        mesa: null, filtro: 'todas', q: '', cat: 'Todos', metodo: metodoInicial(), buscando: '',
         fe: false, feDatos: {}, conNota: false, libre: false, menu: false, ops: Promise.resolve(), busy: 0,
     };
     let tempId = -1;
@@ -734,9 +752,12 @@
 
     function productosFiltrados() {
         const q = S.q.trim().toLowerCase();
-        return (P.products || []).filter((p) => (S.cat === 'Todos' || (p.genero_nombre || 'Sin categoría') === S.cat)
-            && (!q || String(p.nombre || '').toLowerCase().includes(q) || String(p.referencia || '').toLowerCase().includes(q)
-                || String(p.barcode || '').toLowerCase().includes(q)));
+        const cq = compacto(S.q);
+        // Al buscar se mira en TODAS las categorías: un nombre o un código no se
+        // esconde porque había otra categoría escogida.
+        return (P.products || []).filter((p) => (q || S.cat === 'Todos' || (p.genero_nombre || 'Sin categoría') === S.cat)
+            && (!q || String(p.nombre || '').toLowerCase().includes(q)
+                || (cq && (compacto(p.referencia).includes(cq) || compacto(p.barcode).includes(cq)))));
     }
 
     /* ── Lector de código de barras (mismo criterio que el POS) ──
@@ -745,10 +766,32 @@
        distinguir mayúsculas ni espacios. A diferencia del POS no se exige stock:
        en el restaurante la venta nunca se bloquea por inventario. */
     const normCodigo = (v) => String(v == null ? '' : v).replace(/[\x00-\x1F\x7F]/g, '').trim().toUpperCase();
+    /* Código comparable: sin espacios, guiones ni puntos y, si es solo números,
+       sin ceros a la izquierda (UPC-A frente a EAN-13). Igual que
+       normalizar_codigo en restaurant_tables_service.py. */
+    function compacto(v) {
+        const c = normCodigo(v).replace(/[\s.\-]/g, '');
+        return /^\d+$/.test(c) ? (c.replace(/^0+/, '') || c) : c;
+    }
     function productoPorCodigo(codigo) {
-        const c = normCodigo(codigo);
+        const c = normCodigo(codigo), cc = compacto(codigo);
         if (!c) return null;
-        return (P.products || []).find((p) => normCodigo(p.referencia) === c || (p.barcode && normCodigo(p.barcode) === c)) || null;
+        const lista = P.products || [];
+        return lista.find((p) => normCodigo(p.referencia) === c || (p.barcode && normCodigo(p.barcode) === c))
+            || (cc ? lista.find((p) => (p.referencia && compacto(p.referencia) === cc) || (p.barcode && compacto(p.barcode) === cc)) : null)
+            || null;
+    }
+    /* El catálogo se carga al abrir la página: lo que no está se le pregunta al
+       servidor (productos registrados después) y se suma a la lista. */
+    async function traerDelServidor(q) {
+        if (!E.buscarProductos) return null;
+        try {
+            const r = await api(`${E.buscarProductos}?q=${encodeURIComponent(q)}`, null, 'GET');
+            const lista = P.products || (P.products = []);
+            const ids = new Set(lista.map((x) => x.id));
+            ((r && r.productos) || []).forEach((x) => { if (!ids.has(x.id)) { lista.push(x); ids.add(x.id); } });
+            return r;
+        } catch (e) { return null; }
     }
     function bip(ok) {
         try {
@@ -769,7 +812,17 @@
         const mesa = S.view === 'service' && S.mesa != null ? byId(S.mesa) : null;
         if (!mesa) { bip(false); toast('Abre una mesa para agregar con el lector', 'error'); return true; }
         const p = productoPorCodigo(c);
-        if (!p) { bip(false); toast(`No encontré el código ${c}. Usa Ítem libre si no está en el catálogo.`, 'error'); return true; }
+        if (!p) {
+            // ¿Producto nuevo (registrado después de abrir la página)? Se busca en el servidor.
+            traerDelServidor(c).then((r) => {
+                const nuevo = r && r.exacto;
+                if (!nuevo) { bip(false); toast(`No encontré el código ${c}. Usa Ítem libre si no está en el catálogo.`, 'error'); return; }
+                bip(true);
+                S.q = '';
+                operar(() => agregar(mesa, { product_id: nuevo.id, cantidad: 1, merge: true }, nuevo.nombre));
+            });
+            return true;
+        }
         bip(true);
         S.q = '';
         operar(() => agregar(mesa, { product_id: p.id, cantidad: 1, merge: true }, p.nombre));
@@ -801,6 +854,9 @@
     }, true);
     function gridProductos() {
         const lista = productosFiltrados();
+        if (!lista.length && S.buscando && S.buscando === S.q.trim()) {
+            return '<div class="rm-prods-empty"><i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Buscando en el catálogo…</div>';
+        }
         if (!lista.length) return '<div class="rm-prods-empty">No hay productos con ese filtro. Usa <b>Ítem libre</b> para vender algo que no está en el catálogo.</div>';
         return lista.map((p) => `
             <button type="button" class="rm-prod" data-act="add" data-pid="${p.id}">
@@ -954,13 +1010,18 @@
             return `<div class="rm-wait"><i class="fas fa-hourglass-half"></i>Esperando el cobro en caja.</div>
                 <button type="button" class="rm-btn rm-btn-ghost rm-btn-full" data-act="seguir">Seguir agregando</button>`;
         }
-        const metodos = Array.isArray(P.paymentMethods) && P.paymentMethods.length
-            ? P.paymentMethods : Object.entries(P.paymentMethods || { EFECTIVO: 'Efectivo' });
+        const metodos = metodosPago();
+        if (!metodos.some((m) => m.codigo === S.metodo)) S.metodo = metodoInicial();
+        const cols = metodos.length <= 4 ? metodos.length : 3;
         const fd = S.feDatos;
         return `
-            <div class="rm-methods" role="radiogroup" aria-label="Medio de pago" style="grid-template-columns:repeat(${Math.min(metodos.length, 4)},1fr)">
-                ${metodos.map(([k, l]) => `<button type="button" role="radio" aria-checked="${S.metodo === k}" class="rm-method${S.metodo === k ? ' is-on' : ''}" data-act="metodo" data-m="${k}">
-                    <i class="fas fa-${PAGO_ICON[k] || 'wallet'}"></i>${esc(l)}</button>`).join('')}
+            <div class="rm-methods" role="radiogroup" aria-label="Medio de pago" style="grid-template-columns:repeat(${cols},1fr)">
+                ${metodos.map((m) => {
+                    const on = S.metodo === m.codigo, color = colorPago(m);
+                    return `<button type="button" role="radio" aria-checked="${on}" class="rm-method${color ? ' rm-method-color' : ''}${on ? ' is-on' : ''}"
+                        data-act="metodo" data-m="${esc(m.codigo)}"${color ? ` style="--pago:${color}"` : ''}>
+                        <i class="fas ${iconoPago(m)}" aria-hidden="true"></i>${esc(m.nombre)}${on ? '<i class="fas fa-check-circle rm-method-ok" aria-hidden="true"></i>' : ''}</button>`;
+                }).join('')}
             </div>
             ${P.feHabilitada ? `
             <div class="rm-fe">
@@ -1088,7 +1149,7 @@
                 await api(url, cuerpo);
             }
             toast(`Pago registrado · Mesa ${t.codigo} disponible`);
-            S.mesa = null; S.fe = false; S.feDatos = {}; S.metodo = 'EFECTIVO';
+            S.mesa = null; S.fe = false; S.feDatos = {}; S.metodo = metodoInicial();
         });
     }
 
@@ -1201,11 +1262,25 @@
         else if (act === 'anular') { S.menu = false; renderMesa(); anular(mesa); }
     });
 
+    let buscarTimer = null;
     root.addEventListener('input', (ev) => {
         if (ev.target.id === 'rmQ') {
             S.q = ev.target.value;
+            const q = S.q.trim();
+            clearTimeout(buscarTimer);
+            S.buscando = q.length >= 2 && !productosFiltrados().length ? q : '';
             const g = document.getElementById('rmProds');
             if (g) g.innerHTML = gridProductos();
+            if (S.buscando) {
+                // Nada en la página: puede ser un producto nuevo. Se pregunta al servidor.
+                buscarTimer = setTimeout(async () => {
+                    await traerDelServidor(q);
+                    if (S.buscando !== q) return;
+                    S.buscando = '';
+                    const g2 = document.getElementById('rmProds');
+                    if (g2 && S.q.trim() === q) g2.innerHTML = gridProductos();
+                }, 350);
+            }
         } else if (ev.target.dataset.fe) {
             S.feDatos[ev.target.dataset.fe] = ev.target.value;
         }
