@@ -254,9 +254,9 @@ def restaurant_tables_reports_export():
 @rol_requerido(RESTAURANT_SERVICE_ACCESS)
 @module_required(MODULE_RESTAURANT_TABLES)
 def restaurant_tables_data():
-    # `csrf`: token nuevo en cada refresco del salón. El de la página vence a la
-    # hora (WTF_CSRF_TIME_LIMIT) y «Atender» se deja abierto todo el turno: sin
-    # renovarlo, agregar un producto fallaba con «The CSRF token has expired».
+    # `csrf`: token nuevo en cada refresco del salón. El de la página vence (aquí
+    # a las 2 h, ver csrf_pantallas.py) y «Atender» se deja abierto todo el turno:
+    # sin renovarlo, agregar un producto fallaba con «The CSRF token has expired».
     from flask_wtf.csrf import generate_csrf
     return jsonify({
         'success': True,

@@ -25,7 +25,6 @@ from werkzeug.utils import safe_join
 from flask import Flask, request, url_for as flask_url_for, send_from_directory
 from flask_uploads import UploadSet, configure_uploads, IMAGES
 from flask_cors import CORS
-from flask_wtf.csrf import CSRFProtect
 from jinja2 import ChoiceLoader, FileSystemLoader
 
 
@@ -96,7 +95,10 @@ def inject_template_helpers():
     return {'url_for': versioned_url_for}
 
 # --- CSRF Protection ---
-csrf = CSRFProtect(app)
+# El token vence a la hora en todo el sistema, salvo en el restaurante y el POS
+# (2 h): son pantallas que se dejan abiertas todo el turno (csrf_pantallas.py).
+from csrf_pantallas import CSRFProtectPorPantalla
+csrf = CSRFProtectPorPantalla(app)
 
 from flask_wtf.csrf import CSRFError
 

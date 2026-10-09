@@ -192,11 +192,17 @@ def test_el_plano_no_borra_nada_salvo_la_mesa_sin_historial():
 # ── Token CSRF renovable: «Atender» se deja abierto todo el turno ──
 @pytest.fixture()
 def csrf_corto(flask_app):
-    """Protección CSRF encendida y con vencimiento de 1 s (en la vida real, 1 h)."""
-    previo = (flask_app.config['WTF_CSRF_ENABLED'], flask_app.config.get('WTF_CSRF_TIME_LIMIT', 3600))
-    flask_app.config.update(WTF_CSRF_ENABLED=True, WTF_CSRF_TIME_LIMIT=1)
+    """Protección CSRF encendida y con vencimiento de 1 s, también en el
+    restaurante (en la vida real: 1 h en general y 2 h en restaurante y POS)."""
+    previo = (flask_app.config['WTF_CSRF_ENABLED'], flask_app.config.get('WTF_CSRF_TIME_LIMIT', 3600),
+              flask_app.config.get('CSRF_TIEMPO_TURNO_LARGO'))
+    flask_app.config.update(WTF_CSRF_ENABLED=True, WTF_CSRF_TIME_LIMIT=1, CSRF_TIEMPO_TURNO_LARGO=1)
     yield
     flask_app.config.update(WTF_CSRF_ENABLED=previo[0], WTF_CSRF_TIME_LIMIT=previo[1])
+    if previo[2] is None:
+        flask_app.config.pop('CSRF_TIEMPO_TURNO_LARGO', None)
+    else:
+        flask_app.config['CSRF_TIEMPO_TURNO_LARGO'] = previo[2]
 
 
 def test_token_vencido_se_renueva_con_el_salon(as_propietario, modulo_mesas, salones_limpios, csrf_corto):

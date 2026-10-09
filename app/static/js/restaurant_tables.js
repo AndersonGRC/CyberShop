@@ -5,8 +5,8 @@
     const endpoints = page.endpoints || {};
     const viewMode = page.viewMode || 'service';
     const SIMPLE = !!page.simple;  // modo simple del restaurante: agregar -> cobrar (sin cocina/tiempos)
-    // Token CSRF: el de la página vence a la hora y el salón se deja abierto todo
-    // el turno. Cada refresco del salón trae uno nuevo (ver tomarCsrf).
+    // Token CSRF: el de la página vence (2 h en restaurante y POS) y el salón se
+    // deja abierto todo el turno. Cada refresco del salón trae uno nuevo (ver tomarCsrf).
     let csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
     const state = {

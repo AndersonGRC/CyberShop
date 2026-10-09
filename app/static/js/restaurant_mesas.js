@@ -19,8 +19,8 @@
     const P = window.RM_PAGE || {};
     const E = P.endpoints || {};
     const SIMPLE = !!P.simple;
-    // Token CSRF: el de la página vence a la hora y «Atender» se deja abierto todo
-    // el turno. Cada lectura del salón trae uno nuevo (ver api()).
+    // Token CSRF: el de la página vence (2 h en restaurante y POS) y «Atender» se
+    // deja abierto todo el turno. Cada lectura del salón trae uno nuevo (ver api()).
     let CSRF = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     const root = document.getElementById('rmRoot');
     if (!root) return;
