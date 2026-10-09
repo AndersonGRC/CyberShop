@@ -171,6 +171,8 @@ def armar(equipo_id):
         empresa = cliente['nombre']
     if not empresa and cliente.get('empresa') and _norm(cliente['empresa']) != _norm(asignado):
         empresa = cliente['empresa']
+    if not empresa and equipo.get('empresa_nombre') and _norm(equipo['empresa_nombre']) != _norm(asignado):
+        empresa = equipo['empresa_nombre']             # la carpeta de la empresa del equipo
     marca = equipo.get('marca') or ''
     detalle = ficha.get('fabricante_detalle') or ' / '.join(
         x for x in (equipo.get('modelo'), (f"Placa base {(equipo.get('extras') or {}).get('board')}"

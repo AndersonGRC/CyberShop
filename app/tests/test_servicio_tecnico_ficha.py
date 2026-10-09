@@ -41,7 +41,11 @@ def limpiar(cursor):
         cur.execute("DELETE FROM st_fotos WHERE equipo_id = ANY(%s)", (equipos,))
         cur.execute("DELETE FROM st_eventos WHERE equipo_id = ANY(%s) OR orden_id = ANY(%s)", (equipos, ordenes))
         cur.execute("DELETE FROM st_ordenes WHERE id = ANY(%s)", (ordenes,))
+        cur.execute("SELECT DISTINCT empresa_id FROM st_equipos WHERE id = ANY(%s) AND empresa_id IS NOT NULL", (equipos,))
+        empresas = [r['empresa_id'] for r in cur.fetchall()]
         cur.execute("DELETE FROM st_equipos WHERE id = ANY(%s)", (equipos,))
+        cur.execute("""DELETE FROM st_empresas x WHERE (x.id = ANY(%s) OR x.nombre ILIKE %s)
+                       AND NOT EXISTS (SELECT 1 FROM st_equipos e WHERE e.empresa_id = x.id)""", (empresas, MARCA + '%'))
         cur.execute("DELETE FROM st_importaciones WHERE id = ANY(%s)", (lotes,))
         cur.execute("DELETE FROM crm_actividades WHERE contacto_id = ANY(%s)", (contactos,))
         cur.execute("DELETE FROM crm_contactos WHERE id = ANY(%s)", (contactos,))
@@ -222,7 +226,7 @@ def test_importar_ficha_pdf_reimportar_y_deshacer(flask_app, modulo, cursor, lim
     from services import servicio_tecnico_importar as imp
     origen = _equipo(flask_app, empresa=MARCA + ' ORIGEN')
     codigo = 'STF' + uuid.uuid4().hex[:6].upper() + '-001'
-    _guardar_ficha(flask_app, origen, asignado_a=MARCA + ' MENGANA', empresa=MARCA + ' TECNO')
+    _guardar_ficha(flask_app, origen, asignado_a=MARCA + ' MENGANA', empresa=MARCA + ' TECNO S.A.S.')
     with cursor() as cur:
         cur.execute('UPDATE st_equipos SET ficha_codigo = %s WHERE id = %s', (codigo, origen))
     with flask_app.test_request_context('/'):
@@ -236,14 +240,19 @@ def test_importar_ficha_pdf_reimportar_y_deshacer(flask_app, modulo, cursor, lim
         assert lote['estado'] == 'revision' and lote['archivos'][0]['partes'][0]['tipo'] == 'ficha'
         assert lote['archivos'][0]['partes'][0]['ia'] == 'no_aplica'          # se lee completa sin IA
         v = imp.revisar(lote)['filas'][0]
-        assert v['estado'] == 'ok' and v['fila']['cliente'] == {'empresa': (MARCA + ' TECNO').upper()}
+        empresa = (MARCA + ' TECNO S.A.S.').upper()
+        assert v['estado'] == 'ok' and v['fila']['cliente'] == {'empresa': empresa}
+        assert v['carpeta']['tipo'] == 'empresa' and v['carpeta']['nombre'] == empresa   # su carpeta: la empresa
         assert any('Ficha técnica reconocida' in m[1] for m in v['mensajes'])
         res = imp.importar(lote_id, 1)
     assert res['resumen']['equipos_creados'] == 1 and len(res['fichas']) == 1 and len(res['fotos']) == 1
+    assert res['resumen']['carpetas'] == 1 and res['resumen']['carpetas_creadas'] == 1
     nuevo = res['equipos_creados'][0]
     with cursor() as cur:
-        cur.execute('SELECT * FROM st_equipos WHERE id = %s', (nuevo,))
+        cur.execute('SELECT e.*, x.nombre AS carpeta, x.crm_contacto_id AS carpeta_crm FROM st_equipos e '
+                    'JOIN st_empresas x ON x.id = e.empresa_id WHERE e.id = %s', (nuevo,))
         e = cur.fetchone()
+    assert e['carpeta'] == empresa and e['carpeta_crm'] == e['crm_contacto_id']   # enlazada al cliente del CRM
     assert e['ficha_codigo'] == codigo and e['ficha']['estado'] == 'inconveniente'
     assert e['ficha']['asignado_a'] == (MARCA + ' MENGANA').upper() and e['ficha']['destacar'] == ['Memoria RAM']
     assert e['tipo'] == 'portatil' and e['ram'] == '8 GB DDR4' and e['mant_proximo'] is None
@@ -257,11 +266,15 @@ def test_importar_ficha_pdf_reimportar_y_deshacer(flask_app, modulo, cursor, lim
         assert not any('ya lo tiene otro equipo' in m[1] for m in v['mensajes'])
         imp.descartar(lote2)
 
-    # Deshacer: el equipo se retira y su código queda libre para otro equipo.
+    # Deshacer: el equipo se retira, su carpeta (que creó la importación) se
+    # archiva y su código queda libre para otro equipo.
     with flask_app.test_request_context('/'):
-        imp.deshacer(lote_id, 1)
+        d = imp.deshacer(lote_id, 1)
+    assert d['carpetas_archivadas'] == 1
     with cursor() as cur:
         cur.execute('SELECT activo FROM st_equipos WHERE id = %s', (nuevo,))
+        assert cur.fetchone()['activo'] is False
+        cur.execute('SELECT activo FROM st_empresas WHERE id = %s', (res['empresas_creadas'][0],))
         assert cur.fetchone()['activo'] is False
         cur.execute('SELECT COUNT(*) AS n FROM st_fotos WHERE equipo_id = %s AND activo', (nuevo,))
         assert cur.fetchone()['n'] == 0

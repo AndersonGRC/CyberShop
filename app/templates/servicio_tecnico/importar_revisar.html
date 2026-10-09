@@ -31,6 +31,7 @@
         {% if r.existentes %}<li><b>{{ r.existentes }}</b> <span>ya estaba{{ '' if r.existentes == 1 else 'n' }} registrado{{ '' if r.existentes == 1 else 's' }}: se completa{{ '' if r.existentes == 1 else 'n' }}</span></li>{% endif %}
         {% if r.unidas %}<li><b>{{ r.unidas }}</b> <span>fila{{ '' if r.unidas == 1 else 's' }} se junta{{ '' if r.unidas == 1 else 'n' }} con otra del mismo equipo</span></li>{% endif %}
         <li><b>{{ r.clientes_nuevos }}</b> <span>cliente{{ '' if r.clientes_nuevos == 1 else 's' }} nuevo{{ '' if r.clientes_nuevos == 1 else 's' }} en el CRM ({{ r.clientes_existentes }} ya estaba{{ '' if r.clientes_existentes == 1 else 'n' }})</span></li>
+        <li><b>{{ r.carpetas }}</b> <span>carpeta{{ '' if r.carpetas == 1 else 's' }} de empresa{% if r.carpetas_nuevas %} ({{ r.carpetas_nuevas }} nueva{{ '' if r.carpetas_nuevas == 1 else 's' }}){% endif %} · {{ r.particulares }} a Particulares</span></li>
         <li><b>{{ r.mantenimientos }}</b> <span>mantenimiento{{ '' if r.mantenimientos == 1 else 's' }} para las hojas de vida</span></li>
         <li><b>{{ r.planes }}</b> <span>recordatorio{{ '' if r.planes == 1 else 's' }} de mantenimiento</span></li>
         <li><b>{{ r.documentos }}</b> <span>documento{{ '' if r.documentos == 1 else 's' }} guardado{{ '' if r.documentos == 1 else 's' }}</span></li>
@@ -136,6 +137,9 @@
                 <small>{% if a.partes | length > 1 or a.clase == 'excel' %}{{ p.titulo }}: {% endif %}{% if p.tipo == 'tabla' %}tabla de {{ p.filas_leidas }} fila{{ '' if p.filas_leidas == 1 else 's' }}{% elif p.tipo == 'escaneado' %}escaneado, sin texto{% elif p.tipo == 'ficha' %}ficha técnica del taller (se lee completa){% else %}ficha o documento{% endif %}{% if p.sin_mapear %} · columnas que van a las notas: {{ p.sin_mapear | join(', ') }}{% endif %}{% if p.aviso %} · {{ p.aviso }}{% endif %}</small>
                 {% endfor %}
                 {% if not a.partes and not a.error %}<small>No se encontró nada para importar.</small>{% endif %}
+                {% set ea = a.empresa or {} %}
+                {% if ea.ia == 'hecha' and ea.nombre %}<small><i class="fas fa-building" aria-hidden="true"></i> La IA dice que los equipos son de «{{ ea.nombre }}».</small>
+                {% elif ea.ia in ('fallo', 'omitida') and ea.aviso %}<small>{{ ea.aviso }}</small>{% endif %}
             </span>
             <span class="st-imp-chips">{% for p in a.partes[:1] %}{{ estado_parte(p) }}{% endfor %}</span>
         </li>
@@ -156,9 +160,10 @@
 <div class="st-card st-vacio"><i class="fas fa-check-circle" aria-hidden="true"></i><h3>No hay filas en esta vista</h3></div>
 {% endif %}
 
+<datalist id="imp-empresas">{% for c in carpetas or [] %}<option value="{{ c.nombre }}">{% endfor %}</datalist>
 <div class="st-imp-lista">
 {% for v in filas %}
-{% set f = v.fila %}{% set e = f.equipo %}{% set c = f.cliente %}
+{% set f = v.fila %}{% set e = f.equipo %}{% set c = v.cliente or f.cliente %}
 {% set estado = {'ok': ('check-circle', 'Lista para importar'), 'aviso': ('exclamation-triangle', 'Revisar'),
                  'error': ('times-circle', 'No se puede importar'), 'quitada': ('eye-slash', 'Quitada')}.get(v.estado, ('circle', '')) %}
 <article class="st-card st-imp-fila st-imp-{{ v.estado }}" id="fila-{{ v.n }}" aria-labelledby="fila-{{ v.n }}-tit">
@@ -181,6 +186,11 @@
             {% elif v.cliente_accion == 'del_equipo' %}{{ v.existente.cliente_nombre or '—' }} <small>(el del equipo ya registrado)</small>
             {% elif v.cliente_accion == 'de_la_fila' %}<small>El de la fila {{ v.mismo_que }}</small>
             {% else %}<span class="st-mal">Falta</span>{% endif %}</dd></div>
+        {% if v.carpeta %}<div><dt>Carpeta</dt><dd>
+            {% if v.carpeta.tipo == 'empresa' %}<i class="fas fa-building" aria-hidden="true"></i> {{ v.carpeta.nombre }}
+            <small>({% if v.carpeta.fuente == 'existente' %}la que ya tiene{% elif v.carpeta.existe %}ya existe{% else %}carpeta nueva{% endif %}{% if v.carpeta.fuente == 'ia' %} · la identificó la IA{% elif v.carpeta.fuente == 'manual' %} · la escogiste tú{% endif %})</small>
+            {% else %}<i class="fas fa-user" aria-hidden="true"></i> Particulares <small>(sin empresa{% if v.carpeta.fuente == 'manual' %} · lo escogiste tú{% endif %})</small>{% endif %}</dd></div>
+        {% elif v.mismo_que %}<div><dt>Carpeta</dt><dd><small>La de la fila {{ v.mismo_que }}</small></dd></div>{% endif %}
         {% if v.historial %}<div><dt>Hoja de vida</dt><dd>{{ v.historial | length }} mantenimiento{{ '' if v.historial | length == 1 else 's' }} · el último el {{ fecha_iso(v.historial[-1].fecha) }}</dd></div>{% endif %}
         {% if v.plan[1] %}<div><dt>Próximo mantenimiento</dt><dd>{{ v.plan[1].strftime('%d/%m/%Y') }}{% if v.plan[0] %} · cada {{ v.plan[0] }} meses{% endif %}</dd></div>{% endif %}
         {% if f.documento_id %}<div><dt>Documento</dt><dd><a href="{{ url_for('servicio_tecnico.documento_ver', doc_id=f.documento_id) }}" target="_blank" rel="noopener">{{ f.archivo }}</a></dd></div>{% endif %}
@@ -246,6 +256,16 @@
                         <option value="nuevo" {% if f.usar_contacto == 'nuevo' %}selected{% endif %}>Crearlo como cliente nuevo</option>
                         {% if v.contacto %}<option value="{{ v.contacto.id }}" {% if f.usar_contacto == v.contacto.id %}selected{% endif %}>Usar «{{ v.contacto.nombre }}» del CRM</option>{% endif %}
                     </select></div>
+                {% set cm = f.carpeta_manual or {} %}
+                <div class="st-campo"><label for="c{{ v.n }}-carpeta">Carpeta</label>
+                    <select id="c{{ v.n }}-carpeta" name="carpeta">
+                        <option value="auto" {% if not cm %}selected{% endif %}>Automática{% if v.carpeta and not cm %}: {{ v.carpeta.nombre }}{% endif %}</option>
+                        <option value="empresa" {% if cm.tipo == 'empresa' %}selected{% endif %}>De una empresa (escríbela)</option>
+                        <option value="particulares" {% if cm.tipo == 'particular' %}selected{% endif %}>Particulares (sin empresa)</option>
+                    </select></div>
+                <div class="st-campo"><label for="c{{ v.n }}-carpeta-nombre">Empresa</label>
+                    <input id="c{{ v.n }}-carpeta-nombre" name="carpeta_nombre" list="imp-empresas" maxlength="160" autocomplete="organization"
+                           value="{{ cm.nombre if cm.tipo == 'empresa' else (v.carpeta.nombre if v.carpeta and v.carpeta.tipo == 'empresa' else '') }}"></div>
                 <div class="st-campo-ancho"><button class="st-btn" type="submit"><i class="fas fa-save" aria-hidden="true"></i> Guardar corrección</button></div>
             </form>
         </details>

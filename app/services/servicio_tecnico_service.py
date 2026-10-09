@@ -255,11 +255,31 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_st_equipos_ficha_codigo ON st_equipos (lowe
     WHERE ficha_codigo IS NOT NULL AND activo;
 """
 
+# 0023: carpetas por empresa. Los equipos de una empresa (los computadores de
+# sus funcionarios) van en la carpeta de esa empresa; los de personas —los
+# «computadores normales»— quedan sin empresa, en «Particulares». La clave es el
+# nombre sin tildes ni forma jurídica: no se repite entre carpetas activas.
+DDL_0023 = """
+CREATE TABLE IF NOT EXISTS st_empresas (
+    id               SERIAL        PRIMARY KEY,
+    nombre           VARCHAR(160)  NOT NULL,
+    clave            VARCHAR(160)  NOT NULL,
+    nit              VARCHAR(30),
+    crm_contacto_id  INTEGER,
+    activo           BOOLEAN       NOT NULL DEFAULT TRUE,
+    creado_por       INTEGER,
+    creado_en        TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_st_empresas_clave ON st_empresas (clave) WHERE activo;
+ALTER TABLE st_equipos ADD COLUMN IF NOT EXISTS empresa_id INTEGER REFERENCES st_empresas(id);
+CREATE INDEX IF NOT EXISTS ix_st_equipos_empresa ON st_equipos (empresa_id);
+"""
+
 # Lo que asegurar_tablas crea si las migraciones aún no llegaron (en orden).
-DDL = DDL_0018 + DDL_0019 + DDL_0020 + DDL_0021 + DDL_0022
+DDL = DDL_0018 + DDL_0019 + DDL_0020 + DDL_0021 + DDL_0022 + DDL_0023
 
 TABLAS = ('st_equipos', 'st_ordenes', 'st_eventos', 'st_cambios', 'st_seguimientos',
-          'st_fotos', 'st_mantenimientos', 'st_importaciones', 'st_documentos')
+          'st_fotos', 'st_mantenimientos', 'st_importaciones', 'st_documentos', 'st_empresas')
 
 # ── Estados de la orden ──────────────────────────────────────────
 # (código, nombre, ícono, tono del chip)
@@ -551,8 +571,10 @@ def descripcion_equipo(e):
 def obtener_equipo(equipo_id):
     with get_db_cursor(dict_cursor=True) as cur:
         cur.execute("""SELECT e.*, c.nombre AS cliente_nombre, c.email AS cliente_email,
-                              c.telefono AS cliente_telefono, c.whatsapp AS cliente_whatsapp
+                              c.telefono AS cliente_telefono, c.whatsapp AS cliente_whatsapp,
+                              x.nombre AS empresa_nombre
                        FROM st_equipos e LEFT JOIN crm_contactos c ON c.id = e.crm_contacto_id
+                       LEFT JOIN st_empresas x ON x.id = e.empresa_id AND x.activo
                        WHERE e.id = %s""", (equipo_id,))
         fila = cur.fetchone()
     return dict(fila) if fila else None
@@ -591,31 +613,77 @@ def equipos_de_cliente(contacto_id):
         return [dict(r) for r in cur.fetchall()]
 
 
-def listar_equipos(q='', tipo='', limite=200):
+def listar_equipos(q='', tipo='', limite=200, carpeta=None):
+    """`carpeta`: None = todos, 'particulares' = sin empresa, o el id de la empresa."""
     filtros, params = ['e.activo'], []
     if tipo and tipos.es_valido(tipo):
         filtros.append('e.tipo = %s')
         params.append(tipo)
+    if carpeta == 'particulares':
+        filtros.append('e.empresa_id IS NULL')
+    elif isinstance(carpeta, int):
+        filtros.append('e.empresa_id = %s')
+        params.append(carpeta)
     q = (q or '').strip().lower()
     if q:
         patron = f'%{q}%'
         filtros.append("""(lower(COALESCE(e.marca,'')) LIKE %s OR lower(COALESCE(e.modelo,'')) LIKE %s
                           OR lower(COALESCE(e.serial,'')) LIKE %s OR COALESCE(e.imei,'') LIKE %s
-                          OR lower(COALESCE(c.nombre,'')) LIKE %s)""")
-        params += [patron] * 5
+                          OR lower(COALESCE(c.nombre,'')) LIKE %s OR lower(COALESCE(x.nombre,'')) LIKE %s
+                          OR lower(COALESCE(e.ficha->>'asignado_a','')) LIKE %s)""")
+        params += [patron] * 7
     with get_db_cursor(dict_cursor=True) as cur:
         cur.execute(f"""
             SELECT e.id, e.tipo, e.marca, e.modelo, e.serial, e.imei, e.actualizado_en, e.mant_proximo,
-                   e.ficha->>'estado' AS ficha_estado, e.ficha_codigo,
-                   c.nombre AS cliente_nombre,
+                   e.ficha->>'estado' AS ficha_estado, e.ficha->>'asignado_a' AS asignado_a, e.ficha_codigo, e.empresa_id,
+                   c.nombre AS cliente_nombre, x.nombre AS empresa_nombre,
                    (SELECT COUNT(*) FROM st_ordenes o WHERE o.equipo_id = e.id) AS ordenes,
                    (SELECT o.estado FROM st_ordenes o WHERE o.equipo_id = e.id
                      ORDER BY o.id DESC LIMIT 1) AS ultimo_estado
             FROM st_equipos e LEFT JOIN crm_contactos c ON c.id = e.crm_contacto_id
+            LEFT JOIN st_empresas x ON x.id = e.empresa_id AND x.activo
             WHERE {' AND '.join(filtros)}
             ORDER BY e.actualizado_en DESC LIMIT %s
         """, (*params, limite))
         return [dict(r) for r in cur.fetchall()]
+
+
+def _empresa_destino(cur, destino, usuario_id=None, por_nombre=False):
+    """(empresa_id o None, nombre) para mover o registrar un equipo:
+    'particulares' / '' / None, el id de una carpeta, o el nombre de una empresa
+    (con `por_nombre`, lo escrito siempre es un nombre, aunque sean números)."""
+    from services import servicio_tecnico_empresas as emp
+    if destino in (None, '', 'particulares'):
+        return None, emp.PARTICULARES
+    if not por_nombre and (isinstance(destino, int) or str(destino).isdigit()):
+        cur.execute('SELECT id, nombre FROM st_empresas WHERE id = %s AND activo', (int(destino),))
+        fila = cur.fetchone()
+        if not fila:
+            raise ErrorServicio('Esa carpeta de empresa no existe.')
+        return (fila['id'], fila['nombre']) if isinstance(fila, dict) else (fila[0], fila[1])
+    nombre = emp.nombre_visible(destino)
+    tipo, motivo = emp.clasificar(nombre)
+    if tipo == 'generico':
+        return None, emp.PARTICULARES
+    empresa_id, _creada = emp.obtener_o_crear(cur, nombre, usuario_id=usuario_id)
+    return empresa_id, nombre
+
+
+def mover_a_carpeta(equipo_id, destino, usuario_id=None, por_nombre=False):
+    """Pasa el equipo a la carpeta de una empresa (id o nombre nuevo) o a
+    «Particulares». No cambia el cliente ni sus recordatorios."""
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute('SELECT empresa_id FROM st_equipos WHERE id = %s AND activo FOR UPDATE', (equipo_id,))
+        fila = cur.fetchone()
+        if not fila:
+            raise ErrorServicio('El equipo no existe.')
+        empresa_id, nombre = _empresa_destino(cur, destino, usuario_id, por_nombre)
+        if empresa_id == fila['empresa_id']:
+            return nombre
+        cur.execute('UPDATE st_equipos SET empresa_id = %s, actualizado_en = NOW() WHERE id = %s',
+                    (empresa_id, equipo_id))
+        _evento(cur, None, equipo_id, 'equipo', f'Carpeta: {nombre}', usuario_id)
+    return nombre
 
 
 # ── Piezas cambiadas ────────────────────────────────────────────
@@ -1060,6 +1128,10 @@ def registrar_equipo(datos, usuario_id=None):
             contacto_id = crear_cliente(cur, datos.get('cliente') or {})
         equipo = datos.get('equipo') or {}
         equipo_id = crear_equipo(cur, contacto_id, equipo, usuario_id)
+        if datos.get('empresa') not in (None, '', 'particulares'):
+            empresa_id, _nombre = _empresa_destino(cur, datos['empresa'], usuario_id, por_nombre=True)
+            if empresa_id:
+                cur.execute('UPDATE st_equipos SET empresa_id = %s WHERE id = %s', (empresa_id, equipo_id))
         if meses or proximo:
             cur.execute('UPDATE st_equipos SET mant_cada_meses = %s, mant_proximo = %s WHERE id = %s',
                         (meses or None, proximo, equipo_id))

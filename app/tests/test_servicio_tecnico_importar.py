@@ -99,7 +99,11 @@ def limpiar(cursor):
         cur.execute("DELETE FROM st_eventos WHERE equipo_id = ANY(%s) OR orden_id = ANY(%s)", (equipos, ordenes))
         cur.execute("DELETE FROM st_cambios WHERE equipo_id = ANY(%s)", (equipos,))
         cur.execute("DELETE FROM st_ordenes WHERE id = ANY(%s)", (ordenes,))
+        cur.execute("SELECT DISTINCT empresa_id FROM st_equipos WHERE id = ANY(%s) AND empresa_id IS NOT NULL", (equipos,))
+        empresas = [r['empresa_id'] for r in cur.fetchall()]
         cur.execute("DELETE FROM st_equipos WHERE id = ANY(%s)", (equipos,))
+        cur.execute("""DELETE FROM st_empresas x WHERE (x.id = ANY(%s) OR x.nombre ILIKE %s)
+                       AND NOT EXISTS (SELECT 1 FROM st_equipos e WHERE e.empresa_id = x.id)""", (empresas, MARCA + '%'))
         cur.execute("DELETE FROM st_importaciones WHERE id = ANY(%s)", (lotes,))
         cur.execute("DELETE FROM crm_actividades WHERE contacto_id = ANY(%s)", (contactos,))
         cur.execute("DELETE FROM crm_contactos WHERE id = ANY(%s)", (contactos,))
@@ -500,16 +504,28 @@ def test_lote_con_ia_lee_parte_por_parte(flask_app, modulo, cursor, limpiar, mon
                              'proximo': None, 'cada_meses': None, 'resumen': 'Tablet Lenovo'}],
                 'ia': True, 'aviso': None, 'reintentar': False, 'descartados': 0}
     monkeypatch.setattr(st_ia, 'interpretar_documento', interpretar)
+    empresas = []
+
+    def identificar(encabezado, nombres=(), negocio='', archivo=''):
+        empresas.append((encabezado, list(nombres)))
+        return {'ia': True, 'aviso': None, 'reintentar': False, 'empresa': None, 'clasificacion': {}}
+    monkeypatch.setattr(st_ia, 'identificar_empresa', identificar)
     with flask_app.test_request_context('/'):
         lote_id, _ = imp.crear_lote([_archivo('t.txt', ('Cliente: ' + MARCA + ' Rita\nMarca: Lenovo\nModelo: Tab M10\n'
-                                                       'Clave: 1234\n').encode('utf-8'))], usuario_id=1)
+                                                       'Clave: 1234\nCorreo: rita.qa@ejemplo.com\n').encode('utf-8'))],
+                                    usuario_id=1)
         limpiar.append(lote_id)
         assert imp.obtener_lote(lote_id)['estado'] == 'leyendo'
+        paso = imp.leer_siguiente(lote_id)                                     # la parte y, después, la empresa
+        assert paso['estado'] == 'pendiente' and paso['esperar'] == 20 and paso['pendientes'] == 2
         paso = imp.leer_siguiente(lote_id)
-        assert paso['estado'] == 'pendiente' and paso['esperar'] == 20 and paso['pendientes'] == 1
-        paso = imp.leer_siguiente(lote_id)
-        assert paso['estado'] == 'hecha' and paso['pendientes'] == 0
+        assert paso['estado'] == 'hecha' and paso['pendientes'] == 1
+        paso = imp.leer_siguiente(lote_id)                                     # ¿de qué empresa es? (IA local)
+        assert paso['parte'] == 'Empresa' and paso['estado'] == 'hecha' and paso['pendientes'] == 0
         assert imp.leer_siguiente(lote_id)['listo'] is True
+        encabezado, dudosos = empresas[-1]
+        assert '1234' not in encabezado and 'rita.qa@' not in encabezado      # sin claves ni correos
+        assert dudosos == [MARCA + ' Rita']                                     # nombre dudoso: la IA lo clasifica
         texto, nombres = llamadas[-1]
         assert '1234' not in texto                                           # la línea de la clave no sale
         assert MARCA + ' Rita' in nombres                                    # el nombre se tapa antes de la IA

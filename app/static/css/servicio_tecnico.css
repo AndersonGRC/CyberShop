@@ -749,3 +749,28 @@
 .st-ficha-copia input { width: 18px; height: 18px; accent-color: var(--color-primario); }
 /* Línea de tiempo y listas: un nombre de archivo largo (sin espacios) se parte en vez de ensanchar la página. */
 .st-tiempo li > div, .st-tiempo p, .st-lista-simple span { min-width: 0; overflow-wrap: anywhere; }
+
+/* Carpetas de equipos: una por empresa y «Particulares» (los de personas). */
+.st-carpetas { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+.st-carpeta {
+    display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 12px 14px; min-width: 0;
+    background: var(--color-blanco); border: 1px solid var(--st-linea); border-radius: var(--st-radio);
+    box-shadow: var(--marca-sombra-sutil); color: var(--st-tinta); text-decoration: none;
+    transition: border-color .15s ease, background .15s ease;
+}
+.st-carpeta:hover { background: var(--marca-tinte-leve); border-color: var(--color-primario); }
+.st-carpeta:focus-visible { outline: none; box-shadow: var(--marca-focus-ring); border-color: var(--color-primario); }
+.st-carpeta[aria-current="page"] { border: 2px solid var(--color-primario); background: var(--marca-tinte); }
+.st-carpeta > i { flex: 0 0 auto; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 10px;
+                  background: var(--marca-tinte); color: var(--color-primario); font-size: 1.1rem; }
+.st-carpeta span { display: flex; flex-direction: column; min-width: 0; }
+.st-carpeta strong { overflow-wrap: break-word; line-height: 1.25; }
+.st-carpeta small { color: var(--st-suave); }
+.st-hero-carpeta { font-weight: 700; overflow-wrap: anywhere; }
+.st-suave { color: var(--st-suave); }
+@media (prefers-reduced-motion: reduce) { .st-carpeta { transition: none; } }
+@media (max-width: 560px) { .st-carpeta { min-height: 56px; padding: 10px 12px; } .st-carpeta > i { width: 34px; height: 34px; } }
+.st-carpeta-celda { display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; }
+.st-carpeta-celda > i { color: var(--color-primario); flex: 0 0 auto; }
+.st-carpeta-celda > span { overflow-wrap: anywhere; }
+.st-celda-sub { display: block; color: var(--st-suave); }

@@ -718,3 +718,67 @@ def redactar_ficha(equipo, filas, borrador):
         salida['aviso'] = ('La IA mencionó datos que no están en el equipo; en ' + ', '.join(cambiados)
                            + ' quedó el texto de las reglas.')
     return salida
+
+
+# ── 7. ¿De qué empresa son los equipos de un documento? ─────────
+def _solo_local_ocupado(err):
+    """La IA del negocio (local) aún no está lista: se puede reintentar."""
+    try:
+        return bool(err) and err == _ia().MSG_SOLO_LOCAL
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def identificar_empresa(encabezado, nombres=(), negocio='', archivo=''):
+    """Empresa cliente a la que pertenecen los equipos de un documento, y si
+    cada nombre dudoso es de una empresa o de una persona.
+
+    Va SOLO a la IA local del negocio (nunca a la nube): el encabezado puede
+    traer nombres. La empresa que diga la IA tiene que aparecer en el
+    encabezado o en el nombre del archivo, y no puede ser el propio taller.
+    Devuelve {'ia', 'aviso', 'reintentar', 'empresa', 'clasificacion': {clave: tipo}}."""
+    from services import servicio_tecnico_empresas as emp
+    salida = {'ia': False, 'aviso': None, 'reintentar': False, 'empresa': None, 'clasificacion': {}}
+    ok, motivo = estado()
+    if not ok:
+        salida['aviso'] = motivo
+        return salida
+    nombres = list(dict.fromkeys(' '.join(str(n).split())[:120] for n in nombres if n and str(n).strip()))[:30]
+    texto = '\n'.join(l.strip() for l in str(encabezado or '').split('\n') if l.strip())[:3000]
+    if not texto and not nombres and not archivo:
+        salida['ia'] = True
+        return salida
+    taller = negocio or 'el taller'
+    user = ('Un taller de reparación de equipos recibió un documento (inventario, ficha técnica u hoja de vida de '
+            'equipos de cómputo). Contesta dos cosas:\n'
+            '1) ¿A qué EMPRESA cliente pertenecen los equipos? Escríbela EXACTAMENTE como aparece en el texto. '
+            f'No es «{taller}»: ese es el taller que hace el servicio. Si los equipos son de una persona, o el '
+            'texto no dice ninguna empresa, responde null.\n'
+            '2) Para cada nombre de la lista, ¿es de una "empresa" (negocio, entidad, institución) o de una '
+            '"persona"?\n'
+            'Responde SOLO un JSON: {"empresa": "..." o null, "clasificacion": {"<nombre>": "empresa" o "persona"}}\n\n'
+            f'Nombre del archivo: {archivo or "(sin nombre)"}\n'
+            f'Encabezado del documento:\n<<<\n{texto or "(vacío)"}\n>>>\n'
+            f'Nombres: {json.dumps(nombres, ensure_ascii=False)}')
+    texto_ia, err = _ia()._chat(SISTEMA, user, max_tokens=400, temperature=0.0, espera_frio=25, tarea='contenido',
+                                permitir_nube=False)
+    datos = _json_de(texto_ia) if texto_ia else None
+    if not isinstance(datos, dict):
+        salida['reintentar'] = not texto_ia and (_motor_preparando(err) or _solo_local_ocupado(err))
+        salida['aviso'] = ('La respuesta de la IA llegó incompleta.' if texto_ia
+                           else (err or 'La IA no respondió a tiempo.'))
+        return salida
+    empresa = emp.nombre_visible(datos.get('empresa') or '') if isinstance(datos.get('empresa'), str) else ''
+    if empresa:
+        donde = emp.plano(texto + ' ' + archivo)
+        if not emp.clave(empresa) or emp.clave(empresa) not in donde \
+                or emp.clasificar(empresa, negocio)[0] in ('generico', 'persona'):
+            empresa = ''                         # no está en el documento, es el taller o es una persona
+    validos = {emp.clave(n): n for n in nombres}
+    clasificacion = {}
+    for nombre, tipo in (datos.get('clasificacion') or {}).items():
+        c = emp.clave(nombre)
+        if c in validos and tipo in ('empresa', 'persona'):
+            clasificacion[c] = tipo
+    salida.update(ia=True, empresa=empresa or None, clasificacion=clasificacion)
+    return salida

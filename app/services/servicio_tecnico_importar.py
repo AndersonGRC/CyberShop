@@ -17,9 +17,16 @@ Flujo (un lote = una fila de st_importaciones):
   5. deshacer        retira lo que creó el lote (activo = FALSE) y devuelve los
                      campos que había completado: nada se borra.
 
+Carpeta de cada equipo: la empresa a la que pertenece (sus equipos van juntos)
+o «Particulares» si es de una persona. Se decide con reglas
+(servicio_tecnico_empresas) y, si el nombre es dudoso o el documento no dice la
+empresa con su etiqueta, con la IA en un paso más de la lectura (uno por archivo).
+
 Privacidad: los datos del cliente (nombre, teléfono, correo, documento) se
-sacan SOLO con reglas fijas; a la IA nunca le llegan. Las columnas de claves y
-contraseñas no se importan.
+sacan SOLO con reglas fijas. La única excepción es la carpeta: el encabezado del
+documento y los nombres dudosos van a la IA LOCAL del negocio (nunca a la nube),
+sin correos, teléfonos ni documentos, y con los nombres de persona tapados. Las
+columnas de claves y contraseñas no se importan.
 """
 
 import csv
@@ -31,6 +38,7 @@ import unicodedata
 from datetime import date, datetime, timedelta, timezone
 
 from database import get_db_cursor
+from services import servicio_tecnico_empresas as emp
 from services import servicio_tecnico_lector as lector
 from services import servicio_tecnico_service as st
 from services import servicio_tecnico_tipos as tipos
@@ -868,8 +876,10 @@ def _parte_de_hoja(filas, titulo):
         # Columnas con datos pero sin título: también se miran.
         for j in sorted({j for _, f in datos for j, v in enumerate(f) if _celda(v)} - set(titulos)):
             titulos[j] = ''
+        # Lo que hay encima de los títulos («INVENTARIO DE EQUIPOS — EMPRESA X»): dice de quién son.
+        encabezado = [' · '.join(_celda(v) for v in f if _celda(v)) for f in filas[:i]][-8:]
         return {'tipo': 'tabla', 'titulo': titulo, 'titulos': {j: _celda(t) for j, t in sorted(titulos.items())},
-                'filas': datos, 'fila_titulos': i + 1}
+                'filas': datos, 'fila_titulos': i + 1, 'encabezado': [x for x in encabezado if x]}
     texto = _hoja_a_texto(filas)
     return {'tipo': 'texto', 'titulo': titulo, 'texto': texto, 'paginas': [texto]} if texto.strip() else None
 
@@ -1314,11 +1324,19 @@ def _fila_de_texto(texto, cliente):
 def _filas_de_texto(parte, negocio):
     texto = parte['texto']
     cliente = cliente_de_texto(texto, negocio)
+    # Ficha del taller en Excel (o texto): «EQUIPO ASIGNADO A PERSONA - EMPRESA».
+    asignado, empresa = emp.titular_de_ficha(texto)
+    if empresa and not cliente.get('empresa'):
+        cliente['empresa'] = empresa[:150]
+    if asignado and not cliente.get('nombre') and not cliente.get('empresa'):
+        cliente['nombre'] = asignado[:150]
     bloques = _bloques(parte.get('paginas') or []) or [texto]
     filas = []
     for k, bloque in enumerate(bloques):
         fila = _cerrar(_fila_de_texto(bloque, cliente))
         fila['origen'] = parte['titulo'] + (f' (equipo {k + 1} de {len(bloques)})' if len(bloques) > 1 else '')
+        if asignado and empresa:
+            _agregar_nota(fila, f'Asignado a: {asignado}')
         filas.append(fila)
     return filas
 
@@ -1636,6 +1654,114 @@ def _necesita_ia(parte, filas):
     return False
 
 
+# ── Carpeta de cada equipo: ¿de qué empresa es? ────────────────
+_ETIQ_PERSONA = re.compile(r'(?im)^[ \t]*(?:usuario(?:\s+asignado|\s+responsable)?|responsable|funcionario|'
+                           r't[eé]cnico|elabor[oó]|revis[oó]|aprob[oó]|recibi[oó]|entreg[oó]|firma|'
+                           r'asignado\s+a)[ \t]*[:\-][ \t]*(.+)$')
+
+
+def _candidatos(fila):
+    """(nombre, puesto) que dicen de quién es el equipo, en orden de confianza:
+    la empresa de la ficha, la empresa del cliente y el nombre del cliente."""
+    salida, vistas = [], set()
+    fx = fila.get('ficha') or {}
+    for nombre, puesto in ((fx.get('empresa'), 'empresa'), (fila['cliente'].get('empresa'), 'empresa'),
+                           (fila['cliente'].get('nombre'), 'cliente')):
+        nombre = ' '.join(str(nombre or '').split())
+        c = emp.clave(nombre)
+        if c and c not in vistas:
+            vistas.add(c)
+            salida.append((nombre, puesto))
+    return salida
+
+
+def _encabezado(partes, personas=()):
+    """Lo que dice de quién es el documento (nombre de la hoja, títulos sobre la
+    tabla, primeras líneas): sin claves, correos, teléfonos ni documentos, y con
+    los nombres de persona tapados. Las fichas del taller no lo necesitan."""
+    lineas, nombres = [], {p for p in personas if p}
+    for p in partes:
+        if p['tipo'] == 'tabla':
+            hoja = re.sub(r'^Hoja «(.*)»$', r'\1', p.get('titulo') or '').strip()
+            if hoja and not re.fullmatch(r'(?i)(hoja|sheet|tabla|libro)\s*\d*', hoja):
+                lineas.append(f'Hoja: {hoja}')
+            lineas += p.get('encabezado') or []
+        elif p['tipo'] == 'texto':
+            texto = p.get('texto') or ''
+            lineas += [l.strip() for l in texto.split('\n') if l.strip()][:12]
+            asignado, _empresa = emp.titular_de_ficha(texto)
+            if asignado:
+                nombres.add(asignado)
+        if len(lineas) >= 20:
+            break
+    texto = sin_secretos('\n'.join(lineas[:20]))
+    for m in _ETIQ_PERSONA.finditer(texto):
+        valor = _valor_limpio(m.group(1))
+        if valor:
+            nombres.add(valor)
+    return lector.sin_datos_personales(texto, tuple(nombres))[:3000].strip()
+
+
+def _nombres_de_archivo(filas, negocio_nombre):
+    """(dudosos, personas, decidida): nombres que la IA debe clasificar, nombres de
+    persona (para taparlos) y si alguna fila ya tiene su empresa con reglas."""
+    dudosos, personas, decidida = [], [], False
+    for f in filas:
+        if f['clase'] != 'equipo' or not f.get('incluir', True):
+            continue
+        for nombre, _puesto in _candidatos(f):
+            tipo, _motivo = emp.clasificar(nombre, negocio_nombre)
+            if tipo == 'dudoso' and nombre not in dudosos:
+                dudosos.append(nombre)
+            elif tipo == 'persona':
+                personas.append(nombre)
+            elif tipo == 'empresa':
+                decidida = True
+    return dudosos[:30], personas, decidida
+
+
+def _paso_empresa(partes, filas, negocio_nombre, ia_ok):
+    """Estado inicial del paso «¿de qué empresa es?» de un archivo: hace falta la
+    IA si hay nombres dudosos, o si ninguna fila dice su empresa y el documento
+    tiene encabezado donde buscarla."""
+    dudosos, personas, decidida = _nombres_de_archivo(filas, negocio_nombre)
+    necesita = bool(dudosos) or (not decidida and bool(_encabezado(partes, personas)))
+    return {'ia': ('pendiente' if ia_ok else 'sin_ia') if necesita else 'no_aplica', 'intentos': 0,
+            'nombre': None, 'clasificacion': {}, 'aviso': None}
+
+
+def _carpeta_de_fila(fila, info, negocio_nombre):
+    """{'tipo': 'empresa'|'particular', 'nombre', 'fuente', 'motivo'} de una fila.
+    fuente: 'manual' (la escogió la persona), 'reglas', 'ia' o 'supuesto' (dudoso
+    sin IA: se toma por empresa solo si el documento lo ponía como empresa)."""
+    manual = fila.get('carpeta_manual')
+    if manual:
+        if manual.get('tipo') == 'empresa' and manual.get('nombre'):
+            return {'tipo': 'empresa', 'nombre': manual['nombre'], 'fuente': 'manual', 'motivo': 'La escogiste tú.'}
+        return {'tipo': 'particular', 'nombre': emp.PARTICULARES, 'fuente': 'manual', 'motivo': 'La escogiste tú.'}
+    info = info or {}
+    clasificacion = info.get('clasificacion') or {}
+    for nombre, puesto in _candidatos(fila):
+        tipo, motivo = emp.clasificar(nombre, negocio_nombre)
+        fuente = 'reglas'
+        if tipo == 'dudoso':
+            dijo_ia = clasificacion.get(emp.clave(nombre))
+            if dijo_ia:
+                tipo, fuente = dijo_ia, 'ia'
+                motivo = 'La IA dijo que es ' + ('una empresa.' if dijo_ia == 'empresa' else 'una persona.')
+            elif puesto == 'empresa':
+                tipo, fuente = 'empresa', 'supuesto'
+                motivo = (f'No se pudo confirmar si «{nombre}» es una empresa: se tomó como empresa porque así '
+                          'venía en el documento.')
+        if tipo == 'empresa':
+            return {'tipo': 'empresa', 'nombre': emp.nombre_visible(nombre), 'fuente': fuente, 'motivo': motivo}
+    if info.get('nombre'):
+        return {'tipo': 'empresa', 'nombre': info['nombre'], 'fuente': 'ia',
+                'motivo': 'La IA encontró la empresa en el documento.'}
+    return {'tipo': 'particular', 'nombre': emp.PARTICULARES, 'fuente': 'reglas',
+            'motivo': 'No dice que sea de una empresa: es de una persona.'}
+
+
 def crear_lote(archivos, usuario_id=None):
     """Guarda y lee los archivos subidos. Devuelve (lote_id, errores)."""
     from services import servicio_tecnico_ia as st_ia
@@ -1692,6 +1818,7 @@ def crear_lote(archivos, usuario_id=None):
             archivo = {'id': doc_id, 'nombre': nombre, 'clase': clase, 'error': error, 'partes': [],
                        'repetido': ({'lote': previo['importacion_id'], 'estado': previo['estado'],
                                      'fecha': previo['creado_en'].strftime('%d/%m/%Y')} if previo else None)}
+            filas_archivo = []
             for i, parte in enumerate(partes):
                 filas_parte = filas_de_parte(parte, archivo, i, negocio)
                 necesita = _necesita_ia(parte, filas_parte)
@@ -1702,14 +1829,17 @@ def crear_lote(archivos, usuario_id=None):
                     'sin_mapear': [parte['titulos'][j] or f'Columna {_letra(int(j))}'
                                    for j in _columnas_de_tabla(parte)[1]] if parte['tipo'] == 'tabla' else [],
                     'filas_leidas': len(parte.get('filas') or [])})
-                filas.extend(filas_parte)
+                filas_archivo.extend(filas_parte)
+            archivo['empresa'] = _paso_empresa(partes, filas_archivo, negocio['nombre'], ia_ok)
+            filas.extend(filas_archivo)
             info.append(archivo)
         equipos = sum(1 for f in filas if f['clase'] == 'equipo')
         if equipos > EQUIPOS_MAX:
             raise ErrorServicio(f'Los archivos traen {equipos} equipos y el máximo por vez es {EQUIPOS_MAX}. '
                                 'Divídelos en varios archivos y súbelos por partes.')
         _numerar(filas)
-        pendiente = any(p['ia'] == 'pendiente' for a in info for p in a['partes'])
+        pendiente = any(p['ia'] == 'pendiente' for a in info for p in a['partes']) \
+            or any((a.get('empresa') or {}).get('ia') == 'pendiente' for a in info)
         _guardar(cur, lote_id, archivos=info, filas=filas, estado='leyendo' if pendiente else 'revision')
     return lote_id, errores
 
@@ -1783,16 +1913,31 @@ def leer_siguiente(lote_id):
                 elif p['ia'] == 'leyendo' and not viejo:
                     en_curso += 1
         cuenta = _conteo_lectura(archivos)
+        archivo_empresa = None
         if objetivo is None:
             if en_curso:
                 _guardar(cur, lote_id, archivos=archivos)
                 return {'listo': False, 'esperar': 8, **cuenta}
-            _guardar(cur, lote_id, archivos=archivos, estado='revision')
-            return {'listo': True, **cuenta}
-        a, p = objetivo
-        p.update(ia='leyendo', desde=ahora.isoformat(), intentos=int(p.get('intentos') or 0) + 1)
-        _guardar(cur, lote_id, archivos=archivos)
-        archivo, indice = dict(a), p['i']
+            # Leídas todas las partes: ¿de qué empresa es cada archivo? (uno por llamada)
+            siguiente = _siguiente_empresa(archivos, ahora)
+            if siguiente is None:
+                _guardar(cur, lote_id, archivos=archivos, estado='revision')
+                return {'listo': True, **_conteo_lectura(archivos)}
+            if siguiente == 'esperar':
+                _guardar(cur, lote_id, archivos=archivos)
+                return {'listo': False, 'esperar': 8, **_conteo_lectura(archivos)}
+            ea = siguiente['empresa']
+            ea.update(ia='leyendo', desde=ahora.isoformat(), intentos=int(ea.get('intentos') or 0) + 1)
+            filas_archivo = [f for f in lote['filas'] if f.get('archivo_id') == siguiente['id']]
+            _guardar(cur, lote_id, archivos=archivos)
+            archivo_empresa = dict(siguiente)
+        else:
+            a, p = objetivo
+            p.update(ia='leyendo', desde=ahora.isoformat(), intentos=int(p.get('intentos') or 0) + 1)
+            _guardar(cur, lote_id, archivos=archivos)
+            archivo, indice = dict(a), p['i']
+    if archivo_empresa is not None:
+        return _leer_empresa(lote_id, archivo_empresa, filas_archivo)
 
     negocio = contacto_negocio()
     resultado = {'ok': False, 'aviso': None, 'reintentar': False, 'ia': None, 'mapeo': None}
@@ -1852,10 +1997,77 @@ def leer_siguiente(lote_id):
             'aviso': p.get('aviso'), 'esperar': esperar, **cuenta}
 
 
+def _siguiente_empresa(archivos, ahora):
+    """Archivo cuyo paso «¿de qué empresa es?» toca ahora; 'esperar' si hay uno
+    en curso; None si no queda ninguno."""
+    objetivo, en_curso = None, False
+    for a in archivos:
+        ea = a.get('empresa')
+        if not ea:
+            continue
+        viejo = ea.get('ia') == 'leyendo' and (
+            not ea.get('desde') or (ahora - datetime.fromisoformat(ea['desde'])).total_seconds() > LEYENDO_SEGUNDOS)
+        if (ea.get('ia') == 'pendiente' or viejo) and int(ea.get('intentos') or 0) >= INTENTOS_MAX + 2:
+            ea.update(ia='fallo', aviso='La IA no pudo decir de qué empresa es: quedó lo que dicen las reglas.')
+            ea.pop('desde', None)
+        elif objetivo is None and (ea.get('ia') == 'pendiente' or viejo):
+            objetivo = a
+        elif ea.get('ia') == 'leyendo' and not viejo:
+            en_curso = True
+    if objetivo is not None:
+        return objetivo
+    return 'esperar' if en_curso else None
+
+
+def _leer_empresa(lote_id, archivo, filas):
+    """Paso de la lectura: la IA local dice de qué empresa es el archivo y si sus
+    nombres dudosos son de empresa o de persona (servicio_tecnico_ia.identificar_empresa)."""
+    from services import servicio_tecnico_ia as st_ia
+    negocio = contacto_negocio()
+    dudosos, personas, decidida = _nombres_de_archivo(filas, negocio['nombre'])
+    resultado, hace_falta = {'ia': False, 'aviso': None, 'reintentar': False}, True
+    encabezado = ''
+    try:
+        datos = _contenido(archivo['id'])
+        encabezado = _encabezado(partes_de_archivo(archivo['clase'], datos) if datos else [], personas)
+    except ErrorServicio as exc:
+        resultado['aviso'] = str(exc)
+    if not dudosos and (decidida or not encabezado):
+        hace_falta = False                    # la lectura con IA ya dejó cada fila con su empresa
+    elif encabezado or dudosos:
+        resultado = st_ia.identificar_empresa(encabezado, dudosos, negocio=negocio['nombre'],
+                                              archivo=archivo['nombre'])
+    with get_db_cursor(dict_cursor=True) as cur:
+        lote = obtener_lote(lote_id, cur, bloquear=True)
+        if not lote or lote['estado'] != 'leyendo':
+            return {'listo': True}
+        archivos = lote['archivos']
+        a = next(x for x in archivos if x['id'] == archivo['id'])
+        ea, esperar = a['empresa'], 0
+        if not hace_falta:
+            ea.update(ia='no_aplica', aviso=None)
+        elif resultado.get('reintentar') and int(ea.get('intentos') or 0) < INTENTOS_MAX:
+            ea.update(ia='pendiente', aviso='La IA se está preparando; se vuelve a intentar.')
+            esperar = 20
+        elif resultado.get('ia'):
+            ea.update(ia='hecha', nombre=resultado.get('empresa'), clasificacion=resultado.get('clasificacion') or {},
+                      aviso=None)
+        else:
+            ea.update(ia='fallo', aviso=resultado.get('aviso')
+                      or 'La IA no pudo decir de qué empresa es: quedó lo que dicen las reglas.')
+        ea.pop('desde', None)
+        _guardar(cur, lote_id, archivos=archivos)
+        cuenta = _conteo_lectura(archivos)
+    return {'listo': False, 'archivo': archivo['nombre'], 'parte': 'Empresa', 'estado': ea['ia'],
+            'aviso': ea.get('aviso'), 'esperar': esperar, **cuenta}
+
+
 def _conteo_lectura(archivos):
-    partes = [p for a in archivos for p in a['partes'] if p['ia'] not in ('no_aplica', 'sin_ia')]
-    return {'total': len(partes), 'pendientes': sum(1 for p in partes if p['ia'] in ('pendiente', 'leyendo')),
-            'hechas': sum(1 for p in partes if p['ia'] == 'hecha'), 'fallos': sum(1 for p in partes if p['ia'] == 'fallo')}
+    pasos = [p['ia'] for a in archivos for p in a['partes']] \
+        + [a['empresa'].get('ia') for a in archivos if a.get('empresa')]
+    pasos = [x for x in pasos if x not in ('no_aplica', 'sin_ia', None)]
+    return {'total': len(pasos), 'pendientes': sum(1 for x in pasos if x in ('pendiente', 'leyendo')),
+            'hechas': sum(1 for x in pasos if x == 'hecha'), 'fallos': sum(1 for x in pasos if x == 'fallo')}
 
 
 def _reemplazar(filas, viejas, nuevas):
@@ -1898,6 +2110,10 @@ def terminar_lectura(lote_id):
                 if p['ia'] in ('pendiente', 'leyendo'):
                     p.update(ia='omitida', aviso='Se siguió sin esperar a la IA: quedó lo que leyeron las reglas.')
                     p.pop('desde', None)
+            ea = a.get('empresa') or {}
+            if ea.get('ia') in ('pendiente', 'leyendo'):
+                ea.update(ia='omitida', aviso='Se siguió sin esperar a la IA: la empresa la dicen las reglas.')
+                ea.pop('desde', None)
         _guardar(cur, lote_id, archivos=lote['archivos'], estado='revision')
 
 
@@ -1919,6 +2135,10 @@ def volver_a_leer(lote_id):
                     if p['tipo'] == 'texto' or p.get('sin_mapear'):
                         p.update(ia='pendiente', intentos=0, aviso=None)
                         cambiadas += 1
+            ea = a.get('empresa') or {}
+            if ea.get('ia') in ('sin_ia', 'fallo', 'omitida'):        # la carpeta escogida a mano siempre gana
+                ea.update(ia='pendiente', intentos=0, aviso=None)
+                cambiadas += 1
         if not cambiadas:
             raise ErrorServicio('No hay nada pendiente de leer con IA (o ya lo corregiste a mano).')
         _guardar(cur, lote_id, archivos=lote['archivos'], estado='leyendo')
@@ -2021,6 +2241,16 @@ def editar_fila(lote_id, n, datos):
                 fila['usar_contacto'] = int(contacto)
             elif 'usar_contacto' in datos:
                 fila['usar_contacto'] = None
+            eleccion = datos.get('carpeta')
+            if eleccion == 'auto':
+                fila.pop('carpeta_manual', None)
+            elif eleccion == 'particulares':
+                fila['carpeta_manual'] = {'tipo': 'particular'}
+            elif eleccion == 'empresa':
+                nombre = emp.nombre_visible(datos.get('carpeta_nombre') or '')
+                if not emp.clave(nombre):
+                    raise ErrorServicio('Escribe el nombre de la empresa, o escoge «Particulares».')
+                fila['carpeta_manual'] = {'tipo': 'empresa', 'nombre': nombre}
             _cerrar(fila)
         else:
             raise ErrorServicio('Acción no válida.')
@@ -2100,8 +2330,10 @@ def _equipos_existentes(cur, seriales, imeis, codigos=()):
     if not seriales and not imeis and not codigos:
         return por_clave
     cur.execute("""SELECT e.id, e.tipo, e.marca, e.modelo, e.serial, e.imei, e.crm_contacto_id, e.mant_cada_meses,
-                          e.mant_proximo, e.ficha_codigo, c.nombre AS cliente_nombre
+                          e.mant_proximo, e.ficha_codigo, c.nombre AS cliente_nombre,
+                          x.id AS empresa_id, x.nombre AS empresa_nombre
                    FROM st_equipos e LEFT JOIN crm_contactos c ON c.id = e.crm_contacto_id
+                   LEFT JOIN st_empresas x ON x.id = e.empresa_id AND x.activo
                    WHERE e.activo AND (regexp_replace(lower(COALESCE(e.serial, '')), '[\\s./-]', '', 'g') = ANY(%s)
                                        OR e.imei = ANY(%s) OR lower(e.ficha_codigo) = ANY(%s))
                    ORDER BY e.id""", (sorted(seriales), sorted(imeis), sorted(codigos)))
@@ -2215,21 +2447,32 @@ def _raices(equipos, claves):
     return {n: raiz(n) for n in incluidas}
 
 
-def _revisar(cur, filas, ajustes, hoy):
+def _revisar(cur, filas, ajustes, hoy, archivos=()):
     equipos = [f for f in filas if f['clase'] == 'equipo']
+    info_empresa = {a['id']: a.get('empresa') or {} for a in archivos or ()}
+    negocio_nombre = contacto_negocio()['nombre']
+    # Cliente de cada fila: el que dice el documento o, si no dice ninguno y los
+    # equipos son de una empresa (p. ej. su inventario de funcionarios), la empresa.
+    cliente_de, cliente_es_empresa = {}, set()
+    for f in equipos:
+        c = f['cliente']
+        if not (c.get('nombre') or c.get('empresa')) and not f.get('usar_contacto'):
+            carpeta = _carpeta_de_fila(f, info_empresa.get(f.get('archivo_id')), negocio_nombre)
+            if carpeta['tipo'] == 'empresa':
+                c = {**c, 'empresa': carpeta['nombre']}
+                cliente_es_empresa.add(f['n'])
+        cliente_de[f['n']] = c
     claves = {f['n']: claves_de(f['equipo']) | ({'ficha:' + f['ficha_codigo'].lower()} if f.get('ficha_codigo')
                                                  else set()) for f in equipos}
     todas = set().union(*claves.values()) if claves else set()
     existentes = _equipos_existentes(cur, {k[7:] for k in todas if k.startswith('serial:')},
                                      {k[5:] for k in todas if k.startswith('imei:')},
                                      {k[6:] for k in todas if k.startswith('ficha:')})
-    correos = {f['cliente']['email'] for f in equipos if f['cliente'].get('email')}
-    telefonos = {f['cliente'][k] for f in equipos for k in ('telefono', 'whatsapp')
-                 if f['cliente'].get(k) and len(f['cliente'][k]) == 10}
-    nombres = {_clave_nombre(f['cliente'].get('nombre') or f['cliente'].get('empresa')) for f in equipos
-               if f['cliente'].get('nombre') or f['cliente'].get('empresa')}
-    empresas = {_clave_nombre(f['cliente']['empresa']) for f in equipos
-                if f['cliente'].get('empresa') and not f['cliente'].get('nombre')}
+    clientes = list(cliente_de.values())
+    correos = {c['email'] for c in clientes if c.get('email')}
+    telefonos = {c[k] for c in clientes for k in ('telefono', 'whatsapp') if c.get(k) and len(c[k]) == 10}
+    nombres = {_clave_nombre(c.get('nombre') or c.get('empresa')) for c in clientes if c.get('nombre') or c.get('empresa')}
+    empresas = {_clave_nombre(c['empresa']) for c in clientes if c.get('empresa') and not c.get('nombre')}
     # Personas: nombre y apellido (un «Juan» solo no basta). Empresas: también de una palabra.
     nombres = {x for x in nombres if len(x.split()) >= 2 or (x in empresas and len(x) >= 4)}
     por_correo, por_tel, por_nombre = _contactos_existentes(cur, correos, telefonos, nombres)
@@ -2263,7 +2506,7 @@ def _revisar(cur, filas, ajustes, hoy):
     posibles = {}
     for f in equipos:
         if f['n'] in raices and raices[f['n']] == f['n'] and not claves[f['n']]:
-            sello = (_clave_nombre(f['cliente'].get('nombre') or f['cliente'].get('empresa')),
+            sello = (_clave_nombre(cliente_de[f['n']].get('nombre') or cliente_de[f['n']].get('empresa')),
                      _norm(f['equipo'].get('marca')), _norm(f['equipo'].get('modelo')))
             if sello[1] and sello[2]:
                 posibles.setdefault(sello, []).append(f)
@@ -2284,7 +2527,7 @@ def _revisar(cur, filas, ajustes, hoy):
              'icono': tipos.icono(e.get('tipo')) if f['clase'] == 'equipo' else 'file-pdf',
              'specs': _specs(e), 'contacto': None, 'cliente_accion': None, 'existente': None, 'mismo_que': None,
              'plan': (None, None), 'historial': f['historial'], 'notas': f['notas'], 'posible_duplicado': None,
-             'estado': None}
+             'estado': None, 'cliente': cliente_de.get(f['n'], f['cliente'])}
         vistas[f['n']] = v
         if f['clase'] != 'equipo':
             continue
@@ -2316,7 +2559,7 @@ def _revisar(cur, filas, ajustes, hoy):
                                                'sin código y se le asigna uno nuevo al generarla.'))
             codigos_vistos.add(codigo)
         # Cliente
-        c = f['cliente']
+        c = cliente_de[f['n']]
         contacto, accion = None, None
         if v['existente']:
             accion = 'del_equipo'
@@ -2344,6 +2587,9 @@ def _revisar(cur, filas, ajustes, hoy):
         if accion is None:
             if c.get('nombre') or c.get('empresa'):
                 accion = 'nuevo'
+                if f['n'] in cliente_es_empresa:
+                    v['mensajes'].append(('ok', f"No dice el cliente: queda la empresa «{c['empresa']}», que es de "
+                                                'quien es el documento.'))
             elif defecto:
                 accion = 'defecto'
                 contacto = defecto.get('existente')
@@ -2351,6 +2597,23 @@ def _revisar(cur, filas, ajustes, hoy):
             v['mensajes'].append(('error', 'No dice de quién es el equipo. Escribe el cliente en «Corregir» o escoge '
                                            'arriba un cliente para los equipos sin dueño.'))
         v['contacto'], v['cliente_accion'] = contacto, accion
+        # Carpeta: la empresa del equipo o «Particulares». Un equipo que ya está en
+        # una carpeta se deja ahí, salvo que se escoja otra a mano.
+        if v['mismo_que']:
+            v['carpeta'] = None                        # la de la fila con la que se junta
+        else:
+            carpeta = _carpeta_de_fila(f, info_empresa.get(f.get('archivo_id')), negocio_nombre)
+            ya = v['existente'] or {}
+            if ya.get('empresa_id') and carpeta['fuente'] != 'manual':
+                if carpeta['tipo'] == 'empresa' and emp.clave(carpeta['nombre']) != emp.clave(ya['empresa_nombre']):
+                    v['mensajes'].append(('aviso', f"El documento dice que es de «{carpeta['nombre']}», pero el equipo "
+                                                   f"ya está en la carpeta «{ya['empresa_nombre']}»: se deja ahí. "
+                                                   'Si cambió de empresa, escógela en «Corregir».'))
+                carpeta = {'tipo': 'empresa', 'nombre': ya['empresa_nombre'], 'fuente': 'existente',
+                           'motivo': 'Es la carpeta que ya tiene el equipo.'}
+            elif carpeta['fuente'] == 'supuesto':
+                v['mensajes'].append(('aviso', carpeta['motivo'] + ' Si no es una empresa, corrígelo.'))
+            v['carpeta'] = carpeta
         # Equipo
         if not tiene_datos_fila(f) and not v['existente'] and not v['mismo_que']:
             v['mensajes'].append(('error', 'No se encontraron datos del equipo (marca, modelo, serial…).'))
@@ -2394,10 +2657,22 @@ def _revisar(cur, filas, ajustes, hoy):
             v['estado'] = 'aviso'
             v['mensajes'].append(('aviso', 'Es un PDF escaneado: no tiene texto que leer. Escoge a qué equipo de la '
                                            'lista pertenece, o súbelo después desde la ficha del equipo.'))
+    # Carpetas que ya existen (se usa su nombre tal como quedó guardado).
+    hechas = emp.por_claves(cur, {emp.clave(v['carpeta']['nombre']) for v in vistas.values()
+                                  if v.get('carpeta') and v['carpeta']['tipo'] == 'empresa'})
+    for v in vistas.values():
+        c = v.get('carpeta')
+        if c and c['tipo'] == 'empresa':
+            hallada = hechas.get(emp.clave(c['nombre']))
+            c['existe'] = bool(hallada)
+            if hallada:
+                c['nombre'], c['id'] = hallada['nombre'], hallada['id']
     # Resumen
     resumen = {'equipos': 0, 'incluidas': 0, 'ok': 0, 'aviso': 0, 'error': 0, 'quitadas': 0, 'nuevos': 0,
                'existentes': 0, 'unidas': 0, 'clientes_nuevos': 0, 'clientes_existentes': 0, 'mantenimientos': 0,
-               'planes': 0, 'documentos': 0, 'vencidos': 0, 'adjuntos': 0}
+               'planes': 0, 'documentos': 0, 'vencidos': 0, 'adjuntos': 0, 'carpetas': 0, 'carpetas_nuevas': 0,
+               'particulares': 0}
+    carpetas_usadas, carpetas_nuevas = set(), set()
     agenda, contactos_usados, defecto_nuevo = _Agenda(), set(), False
     for v in vistas.values():
         if v['clase'] == 'adjunto':
@@ -2419,6 +2694,13 @@ def _revisar(cur, filas, ajustes, hoy):
             resumen['existentes'] += 1
         else:
             resumen['nuevos'] += 1
+        c = v.get('carpeta')
+        if c and c['tipo'] == 'empresa':
+            carpetas_usadas.add(emp.clave(c['nombre']))
+            if not c.get('existe'):
+                carpetas_nuevas.add(emp.clave(c['nombre']))
+        elif c:
+            resumen['particulares'] += 1
         resumen['mantenimientos'] += len(f['historial'])
         resumen['planes'] += 1 if v['plan'][1] else 0
         resumen['vencidos'] += 1 if v.get('plan_vencido') else 0
@@ -2426,11 +2708,12 @@ def _revisar(cur, filas, ajustes, hoy):
         if v['cliente_accion'] in ('existente', 'defecto') and v['contacto']:
             contactos_usados.add(v['contacto']['id'])
         elif v['cliente_accion'] == 'nuevo':
-            agenda.persona(f['cliente'])
+            agenda.persona(v['cliente'])
         elif v['cliente_accion'] == 'defecto':
             defecto_nuevo = True
     resumen['clientes_nuevos'] = len(agenda.personas) + (1 if defecto_nuevo else 0)
     resumen['clientes_existentes'] = len(contactos_usados)
+    resumen['carpetas'], resumen['carpetas_nuevas'] = len(carpetas_usadas), len(carpetas_nuevas)
     return {'filas': [vistas[f['n']] for f in filas], 'resumen': resumen, 'defecto': defecto,
             'por_n': {n: v for n, v in vistas.items()}}
 
@@ -2439,7 +2722,7 @@ def revisar(lote, hoy=None):
     """Vista previa del lote: estado de cada fila y lo que se hará. No escribe."""
     hoy = hoy or date.today()
     with get_db_cursor(dict_cursor=True) as cur:
-        return _revisar(cur, lote['filas'], lote.get('ajustes') or {}, hoy)
+        return _revisar(cur, lote['filas'], lote.get('ajustes') or {}, hoy, lote.get('archivos') or ())
 
 
 # ── Importar (una sola transacción) ─────────────────────────────
@@ -2548,6 +2831,39 @@ def _fotos_del_documento(cur, equipo_id, doc_id, usuario_id=None):
     return ids
 
 
+def _poner_carpeta(cur, equipo_id, carpeta, res, usuario_id, contacto_id, cache):
+    """Pone el equipo en la carpeta que salió en la revisión (la crea si no
+    existe). Un equipo que ya estaba en una carpeta solo cambia si se escogió
+    otra a mano. Lo hecho queda en `res` para poder deshacerlo."""
+    cur.execute('SELECT empresa_id FROM st_equipos WHERE id = %s', (equipo_id,))
+    antes = cur.fetchone()['empresa_id']
+    if carpeta.get('tipo') != 'empresa':
+        if antes and carpeta.get('fuente') == 'manual':          # a «Particulares», escogido a mano
+            cur.execute('UPDATE st_equipos SET empresa_id = NULL WHERE id = %s', (equipo_id,))
+            res['carpetas_puestas'].append({'equipo_id': equipo_id, 'empresa_id': None, 'antes': antes})
+            st._evento(cur, None, equipo_id, 'equipo', f'Carpeta: {emp.PARTICULARES}', usuario_id)
+        return
+    if carpeta.get('fuente') == 'existente' or (antes and carpeta.get('fuente') != 'manual'):
+        return
+    c = emp.clave(carpeta['nombre'])
+    if c not in cache:
+        vincular = None
+        if contacto_id:                       # el cliente del equipo ES la empresa: queda enlazada al CRM
+            cur.execute('SELECT nombre FROM crm_contactos WHERE id = %s', (contacto_id,))
+            fila = cur.fetchone()
+            vincular = contacto_id if fila and emp.clave(fila['nombre']) == c else None
+        empresa_id, creada = emp.obtener_o_crear(cur, carpeta['nombre'], crm_contacto_id=vincular,
+                                                 usuario_id=usuario_id)
+        cache[c] = empresa_id
+        if creada:
+            res['empresas_creadas'].append(empresa_id)
+    if antes == cache[c]:
+        return
+    cur.execute('UPDATE st_equipos SET empresa_id = %s WHERE id = %s', (cache[c], equipo_id))
+    res['carpetas_puestas'].append({'equipo_id': equipo_id, 'empresa_id': cache[c], 'antes': antes})
+    st._evento(cur, None, equipo_id, 'equipo', f"Carpeta: {carpeta['nombre']}", usuario_id)
+
+
 def importar(lote_id, usuario_id=None, hoy=None):
     """Guarda lo aprobado del lote en UNA transacción: si algo falla, no queda
     nada a medias. Devuelve el resultado (también queda en el lote)."""
@@ -2559,16 +2875,18 @@ def importar(lote_id, usuario_id=None, hoy=None):
             raise ErrorServicio('La importación no existe.')
         if lote['estado'] != 'revision':
             raise ErrorServicio('Esta importación ya se procesó.')
-        vista = _revisar(cur, lote['filas'], lote.get('ajustes') or {}, hoy)
+        vista = _revisar(cur, lote['filas'], lote.get('ajustes') or {}, hoy, lote.get('archivos') or ())
         nombres_archivo = {a['id']: a['nombre'] for a in lote['archivos']}
         res = {'equipos_creados': [], 'equipos_completados': [], 'contactos_creados': [], 'mantenimientos': [],
-               'seguimientos': [], 'documentos': [], 'planes': [], 'filas': {}, 'fichas': [], 'fotos': []}
+               'seguimientos': [], 'documentos': [], 'planes': [], 'filas': {}, 'fichas': [], 'fotos': [],
+               'empresas_creadas': [], 'carpetas_puestas': []}
+        carpetas_cache = {}
         listas = [v for v in vista['filas'] if v['clase'] == 'equipo' and v['estado'] in ('ok', 'aviso')]
         # Clientes nuevos: uno por persona, con los datos de todas sus filas.
         agenda, persona_de = _Agenda(), {}
         for v in listas:
             if v['cliente_accion'] == 'nuevo':
-                persona_de[v['n']] = agenda.persona(v['fila']['cliente'])
+                persona_de[v['n']] = agenda.persona(v['cliente'])
         defecto_id = None
         equipo_de_fila, contacto_de_equipo, planes = {}, {}, {}
 
@@ -2615,6 +2933,9 @@ def importar(lote_id, usuario_id=None, hoy=None):
                     contacto_de_equipo[equipo_id] = contacto_id
                 equipo_de_fila[v['n']] = equipo_id
                 res['filas'][str(v['n'])] = equipo_id
+                if not v['mismo_que']:
+                    _poner_carpeta(cur, equipo_id, v.get('carpeta') or {}, res, usuario_id,
+                                   contacto_de_equipo.get(equipo_id), carpetas_cache)
                 # Hoja de vida: los mantenimientos que no tenga ya (misma fecha y tipo).
                 cur.execute('SELECT fecha, tipo FROM st_mantenimientos WHERE equipo_id = %s AND activo', (equipo_id,))
                 ya = {(r['fecha'].isoformat(), r['tipo']) for r in cur.fetchall()}
@@ -2689,7 +3010,9 @@ def importar(lote_id, usuario_id=None, hoy=None):
                           'equipos_completados': len({c['equipo_id'] for c in res['equipos_completados']}),
                           'contactos_creados': len(res['contactos_creados']),
                           'mantenimientos': len(res['mantenimientos']), 'recordatorios': len(res['seguimientos']),
-                          'documentos': len(res['documentos'])}
+                          'documentos': len(res['documentos']),
+                          'carpetas': len({c['empresa_id'] for c in res['carpetas_puestas'] if c['empresa_id']}),
+                          'carpetas_creadas': len(res['empresas_creadas'])}
         _guardar(cur, lote_id, estado='importada', resultado=res, importado_por=usuario_id)
         cur.execute('UPDATE st_importaciones SET importado_en = NOW() WHERE id = %s', (lote_id,))
     return res
@@ -2765,6 +3088,19 @@ def deshacer(lote_id, usuario_id=None):
                 cur.execute('UPDATE st_equipos SET notas = %s WHERE id = %s AND notas = %s',
                             (notas['antes'], eid, notas['despues']))
                 devueltos += cur.rowcount
+        # Carpetas: los equipos que se quedan vuelven a la que tenían; las carpetas
+        # que creó la importación se archivan si ya no tienen equipos.
+        for cp in res.get('carpetas_puestas') or []:
+            if cp['equipo_id'] in retirar:
+                continue
+            cur.execute('UPDATE st_equipos SET empresa_id = %s WHERE id = %s AND empresa_id IS NOT DISTINCT FROM %s',
+                        (cp.get('antes'), cp['equipo_id'], cp['empresa_id']))
+            devueltos += cur.rowcount
+        carpetas_archivadas = 0
+        for eid in res.get('empresas_creadas') or []:
+            cur.execute("""UPDATE st_empresas SET activo = FALSE WHERE id = %s AND activo
+                           AND NOT EXISTS (SELECT 1 FROM st_equipos WHERE empresa_id = %s AND activo)""", (eid, eid))
+            carpetas_archivadas += cur.rowcount
         archivados, contactos_conservados = [], []
         for cid in res.get('contactos_creados') or []:
             cur.execute("""SELECT
@@ -2784,7 +3120,8 @@ def deshacer(lote_id, usuario_id=None):
             st._evento(cur, None, eid, 'equipo', f'Importación #{lote_id} deshecha', usuario_id)
         res['deshecho'] = {'equipos_retirados': len(retirar), 'equipos_conservados': conservados,
                            'datos_devueltos': devueltos, 'contactos_archivados': len(archivados),
-                           'contactos_conservados': len(contactos_conservados)}
+                           'contactos_conservados': len(contactos_conservados),
+                           'carpetas_archivadas': carpetas_archivadas}
         _guardar(cur, lote_id, estado='deshecha', resultado=res, deshecho_por=usuario_id)
         cur.execute('UPDATE st_importaciones SET deshecho_en = NOW() WHERE id = %s', (lote_id,))
     return res['deshecho']
@@ -2795,7 +3132,8 @@ def se_puede_releer(lote):
     editadas = {(f.get('archivo_id'), f.get('parte')) for f in lote['filas'] if f.get('editada')}
     return any(p['ia'] in ('sin_ia', 'fallo', 'omitida') and (a['id'], p['i']) not in editadas
                and (p['tipo'] == 'texto' or p.get('sin_mapear'))
-               for a in lote['archivos'] for p in a['partes'])
+               for a in lote['archivos'] for p in a['partes']) \
+        or any((a.get('empresa') or {}).get('ia') in ('sin_ia', 'fallo', 'omitida') for a in lote['archivos'])
 
 
 def equipos_del_resultado(lote):

@@ -36,6 +36,7 @@
         <li class="st-imp-cifra-grande"><b>{{ r.equipos_creados or 0 }}</b> <span>equipo{{ '' if r.equipos_creados == 1 else 's' }} nuevo{{ '' if r.equipos_creados == 1 else 's' }}</span></li>
         <li><b>{{ r.equipos_completados or 0 }}</b> <span>equipo{{ '' if r.equipos_completados == 1 else 's' }} que ya estaba{{ '' if r.equipos_completados == 1 else 'n' }} y se completó</span></li>
         <li><b>{{ r.contactos_creados or 0 }}</b> <span>cliente{{ '' if r.contactos_creados == 1 else 's' }} nuevo{{ '' if r.contactos_creados == 1 else 's' }} en el CRM</span></li>
+        {% if r.carpetas %}<li><b>{{ r.carpetas }}</b> <span>carpeta{{ '' if r.carpetas == 1 else 's' }} de empresa con equipos de esta importación{% if r.carpetas_creadas %} ({{ r.carpetas_creadas }} nueva{{ '' if r.carpetas_creadas == 1 else 's' }}){% endif %} · <a href="{{ url_for('servicio_tecnico.equipos') }}">ver las carpetas</a></span></li>{% endif %}
         <li><b>{{ r.mantenimientos or 0 }}</b> <span>mantenimiento{{ '' if r.mantenimientos == 1 else 's' }} en las hojas de vida</span></li>
         <li><b>{{ r.recordatorios or 0 }}</b> <span>recordatorio{{ '' if r.recordatorios == 1 else 's' }} de mantenimiento</span></li>
         <li><b>{{ r.documentos or 0 }}</b> <span>documento{{ '' if r.documentos == 1 else 's' }}</span></li>

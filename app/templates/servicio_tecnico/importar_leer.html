@@ -8,7 +8,7 @@
 <section class="st-hero">
     <div>
         <h1><i class="fas fa-robot" aria-hidden="true"></i> Leyendo tus archivos</h1>
-        <p>La IA lee los documentos uno por uno. Puede tardar unos minutos: puedes esperar aquí o seguir sin ella.</p>
+        <p>La IA lee los documentos uno por uno y dice de qué empresa son. Puede tardar unos minutos: puedes esperar aquí o seguir sin ella.</p>
     </div>
 </section>
 
@@ -30,6 +30,13 @@
             {{ estado_parte(p) }}
         </li>
         {% endfor %}
+        {% if a.empresa and a.empresa.ia != 'no_aplica' %}
+        <li data-st-parte="{{ a.id }}-empresa">
+            <i class="fas fa-building" aria-hidden="true"></i>
+            <span><strong>{{ a.nombre }}</strong> · ¿de qué empresa es?</span>
+            {{ estado_parte({'tipo': 'empresa', 'ia': a.empresa.ia}) }}
+        </li>
+        {% endif %}
         {% endfor %}
     </ul>
     <div class="st-acciones" style="margin-top:16px">

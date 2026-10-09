@@ -46,6 +46,13 @@
                 <input type="text" id="cl-direccion" name="cliente_direccion" value="{{ p.get('cliente_direccion', '') }}"></div>
             <p class="st-vacio-dato st-campo-ancho" style="margin:0">Queda creado como contacto en el CRM.</p>
         </div>
+        <div class="st-campos" style="margin-top:14px">
+            <div class="st-campo st-campo-ancho"><label for="eqn-empresa">Empresa (carpeta)</label>
+                <input type="text" id="eqn-empresa" name="empresa" list="eqn-empresas" maxlength="160" autocomplete="organization"
+                       value="{{ p.get('empresa', '') }}" placeholder="Déjalo vacío si el equipo es de una persona">
+                <datalist id="eqn-empresas">{% for c in carpetas or [] %}<option value="{{ c.nombre }}">{% endfor %}</datalist>
+                <small>Si es de una empresa, queda en la carpeta de esa empresa; si no, en «Particulares».</small></div>
+        </div>
     </section>
 
     {# ── Ficha técnica ── #}

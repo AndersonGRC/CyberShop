@@ -18,6 +18,7 @@ from extensions import limiter
 from helpers import get_common_data, get_data_app
 from security import ADMIN_STAFF, permiso_requerido, registrar_guard_permiso, rol_requerido
 from services import servicio_tecnico_clasificador as clasif
+from services import servicio_tecnico_empresas as emp
 from services import servicio_tecnico_ficha as ficha_st
 from services import servicio_tecnico_ia as st_ia
 from services import servicio_tecnico_importar as imp
@@ -234,10 +235,38 @@ def orden_cotizar(orden_id):
 @rol_requerido(ADMIN_STAFF)
 @module_required(MODULE_SERVICIO_TECNICO)
 def equipos():
+    """Equipos por carpeta: una por empresa y «Particulares» (los de personas)."""
     q = request.args.get('q', '')
     tipo = request.args.get('tipo', '')
+    pedida = request.args.get('carpeta', '')
+    carpeta, carpeta_actual = None, None
+    if pedida == 'particulares':
+        carpeta, carpeta_actual = 'particulares', {'id': 'particulares', 'nombre': emp.PARTICULARES}
+    elif pedida.isdigit():
+        carpeta_actual = emp.obtener(int(pedida))
+        carpeta = carpeta_actual['id'] if carpeta_actual else None
     return render_template('servicio_tecnico/equipos.html', **_ctx(
-        equipos=st.listar_equipos(q=q, tipo=tipo), q=q, filtro_tipo=tipo, st_activo='equipos'))
+        equipos=st.listar_equipos(q=q, tipo=tipo, carpeta=carpeta), q=q, filtro_tipo=tipo,
+        carpetas=emp.listar(), carpeta_actual=carpeta_actual, st_activo='equipos'))
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/equipo/<int:equipo_id>/carpeta', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+@permiso_requerido('servicio_tecnico', 'operar')
+def equipo_carpeta(equipo_id):
+    """Pasa el equipo a la carpeta de una empresa (o a «Particulares»)."""
+    eleccion = (request.form.get('carpeta') or '').strip()
+    destino = request.form.get('carpeta_nombre', '') if eleccion == 'nueva' else eleccion
+    if eleccion == 'nueva' and not (destino or '').strip():
+        flash('Escribe el nombre de la empresa nueva.', 'warning')
+        return _a_la_ficha(equipo_id, 'carpeta')
+    try:
+        nombre = st.mover_a_carpeta(equipo_id, destino, _usuario(), por_nombre=eleccion == 'nueva')
+        flash(f'El equipo quedó en la carpeta «{nombre}».', 'success')
+    except st.ErrorServicio as exc:
+        flash(str(exc), 'warning')
+    return _a_la_ficha(equipo_id, 'carpeta')
 
 
 @servicio_tecnico_bp.route(PREFIJO + '/equipos/nuevo', methods=['GET', 'POST'])
@@ -257,6 +286,7 @@ def equipo_nuevo():
                        'tipo': f.get('equipo_tipo')},
             'mant_cada_meses': f.get('mant_cada_meses'),
             'mant_proximo': f.get('mant_proximo'),
+            'empresa': (f.get('empresa') or '').strip(),
         }
         try:
             equipo_id = st.registrar_equipo(datos, _usuario())
@@ -266,7 +296,7 @@ def equipo_nuevo():
             return render_template('servicio_tecnico/equipo_nuevo.html', **_ctx(
                 previo=f, tipos_json=tipos.para_plantilla(), momentos=st.MOMENTOS_FOTO,
                 cliente_inicial=st.obtener_cliente(cid) if cid else None,
-                st_activo='equipo_nuevo')), 400
+                carpetas=emp.listar(incluir_vacias=True)['empresas'], st_activo='equipo_nuevo')), 400
         guardadas, errores = st.guardar_fotos(equipo_id, request.files.getlist('fotos'), 'recepcion',
                                               usuario_id=_usuario())
         texto = 'Equipo registrado.'
@@ -277,10 +307,11 @@ def equipo_nuevo():
             flash(e, 'warning')
         return redirect(url_for('servicio_tecnico.equipo_ver', equipo_id=equipo_id))
     cid = request.args.get('cliente', type=int)
+    empresa_inicial = emp.obtener(request.args.get('carpeta', type=int)) if request.args.get('carpeta', type=int) else None
     return render_template('servicio_tecnico/equipo_nuevo.html', **_ctx(
-        previo={}, tipos_json=tipos.para_plantilla(), momentos=st.MOMENTOS_FOTO,
-        cliente_inicial=st.obtener_cliente(cid) if cid else None,
-        st_activo='equipo_nuevo'))
+        previo={'empresa': empresa_inicial['nombre']} if empresa_inicial else {}, tipos_json=tipos.para_plantilla(),
+        momentos=st.MOMENTOS_FOTO, cliente_inicial=st.obtener_cliente(cid) if cid else None,
+        carpetas=emp.listar(incluir_vacias=True)['empresas'], st_activo='equipo_nuevo'))
 
 
 @servicio_tecnico_bp.route(PREFIJO + '/equipo/<int:equipo_id>')
@@ -309,7 +340,8 @@ def equipo_ver(equipo_id):
         recordatorios=pendientes, atendidos=atendidos, canales=seg.CANALES_RECORDATORIO,
         validacion=st.validacion_equipo(equipo, fotos=len(fotos), recordatorios=len(pendientes)),
         documentos=st.documentos_de_equipo(equipo_id), acepta_documentos=st.ACEPTA_DOCUMENTOS,
-        documentos_max=st.DOCUMENTOS_MAX, st_activo='equipos'))
+        documentos_max=st.DOCUMENTOS_MAX, carpetas=emp.listar(incluir_vacias=True)['empresas'],
+        st_activo='equipos'))
 
 
 def _a_la_ficha(equipo_id, seccion=''):
@@ -528,7 +560,7 @@ def importacion(lote_id):
         ia_ok=st_ia.estado()[0], se_puede_releer=imp.se_puede_releer(lote),
         cliente_defecto=(st.obtener_cliente(lote['ajustes']['cliente_id'])
                          if (lote.get('ajustes') or {}).get('cliente_id') else None),
-        **base))
+        carpetas=emp.listar(incluir_vacias=True)['empresas'], **base))
 
 
 @servicio_tecnico_bp.route(PREFIJO + '/importacion/<int:lote_id>/leer', methods=['POST'])

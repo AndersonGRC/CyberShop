@@ -1,22 +1,45 @@
 {% extends "servicio_tecnico/base.html" %}
 {% from "servicio_tecnico/_macros.html" import chip %}
-{% block st_titulo %}Equipos{% endblock %}
+{% block st_titulo %}{% if carpeta_actual %}Equipos · {{ carpeta_actual.nombre }}{% else %}Equipos{% endif %}{% endblock %}
 
+{#- Carpetas: una por empresa (los equipos de sus funcionarios) y «Particulares»
+    (los de personas, los computadores normales). Debajo, los equipos de la carpeta. -#}
 {% block st_contenido %}
 <section class="st-hero">
     <div>
+        {% if carpeta_actual %}
+        <h1><i class="fas fa-{{ 'user' if carpeta_actual.id == 'particulares' else 'building' }}" aria-hidden="true"></i> {{ carpeta_actual.nombre }}</h1>
+        <p>{% if carpeta_actual.id == 'particulares' %}Equipos de personas, sin empresa (los computadores normales).{% else %}Los equipos de esta empresa.{% endif %}
+           <a href="{{ url_for('servicio_tecnico.equipos') }}">Ver todas las carpetas</a></p>
+        {% else %}
         <h1><i class="fas fa-laptop-medical" aria-hidden="true"></i> Equipos atendidos</h1>
-        <p>La hoja de vida de cada dispositivo: ficha técnica, fotos, mantenimientos, recordatorios y servicios.</p>
+        <p>Cada empresa tiene su carpeta con sus equipos; los de personas van en «Particulares».</p>
+        {% endif %}
     </div>
     <div class="st-acciones">
-        <a class="st-btn st-btn-sm" href="{{ url_for('servicio_tecnico.equipo_nuevo') }}"><i class="fas fa-plus" aria-hidden="true"></i> Registrar equipo</a>
+        <a class="st-btn st-btn-sm" href="{{ url_for('servicio_tecnico.equipo_nuevo', carpeta=carpeta_actual.id if carpeta_actual and carpeta_actual.id != 'particulares' else None) }}"><i class="fas fa-plus" aria-hidden="true"></i> Registrar equipo</a>
         <a class="st-btn st-btn-sm st-btn-claro" href="{{ url_for('servicio_tecnico.importar') }}"><i class="fas fa-file-import" aria-hidden="true"></i> Traer desde Excel o PDF</a>
     </div>
 </section>
 
+<nav class="st-carpetas" aria-label="Carpetas de equipos">
+    <a class="st-carpeta" href="{{ url_for('servicio_tecnico.equipos') }}" {% if not carpeta_actual %}aria-current="page"{% endif %}>
+        <i class="fas fa-layer-group" aria-hidden="true"></i>
+        <span><strong>Todos</strong><small>{{ carpetas.total }} equipo{{ '' if carpetas.total == 1 else 's' }}</small></span></a>
+    {% for c in carpetas.empresas %}
+    <a class="st-carpeta" href="{{ url_for('servicio_tecnico.equipos', carpeta=c.id) }}" {% if carpeta_actual and carpeta_actual.id == c.id %}aria-current="page"{% endif %}>
+        <i class="fas fa-building" aria-hidden="true"></i>
+        <span><strong>{{ c.nombre }}</strong><small>{{ c.equipos }} equipo{{ '' if c.equipos == 1 else 's' }}</small></span></a>
+    {% endfor %}
+    <a class="st-carpeta" href="{{ url_for('servicio_tecnico.equipos', carpeta='particulares') }}" {% if carpeta_actual and carpeta_actual.id == 'particulares' %}aria-current="page"{% endif %}>
+        <i class="fas fa-user" aria-hidden="true"></i>
+        <span><strong>Particulares</strong><small>{{ carpetas.particulares }} equipo{{ '' if carpetas.particulares == 1 else 's' }} · sin empresa</small></span></a>
+</nav>
+
 <div class="st-card">
     <form class="st-busqueda" method="get" role="search">
-        <input type="search" name="q" value="{{ q }}" aria-label="Buscar equipos" placeholder="Cliente, marca, modelo, serial o IMEI">
+        {% if carpeta_actual %}<input type="hidden" name="carpeta" value="{{ carpeta_actual.id }}">{% endif %}
+        <input type="search" name="q" value="{{ q }}" aria-label="Buscar equipos" placeholder="{{ 'Buscar en esta carpeta' if carpeta_actual else 'Cliente, empresa, persona, marca, modelo, serial o IMEI' }}">
         <select name="tipo" aria-label="Tipo de equipo">
             <option value="">Todos los tipos</option>
             {% for codigo, nombre, icono, cols in tipos_lista %}<option value="{{ codigo }}" {% if filtro_tipo == codigo %}selected{% endif %}>{{ nombre }}</option>{% endfor %}
@@ -29,14 +52,15 @@
     {% if equipos %}
     <div class="st-tabla-wrap">
         <table class="st-tabla">
-            <thead><tr><th>Equipo</th><th>Cliente</th><th>Serial / IMEI</th><th>Estado del equipo</th><th>Servicios</th><th>Próximo mantenimiento</th><th>Último estado</th></tr></thead>
+            <thead><tr><th>Equipo</th><th>Cliente</th>{% if not carpeta_actual %}<th>Carpeta</th>{% endif %}<th>Serial / IMEI</th><th>Estado del equipo</th><th>Servicios</th><th>Próximo mantenimiento</th><th>Último estado</th></tr></thead>
             <tbody>
             {% for e in equipos %}
             <tr>
                 <td data-label="Equipo"><a class="st-fila-link st-equipo-celda" href="{{ url_for('servicio_tecnico.equipo_ver', equipo_id=e.id) }}">
                     <i class="fas fa-{{ tipo_icono(e.tipo) }}" aria-hidden="true"></i>
                     {{ tipo_nombre(e.tipo) }}{% if e.marca or e.modelo %} · {{ marca_modelo(e) }}{% endif %}</a></td>
-                <td data-label="Cliente">{{ e.cliente_nombre or '—' }}</td>
+                <td data-label="Cliente">{{ e.cliente_nombre or '—' }}{% if e.asignado_a and e.asignado_a != e.cliente_nombre %}<small class="st-celda-sub">Asignado a {{ e.asignado_a }}</small>{% endif %}</td>
+                {% if not carpeta_actual %}<td data-label="Carpeta">{% if e.empresa_nombre %}<span class="st-carpeta-celda"><i class="fas fa-building" aria-hidden="true"></i> <span>{{ e.empresa_nombre }}</span></span>{% else %}<span class="st-suave">Particulares</span>{% endif %}</td>{% endif %}
                 <td data-label="Serial / IMEI">{{ e.serial or e.imei or '—' }}</td>
                 <td data-label="Estado del equipo">{% if e.ficha_estado == 'inconveniente' %}<span class="st-chip st-chip-peligro"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i> Inconvenientes</span>{% elif e.ficha_estado == 'bueno' %}<span class="st-chip st-chip-info"><i class="fas fa-check-circle" aria-hidden="true"></i> Buen estado</span>{% else %}—{% endif %}</td>
                 <td data-label="Servicios">{{ e.ordenes }}</td>
@@ -49,9 +73,9 @@
     </div>
     {% else %}
     <div class="st-vacio">
-        <i class="fas fa-laptop" aria-hidden="true"></i>
-        <h3>{% if q or filtro_tipo %}No hay equipos con ese filtro{% else %}Aún no hay equipos registrados{% endif %}</h3>
-        <p>Regístralo con su ficha, fotos y plan de mantenimiento, o recíbelo directamente en una orden de servicio.</p>
+        <i class="fas fa-{{ 'folder-open' if carpeta_actual else 'laptop' }}" aria-hidden="true"></i>
+        <h3>{% if q or filtro_tipo %}No hay equipos con ese filtro{% elif carpeta_actual %}Esta carpeta no tiene equipos{% else %}Aún no hay equipos registrados{% endif %}</h3>
+        <p>Regístralo con su ficha, fotos y plan de mantenimiento, o tráelos desde las fichas en Excel o PDF: cada uno queda en la carpeta de su empresa.</p>
         <div class="st-acciones" style="justify-content:center">
             <a class="st-btn" href="{{ url_for('servicio_tecnico.equipo_nuevo') }}"><i class="fas fa-plus" aria-hidden="true"></i> Registrar equipo</a>
             <a class="st-btn st-btn-sec" href="{{ url_for('servicio_tecnico.nueva_orden') }}"><i class="fas fa-clipboard-check" aria-hidden="true"></i> Nueva orden</a>

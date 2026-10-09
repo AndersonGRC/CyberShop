@@ -19,7 +19,8 @@
             <h1>{{ nombre_equipo }}</h1>
             <p>{{ tipo_nombre(equipo.tipo) }} de <strong>{{ equipo.cliente_nombre or 'cliente sin nombre' }}</strong>
                {% if equipo.serial %} · Serial {{ equipo.serial }}{% endif %}{% if equipo.imei %} · IMEI {{ equipo.imei }}{% endif %}
-               {% set fx = equipo.ficha or {} %}{% if fx.get('asignado_a') %} · Asignado a {{ fx.asignado_a }}{% endif %}</p>
+               {% set fx = equipo.ficha or {} %}{% if fx.get('asignado_a') %} · Asignado a {{ fx.asignado_a }}{% endif %}
+               · Carpeta <a class="st-hero-carpeta" href="{{ url_for('servicio_tecnico.equipos', carpeta=equipo.empresa_id or 'particulares') }}"><i class="fas fa-{{ 'building' if equipo.empresa_id else 'user' }}" aria-hidden="true"></i> {{ equipo.empresa_nombre or 'Particulares' }}</a></p>
             {% if fx.get('estado') %}<p style="margin-top:8px">{% if fx.estado == 'inconveniente' %}<span class="st-chip st-chip-peligro"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i> Presenta inconvenientes</span>{% else %}<span class="st-chip st-chip-info"><i class="fas fa-check-circle" aria-hidden="true"></i> En buen estado</span>{% endif %}
                {% if equipo.ficha_codigo %}<span class="st-chip st-chip-neutro">Ficha {{ equipo.ficha_codigo }}</span>{% endif %}</p>{% endif %}
         </div>
@@ -96,6 +97,22 @@
     {% endif %}
 
     <div class="st-acordeon">
+        <details id="carpeta">
+            <summary><i class="fas fa-folder" aria-hidden="true"></i> Carpeta: {{ equipo.empresa_nombre or 'Particulares' }} · cambiarla</summary>
+            <form method="post" action="{{ url_for('servicio_tecnico.equipo_carpeta', equipo_id=equipo.id) }}" class="st-acordeon-cuerpo st-campos">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <p class="st-nota st-campo-ancho" style="margin-top:0">Los equipos de una empresa van en su carpeta; los de personas, en «Particulares». Cambiar la carpeta no cambia el cliente ni sus recordatorios.</p>
+                <div class="st-campo"><label for="eq-carpeta">Carpeta</label>
+                    <select id="eq-carpeta" name="carpeta">
+                        <option value="particulares" {% if not equipo.empresa_id %}selected{% endif %}>Particulares (sin empresa)</option>
+                        {% for c in carpetas %}<option value="{{ c.id }}" {% if c.id == equipo.empresa_id %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}
+                        <option value="nueva">Otra empresa (escribe su nombre)…</option>
+                    </select></div>
+                <div class="st-campo"><label for="eq-carpeta-nombre">Nombre de la empresa nueva</label>
+                    <input id="eq-carpeta-nombre" name="carpeta_nombre" maxlength="160" autocomplete="organization" placeholder="Solo si escogiste «Otra empresa»"></div>
+                <div class="st-campo-ancho"><button class="st-btn" type="submit"><i class="fas fa-folder-open" aria-hidden="true"></i> Guardar carpeta</button></div>
+            </form>
+        </details>
         <details id="leer-info">
             <summary><i class="fas fa-magic" aria-hidden="true"></i> Llenar los datos pegando la información del equipo</summary>
             <div class="st-acordeon-cuerpo">
