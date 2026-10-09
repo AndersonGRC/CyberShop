@@ -19,7 +19,9 @@
     const P = window.RM_PAGE || {};
     const E = P.endpoints || {};
     const SIMPLE = !!P.simple;
-    const CSRF = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    // Token CSRF: el de la página vence a la hora y «Atender» se deja abierto todo
+    // el turno. Cada lectura del salón trae uno nuevo (ver api()).
+    let CSRF = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     const root = document.getElementById('rmRoot');
     if (!root) return;
 
@@ -85,7 +87,7 @@
     // Categorías desplegadas o en una sola fila (preferencia de este equipo).
     S.catsAbiertas = store.get('rm_cats_abiertas') === '1';
 
-    async function api(url, payload, method) {
+    async function api(url, payload, method, reintento) {
         const res = await fetch(url, {
             method: method || 'POST',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRFToken': CSRF },
@@ -99,6 +101,16 @@
                 : 'El servidor respondió algo inesperado. Recarga la página.');
         }
         const data = await res.json().catch(() => ({}));
+        if (typeof data.csrf === 'string' && data.csrf) CSRF = data.csrf;
+        if (res.status === 400 && /csrf/i.test(String(data.error || ''))) {
+            // Token vencido: el servidor la rechazó ANTES de hacer nada, así que se
+            // pide un token nuevo (viene con el salón) y se repite una sola vez.
+            if (!reintento && E.data) {
+                await api(E.data, null, 'GET', true);
+                return api(url, payload, method, true);
+            }
+            throw new Error('La pantalla llevaba mucho tiempo abierta. Recarga la página e inténtalo de nuevo.');
+        }
         if (!res.ok || data.success === false) {
             const err = new Error(data.error || 'No se pudo completar la operación.');
             err.data = data;

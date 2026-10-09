@@ -187,3 +187,42 @@ def test_el_plano_no_borra_nada_salvo_la_mesa_sin_historial():
     fuente = inspect.getsource(rt.create_salon) + inspect.getsource(rt.rename_salon) + \
         inspect.getsource(rt.delete_salon)
     assert 'DELETE FROM' not in fuente.upper()
+
+
+# ── Token CSRF renovable: «Atender» se deja abierto todo el turno ──
+@pytest.fixture()
+def csrf_corto(flask_app):
+    """Protección CSRF encendida y con vencimiento de 1 s (en la vida real, 1 h)."""
+    previo = (flask_app.config['WTF_CSRF_ENABLED'], flask_app.config.get('WTF_CSRF_TIME_LIMIT', 3600))
+    flask_app.config.update(WTF_CSRF_ENABLED=True, WTF_CSRF_TIME_LIMIT=1)
+    yield
+    flask_app.config.update(WTF_CSRF_ENABLED=previo[0], WTF_CSRF_TIME_LIMIT=previo[1])
+
+
+def test_token_vencido_se_renueva_con_el_salon(as_propietario, modulo_mesas, salones_limpios, csrf_corto):
+    """Bug de la panadería: con la pantalla abierta más de una hora, agregar a una
+    mesa fallaba con «The CSRF token has expired». Cada lectura del salón trae un
+    token nuevo, con el que la operación pasa (la pantalla lo toma y reintenta)."""
+    import time
+    tid = _mesa(f'{MARCA}-C', f'{MARCA} salón')
+    url = f'/admin/restaurante/mesas/{tid}/estado'
+    r = as_propietario.get('/admin/restaurante/mesas/data')
+    viejo = r.get_json()['csrf']
+    assert r.status_code == 200 and len(viejo) > 20
+    time.sleep(2)
+    r = as_propietario.post(url, json={'estado': 'reservada'}, headers={'X-CSRFToken': viejo})
+    assert r.status_code == 400 and 'CSRF' in r.get_json()['error']        # lo que reconoce la pantalla
+    nuevo = as_propietario.get('/admin/restaurante/mesas/data').get_json()['csrf']
+    r = as_propietario.post(url, json={'estado': 'reservada'}, headers={'X-CSRFToken': nuevo})
+    assert r.status_code == 200 and r.get_json()['success']
+
+
+def test_las_pantallas_renuevan_el_token():
+    """Las dos pantallas de mesas toman el token que trae el salón y reintentan
+    una sola vez cuando el servidor dice que el token venció."""
+    from pathlib import Path
+    js = Path(__file__).resolve().parent.parent / 'static' / 'js'
+    mesas = (js / 'restaurant_mesas.js').read_text(encoding='utf-8')
+    assert 'let CSRF' in mesas and 'CSRF = data.csrf' in mesas and "api(E.data, null, 'GET', true)" in mesas
+    tablas = (js / 'restaurant_tables.js').read_text(encoding='utf-8')
+    assert 'let csrfToken' in tablas and 'tomarCsrf(payload)' in tablas and 'renovarCsrf()' in tablas

@@ -5,7 +5,9 @@
     const endpoints = page.endpoints || {};
     const viewMode = page.viewMode || 'service';
     const SIMPLE = !!page.simple;  // modo simple del restaurante: agregar -> cobrar (sin cocina/tiempos)
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    // Token CSRF: el de la página vence a la hora y el salón se deja abierto todo
+    // el turno. Cada refresco del salón trae uno nuevo (ver tomarCsrf).
+    let csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
     const state = {
         viewMode,
@@ -217,7 +219,25 @@
         return 'rt-table-large';
     }
 
-    async function jsonRequest(url, payload) {
+    function tomarCsrf(data) {
+        if (data && typeof data.csrf === 'string' && data.csrf) csrfToken = data.csrf;
+    }
+
+    function esCsrfVencido(response, data) {
+        return response.status === 400 && /csrf/i.test(String((data && data.error) || ''));
+    }
+
+    async function renovarCsrf() {
+        const response = await fetch(endpoints.data, { headers: { Accept: 'application/json' } });
+        if (!(response.headers.get('content-type') || '').includes('application/json')) {
+            throw new Error('Sesión expirada. Recarga la página e inicia sesión.');
+        }
+        tomarCsrf(await response.json().catch(() => ({})));
+    }
+
+    const CSRF_SIN_RENOVAR = 'La pantalla llevaba mucho tiempo abierta. Recarga la página e inténtalo de nuevo.';
+
+    async function jsonRequest(url, payload, reintento) {
         const response = await fetch(url, {
             method: 'POST',
             headers: {
@@ -237,6 +257,12 @@
         }
 
         const data = await response.json().catch(() => ({}));
+        if (esCsrfVencido(response, data)) {
+            // El servidor la rechazó ANTES de hacer nada: token nuevo y se repite una vez.
+            if (reintento || !endpoints.data) throw new Error(CSRF_SIN_RENOVAR);
+            await renovarCsrf();
+            return jsonRequest(url, payload, true);
+        }
         if (!response.ok || data.success === false) {
             const err = new Error(data.error || 'Operación no disponible.');
             err.data = data;  // p.ej. { caja_cerrada: true } para ofrecer abrir caja
@@ -245,7 +271,7 @@
         return data;
     }
 
-    async function deleteRequest(url) {
+    async function deleteRequest(url, reintento) {
         const response = await fetch(url, {
             method: 'DELETE',
             headers: {
@@ -263,6 +289,11 @@
         }
 
         const data = await response.json().catch(() => ({}));
+        if (esCsrfVencido(response, data)) {
+            if (reintento || !endpoints.data) throw new Error(CSRF_SIN_RENOVAR);
+            await renovarCsrf();
+            return deleteRequest(url, true);
+        }
         if (!response.ok || data.success === false) {
             const err = new Error(data.error || 'Operación no disponible.');
             err.data = data;  // p.ej. { caja_cerrada: true } para ofrecer abrir caja
@@ -720,6 +751,7 @@
             if (!response.ok || payload.success === false) {
                 throw new Error(payload.error || 'No fue posible refrescar el salón.');
             }
+            tomarCsrf(payload);
             state.data = payload;
             const candidate = preferredTableId || state.selectedTableId;
             const stillExists = state.data.tables.find((table) => table.id === candidate);
@@ -1009,13 +1041,7 @@
         });
         if (!res.isConfirmed) return false;
         try {
-            const r = await fetch(endpoints.abrirCaja, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                body: JSON.stringify({ base: res.value }),
-            });
-            const d = await r.json().catch(() => ({}));
-            if (!d.success) throw new Error(d.error || 'No se pudo abrir la caja.');
+            await jsonRequest(endpoints.abrirCaja, { base: res.value });
             const chip = document.getElementById('rtCajaChip');
             if (chip) {
                 chip.classList.remove('is-closed');
