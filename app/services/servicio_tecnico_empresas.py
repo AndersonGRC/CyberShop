@@ -150,7 +150,8 @@ def clasificar(nombre, negocio=''):
     return 'dudoso', 'No se sabe si es una empresa o una persona.'
 
 
-_BARRA_FICHA = re.compile(r'EQUIPO\s+ASIGNADO\s+A\s+([^\n|]+)', re.I)
+# «EQUIPO ASIGNADO A PERSONA - EMPRESA», también «… AL INGENIERO PEREZ - …» o «… A LA DOCTORA …».
+_BARRA_FICHA = re.compile(r'EQUIPO\s+ASIGNADO\s+(?:AL|A\s+LA|A)\s+([^\n|]+)', re.I)
 
 
 def titular_de_ficha(texto):

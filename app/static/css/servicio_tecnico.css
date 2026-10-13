@@ -851,3 +851,5 @@
 .st-mant-vencido small, .st-mant-vencido strong { color: var(--color-peligro-texto); }
 .st-mant-vacio { border-style: dashed; }
 .st-mant-acciones { margin: 14px 0 6px; }
+.st-fv-vacio { color: var(--st-suave); font-style: italic; }
+.st-fv-sin-dato { margin: 8px 0 0; }

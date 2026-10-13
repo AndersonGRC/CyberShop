@@ -109,16 +109,26 @@
         </div>
     </div>
 
-    {% if filas_llenas %}
-    <h3 class="st-fv-titulo">Características</h3>
+    {% set filas_ficha = [] %}
+    {% for r in v.get('filas') or [] %}{% if r.valor or not r.opcional %}{% set _ = filas_ficha.append(r) %}{% endif %}{% endfor %}
+    {% if filas_ficha %}
+    {# Todas las filas de la ficha, como en el Excel: las que no tienen dato se ven «Sin registrar». #}
+    <h3 class="st-fv-titulo">Características globales</h3>
     <table class="st-fv-tabla">
         <caption class="st-sr">Características del equipo</caption>
         <tbody>
-        {% for r in filas_llenas %}
-        <tr class="{{ 'st-fv-resaltada' if r.destacar and roja else '' }}"><th scope="row">{{ r.etiqueta }}</th><td>{{ r.valor }}</td></tr>
+        {% for r in filas_ficha %}
+        <tr class="{{ 'st-fv-resaltada' if r.destacar and roja and r.valor else '' }}"><th scope="row">{{ r.etiqueta }}</th>
+            <td>{% if r.valor %}{{ r.valor }}{% else %}<span class="st-fv-vacio">Sin registrar</span>{% endif %}</td></tr>
         {% endfor %}
         </tbody>
     </table>
+    {% set sin_dato = filas_ficha | length - filas_llenas | length %}
+    {% if sin_dato %}
+    <p class="st-nota st-fv-sin-dato"><i class="fas fa-info-circle" aria-hidden="true"></i>
+        {{ sin_dato }} característica{{ '' if sin_dato == 1 else 's' }} sin registrar. Se llenan solas al traer la ficha del equipo (Excel o PDF),
+        o <a href="#leer-info" data-st-abrir>pegando la información del equipo</a>, o a mano en <a href="{{ url_for('servicio_tecnico.equipo_ficha', equipo_id=equipo.id) }}">Editar la ficha</a>.</p>
+    {% endif %}
     {% else %}
     <p class="st-nota">Todavía no tiene características: <a href="#leer-info" data-st-abrir>pégalas desde la información del equipo</a>.</p>
     {% endif %}

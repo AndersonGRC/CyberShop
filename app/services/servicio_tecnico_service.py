@@ -1450,7 +1450,19 @@ def validacion_equipo(equipo, fotos=0, recordatorios=0):
     llenos = sum(1 for c in columnas if equipo.get(c)) + sum(1 for c in tipos.claves_extra(equipo['tipo']) if extras.get(c))
     porcentaje = round(100 * llenos / len(claves)) if claves else 100
     sin_llenar = len(claves) - llenos
-    if datos_ficha >= 4:
+    if equipo['tipo'] in ('computador', 'portatil'):
+        # Las mismas filas que muestra la página (la plantilla de la ficha del taller).
+        from services import servicio_tecnico_ficha as fichas
+        propias = (equipo.get('ficha') or {}).get('filas') or {}
+        filas = [(etq, str(propias.get(etq) or '').strip() or str(auto or '').strip())
+                 for etq, auto in fichas.filas_base(equipo)]
+        sin = [etq for etq, valor in filas if not valor and etq not in fichas.FILAS_OPCIONALES]
+        if len(sin) <= 2:
+            revisiones.append(('ok', f'Características de la ficha ({sum(1 for _e, x in filas if x)} registradas)', None))
+        else:
+            revisiones.append(('aviso', f'Faltan {len(sin)} características de la ficha: tráelas con la ficha del equipo '
+                                        '(Excel o PDF) o pégalas desde la información del equipo', 'datos'))
+    elif datos_ficha >= 4:
         revisiones.append(('ok', f'Ficha técnica con {datos_ficha} datos', None))
     else:
         revisiones.append(('ok', 'Datos técnicos', None) if porcentaje >= 70 else

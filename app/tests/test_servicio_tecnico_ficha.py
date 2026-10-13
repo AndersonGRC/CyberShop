@@ -315,3 +315,58 @@ def test_pantalla_de_la_ficha_guardar_y_generar(flask_app, modulo, dueno, cursor
 def test_modulo_apagado_sin_ficha(modulo, dueno):
     modulo(False)
     assert dueno.get('/admin/servicio-tecnico/equipo/1/ficha').status_code == 302
+
+
+# ── «ASIGNADO AL INGENIERO …» y todas las características ──────
+def test_ficha_al_ingeniero_con_todas_las_caracteristicas(flask_app, modulo, dueno, cursor, limpiar):
+    """Fichas como «EQUIPO ASIGNADO AL INGENIERO … - EMPRESA», con las 13
+    características de la plantilla (BIOS, placa base, tipo de sistema, nombre
+    de usuario…): se generan, se vuelven a leer completas y la página del equipo
+    muestra todas las filas como en la ficha."""
+    from services import servicio_tecnico_empresas as emp
+    from services import servicio_tecnico_ficha as ficha
+    assert emp.titular_de_ficha('EQUIPO ASIGNADO AL INGENIERO PERENGANO - ACME') == ('INGENIERO PERENGANO', 'ACME')
+    assert emp.titular_de_ficha('EQUIPO ASIGNADO A LA DOCTORA ZUTANA - ACME') == ('DOCTORA ZUTANA', 'ACME')
+    assert emp.titular_de_ficha('EQUIPO ASIGNADO A LAURA PEREZ - ACME') == ('LAURA PEREZ', 'ACME')
+    valores = {'Sistema Operativo': 'Microsoft Windows 11 Home Single Language (versión 10.0.26200)',
+               'Fabricante del Sistema': 'ASUSTeK COMPUTER INC.', 'Modelo': 'ASUS X1605ZA Notebook PC',
+               'Nombre de Usuario': 'OFICINA\\perengano', 'Tipo de sistema': '64 bits (PC basado en x64)',
+               'Procesador': '12th Gen Intel(R) Core(TM) i5-12500H, 2.50 GHz, 12 núcleos / 16 hilos',
+               'Memoria RAM': '16,0 GB DDR4 3200 MT/s (SODIMM, 2 de 2 ranuras usadas)',
+               'Memoria física disponible': '15,7 GB (total utilizable) - 1,16 GB disponibles',
+               'Placa Base': 'ASUSTeK COMPUTER INC. X1605ZA, versión 1.0',
+               'Zona Horaria': 'Hora est. Pacífico, Sudamérica (GMT-5)',
+               'Unidad de Disco': 'SSD NVMe MTFDKBK512QFM-1BD1AABGB, 477 GB (disco del sistema)',
+               'BIOS': 'American Megatrends X1605ZA.315 (25/01/2024), SMBIOS 3.5, modo UEFI',
+               'Directorios del Sistema': 'C:\\WINDOWS y C:\\WINDOWS\\system32'}
+    equipo_id = _equipo(flask_app, ram='16 GB DDR4', libres='0')
+    vacio_id = _equipo(flask_app)                      # otro equipo sin ficha: sus filas se ven «Sin registrar»
+    with flask_app.test_request_context('/'):
+        datos = ficha.armar(equipo_id)
+        form = {'estado': 'bueno', 'version': '1', 'asignado_a': 'INGENIERO PERENGANO', 'empresa': MARCA + ' EMPRESA',
+                'descripcion': 'Este equipo de cómputo es un portátil ASUS Vivobook X1605ZA.',
+                'vida_util': 'La vida útil estimada es de 5 a 7 años. Recomendaciones:',
+                'recomendaciones': 'Conectarlo a un regulador de voltaje o UPS.\nMantenerlo limpio y libre de polvo.',
+                'problema': 'N/A - El equipo no presenta fallas.', 'requerimientos': 'Mantenimiento preventivo únicamente.'}
+        for i, f in enumerate(datos['filas']):
+            form[f'etiqueta_{i}'] = f['etiqueta']
+            form[f'fila_{i}'] = valores.get(f['etiqueta'], '')
+        ficha.guardar(equipo_id, form)
+        ficha.asignar_codigo(equipo_id)
+        datos = ficha.armar(equipo_id)
+        assert datos['titulo'] == f'EQUIPO ASIGNADO AL INGENIERO PERENGANO - {MARCA} EMPRESA'.upper()
+        contenido = ficha.pdf(datos)
+    leida = ficha.leer_pdf(contenido)
+    assert leida['asignado_a'] == 'INGENIERO PERENGANO' and leida['empresa'] == (MARCA + ' EMPRESA').upper()
+    filas = dict(leida['filas'])
+    for etiqueta, valor in valores.items():                  # las 13, completas
+        assert ' '.join(filas.get(etiqueta, '').split()) == ' '.join(valor.split()), etiqueta
+    assert leida['estado'] == 'bueno'
+    # La página muestra todas las filas de la ficha, como en el Excel.
+    html = dueno.get(f'/admin/servicio-tecnico/equipo/{equipo_id}').get_data(as_text=True)
+    for etiqueta in ('BIOS', 'Placa Base', 'Tipo de sistema', 'Nombre de Usuario', 'Memoria física disponible'):
+        assert f'<th scope="row">{etiqueta}</th>' in html, etiqueta
+    assert 'American Megatrends X1605ZA.315' in html and 'st-fv-vacio' not in html
+    html = dueno.get(f'/admin/servicio-tecnico/equipo/{vacio_id}').get_data(as_text=True)
+    assert '<th scope="row">BIOS</th>' in html and 'st-fv-vacio' in html            # vacía, pero se ve la fila
+    assert '<th scope="row">Serial</th>' not in html                                # opcional y sin dato: no

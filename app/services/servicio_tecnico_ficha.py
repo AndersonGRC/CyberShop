@@ -33,6 +33,8 @@ FILAS_PC = ('Sistema Operativo', 'Fabricante del Sistema', 'Modelo', 'Serial', '
             'Procesador', 'Memoria RAM', 'Memoria física disponible', 'Placa Base', 'Zona Horaria',
             'Unidad de Disco', 'BIOS', 'Directorios del Sistema', 'Memoria virtual')
 FOTOS_EN_FICHA = 3
+# Filas que la plantilla de fichas del taller no trae: en la página solo se ven si tienen dato.
+FILAS_OPCIONALES = ('Serial', 'Memoria virtual')
 _MESES = ('ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic')
 # Colores del formato (los mismos de las fichas del taller).
 ROJO = '#FF4F4F'            # barras y etiquetas de la ficha roja
@@ -145,6 +147,20 @@ def fotos_de_la_ficha(equipo_id, elegidas=None):
     return sorted(fotos, key=lambda f: (orden.get(f['momento'], 5), -f['id']))[:FOTOS_EN_FICHA]
 
 
+_TITULOS_EL = re.compile(r'(?i)^(ingeniero|doctor|señor|senor|licenciado|arquitecto|profesor|ing\.?|dr\.?|sr\.?)\b')
+_TITULOS_LA = re.compile(r'(?i)^(ingeniera|doctora|señora|senora|licenciada|arquitecta|profesora|dra\.?|sra\.?)\b')
+
+
+def _preposicion(asignado):
+    """«EQUIPO ASIGNADO AL INGENIERO …», «… A LA DOCTORA …» o «… A JUAN …»."""
+    texto = (asignado or '').strip()
+    if _TITULOS_LA.match(texto):
+        return 'A LA '
+    if _TITULOS_EL.match(texto):
+        return 'AL '
+    return 'A '
+
+
 def armar(equipo_id):
     """Todo lo que va en la ficha (para el PDF y la pantalla de edición)."""
     equipo = st.obtener_equipo(equipo_id)
@@ -158,11 +174,11 @@ def armar(equipo_id):
     for etq, auto in filas_base(equipo):
         valor = (propias.get(etq) or '').strip() or (auto or '').strip()
         filas.append({'etiqueta': etq, 'valor': valor, 'propio': bool((propias.get(etq) or '').strip()),
-                      'auto': auto or '', 'destacar': etq in destacar})
+                      'auto': auto or '', 'destacar': etq in destacar, 'opcional': etq in FILAS_OPCIONALES})
     for etq, valor in propias.items():            # filas que trajo un documento y no están en la lista
         if etq not in {f['etiqueta'] for f in filas} and (valor or '').strip():
             filas.append({'etiqueta': etq, 'valor': valor.strip(), 'propio': True, 'auto': '',
-                          'destacar': etq in destacar})
+                          'destacar': etq in destacar, 'opcional': False})
     fecha = leer_fecha(ficha.get('fecha')) if ficha.get('fecha') else (ultimo or date.today())
     asignado = (ficha.get('asignado_a') or '').strip() or cliente.get('nombre') or ''
     empresa = (ficha.get('empresa') or '').strip()
@@ -182,7 +198,7 @@ def armar(equipo_id):
         'equipo': equipo, 'equipo_id': equipo_id, 'codigo': equipo.get('ficha_codigo'),
         'version': ficha.get('version') or 1, 'fecha': fecha, 'proximo': equipo.get('mant_proximo'),
         'estado': ficha.get('estado') or 'bueno', 'asignado_a': asignado, 'empresa': empresa,
-        'titulo': ('EQUIPO ASIGNADO A ' + ' - '.join(x for x in (asignado, empresa) if x)).upper(),
+        'titulo': ('EQUIPO ASIGNADO ' + _preposicion(asignado) + ' - '.join(x for x in (asignado, empresa) if x)).upper(),
         'descripcion': ficha.get('descripcion') or equipo.get('resumen_ia') or '', 'filas': filas,
         'vida_util': ficha.get('vida_util') or '', 'recomendaciones': ficha.get('recomendaciones') or [],
         'fabricante': ficha.get('fabricante') or FABRICANTES.get(_norm(marca), marca.upper() if marca else ''),
@@ -975,12 +991,8 @@ def leer_texto(texto, rellenos_rojos=0, textos_rojos=()):
     f['proximo'] = leer_fecha(m.group(1)).isoformat() if m and leer_fecha(m.group(1)) else None
     m = re.search(r'VERSION\s+(\d{1,3})', plano_todo)
     f['version'] = int(m.group(1)) if m else 1
-    m = re.search(r'EQUIPO ASIGNADO A\s+(.+)', plano_todo)
-    titulo = ' '.join(m.group(1).split()) if m else ''
-    if ' - ' in titulo:
-        f['asignado_a'], f['empresa'] = [x.strip() for x in titulo.rsplit(' - ', 1)]
-    else:
-        f['asignado_a'], f['empresa'] = titulo or None, None
+    from services import servicio_tecnico_empresas as emp
+    f['asignado_a'], f['empresa'] = emp.titular_de_ficha(plano_todo)    # «… ASIGNADO A / AL INGENIERO …»
 
     i_car = buscar(lambda t: 'caracteristicas globales' in t)
     i_desc = buscar(lambda t: t.startswith('descripcion') and 'problema' not in t)
