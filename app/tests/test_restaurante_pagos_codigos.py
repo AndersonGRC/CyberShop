@@ -54,6 +54,20 @@ def test_buscar_por_codigo_de_barras(monkeypatch):
     assert [p['id'] for p in rt.buscar_productos('400350')['productos']] == [7]   # parte del código
 
 
+def test_codigo_exacto_trae_solo_ese(monkeypatch):
+    """«001» trae SOLO el producto con código 001, no todos los que tienen un 1
+    (antes se le quitaban los ceros y se buscaba «1» dentro de cada código)."""
+    monkeypatch.setattr(rt, 'get_product_catalog', lambda: [
+        {'id': i, 'nombre': f'Plato {i}', 'precio': 1000, 'stock': 0, 'referencia': ref, 'barcode': None,
+         'genero_nombre': 'Platos'}
+        for i, ref in enumerate(['001', '010', '011', '101', '1', '0012', 'A-001'], start=1)])
+    r = rt.buscar_productos('001')
+    assert r['exacto']['id'] == 1 and [p['id'] for p in r['productos']] == [1]
+    assert [p['id'] for p in rt.buscar_productos('1')['productos']] == [5]          # «1» tal cual
+    assert [p['id'] for p in rt.buscar_productos('0001')['productos']] == [1, 5]    # sin igual exacto: sin ceros
+    assert [p['id'] for p in rt.buscar_productos('00')['productos']] == [1, 6, 7]  # parte del código, con sus ceros
+
+
 def test_ruta_de_busqueda(as_propietario, modulo_mesas):
     con_ref = next((p for p in rt.get_product_catalog() if p.get('referencia')), None)
     if not con_ref:

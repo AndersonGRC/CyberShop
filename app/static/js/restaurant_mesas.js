@@ -764,12 +764,17 @@
 
     function productosFiltrados() {
         const q = S.q.trim().toLowerCase();
-        const cq = compacto(S.q);
+        const lista = P.products || [];
+        if (!q) return lista.filter((p) => S.cat === 'Todos' || (p.genero_nombre || 'Sin categoría') === S.cat);
+        // Si hay un producto con ESE código («001»), solo ese: nada de parecidos.
+        const exactos = productosPorCodigo(S.q);
+        if (exactos.length) return exactos;
         // Al buscar se mira en TODAS las categorías: un nombre o un código no se
-        // esconde porque había otra categoría escogida.
-        return (P.products || []).filter((p) => (q || S.cat === 'Todos' || (p.genero_nombre || 'Sin categoría') === S.cat)
-            && (!q || String(p.nombre || '').toLowerCase().includes(q)
-                || (cq && (compacto(p.referencia).includes(cq) || compacto(p.barcode).includes(cq)))));
+        // esconde porque había otra categoría escogida. El código se busca tal
+        // cual (con sus ceros): «001» no trae todo lo que tenga un 1.
+        const cs = sinSignos(S.q);
+        return lista.filter((p) => String(p.nombre || '').toLowerCase().includes(q)
+            || (cs && (sinSignos(p.referencia).includes(cs) || sinSignos(p.barcode).includes(cs))));
     }
 
     /* ── Lector de código de barras (mismo criterio que el POS) ──
@@ -785,13 +790,20 @@
         const c = normCodigo(v).replace(/[\s.\-]/g, '');
         return /^\d+$/.test(c) ? (c.replace(/^0+/, '') || c) : c;
     }
-    function productoPorCodigo(codigo) {
-        const c = normCodigo(codigo), cc = compacto(codigo);
-        if (!c) return null;
+    // El código tal como se escribe, sin espacios, guiones ni puntos (con sus ceros).
+    const sinSignos = (v) => normCodigo(v).replace(/[\s.\-]/g, '');
+    /* Productos con ESE código: primero los que lo tienen tal cual («001» = «001»);
+       si no hay, los que coinciden sin ceros a la izquierda (lector UPC/EAN). */
+    function productosPorCodigo(codigo) {
+        const c = sinSignos(codigo), cc = compacto(codigo);
+        if (!c) return [];
         const lista = P.products || [];
-        return lista.find((p) => normCodigo(p.referencia) === c || (p.barcode && normCodigo(p.barcode) === c))
-            || (cc ? lista.find((p) => (p.referencia && compacto(p.referencia) === cc) || (p.barcode && compacto(p.barcode) === cc)) : null)
-            || null;
+        const iguales = lista.filter((p) => (p.referencia && sinSignos(p.referencia) === c) || (p.barcode && sinSignos(p.barcode) === c));
+        if (iguales.length) return iguales;
+        return cc ? lista.filter((p) => (p.referencia && compacto(p.referencia) === cc) || (p.barcode && compacto(p.barcode) === cc)) : [];
+    }
+    function productoPorCodigo(codigo) {
+        return productosPorCodigo(codigo)[0] || null;
     }
     /* El catálogo se carga al abrir la página: lo que no está se le pregunta al
        servidor (productos registrados después) y se suma a la lista. */

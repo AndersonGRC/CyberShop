@@ -490,22 +490,32 @@ def buscar_productos(q, limite=30):
     q = (q or '').strip()
     if not q:
         return {'exacto': None, 'productos': []}
-    codigo = normalizar_codigo(q)
+    codigo, literal = normalizar_codigo(q), _sin_signos(q)
     texto = q.lower()
-    exacto, coinciden = None, []
+    iguales, sin_ceros, coinciden = [], [], []
     for p in get_product_catalog():
         p = dict(p)
         p['precio'] = float(p.get('precio') or 0)
         p['stock'] = int(p.get('stock') or 0)
-        codigos = [normalizar_codigo(p.get('referencia')), normalizar_codigo(p.get('barcode'))]
-        if codigo and codigo in codigos:
-            exacto = exacto or p
-        if (texto in str(p.get('nombre') or '').lower()
-                or (codigo and any(codigo in c for c in codigos if c))):
+        crudos = [_sin_signos(p.get('referencia')), _sin_signos(p.get('barcode'))]
+        if literal and literal in crudos:
+            iguales.append(p)
+        elif codigo and codigo in [normalizar_codigo(p.get('referencia')), normalizar_codigo(p.get('barcode'))]:
+            sin_ceros.append(p)
+        # «Contiene» con el código tal cual: «001» no trae todo lo que tenga un 1.
+        if texto in str(p.get('nombre') or '').lower() or (literal and any(literal in c for c in crudos if c)):
             coinciden.append(p)
-    if exacto and exacto not in coinciden:
-        coinciden.insert(0, exacto)
-    return {'exacto': exacto, 'productos': coinciden[:limite]}
+    # Si hay un producto con ESE código, solo ese (o esos): nada de parecidos.
+    exactos = iguales or sin_ceros
+    if exactos:
+        return {'exacto': exactos[0], 'productos': exactos[:limite]}
+    return {'exacto': None, 'productos': coinciden[:limite]}
+
+
+def _sin_signos(valor):
+    """El código tal como se escribe, sin espacios, guiones ni puntos (con sus ceros)."""
+    import re
+    return re.sub(r'[\s.\-]', '', str(valor or '')).upper()
 
 
 def get_product_catalog():
