@@ -12,23 +12,23 @@
 {% set editar_url = url_for('servicio_tecnico.equipo_editar', equipo_id=equipo.id) %}
 {% set crm_url = url_for('crm.crm_contacto_ver', id=equipo.crm_contacto_id) if crm_activo and equipo.crm_contacto_id else '' %}
 
+{% macro cuando(dias) %}{% if dias == 0 %}hoy{% elif dias > 0 %}en {% if dias < 45 %}{{ dias }} día{{ '' if dias == 1 else 's' }}{% else %}{{ (dias / 30) | round | int }} meses{% endif %}{% else %}{% set d = -dias %}hace {% if d < 45 %}{{ d }} día{{ '' if d == 1 else 's' }}{% else %}{{ (d / 30) | round | int }} meses{% endif %}{% endif %}{% endmacro %}
+{% set fx = equipo.ficha or {} %}
 <section class="st-hero">
     <div class="st-ficha-cab">
         <span class="st-ficha-ico"><i class="fas fa-{{ tipo_icono(equipo.tipo) }}" aria-hidden="true"></i></span>
         <div>
             <h1>{{ nombre_equipo }}</h1>
             <p>{{ tipo_nombre(equipo.tipo) }} de <strong>{{ equipo.cliente_nombre or 'cliente sin nombre' }}</strong>
-               {% if equipo.serial %} · Serial {{ equipo.serial }}{% endif %}{% if equipo.imei %} · IMEI {{ equipo.imei }}{% endif %}
-               {% set fx = equipo.ficha or {} %}{% if fx.get('asignado_a') %} · Asignado a {{ fx.asignado_a }}{% endif %}
+               {% if fx.get('asignado_a') %} · Asignado a {{ fx.asignado_a }}{% endif %}
                · Carpeta <a class="st-hero-carpeta" href="{{ url_for('servicio_tecnico.equipos', carpeta=equipo.empresa_id or 'particulares') }}"><i class="fas fa-{{ 'building' if equipo.empresa_id else 'user' }}" aria-hidden="true"></i> {{ equipo.empresa_nombre or 'Particulares' }}</a></p>
-            {% if fx.get('estado') %}<p style="margin-top:8px">{% if fx.estado == 'inconveniente' %}<span class="st-chip st-chip-peligro"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i> Presenta inconvenientes</span>{% else %}<span class="st-chip st-chip-info"><i class="fas fa-check-circle" aria-hidden="true"></i> En buen estado</span>{% endif %}
-               {% if equipo.ficha_codigo %}<span class="st-chip st-chip-neutro">Ficha {{ equipo.ficha_codigo }}</span>{% endif %}</p>{% endif %}
         </div>
     </div>
     <div class="st-acciones">
+        <a class="st-btn st-btn-sm" href="#registrar-mant" data-st-abrir><i class="fas fa-calendar-check" aria-hidden="true"></i> Registrar mantenimiento</a>
         <a class="st-btn st-btn-sm" href="{{ url_for('servicio_tecnico.nueva_orden', cliente=equipo.crm_contacto_id) }}"><i class="fas fa-tools" aria-hidden="true"></i> Recibir para reparación</a>
-        <a class="st-btn st-btn-sm" href="{{ editar_url }}"><i class="fas fa-pen" aria-hidden="true"></i> Editar datos</a>
         <a class="st-btn st-btn-sm" href="{{ url_for('servicio_tecnico.equipo_ficha', equipo_id=equipo.id) }}"><i class="fas fa-file-pdf" aria-hidden="true"></i> Ficha técnica</a>
+        <a class="st-btn st-btn-sm" href="{{ editar_url }}"><i class="fas fa-pen" aria-hidden="true"></i> Editar datos</a>
         {% if crm_url %}<a class="st-btn st-btn-sm" href="{{ crm_url }}"><i class="fas fa-address-card" aria-hidden="true"></i> Ver cliente</a>{% endif %}
     </div>
 </section>
@@ -38,13 +38,13 @@
     (por ejemplo, porque se deshizo la importación que lo trajo). Sus datos se conservan.</p>
 {% endif %}
 
-{# ── Qué le falta a la ficha (solo si falta algo) ── #}
+{# ── Lo que le falta (una línea; se abre si se quiere ver) ── #}
 {% set ir_a = {'editar': (editar_url, 'Completar'), 'fotos': ('#fotos', 'Agregar foto'),
                'datos': ('#leer-info', 'Pegar información'), 'crm': (crm_url or editar_url, 'Ver cliente'),
                'mantenimiento': ('#mantenimiento', 'Programar')} %}
 {% if validacion.faltan %}
-<section class="st-card st-faltan" aria-labelledby="faltan-tit">
-    <h2 id="faltan-tit"><i class="fas fa-clipboard-check" aria-hidden="true"></i> Para completar la ficha</h2>
+<details class="st-card st-faltan st-faltan-mini">
+    <summary><i class="fas fa-clipboard-check" aria-hidden="true"></i> Para completar la ficha: {{ validacion.faltan | length }} pendiente{{ '' if validacion.faltan | length == 1 else 's' }}</summary>
     <ul>
         {% for estado, texto, ir in validacion.faltan %}
         <li class="st-faltan-{{ estado }}">
@@ -54,49 +54,133 @@
         </li>
         {% endfor %}
     </ul>
-</section>
+</details>
 {% else %}
 <p class="st-completa"><i class="fas fa-check-circle" aria-hidden="true"></i> La ficha está completa.</p>
 {% endif %}
 
 <nav class="st-indice" aria-label="Secciones de la ficha">
-    <a href="#datos"><i class="fas fa-list" aria-hidden="true"></i> Datos</a>
-    <a href="#fotos"><i class="fas fa-camera" aria-hidden="true"></i> Fotos ({{ fotos | length }})</a>
-    <a href="#documentos"><i class="fas fa-folder-open" aria-hidden="true"></i> Documentos ({{ documentos | length }})</a>
+    <a href="#datos"><i class="fas fa-id-card" aria-hidden="true"></i> Ficha</a>
     <a href="#mantenimiento"><i class="fas fa-calendar-check" aria-hidden="true"></i> Mantenimiento</a>
     <a href="#historial"><i class="fas fa-history" aria-hidden="true"></i> Historial ({{ hoja_vida | length }})</a>
+    <a href="#fotos"><i class="fas fa-camera" aria-hidden="true"></i> Fotos ({{ fotos | length }})</a>
+    <a href="#documentos"><i class="fas fa-folder-open" aria-hidden="true"></i> Documentos ({{ documentos | length }})</a>
 </nav>
 
-{# ── 1. Datos del equipo ── #}
-<section class="st-card st-seccion" id="datos" aria-labelledby="datos-tit">
-    <h2 id="datos-tit"><i class="fas fa-list" aria-hidden="true"></i> Datos del equipo</h2>
-    {% set llenos = [] %}{% set vacios = [] %}
-    {% for col in columnas %}{% if equipo[col] %}{% set _ = llenos.append((etiquetas[col], equipo[col])) %}{% else %}{% set _ = vacios.append(etiquetas[col]) %}{% endif %}{% endfor %}
-    {% for clave, etiqueta, tipo_input, opciones in campos_extra %}{% set v = extras.get(clave) %}{% if v %}{% set _ = llenos.append((etiqueta, 'Sí' if v == 'si' else ('No' if v == 'no' else v))) %}{% else %}{% set _ = vacios.append(etiqueta) %}{% endif %}{% endfor %}
-    {% if llenos %}
-    <dl class="st-datos st-datos-lista">
-        {% for etiqueta, valor in llenos %}<div><dt>{{ etiqueta }}</dt><dd>{{ valor }}</dd></div>{% endfor %}
-    </dl>
-    {% else %}<p class="st-nota">Todavía no tiene datos técnicos.</p>{% endif %}
-    {% if vacios %}<p class="st-nota">Sin llenar: {{ vacios | join(', ') }}.</p>{% endif %}
+{# ── 1. La ficha, como en el Excel del taller ── #}
+{% set v = vista or {} %}
+{% set roja = v.get('estado') == 'inconveniente' %}
+{% set filas_llenas = (v.get('filas') or []) | selectattr('valor') | list %}
+<section class="st-card st-seccion st-fv {{ 'st-fv-roja' if roja else 'st-fv-azul' }}" id="datos" aria-labelledby="datos-tit">
+    <div class="st-fv-barra">
+        <h2 id="datos-tit"><i class="fas fa-id-card" aria-hidden="true"></i> Ficha técnica</h2>
+        <span class="st-fv-estado">{% if roja %}<i class="fas fa-exclamation-triangle" aria-hidden="true"></i> Presenta inconvenientes{% else %}<i class="fas fa-check-circle" aria-hidden="true"></i> En buen estado{% endif %}</span>
+        {% if v.get('codigo') %}<span class="st-fv-codigo">Código {{ v.codigo }} · versión {{ v.version }}</span>{% endif %}
+    </div>
+    {% if v.get('titulo') %}<p class="st-fv-asignado">{{ v.titulo }}</p>{% endif %}
 
-    {% if equipo.notas %}<h3><i class="fas fa-sticky-note" aria-hidden="true"></i> Notas</h3><p class="st-texto">{{ equipo.notas }}</p>{% endif %}
-    {% if equipo.importacion_id %}<p class="st-nota"><i class="fas fa-file-import" aria-hidden="true"></i> Traído desde archivos en la
-        <a href="{{ url_for('servicio_tecnico.importacion', lote_id=equipo.importacion_id) }}">importación #{{ equipo.importacion_id }}</a>.</p>{% endif %}
-    {% if equipo.resumen_ia %}<h3><i class="fas fa-robot" aria-hidden="true"></i> Resumen</h3><p class="st-texto">{{ equipo.resumen_ia }}</p>{% endif %}
-    {% if equipo.sugerencias_ia %}
-    <h3><i class="fas fa-lightbulb" aria-hidden="true"></i> Mejoras sugeridas</h3>
-    <ul class="st-sugerencias">
-        {% for s in equipo.sugerencias_ia %}
-        <li><strong>{{ s.titulo }}</strong>{% if s.detalle %}<br><small>{{ s.detalle }}</small>{% endif %}</li>
+    <div class="st-fv-grid">
+        <div class="st-fv-fotos">
+            {% set fotos_ficha = v.get('fotos') or [] %}
+            {% if fotos_ficha %}
+            <a class="st-fv-foto-grande" href="{{ url_for('servicio_tecnico.foto_ver', foto_id=fotos_ficha[0].id) }}" target="_blank" rel="noopener" aria-label="Abrir la foto del equipo en tamaño completo">
+                <img src="{{ url_for('servicio_tecnico.foto_ver', foto_id=fotos_ficha[0].id) }}" alt="Foto del equipo {{ nombre_equipo }}" loading="lazy"></a>
+            {% if fotos_ficha | length > 1 %}
+            <div class="st-fv-miniaturas">
+                {% for f in fotos_ficha[1:] %}
+                <a href="{{ url_for('servicio_tecnico.foto_ver', foto_id=f.id) }}" target="_blank" rel="noopener" aria-label="Abrir otra foto del equipo">
+                    <img src="{{ url_for('servicio_tecnico.foto_mini', foto_id=f.id) }}" alt="" loading="lazy"></a>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% else %}
+            <a class="st-fv-sin-foto" href="#fotos" data-st-abrir><i class="fas fa-camera" aria-hidden="true"></i><span>Agregar una foto del equipo</span></a>
+            {% endif %}
+        </div>
+        <div class="st-fv-resumen">
+            <h3>Descripción general</h3>
+            <p class="st-texto">{{ v.get('descripcion') or equipo.resumen_ia or 'Sin descripción todavía: escríbela en «Ficha técnica».' }}</p>
+            <dl class="st-fv-fechas">
+                <div><dt>Último mantenimiento</dt>
+                    <dd>{% if ultimo_mant %}<strong>{{ ultimo_mant.fecha.strftime('%d/%m/%Y') }}</strong> <small>{{ cuando((ultimo_mant.fecha - hoy).days) }}</small>{% else %}<strong>Sin registrar</strong>{% endif %}</dd></div>
+                <div class="{{ 'st-fv-vencido' if equipo.mant_proximo and equipo.mant_proximo < hoy else '' }}"><dt>Próximo mantenimiento</dt>
+                    <dd>{% if equipo.mant_proximo %}<strong>{{ equipo.mant_proximo.strftime('%d/%m/%Y') }}</strong> <small>{{ cuando((equipo.mant_proximo - hoy).days) }}</small>{% else %}<strong>Sin programar</strong>{% endif %}</dd></div>
+            </dl>
+        </div>
+    </div>
+
+    {% if filas_llenas %}
+    <h3 class="st-fv-titulo">Características</h3>
+    <table class="st-fv-tabla">
+        <caption class="st-sr">Características del equipo</caption>
+        <tbody>
+        {% for r in filas_llenas %}
+        <tr class="{{ 'st-fv-resaltada' if r.destacar and roja else '' }}"><th scope="row">{{ r.etiqueta }}</th><td>{{ r.valor }}</td></tr>
         {% endfor %}
-    </ul>
-    {% if orden_abierta %}
-    <p><a class="st-btn st-btn-sec st-btn-sm" href="{{ url_for('servicio_tecnico.orden_cotizar', orden_id=orden_abierta) }}"><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i> Ofrecerlas en una cotización</a></p>
-    {% endif %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="st-nota">Todavía no tiene características: <a href="#leer-info" data-st-abrir>pégalas desde la información del equipo</a>.</p>
     {% endif %}
 
+    <div class="st-fv-dos">
+        <div class="st-fv-caja">
+            <h3><i class="fas fa-heartbeat" aria-hidden="true"></i> Vida útil</h3>
+            <p class="st-texto">{{ v.get('vida_util') or 'Sin anotar.' }}</p>
+            {% if v.get('recomendaciones') %}
+            <h3><i class="fas fa-clipboard-list" aria-hidden="true"></i> Recomendaciones que se le dejaron</h3>
+            <ul class="st-fv-recs">{% for r in v.recomendaciones %}<li><i class="fas fa-check-square" aria-hidden="true"></i> <span>{{ r }}</span></li>{% endfor %}</ul>
+            {% endif %}
+        </div>
+        <div class="st-fv-caja">
+            <h3><i class="fas fa-exclamation-circle" aria-hidden="true"></i> Problema</h3>
+            <p class="st-texto">{{ v.get('problema') or 'N/A - El equipo no presenta fallas.' }}</p>
+            <h3><i class="fas fa-tools" aria-hidden="true"></i> Requerimientos</h3>
+            <p class="st-texto">{{ v.get('requerimientos') or 'Sin requerimientos anotados.' }}</p>
+            {% if v.get('fabricante') %}
+            <h3><i class="fas fa-industry" aria-hidden="true"></i> Fabricante</h3>
+            <p class="st-texto">{{ v.fabricante }}{% if v.get('fabricante_url') %} · <a href="{{ v.fabricante_url }}" target="_blank" rel="noopener noreferrer">soporte del fabricante</a>{% endif %}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="st-acciones st-fv-acciones">
+        <a class="st-btn" href="{{ url_for('servicio_tecnico.equipo_ficha', equipo_id=equipo.id) }}"><i class="fas fa-pen" aria-hidden="true"></i> Editar la ficha</a>
+        <form method="post" action="{{ url_for('servicio_tecnico.equipo_ficha_pdf', equipo_id=equipo.id) }}" target="_blank">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="st-btn st-btn-sec" type="submit"><i class="fas fa-file-pdf" aria-hidden="true"></i> Ver el PDF</button>
+        </form>
+    </div>
+
+    {# Lo demás, plegado: no llena la vista. #}
     <div class="st-acordeon">
+        <details id="mas-datos">
+            <summary><i class="fas fa-list" aria-hidden="true"></i> Más datos y opciones</summary>
+            <div class="st-acordeon-cuerpo">
+                {% set llenos = [] %}
+                {% for col in columnas %}{% if equipo[col] %}{% set _ = llenos.append((etiquetas[col], equipo[col])) %}{% endif %}{% endfor %}
+                {% for clave, etiqueta, tipo_input, opciones in campos_extra %}{% set x = extras.get(clave) %}{% if x %}{% set _ = llenos.append((etiqueta, 'Sí' if x == 'si' else ('No' if x == 'no' else x))) %}{% endif %}{% endfor %}
+                {% if llenos %}
+                <dl class="st-datos st-datos-lista">
+                    {% for etiqueta, valor in llenos %}<div><dt>{{ etiqueta }}</dt><dd>{{ valor }}</dd></div>{% endfor %}
+                </dl>
+                {% endif %}
+                {% if equipo.notas %}<h3><i class="fas fa-sticky-note" aria-hidden="true"></i> Notas</h3><p class="st-texto">{{ equipo.notas }}</p>{% endif %}
+                {% if equipo.importacion_id %}<p class="st-nota"><i class="fas fa-file-import" aria-hidden="true"></i> Traído desde archivos en la
+                    <a href="{{ url_for('servicio_tecnico.importacion', lote_id=equipo.importacion_id) }}">importación #{{ equipo.importacion_id }}</a>.</p>{% endif %}
+                {% if equipo.sugerencias_ia %}
+                <h3><i class="fas fa-lightbulb" aria-hidden="true"></i> Mejoras sugeridas</h3>
+                <ul class="st-sugerencias">
+                    {% for s in equipo.sugerencias_ia %}
+                    <li><strong>{{ s.titulo }}</strong>{% if s.detalle %}<br><small>{{ s.detalle }}</small>{% endif %}</li>
+                    {% endfor %}
+                </ul>
+                {% if orden_abierta %}
+                <p><a class="st-btn st-btn-sec st-btn-sm" href="{{ url_for('servicio_tecnico.orden_cotizar', orden_id=orden_abierta) }}"><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i> Ofrecerlas en una cotización</a></p>
+                {% endif %}
+                {% endif %}
+            </div>
+        </details>
         <details id="carpeta">
             <summary><i class="fas fa-folder" aria-hidden="true"></i> Carpeta: {{ equipo.empresa_nombre or 'Particulares' }} · cambiarla</summary>
             <form method="post" action="{{ url_for('servicio_tecnico.equipo_carpeta', equipo_id=equipo.id) }}" class="st-acordeon-cuerpo st-campos">
@@ -140,109 +224,50 @@
     </div>
 </section>
 
-{# ── 2. Fotos ── #}
-<section class="st-card st-seccion" id="fotos" aria-labelledby="fotos-tit">
-    <h2 id="fotos-tit"><i class="fas fa-camera" aria-hidden="true"></i> Fotos</h2>
-    {% if fotos %}
-    <ul class="st-fotos">
-        {% for f in fotos %}
-        <li class="st-foto">
-            <a href="{{ url_for('servicio_tecnico.foto_ver', foto_id=f.id) }}" target="_blank" rel="noopener" aria-label="Abrir la foto en tamaño completo">
-                <img src="{{ url_for('servicio_tecnico.foto_mini', foto_id=f.id) }}" alt="{{ f.descripcion or ('Foto: ' ~ nombre_momento.get(f.momento, '')) }}" loading="lazy" width="240" height="180"></a>
-            <div class="st-foto-pie">
-                <span><strong>{{ nombre_momento.get(f.momento, f.momento) }}</strong>{% if f.orden_numero %} · {{ f.orden_numero }}{% endif %}<br>
-                    <small>{{ f.creado_en.strftime('%d/%m/%Y') }}{% if f.descripcion %} · {{ f.descripcion }}{% endif %}</small></span>
-                <form method="post" action="{{ url_for('servicio_tecnico.foto_quitar', foto_id=f.id) }}" data-st-confirmar="¿Quitar esta foto de la ficha? Quedará guardada en el historial.">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="st-btn st-btn-sec st-btn-sm" aria-label="Quitar la foto del {{ f.creado_en.strftime('%d/%m/%Y') }}"><i class="fas fa-eye-slash" aria-hidden="true"></i></button>
-                </form>
-            </div>
-        </li>
-        {% endfor %}
-    </ul>
-    {% else %}<p class="st-nota">Sin fotos todavía. Toma una del estado del equipo y otra de la etiqueta con el serial.</p>{% endif %}
-
-    {% if fotos | length < fotos_max %}
-    <div class="st-acordeon">
-        <details {% if not fotos %}open{% endif %}>
-            <summary><i class="fas fa-plus" aria-hidden="true"></i> Agregar fotos</summary>
-            <form method="post" enctype="multipart/form-data" action="{{ url_for('servicio_tecnico.equipo_fotos', equipo_id=equipo.id) }}" class="st-campos st-acordeon-cuerpo">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="st-campo st-campo-ancho"><label for="ft-input">Escoge una o varias fotos</label>
-                    <input type="file" id="ft-input" name="fotos" accept="image/*" multiple required data-st-fotos="#ft-vista">
-                    <small>Desde el celular puedes tomarlas con la cámara. Quedan {{ fotos_max - (fotos | length) }} espacios.</small></div>
-                <ul class="st-fotos st-fotos-vista st-campo-ancho" id="ft-vista" aria-live="polite"></ul>
-                <div class="st-campo"><label for="ft-momento">¿De cuándo son?</label>
-                    <select id="ft-momento" name="momento">{% for c, n in momentos %}<option value="{{ c }}">{{ n }}</option>{% endfor %}</select></div>
-                <div class="st-campo"><label for="ft-orden">Orden relacionada</label>
-                    <select id="ft-orden" name="orden_id"><option value="">Ninguna</option>
-                        {% for o in ordenes_equipo %}<option value="{{ o.id }}" {% if o.id == orden_abierta %}selected{% endif %}>{{ o.numero }}</option>{% endfor %}</select></div>
-                <div class="st-campo st-campo-ancho"><label for="ft-desc">Descripción (opcional)</label>
-                    <input type="text" id="ft-desc" name="descripcion" maxlength="200" placeholder="Ej. Golpe en la esquina superior"></div>
-                <div class="st-campo-ancho"><button class="st-btn" type="submit"><i class="fas fa-upload" aria-hidden="true"></i> Subir fotos</button></div>
-            </form>
-        </details>
-    </div>
-    {% else %}<p class="st-aviso">El equipo tiene el máximo de {{ fotos_max }} fotos. Quita alguna para subir otra.</p>{% endif %}
-</section>
-
-{# ── 3. Documentos (PDF, Excel, Word…) ── #}
-<section class="st-card st-seccion" id="documentos" aria-labelledby="docs-tit">
-    <h2 id="docs-tit"><i class="fas fa-folder-open" aria-hidden="true"></i> Documentos</h2>
-    {% if documentos %}
-    <ul class="st-docs">
-        {% for d in documentos %}
-        {% set ico = 'file-pdf' if d.mime == 'application/pdf' else ('file-excel' if ('sheet' in d.mime or 'excel' in d.mime or d.mime == 'text/csv') else ('file-word' if ('word' in d.mime or 'msword' in d.mime or 'opendocument.text' in d.mime) else 'file-alt')) %}
-        <li class="st-doc">
-            <span class="st-doc-ico"><i class="fas fa-{{ ico }}" aria-hidden="true"></i></span>
-            <span class="st-doc-texto">
-                <a href="{{ url_for('servicio_tecnico.documento_ver', doc_id=d.id) }}" target="_blank" rel="noopener">{{ d.nombre }}</a>
-                <small>{{ d.creado_en.strftime('%d/%m/%Y') }} ·
-                    {% if d.bytes >= 1048576 %}{{ '%.1f' % (d.bytes / 1048576) }} MB{% else %}{{ [1, (d.bytes / 1024) | round | int] | max }} KB{% endif %}
-                    {% if d.descripcion %} · {{ d.descripcion }}{% endif %}{% if d.importacion_id %} · importación #{{ d.importacion_id }}{% endif %}</small>
-            </span>
-            <form method="post" action="{{ url_for('servicio_tecnico.documento_quitar', doc_id=d.id) }}" data-st-confirmar="¿Quitar este documento de la ficha? Quedará guardado en el historial.">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="st-btn st-btn-sec st-btn-sm" aria-label="Quitar el documento {{ d.nombre }}"><i class="fas fa-eye-slash" aria-hidden="true"></i></button>
-            </form>
-        </li>
-        {% endfor %}
-    </ul>
-    {% else %}<p class="st-nota">Sin documentos. Guarda aquí la factura, la garantía, la ficha técnica o un informe, en PDF o Excel.</p>{% endif %}
-
-    {% if documentos | length < documentos_max %}
-    <div class="st-acordeon">
-        <details>
-            <summary><i class="fas fa-plus" aria-hidden="true"></i> Adjuntar documentos</summary>
-            <form method="post" enctype="multipart/form-data" action="{{ url_for('servicio_tecnico.equipo_documentos', equipo_id=equipo.id) }}" class="st-campos st-acordeon-cuerpo">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="st-campo st-campo-ancho"><label for="doc-input">Escoge uno o varios archivos</label>
-                    <input type="file" id="doc-input" name="documentos" accept="{{ acepta_documentos }}" multiple required>
-                    <small>PDF, Excel, Word, CSV o texto, hasta 20 MB cada uno.</small></div>
-                <div class="st-campo st-campo-ancho"><label for="doc-desc">Descripción (opcional)</label>
-                    <input type="text" id="doc-desc" name="descripcion" maxlength="200" placeholder="Ej. Factura de compra"></div>
-                <div class="st-campo-ancho"><button class="st-btn" type="submit"><i class="fas fa-upload" aria-hidden="true"></i> Subir documentos</button></div>
-            </form>
-        </details>
-    </div>
-    {% else %}<p class="st-aviso">El equipo tiene el máximo de {{ documentos_max }} documentos. Quita alguno para subir otro.</p>{% endif %}
-</section>
-
-{# ── 4. Mantenimiento y recordatorios ── #}
+{# ── 2. Mantenimiento: último, próximo, frecuencia y registrar ── #}
 <section class="st-card st-seccion" id="mantenimiento" aria-labelledby="mant-tit">
-    <h2 id="mant-tit"><i class="fas fa-calendar-check" aria-hidden="true"></i> Mantenimiento y recordatorios</h2>
-    <div class="st-proximo{% if not equipo.mant_proximo %} st-proximo-vacio{% endif %}">
-        <i class="fas fa-calendar-alt" aria-hidden="true"></i>
-        <div>
-            {% if equipo.mant_proximo %}
-            <strong>Próximo mantenimiento: {{ equipo.mant_proximo.strftime('%d/%m/%Y') }}</strong>
-            <span>{% if equipo.mant_cada_meses %}Se repite cada {{ equipo.mant_cada_meses }} meses.{% else %}Una sola vez.{% endif %}
-                Ese día aparece en «Pendientes» con el mensaje listo para el cliente.</span>
-            {% else %}
-            <strong>Sin mantenimiento programado</strong>
-            <span>Prográmalo abajo y el sistema te recuerda cuándo llamar al cliente.</span>
-            {% endif %}
+    <h2 id="mant-tit"><i class="fas fa-calendar-check" aria-hidden="true"></i> Mantenimiento</h2>
+    {% set vencido = equipo.mant_proximo and equipo.mant_proximo < hoy %}
+    <div class="st-mant-tarjetas">
+        <div class="st-mant-tarjeta">
+            <span class="st-mant-ico"><i class="fas fa-check-circle" aria-hidden="true"></i></span>
+            <div>
+                <span class="st-mant-rotulo">Último mantenimiento</span>
+                {% if ultimo_mant %}
+                <strong>{{ ultimo_mant.fecha.strftime('%d/%m/%Y') }}</strong>
+                <small>{{ tipo_mant[ultimo_mant.tipo][1] if ultimo_mant.tipo in tipo_mant else ultimo_mant.tipo }} · {{ cuando((ultimo_mant.fecha - hoy).days) }}</small>
+                {% if ultimo_mant.descripcion %}<p>{{ ultimo_mant.descripcion | truncate(140) }}</p>{% endif %}
+                {% else %}
+                <strong>Sin registrar</strong><small>Anótalo cuando lo hagas.</small>
+                {% endif %}
+            </div>
         </div>
+        <div class="st-mant-tarjeta {{ 'st-mant-vencido' if vencido else ('st-mant-vacio' if not equipo.mant_proximo else '') }}">
+            <span class="st-mant-ico"><i class="fas fa-{{ 'exclamation-triangle' if vencido else 'calendar-alt' }}" aria-hidden="true"></i></span>
+            <div>
+                <span class="st-mant-rotulo">Próximo mantenimiento</span>
+                {% if equipo.mant_proximo %}
+                <strong>{{ equipo.mant_proximo.strftime('%d/%m/%Y') }}</strong>
+                <small>{% if vencido %}Vencido: {% endif %}{{ cuando((equipo.mant_proximo - hoy).days) }}</small>
+                <p>Ese día aparece en «Pendientes» con el mensaje listo para el cliente.</p>
+                {% else %}
+                <strong>Sin programar</strong><small>Prográmalo y el sistema te recuerda cuándo llamar.</small>
+                {% endif %}
+            </div>
+        </div>
+        <div class="st-mant-tarjeta">
+            <span class="st-mant-ico"><i class="fas fa-redo" aria-hidden="true"></i></span>
+            <div>
+                <span class="st-mant-rotulo">Frecuencia</span>
+                <strong>{% if equipo.mant_cada_meses %}Cada {{ equipo.mant_cada_meses }} meses{% elif equipo.mant_proximo %}Una sola vez{% else %}Sin plan{% endif %}</strong>
+                <small>{{ hoja_vida | selectattr('clase', 'in', ['preventivo', 'correctivo']) | list | length }} mantenimiento(s) en su hoja de vida</small>
+            </div>
+        </div>
+    </div>
+    <div class="st-acciones st-mant-acciones">
+        <a class="st-btn" href="#registrar-mant" data-st-abrir><i class="fas fa-plus" aria-hidden="true"></i> Registrar mantenimiento</a>
+        <a class="st-btn st-btn-sec" href="#plan-mant" data-st-abrir><i class="fas fa-calendar-plus" aria-hidden="true"></i> {{ 'Cambiar el plan' if equipo.mant_proximo else 'Programar mantenimiento' }}</a>
+        <a class="st-btn st-btn-sec" href="#historial"><i class="fas fa-history" aria-hidden="true"></i> Ver la hoja de vida</a>
     </div>
 
     {% if recordatorios %}
@@ -254,7 +279,7 @@
     {% endif %}
 
     <div class="st-acordeon">
-        <details {% if not equipo.mant_proximo %}open{% endif %}>
+        <details id="plan-mant">
             <summary><i class="fas fa-calendar-plus" aria-hidden="true"></i> {{ 'Cambiar el plan de mantenimiento' if equipo.mant_proximo else 'Programar mantenimiento' }}</summary>
             <form method="post" action="{{ url_for('servicio_tecnico.equipo_plan', equipo_id=equipo.id) }}" class="st-campos st-acordeon-cuerpo">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -270,7 +295,7 @@
                 <div class="st-campo-ancho"><button class="st-btn" type="submit"><i class="fas fa-save" aria-hidden="true"></i> Guardar</button></div>
             </form>
         </details>
-        <details>
+        <details id="registrar-mant">
             <summary><i class="fas fa-check" aria-hidden="true"></i> Registrar un mantenimiento que ya se hizo</summary>
             <form method="post" action="{{ url_for('servicio_tecnico.equipo_mantenimiento', equipo_id=equipo.id) }}" class="st-campos st-acordeon-cuerpo">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -340,7 +365,7 @@
     </div>
 </section>
 
-{# ── 5. Historial: reparaciones, mantenimientos y piezas ── #}
+{# ── 3. Historial: reparaciones, mantenimientos y piezas ── #}
 <section class="st-card st-seccion" id="historial" aria-labelledby="hist-tit">
     <h2 id="hist-tit"><i class="fas fa-history" aria-hidden="true"></i> Historial del equipo</h2>
     {% if hoja_vida %}
@@ -390,6 +415,95 @@
     </div>
 </section>
 <p class="st-aviso" id="st-seg-aviso" role="status" aria-live="polite" hidden></p>
+
+{# ── 4. Fotos ── #}
+<section class="st-card st-seccion" id="fotos" aria-labelledby="fotos-tit">
+    <h2 id="fotos-tit"><i class="fas fa-camera" aria-hidden="true"></i> Fotos</h2>
+    {% if fotos %}
+    <ul class="st-fotos">
+        {% for f in fotos %}
+        <li class="st-foto">
+            <a href="{{ url_for('servicio_tecnico.foto_ver', foto_id=f.id) }}" target="_blank" rel="noopener" aria-label="Abrir la foto en tamaño completo">
+                <img src="{{ url_for('servicio_tecnico.foto_mini', foto_id=f.id) }}" alt="{{ f.descripcion or ('Foto: ' ~ nombre_momento.get(f.momento, '')) }}" loading="lazy" width="240" height="180"></a>
+            <div class="st-foto-pie">
+                <span><strong>{{ nombre_momento.get(f.momento, f.momento) }}</strong>{% if f.orden_numero %} · {{ f.orden_numero }}{% endif %}<br>
+                    <small>{{ f.creado_en.strftime('%d/%m/%Y') }}{% if f.descripcion %} · {{ f.descripcion }}{% endif %}</small></span>
+                <form method="post" action="{{ url_for('servicio_tecnico.foto_quitar', foto_id=f.id) }}" data-st-confirmar="¿Quitar esta foto de la ficha? Quedará guardada en el historial.">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="st-btn st-btn-sec st-btn-sm" aria-label="Quitar la foto del {{ f.creado_en.strftime('%d/%m/%Y') }}"><i class="fas fa-eye-slash" aria-hidden="true"></i></button>
+                </form>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}<p class="st-nota">Sin fotos todavía. Toma una del estado del equipo y otra de la etiqueta con el serial.</p>{% endif %}
+
+    {% if fotos | length < fotos_max %}
+    <div class="st-acordeon">
+        <details {% if not fotos %}open{% endif %}>
+            <summary><i class="fas fa-plus" aria-hidden="true"></i> Agregar fotos</summary>
+            <form method="post" enctype="multipart/form-data" action="{{ url_for('servicio_tecnico.equipo_fotos', equipo_id=equipo.id) }}" class="st-campos st-acordeon-cuerpo">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="st-campo st-campo-ancho"><label for="ft-input">Escoge una o varias fotos</label>
+                    <input type="file" id="ft-input" name="fotos" accept="image/*" multiple required data-st-fotos="#ft-vista">
+                    <small>Desde el celular puedes tomarlas con la cámara. Quedan {{ fotos_max - (fotos | length) }} espacios.</small></div>
+                <ul class="st-fotos st-fotos-vista st-campo-ancho" id="ft-vista" aria-live="polite"></ul>
+                <div class="st-campo"><label for="ft-momento">¿De cuándo son?</label>
+                    <select id="ft-momento" name="momento">{% for c, n in momentos %}<option value="{{ c }}">{{ n }}</option>{% endfor %}</select></div>
+                <div class="st-campo"><label for="ft-orden">Orden relacionada</label>
+                    <select id="ft-orden" name="orden_id"><option value="">Ninguna</option>
+                        {% for o in ordenes_equipo %}<option value="{{ o.id }}" {% if o.id == orden_abierta %}selected{% endif %}>{{ o.numero }}</option>{% endfor %}</select></div>
+                <div class="st-campo st-campo-ancho"><label for="ft-desc">Descripción (opcional)</label>
+                    <input type="text" id="ft-desc" name="descripcion" maxlength="200" placeholder="Ej. Golpe en la esquina superior"></div>
+                <div class="st-campo-ancho"><button class="st-btn" type="submit"><i class="fas fa-upload" aria-hidden="true"></i> Subir fotos</button></div>
+            </form>
+        </details>
+    </div>
+    {% else %}<p class="st-aviso">El equipo tiene el máximo de {{ fotos_max }} fotos. Quita alguna para subir otra.</p>{% endif %}
+</section>
+
+{# ── 5. Documentos (PDF, Excel, Word…) ── #}
+<section class="st-card st-seccion" id="documentos" aria-labelledby="docs-tit">
+    <h2 id="docs-tit"><i class="fas fa-folder-open" aria-hidden="true"></i> Documentos</h2>
+    {% if documentos %}
+    <ul class="st-docs">
+        {% for d in documentos %}
+        {% set ico = 'file-pdf' if d.mime == 'application/pdf' else ('file-excel' if ('sheet' in d.mime or 'excel' in d.mime or d.mime == 'text/csv') else ('file-word' if ('word' in d.mime or 'msword' in d.mime or 'opendocument.text' in d.mime) else 'file-alt')) %}
+        <li class="st-doc">
+            <span class="st-doc-ico"><i class="fas fa-{{ ico }}" aria-hidden="true"></i></span>
+            <span class="st-doc-texto">
+                <a href="{{ url_for('servicio_tecnico.documento_ver', doc_id=d.id) }}" target="_blank" rel="noopener">{{ d.nombre }}</a>
+                <small>{{ d.creado_en.strftime('%d/%m/%Y') }} ·
+                    {% if d.bytes >= 1048576 %}{{ '%.1f' % (d.bytes / 1048576) }} MB{% else %}{{ [1, (d.bytes / 1024) | round | int] | max }} KB{% endif %}
+                    {% if d.descripcion %} · {{ d.descripcion }}{% endif %}{% if d.importacion_id %} · importación #{{ d.importacion_id }}{% endif %}</small>
+            </span>
+            <form method="post" action="{{ url_for('servicio_tecnico.documento_quitar', doc_id=d.id) }}" data-st-confirmar="¿Quitar este documento de la ficha? Quedará guardado en el historial.">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="st-btn st-btn-sec st-btn-sm" aria-label="Quitar el documento {{ d.nombre }}"><i class="fas fa-eye-slash" aria-hidden="true"></i></button>
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}<p class="st-nota">Sin documentos. Guarda aquí la factura, la garantía, la ficha técnica o un informe, en PDF o Excel.</p>{% endif %}
+
+    {% if documentos | length < documentos_max %}
+    <div class="st-acordeon">
+        <details>
+            <summary><i class="fas fa-plus" aria-hidden="true"></i> Adjuntar documentos</summary>
+            <form method="post" enctype="multipart/form-data" action="{{ url_for('servicio_tecnico.equipo_documentos', equipo_id=equipo.id) }}" class="st-campos st-acordeon-cuerpo">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="st-campo st-campo-ancho"><label for="doc-input">Escoge uno o varios archivos</label>
+                    <input type="file" id="doc-input" name="documentos" accept="{{ acepta_documentos }}" multiple required>
+                    <small>PDF, Excel, Word, CSV o texto, hasta 20 MB cada uno.</small></div>
+                <div class="st-campo st-campo-ancho"><label for="doc-desc">Descripción (opcional)</label>
+                    <input type="text" id="doc-desc" name="descripcion" maxlength="200" placeholder="Ej. Factura de compra"></div>
+                <div class="st-campo-ancho"><button class="st-btn" type="submit"><i class="fas fa-upload" aria-hidden="true"></i> Subir documentos</button></div>
+            </form>
+        </details>
+    </div>
+    {% else %}<p class="st-aviso">El equipo tiene el máximo de {{ documentos_max }} documentos. Quita alguno para subir otro.</p>{% endif %}
+</section>
+
 {% endblock %}
 
 {% block st_scripts %}

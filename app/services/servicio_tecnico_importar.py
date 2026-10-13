@@ -39,6 +39,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from database import get_db_cursor
 from services import servicio_tecnico_empresas as emp
+from services import servicio_tecnico_ficha as fichas
 from services import servicio_tecnico_lector as lector
 from services import servicio_tecnico_service as st
 from services import servicio_tecnico_tipos as tipos
@@ -290,6 +291,9 @@ _SINONIMOS = (
                        'capacidad|rom|almacenamiento interno|memoria interna|unidad de disco|disco gb|'
                        'capacidad almacenamiento|disco solido'),
     ('pantalla', 'pantalla|tamano pantalla|tamano de pantalla|pulgadas|display|tamano'),
+    ('ficha_codigo', 'nro ficha tecnica|no ficha tecnica|numero ficha tecnica|numero de ficha tecnica|'
+                     'nro de ficha tecnica|n ficha tecnica|codigo ficha tecnica|codigo de ficha tecnica|nro ficha|'
+                     'no ficha|numero de ficha|nro de ficha|codigo ficha|codigo de ficha|ficha nro|ficha no'),
     ('especificaciones', 'caracteristicas|especificaciones|configuracion|caracteristicas tecnicas|'
                          'especificaciones tecnicas|descripcion tecnica|hardware|ficha tecnica|componentes'),
     ('extra.tipo_disco', 'tipo de disco|tipo disco|tecnologia disco|tecnologia del disco'),
@@ -380,7 +384,8 @@ _SINONIMOS = (
               'fecha de compra|fecha compra|fecha de adquisicion|proveedor|factura|antivirus|office|software|'
               'software instalado|programas|valor compra|valor del equipo|costo equipo|precio compra|monitor|'
               'teclado|mouse|perifericos|mac|direccion mac|usuario windows|orden|no orden|numero de orden|'
-              'orden de servicio|os'),
+              'orden de servicio|os|area correspondiente|area asignada|area responsable|numeracion ultimo mantenimiento|'
+              'numeracion|numero de mantenimientos|cantidad de mantenimientos'),
     ('ignorar', 'item|consecutivo|id|fila|registro|nro|num'),
 )
 # Para la IA y la pantalla: qué es cada destino.
@@ -400,6 +405,7 @@ DESTINOS = {
     'mant_descripcion': 'Qué se le hizo al equipo', 'mant_falla': 'Falla o problema', 'mant_costo': 'Valor cobrado',
     'mant_tecnico': 'Técnico', 'mant_proximo': 'Próximo mantenimiento',
     'mant_frecuencia': 'Cada cuánto se hace el mantenimiento', 'notas': 'Otro dato (va a las notas del equipo)',
+    'ficha_codigo': 'Número de la ficha técnica del taller',
     'ignorar': 'No sirve (números de fila, vacía)',
 }
 _ESPECIALES = {'contacto', 'numero', 'fecha', 'mantenimiento'}
@@ -511,7 +517,8 @@ MARCAS = ('Hewlett Packard', 'HP', 'Dell', 'Lenovo', 'Asus', 'Acer', 'Apple', 'S
           'Microsoft', 'Nintendo', 'TP-Link', 'Mikrotik', 'Ubiquiti', 'Hikvision', 'Dahua', 'Tecno', 'Infinix',
           'ZTE', 'Alcatel', 'Google', 'OnePlus', 'Panasonic', 'Philips', 'TCL', 'Hisense', 'Caixun', 'Olimpo',
           'Zebra', 'Bixolon', 'Gateway', 'Lanix', 'Haier', 'Compumax', 'Sharp', 'Fujitsu', 'Razer', 'Alienware',
-          'Packard Bell', 'Benq', 'ViewSonic', 'AOC', 'Kodak', 'Lenco', 'Imaco', 'Polaroid')
+          'Packard Bell', 'Benq', 'ViewSonic', 'AOC', 'Kodak', 'Lenco', 'Imaco', 'Polaroid', 'Matica', 'Evolis',
+          'Datacard', 'Fargo', 'Zkteco')
 _MARCA_CANONICA = {'hewlett packard': 'HP'}
 _MODELOS_TIPO = (
     ('tablet', re.compile(r'\b(ipad|galaxy\s+tab|tab\s+[as]\d|mediapad|matepad|lenovo\s+tab|fire\s+hd)', re.I)),
@@ -793,7 +800,8 @@ def _unir(destino, origen):
 # ── Tablas (Excel y CSV) ────────────────────────────────────────
 _UTILES_EQUIPO = {'tipo', 'descripcion', 'marca', 'modelo', 'serial', 'imei', 'procesador', 'especificaciones'}
 _SE_JUNTAN = {'notas', 'mant_descripcion', 'mant_falla', 'especificaciones', 'descripcion'}
-_HOJAS_DE_AYUDA = re.compile(r'^(instrucciones?|ejemplos?|ayuda|listas|parametros|configuracion)$')
+_HOJAS_DE_AYUDA = re.compile(r'^(instrucciones?|ejemplos?|ayuda|listas|parametros|configuracion|'
+                             r'(formato|plantilla|modelo)s?( de ficha| en blanco| vacio| vacia)?|en blanco|blanco)$')
 
 
 def _es_etiqueta(v):
@@ -814,6 +822,17 @@ def _pares(fila):
     return sum(1 for k, v in enumerate(celdas[:-1]) if _es_etiqueta(v) and not _es_etiqueta(celdas[k + 1]))
 
 
+_DATOS_DEL_EQUIPO = _UTILES_EQUIPO | {'sistema_operativo', 'ram', 'almacenamiento', 'color', 'pantalla'}
+
+
+def _pares_del_equipo(fila):
+    """Como `_pares`, pero solo los datos del equipo (marca, serial, RAM…). El
+    membrete de un documento («CODIGO | …», «EMPRESA | …», «VERSION | 1») no cuenta."""
+    celdas = [v for v in fila if _celda(v)]
+    return sum(1 for k, v in enumerate(celdas[:-1]) if _es_etiqueta(v) and not _es_etiqueta(celdas[k + 1])
+               and destino_de(v) in _DATOS_DEL_EQUIPO)
+
+
 def _buscar_encabezado(filas):
     """(índice, {col: destino}) de la fila de títulos de una tabla de equipos.
     None si la hoja no es una tabla (p. ej. una hoja de vida «Etiqueta | valor»)."""
@@ -832,7 +851,7 @@ def _buscar_encabezado(filas):
         reconocidas = sum(1 for d in destinos.values() if d)
         if _pares(fila) >= max(1, reconocidas // 2) and any(_pares(f2) for f2 in filas[i + 1:i + 4]):
             continue                                   # «Marca | HP | Modelo | 240 G8»: es una ficha
-        if sum(1 for f2 in filas[:i] if _pares(f2)) >= 3:
+        if sum(1 for f2 in filas[:i] if _pares_del_equipo(f2)) >= 3:
             continue                                   # ficha con su tabla de historial debajo
         if not any(sum(1 for j in textos if j < len(f2) and _celda(f2[j])) >= 2 for f2 in filas[i + 1:i + 8]):
             continue                                   # títulos sin datos debajo
@@ -972,8 +991,16 @@ def _fila_de_tabla(fila_excel, columnas, titulos):
     for col in ('marca', 'modelo', 'color', 'sistema_operativo', 'procesador', 'ram', 'almacenamiento', 'pantalla'):
         if txt(col):
             e[col] = txt(col)
+    if txt('modelo') and not e.get('tipo'):
+        e['tipo'] = tipos.tipo_desde_texto(txt('modelo'))     # «Matica MC310 (Impresora de carnés)»
+        if not txt('marca'):
+            marca, modelo = _marca_modelo(txt('modelo'))
+            if marca:
+                e['marca'], e['modelo'] = marca, modelo or e['modelo']
     if 'serial' in reg:
         e['serial'] = _serial(reg['serial'][0][1])
+    if txt('ficha_codigo') and re.search(r'[A-Za-z]', txt('ficha_codigo')) and re.search(r'\d', txt('ficha_codigo')):
+        fila['ficha_codigo'] = ' '.join(txt('ficha_codigo').split())[:40]   # une la fila con la hoja de su ficha
     if 'imei' in reg:
         _poner_imei(fila, reg['imei'][0][1])
     if 'extra.imei2' in reg:
@@ -1444,6 +1471,45 @@ def _decodificar(datos):
     return datos.decode('utf-8', errors='replace')
 
 
+def _es_rojo(color):
+    try:
+        rgb = color.rgb if color is not None and color.type == 'rgb' else None
+    except Exception:  # noqa: BLE001
+        return False
+    if not isinstance(rgb, str) or not re.fullmatch(r'[0-9A-Fa-f]{6,8}', rgb):
+        return False
+    r, g, b = int(rgb[-6:-4], 16), int(rgb[-4:-2], 16), int(rgb[-2:], 16)
+    return r >= 190 and g <= 120 and b <= 120
+
+
+def _parte_ficha_excel(hoja, n_filas, datos):
+    """Hoja con la ficha técnica del taller → parte 'ficha' (como el PDF): sus
+    celdas con el color de fondo y de letra (rojo = presenta inconvenientes)."""
+    rejilla = []
+    for fila in hoja.iter_rows(max_row=min(n_filas, 200), max_col=COLUMNAS_MAX):
+        celdas = []
+        for j, celda in enumerate(fila):
+            valor = getattr(celda, 'value', None)
+            if valor in (None, ''):
+                continue
+            texto = valor.date().isoformat() if isinstance(valor, datetime) else (
+                valor.isoformat() if isinstance(valor, date) else _celda(valor))
+            fondo = letra = False
+            try:
+                fondo = celda.fill is not None and celda.fill.fill_type == 'solid' and _es_rojo(celda.fill.fgColor)
+                letra = celda.font is not None and _es_rojo(celda.font.color)
+            except Exception:  # noqa: BLE001
+                pass
+            celdas.append((j, texto, fondo, letra))
+        rejilla.append(celdas)
+    ficha = fichas.leer_hoja(rejilla)
+    if not ficha:
+        return None
+    ficha['fotos'] = len(fichas.fotos_de_excel(datos, hoja.title))
+    texto = '\n'.join(' | '.join(c[1] for c in fila) for fila in rejilla if fila)
+    return {'tipo': 'ficha', 'titulo': f'Hoja «{hoja.title}»', 'texto': texto, 'ficha': ficha, 'hoja': hoja.title}
+
+
 def _partes_excel(datos):
     try:
         from openpyxl import load_workbook
@@ -1461,6 +1527,11 @@ def _partes_excel(datos):
                 filas.append(list(fila))
                 if len(filas) > FILAS_LEER_MAX + 30:
                     break
+            if fichas.es_hoja_ficha([_celda(v) for fila in filas[:80] for v in fila]):
+                parte = _parte_ficha_excel(hoja, len(filas), datos)
+                if parte:                            # la plantilla en blanco no trae equipo
+                    partes.append(parte)
+                continue
             parte = _parte_de_hoja(filas, f'Hoja «{hoja.title}»')
             if parte:
                 partes.append(parte)
@@ -1519,7 +1590,8 @@ def _fila_de_ficha(f):
         e['tipo'] = 'computador'
     else:
         e['tipo'] = tipos.tipo_desde_texto(descripcion) or tipos.tipo_desde_texto(modelo_txt)
-    fabricante = datos.get('Fabricante del Sistema') or ''
+    fabricante = (datos.get('Fabricante del Sistema') or datos.get('Fabricante') or datos.get('Marca')
+                  or f.get('fabricante') or '')
     if fabricante:
         conocida = next((m for m in MARCAS if _norm(m) == _norm(fabricante)), None)
         e['marca'] = _MARCA_CANONICA.get(_norm(fabricante), conocida or fabricante.title())
@@ -1552,7 +1624,7 @@ def _fila_de_ficha(f):
         fila['cliente'] = {'empresa': f['empresa']}
     elif f.get('asignado_a'):
         fila['cliente'] = {'nombre': f['asignado_a']}
-    fecha, proximo = _iso(f.get('fecha')), _iso(f.get('proximo'))
+    fecha, proximo = _iso(f.get('ultimo') or f.get('fecha')), _iso(f.get('proximo'))
     if fecha and fecha <= date.today():
         fila['historial'].append({'fecha': fecha.isoformat(), 'tipo': 'preventivo', 'costo': None,
                                   'descripcion': ('Mantenimiento registrado en la ficha técnica '
@@ -1569,6 +1641,7 @@ def _fila_de_ficha(f):
         'asignado_a': f.get('asignado_a'), 'empresa': f.get('empresa'), 'descripcion': descripcion, 'filas': datos,
         'destacar': f.get('destacar'), 'vida_util': f.get('vida_util'), 'recomendaciones': f.get('recomendaciones'),
         'fabricante': f.get('fabricante'), 'fabricante_detalle': f.get('fabricante_detalle'),
+        'fabricante_url': f.get('fabricante_url'), 'ultimo': f.get('ultimo'),
         'problema': f.get('problema'), 'requerimientos': f.get('requerimientos')}.items()
         if v not in (None, '', [], {})}
     fila['ficha_codigo'] = (f.get('codigo') or '')[:40] or None
@@ -1594,6 +1667,8 @@ def filas_de_parte(parte, archivo, indice, negocio, ia=None, mapeo_ia=None):
         filas = [fila]
     elif parte['tipo'] == 'ficha':
         filas = [_fila_de_ficha(parte['ficha'])]
+        if parte.get('hoja'):
+            filas[0]['fotos_hoja'] = parte['hoja']     # las fotos salen de esa hoja del libro
     else:
         filas = _filas_de_texto(parte, negocio)
         if ia:
@@ -1720,14 +1795,32 @@ def _nombres_de_archivo(filas, negocio_nombre):
     return dudosos[:30], personas, decidida
 
 
+_ETIQ_EMPRESA_CAB = re.compile(r'(?i)(?:^|·|\|)\s*(?:empresa|cliente|raz[oó]n social|entidad|compa[ñn][ií]a)'
+                               r'\s*(?:·|:|-)\s*([^·|\n]{2,80})')
+
+
+def _empresa_etiquetada(partes, negocio_nombre):
+    """La empresa que dice el encabezado de una tabla con su etiqueta
+    («EMPRESA · ACME» encima de la tabla de control de mantenimientos)."""
+    for p in partes:
+        for linea in (p.get('encabezado') or []) if p['tipo'] == 'tabla' else []:
+            m = _ETIQ_EMPRESA_CAB.search(linea)
+            if m:
+                nombre = emp.nombre_visible(m.group(1))
+                if emp.clasificar(nombre, negocio_nombre)[0] in ('empresa', 'dudoso'):
+                    return nombre
+    return None
+
+
 def _paso_empresa(partes, filas, negocio_nombre, ia_ok):
     """Estado inicial del paso «¿de qué empresa es?» de un archivo: hace falta la
-    IA si hay nombres dudosos, o si ninguna fila dice su empresa y el documento
-    tiene encabezado donde buscarla."""
+    IA si hay nombres dudosos, o si ninguna fila dice su empresa (ni el
+    encabezado con su etiqueta) y el documento tiene encabezado donde buscarla."""
     dudosos, personas, decidida = _nombres_de_archivo(filas, negocio_nombre)
-    necesita = bool(dudosos) or (not decidida and bool(_encabezado(partes, personas)))
+    etiqueta = _empresa_etiquetada(partes, negocio_nombre)
+    necesita = bool(dudosos) or (not decidida and not etiqueta and bool(_encabezado(partes, personas)))
     return {'ia': ('pendiente' if ia_ok else 'sin_ia') if necesita else 'no_aplica', 'intentos': 0,
-            'nombre': None, 'clasificacion': {}, 'aviso': None}
+            'nombre': None, 'clasificacion': {}, 'aviso': None, 'etiqueta': etiqueta}
 
 
 def _carpeta_de_fila(fila, info, negocio_nombre):
@@ -1755,6 +1848,9 @@ def _carpeta_de_fila(fila, info, negocio_nombre):
                           'venía en el documento.')
         if tipo == 'empresa':
             return {'tipo': 'empresa', 'nombre': emp.nombre_visible(nombre), 'fuente': fuente, 'motivo': motivo}
+    if info.get('etiqueta'):
+        return {'tipo': 'empresa', 'nombre': info['etiqueta'], 'fuente': 'reglas',
+                'motivo': f"El documento dice que es de la empresa «{info['etiqueta']}»."}
     if info.get('nombre'):
         return {'tipo': 'empresa', 'nombre': info['nombre'], 'fuente': 'ia',
                 'motivo': 'La IA encontró la empresa en el documento.'}
@@ -2025,6 +2121,7 @@ def _leer_empresa(lote_id, archivo, filas):
     from services import servicio_tecnico_ia as st_ia
     negocio = contacto_negocio()
     dudosos, personas, decidida = _nombres_de_archivo(filas, negocio['nombre'])
+    decidida = decidida or bool((archivo.get('empresa') or {}).get('etiqueta'))
     resultado, hace_falta = {'ia': False, 'aviso': None, 'reintentar': False}, True
     encabezado = ''
     try:
@@ -2611,8 +2708,6 @@ def _revisar(cur, filas, ajustes, hoy, archivos=()):
                                                    'Si cambió de empresa, escógela en «Corregir».'))
                 carpeta = {'tipo': 'empresa', 'nombre': ya['empresa_nombre'], 'fuente': 'existente',
                            'motivo': 'Es la carpeta que ya tiene el equipo.'}
-            elif carpeta['fuente'] == 'supuesto':
-                v['mensajes'].append(('aviso', carpeta['motivo'] + ' Si no es una empresa, corrígelo.'))
             v['carpeta'] = carpeta
         # Equipo
         if not tiene_datos_fila(f) and not v['existente'] and not v['mismo_que']:
@@ -2807,8 +2902,9 @@ def _poner_ficha(cur, equipo_id, fila):
     return {'equipo_id': equipo_id, 'codigo': codigo, 'ficha': fila['ficha'], 'antes': antes or None}
 
 
-def _fotos_del_documento(cur, equipo_id, doc_id, usuario_id=None):
-    """Las fotos que trae el PDF de la ficha, si el equipo aún no tiene fotos."""
+def _fotos_del_documento(cur, equipo_id, doc_id, usuario_id=None, hoja=None):
+    """Las fotos que trae la ficha (el PDF, o la hoja del libro de Excel), si el
+    equipo aún no tiene fotos."""
     from services import servicio_tecnico_ficha as fichas
     cur.execute('SELECT COUNT(*) AS n FROM st_fotos WHERE equipo_id = %s AND activo', (equipo_id,))
     if cur.fetchone()['n']:
@@ -2818,7 +2914,9 @@ def _fotos_del_documento(cur, equipo_id, doc_id, usuario_id=None):
     if not fila:
         return []
     ids = []
-    for imagen in fichas.fotos_de_pdf(bytes(fila['contenido']), maximo=4):
+    contenido = bytes(fila['contenido'])
+    imagenes = fichas.fotos_de_excel(contenido, hoja) if hoja else fichas.fotos_de_pdf(contenido, maximo=4)
+    for imagen in imagenes:
         try:
             grande, mini, ancho, alto = st.preparar_foto(imagen)
         except ErrorServicio:
@@ -2919,6 +3017,11 @@ def importar(lote_id, usuario_id=None, hoy=None):
                     cambios = _completar_existente(cur, equipo_id, datos_equipo)
                     if cambios and equipo_id not in res['equipos_creados']:
                         res['equipos_completados'].append(cambios)
+                    if equipo_id in res['equipos_creados'] and tipos.es_valido(f['equipo'].get('tipo') or '') \
+                            and f['equipo']['tipo'] != 'otro' and not f.get('tipo_adivinado'):
+                        # La hoja de su ficha dice qué es («Impresora de carnés…»): manda sobre «Otro».
+                        cur.execute("UPDATE st_equipos SET tipo = %s WHERE id = %s AND tipo = 'otro'",
+                                    (f['equipo']['tipo'], equipo_id))
                 elif v['existente']:
                     equipo_id = v['existente']['id']
                     contacto_de_equipo[equipo_id] = v['existente']['crm_contacto_id']
@@ -2949,8 +3052,8 @@ def importar(lote_id, usuario_id=None, hoy=None):
                                  usuario_id, lote_id))
                     res['mantenimientos'].append(cur.fetchone()['id'])
                     ya.add((h['fecha'], h['tipo']))
-                if v['plan'][1] and equipo_id not in planes:
-                    planes[equipo_id] = v['plan']
+                if v['plan'][1] and (equipo_id not in planes or (not planes[equipo_id][0] and v['plan'][0])):
+                    planes[equipo_id] = v['plan']      # entre filas del mismo equipo, el plan que dice cada cuánto
                 if f.get('documento_id'):
                     cur.execute("""UPDATE st_documentos SET equipo_id = %s
                                    WHERE id = %s AND importacion_id = %s AND equipo_id IS NULL AND activo""",
@@ -2963,6 +3066,9 @@ def importar(lote_id, usuario_id=None, hoy=None):
                         res['fichas'].append(ficha)
                 if f.get('fotos_pdf') and f.get('documento_id'):
                     res['fotos'] += _fotos_del_documento(cur, equipo_id, f['documento_id'], usuario_id)
+                elif f.get('fotos_pdf') and f.get('fotos_hoja') and f.get('archivo_id'):
+                    res['fotos'] += _fotos_del_documento(cur, equipo_id, f['archivo_id'], usuario_id,
+                                                         hoja=f['fotos_hoja'])
                 archivo = nombres_archivo.get(f.get('archivo_id'), 'un archivo')
                 st._evento(cur, None, equipo_id, 'equipo',
                            f'Importado desde «{archivo}» (importación #{lote_id})'

@@ -774,3 +774,80 @@
 .st-carpeta-celda > i { color: var(--color-primario); flex: 0 0 auto; }
 .st-carpeta-celda > span { overflow-wrap: anywhere; }
 .st-celda-sub { display: block; color: var(--st-suave); }
+
+/* Ficha del equipo como en el Excel del taller: barra roja (inconvenientes) o
+   azul (buen estado), foto y descripción, características, vida útil y
+   recomendaciones, problema y requerimientos. */
+.st-faltan-mini { padding: 12px 16px; }
+.st-faltan-mini > summary { cursor: pointer; font-weight: 700; color: var(--st-tinta); min-height: 32px; display: flex; align-items: center; gap: 8px; }
+.st-faltan-mini[open] > summary { margin-bottom: 10px; }
+.st-fv { padding: 0; overflow: hidden; }
+.st-fv > :not(.st-fv-barra) { margin-left: 18px; margin-right: 18px; }
+.st-fv-barra {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 12px 18px; margin: 0 0 14px;
+    background: var(--color-info-tinte); color: var(--color-info-texto); border-bottom: 3px solid var(--color-info-texto);
+}
+.st-fv-roja .st-fv-barra { background: var(--color-peligro-tinte); color: var(--color-peligro-texto); border-bottom-color: var(--color-peligro); }
+.st-fv-barra h2 { margin: 0; font-size: 1.15rem; color: inherit; }
+.st-fv-estado { font-weight: 800; display: inline-flex; align-items: center; gap: 6px; }
+.st-fv-codigo { margin-left: auto; font-size: .88rem; font-weight: 700; opacity: .9; }
+.st-fv-asignado { font-weight: 800; letter-spacing: .02em; padding: 8px 12px; border-radius: var(--st-radio-sm);
+                  background: var(--color-fondo); color: var(--st-tinta); overflow-wrap: anywhere; }
+.st-fv-grid { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); margin-top: 14px; }
+@media (min-width: 760px) { .st-fv-grid { grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); } }
+.st-fv-foto-grande { display: block; border-radius: var(--st-radio); overflow: hidden; border: 1px solid var(--st-linea); background: var(--color-fondo); }
+.st-fv-foto-grande img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: contain; }
+.st-fv-miniaturas { display: flex; gap: 8px; margin-top: 8px; }
+.st-fv-miniaturas a { flex: 0 0 72px; border-radius: 8px; overflow: hidden; border: 1px solid var(--st-linea); }
+.st-fv-miniaturas img { display: block; width: 72px; height: 54px; object-fit: cover; }
+.st-fv-sin-foto { display: grid; place-items: center; gap: 8px; min-height: 180px; border: 2px dashed var(--st-linea);
+                  border-radius: var(--st-radio); color: var(--st-suave); text-decoration: none; text-align: center; padding: 16px; }
+.st-fv-sin-foto i { font-size: 2rem; color: var(--color-primario); }
+.st-fv-resumen h3, .st-fv-titulo, .st-fv-caja h3 { font-size: 1rem; margin: 0 0 6px; color: var(--st-tinta); display: flex; gap: 8px; align-items: center; }
+.st-fv-caja h3 i { color: var(--color-primario); }
+.st-fv-resumen .st-texto { margin: 0 0 12px; }
+.st-fv-fechas { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin: 0; }
+.st-fv-fechas > div { padding: 10px 12px; border-radius: var(--st-radio-sm); background: var(--color-fondo); }
+.st-fv-fechas dt { font-size: .82rem; color: var(--st-suave); }
+.st-fv-fechas dd { margin: 2px 0 0; }
+.st-fv-fechas dd small { display: block; color: var(--st-suave); }
+.st-fv-fechas .st-fv-vencido { background: var(--color-peligro-tinte); }
+.st-fv-fechas .st-fv-vencido dd, .st-fv-fechas .st-fv-vencido dd small { color: var(--color-peligro-texto); }
+.st-fv-titulo { margin-top: 18px !important; }
+.st-fv-tabla { width: calc(100% - 36px); border-collapse: collapse; font-size: .95rem; }
+.st-fv-tabla th, .st-fv-tabla td { padding: 8px 10px; border-bottom: 1px solid var(--st-linea); text-align: left; vertical-align: top; }
+.st-fv-tabla th { width: 36%; font-weight: 700; color: var(--st-tinta); background: var(--color-fondo); }
+.st-fv-tabla td { overflow-wrap: anywhere; }
+.st-fv-tabla tr.st-fv-resaltada td, .st-fv-tabla tr.st-fv-resaltada th { color: var(--color-peligro-texto); background: var(--color-peligro-tinte); font-weight: 700; }
+.st-fv-dos { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); margin-top: 18px; }
+@media (min-width: 760px) { .st-fv-dos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.st-fv-caja { padding: 14px; border: 1px solid var(--st-linea); border-radius: var(--st-radio); min-width: 0; }
+.st-fv-caja .st-texto { margin: 0 0 12px; }
+.st-fv-recs { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.st-fv-recs li { display: flex; gap: 8px; align-items: baseline; }
+.st-fv-recs i { color: var(--color-exito-texto); }
+.st-fv-acciones { margin-top: 16px; }
+.st-fv-acciones form { margin: 0; }
+.st-fv .st-acordeon { margin-top: 14px; margin-bottom: 18px; }
+@media (max-width: 560px) {
+    .st-fv > :not(.st-fv-barra) { margin-left: 12px; margin-right: 12px; }
+    .st-fv-codigo { margin-left: 0; width: 100%; }
+    .st-fv-tabla { width: calc(100% - 24px); }
+    .st-fv-tabla th, .st-fv-tabla td { display: block; width: auto; border-bottom: 0; padding: 6px 8px; }
+    .st-fv-tabla tr { display: block; border-bottom: 1px solid var(--st-linea); }
+}
+
+/* Mantenimiento: último, próximo y frecuencia de un vistazo. */
+.st-mant-tarjetas { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.st-mant-tarjeta { display: flex; gap: 12px; padding: 14px; border-radius: var(--st-radio); border: 1px solid var(--st-linea); background: var(--color-blanco); min-width: 0; }
+.st-mant-tarjeta > div { display: flex; flex-direction: column; min-width: 0; }
+.st-mant-ico { flex: 0 0 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; background: var(--marca-tinte); color: var(--color-primario); font-size: 1.15rem; }
+.st-mant-rotulo { font-size: .82rem; color: var(--st-suave); font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+.st-mant-tarjeta strong { font-size: 1.2rem; color: var(--st-tinta); }
+.st-mant-tarjeta small { color: var(--st-suave); }
+.st-mant-tarjeta p { margin: 6px 0 0; font-size: .9rem; color: var(--st-tinta); overflow-wrap: anywhere; }
+.st-mant-vencido { border-color: var(--color-peligro); background: var(--color-peligro-tinte); }
+.st-mant-vencido .st-mant-ico { background: var(--color-blanco); color: var(--color-peligro-texto); }
+.st-mant-vencido small, .st-mant-vencido strong { color: var(--color-peligro-texto); }
+.st-mant-vacio { border-style: dashed; }
+.st-mant-acciones { margin: 14px 0 6px; }

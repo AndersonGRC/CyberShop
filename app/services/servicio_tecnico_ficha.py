@@ -186,7 +186,9 @@ def armar(equipo_id):
         'descripcion': ficha.get('descripcion') or equipo.get('resumen_ia') or '', 'filas': filas,
         'vida_util': ficha.get('vida_util') or '', 'recomendaciones': ficha.get('recomendaciones') or [],
         'fabricante': ficha.get('fabricante') or FABRICANTES.get(_norm(marca), marca.upper() if marca else ''),
-        'fabricante_detalle': detalle, 'fabricante_url': url_soporte(marca, equipo.get('modelo')),
+        'fabricante_detalle': detalle,
+        'fabricante_url': ficha.get('fabricante_url') or url_soporte(marca, equipo.get('modelo')),
+        'recomendaciones_ficha': bool(ficha.get('recomendaciones')),
         'problema': ficha.get('problema') or '', 'requerimientos': ficha.get('requerimientos') or '',
         'fotos': fotos_de_la_ficha(equipo_id, ficha.get('fotos')), 'fotos_elegidas': ficha.get('fotos') or [],
         'negocio': datos_negocio().get('negocio') or '', 'guardada': bool(ficha),
@@ -714,6 +716,213 @@ def leer_pdf(datos):
         return None                                  # una ficha con forma rara se lee como texto común
     ficha['fotos'] = len(fotos_de_pdf(datos))
     return ficha
+
+
+# ── La misma ficha hecha en Excel ───────────────────────────────
+# El libro del taller trae una hoja por equipo con la plantilla del PDF: código,
+# fecha, fecha del último y del próximo mantenimiento, versión, descripción (con
+# la foto dentro de una celda), características «etiqueta | valor», vida útil con
+# las recomendaciones ✅, fabricante, problema y requerimientos.
+_SECCIONES_HOJA = (
+    ('descripcion', lambda t: t.startswith('descripcion general')),
+    ('caracteristicas', lambda t: t.startswith('caracteristicas globales')),
+    ('vida', lambda t: t.startswith('vida util')),
+    ('fabricante', lambda t: t.startswith('datos del fabricante')),
+    ('problema', lambda t: t.startswith('descripcion del problema')),
+    ('requerimientos', lambda t: t.startswith('detalle tecnico')),
+)
+_URL = re.compile(r'(?i)^(?:https?://|www\.)\S+$')
+
+
+def es_hoja_ficha(textos):
+    plano = _norm(' '.join(str(t) for t in textos if t))
+    return 'ficha tecnica' in plano and 'caracteristicas globales' in plano
+
+
+def _fecha_celda(texto):
+    """ISO de una fecha de la hoja (ya en texto, o el número de día de Excel)."""
+    t = str(texto or '').strip()
+    if re.fullmatch(r'\d{5}(?:\.\d+)?', t) and 30000 < float(t) < 80000:
+        from datetime import timedelta
+        return (date(1899, 12, 30) + timedelta(days=int(float(t)))).isoformat()
+    f = leer_fecha(t[:10]) if re.match(r'\d{4}-\d{2}-\d{2}', t) else leer_fecha(t)
+    return f.isoformat() if f else None
+
+
+def leer_hoja(filas):
+    """Ficha de una hoja de Excel con la plantilla del taller.
+
+    `filas`: [[(columna, texto, fondo_rojo, letra_roja), …], …] (solo celdas con
+    texto). Devuelve el mismo dict que `leer_pdf`, o None si la hoja está en blanco."""
+    from services import servicio_tecnico_empresas as emp
+    filas = [[c for c in fila if str(c[1] or '').strip() and not str(c[1]).startswith('#')] for fila in filas]
+    f = {'formato': 'ficha_tecnica'}
+    for fila in filas:
+        for k, (_j, texto, _fr, _lr) in enumerate(fila):
+            n = _norm(texto).rstrip(':').strip()
+            sig = fila[k + 1][1].strip() if k + 1 < len(fila) else ''
+            if n == 'codigo' and sig and 'codigo' not in f:
+                f['codigo'] = ' '.join(sig.split())[:40]
+            elif n == 'fecha' and 'fecha' not in f:
+                f['fecha'] = _fecha_celda(sig)
+            elif n.startswith('fecha ultimo') and 'ultimo' not in f:
+                f['ultimo'] = _fecha_celda(sig)
+            elif n.startswith('fecha proximo') and 'proximo' not in f:
+                f['proximo'] = _fecha_celda(sig)
+            elif n == 'version' and sig[:3].strip().isdigit():
+                f['version'] = int(sig[:3].strip())
+            elif n.startswith('equipo asignado a'):
+                f['asignado_a'], f['empresa'] = emp.titular_de_ficha(texto)
+    f.setdefault('version', 1)
+    pos = {}
+    for i, fila in enumerate(filas):
+        if fila:
+            n = _norm(fila[0][1])
+            for clave, condicion in _SECCIONES_HOJA:
+                if clave not in pos and condicion(n):
+                    pos[clave] = i
+    cortes = sorted(pos.values())
+
+    def bloque(clave):
+        if clave not in pos:
+            return []
+        i = pos[clave]
+        return filas[i + 1:next((j for j in cortes if j > i), len(filas))]
+
+    def resto(clave):
+        """Lo que sigue a la etiqueta de la sección (en su fila y debajo)."""
+        if clave not in pos:
+            return []
+        return [c[1] for c in filas[pos[clave]][1:]] + [c[1] for fila in bloque(clave) for c in fila]
+
+    if 'descripcion' in pos:
+        f['descripcion'] = ' '.join(' '.join(resto('descripcion')).split()) or None
+    filas_car, destacar, actual = [], [], None
+    col_etiqueta = filas[pos['caracteristicas']][0][0] if 'caracteristicas' in pos else 0
+    for fila in bloque('caracteristicas'):
+        if not fila:
+            continue
+        if fila[0][0] == col_etiqueta:
+            etiqueta = fila[0][1].strip().rstrip(':').strip()
+            etiqueta = _ETIQUETAS.get(_norm(etiqueta), etiqueta[:60])
+            actual = [etiqueta, ' '.join(c[1] for c in fila[1:])]
+            filas_car.append(actual)
+        elif actual:                                   # segundo disco, etc.: sigue el dato de arriba
+            actual[1] = ' / '.join(x for x in (actual[1].strip(), ' '.join(c[1] for c in fila)) if x)
+        if actual and any(c[3] for c in fila[1 if fila[0][0] == col_etiqueta else 0:]) \
+                and actual[0] not in destacar:
+            destacar.append(actual[0])
+    f['filas'] = [(e, ' '.join(v.split())) for e, v in filas_car if v.strip()]
+    if 'vida' in pos:
+        partes = re.split('[' + _VINETAS + ']', '\n'.join(resto('vida')))
+        f['vida_util'] = ' '.join(partes[0].split()) or None
+        f['recomendaciones'] = [' '.join(x.split()) for x in partes[1:] if x.strip()][:12]
+    if 'fabricante' in pos:
+        datos_fab = [' '.join(x.split()) for x in resto('fabricante') if x.strip()]
+        f['fabricante'] = next((x for x in datos_fab if not _URL.match(x)), None)
+        f['fabricante_url'] = next((x for x in datos_fab if _URL.match(x)), None)
+    for clave in ('problema', 'requerimientos'):
+        if clave in pos:
+            f[clave] = ' '.join(' '.join(resto(clave)).split()) or None
+    if not f.get('filas') and not f.get('descripcion'):
+        return None                                    # la plantilla en blanco
+    f['destacar'] = destacar
+    rellenos_rojos = sum(1 for i in pos.values() if filas[i][0][2])
+    problema = _norm(f.get('problema'))
+    f['estado'] = 'inconveniente' if rellenos_rojos >= 2 or (problema and not problema.startswith('n a')) else 'bueno'
+    return f
+
+
+def fotos_de_excel(datos, hoja, maximo=4):
+    """Fotos de una hoja del libro: las que están DENTRO de una celda (imagen en
+    celda de Excel) y las puestas sobre la hoja. El logo, que se repite en todas
+    las hojas, no cuenta."""
+    import zipfile
+    salida = []
+    try:
+        libro = zipfile.ZipFile(io.BytesIO(datos))
+        nombres = set(libro.namelist())
+
+        def leer(nombre):
+            return libro.read(nombre).decode('utf-8', 'replace') if nombre in nombres else ''
+
+        def rels(nombre):
+            return dict(re.findall(r'Id="([^"]+)"[^>]*?Target="([^"]+)"', leer(nombre))) | \
+                {a: b for b, a in re.findall(r'Target="([^"]+)"[^>]*?Id="([^"]+)"', leer(nombre))}
+
+        def ruta(base, destino):
+            if destino.startswith('/'):
+                return destino.lstrip('/')
+            partes = (base.rsplit('/', 1)[0] + '/' + destino).split('/')
+            pila = []
+            for p in partes:
+                if p == '..':
+                    pila.pop() if pila else None
+                elif p not in ('', '.'):
+                    pila.append(p)
+            return '/'.join(pila)
+
+        hojas = dict(re.findall(r'<sheet [^>]*?name="([^"]+)"[^>]*?r:id="([^"]+)"', leer('xl/workbook.xml')))
+        rels_libro = rels('xl/_rels/workbook.xml.rels')
+        import html
+        hojas = {html.unescape(n): ruta('xl/workbook.xml', rels_libro.get(r, '')) for n, r in hojas.items()}
+        archivo_hoja = hojas.get(hoja)
+        if not archivo_hoja:
+            return salida
+        # Imagen en celda: la celda trae vm=N → valueMetadata (bk N) → futureMetadata
+        # XLRICHVALUE (rvb) → rdrichvalue (rv: su clave LocalImageIdentifier) →
+        # richValueRel → la imagen en xl/media.
+        meta = leer('xl/metadata.xml')
+        futuro = re.search(r'<futureMetadata[^>]*name="XLRICHVALUE"[^>]*>(.*?)</futureMetadata>', meta, re.S)
+        rvb = re.findall(r'<xlrd:rvb i="(\d+)"', futuro.group(1)) if futuro else []
+        valores = re.search(r'<valueMetadata[^>]*>(.*?)</valueMetadata>', meta, re.S)
+        rc = re.findall(r'<rc [^>]*?v="(\d+)"', valores.group(1)) if valores else []
+        estructuras = [re.findall(r'<k n="([^"]+)"', s) for s in
+                       re.findall(r'<s [^>]*>(.*?)</s>', leer('xl/richData/rdrichvaluestructure.xml'), re.S)]
+        rvs = [(int(s), re.findall(r'<v[^>]*>([^<]*)</v>', cuerpo)) for s, cuerpo in
+               re.findall(r'<rv s="(\d+)"[^>]*>(.*?)</rv>', leer('xl/richData/rdrichvalue.xml'), re.S)]
+        rel_ids = re.findall(r'<rel r:id="([^"]+)"', leer('xl/richData/richValueRel.xml'))
+        rels_rich = rels('xl/richData/_rels/richValueRel.xml.rels')
+        medios = []
+        for vm in re.findall(r'<c [^>]*?vm="(\d+)"', leer(archivo_hoja)):
+            try:
+                futuro_i = int(rc[int(vm) - 1]) if rc else int(vm) - 1
+                estructura, vals = rvs[int(rvb[futuro_i])]
+                claves = estructuras[estructura] if estructura < len(estructuras) else []
+                k = claves.index('_rvRel:LocalImageIdentifier') if '_rvRel:LocalImageIdentifier' in claves else 0
+                medios.append(ruta('xl/richData/richValueRel.xml', rels_rich[rel_ids[int(vals[k])]]))
+            except (IndexError, KeyError, ValueError):
+                continue
+        # Imágenes puestas sobre la hoja (dibujos), menos las que se repiten en otras hojas (logo).
+        def de_dibujos(archivo):
+            base_rels = archivo.rsplit('/', 1)[0] + '/_rels/' + archivo.rsplit('/', 1)[1] + '.rels'
+            salida_d = []
+            for destino in rels(base_rels).values():
+                if 'drawings/' in destino and destino.endswith('.xml'):
+                    dib = ruta(archivo, destino)
+                    dib_rels = dib.rsplit('/', 1)[0] + '/_rels/' + dib.rsplit('/', 1)[1] + '.rels'
+                    salida_d += [ruta(dib, t) for t in rels(dib_rels).values() if '/media/' in '/' + t]
+            return salida_d
+        import hashlib
+
+        def huella(m):
+            return hashlib.sha256(libro.read(m)).hexdigest() if m in nombres else None
+        # El logo se repite en las demás hojas (el mismo archivo o una copia igual).
+        en_otras = {huella(m) for n, a in hojas.items() if n != hoja and a for m in de_dibujos(a)}
+        medios += [m for m in de_dibujos(archivo_hoja) if huella(m) not in en_otras]
+        vistos = set()
+        for m in medios:
+            if m in vistos or m not in nombres or not re.search(r'(?i)\.(jpe?g|png|webp|bmp|gif)$', m):
+                continue
+            vistos.add(m)
+            contenido = libro.read(m)
+            if len(contenido) >= 4000:                 # íconos y logos pequeños, fuera
+                salida.append(contenido)
+            if len(salida) >= maximo:
+                break
+    except Exception:  # noqa: BLE001
+        return salida
+    return salida
 
 
 def _partir(linea):

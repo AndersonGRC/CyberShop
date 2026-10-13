@@ -1438,22 +1438,33 @@ def validacion_equipo(equipo, fotos=0, recordatorios=0):
             otros = int(cur.fetchone()[0])
         revisiones.append(('aviso', 'Ese serial también está en otro equipo: confírmalo', 'editar')
                           if otros else ('ok', 'Serial', None))
+    elif equipo.get('ficha_codigo'):
+        # Las fichas del taller no traen serial: el código de la ficha identifica al equipo.
+        revisiones.append(('ok', f"Identificado por su ficha {equipo['ficha_codigo']}", None))
     else:
         revisiones.append(('aviso', 'Falta el serial (está en la etiqueta del equipo)', 'editar'))
 
+    # Datos técnicos: los de la ficha técnica cuentan (traen más que los campos del formulario).
+    datos_ficha = sum(1 for v in ((equipo.get('ficha') or {}).get('filas') or {}).values() if str(v or '').strip())
     claves = list(columnas) + tipos.claves_extra(equipo['tipo'])
     llenos = sum(1 for c in columnas if equipo.get(c)) + sum(1 for c in tipos.claves_extra(equipo['tipo']) if extras.get(c))
     porcentaje = round(100 * llenos / len(claves)) if claves else 100
     sin_llenar = len(claves) - llenos
-    revisiones.append(('ok', 'Datos técnicos', None) if porcentaje >= 70
-                      else ('aviso', f'Faltan {sin_llenar} datos técnicos: pégalos desde la información del equipo', 'datos'))
+    if datos_ficha >= 4:
+        revisiones.append(('ok', f'Ficha técnica con {datos_ficha} datos', None))
+    else:
+        revisiones.append(('ok', 'Datos técnicos', None) if porcentaje >= 70 else
+                          ('aviso', f'Faltan {sin_llenar} datos técnicos: pégalos desde la información del equipo',
+                           'datos'))
 
     revisiones.append(('ok', f'{fotos} foto(s)', None) if fotos
                       else ('aviso', 'No tiene fotos del equipo', 'fotos'))
     if equipo.get('cliente_whatsapp') or equipo.get('cliente_telefono') or equipo.get('cliente_email'):
         revisiones.append(('ok', 'Contacto del cliente', None))
     else:
-        revisiones.append(('aviso', 'El cliente no tiene WhatsApp ni correo para avisarle', 'crm'))
+        quien = equipo.get('cliente_nombre') or 'el cliente'
+        revisiones.append(('aviso', f'Agrega el WhatsApp o el correo de {quien} para enviarle los recordatorios',
+                           'crm'))
     if equipo.get('mant_proximo'):
         revisiones.append(('ok', f"Mantenimiento programado: {equipo['mant_proximo'].strftime('%d/%m/%Y')}", None))
     elif recordatorios:

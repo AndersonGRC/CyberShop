@@ -208,7 +208,7 @@ def test_sin_ia_lo_dudoso_de_la_columna_empresa_se_toma_como_empresa(flask_app, 
         assert lote['estado'] == 'revision' and lote['archivos'][0]['empresa']['ia'] == 'sin_ia'
         v = imp.revisar(lote)['filas'][0]
     assert v['carpeta']['tipo'] == 'empresa' and v['carpeta']['fuente'] == 'supuesto'
-    assert any('No se pudo confirmar' in m[1] for m in v['mensajes'])        # se avisa: el usuario lo revisa
+    assert not any('confirmar' in m[1] for m in v['mensajes'])                # venía como empresa: sin aviso
 
 
 def test_corregir_la_carpeta_en_la_revision(flask_app, modulo, limpiar, sin_ia):

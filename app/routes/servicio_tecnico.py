@@ -326,7 +326,13 @@ def equipo_ver(equipo_id):
     ordenes_equipo = st.ordenes_de_equipo(equipo_id)
     mantenimientos = st.mantenimientos_de_equipo(equipo_id)
     cambios = st.cambios_de_equipo(equipo_id)
+    try:
+        vista = ficha_st.armar(equipo_id)          # la ficha como se ve en el Excel / PDF del taller
+    except st.ErrorServicio:
+        vista = None
+    from datetime import date as _date
     return render_template('servicio_tecnico/equipo.html', **_ctx(
+        vista=vista, ultimo_mant=mantenimientos[0] if mantenimientos else None, hoy=_date.today(),
         hoja_vida=st.hoja_de_vida(mantenimientos, ordenes_equipo, cambios),
         crm_activo=is_module_active(MODULE_CRM),
         equipo=equipo, campos_extra=tipos.campos_extra(equipo['tipo']),
