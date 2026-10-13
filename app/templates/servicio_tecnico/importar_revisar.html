@@ -279,6 +279,13 @@
         <form method="post" action="{{ accion_url }}">{{ ocultos() }}<input type="hidden" name="accion" value="separar">
             <button class="st-btn st-btn-sec st-btn-sm" type="submit"><i class="fas fa-unlink" aria-hidden="true"></i> No es el mismo: separar</button></form>
         {% endif %}
+        {% if v.por_modelo %}
+        <form method="post" action="{{ accion_url }}">{{ ocultos() }}<input type="hidden" name="accion" value="otro_equipo">
+            <button class="st-btn st-btn-sec st-btn-sm" type="submit"><i class="fas fa-clone" aria-hidden="true"></i> Es otro equipo: registrarlo aparte</button></form>
+        {% elif f.es_otro_equipo and v.candidato %}
+        <form method="post" action="{{ accion_url }}">{{ ocultos() }}<input type="hidden" name="accion" value="mismo_registrado">
+            <button class="st-btn st-btn-sec st-btn-sm" type="submit"><i class="fas fa-link" aria-hidden="true"></i> Es el que ya está registrado: completarlo</button></form>
+        {% endif %}
         {% endif %}
     </div>
 </article>

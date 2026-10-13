@@ -125,6 +125,41 @@ def filas_base(e):
     return [(etq, v or '') for etq, v in filas]
 
 
+# Filas de la plantilla que ya dice, con otro nombre, la ficha que trajo un documento.
+_SINONIMOS_FILA = {'fabricante': ('marca',), 'conexion': ('conectividad', 'conexiones', 'puertos')}
+
+
+def _cubierta(etiqueta, otras):
+    n = _norm(etiqueta)
+    return any(o == n or o.startswith(n + ' ') or o in _SINONIMOS_FILA.get(n, ()) for o in map(_norm, otras))
+
+
+def orden_de_filas(equipo, ficha):
+    """[(etiqueta, opcional)] de la ficha, en el orden en que se ve. Un computador
+    sigue la plantilla del taller, con las filas que trajo su documento (p. ej.
+    «Tarjeta Gráfica») donde iban en él. Otro equipo con ficha propia (p. ej. una
+    impresora traída de un Excel) muestra las filas de su ficha en su orden y, de la
+    plantilla, solo lo que esa ficha no dice (sin dato, no se ve)."""
+    propias = {k: v for k, v in (ficha.get('filas') or {}).items() if str(v or '').strip()}
+    base = [etq for etq, _auto in filas_base(equipo)]
+    orden_doc = [e for e in (ficha.get('orden') or []) if isinstance(e, str)]
+    extras = [e for e in orden_doc if e in propias and e not in base]
+    extras += [e for e in propias if e not in base and e not in extras]
+    if equipo.get('tipo') in ('computador', 'portatil') or not extras:
+        etiquetas = list(base)
+        for etq in extras:
+            if etq in orden_doc:                  # justo después de la fila que la precedía en el documento
+                i = orden_doc.index(etq)
+                antes = next((orden_doc[j] for j in range(i - 1, -1, -1) if orden_doc[j] in etiquetas), None)
+                etiquetas.insert(etiquetas.index(antes) + 1 if antes else 0, etq)
+            else:
+                etiquetas.append(etq)
+        return [(etq, etq in FILAS_OPCIONALES) for etq in etiquetas]
+    doc = [e for e in orden_doc if e in propias] + [e for e in propias if e not in orden_doc]
+    resto = [etq for etq in base if etq not in doc and not _cubierta(etq, doc)]
+    return [(etq, etq in FILAS_OPCIONALES) for etq in doc] + [(etq, True) for etq in resto]
+
+
 def _cliente(equipo_id):
     with get_db_cursor(dict_cursor=True) as cur:
         cur.execute("""SELECT c.nombre, c.empresa FROM st_equipos e LEFT JOIN crm_contactos c ON c.id = e.crm_contacto_id
@@ -170,15 +205,12 @@ def armar(equipo_id):
     cliente, ultimo = _cliente(equipo_id)
     propias = ficha.get('filas') or {}
     destacar = set(ficha.get('destacar') or [])
-    filas = []
-    for etq, auto in filas_base(equipo):
-        valor = (propias.get(etq) or '').strip() or (auto or '').strip()
-        filas.append({'etiqueta': etq, 'valor': valor, 'propio': bool((propias.get(etq) or '').strip()),
-                      'auto': auto or '', 'destacar': etq in destacar, 'opcional': etq in FILAS_OPCIONALES})
-    for etq, valor in propias.items():            # filas que trajo un documento y no están en la lista
-        if etq not in {f['etiqueta'] for f in filas} and (valor or '').strip():
-            filas.append({'etiqueta': etq, 'valor': valor.strip(), 'propio': True, 'auto': '',
-                          'destacar': etq in destacar, 'opcional': False})
+    filas, auto_de = [], dict(filas_base(equipo))
+    for etq, opcional in orden_de_filas(equipo, ficha):
+        auto = auto_de.get(etq) or ''
+        propio = str(propias.get(etq) or '').strip()
+        filas.append({'etiqueta': etq, 'valor': propio or str(auto).strip(), 'propio': bool(propio), 'auto': auto,
+                      'destacar': etq in destacar, 'opcional': opcional})
     fecha = leer_fecha(ficha.get('fecha')) if ficha.get('fecha') else (ultimo or date.today())
     asignado = (ficha.get('asignado_a') or '').strip() or cliente.get('nombre') or ''
     empresa = (ficha.get('empresa') or '').strip()
@@ -426,14 +458,16 @@ def guardar(equipo_id, datos, usuario_id=None):
         raise ErrorServicio('El equipo no existe.')
     # Cada fila llega con su etiqueta (etiqueta_N, fila_N, destacar_N); solo se
     # aceptan las de la ficha de este equipo.
-    permitidas = {etq for etq, _v in filas_base(equipo)} | set((equipo.get('ficha') or {}).get('filas', {}))
-    filas, destacar = {}, []
+    anterior = equipo.get('ficha') or {}
+    permitidas = {etq for etq, _v in filas_base(equipo)} | set(anterior.get('filas', {}))
+    filas, destacar, orden = {}, [], []
     for i in range(80):
         etq = datos.get(f'etiqueta_{i}')
         if etq is None:
             break
         if etq not in permitidas:
             continue
+        orden.append(etq)                            # el orden en que se ven (la base de datos no lo guarda)
         valor = ' '.join(str(datos.get(f'fila_{i}') or '').split())[:600]
         if valor:
             filas[etq] = valor
@@ -447,14 +481,18 @@ def guardar(equipo_id, datos, usuario_id=None):
         if str(valor).isdigit() and int(valor) in validas and int(valor) not in fotos:
             fotos.append(int(valor))
     descripcion = str(datos.get('descripcion') or '').strip()[:1500] or None
+    fabricante = _texto(datos.get('fabricante'), 150)
     ficha = {
         'estado': estado, 'version': version, 'fecha': fecha.isoformat() if fecha else None,
         'descripcion': descripcion,
         'asignado_a': _texto(datos.get('asignado_a'), 150), 'empresa': _texto(datos.get('empresa'), 150),
-        'filas': filas, 'destacar': destacar,
+        'filas': filas, 'orden': orden, 'destacar': destacar,
         'vida_util': (str(datos.get('vida_util') or '').strip()[:2500] or None),
         'recomendaciones': recomendaciones,
-        'fabricante': _texto(datos.get('fabricante'), 150), 'fabricante_detalle': _texto(datos.get('fabricante_detalle'), 250),
+        'fabricante': fabricante, 'fabricante_detalle': _texto(datos.get('fabricante_detalle'), 250),
+        # el enlace del fabricante que trajo la ficha sigue mientras el fabricante sea el mismo
+        'fabricante_url': anterior.get('fabricante_url') if fabricante and _norm(fabricante) == _norm(
+            anterior.get('fabricante')) else None,
         'problema': (str(datos.get('problema') or '').strip()[:1500] or None),
         'requerimientos': (str(datos.get('requerimientos') or '').strip()[:2500] or None),
         'fotos': fotos[:FOTOS_EN_FICHA],

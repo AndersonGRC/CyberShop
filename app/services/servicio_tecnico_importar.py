@@ -519,12 +519,33 @@ MARCAS = ('Hewlett Packard', 'HP', 'Dell', 'Lenovo', 'Asus', 'Acer', 'Apple', 'S
           'Zebra', 'Bixolon', 'Gateway', 'Lanix', 'Haier', 'Compumax', 'Sharp', 'Fujitsu', 'Razer', 'Alienware',
           'Packard Bell', 'Benq', 'ViewSonic', 'AOC', 'Kodak', 'Lenco', 'Imaco', 'Polaroid', 'Matica', 'Evolis',
           'Datacard', 'Fargo', 'Zkteco')
-_MARCA_CANONICA = {'hewlett packard': 'HP'}
+_MARCA_CANONICA = {'hewlett packard': 'HP', 'asustek': 'Asus'}
+
+
+def _marca_canonica(texto):
+    """La marca como la conoce el sistema, aunque el fabricante la escriba con su
+    razón social: «HP Inc.» → «HP», «Dell Inc» → «Dell», «Matica Technologies AG»
+    → «Matica». Una marca que no se conoce queda como viene (con mayúscula inicial)."""
+    texto = ' '.join(str(texto or '').split())
+    n = _norm(texto)
+    if not n:
+        return None
+    for clave, marca in _MARCA_CANONICA.items():
+        if n == clave or n.startswith(clave + ' '):
+            return marca
+    for marca in sorted(MARCAS, key=len, reverse=True):
+        m = _norm(marca)
+        if n == m or n.startswith(m + ' '):
+            return _MARCA_CANONICA.get(m, marca)
+    return texto.title()
+
+
 _MODELOS_TIPO = (
     ('tablet', re.compile(r'\b(ipad|galaxy\s+tab|tab\s+[as]\d|mediapad|matepad|lenovo\s+tab|fire\s+hd)', re.I)),
     ('celular', re.compile(r'\b(iphone|galaxy\s+[asmz]\d|galaxy\s+note|redmi|poco\s|moto\s?[eg]\d|pixel\s\d|'
                            r'huawei\s+[py]\d|honor\s+\d|oppo\s+a\d|realme|tecno\s|infinix|zte\s+blade|alcatel)', re.I)),
-    ('computador', re.compile(r'\b(optiplex|prodesk|elitedesk|thinkcentre|veriton|imac|all[\s-]?in[\s-]?one|aio\b|'
+    ('computador', re.compile(r'\b(optiplex|prodesk|elitedesk|thinkcentre|ideacentre|ideacenter|veriton|imac|'
+                              r'all[\s-]?in[\s-]?one|aio\b|'
                               r'precision\s+t)', re.I)),
     ('portatil', re.compile(r'\b(macbook|thinkpad|ideapad|yoga|legion|pavilion|probook|elitebook|envy|spectre|omen|'
                             r'victus|inspiron|latitude|xps|vivobook|zenbook|tuf\s|rog\s|aspire|swift|nitro|predator|'
@@ -580,7 +601,8 @@ def specs_de_texto(texto):
             valor = f'Core {m.group(1).lower()}' + (f'-{m.group(2).upper()}' if m.group(2) else '')
         col['procesador'] = valor[:160]
     candidatos = []
-    for patron in (r'(?i)(\d{1,4}(?:[.,]\d)?)\s*(gb|tb|g|t)?\s*(?:de\s+)?(ssd|hdd|nvme|m\.2|emmc|disco(?:\s+duro|\s+s[oó]lido)?)\b',
+    # (un número pegado a letras, como el «1» de «PM9B1 NVMe», es parte de una referencia, no la capacidad)
+    for patron in (r'(?i)(?<![a-z0-9.,])(\d{1,4}(?:[.,]\d)?)\s*(gb|tb|g|t)?\s*(?:de\s+)?(ssd|hdd|nvme|m\.2|emmc|disco(?:\s+duro|\s+s[oó]lido)?)\b',
                    r'(?i)\b(ssd|hdd|nvme|m\.2|emmc|disco(?:\s+duro|\s+s[oó]lido)?)\s*(?:de\s+)?[:\-]?\s*(\d{1,4}(?:[.,]\d)?)\s*(gb|tb|g|t)?\b'):
         for disco in re.finditer(patron, t):
             if disco.group(1)[0].isdigit():
@@ -619,6 +641,53 @@ def specs_de_texto(texto):
         valor = re.sub(r'(?i)^win(?!dows)\s?', 'Windows ', so.group(1)).strip()
         col['sistema_operativo'] = valor[:1].upper() + valor[1:120]
     return col, ext
+
+
+_CAPACIDAD = re.compile(r'(?i)(?<![a-z0-9.,])(\d{1,4}(?:[.,]\d{1,2})?)\s*(gb|tb)\b')
+_CLASE_DISCO = re.compile(r'(?i)(?<![a-z0-9])(nvme|m\.2|ssd|hdd|emmc|s[oó]lido|mec[aá]nico)(?![a-z0-9])')
+
+
+def discos_de_texto(texto):
+    """[(tipo, capacidad)] de cada disco de la fila «Unidad de Disco» de una ficha,
+    p. ej. «SSD 239GB M.2 / HDD 932GB» → [('SSD SATA', '239 GB'), ('HDD', '932 GB')].
+    El tipo es None si no lo dice; un número pegado a letras («PM9B1») es parte de
+    la referencia del disco, no su capacidad."""
+    discos = []
+    for trozo in re.split(r'\s*/\s*|\s*\+\s*|\s*;\s*|\s+y\s+|\s*\|\s*', str(texto or '')):
+        capacidad = _CAPACIDAD.search(trozo)
+        if not capacidad:
+            continue
+        clases = {_norm(m.group(1)) for m in _CLASE_DISCO.finditer(trozo)}
+        tipo = ('SSD NVMe' if 'nvme' in clases else 'SSD SATA' if clases & {'ssd', 'solido'}
+                else 'SSD NVMe' if 'm 2' in clases else 'HDD' if clases & {'hdd', 'mecanico'}
+                else 'eMMC' if 'emmc' in clases else None)
+        discos.append((tipo, _gb_tb(capacidad.group(1), capacidad.group(2))))
+    return discos[:4]
+
+
+def _cpu_o_gpu(texto):
+    """'cpu', 'gpu' o None según lo que describe el texto."""
+    cpu = re.search(r'(?i)\b(core|ryzen|razen|celeron|pentium|athlon|xeon|i[3579][\s-]?\d{3,5}|i\d-\d{4,5}|'
+                    r'\d{1,2}(?:th|st|nd|rd)\s+gen|apple\s+m\d|snapdragon|mediatek|exynos)\b', texto or '')
+    gpu = re.search(r'(?i)\b(graphi\w*|gr[aá]fic\w*|radeon|geforce|gtx|rtx|uhd|iris|vega|quadro)\b', texto or '')
+    if cpu and not gpu:
+        return 'cpu'
+    if gpu and not cpu:
+        return 'gpu'
+    return None
+
+
+def _descruzar_cpu_gpu(datos):
+    """Algunas fichas traen el procesador y la tarjeta gráfica cruzados
+    («Procesador: Intel UHD Graphics 770» y «Tarjeta gráfica: Core i7-13700»):
+    los pone en su sitio. Devuelve True si los cambió."""
+    grafica = next((k for k in datos if _norm(k) in ('tarjeta grafica', 'tarjeta de video', 'grafica', 'gpu')), None)
+    if not grafica or not datos.get('Procesador') or not datos.get(grafica):
+        return False
+    if _cpu_o_gpu(datos['Procesador']) == 'gpu' and _cpu_o_gpu(datos[grafica]) == 'cpu':
+        datos['Procesador'], datos[grafica] = datos[grafica], datos['Procesador']
+        return True
+    return False
 
 
 def _tipo_por_datos(equipo):
@@ -1582,9 +1651,13 @@ def _fila_de_ficha(f):
     fila = _fila_vacia()
     datos = dict(f.get('filas') or [])
     e = fila['equipo']
+    if _descruzar_cpu_gpu(datos):
+        fila['avisos'].append('En la ficha, el procesador y la tarjeta gráfica venían cruzados: se pusieron en su sitio.')
     descripcion = f.get('descripcion') or ''
     modelo_txt = datos.get('Modelo') or ''
-    if re.search(r'(?i)port[aá]til|laptop|notebook', f'{descripcion} {modelo_txt}'):
+    if any(re.search(r'(?i)impresi[oó]n|tinta|cartucho|t[oó]ner|tolva', etq) for etq in datos):
+        e['tipo'] = 'impresora'                      # sus filas son de impresora, diga lo que diga la descripción
+    elif re.search(r'(?i)port[aá]til|laptop|notebook', f'{descripcion} {modelo_txt}'):
         e['tipo'] = 'portatil'
     elif re.search(r'(?i)escritorio|todo en uno|all in one|torre|desktop', descripcion):
         e['tipo'] = 'computador'
@@ -1593,11 +1666,13 @@ def _fila_de_ficha(f):
     fabricante = (datos.get('Fabricante del Sistema') or datos.get('Fabricante') or datos.get('Marca')
                   or f.get('fabricante') or '')
     if fabricante:
-        conocida = next((m for m in MARCAS if _norm(m) == _norm(fabricante)), None)
-        e['marca'] = _MARCA_CANONICA.get(_norm(fabricante), conocida or fabricante.title())
+        e['marca'] = _marca_canonica(fabricante)
     sku = re.search(r'SKU[:\s]+([\w#._/-]+)', modelo_txt)
     nombre_equipo = re.search(r'Equipo:\s*([\w.-]+)', modelo_txt)
-    e['modelo'] = re.split(r'\s*\(\s*SKU\b|\s+-\s*SKU\b|\s+-\s*Equipo:', modelo_txt)[0].strip(' -') or None
+    modelo = re.split(r'\s*\(\s*SKU\b|\s+-\s*SKU\b|\s+-\s*Equipo:', modelo_txt)[0].strip(' -')
+    if modelo and e.get('marca'):                    # «Hp Pavilion 24» → «Pavilion 24» (la marca va aparte)
+        modelo = re.sub(r'(?i)^' + re.escape(e['marca']) + r'\s+', '', modelo).strip() or modelo
+    e['modelo'] = modelo or None
     e['sistema_operativo'] = re.sub(r'(?i)^microsoft\s+', '', datos.get('Sistema Operativo') or '') or None
     e['procesador'] = datos.get('Procesador') or None
     ram_txt = datos.get('Memoria RAM') or ''
@@ -1615,9 +1690,28 @@ def _fila_de_ficha(f):
         e['extras']['ram_ranuras_total'] = ocupadas.group(1)
     if sin_libres and not usadas:
         e['extras']['ram_ranuras_libres'] = '0'
-    cols, exts = specs_de_texto(datos.get('Unidad de Disco') or '')
-    e['almacenamiento'] = cols.get('almacenamiento') or (datos.get('Unidad de Disco') or '')[:120] or None
-    e['extras'].update(exts)
+    discos = discos_de_texto(datos.get('Unidad de Disco'))
+    if discos:                                       # «SSD 239 GB + HDD 932 GB»
+        e['almacenamiento'] = ' + '.join(' '.join(x for x in ('SSD' if (t or '').startswith('SSD') else t, cap) if x)
+                                         for t, cap in discos)[:120]
+        clases = {t for t, _cap in discos if t}
+        if 'HDD' in clases and any(t.startswith('SSD') for t in clases):
+            e['extras']['tipo_disco'] = 'Mixto (SSD + HDD)'
+        elif len(clases) == 1:
+            e['extras']['tipo_disco'] = clases.pop()
+    else:
+        cols, exts = specs_de_texto(datos.get('Unidad de Disco') or '')
+        e['almacenamiento'] = cols.get('almacenamiento') or (datos.get('Unidad de Disco') or '')[:120] or None
+        e['extras'].update(exts)
+    # La sección «Datos del fabricante» copiada de la ficha de otro equipo (p. ej.
+    # «Dell» en la de una impresora HP): se deja el soporte de la marca del equipo.
+    fab_seccion = _marca_canonica(f.get('fabricante'))
+    fab_ajeno = bool(fab_seccion and e.get('marca') and _norm(fab_seccion) != _norm(e['marca'])
+                     and _norm(fab_seccion) in {_norm(m) for m in MARCAS}
+                     and _norm(e['marca']) in {_norm(m) for m in MARCAS})
+    if fab_ajeno:
+        fila['avisos'].append(f"La ficha dice que el fabricante es «{f['fabricante']}», pero el equipo es "
+                              f"{e['marca']}: se deja el soporte de {e['marca']}.")
     if e['tipo'] == 'computador' and datos.get('Placa Base'):
         e['extras']['board'] = datos['Placa Base']
     if f.get('empresa'):
@@ -1639,9 +1733,11 @@ def _fila_de_ficha(f):
     fila['ficha'] = {k: v for k, v in {
         'estado': f.get('estado'), 'version': f.get('version'), 'fecha': f.get('fecha'),
         'asignado_a': f.get('asignado_a'), 'empresa': f.get('empresa'), 'descripcion': descripcion, 'filas': datos,
+        'orden': list(datos),                        # el orden del documento (la base de datos no lo guarda)
         'destacar': f.get('destacar'), 'vida_util': f.get('vida_util'), 'recomendaciones': f.get('recomendaciones'),
-        'fabricante': f.get('fabricante'), 'fabricante_detalle': f.get('fabricante_detalle'),
-        'fabricante_url': f.get('fabricante_url'), 'ultimo': f.get('ultimo'),
+        'fabricante': None if fab_ajeno else f.get('fabricante'),
+        'fabricante_detalle': None if fab_ajeno else f.get('fabricante_detalle'),
+        'fabricante_url': None if fab_ajeno else f.get('fabricante_url'), 'ultimo': f.get('ultimo'),
         'problema': f.get('problema'), 'requerimientos': f.get('requerimientos')}.items()
         if v not in (None, '', [], {})}
     fila['ficha_codigo'] = (f.get('codigo') or '')[:40] or None
@@ -2294,6 +2390,10 @@ def editar_fila(lote_id, n, datos):
             fila['unir_con'] = otro
         elif accion == 'separar':
             fila['unir_con'] = None
+        elif accion == 'otro_equipo':                # no es el equipo ya registrado con su marca y modelo
+            fila['es_otro_equipo'] = True
+        elif accion == 'mismo_registrado':
+            fila.pop('es_otro_equipo', None)
         elif accion == 'adjuntar':
             otro = int(datos.get('con') or 0)
             fila['adjuntar_a'] = otro if otro in numeros else None
@@ -2440,6 +2540,102 @@ def _equipos_existentes(cur, seriales, imeis, codigos=()):
         for clave in claves_de(r) | ({'ficha:' + r['ficha_codigo'].lower()} if r['ficha_codigo'] else set()):
             por_clave.setdefault(clave, r)
     return por_clave
+
+
+_RELLENO_MODELO = {'de', 'del', 'la', 'el', 'con', 'para', 'y', 'impresora', 'multifuncional', 'computador',
+                   'computadora', 'portatil', 'equipo', 'pc', 'touch', 'tactil'}
+
+
+def _modelo_clave(marca, modelo):
+    """El modelo para comparar: sin la marca, sin lo que va entre paréntesis ni
+    palabras de relleno («IdeaCentre B320 (Touch)» = «Lenovo IdeaCentre B320»).
+    Vacío si no trae un número de modelo (un «Galaxy Tab» solo no identifica nada)."""
+    marca_p = set(_norm(marca).split()) | set(_norm(_marca_canonica(marca)).split()) if marca else set()
+    palabras = [p for p in _norm(re.sub(r'\([^)]*\)', ' ', str(modelo or ''))).split()
+                if p not in marca_p and p not in _RELLENO_MODELO]
+    clave = ' '.join(palabras)
+    return clave if re.search(r'\d', clave) else ''
+
+
+def _equipos_sin_serial(cur, contactos):
+    """Equipos activos de esos clientes sin serial, IMEI ni código de ficha."""
+    if not contactos:
+        return []
+    cur.execute("""SELECT e.id, e.tipo, e.marca, e.modelo, e.serial, e.imei, e.crm_contacto_id, e.mant_cada_meses,
+                          e.mant_proximo, e.ficha_codigo, c.nombre AS cliente_nombre,
+                          x.id AS empresa_id, x.nombre AS empresa_nombre
+                   FROM st_equipos e LEFT JOIN crm_contactos c ON c.id = e.crm_contacto_id
+                   LEFT JOIN st_empresas x ON x.id = e.empresa_id AND x.activo
+                   WHERE e.activo AND e.crm_contacto_id = ANY(%s) AND COALESCE(TRIM(e.serial), '') = ''
+                     AND COALESCE(TRIM(e.imei), '') = '' AND COALESCE(TRIM(e.ficha_codigo), '') = ''
+                   ORDER BY e.id""", (sorted(contactos),))
+    salida = []
+    for r in cur.fetchall():
+        r = dict(r)
+        r['descripcion'] = st.descripcion_equipo(r)
+        salida.append(r)
+    return salida
+
+
+def _ya_registrados_sin_serial(cur, equipos, raices, grupos, por_clave, cliente_de, buscadores, defecto):
+    """Equipos que ya están registrados SIN serial, IMEI ni código de ficha (p. ej.
+    los de una importación anterior de una tabla que solo traía marca y modelo):
+    si el cliente tiene UNO con la misma marca y modelo y en el lote hay UNA fila
+    así, es ese equipo y se completa en vez de crear otro igual. Si hay varios no
+    se adivina. Devuelve ({n: equipo}, {n: candidatos dudosos}, {n: candidatos})."""
+    por_correo, por_tel, por_nombre = buscadores
+    fila_n = {f['n']: f for f in equipos}
+
+    def contacto_probable(f):                  # el mismo que escogerá la revisión para la fila
+        uso = f.get('usar_contacto')
+        if isinstance(uso, int):
+            return uso
+        if uso == 'nuevo':
+            return None
+        c = cliente_de[f['n']]
+        contacto = (por_correo.get(c.get('email') or '') or por_tel.get(c.get('telefono') or '')
+                    or por_tel.get(c.get('whatsapp') or '')
+                    or por_nombre.get(_clave_nombre(c.get('nombre') or c.get('empresa'))))
+        if contacto:
+            return contacto['id']
+        if not (c.get('nombre') or c.get('empresa')) and defecto and defecto.get('existente'):
+            return defecto['existente']['id']
+        return None
+
+    sellos = {}
+    for raiz, ns in grupos.items():
+        if por_clave.get(raiz):
+            continue
+        contacto_id = contacto_probable(fila_n[raiz])
+        e = next((fila_n[n]['equipo'] for n in [raiz] + ns
+                  if fila_n[n]['equipo'].get('marca') and fila_n[n]['equipo'].get('modelo')), {})
+        sello = (contacto_id, _norm(_marca_canonica(e.get('marca'))), _modelo_clave(e.get('marca'), e.get('modelo')))
+        if contacto_id and sello[1] and sello[2]:
+            sellos[raiz] = sello
+    if not sellos:
+        return {}, {}, {}
+    registrados = {}
+    for r in _equipos_sin_serial(cur, {s[0] for s in sellos.values()}):
+        sello = (r['crm_contacto_id'], _norm(_marca_canonica(r['marca'])), _modelo_clave(r['marca'], r['modelo']))
+        if sello[1] and sello[2]:
+            registrados.setdefault(sello, []).append(r)
+    compiten = {}
+    for n, sello in sellos.items():
+        if not fila_n[n].get('es_otro_equipo'):
+            compiten.setdefault(sello, []).append(n)
+    por_modelo, dudosos, candidatos_de = {}, {}, {}
+    for n, sello in sellos.items():
+        candidatos = registrados.get(sello) or []
+        if not candidatos:
+            continue
+        candidatos_de[n] = candidatos
+        if fila_n[n].get('es_otro_equipo'):
+            continue
+        if len(candidatos) == 1 and len(compiten[sello]) == 1:
+            por_modelo[n] = candidatos[0]
+        else:
+            dudosos[n] = candidatos
+    return por_modelo, dudosos, candidatos_de
 
 
 def _plan_final(fila, ajustes, hoy):
@@ -2613,6 +2809,10 @@ def _revisar(cur, filas, ajustes, hoy, archivos=()):
             primera = lista[0]
             if f.get('archivo_id') != primera.get('archivo_id') or (f['historial'] and primera['historial']):
                 duplicado_de[f['n']] = primera['n']
+    por_clave = {r: next((existentes[k] for n in grupos[r] for k in claves[n] if k in existentes), None)
+                 for r in grupos}
+    por_modelo, dudosos, candidatos_de = _ya_registrados_sin_serial(
+        cur, equipos, raices, grupos, por_clave, cliente_de, (por_correo, por_tel, por_nombre), defecto)
 
     por_n = {f['n']: f for f in filas}
     vistas = {}
@@ -2624,7 +2824,8 @@ def _revisar(cur, filas, ajustes, hoy, archivos=()):
              'icono': tipos.icono(e.get('tipo')) if f['clase'] == 'equipo' else 'file-pdf',
              'specs': _specs(e), 'contacto': None, 'cliente_accion': None, 'existente': None, 'mismo_que': None,
              'plan': (None, None), 'historial': f['historial'], 'notas': f['notas'], 'posible_duplicado': None,
-             'estado': None, 'cliente': cliente_de.get(f['n'], f['cliente'])}
+             'estado': None, 'cliente': cliente_de.get(f['n'], f['cliente']), 'por_modelo': False,
+             'candidato': None}
         vistas[f['n']] = v
         if f['clase'] != 'equipo':
             continue
@@ -2636,12 +2837,30 @@ def _revisar(cur, filas, ajustes, hoy, archivos=()):
             v['mismo_que'] = raiz
             v['mensajes'].append(('ok', f'Es el mismo equipo de la fila {raiz}: se juntan en una sola ficha.'))
         else:
-            existente = next((existentes[k] for n in grupos[raiz] for k in claves[n] if k in existentes), None)
+            existente = por_clave.get(raiz)
             if existente:
                 v['existente'] = existente
                 v['mensajes'].append(('aviso', f"Ya está registrado ({existente['descripcion']}, de "
                                                f"{existente['cliente_nombre'] or 'otro cliente'}): se le agrega el "
                                                'historial y se llenan solo los datos que le faltan.'))
+            elif f['n'] in por_modelo:
+                existente = por_modelo[f['n']]
+                v['existente'], v['por_modelo'] = existente, True
+                v['mensajes'].append(('aviso', f"Ya está registrado sin serial ({existente['descripcion']}, de "
+                                               f"{existente['cliente_nombre'] or 'otro cliente'}): es el mismo cliente, "
+                                               'marca y modelo, así que se completa ese equipo con estos datos en vez '
+                                               'de crear otro igual. Si es un equipo distinto, pulsa «Es otro equipo».'))
+            elif f['n'] in dudosos:
+                k = len(dudosos[f['n']])
+                v['mensajes'].append(('aviso', f"El cliente ya tiene {k} equipo{'s' if k != 1 else ''} "
+                                               f"{st.descripcion_equipo(e)} sin serial y no se sabe si este es "
+                                               f"{'uno de ellos' if k != 1 else 'ese'}: se registra como nuevo. Si ya "
+                                               'estaba registrado, quita esta fila y complétalo desde la página de '
+                                               'ese equipo.'))
+            elif f.get('es_otro_equipo') and candidatos_de.get(f['n']):
+                v['candidato'] = candidatos_de[f['n']][0]
+                v['mensajes'].append(('ok', 'Marcaste que es otro equipo: se registra aparte del que ya estaba '
+                                            f"({v['candidato']['descripcion']})."))
         if f.get('ficha'):
             fx = f['ficha']
             v['mensajes'].append(('ok', 'Ficha técnica reconocida' + (f" {f['ficha_codigo']}" if f.get('ficha_codigo') else '')
@@ -2729,6 +2948,7 @@ def _revisar(cur, filas, ajustes, hoy, archivos=()):
         if aviso_plan:
             v['mensajes'].append(('aviso', aviso_plan))
             v['plan_vencido'] = True
+            v['aviso_plan'] = aviso_plan
         v['plan'] = (cada, proximo)
         v['estado'] = 'error' if any(m[0] == 'error' for m in v['mensajes']) else (
             'aviso' if any(m[0] == 'aviso' for m in v['mensajes']) else 'ok')
@@ -2740,6 +2960,14 @@ def _revisar(cur, filas, ajustes, hoy, archivos=()):
                 v['mensajes'].append(('error', f"Se junta con la fila {raiz['n']}, que tiene un error: corrígela "
                                                'primero.'))
                 v['estado'] = 'error'
+            ya = raiz.get('existente') or {}
+            if v['estado'] != 'error' and (ya.get('mant_cada_meses') or ya.get('mant_proximo')):
+                # El equipo ya registrado tiene su plan: el de esta fila no se usa (ni su aviso).
+                v['plan'] = (None, None)
+                v.pop('plan_vencido', None)
+                if v.get('aviso_plan'):
+                    v['mensajes'] = [m for m in v['mensajes'] if m != ('aviso', v['aviso_plan'])]
+                v['estado'] = 'aviso' if any(m[0] == 'aviso' for m in v['mensajes']) else 'ok'
     # PDF escaneados: ¿a qué equipo van?
     for v in vistas.values():
         if v['clase'] != 'adjunto':
@@ -2769,6 +2997,7 @@ def _revisar(cur, filas, ajustes, hoy, archivos=()):
                'particulares': 0}
     carpetas_usadas, carpetas_nuevas = set(), set()
     agenda, contactos_usados, defecto_nuevo = _Agenda(), set(), False
+    hojas_de_vida, con_plan = {}, set()
     for v in vistas.values():
         if v['clase'] == 'adjunto':
             resumen['adjuntos'] += 1
@@ -2796,8 +3025,11 @@ def _revisar(cur, filas, ajustes, hoy, archivos=()):
                 carpetas_nuevas.add(emp.clave(c['nombre']))
         elif c:
             resumen['particulares'] += 1
-        resumen['mantenimientos'] += len(f['historial'])
-        resumen['planes'] += 1 if v['plan'][1] else 0
+        grupo = v['mismo_que'] or v['n']                 # las filas que se juntan son un solo equipo
+        hojas_de_vida.setdefault(grupo, set()).update(
+            (h['fecha'], h['tipo']) for h in f['historial'] if _iso(h['fecha']) and _iso(h['fecha']) <= hoy)
+        if v['plan'][1]:
+            con_plan.add(grupo)
         resumen['vencidos'] += 1 if v.get('plan_vencido') else 0
         resumen['documentos'] += 1 if f.get('documento_id') else 0
         if v['cliente_accion'] in ('existente', 'defecto') and v['contacto']:
@@ -2809,6 +3041,15 @@ def _revisar(cur, filas, ajustes, hoy, archivos=()):
     resumen['clientes_nuevos'] = len(agenda.personas) + (1 if defecto_nuevo else 0)
     resumen['clientes_existentes'] = len(contactos_usados)
     resumen['carpetas'], resumen['carpetas_nuevas'] = len(carpetas_usadas), len(carpetas_nuevas)
+    # Mantenimientos que de verdad se agregan: los que el equipo ya registrado no tiene.
+    ya_tiene, ids = {}, sorted({vistas[g]['existente']['id'] for g in hojas_de_vida if vistas[g].get('existente')})
+    if ids:
+        cur.execute('SELECT equipo_id, fecha, tipo FROM st_mantenimientos WHERE equipo_id = ANY(%s) AND activo', (ids,))
+        for r in cur.fetchall():
+            ya_tiene.setdefault(r['equipo_id'], set()).add((r['fecha'].isoformat(), r['tipo']))
+    resumen['mantenimientos'] = sum(len(entradas - ya_tiene.get((vistas[g].get('existente') or {}).get('id'), set()))
+                                    for g, entradas in hojas_de_vida.items())
+    resumen['planes'] = len(con_plan)
     return {'filas': [vistas[f['n']] for f in filas], 'resumen': resumen, 'defecto': defecto,
             'por_n': {n: v for n, v in vistas.items()}}
 
@@ -2977,7 +3218,7 @@ def importar(lote_id, usuario_id=None, hoy=None):
         nombres_archivo = {a['id']: a['nombre'] for a in lote['archivos']}
         res = {'equipos_creados': [], 'equipos_completados': [], 'contactos_creados': [], 'mantenimientos': [],
                'seguimientos': [], 'documentos': [], 'planes': [], 'filas': {}, 'fichas': [], 'fotos': [],
-               'empresas_creadas': [], 'carpetas_puestas': []}
+               'empresas_creadas': [], 'carpetas_puestas': [], 'equipos_existentes': []}
         carpetas_cache = {}
         listas = [v for v in vista['filas'] if v['clase'] == 'equipo' and v['estado'] in ('ok', 'aviso')]
         # Clientes nuevos: uno por persona, con los datos de todas sus filas.
@@ -3025,6 +3266,7 @@ def importar(lote_id, usuario_id=None, hoy=None):
                 elif v['existente']:
                     equipo_id = v['existente']['id']
                     contacto_de_equipo[equipo_id] = v['existente']['crm_contacto_id']
+                    res['equipos_existentes'].append(equipo_id)
                     cambios = _completar_existente(cur, equipo_id, datos_equipo)
                     if cambios:
                         res['equipos_completados'].append(cambios)
@@ -3113,7 +3355,8 @@ def importar(lote_id, usuario_id=None, hoy=None):
                               f'{len(equipos_ids)} equipo(s) traídos desde archivos (importación #{lote_id}).',
                               usuario_id)
         res['resumen'] = {'equipos_creados': len(res['equipos_creados']),
-                          'equipos_completados': len({c['equipo_id'] for c in res['equipos_completados']}),
+                          'equipos_completados': len({c['equipo_id'] for c in res['equipos_completados']}
+                                                     | set(res['equipos_existentes'])),
                           'contactos_creados': len(res['contactos_creados']),
                           'mantenimientos': len(res['mantenimientos']), 'recordatorios': len(res['seguimientos']),
                           'documentos': len(res['documentos']),
@@ -3222,7 +3465,7 @@ def deshacer(lote_id, usuario_id=None):
             if cur.rowcount:
                 archivados.append(cid)
         for eid in set(retirar) | {c['equipo_id'] for c in res.get('equipos_completados') or []} | \
-                {p['equipo_id'] for p in res.get('planes') or []}:
+                {p['equipo_id'] for p in res.get('planes') or []} | set(res.get('equipos_existentes') or []):
             st._evento(cur, None, eid, 'equipo', f'Importación #{lote_id} deshecha', usuario_id)
         res['deshecho'] = {'equipos_retirados': len(retirar), 'equipos_conservados': conservados,
                            'datos_devueltos': devueltos, 'contactos_archivados': len(archivados),

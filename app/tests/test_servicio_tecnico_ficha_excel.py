@@ -43,7 +43,15 @@ def _png_logo():
     return salida.getvalue()
 
 
-def _hoja_ficha(ws, codigo, roja, sin_valores=False):
+FILAS_IMPRESORA = [('Tecnología de Impresión', 'Retransferencia térmica'),
+                   ('Fabricante del Sistema', 'Matica Technologies AG'), ('Modelo', 'Matica MC310'),
+                   ('Funciones', 'Impresión a una o dos caras'), ('Conectividad', 'USB 2.0, Ethernet'),
+                   ('Tipo de Tinta/Cartuchos', 'Cintas YMCKO'), ('Resolución Máx. (Impresión)', '300 ppp'),
+                   ('Capacidad de Tolva', '100 tarjetas'), ('Compatibilidad SO', 'Windows'),
+                   ('Zona Horaria', 'Pacifico, Sudamerica')]
+
+
+def _hoja_ficha(ws, codigo, roja, sin_valores=False, filas=None):
     from openpyxl.styles import Font, PatternFill
     v = (lambda x: None) if sin_valores else (lambda x: x)
     ws['C2'], ws['E2'], ws['F2'] = 'Taller QA Colombia', 'CODIGO', v(codigo)
@@ -54,15 +62,17 @@ def _hoja_ficha(ws, codigo, roja, sin_valores=False):
     ws['A8'], ws['D8'] = 'DESCRIPCIÓN GENERAL DEL PRODUCTO', '#VALUE!'     # la foto va DENTRO de D8
     ws['A9'] = v('Equipo corporativo "Todo en Uno" para la gestión contable.')
     ws['A10'] = 'CARACTERÍSTICAS GLOBALES'
-    filas = [('Sistema Operativo', 'Microsoft Windows 11 PRO'), ('Fabricante del Sistema', 'HP'),
-             ('Modelo', 'Hp Pavilion All-in-one 24-xa1xx'), ('Nombre de Usuario', 'CONTABILIDAD'),
-             ('Procesador', 'AMD Ryzen 7 3750H with Radeon Vega Mobile Gfx'), ('Memoria RAM', '8GB DDR4'),
-             ('Memoria física disponible:', '4,38 GB'), ('Tarjeta Grafica', 'AMD Radeon RX Vega 10'),
-             ('Unidad de Disco', 'SSD 239GB M.2')]
+    pc = filas is None
+    filas = filas or [('Sistema Operativo', 'Microsoft Windows 11 PRO'), ('Fabricante del Sistema', 'HP'),
+                      ('Modelo', 'Hp Pavilion All-in-one 24-xa1xx'), ('Nombre de Usuario', 'CONTABILIDAD'),
+                      ('Procesador', 'AMD Ryzen 7 3750H with Radeon Vega Mobile Gfx'), ('Memoria RAM', '8GB DDR4'),
+                      ('Memoria física disponible:', '4,38 GB'), ('Tarjeta Grafica', 'AMD Radeon RX Vega 10'),
+                      ('Unidad de Disco', 'SSD 239GB M.2')]
     for k, (etiqueta, valor) in enumerate(filas):
         ws.cell(11 + k, 1, etiqueta)
         ws.cell(11 + k, 4, v(valor))
-    ws.cell(20, 4, v('HDD 932GB'))                         # segundo disco: sigue el dato de arriba
+    if pc:
+        ws.cell(20, 4, v('HDD 932GB'))                     # segundo disco: sigue el dato de arriba
     ws['A22'] = 'VIDA UTIL'
     ws['A23'] = v('La vida útil se proyecta a largo plazo. Es fundamental:\n\n✅ Mantener el equipo limpio. '
                   '\n✅ Usar un regulador de voltaje o UPS. \n✅ Ubicar en un área ventilada.')
@@ -76,7 +86,7 @@ def _hoja_ficha(ws, codigo, roja, sin_valores=False):
         ws['D16'].font = Font(color='FFFF0000')            # «Memoria RAM» en rojo
 
 
-def _libro():
+def _libro(solo_control=False, filas_control=None):
     from openpyxl import Workbook
     from openpyxl.drawing.image import Image as XLImage
     libro = Workbook()
@@ -89,16 +99,20 @@ def _libro():
     for j, titulo in enumerate(['Referencia Equipo', 'Area Correspondiente', 'Numeración último mantenimiento',
                                 'Nro Ficha Tecnica', 'Fecha revisión Anterior', 'Proxima revisión'], start=2):
         control.cell(6, j, titulo)
-    for i, (ref, area, cod) in enumerate([('HP Pavilion All-in-One 24-xa1xx', 'Contabilidad', COD1),
-                                          ('Matica MC310 (Impresora de carnés)', 'Carnetización', COD2)], start=7):
+    for i, (ref, area, cod) in enumerate(filas_control or [('HP Pavilion All-in-One 24-xa1xx', 'Contabilidad', COD1),
+                                                           ('Matica MC310 (Impresora de carnés)', 'Carnetización', COD2)],
+                                         start=7):
         for j, valor in enumerate([ref, area, 1, cod, datetime(2026, 8, 12), datetime(2027, 8, 12)], start=2):
             control.cell(i, j, valor)
+    if solo_control:                                       # como la primera vez: solo la tabla
+        salida = io.BytesIO()
+        libro.save(salida)
+        return salida.getvalue()
     contab = libro.create_sheet('CONTABILIDAD')
     _hoja_ficha(contab, COD1, roja=True)
     mc = libro.create_sheet('MC310')
-    _hoja_ficha(mc, COD2, roja=False)
+    _hoja_ficha(mc, COD2, roja=False, filas=FILAS_IMPRESORA)  # la sección del fabricante dice «Hp» (copiada)
     mc['A9'] = 'Impresora de carnés de retransferencia para la carnetización.'
-    mc['D13'] = 'Matica MC310'
     foto_hoja = XLImage(io.BytesIO(_imagen('azul')))
     mc.add_image(foto_hoja, 'D9')                          # foto puesta sobre la hoja
     blanco = libro.create_sheet('Formato en blanco')
@@ -247,3 +261,133 @@ def test_la_pagina_del_equipo_muestra_la_ficha(flask_app, modulo, client, cursor
     assert '12/08/2026' in html and '12/08/2027' in html and 'Último mantenimiento' in html
     assert 'Falta el serial' not in html and 'datos técnicos' not in html            # la ficha los trae
     assert 'id="registrar-mant"' in html and 'href="#registrar-mant"' in html
+
+
+def test_lo_que_viene_cruzado_en_la_ficha_se_corrige_y_se_avisa():
+    """Al leer una ficha se corrige y se avisa lo que viene mal en algunas: el
+    procesador cruzado con la tarjeta gráfica, la sección del fabricante copiada
+    de otro equipo, la marca con su razón social («HP Inc.») y la capacidad del
+    disco pegada a su referencia («PM9B1 NVMe … 512GB» no es un disco de 1 TB)."""
+    from services import servicio_tecnico_importar as imp
+    assert imp._marca_canonica('HP Inc.') == 'HP' and imp._marca_canonica('Dell Inc') == 'Dell'
+    assert imp._marca_canonica('Matica Technologies AG') == 'Matica'
+    assert imp._marca_canonica('ASUSTeK COMPUTER INC.') == 'Asus'
+    assert imp._marca_canonica('marca rara') == 'Marca Rara'
+    assert imp.discos_de_texto('MTFDDAV256TBN-1AR1ZABHA SSD 239GB M.2 / ST1000LM04-2GH172 HDD 932GB') == [
+        ('SSD SATA', '239 GB'), ('HDD', '932 GB')]
+    assert imp.discos_de_texto('NVMe PM9B1 NVMe Samsung 512GB') == [('SSD NVMe', '512 GB')]
+    assert imp.discos_de_texto('TOSHIBA DT01ACA100 932GB') == [(None, '932 GB')]
+    assert imp.specs_de_texto('NVMe PM9B1 NVMe Samsung 512GB')[0].get('almacenamiento') != 'SSD 1 TB'
+    assert imp._modelo_clave('Lenovo', 'IdeaCentre B320 (Touch)') == imp._modelo_clave('Lenovo', 'Lenovo IdeaCentre B320')
+    assert imp._modelo_clave('Apple', 'iPhone 11') != imp._modelo_clave('Apple', 'iPhone 11 Pro')
+    assert imp._modelo_clave('Samsung', 'Galaxy Tab') == ''              # sin número de modelo no identifica
+    pc = imp._fila_de_ficha({
+        'codigo': MARCA + '-F09', 'fecha': '2025-12-04', 'ultimo': '2026-08-12', 'proximo': '2027-08-12',
+        'estado': 'bueno', 'descripcion': 'Equipo corporativo formato "Todo en Uno".',
+        'filas': [('Sistema Operativo', 'Microsoft Windows 11 PRO'), ('Fabricante del Sistema', 'Dell Inc'),
+                  ('Modelo', 'Dell OptiPlex AIO 7410 65W'), ('Procesador', 'Intel® UHD Graphics 770'),
+                  ('Memoria RAM', '16GB DDR4'), ('Placa Base', '0TKWC4'),
+                  ('Tarjeta Grafica', '13th Gen Intel® Core® i7-13700'),
+                  ('Unidad de Disco', 'NVMe PM9B1 NVMe Samsung 512GB')],
+        'fabricante': 'Dell Inc', 'fabricante_url': 'https://www.dell.com/'})
+    e = pc['equipo']
+    assert e['tipo'] == 'computador' and e['marca'] == 'Dell' and e['modelo'] == 'OptiPlex AIO 7410 65W'
+    assert e['procesador'] == '13th Gen Intel® Core® i7-13700'
+    assert pc['ficha']['filas']['Tarjeta Grafica'] == 'Intel® UHD Graphics 770'
+    assert e['almacenamiento'] == 'SSD 512 GB' and e['extras']['tipo_disco'] == 'SSD NVMe'
+    assert any('cruzados' in a for a in pc['avisos'])
+    assert pc['ficha']['fabricante'] == 'Dell Inc' and pc['ficha']['orden'][3] == 'Procesador'
+    impresora = imp._fila_de_ficha({
+        'codigo': MARCA + '-F10', 'estado': 'bueno', 'descripcion': 'Equipo corporativo formato "Todo en Uno".',
+        'filas': [('Tecnología de Impresión', 'Inyección de tinta térmica'), ('Fabricante del Sistema', 'HP Inc.'),
+                  ('Modelo', 'OfficeJet Pro 8610'), ('Conectividad', 'Wi-Fi, Ethernet, USB 2.0')],
+        'fabricante': 'Dell Inc', 'fabricante_url': 'https://www.dell.com/es-co/lp'})
+    assert impresora['equipo']['tipo'] == 'impresora' and impresora['equipo']['marca'] == 'HP'
+    assert 'fabricante' not in impresora['ficha'] and 'fabricante_url' not in impresora['ficha']
+    assert any('se deja el soporte de HP' in a for a in impresora['avisos'])
+
+
+def test_completa_los_equipos_que_ya_estaban_sin_serial(flask_app, modulo, client, cursor, limpiar, sin_ia):
+    """Los equipos de una importación anterior (solo la tabla: marca y modelo, sin
+    serial ni ficha) se reconocen al traer el libro completo —mismo cliente, marca
+    y modelo— y se completan en su sitio: ficha, código, fotos, características y
+    carpeta. No se duplican, no se repite el mantenimiento y todo se deshace."""
+    from services import servicio_tecnico_importar as imp
+    from tests.conftest import _login
+    with flask_app.test_request_context('/'):
+        primero, _ = imp.crear_lote([_archivo('control.xlsx', _libro(solo_control=True))], usuario_id=1)
+        limpiar.append(primero)
+        antes = imp.importar(primero, usuario_id=1)['equipos_creados']
+    assert len(antes) == 2
+    with cursor() as cur:                          # como quedaron en producción: sin carpeta (aún no existían)
+        cur.execute('UPDATE st_equipos SET empresa_id = NULL WHERE id = ANY(%s)', (antes,))
+        cur.execute('SELECT serial, ficha_codigo FROM st_equipos WHERE id = ANY(%s)', (antes,))
+        assert all(not r['serial'] and not r['ficha_codigo'] for r in cur.fetchall())
+    with flask_app.test_request_context('/'):
+        lote_id, _ = imp.crear_lote([_archivo('fichas.xlsx', _libro())], usuario_id=1)
+        limpiar.append(lote_id)
+        vista = imp.revisar(imp.obtener_lote(lote_id))
+        raices = [v for v in vista['filas'] if v['estado'] in ('ok', 'aviso') and not v['mismo_que']]
+        assert sorted(v['existente']['id'] for v in raices) == sorted(antes) and all(v['por_modelo'] for v in raices)
+        r = vista['resumen']
+        assert r['existentes'] == 2 and r['nuevos'] == 0 and r['unidas'] == 2 and r['clientes_nuevos'] == 0
+        # «Es otro equipo» la deja aparte, y se puede volver atrás.
+        n = raices[1]['n']
+        imp.editar_fila(lote_id, n, {'accion': 'otro_equipo'})
+        v = imp.revisar(imp.obtener_lote(lote_id))['por_n'][n]
+        assert not v['existente'] and v['candidato']['id'] == raices[1]['existente']['id']
+        imp.editar_fila(lote_id, n, {'accion': 'mismo_registrado'})
+        assert imp.revisar(imp.obtener_lote(lote_id))['por_n'][n]['por_modelo']
+        res = imp.importar(lote_id, usuario_id=1)
+    assert res['equipos_creados'] == [] and sorted(res['equipos_existentes']) == sorted(antes)
+    assert res['resumen']['equipos_completados'] == 2 and len(res['fichas']) == 2 and len(res['fotos']) == 2
+    with cursor() as cur:
+        cur.execute("""SELECT e.*, x.nombre AS carpeta,
+                              (SELECT COUNT(*) FROM st_fotos f WHERE f.equipo_id = e.id AND f.activo) AS fotos,
+                              (SELECT COUNT(*) FROM st_mantenimientos m WHERE m.equipo_id = e.id AND m.activo) AS mants
+                       FROM st_equipos e LEFT JOIN st_empresas x ON x.id = e.empresa_id
+                       WHERE e.id = ANY(%s) ORDER BY e.id""", (antes,))
+        pc, impresora = cur.fetchall()
+        cur.execute('SELECT COUNT(*) AS n FROM st_equipos WHERE crm_contacto_id = %s AND activo', (pc['crm_contacto_id'],))
+        assert cur.fetchone()['n'] == 2                                         # no se duplicó nada
+    assert pc['ficha_codigo'] == COD1 and pc['ficha']['estado'] == 'inconveniente' and pc['fotos'] == 1
+    assert pc['procesador'].startswith('AMD Ryzen 7') and pc['almacenamiento'] == 'SSD 239 GB + HDD 932 GB'
+    assert pc['extras']['tipo_disco'] == 'Mixto (SSD + HDD)' and pc['carpeta'] == EMPRESA and pc['mants'] == 1
+    assert impresora['ficha_codigo'] == COD2 and impresora['fotos'] == 1 and impresora['carpeta'] == EMPRESA
+    assert 'fabricante' not in impresora['ficha']                   # la sección copiada («Hp») no es de Matica
+    # La página: el PC con su «Tarjeta Grafica» donde iba en el Excel; la impresora, con las filas de su ficha.
+    _login(client, 2)
+    html = client.get(f"/admin/servicio-tecnico/equipo/{pc['id']}").get_data(as_text=True)
+    assert html.index('>Memoria física disponible<') < html.index('>Tarjeta Grafica<') < html.index('>Placa Base<')
+    html = client.get(f"/admin/servicio-tecnico/equipo/{impresora['id']}").get_data(as_text=True)
+    filas = re.findall(r'<th scope="row">([^<]+)</th>', html)
+    assert filas[:4] == ['Tecnología de Impresión', 'Fabricante del Sistema', 'Modelo', 'Funciones']
+    assert 'Conexión' not in filas and 'Color' not in filas and 'st-fv-vacio' not in html
+    with flask_app.test_request_context('/'):
+        d = imp.deshacer(lote_id, usuario_id=1)
+    assert d['equipos_retirados'] == 0
+    with cursor() as cur:
+        cur.execute("""SELECT e.*, (SELECT COUNT(*) FROM st_fotos f WHERE f.equipo_id = e.id AND f.activo) AS fotos
+                       FROM st_equipos e WHERE e.id = ANY(%s) ORDER BY e.id""", (antes,))
+        for r in cur.fetchall():
+            assert r['activo'] and not r['ficha_codigo'] and r['ficha'] == {} and r['fotos'] == 0
+            assert r['empresa_id'] is None and not r['procesador']
+
+
+def test_si_hay_dos_iguales_sin_serial_no_se_adivina(flask_app, modulo, cursor, limpiar, sin_ia):
+    """Si el cliente tiene dos equipos de la misma marca y modelo sin serial, no se
+    sabe cuál es: la fila se registra como nueva y se avisa."""
+    from services import servicio_tecnico_importar as imp
+    dos = [('HP Pavilion All-in-One 24-xa1xx', 'Contabilidad', ''), ('HP Pavilion All-in-One 24-xa1xx', 'Gerencia', '')]
+    with flask_app.test_request_context('/'):
+        primero, _ = imp.crear_lote([_archivo('control.xlsx', _libro(solo_control=True, filas_control=dos))],
+                                    usuario_id=1)
+        limpiar.append(primero)
+        assert len(imp.importar(primero, usuario_id=1)['equipos_creados']) == 2
+        lote_id, _ = imp.crear_lote([_archivo('fichas.xlsx', _libro())], usuario_id=1)
+        limpiar.append(lote_id)
+        vista = imp.revisar(imp.obtener_lote(lote_id))
+    hp = next(v for v in vista['filas'] if not v['mismo_que'] and 'Pavilion' in v['titulo'])
+    assert not hp['existente'] and not hp['por_modelo']
+    assert any('ya tiene 2 equipos' in texto for _nivel, texto in hp['mensajes'])
+    assert vista['resumen']['nuevos'] == 2 and vista['resumen']['existentes'] == 0
