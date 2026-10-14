@@ -74,6 +74,11 @@ def _ensure_table():
         cur.execute("ALTER TABLE plan_compras ADD COLUMN IF NOT EXISTS lema VARCHAR(120)")
         # Cuándo se envió el último enlace de confirmación (vence a las 72 h).
         cur.execute("ALTER TABLE plan_compras ADD COLUMN IF NOT EXISTS verificacion_enviada_at TIMESTAMP")
+        # Creación de la tienda paso a paso: «lista» solo cuando de verdad lo está
+        # (marca puesta, instancia encendida y correo de bienvenida enviado).
+        cur.execute("ALTER TABLE plan_compras ADD COLUMN IF NOT EXISTS etapa VARCHAR(20)")
+        cur.execute("ALTER TABLE plan_compras ADD COLUMN IF NOT EXISTS activando_at TIMESTAMP")
+        cur.execute("ALTER TABLE plan_compras ADD COLUMN IF NOT EXISTS listo_at TIMESTAMP")
 
 
 def normalizar_whatsapp(valor):
@@ -200,15 +205,82 @@ def marcar_contacto(compra_id):
 
 def marcar_activando(compra_id, slug):
     """PAGADO/ERROR -> ACTIVANDO (reserva el intento; evita doble submit)."""
+    _ensure_table()
     with get_db_cursor() as cur:
         cur.execute(
             """
-            UPDATE plan_compras SET estado = 'ACTIVANDO', slug = %s, error = NULL
+            UPDATE plan_compras SET estado = 'ACTIVANDO', slug = %s, error = NULL,
+                   etapa = 'creando', activando_at = NOW(), listo_at = NULL
             WHERE id = %s AND estado IN ('PAGADO', 'ERROR')
             """,
             (slug, compra_id),
         )
         return cur.rowcount > 0
+
+
+# Pasos de la creación, en orden (los muestra la página de activación).
+ETAPAS = ('creando', 'personalizando', 'encendiendo', 'correo', 'lista')
+MINUTOS_ATASCADA = 15        # ACTIVANDO por más tiempo = algo falló sin avisar
+MINUTOS_LISTA_ANTIGUA = 5    # compras de antes de las etapas: ACTIVADA hace 5 min = lista
+
+
+def marcar_etapa(compra_id, etapa):
+    with get_db_cursor() as cur:
+        cur.execute("UPDATE plan_compras SET etapa = %s WHERE id = %s", (etapa, compra_id))
+
+
+def marcar_lista(compra_id):
+    """La tienda quedó lista de verdad: marca, instancia y correo de bienvenida."""
+    with get_db_cursor() as cur:
+        cur.execute("UPDATE plan_compras SET etapa = 'lista', listo_at = NOW() WHERE id = %s",
+                    (compra_id,))
+
+
+def esta_lista(compra):
+    """¿Se le puede decir al cliente «tu tienda está lista»? Solo cuando el
+    hilo terminó todo. Las compras anteriores a las etapas (sin listo_at)
+    cuentan como listas si se activaron hace más de unos minutos."""
+    if not compra or compra.get('estado') != 'ACTIVADA':
+        return False
+    if compra.get('listo_at'):
+        return True
+    if not compra.get('activated_at') or not compra.get('id'):
+        return False
+    # Con el reloj de la BD (el mismo que escribió activated_at con NOW()): la
+    # hora del proceso de la app puede estar en otra zona horaria.
+    with get_db_cursor() as cur:
+        cur.execute(f"SELECT activated_at < NOW() - INTERVAL '{MINUTOS_LISTA_ANTIGUA} minutes' "
+                    "FROM plan_compras WHERE id = %s", (compra['id'],))
+        fila = cur.fetchone()
+    return bool(fila and fila[0])
+
+
+def marcar_atascada(compra_id):
+    """ACTIVANDO hace demasiado (el hilo murió, p. ej. un reinicio del servidor):
+    pasa a ERROR para poder reintentar. Devuelve la fila solo la primera vez."""
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            f"""
+            UPDATE plan_compras
+            SET estado = 'ERROR', error = 'La creación tardó demasiado y se detuvo.'
+            WHERE id = %s AND estado = 'ACTIVANDO'
+              AND COALESCE(activando_at, created_at) < NOW() - INTERVAL '{MINUTOS_ATASCADA} minutes'
+            RETURNING *
+            """,
+            (compra_id,),
+        )
+        return cur.fetchone()
+
+
+def compras_atascadas():
+    """Ids de las compras que siguen ACTIVANDO hace demasiado (para el cron)."""
+    _ensure_table()
+    with get_db_cursor() as cur:
+        cur.execute(
+            f"""SELECT id FROM plan_compras WHERE estado = 'ACTIVANDO'
+                AND COALESCE(activando_at, created_at) < NOW() - INTERVAL '{MINUTOS_ATASCADA} minutes'"""
+        )
+        return [r[0] for r in cur.fetchall()]
 
 
 def marcar_activada(compra_id, tenant_id, slug, dominio, periodo='mes', dias=None):
@@ -352,6 +424,36 @@ def marcar_trial_verificado(compra_id):
         cur.execute(
             "UPDATE plan_compras SET estado = 'PAGADO' "
             "WHERE id = %s AND estado = 'TRIAL_PENDIENTE'",
+            (compra_id,),
+        )
+        return cur.rowcount > 0
+
+
+def prueba_activa_de(email):
+    """La prueba gratis ya creada (ACTIVADA, sin pagar todavía) de este correo,
+    o None. Para no venderle una SEGUNDA tienda vacía a quien ya tiene una."""
+    email = (email or '').strip().lower()
+    if not email:
+        return None
+    _ensure_table()
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute(
+            """SELECT * FROM plan_compras
+               WHERE LOWER(buyer_email) = %s AND referencia_pedido LIKE 'TRIAL-%%'
+                 AND es_trial AND estado = 'ACTIVADA' AND token_renovacion IS NOT NULL
+               ORDER BY id DESC LIMIT 1""",
+            (email,),
+        )
+        return cur.fetchone()
+
+
+def quitar_pausa(compra_id):
+    """La prueba pausada volvió a tener días (el operador le dio más plazo):
+    se quita la pausa y los avisos vuelven a empezar. True si estaba pausada."""
+    with get_db_cursor() as cur:
+        cur.execute(
+            """UPDATE plan_compras SET suspendida_por_pago = FALSE, ultimo_recordatorio = NULL
+               WHERE id = %s AND suspendida_por_pago""",
             (compra_id,),
         )
         return cur.rowcount > 0

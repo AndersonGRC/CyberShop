@@ -62,7 +62,7 @@
   .ac-nota { font-size: .88rem; color: #7a8499; line-height: 1.55; }
   .ac-etapas { list-style: none; margin: 18px auto 0; padding: 0; max-width: 430px; text-align: left; }
   .ac-etapas li { position: relative; padding: 0 0 14px 34px; display: flex; flex-direction: column; gap: 2px;
-    font-size: .88rem; color: #9aa3b5; transition: color .3s; }
+    font-size: .88rem; color: #667085; transition: color .3s; }
   .ac-etapas li::before { content: ""; position: absolute; left: 4px; top: 3px; width: 14px; height: 14px;
     border-radius: 50%; border: 2px solid #d5dcea; background: #fff; }
   .ac-etapas li.is-on { color: #33405c; }
@@ -71,6 +71,11 @@
   .ac-etapas li.is-done { color: #1d7a3d; }
   .ac-etapas li.is-done::before { content: "✓"; border-color: #1d7a3d; background: #1d7a3d; color: #fff;
     font-size: 10px; line-height: 14px; text-align: center; }
+  .ac-btn-sec { display: block; text-decoration: none; text-align: center; box-sizing: border-box;
+    background: #fff; color: var(--ac-primario); border: 2px solid #d8deec; box-shadow: none; }
+  .ac-btn-sec:hover { background: #f4f7fc; color: var(--ac-oscuro); border-color: var(--ac-primario); }
+  .ac-lento { margin: 14px auto 0; max-width: 430px; font-size: .9rem; color: #7a4b00;
+    background: #fff7e6; border-radius: 10px; padding: 10px 14px; }
   .ac-pasos { text-align: left; background: #f4f7fc; border-radius: 14px; padding: 14px 18px; margin: 18px 0; }
   .ac-pasos b { display: block; margin-bottom: 8px; color: #33405c; }
   .ac-pasos ol { margin: 0; padding-left: 20px; font-size: .9rem; line-height: 1.7; color: #4d576b; }
@@ -80,17 +85,39 @@
 {% block body %}
 <div class="ac-page">
   <div class="ac-card">
-    <span class="ac-badge"><i class="fas fa-rocket"></i> Plan {{ plan.nombre }}</span>
+    <span class="ac-badge"><i class="fas fa-rocket"></i>
+      {% if compra.es_trial %}Prueba gratis · {% endif %}Plan {{ plan.nombre }}</span>
 
-    {% if compra.estado in ('PAGADO', 'ERROR') %}
+    {% if compra.estado == 'ERROR' and compra.es_trial %}
+    {# Prueba gratis que no se pudo crear: nada de «pago confirmado» ni del error técnico
+       (le llega al operador). Reintento de un clic con lo que ya eligió. #}
+    <div class="ac-status">
+      <span class="ic" aria-hidden="true">🛠️</span>
+      <h1>No pudimos terminar de crear tu tienda</h1>
+      <p class="sub">No es tu culpa y no perdiste nada: tus datos están guardados. Puedes
+        intentarlo de nuevo ahora; si vuelve a fallar, escríbenos y lo resolvemos contigo.</p>
+      {% if error %}<div class="ac-error" role="alert"><i class="fas fa-exclamation-circle"></i> {{ error }}</div>{% endif %}
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="ac-btn"><i class="fas fa-redo"></i> Intentar de nuevo</button>
+      </form>
+      {% if soporte %}
+      <a class="ac-btn ac-btn-sec" style="margin-top:12px;" target="_blank" rel="noopener"
+         href="https://wa.me/{{ soporte }}?text={{ ('Hola, no se pudo crear mi tienda de prueba ' ~ (compra.slug or '') ~ '.' ~ base_domain)|urlencode }}">
+        <i class="fab fa-whatsapp"></i> Escríbenos por WhatsApp</a>
+      {% endif %}
+    </div>
+
+    {% elif compra.estado in ('PAGADO', 'ERROR') %}
     <h1>¡Último paso! Activa tu tienda</h1>
     <p class="sub">Tu pago está confirmado. Elige el nombre de tu negocio y la
       dirección web donde vivirá tu tienda. <strong>Esto no se puede cambiar
       después fácilmente</strong>, elígelo con calma.</p>
 
-    {% if error %}<div class="ac-error"><i class="fas fa-exclamation-circle"></i> {{ error }}</div>{% endif %}
-    {% if compra.estado == 'ERROR' and compra.error %}
-    <div class="ac-error"><i class="fas fa-exclamation-circle"></i> El intento anterior falló: {{ compra.error }}<br>Corrige y vuelve a intentar.</div>
+    {% if error %}<div class="ac-error" role="alert"><i class="fas fa-exclamation-circle"></i> {{ error }}</div>{% endif %}
+    {% if compra.estado == 'ERROR' %}
+    <div class="ac-error" role="alert"><i class="fas fa-exclamation-circle"></i> El intento anterior no se completó
+      (ya nos llegó el aviso). Revisa los datos y vuelve a intentarlo; si sigue fallando, escríbenos.</div>
     {% endif %}
 
     <form method="POST">
@@ -116,25 +143,33 @@
         <strong>{{ compra.buyer_email }}</strong> con tus accesos.</p>
     </form>
 
-    {% elif compra.estado == 'ACTIVANDO' %}
-    <div class="ac-status" id="acCreando" data-estado-url="{{ url_for('public.activar_tienda_estado', token=compra.token) }}">
-      <div class="ac-spinner" id="acSpinner"></div>
-      <span class="ic" id="acListo" hidden>🎉</span>
-      <h1 id="acTitulo">Estamos validando tus datos…</h1>
-      <p class="sub" id="acSub">Toma <strong>1 a 3 minutos</strong>. No necesitas recargar: esta página se actualiza sola.</p>
+    {% elif compra.estado == 'ACTIVANDO' or (compra.estado == 'ACTIVADA' and not lista) %}
+    {# El progreso sale de la etapa REAL que va escribiendo la creación (y «lista»
+       solo cuando la tienda responde y salió el correo). #}
+    <div class="ac-status" id="acCreando" data-estado-url="{{ url_for('public.activar_tienda_estado', token=compra.token) }}"
+         data-etapa="{{ compra.etapa or '' }}">
+      <div class="ac-spinner" id="acSpinner" aria-hidden="true"></div>
+      <span class="ic" id="acListo" hidden aria-hidden="true">🎉</span>
+      <h1 id="acTitulo">Estamos creando tu tienda…</h1>
+      <p class="sub" id="acSub" aria-live="polite">Toma <strong>1 a 3 minutos</strong>. No necesitas recargar: esta página se actualiza sola.</p>
       <ol class="ac-etapas" id="acEtapas">
-        <li data-s="0" data-t="Estamos validando tus datos…"><b>Validando tus datos</b><span>Tu correo ya está confirmado; revisamos el resto.</span></li>
-        <li data-s="4" data-t="Estamos creando tu sitio…"><b>Creando tu sitio</b><span>Tu espacio seguro, tu panel, tus módulos y tu diseño.</span></li>
-        <li data-s="45" data-t="Estamos creando tu sitio…"><b>Activando tu dirección web</b><span>Con el candado de seguridad (https) para que tus clientes compren tranquilos.</span></li>
-        <li data-s="90" data-t="Ya casi…"><b>Enviándote tus accesos</b><span>A <strong>{{ compra.buyer_email }}</strong>: la dirección, tu usuario y una contraseña temporal.</span></li>
+        <li data-etapa="creando" data-s="0" data-t="Estamos creando tu sitio…"><b>Creando tu sitio</b><span>Tu espacio seguro, tu panel y tus módulos.</span></li>
+        <li data-etapa="personalizando" data-s="40" data-t="Poniendo tu marca…"><b>Poniendo tu marca</b><span>Tu nombre, tu color y textos de ejemplo para que empieces rápido.</span></li>
+        <li data-etapa="encendiendo" data-s="60" data-t="Encendiendo tu tienda…"><b>Encendiendo tu tienda</b><span>Con el candado de seguridad (https) para que tus clientes compren tranquilos.</span></li>
+        <li data-etapa="correo" data-s="90" data-t="Ya casi…"><b>Enviándote tus accesos</b><span>A <strong>{{ compra.buyer_email }}</strong>: la dirección, tu usuario y una contraseña temporal.</span></li>
       </ol>
+      <p class="ac-lento" id="acLento" hidden>Está tardando más de lo normal. No cierres esta página: seguimos
+        trabajando. Si no termina en unos minutos, te avisamos aquí mismo y te ayudamos.</p>
     </div>
 
     {% elif compra.estado == 'ACTIVADA' %}
     <div class="ac-status">
-      <span class="ic">🎉</span>
+      <span class="ic" aria-hidden="true">🎉</span>
       <h1>¡Tu tienda está lista!</h1>
       <span class="ac-dominio">https://{{ compra.dominio }}</span>
+      {% if compra.es_trial and compra.proximo_pago %}
+      <p class="sub">Tu prueba gratis va hasta el <strong>{{ compra.proximo_pago.strftime('%d/%m/%Y') }}</strong>.</p>
+      {% endif %}
       <p class="sub">Revisa tu correo (<strong>{{ compra.buyer_email }}</strong>):
         te enviamos el usuario, la contraseña temporal y el código para
         descargar el punto de venta de escritorio.</p>
@@ -159,30 +194,45 @@
     <div class="ac-status">
       <span class="ic">🤔</span>
       <h1>Este enlace no está disponible</h1>
-      <p class="sub">El estado de tu compra es: {{ compra.estado }}. Si crees que
-        es un error, contáctanos por WhatsApp.</p>
+      <p class="sub">Este enlace ya no sirve para crear una tienda. Si crees que es un error,
+        escríbenos y te ayudamos.</p>
+      {% if soporte %}
+      <a class="ac-btn ac-btn-sec" target="_blank" rel="noopener" href="https://wa.me/{{ soporte }}">
+        <i class="fab fa-whatsapp"></i> Escríbenos por WhatsApp</a>
+      {% endif %}
     </div>
     {% endif %}
   </div>
 </div>
 
 <script>
-/* Creación en curso: consulta el estado cada 3 s y avanza las etapas según el
-   tiempo transcurrido (la creación real no reporta pasos intermedios). */
+/* Creación en curso: consulta el estado cada 3 s. Las etapas siguen la etapa
+   REAL que informa el servidor; si no llega (creación antigua), avanzan por
+   tiempo. A los 6 minutos se avisa que está tardando y se consulta cada 15 s. */
 (function () {
   var caja = document.getElementById('acCreando');
   if (!caja) return;
   var etapas = Array.prototype.slice.call(document.querySelectorAll('#acEtapas li'));
+  var orden = etapas.map(function (li) { return li.dataset.etapa; });
   var inicio = Date.now();
+  var etapaReal = caja.dataset.etapa || '';
   var listo = false, reloj = null;
   function pintar() {
     if (listo) return;
+    var actual = orden.indexOf(etapaReal);
     var s = (Date.now() - inicio) / 1000;
     etapas.forEach(function (li, i) {
-      var desde = Number(li.dataset.s), sig = etapas[i + 1] ? Number(etapas[i + 1].dataset.s) : 1e9;
-      li.className = s >= sig ? 'is-done' : (s >= desde ? 'is-on' : '');
-      if (li.className === 'is-on') document.getElementById('acTitulo').textContent = li.dataset.t;
+      var estado;
+      if (actual >= 0) {
+        estado = i < actual ? 'is-done' : (i === actual ? 'is-on' : '');
+      } else {
+        var desde = Number(li.dataset.s), sig = etapas[i + 1] ? Number(etapas[i + 1].dataset.s) : 1e9;
+        estado = s >= sig ? 'is-done' : (s >= desde ? 'is-on' : '');
+      }
+      li.className = estado;
+      if (estado === 'is-on') document.getElementById('acTitulo').textContent = li.dataset.t;
     });
+    if (s > 360) document.getElementById('acLento').hidden = false;
   }
   function todoListo() {
     listo = true;
@@ -194,11 +244,17 @@
     document.getElementById('acSub').textContent = 'Tu tienda ya está en internet. Te mostramos cómo entrar…';
     setTimeout(function () { window.location.reload(); }, 1800);   // el servidor pinta la pantalla final
   }
+  function espera() { return (Date.now() - inicio) > 360000 ? 15000 : 3000; }
   function consultar() {
     fetch(caja.dataset.estadoUrl, { headers: { 'Accept': 'application/json' } })
       .then(function (r) { return r.json(); })
       .then(function (d) {
-        if (d.estado === 'ACTIVANDO') { setTimeout(consultar, 3000); return; }
+        if (d.estado === 'ACTIVANDO') {
+          if (d.etapa) etapaReal = d.etapa;
+          pintar();
+          setTimeout(consultar, espera());
+          return;
+        }
         if (d.estado === 'ACTIVADA') { todoListo(); return; }
         window.location.reload();   // ERROR u otro: el servidor muestra qué pasó
       })
@@ -213,10 +269,12 @@
   var slug = document.getElementById('subdominio');
   var prev = document.getElementById('prev-slug');
   if (!nombre || !slug || !prev) return;
+  /* Igual que el asistente de la prueba gratis: deja escribir el guion final
+     mientras se escribe (antes se borraba y no se podía poner «mi-tienda»). */
   function slugify(t) {
-    return t.toLowerCase()
+    return String(t || '').toLowerCase()
       .normalize('NFD').replace(/[̀-ͯ]/g, '')
-      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/, '');
   }
   var manual = false;
   nombre.addEventListener('input', function () {
@@ -224,8 +282,9 @@
   });
   slug.addEventListener('input', function () {
     manual = true;
-    slug.value = slugify(slug.value);
-    prev.textContent = slug.value || 'tu-negocio';
+    var limpio = slugify(slug.value.replace(/-$/, '')) + (/-$/.test(slug.value) ? '-' : '');
+    if (slug.value !== limpio) slug.value = limpio;
+    prev.textContent = slug.value.replace(/-$/, '') || 'tu-negocio';
   });
   if (slug.value) prev.textContent = slug.value;
 })();

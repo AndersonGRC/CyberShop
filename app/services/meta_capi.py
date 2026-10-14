@@ -162,15 +162,26 @@ def send_event_async(event_name: str, event_id: str, user_data: dict,
     ).start()
 
 
+# Páginas cuya URL lleva un enlace secreto (activar la tienda, renovar el plan,
+# confirmar la prueba, crear la contraseña): nunca se le envían a Meta.
+RUTAS_PRIVADAS = ('/activar-tienda', '/renovar', '/prueba-gratis/confirmar',
+                  '/restablecer-contrasena', '/bienvenida')
+
+
+def ruta_privada(path) -> bool:
+    return (path or '').startswith(RUTAS_PRIVADAS)
+
+
 def should_track_pageview(req) -> bool:
     """Filtro para decidir si una request es candidata a PageView CAPI.
 
-    Excluye: admin, api, assets, AJAX, métodos no-GET, healthchecks.
+    Excluye: admin, api, assets, AJAX, métodos no-GET, healthchecks y las
+    páginas con enlaces secretos.
     """
     if req.method != 'GET':
         return False
     path = req.path or ''
-    if path.startswith(('/admin', '/api', '/static', '/.well-known', '/favicon')):
+    if path.startswith(('/admin', '/api', '/static', '/.well-known', '/favicon')) or ruta_privada(path):
         return False
     if req.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return False

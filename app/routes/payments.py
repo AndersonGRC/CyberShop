@@ -7,10 +7,11 @@ y pagina de respuesta con polling automatico.
 """
 
 import hashlib
+import hmac
 import json
 import time
 from datetime import datetime
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_EVEN, ROUND_HALF_UP
 
 import requests
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
@@ -103,6 +104,30 @@ def consultar_estado_real_payu(referencia):
     except Exception as e:
         app.logger.error(f"Error en Polling PayU: {e}")
     return '7'
+
+
+def _valor_firma_respuesta(valor):
+    """TX_VALUE como lo firma PayU en la página de respuesta: un decimal con
+    redondeo «half even» (150.25 → 150.2, 150.35 → 150.4, 150 → 150.0)."""
+    return f"{Decimal(str(valor)).quantize(Decimal('0.1'), rounding=ROUND_HALF_EVEN):.1f}"
+
+
+def firma_respuesta_valida(args):
+    """¿Los datos que llegan a la página de respuesta los firmó PayU?
+    signature = MD5(ApiKey~merchantId~referenceCode~valor~currency~transactionState).
+    Sin la llave de la tienda nadie puede fabricarla, así que un
+    «transactionState=4» escrito a mano en la URL no la tiene."""
+    api_key = app.config.get('PAYU_API_KEY')
+    firma = str(args.get('signature') or '').strip().lower()
+    if not api_key or not firma:
+        return False
+    try:
+        valor = _valor_firma_respuesta(args.get('TX_VALUE'))
+    except Exception:  # noqa: BLE001 — valor ausente o no numérico
+        return False
+    crudo = '~'.join([str(api_key), str(args.get('merchantId') or ''), str(args.get('referenceCode') or ''),
+                      valor, str(args.get('currency') or ''), str(args.get('transactionState') or '')])
+    return hmac.compare_digest(hashlib.md5(crudo.encode('utf-8')).hexdigest(), firma)
 
 
 def construir_redireccion_payu(referencia, nombre, email, amount_value, description=None):
@@ -585,7 +610,7 @@ def respuesta_pago():
     la BD y muestra el comprobante al usuario.
     """
     datosApp = get_common_data()
-    estado_tx = request.args.get('transactionState')
+    estado_url = request.args.get('transactionState')
     transaccion_id = request.args.get('transactionId')
     referencia = request.args.get('referenceCode')
     valor = request.args.get('TX_VALUE')
@@ -593,10 +618,22 @@ def respuesta_pago():
     mensaje_pol = request.args.get('message')
     metodo = request.args.get('lapPaymentMethod')
 
-    # Polling: 4 intentos (8 seg) si el estado es Pendiente
-    if estado_tx == '7' or not estado_tx:
+    # SEGURIDAD: cualquiera puede escribir «transactionState=4» en la URL. El
+    # estado de la URL solo cuenta si viene firmado por PayU; si no, se le
+    # pregunta a PayU. Si PayU no responde, queda «en proceso» y decide el
+    # webhook (que sí verifica su firma).
+    if estado_url in ('4', '5', '6') and firma_respuesta_valida(request.args):
+        estado_tx = estado_url
+    else:
+        if estado_url and estado_url != '7':
+            app.logger.warning(f"Respuesta de pago sin firma válida (ref {referencia}): se consulta a PayU")
+        estado_tx = '7'
+
+    # Polling: 4 consultas (cada 2 s) mientras el estado sea pendiente
+    if estado_tx == '7' and referencia:
         for i in range(4):
-            time.sleep(2)
+            if i:
+                time.sleep(2)
             nuevo_estado = consultar_estado_real_payu(referencia)
             if nuevo_estado != '7':
                 estado_tx = nuevo_estado
@@ -623,23 +660,30 @@ def respuesta_pago():
         estado_bd = 'RECHAZADO'
         estado_envio_bd = 'CANCELADO'
         datos_comprobante.update({'estado': 'RECHAZADO', 'titulo': 'Transacción Rechazada'})
-        liberar_stock(referencia)
     elif estado_tx == '7':
         datos_comprobante.update({'estado': 'PENDIENTE', 'titulo': 'Pago en Proceso'})
         session.pop('carritoPendiente', None)
 
+    # Solo cuenta lo que ESTA petición cambió: al recargar la página (o si el
+    # webhook llegó primero) no se repiten la contabilidad ni la devolución de stock.
+    cambio = False
     try:
         with get_db_cursor() as cur:
             cur.execute("""
                 UPDATE pedidos
                 SET estado_pago = %s, id_transaccion_payu = %s, metodo_pago = %s, estado_envio = %s
                 WHERE referencia_pedido = %s AND estado_pago = 'PENDIENTE'
+                RETURNING id
             """, (estado_bd, transaccion_id, metodo, estado_envio_bd, referencia))
+            cambio = cur.fetchone() is not None and estado_bd != 'PENDIENTE'
     except Exception as e:
         app.logger.error(f"Error BD Respuesta: {e}")
 
-    # Registrar en contabilidad si el pago fue aprobado
-    if estado_bd == 'APROBADO':
+    if estado_bd == 'RECHAZADO' and cambio:
+        liberar_stock(referencia)
+
+    # Registrar en contabilidad si el pago fue aprobado (una sola vez)
+    if estado_bd == 'APROBADO' and cambio:
         try:
             from routes.contabilidad import registrar_movimiento
             registrar_movimiento(
@@ -731,9 +775,17 @@ def procesar_carrito():
 
 
 def liberar_stock(referencia_pedido):
-    """Devuelve el stock de los productos de un pedido cancelado/rechazado."""
+    """Devuelve el stock de los productos de un pedido cancelado/rechazado.
+    Una sola vez por pedido: si ya hay una «Liberación pedido …» en el
+    inventario, no se devuelve de nuevo (un webhook repetido o recargar la
+    página de respuesta inflaban el stock)."""
     try:
         with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT 1 FROM inventario_log WHERE motivo = %s LIMIT 1",
+                        (f"Liberación pedido {referencia_pedido}",))
+            if cur.fetchone():
+                app.logger.info(f"Stock ya liberado antes para pedido {referencia_pedido}")
+                return
             # Obtener items del pedido
             cur.execute("""
                 SELECT dp.producto_nombre, dp.cantidad 

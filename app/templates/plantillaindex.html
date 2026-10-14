@@ -46,7 +46,9 @@
     {% block jsonld %}{% endblock %}
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <!-- Meta Pixel Code (con dedup vs Conversions API por eventID) -->
+    {% if meta_pixel_id %}
+    <!-- Meta Pixel Code (con dedup vs Conversions API por eventID). El ID es el
+         de ESTA tienda (configuración); las tiendas de prueba no tienen. -->
     <script>
     !function(f,b,e,v,n,t,s)
     {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -56,7 +58,7 @@
     t.src=v;s=b.getElementsByTagName(e)[0];
     s.parentNode.insertBefore(t,s)}(window, document,'script',
     'https://connect.facebook.net/en_US/fbevents.js');
-    fbq('init', '4412332785657284');
+    fbq('init', {{ meta_pixel_id|tojson }});
     var FB_PV_ID = "{{ fb_pageview_event_id or '' }}";
     if (FB_PV_ID) {
         fbq('track', 'PageView', {}, { eventID: FB_PV_ID });
@@ -66,9 +68,10 @@
     }
     </script>
     <noscript><img height="1" width="1" style="display:none"
-    src="https://www.facebook.com/tr?id=4412332785657284&ev=PageView&noscript=1"
+    src="https://www.facebook.com/tr?id={{ meta_pixel_id|urlencode }}&ev=PageView&noscript=1"
     /></noscript>
     <!-- End Meta Pixel Code -->
+    {% endif %}
 
     <link rel="shortcut icon" href="{{ brand_config.empresa_logo_url or url_for('static', filename='img/Logo.PNG') }}">
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>

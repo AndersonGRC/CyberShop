@@ -61,14 +61,21 @@ def procesar_compra_plan(referencia, base_url='https://cybershopcol.com'):
         # Leer el padre ANTES de extender (extender_periodo limpia el flag
         # de suspensión y necesitamos saber si hay que revivir la instancia).
         padre_pre = pcs.get_por_id(compra['renovacion_de']) or {}
-        pcs.marcar_contacto(compra['id'])  # cierra la fila de renovación
+        # Cierra la fila de renovación. Solo UNA llamada lo logra: si el webhook
+        # y la página de respuesta llegan a la vez, la otra no extiende de nuevo.
+        if not pcs.marcar_contacto(compra['id']):
+            return 'ya-procesada'
         padre = pcs.extender_periodo(compra['renovacion_de']) or {}
 
-        # Conversión de prueba gratis → plan pagado
+        # Conversión de prueba gratis → plan pagado. Las integraciones siguen
+        # APAGADAS: si se quitara el modo prueba, la tienda heredaría las llaves
+        # de CyberShop (PayU, Google, Meta) y los pagos de SUS clientes llegarían
+        # a la cuenta de CyberShop. Se conectan las del cliente después.
         if padre_pre.get('es_trial'):
             pcs.marcar_trial_convertido(compra['renovacion_de'])
             limpiar_datos_trial(padre_pre)
-            _quitar_modo_prueba(padre_pre)
+            from services.tienda_estado_sync import sincronizar
+            sincronizar(pcs.get_por_id(compra['renovacion_de']))
 
         reactivada = ''
         if padre_pre.get('suspendida_por_pago') and padre_pre.get('tenant_id'):
@@ -79,19 +86,20 @@ def procesar_compra_plan(referencia, base_url='https://cybershopcol.com'):
             except Exception as exc:  # noqa: BLE001
                 reactivada = f' — ⚠️ reactivación automática falló: {exc}'
 
-        _enviar(compra['buyer_email'], generar_email_aviso_operador(
-            f"✅ Renovación confirmada — {plan.get('nombre')}",
-            [f"Tu tienda: {padre.get('dominio') or ''}"
-             + (' (ya está activa de nuevo)' if 'REACTIVADA' in reactivada else ''),
-             f"Próximo pago: {padre.get('proximo_pago')}",
-             f"Referencia: {referencia}",
-             "¡Gracias por seguir con nosotros!"]))
+        from helpers_email_templates import generar_email_pago_plan_cliente
+        _enviar(compra['buyer_email'], generar_email_pago_plan_cliente(
+            padre or padre_pre, plan, referencia, convertida=bool(padre_pre.get('es_trial')),
+            reactivada='REACTIVADA' in reactivada))
         _enviar(_email_operador(), generar_email_aviso_operador(
-            f"💰 Renovación pagada — {plan.get('nombre')}{reactivada}",
+            (f"🎉 Prueba gratis CONVERTIDA — {plan.get('nombre')}{reactivada}" if padre_pre.get('es_trial')
+             else f"💰 Renovación pagada — {plan.get('nombre')}{reactivada}"),
             [f"Cliente: {compra.get('buyer_nombre')} <{compra.get('buyer_email')}>",
              f"Tienda: {padre.get('dominio') or ''}",
              f"Nuevo próximo pago: {padre.get('proximo_pago')}",
-             f"Referencia: {referencia}"]))
+             f"Referencia: {referencia}"]
+            + (["Sus pagos en línea, Google y Meta siguen APAGADOS (no usa las llaves de CyberShop): "
+                "cuando el cliente tenga su cuenta PayU, conéctala en el maestro → Integraciones."]
+               if padre_pre.get('es_trial') else [])))
         return 'renovacion'
 
     # ── Compra inicial ──
@@ -152,33 +160,40 @@ def _sembrar_tienda_nueva(compra, resultado=None):
         return False
 
 
-def _aplicar_modo_prueba(compra):
-    """Prueba gratis: apaga pagos en línea, Google, Meta y DIAN (llaves que el
-    cliente no tiene). Devuelve '' o el error para avisar al operador."""
+def _apagar_integraciones_heredadas(compra):
+    """Toda tienda autoservicio (prueba o compra) nace con pagos en línea,
+    Google, Meta y DIAN APAGADOS: si no, heredaría las llaves de CyberShop y los
+    pagos de SUS clientes llegarían a la cuenta de CyberShop. Se conectan las
+    llaves propias del cliente después. Reinicia la instancia (lo hace el
+    maestro). Devuelve '' o el error para avisar al operador."""
     try:
         from services.master_client import modo_prueba
         modo_prueba(compra['tenant_id'], activo=True)
         return ''
     except Exception as exc:  # noqa: BLE001
         try:
-            current_app.logger.error(f"trial: no se pudo aplicar el modo prueba: {exc}")
+            current_app.logger.error(f"tienda nueva: no se apagaron las integraciones: {exc}")
         except Exception:
             pass
         return str(exc)
 
 
-def _quitar_modo_prueba(compra):
-    """La prueba pagó: la tienda vuelve a heredar las integraciones (o las que
-    el operador le configure). Nunca rompe la renovación."""
-    try:
-        if compra.get('tenant_id'):
-            from services.master_client import modo_prueba
-            modo_prueba(compra['tenant_id'], activo=False)
-    except Exception as exc:  # noqa: BLE001
+def _esperar_tienda(port, limite=90):
+    """Espera a que la instancia de la tienda responda (tras crearla o
+    reiniciarla) antes de decirle al cliente que está lista. True si respondió."""
+    if not port:
+        return False
+    import time
+    import requests
+    fin = time.time() + limite
+    while time.time() < fin:
         try:
-            current_app.logger.error(f"trial: no se pudo quitar el modo prueba: {exc}")
-        except Exception:
+            if requests.get(f"http://127.0.0.1:{int(port)}/login", timeout=4).status_code < 500:
+                return True
+        except Exception:  # noqa: BLE001 — aún arrancando
             pass
+        time.sleep(2)
+    return False
 
 
 def _sembrar_datos_trial(compra, resultado=None):
@@ -202,14 +217,31 @@ def _sembrar_datos_trial(compra, resultado=None):
 
 
 def limpiar_datos_trial(compra):
-    """El trial pagó: quita las llaves del banner en la BD del tenant."""
+    """El trial pagó: quita en la BD del tenant las llaves del aviso de la
+    prueba y de la pausa (la tienda se abre al instante)."""
     try:
         from services.db_layer import tenant_cursor
+        from services.tienda_estado_sync import CLAVES_PRUEBA
         db_name = _db_del_tenant(compra['tenant_id'])
         with tenant_cursor(db_name=db_name) as cur:
-            cur.execute("DELETE FROM cliente_config WHERE clave IN ('trial_hasta','trial_renovar_url')")
+            cur.execute("DELETE FROM cliente_config WHERE clave = ANY(%s)", (list(CLAVES_PRUEBA),))
     except Exception:
         pass
+
+
+def avisar_falla_creacion(compra, slug, detalle):
+    """La tienda no se pudo crear: el operador se entera al instante (antes
+    solo quedaba marcado como error y nadie lo veía)."""
+    from helpers_email_templates import generar_email_aviso_operador
+    compra = compra or {}
+    _enviar(_email_operador(), generar_email_aviso_operador(
+        f"❌ No se pudo crear la tienda — {slug or compra.get('slug') or '?'}",
+        [f"Cliente: {compra.get('buyer_nombre')} <{compra.get('buyer_email')}>",
+         f"WhatsApp: {compra.get('buyer_telefono') or 'no lo dio'}",
+         f"{'Prueba gratis' if compra.get('es_trial') else 'Compra'} · referencia {compra.get('referencia_pedido')}",
+         f"Error: {detalle}",
+         "El cliente ve «No pudimos terminar de crear tu tienda» y puede reintentar. "
+         "Escríbele por WhatsApp para ayudarle."]))
 
 
 def validar_slug(slug):
@@ -244,21 +276,35 @@ def activar_tienda_async(app, compra_id, slug, nombre_negocio):
                                     slug, resultado.get('domain'),
                                     periodo=compra.get('periodo') or 'mes',
                                     dias=pcs.TRIAL_DIAS if es_trial else None)
+                # «ACTIVADA» todavía no es «lista»: la página de activación sigue
+                # mostrando el progreso hasta marcar_lista (al final).
+                pcs.marcar_etapa(compra_id, 'personalizando')
                 compra = pcs.get_por_id(compra_id)
                 marca_ok = _sembrar_tienda_nueva(compra, resultado)
-                error_modo_prueba = ''
                 if es_trial:
                     _sembrar_datos_trial(compra, resultado)
-                    error_modo_prueba = _aplicar_modo_prueba(compra)
                     from services.crm_pruebas_service import prueba_activada
                     prueba_activada(compra)
-                _enviar(compra['buyer_email'],
-                        generar_email_bienvenida_tienda(compra, plan, resultado))
+                from services.tienda_estado_sync import sincronizar
+                sincronizar(compra)
+                # Pagos en línea, Google, Meta y DIAN apagados (prueba o compra):
+                # la tienda nunca usa las llaves de CyberShop. Reinicia la instancia.
+                pcs.marcar_etapa(compra_id, 'encendiendo')
+                error_integraciones = _apagar_integraciones_heredadas(compra)
+                responde = _esperar_tienda(resultado.get('port'))
+                pcs.marcar_etapa(compra_id, 'correo')
+                correo_ok = _enviar(compra['buyer_email'],
+                                    generar_email_bienvenida_tienda(compra, plan, resultado))
+                pcs.marcar_lista(compra_id)
                 avisos = []
                 if not marca_ok:
                     avisos.append("⚠️ No se pudo poner su marca (quedó con la de CyberShop): revísala.")
-                if error_modo_prueba:
-                    avisos.append(f"⚠️ No se apagaron pagos/Google/Meta/DIAN: {error_modo_prueba}")
+                if error_integraciones:
+                    avisos.append(f"⚠️ No se apagaron pagos/Google/Meta/DIAN: {error_integraciones}")
+                if not responde:
+                    avisos.append("⚠️ La tienda no respondió en 90 s después de crearla: revisa que esté encendida.")
+                if not correo_ok:
+                    avisos.append("⚠️ No salió el correo de bienvenida: envíale los accesos por WhatsApp.")
                 _enviar(_email_operador(), generar_email_aviso_operador(
                     ("🎁 PRUEBA GRATIS activada — " if es_trial else "🚀 Tienda activada — ")
                     + str(resultado.get('domain')),
@@ -269,14 +315,15 @@ def activar_tienda_async(app, compra_id, slug, nombre_negocio):
                      + (f" | Prueba hasta {compra.get('proximo_pago')}" if es_trial else ""),
                      f"Tenant ID: {resultado.get('tenant_id')} | Puerto: {resultado.get('port')}"]
                     + avisos))
-            except MasterError as exc:
-                pcs.marcar_error(compra_id, str(exc))
-            except Exception as exc:  # noqa: BLE001
-                pcs.marcar_error(compra_id, f'Error inesperado: {exc}')
-                try:
-                    app.logger.exception('Activación de tienda falló')
-                except Exception:
-                    pass
+            except Exception as exc:  # noqa: BLE001 — MasterError o inesperado
+                detalle = str(exc) if isinstance(exc, MasterError) else f'Error inesperado: {exc}'
+                pcs.marcar_error(compra_id, detalle)
+                if not isinstance(exc, MasterError):
+                    try:
+                        app.logger.exception('Activación de tienda falló')
+                    except Exception:
+                        pass
+                avisar_falla_creacion(compra, slug, detalle)
 
     hilo = threading.Thread(target=_worker, daemon=True, name=f'activar-{compra_id}')
     hilo.start()

@@ -91,9 +91,19 @@ def main():
     from config import Config
     from services import plan_compras_service as pcs
     from services.software_planes_service import get_plan
+    from services.tienda_estado_sync import sincronizar, eliminar_desde
+    from services.venta_automatica_service import avisar_falla_creacion
     from helpers_email_templates import (
         generar_email_recordatorio_pago, generar_email_aviso_operador,
-        generar_email_trial_recordatorio)
+        generar_email_trial_recordatorio, generar_email_trial_pausada)
+
+    # Tiendas cuya creación quedó a medias (p. ej. un reinicio mató el hilo):
+    # pasan a ERROR para poder reintentar y el operador se entera.
+    for compra_id in pcs.compras_atascadas():
+        fila = pcs.marcar_atascada(compra_id)
+        if fila:
+            print(f"  [ATASCADA] compra {compra_id} ({fila.get('slug')}) → ERROR")
+            avisar_falla_creacion(fila, fila.get('slug'), fila.get('error'))
 
     hoy = date.today()
     # AUTO_SUSPENDER_DIAS actúa como INTERRUPTOR MAESTRO (>0 = auto-suspensión ON).
@@ -117,25 +127,40 @@ def main():
         url = f"{BASE_URL}/renovar/{c['token_renovacion']}" if c['token_renovacion'] else BASE_URL
         etapa_previa = c.get('ultimo_recordatorio') or ''
 
-        # ── PRUEBA GRATIS (15 días): avisos día 10/13/15, suspensión día 16 ──
+        # ── PRUEBA GRATIS (15 días): avisos día 10/13/15, pausa el día 16 ──
         if c.get('es_trial'):
+            if dias >= 0 and c['suspendida_por_pago']:
+                # El operador le dio más plazo a una prueba ya pausada: se reabre.
+                if pcs.quitar_pausa(c['id']):
+                    c['suspendida_por_pago'] = False
+                    c['ultimo_recordatorio'] = etapa_previa = ''
+                    print(f"  [TRIAL-REANUDA] {c['dominio']} (prueba hasta {c['proximo_pago']})")
             if dias <= -1 and not c['suspendida_por_pago']:
-                print(f"  [TRIAL-SUSPENDER] {c['dominio']} (venció hace {-dias}d)")
-                try:
-                    from services.master_client import suspender_tenant
-                    if c['tenant_id']:
-                        suspender_tenant(c['tenant_id'])
+                # Pausa SUAVE: la tienda sigue encendida; los visitantes ven «en
+                # pausa» y el dueño, cómo activar su plan (antes se apagaba la
+                # instancia y todos veían un error 502). Se abre sola al pagar.
+                print(f"  [TRIAL-PAUSA] {c['dominio']} (venció hace {-dias}d)")
+                c['suspendida_por_pago'] = True
+                if sincronizar(c):
                     pcs.marcar_suspendida_por_pago(c['id'])
                     pcs.marcar_recordatorio(c['id'], 'trial_fin')
-                    _enviar(c['buyer_email'], generar_email_trial_recordatorio(
-                        c, plan, url, 0))
+                    hasta = eliminar_desde(c)
+                    _enviar(c['buyer_email'], generar_email_trial_pausada(c, plan, url, hasta))
                     _enviar(operador, generar_email_aviso_operador(
-                        f"⏸️ Prueba gratis vencida sin pago — {c['dominio']}",
+                        f"⏸️ Prueba gratis terminó sin pago — {c['dominio']}",
                         [f"Cliente: {c['buyer_nombre']} <{c['buyer_email']}> "
                          f"{('Tel: ' + c['buyer_telefono']) if c.get('buyer_telefono') else ''}",
-                         "La tienda quedó pausada; se reactiva sola si paga."]))
-                except Exception as exc:  # noqa: BLE001
-                    print(f"  [!] suspensión de trial falló: {exc}")
+                         "La tienda quedó EN PAUSA (sigue encendida: los visitantes ven el aviso y el "
+                         "dueño, cómo pagar). Se abre sola si paga.",
+                         f"Le dijimos que sus datos se guardan hasta el {hasta:%d/%m/%Y}: "
+                         "no la borres en /pruebas antes de esa fecha." if hasta else ""]))
+                else:
+                    c['suspendida_por_pago'] = False
+                    print(f"  [!] no se pudo pausar {c['dominio']}: se reintenta mañana")
+                    _enviar(operador, generar_email_aviso_operador(
+                        f"⚠️ No se pudo pausar la prueba vencida — {c['dominio']}",
+                        [f"Cliente: {c['buyer_nombre']} <{c['buyer_email']}>",
+                         "No se pudo escribir la pausa en su base de datos; el cron lo reintenta mañana."]))
             elif not c['suspendida_por_pago']:
                 etapa = None
                 if dias == 0 and etapa_previa != 'trial15':
@@ -200,6 +225,12 @@ def main():
         _enviar(operador, generar_email_aviso_operador(
             f"⚠️ {len(resumen_vencidos)} plan(es) vencidos sin pagar",
             resumen_vencidos + ["", "Puedes suspenderlos desde admin.cybershopcol.com"]))
+
+    # Cada tienda autoservicio refleja su estado real (aviso de prueba, pausa,
+    # enlace de pago): así un pago manual o una prórroga del maestro también se
+    # ve en la tienda. Las demás tiendas no se tocan (sincronizar lo revisa).
+    sincronizadas = sum(1 for c in compras if sincronizar(c))
+    print(f"  {sincronizadas} tienda(s) autoservicio sincronizadas")
     print("Listo.")
 
 

@@ -3,34 +3,67 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Tienda temporalmente suspendida</title>
+    <meta name="robots" content="noindex, nofollow">
+    <title>{% if pausa %}Tienda en pausa{% else %}Tienda temporalmente suspendida{% endif %}</title>
     <style>
-        :root { --azul:#122C94; --azul-osc:#091C5A; }
+        /* Página autónoma (se ve aunque fallen las hojas de estilo): sus colores van aquí. */
+        :root { --azul:#122C94; --azul-osc:#091C5A; --texto:#334155; --suave:#64748b; --borde:#cbd5e1; }
         * { box-sizing: border-box; }
         body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
                font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-               background: linear-gradient(135deg, var(--azul-osc), var(--azul)); color:#0f172a; padding:24px; }
-        .card { background:#fff; max-width:520px; width:100%; border-radius:16px; padding:40px 34px;
+               background: linear-gradient(135deg, var(--azul-osc), var(--azul)); color:#0f172a; padding:24px 16px; }
+        .card { background:#fff; max-width:520px; width:100%; border-radius:16px; padding:36px 28px;
                 box-shadow: 0 20px 60px rgba(0,0,0,.25); text-align:center; }
-        .icon { font-size:54px; line-height:1; margin-bottom:10px; }
-        h1 { font-size:1.5rem; margin:.2rem 0 .6rem; color:var(--azul-osc); }
-        p { color:#475569; line-height:1.55; margin:.4rem 0; }
-        .muted { font-size:.9rem; color:#94a3b8; margin-top:1.4rem; }
-        .btn { display:inline-block; margin-top:1.4rem; background:var(--azul); color:#fff;
-               text-decoration:none; padding:12px 26px; border-radius:10px; font-weight:600; }
-        .btn:hover { background:var(--azul-osc); }
+        .icon { font-size:50px; line-height:1; margin-bottom:10px; }
+        h1 { font-size:1.45rem; margin:.2rem 0 .7rem; color:var(--azul-osc); }
+        p { color:var(--texto); line-height:1.6; margin:.5rem 0; }
+        .muted { font-size:.9rem; color:var(--suave); margin-top:1.4rem; }
+        .acciones { display:flex; flex-direction:column; gap:10px; margin-top:1.4rem; }
+        .btn { display:block; background:var(--azul); color:#fff; text-decoration:none; padding:13px 22px;
+               border-radius:10px; font-weight:700; border:2px solid var(--azul); }
+        .btn:hover { background:var(--azul-osc); border-color:var(--azul-osc); }
+        .btn-sec { background:#fff; color:var(--azul); border-color:var(--borde); }
+        .btn-sec:hover { background:#f1f5f9; color:var(--azul-osc); border-color:var(--azul); }
+        a { color:var(--azul); }
+        a:focus-visible, .btn:focus-visible { outline:3px solid #f59e0b; outline-offset:2px; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <div class="icon">🔒</div>
+    <main class="card">
+    {% if pausa and dueno %}
+        <div class="icon" aria-hidden="true">⏸️</div>
+        <h1>Tu prueba gratis terminó</h1>
+        <p>Terminó{% if pausa.termino %} el <strong>{{ pausa.termino }}</strong>{% endif %} y tu tienda quedó
+           en pausa: tus clientes ven un aviso.</p>
+        <p>Tus productos, ventas y configuración están guardados{% if pausa.eliminar_desde %} hasta el
+           <strong>{{ pausa.eliminar_desde }}</strong>{% endif %}. Activa tu plan y tu tienda vuelve al
+           instante, tal como la dejaste.</p>
+        <div class="acciones">
+            {% if pausa.renovar_url %}<a class="btn" href="{{ pausa.renovar_url }}">Activar mi plan</a>{% endif %}
+            {% if soporte %}<a class="btn btn-sec" target="_blank" rel="noopener"
+               href="https://wa.me/{{ soporte }}?text={{ ('Hola, quiero activar el plan de mi tienda ' ~ request.host)|urlencode }}">Escríbenos por WhatsApp</a>{% endif %}
+        </div>
+        <p class="muted"><a href="/logout">Cerrar sesión</a></p>
+    {% elif pausa %}
+        <div class="icon" aria-hidden="true">⏸️</div>
+        <h1>{{ (brand_config.empresa_nombre if brand_config and brand_config.empresa_nombre else 'Esta tienda') }} está en pausa</h1>
+        <p>Por ahora no está recibiendo pedidos. Vuelve pronto.</p>
+        <p class="muted"><a href="/login">¿Eres el dueño? Inicia sesión</a></p>
+    {% else %}
+        <div class="icon" aria-hidden="true">🔒</div>
         <h1>Tienda temporalmente suspendida</h1>
         <p>Este comercio no está disponible en este momento.</p>
         <p><strong>¿Eres el propietario?</strong> Tu servicio está inactivo por un tema de
-           facturación. Renueva tu plan con el enlace que te enviamos por correo, o contacta a
-           soporte para reactivar tu tienda de inmediato.</p>
-        <a class="btn" href="/planes">Reactivar mi plan</a>
+           facturación. Renueva tu plan con el enlace que te enviamos por correo, o escríbenos
+           para reactivar tu tienda de inmediato.</p>
+        {% if soporte %}
+        <div class="acciones">
+            <a class="btn" target="_blank" rel="noopener"
+               href="https://wa.me/{{ soporte }}?text={{ ('Hola, quiero reactivar mi tienda ' ~ request.host)|urlencode }}">Escríbenos por WhatsApp</a>
+        </div>
+        {% endif %}
+    {% endif %}
         <p class="muted">Powered by CyberShop</p>
-    </div>
+    </main>
 </body>
 </html>

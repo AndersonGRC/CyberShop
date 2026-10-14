@@ -857,6 +857,26 @@ def comprar_plan(plan_id):
     except Exception:
         pass
 
+    # Quien ya tiene una prueba gratis activa no compra una SEGUNDA tienda vacía:
+    # su plan se activa sobre la tienda de la prueba y conserva todo. El enlace
+    # para activarlo se envía a SU correo (no se muestra aquí: esta cuenta no
+    # verificó que el correo sea suyo).
+    from services import plan_compras_service as _pcs
+    correo = ((request.form.get('buyerEmail') if request.method == 'POST' else None)
+              or (usuario or {}).get('email') or session.get('email'))
+    prueba = _pcs.prueba_activa_de(correo)
+    if prueba:
+        if plan.get('plan_key') == prueba.get('plan_key'):
+            _enviar_enlace_activar_prueba(prueba)
+            flash('Ya tienes una prueba gratis con este correo. Para activar tu plan y conservar todo lo '
+                  'que hiciste, usa el botón «Activar mi plan» dentro de tu tienda; también te enviamos '
+                  'el enlace a tu correo.', 'info')
+            return redirect(url_for('public.software') + '#planes')
+        if request.method == 'GET':
+            flash('Ojo: ya tienes una prueba gratis con este correo. Si compras este plan se crea una '
+                  'tienda NUEVA y vacía. Si quieres conservar lo que hiciste en tu prueba, escríbenos '
+                  'antes de pagar.', 'warning')
+
     if request.method == 'POST':
         if not controlar_tasa_solicitudes(request.remote_addr or 'unknown', max_requests=8, interval=300):
             flash('Demasiados intentos. Espera unos minutos.', 'error')
@@ -917,6 +937,27 @@ def comprar_plan(plan_id):
 
     return render_template('comprar_plan.html', datosApp=datosApp,
                            plan=plan, usuario=usuario, **sw_colors)
+
+
+def _enviar_enlace_activar_prueba(prueba):
+    """Correo al dueño de la prueba con su enlace para activar el plan (máximo
+    uno por hora: no se puede usar para llenarle el buzón)."""
+    from datetime import date as _date
+    from security import controlar_tasa_solicitudes
+    from services.software_planes_service import get_plan
+    from services.tienda_estado_sync import renovar_url
+    if not controlar_tasa_solicitudes(f"trial-enlace:{prueba['id']}", max_requests=1, interval=3600):
+        return False
+    try:
+        from helpers_email_templates import generar_email_trial_recordatorio
+        from helpers_gmail import enviar_email_gmail
+        plan = get_plan(prueba['plan_key']) or {'nombre': prueba['plan_key']}
+        dias = max(0, (prueba['proximo_pago'] - _date.today()).days) if prueba.get('proximo_pago') else 0
+        asunto, texto, html = generar_email_trial_recordatorio(prueba, plan, renovar_url(prueba), dias)
+        return bool(enviar_email_gmail(prueba['buyer_email'], asunto, texto, html=html))
+    except Exception as exc:  # noqa: BLE001
+        app.logger.warning(f"enlace de activación de la prueba {prueba.get('id')}: {exc}")
+        return False
 
 
 # ════════════════════════════════════════════════════════════════
@@ -1140,9 +1181,20 @@ def activar_tienda_estado(token):
     compra = pcs.get_por_token(token)
     if not compra:
         return jsonify({'estado': 'NO_EXISTE'}), 404
+    if compra['estado'] == 'ACTIVANDO':
+        # El hilo de creación murió (p. ej. un reinicio): pasa a ERROR una sola vez,
+        # se avisa al operador y el cliente ve cómo reintentar.
+        atascada = pcs.marcar_atascada(compra['id'])
+        if atascada:
+            from services.venta_automatica_service import avisar_falla_creacion
+            avisar_falla_creacion(atascada, atascada.get('slug'), atascada.get('error'))
+            compra = atascada
+    lista = pcs.esta_lista(compra)
     return jsonify({
-        'estado': compra['estado'],
-        'dominio': compra.get('dominio') if compra['estado'] == 'ACTIVADA' else None,
+        # «ACTIVADA» solo cuando de verdad está lista (marca, instancia y correo).
+        'estado': 'ACTIVADA' if lista else ('ACTIVANDO' if compra['estado'] == 'ACTIVADA' else compra['estado']),
+        'etapa': compra.get('etapa'),
+        'dominio': compra.get('dominio') if lista else None,
     })
 
 
@@ -1170,10 +1222,15 @@ def activar_tienda(token):
 
     error = None
     if request.method == 'POST' and compra['estado'] in ('PAGADO', 'ERROR'):
-        nombre_negocio = (request.form.get('nombre_negocio') or '').strip()
-        slug, error = validar_slug(request.form.get('subdominio'))
-        if not nombre_negocio or len(nombre_negocio) < 3:
-            error = 'Escribe el nombre de tu negocio (mínimo 3 caracteres).'
+        if compra.get('es_trial'):
+            # Reintento de una prueba: con el nombre y la dirección que ya eligió.
+            nombre_negocio = compra.get('nombre_negocio') or compra.get('slug') or ''
+            slug, error = validar_slug(compra.get('slug'))
+        else:
+            nombre_negocio = (request.form.get('nombre_negocio') or '').strip()
+            slug, error = validar_slug(request.form.get('subdominio'))
+            if not nombre_negocio or len(nombre_negocio) < 3:
+                error = 'Escribe el nombre de tu negocio (mínimo 3 caracteres).'
         if not error:
             if pcs.marcar_activando(compra['id'], slug):
                 from flask import current_app
@@ -1181,8 +1238,10 @@ def activar_tienda(token):
                                      compra['id'], slug, nombre_negocio)
             compra = pcs.get_por_token(token)
 
+    from services.tienda_estado_sync import soporte_operador
     return render_template('activar_tienda.html', datosApp=datosApp,
-                           compra=compra, plan=plan, error=error,
+                           compra=compra, plan=plan, error=error, lista=pcs.esta_lista(compra),
+                           soporte=soporte_operador().get('soporte_whatsapp', ''),
                            base_domain='cybershopcol.com', **sw_colors)
 
 

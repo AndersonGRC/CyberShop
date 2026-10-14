@@ -354,6 +354,13 @@ def inject_config_global():
         except Exception:
             plan_aviso = None
 
+    # Píxel de Meta: el ID que tenga ESTA tienda (las de prueba y autoservicio lo
+    # tienen vacío: no usan el de CyberShop). Nunca en páginas con enlace secreto.
+    from services.meta_capi import ruta_privada
+    meta_pixel_id = (Config.META_PIXEL_ID or '').strip()
+    if ruta_privada(request.path):
+        meta_pixel_id = ''
+
     return dict(
         config_global=config,
         brand_config=brand,
@@ -362,6 +369,7 @@ def inject_config_global():
         active_modules=active_modules,
         current_tenant_id=current_tenant_id,
         integraciones=integraciones,
+        meta_pixel_id=meta_pixel_id,
         tienda_demo=_tienda_demo(),
         trial_info=trial_info,
         plan_aviso=plan_aviso,
@@ -409,7 +417,11 @@ def _trial_banner_info():
             filas = {r['clave']: r['valor'] for r in cur.fetchall()}
         if filas.get('trial_hasta') and filas.get('trial_renovar_url'):
             hasta = _date.fromisoformat(filas['trial_hasta'][:10])
-            data = {'dias': max(0, (hasta - _date.today()).days),
+            dias = (hasta - _date.today()).days
+            # 'terminada': la fecha ya pasó (el cron aún no la pausa, o el
+            # operador le dio más días y todavía no se sincronizó): en vez de
+            # un «vence hoy» eterno se dice que terminó.
+            data = {'dias': max(0, dias), 'terminada': dias < 0,
                     'hasta': hasta.strftime('%d/%m/%Y'),
                     'url': filas['trial_renovar_url']}
     except Exception:
@@ -533,6 +545,19 @@ _SUSPEND_ALLOW_PREFIXES = (
     '/metodos-pago', '/redireccion-payu', '/confirmacion-pago', '/respuesta-pago',
 )
 
+def _soporte_whatsapp():
+    """WhatsApp del operador escrito por el motor de venta (solo dígitos) o ''."""
+    import re as _re
+    try:
+        from database import get_db_cursor
+        with get_db_cursor() as cur:
+            cur.execute("SELECT valor FROM cliente_config WHERE clave = 'soporte_whatsapp' LIMIT 1")
+            fila = cur.fetchone()
+        return _re.sub(r'\D', '', (fila[0] or '') if fila else '')
+    except Exception:
+        return ''
+
+
 @app.before_request
 def _bloquear_si_suspendido():
     if _instance_tenant_estado() in ('suspendido', 'cancelado'):
@@ -540,13 +565,78 @@ def _bloquear_si_suspendido():
         if not path.startswith(_SUSPEND_ALLOW_PREFIXES):
             try:
                 from flask import render_template as _rt
-                return _rt('tienda_suspendida.html'), 503
+                return _rt('tienda_suspendida.html', pausa=None, dueno=False,
+                           soporte=_soporte_whatsapp()), 503
             except Exception:
                 return ('<!doctype html><meta charset="utf-8">'
                         '<title>Tienda suspendida</title>'
                         '<h1>Tienda temporalmente suspendida</h1>'
                         '<p>Este comercio está inactivo. Si eres el propietario, '
                         'renueva tu plan para reactivarlo.</p>'), 503
+
+# --- Prueba gratis terminada sin pagar: «pausa suave» (solo tiendas autoservicio).
+#     La instancia sigue encendida: los visitantes ven «en pausa» y el dueño, al
+#     entrar, cómo activar su plan. El motor de venta escribe `trial_pausada` en el
+#     cliente_config de la tienda el día 16 y lo borra al pagar. Antes se detenía
+#     la instancia y todos veían un error 502. Caché 60 s; fail-open. ---
+_PAUSA_CACHE = {'ts': 0.0, 'data': None}
+_PAUSA_PERMITIDAS = ('/static/', '/favicon', '/health', '/api/v1/health', '/login', '/logout',
+                     '/recuperar-contrasena', '/restablecer-contrasena/')
+
+
+def _fecha_corta(valor):
+    from datetime import date as _date
+    try:
+        return _date.fromisoformat(str(valor)[:10]).strftime('%d/%m/%Y')
+    except (TypeError, ValueError):
+        return ''
+
+
+def _datos_tienda_pausada():
+    """Datos de la pausa si esta tienda autoservicio terminó su prueba sin pagar; None si no."""
+    import re as _re
+    now = _time_susp.time()
+    if _PAUSA_CACHE['ts'] > now - 60:
+        return _PAUSA_CACHE['data']
+    data = None
+    try:
+        from database import get_db_cursor
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT clave, valor FROM cliente_config WHERE clave = ANY(%s)",
+                        (['tienda_autoservicio', 'trial_pausada', 'trial_hasta', 'trial_eliminar_desde',
+                          'trial_renovar_url', 'soporte_whatsapp'],))
+            f = {r['clave']: (r['valor'] or '').strip() for r in cur.fetchall()}
+        if f.get('tienda_autoservicio', '').lower() == 'true' and f.get('trial_pausada', '').lower() == 'true':
+            data = {'termino': _fecha_corta(f.get('trial_hasta')),
+                    'eliminar_desde': _fecha_corta(f.get('trial_eliminar_desde')),
+                    'renovar_url': f.get('trial_renovar_url') or '',
+                    'whatsapp': _re.sub(r'\D', '', f.get('soporte_whatsapp') or '')}
+    except Exception:
+        data = None
+    _PAUSA_CACHE['ts'] = now
+    _PAUSA_CACHE['data'] = data
+    return data
+
+
+@app.before_request
+def _pausar_si_prueba_terminada():
+    path = request.path or '/'
+    if path.startswith(_PAUSA_PERMITIDAS):
+        return None
+    pausa = _datos_tienda_pausada()
+    if not pausa:
+        return None
+    if path.startswith('/api/'):
+        from flask import jsonify as _jsonify
+        return _jsonify({'error': 'tienda_en_pausa', 'mensaje': 'La tienda está en pausa.'}), 503
+    from flask import render_template as _rt, session as _s
+    try:
+        return _rt('tienda_suspendida.html', pausa=pausa, dueno=_s.get('rol_id') in (1, 2),
+                   soporte=pausa['whatsapp']), 503
+    except Exception:
+        return ('<!doctype html><meta charset="utf-8"><title>Tienda en pausa</title>'
+                '<h1>Esta tienda está en pausa</h1><p>Vuelve pronto.</p>'), 503
+
 
 # --- Meta CAPI: PageView automatico con dedup vs el Pixel ---
 import uuid as _uuid

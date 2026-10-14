@@ -103,8 +103,10 @@
                     align-items:center;gap:12px;flex-wrap:wrap;font-size:14px;color:#7a5c00;">
             <span style="font-size:18px">🎁</span>
             <span><strong>Prueba gratis:</strong>
-              {% if trial_info.dias > 0 %}te quedan <strong>{{ trial_info.dias }} día(s)</strong> (hasta el {{ trial_info.hasta }}).{% else %}vence <strong>hoy</strong>.{% endif %}
-              Activa tu plan para no perder acceso.</span>
+              {% if trial_info.terminada %}terminó el {{ trial_info.hasta }}. Activa tu plan para seguir usando tu tienda.
+              {% elif trial_info.dias > 1 %}te quedan <strong>{{ trial_info.dias }} días</strong> (hasta el {{ trial_info.hasta }}). Activa tu plan para no perder acceso.
+              {% elif trial_info.dias == 1 %}te queda <strong>1 día</strong> (hasta el {{ trial_info.hasta }}). Activa tu plan para no perder acceso.
+              {% else %}vence <strong>hoy</strong>. Activa tu plan para no perder acceso.{% endif %}</span>
             <a href="{{ trial_info.url }}" target="_blank" rel="noopener"
                style="margin-left:auto;background:#122C94;color:#fff;border-radius:9px;
                       padding:8px 18px;font-weight:700;text-decoration:none;white-space:nowrap;">
