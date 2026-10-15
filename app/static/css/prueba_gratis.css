@@ -247,6 +247,16 @@
 }
 .tg-candado i { color: var(--tg-primario); font-size: 1.2rem; margin-top: 2px; }
 .tg-candado b { color: #33405c; }
+/* El código del correo: la tienda se crea solo cuando se escribe. */
+.tg-codigo { display: grid; gap: 10px; max-width: 360px; margin: 18px auto 16px; text-align: left; }
+.tg-codigo label { font-weight: 700; font-size: .9rem; color: #33405c; }
+.tg-codigo input {
+    width: 100%; border: 2px solid var(--tg-borde); border-radius: 12px; padding: 12px; min-height: 60px;
+    font-size: 30px; font-weight: 800; letter-spacing: 12px; text-align: center; font-variant-numeric: tabular-nums;
+}
+.tg-codigo input:focus { border-color: var(--tg-primario); outline: 3px solid var(--tg-primario); outline-offset: 1px; }
+.tg-codigo input[aria-invalid="true"] { border-color: var(--tg-mal); }
+.tg-codigo .tg-btn { width: 100%; min-height: 52px; justify-content: center; }
 .tg-correo-acciones { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 12px; }
 .tg-correo-acciones form { margin: 0; }
 .tg-corregir { text-align: left; background: #fff; border: 1.5px solid var(--tg-borde); border-radius: 14px; padding: 14px; margin-bottom: 8px; }

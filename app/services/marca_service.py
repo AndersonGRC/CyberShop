@@ -67,9 +67,12 @@ def validar(color):
 
 
 def paleta_desde(color):
-    """Claves de cliente_config del sitio público derivadas del color principal."""
+    """Claves de cliente_config del sitio público derivadas del color principal.
+    Los acentos también: si no, la tienda nueva mezcla su color con el naranja de
+    CyberShop (líneas de los títulos, puntos del carrusel, menú del panel)."""
     c = normalizar(color) or NEUTRO
     oscuro = mezclar(c, '#000000', 0.35)
+    claro = mezclar(c, '#ffffff', 0.45)
     return {
         'color_primario': c,
         'color_primario_oscuro': oscuro,
@@ -82,7 +85,26 @@ def paleta_desde(color):
         'color_secundario': mezclar(c, '#0b1220', 0.78),     # navbar y footer
         'color_transicion': mezclar(c, '#000000', 0.55),     # 2.º tono del degradado
         'color_fondo_destacado': mezclar(c, '#ffffff', 0.92),  # bloques claros
+        'color_acento_secundario': claro,                     # acentos del inicio (sobre fondos oscuros)
+        'color_hover_menu': claro,                            # resaltado del menú del panel
     }
+
+
+# Acentos con que se crearon las tiendas antes de que salieran de su color (los de CyberShop).
+ACENTOS_DE_CYBERSHOP = {'color_acento_secundario': ('#fb8500', '#29a9e2', '#a6c438'),
+                        'color_hover_menu': ('#fb8500',)}
+
+
+def acentos_por_corregir(actuales, color_elegido):
+    """{clave: valor} de los acentos de una tienda autoservicio que siguen con los
+    de CyberShop, si su color principal es todavía el que eligió al registrarse
+    (nadie los cambió). Vacío si no hay nada que corregir."""
+    elegido = normalizar(color_elegido)
+    if not elegido or normalizar(actuales.get('color_primario')) != elegido:
+        return {}
+    paleta = paleta_desde(elegido)
+    return {clave: paleta[clave] for clave, de_cybershop in ACENTOS_DE_CYBERSHOP.items()
+            if (normalizar(actuales.get(clave)) or '') in de_cybershop + ('',)}
 
 
 # ── Tienda nueva neutra (prueba gratis y compras en línea) ─────

@@ -13,6 +13,9 @@ original; al aprobarse el pago extienden `proximo_pago` del padre.
 """
 
 import calendar
+import hashlib
+import hmac
+import os
 import secrets
 from datetime import date, datetime, timedelta
 
@@ -79,6 +82,11 @@ def _ensure_table():
         cur.execute("ALTER TABLE plan_compras ADD COLUMN IF NOT EXISTS etapa VARCHAR(20)")
         cur.execute("ALTER TABLE plan_compras ADD COLUMN IF NOT EXISTS activando_at TIMESTAMP")
         cur.execute("ALTER TABLE plan_compras ADD COLUMN IF NOT EXISTS listo_at TIMESTAMP")
+        # Código de 6 números que confirma el correo de una prueba (solo su huella):
+        # la tienda se crea cuando la persona lo escribe, nunca al abrir un enlace.
+        cur.execute("ALTER TABLE plan_compras ADD COLUMN IF NOT EXISTS codigo_hash VARCHAR(64)")
+        cur.execute("ALTER TABLE plan_compras ADD COLUMN IF NOT EXISTS codigo_intentos SMALLINT NOT NULL DEFAULT 0")
+        cur.execute("ALTER TABLE plan_compras ADD COLUMN IF NOT EXISTS codigo_enviado_at TIMESTAMP")
 
 
 def normalizar_whatsapp(valor):
@@ -327,6 +335,12 @@ def crear_trial(nombre_negocio, buyer_nombre, buyer_email, slug, telefono='',
         previa = cur.fetchone()
         if previa and previa['estado'] != 'TRIAL_PENDIENTE':
             return None, 'Ese correo ya usó una prueba gratis. Escríbenos y te ayudamos.'
+        if telefono:                     # un WhatsApp, una prueba (con otro correo tampoco)
+            cur.execute("""SELECT 1 FROM plan_compras WHERE referencia_pedido LIKE 'TRIAL-%%' AND buyer_telefono = %s
+                           AND LOWER(buyer_email) <> %s AND estado <> 'TRIAL_PENDIENTE' LIMIT 1""",
+                        (telefono, buyer_email))
+            if cur.fetchone():
+                return None, 'Ese WhatsApp ya usó una prueba gratis. Escríbenos y te ayudamos.'
         cur.execute(
             "SELECT 1 FROM plan_compras WHERE slug = %s AND estado = ANY(%s) "
             f"AND id <> COALESCE(%s, 0) AND {_RESERVA_VIGENTE}",
@@ -415,6 +429,79 @@ def cambiar_correo_trial(compra_id, nuevo_email):
         except Exception:  # noqa: BLE001
             cur.execute('ROLLBACK TO SAVEPOINT crm_correo')
         return fila, None
+
+
+# ── Código que confirma el correo (antes de crear la tienda) ────
+CODIGO_INTENTOS_MAX = 5      # errores seguidos antes de pedir otro código
+CODIGO_HORAS = 24            # lo que vale cada código
+CODIGO_ESPERA_SEGUNDOS = 45  # entre un código y el siguiente (no llenar el buzón)
+# Pruebas que se pueden empezar a crear por hora: freno si alguien intenta
+# llenar el servidor de tiendas (el código ya exige tener el correo).
+PRUEBAS_POR_HORA = int(os.getenv('TRIAL_MAX_POR_HORA', '10') or 10)
+
+
+def _huella_codigo(token, codigo):
+    return hashlib.sha256(f'{token}:{codigo}'.encode()).hexdigest()
+
+
+def nuevo_codigo(compra_id):
+    """Código de 6 números para confirmar el correo de una prueba pendiente; el
+    anterior deja de servir y los intentos vuelven a cero. Solo se guarda su
+    huella. Devuelve (fila, código), (fila, None) si se pidió hace muy poco, o
+    (None, None) si la prueba ya no está pendiente."""
+    _ensure_table()
+    codigo = f'{secrets.randbelow(10 ** 6):06d}'
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute("""SELECT *, (codigo_enviado_at > NOW() - make_interval(secs => %s)) AS reciente
+                       FROM plan_compras WHERE id = %s AND estado = 'TRIAL_PENDIENTE' FOR UPDATE""",
+                    (CODIGO_ESPERA_SEGUNDOS, compra_id))
+        fila = cur.fetchone()
+        if not fila:
+            return None, None
+        if fila['reciente']:
+            return dict(fila), None
+        cur.execute("""UPDATE plan_compras SET codigo_hash = %s, codigo_intentos = 0, codigo_enviado_at = NOW(),
+                              verificacion_enviada_at = NOW()
+                       WHERE id = %s RETURNING *""", (_huella_codigo(fila['token'], codigo), compra_id))
+        return dict(cur.fetchone()), codigo
+
+
+def verificar_codigo(compra_id, codigo):
+    """La persona escribió el código del correo. Si es el correcto, la prueba
+    queda confirmada (TRIAL_PENDIENTE → PAGADO, una sola vez) y el código se
+    gasta. Devuelve (resultado, intentos que quedan): 'ok', 'mal', 'agotado'
+    (pida otro), 'vencido', 'sin_codigo' o 'no_pendiente'."""
+    _ensure_table()
+    codigo = ''.join(ch for ch in str(codigo or '') if ch.isdigit())
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute("""SELECT token, estado, codigo_hash, codigo_intentos,
+                              (codigo_enviado_at < NOW() - make_interval(hours => %s)) AS vencido
+                       FROM plan_compras WHERE id = %s FOR UPDATE""", (CODIGO_HORAS, compra_id))
+        fila = cur.fetchone()
+        if not fila or fila['estado'] != 'TRIAL_PENDIENTE':
+            return 'no_pendiente', 0
+        if not fila['codigo_hash']:
+            return 'sin_codigo', 0
+        if fila['codigo_intentos'] >= CODIGO_INTENTOS_MAX:
+            return 'agotado', 0
+        if fila['vencido']:
+            return 'vencido', 0
+        if len(codigo) == 6 and hmac.compare_digest(_huella_codigo(fila['token'], codigo), fila['codigo_hash']):
+            cur.execute("""UPDATE plan_compras SET estado = 'PAGADO', codigo_hash = NULL
+                           WHERE id = %s AND estado = 'TRIAL_PENDIENTE'""", (compra_id,))
+            return ('ok', 0) if cur.rowcount else ('no_pendiente', 0)
+        intentos = fila['codigo_intentos'] + 1
+        cur.execute('UPDATE plan_compras SET codigo_intentos = %s WHERE id = %s', (intentos, compra_id))
+        restantes = CODIGO_INTENTOS_MAX - intentos
+        return ('mal', restantes) if restantes > 0 else ('agotado', 0)
+
+
+def pruebas_creadas_ultima_hora():
+    """Cuántas pruebas empezaron a crearse en la última hora."""
+    _ensure_table()
+    with get_db_cursor() as cur:
+        cur.execute("SELECT COUNT(*) FROM plan_compras WHERE es_trial AND activando_at > NOW() - INTERVAL '1 hour'")
+        return cur.fetchone()[0]
 
 
 def marcar_trial_verificado(compra_id):

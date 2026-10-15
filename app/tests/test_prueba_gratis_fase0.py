@@ -368,7 +368,7 @@ def test_correos_escapan_lo_que_escribe_el_cliente(flask_app):
     malo = {'buyer_nombre': '<a href="http://x">Gana</a>', 'nombre_negocio': '<img src=x onerror=1>',
             'dominio': 'p.cybershopcol.com', 'proximo_pago': date(2026, 10, 16), 'es_trial': True}
     with flask_app.app_context():
-        _, _, html = generar_email_confirmacion_trial(malo, 'https://cybershopcol.com/c/t')
+        _, _, html = generar_email_confirmacion_trial(malo, 'https://cybershopcol.com/c/t', '048213')
         assert '<a href="http://x">' not in html and '<img src=x' not in html
         _, _, html = generar_email_bienvenida_tienda(malo, {'nombre': 'Ultra'}, {'domain': 'p.cybershopcol.com'})
         assert 'https://p.cybershopcol.com/login' in html and 'Tu prueba gratis va hasta el 16/10/2026' in html

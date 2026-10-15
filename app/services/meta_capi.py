@@ -164,7 +164,7 @@ def send_event_async(event_name: str, event_id: str, user_data: dict,
 
 # Páginas cuya URL lleva un enlace secreto (activar la tienda, renovar el plan,
 # confirmar la prueba, crear la contraseña): nunca se le envían a Meta.
-RUTAS_PRIVADAS = ('/activar-tienda', '/renovar', '/prueba-gratis/confirmar',
+RUTAS_PRIVADAS = ('/activar-tienda', '/renovar', '/prueba-gratis/confirmar', '/prueba-gratis/codigo',
                   '/restablecer-contrasena', '/bienvenida')
 
 

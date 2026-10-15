@@ -70,6 +70,23 @@ def soporte_operador():
     return {'soporte_whatsapp': whatsapp, 'soporte_email': (info.get('email') or '').strip()}
 
 
+def _marca_actual(cur, claves):
+    """Lo que la tienda muestra en esas claves: public_site_settings (se lee
+    primero) y, si no está ahí, cliente_config."""
+    valores = {}
+    cur.execute("SELECT to_regclass('public_site_settings') IS NOT NULL")
+    if cur.fetchone()[0]:
+        cur.execute('SELECT key, value FROM public_site_settings WHERE key = ANY(%s)', (list(claves),))
+        valores.update({k: v for k, v in cur.fetchall() if v})
+    faltan = [c for c in claves if c not in valores]
+    if faltan:
+        cur.execute('SELECT clave, valor FROM cliente_config WHERE clave = ANY(%s)', (faltan,))
+        for clave, valor in cur.fetchall():
+            if valor and clave not in valores:
+                valores[clave] = valor
+    return valores
+
+
 def sincronizar(compra):
     """Escribe en la BD de la tienda lo que corresponde a su compra. True si
     escribió; False si no aplica (no está activada, no es autoservicio) o falló."""
@@ -90,6 +107,20 @@ def sincronizar(compra):
                 set_cliente_config(cur, clave, valor, descripcion='Plan de la tienda (automático)')
             if borrar:
                 cur.execute("DELETE FROM cliente_config WHERE clave = ANY(%s)", (list(borrar),))
+            # Tiendas creadas antes de 1.9.9.0: sus acentos quedaron con el naranja de
+            # CyberShop. Si nadie cambió su color, salen del que eligió al registrarse.
+            # Aparte: si esto falla, lo del plan de arriba se guarda igual.
+            from services import marca_service
+            cur.execute('SAVEPOINT acentos')
+            try:
+                corregir = marca_service.acentos_por_corregir(
+                    _marca_actual(cur, ('color_primario',) + tuple(marca_service.ACENTOS_DE_CYBERSHOP)),
+                    compra.get('color_marca'))
+                if corregir:
+                    marca_service.escribir_en_bd(cur, corregir)
+                cur.execute('RELEASE SAVEPOINT acentos')
+            except Exception:  # noqa: BLE001 — cosmético: se reintenta en la próxima sincronización
+                cur.execute('ROLLBACK TO SAVEPOINT acentos')
         return True
     except Exception as exc:  # noqa: BLE001 — la tienda sigue funcionando; se reintenta mañana
         try:

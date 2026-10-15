@@ -482,32 +482,36 @@ def generar_email_recordatorio_pago(compra, plan, renovacion_url, etapa, dias=0)
     texto = f"Hola {compra.get('buyer_nombre') or ''}, {titulo.lower()}. Renueva aquí: {renovacion_url}"
     return asunto, texto, _base_html(contenido, empresa)
 
-def generar_email_confirmacion_trial(compra, confirmar_url):
-    """Verificación de email para la prueba gratis de 15 días."""
+def generar_email_confirmacion_trial(compra, confirmar_url, codigo):
+    """Verificación de email para la prueba gratis de 15 días: un código de 6
+    números que la persona escribe en la página. Abrir el enlace no crea nada
+    (los filtros de correo abren los enlaces solos): solo lleva a escribir el código."""
+    from services.plan_compras_service import CODIGO_HORAS
     empresa = _get_empresa_info()
     colores = _get_colores()
     # Lo escribe quien se registra (y elige a quién llega el correo): nunca HTML.
     nombre = _esc(compra.get('buyer_nombre') or 'Hola')
     negocio = _esc(compra.get('nombre_negocio') or 'tu negocio')
-    asunto = "Confirma tu correo y activa tu prueba gratis de 15 días"
+    codigo = ''.join(ch for ch in str(codigo) if ch.isdigit())
+    asunto = f"{codigo} es tu código para crear tu tienda"
     contenido = f"""
-    <h2 style="margin:0 0 14px;color:{colores['primario']};">¡Ya casi! Confirma tu correo</h2>
+    <h2 style="margin:0 0 14px;color:{colores['primario']};">Tu código para crear tu tienda</h2>
     <p style="font-size:15px;line-height:1.6;color:#333;">Hola <strong>{nombre}</strong>,
-      estás a un clic de crear la tienda de <strong>{negocio}</strong> con
-      <strong>15 días gratis</strong> del plan más completo (todo incluido:
-      tienda en línea, punto de venta, inventario, contabilidad, nómina y
-      asistente con IA). Sin tarjeta, sin compromiso.</p>
-    <p style="text-align:center;margin:26px 0;">
-      <a href="{confirmar_url}" style="background:{colores['primario']};color:#fff;
-         padding:14px 34px;border-radius:8px;text-decoration:none;font-weight:bold;
-         font-size:16px;display:inline-block;">Confirmar y crear mi tienda</a>
+      escribe este código en la página donde te registraste y creamos la tienda de
+      <strong>{negocio}</strong> con <strong>15 días gratis</strong> del plan Ultra. Sin tarjeta.</p>
+    <p style="text-align:center;margin:24px 0;">
+      <span style="display:inline-block;font-size:34px;font-weight:bold;letter-spacing:10px;
+         color:#111;background:#f3f4f6;border:1px solid #d1d5db;border-radius:10px;padding:14px 22px;">{codigo}</span>
     </p>
-    <p style="font-size:13px;color:#777;">Si el botón no funciona:
-      <a href="{confirmar_url}" style="color:{colores['primario']};word-break:break-all;">{confirmar_url}</a></p>
-    <p style="font-size:12px;color:#999;">Si no pediste esta prueba, ignora este correo.</p>
+    <p style="font-size:14px;line-height:1.6;color:#333;">Vale {CODIGO_HORAS} horas. ¿Cerraste la página?
+      <a href="{confirmar_url}" style="color:{colores['primario']};font-weight:bold;">Ábrela aquí</a>
+      y escribe el código.</p>
+    <p style="font-size:12px;color:#999;">Si no pediste esta prueba, ignora este correo: sin el código no se crea nada.</p>
     """
-    texto = (f"Hola {compra.get('buyer_nombre') or ''}, confirma tu correo para activar tu prueba gratis "
-             f"de 15 días: {confirmar_url}")
+    texto = (f"Hola {compra.get('buyer_nombre') or ''}:\n\nTu código para crear tu tienda es {codigo}. "
+             f"Escríbelo en la página donde te registraste (vale {CODIGO_HORAS} horas).\n"
+             f"¿Cerraste la página? Ábrela aquí: {confirmar_url}\n\n"
+             "Si no pediste esta prueba, ignora este correo: sin el código no se crea nada.")
     return asunto, texto, _base_html(contenido, empresa)
 
 

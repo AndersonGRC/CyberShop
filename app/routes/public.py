@@ -1034,12 +1034,13 @@ def prueba_gratis():
             if compra_id is None:
                 error, error_paso = res, (2 if 'subdominio' in res else 4)
             else:
-                # La prueba pendiente queda en la sesión de quien la pidió: así
-                # puede reenviar o corregir su correo sin ver nunca el enlace.
+                # La prueba pendiente queda en la sesión de quien la pidió: ahí
+                # escribe el código que le llega al correo (o lo reenvía o corrige).
                 session['trial_pendiente'] = compra_id
-                if _enviar_confirmacion_trial(pcs.get_por_id(compra_id)):
-                    return _pantalla_enviado(datosApp, sw_colors, form['buyer_email'])
-                error, error_paso = ('No pudimos enviar el correo de confirmación. '
+                fila, codigo = pcs.nuevo_codigo(compra_id)
+                if fila and (codigo is None or _enviar_confirmacion_trial(fila, codigo)):
+                    return redirect(url_for('public.prueba_gratis_codigo'))
+                error, error_paso = ('No pudimos enviar el correo con tu código. '
                                      'Revisa que tu correo esté bien escrito e intenta de nuevo.'), 4
 
     return render_template('prueba_gratis.html', datosApp=datosApp, enviado=False,
@@ -1048,69 +1049,150 @@ def prueba_gratis():
                            color_neutro=marca_service.NEUTRO, tipos=TIPOS_NEGOCIO, **sw_colors)
 
 
-def _enviar_confirmacion_trial(compra):
-    """Envía el enlace de confirmación. True si salió."""
+def _enviar_confirmacion_trial(compra, codigo):
+    """Envía el código que confirma el correo (con el enlace a la página donde se
+    escribe). True si salió."""
     from helpers_email_templates import generar_email_confirmacion_trial
     from helpers_gmail import enviar_email_gmail
     try:
         confirmar_url = url_for('public.prueba_gratis_confirmar', token=compra['token'], _external=True)
-        asunto, texto, html = generar_email_confirmacion_trial(compra, confirmar_url)
+        asunto, texto, html = generar_email_confirmacion_trial(compra, confirmar_url, codigo)
         return bool(enviar_email_gmail(compra['buyer_email'], asunto, texto, html=html))
     except Exception as exc:  # noqa: BLE001
         app.logger.error(f"trial: email de confirmación falló: {exc}")
         return False
 
 
-def _pantalla_enviado(datosApp, sw_colors, email, aviso=None, error=None):
+def _correo_oculto(email):
+    """«an***@gmail.com»: para quien llega con el enlace (no con su sesión)."""
+    usuario, _, dominio = (email or '').partition('@')
+    return f"{usuario[:2]}***@{dominio}" if dominio else '***'
+
+
+def _pantalla_enviado(datosApp, sw_colors, compra, aviso=None, error=None, token=None):
+    """La pantalla donde se escribe el código. `token`: si se llegó con el enlace
+    del correo (otro navegador), viaja oculto en los formularios."""
     from services import plan_compras_service as pcs
     return render_template('prueba_gratis.html', datosApp=datosApp, enviado=True,
-                           email_destino=email, aviso=aviso, error=error, form={},
-                           horas=pcs.VERIFICACION_HORAS, **sw_colors)
+                           email_destino=_correo_oculto(compra['buyer_email']) if token else compra['buyer_email'],
+                           aviso=aviso, error=error, form={}, token=token or '',
+                           codigo_horas=pcs.CODIGO_HORAS, **sw_colors)
+
+
+def _prueba_pendiente(token=None):
+    """La prueba de esta sesión o la del enlace del correo (token)."""
+    from services import plan_compras_service as pcs
+    if token:
+        return pcs.get_por_token(token)
+    return pcs.get_por_id(session.get('trial_pendiente')) if session.get('trial_pendiente') else None
+
+
+def _colores_software():
+    try:
+        from services.public_site_service import get_brand_config
+        return _software_colors(get_brand_config() or {})
+    except Exception:
+        return _software_colors({})
+
+
+@public_bp.route('/prueba-gratis/codigo', methods=['GET', 'POST'])
+def prueba_gratis_codigo():
+    """La persona escribe el código de 6 números que le llegó al correo y SOLO
+    ENTONCES se crea su tienda. Abrir el enlace del correo no crea nada (los
+    filtros de los correos abren los enlaces solos)."""
+    from services import plan_compras_service as pcs
+    from services.venta_automatica_service import activar_tienda_async
+    from security import controlar_tasa_solicitudes
+    if not is_public_section_enabled('mostrar_modulo_software', False):
+        return redirect(url_for('public.index'))
+    token = (request.values.get('t') or '').strip()
+    compra = _prueba_pendiente(token)
+    if not compra or not compra.get('es_trial'):
+        session.pop('trial_pendiente', None)
+        flash('Ese registro no existe o fue reemplazado. Empieza de nuevo y te enviamos un código.', 'info')
+        return redirect(url_for('public.prueba_gratis'))
+    if compra['estado'] != 'TRIAL_PENDIENTE':
+        return redirect(url_for('public.activar_tienda', token=compra['token']))
+    if not pcs.confirmacion_vigente(compra):
+        flash(f'Este registro venció ({pcs.VERIFICACION_HORAS} horas). Regístrate de nuevo con el '
+              'mismo correo y te enviamos un código nuevo.', 'info')
+        return redirect(url_for('public.prueba_gratis'))
+    datosApp, sw_colors = get_common_data(), _colores_software()
+    error = None
+    if request.method == 'POST':
+        ip = request.headers.get('X-Forwarded-For', request.remote_addr or '?').split(',')[0].strip()
+        if not controlar_tasa_solicitudes(f"trial-codigo:{ip}", max_requests=15, interval=600):
+            error = 'Hiciste muchos intentos seguidos. Espera unos minutos.'
+        elif pcs.pruebas_creadas_ultima_hora() >= pcs.PRUEBAS_POR_HORA:
+            app.logger.warning('trial: tope de pruebas por hora alcanzado')
+            error = ('En este momento estamos creando muchas tiendas. Tu código sigue sirviendo: '
+                     'inténtalo de nuevo en unos minutos.')
+        else:
+            resultado, restantes = pcs.verificar_codigo(compra['id'], request.form.get('codigo'))
+            if resultado == 'ok':
+                session.pop('trial_pendiente', None)
+                if pcs.marcar_activando(compra['id'], compra['slug']):
+                    from flask import current_app
+                    activar_tienda_async(current_app._get_current_object(), compra['id'], compra['slug'],
+                                         compra.get('nombre_negocio') or compra['slug'])
+                return redirect(url_for('public.activar_tienda', token=compra['token']))
+            if resultado == 'no_pendiente':
+                return redirect(url_for('public.activar_tienda', token=compra['token']))
+            error = {'mal': f"Ese código no es. Revisa el último correo que te enviamos "
+                            f"(te quedan {restantes} intento{'s' if restantes != 1 else ''}).",
+                     'agotado': 'Escribiste mal el código varias veces. Pide uno nuevo con «Reenviar el código».',
+                     'vencido': 'Ese código ya venció. Pide uno nuevo con «Reenviar el código».',
+                     'sin_codigo': 'Pide tu código con «Reenviar el código» y te llega al correo.'}.get(resultado)
+    return _pantalla_enviado(datosApp, sw_colors, compra, error=error, token=token or None)
 
 
 @public_bp.route('/prueba-gratis/correo', methods=['POST'])
 def prueba_gratis_correo():
-    """«Reenviar el correo» o «Me equivoqué de correo» en la pantalla de
-    espera. Solo para la prueba de ESTA sesión y mientras no se haya confirmado."""
+    """«Reenviar el código» o «Me equivoqué de correo» en la pantalla del código.
+    Para la prueba de esta sesión o la del enlace del correo, mientras no se haya
+    confirmado. Cada vez sale un código nuevo y el anterior deja de servir."""
     from services import plan_compras_service as pcs
     from services import correo_service
     from security import controlar_tasa_solicitudes
     if not is_public_section_enabled('mostrar_modulo_software', False):
         return redirect(url_for('public.index'))
-    datosApp = get_common_data()
-    try:
-        from services.public_site_service import get_brand_config
-        sw_colors = _software_colors(get_brand_config() or {})
-    except Exception:
-        sw_colors = _software_colors({})
-    compra = pcs.get_por_id(session.get('trial_pendiente')) if session.get('trial_pendiente') else None
+    datosApp, sw_colors = get_common_data(), _colores_software()
+    token = (request.form.get('t') or '').strip() or None
+    compra = _prueba_pendiente(token)
     if not compra or compra['estado'] != 'TRIAL_PENDIENTE':
         session.pop('trial_pendiente', None)
         flash('Ese registro ya fue confirmado o venció. Puedes empezar de nuevo.', 'info')
         return redirect(url_for('public.prueba_gratis'))
     ip = request.headers.get('X-Forwarded-For', request.remote_addr or '?').split(',')[0].strip()
     if not controlar_tasa_solicitudes(f"trial-correo:{ip}", max_requests=6, interval=600):
-        return _pantalla_enviado(datosApp, sw_colors, compra['buyer_email'],
+        return _pantalla_enviado(datosApp, sw_colors, compra, token=token,
                                  error='Hiciste muchos intentos seguidos. Espera unos minutos.')
     if request.form.get('accion') == 'corregir':
         nuevo, err = correo_service.validar(request.form.get('email'))
         if err:
-            return _pantalla_enviado(datosApp, sw_colors, compra['buyer_email'], error=err)
+            return _pantalla_enviado(datosApp, sw_colors, compra, error=err, token=token)
         fila, err = pcs.cambiar_correo_trial(compra['id'], nuevo)
         if err:
-            return _pantalla_enviado(datosApp, sw_colors, compra['buyer_email'], error=err)
-        if not _enviar_confirmacion_trial(fila):
-            return _pantalla_enviado(datosApp, sw_colors, fila['buyer_email'],
+            return _pantalla_enviado(datosApp, sw_colors, compra, error=err, token=token)
+        session['trial_pendiente'] = fila['id']          # el enlace viejo ya no sirve: sigue con la sesión
+        fila, codigo = pcs.nuevo_codigo(fila['id'])
+        if not fila or (codigo and not _enviar_confirmacion_trial(fila, codigo)):
+            return _pantalla_enviado(datosApp, sw_colors, fila or compra,
                                      error='No pudimos enviar el correo. Intenta de nuevo en un momento.')
-        return _pantalla_enviado(datosApp, sw_colors, fila['buyer_email'],
-                                 aviso='Listo: corregimos tu correo y te enviamos un enlace nuevo. '
+        return _pantalla_enviado(datosApp, sw_colors, fila,
+                                 aviso='Listo: corregimos tu correo y te enviamos un código nuevo. '
                                        'El anterior ya no sirve.')
-    fila = pcs.reenviar_trial(compra['id'])
-    if not fila or not _enviar_confirmacion_trial(fila):
-        return _pantalla_enviado(datosApp, sw_colors, compra['buyer_email'],
+    fila, codigo = pcs.nuevo_codigo(compra['id'])
+    if fila and not codigo:
+        return _pantalla_enviado(datosApp, sw_colors, compra, token=token,
+                                 aviso='Ya te enviamos un código hace un momento: revisa tu correo (también '
+                                       'spam o promociones).')
+    if not fila or not _enviar_confirmacion_trial(fila, codigo):
+        return _pantalla_enviado(datosApp, sw_colors, compra, token=token,
                                  error='No pudimos reenviar el correo. Intenta de nuevo en un momento.')
-    return _pantalla_enviado(datosApp, sw_colors, fila['buyer_email'],
-                             aviso='Te enviamos el correo otra vez. Mira también en spam o promociones.')
+    return _pantalla_enviado(datosApp, sw_colors, fila, token=token,
+                             aviso='Te enviamos un código nuevo; el anterior ya no sirve. Mira también en spam '
+                                   'o promociones.')
 
 
 def _slug_ocupado(slug):
@@ -1146,31 +1228,17 @@ def prueba_gratis_slug():
 
 @public_bp.route('/prueba-gratis/confirmar/<token>')
 def prueba_gratis_confirmar(token):
-    """El usuario confirmó su correo: dispara la creación de la tienda trial
-    (mismo camino que una compra pagada) y muestra el progreso en la página
-    de activación existente."""
+    """El enlace del correo. NO crea la tienda (los filtros de correo y los
+    robots abren los enlaces solos): lleva a escribir el código. Si la prueba
+    ya se confirmó, muestra el avance de su creación."""
     from services import plan_compras_service as pcs
-    from services.venta_automatica_service import activar_tienda_async
-
     compra = pcs.get_por_token(token)
     if not compra or not compra.get('es_trial'):
-        flash('El enlace de confirmación no es válido o fue reemplazado por uno nuevo.', 'error')
+        flash('El enlace no es válido o fue reemplazado por uno nuevo.', 'error')
         return redirect(url_for('public.index'))
-    if not pcs.confirmacion_vigente(compra):
-        flash(f'Este enlace venció ({pcs.VERIFICACION_HORAS} horas). Regístrate de nuevo con el '
-              'mismo correo y te enviamos uno nuevo.', 'info')
-        return redirect(url_for('public.prueba_gratis'))
-    session.pop('trial_pendiente', None)
-
-    if pcs.marcar_trial_verificado(compra['id']):
-        # Ya tenemos slug y nombre del negocio desde el registro: activar directo
-        if pcs.marcar_activando(compra['id'], compra['slug']):
-            from flask import current_app
-            activar_tienda_async(current_app._get_current_object(),
-                                 compra['id'], compra['slug'],
-                                 compra.get('nombre_negocio') or compra['slug'])
-    # Reutiliza la página de activación (muestra ACTIVANDO → ACTIVADA / ERROR)
-    return redirect(url_for('public.activar_tienda', token=token))
+    if compra['estado'] != 'TRIAL_PENDIENTE':
+        return redirect(url_for('public.activar_tienda', token=token))
+    return redirect(url_for('public.prueba_gratis_codigo', t=token))
 
 
 @public_bp.route('/activar-tienda/<token>/estado')
@@ -1218,6 +1286,8 @@ def activar_tienda(token):
     if not compra:
         flash('El enlace de activación no es válido o ya expiró.', 'error')
         return redirect(url_for('public.index'))
+    if compra.get('es_trial') and compra['estado'] == 'TRIAL_PENDIENTE':
+        return redirect(url_for('public.prueba_gratis_codigo', t=token))   # primero el código del correo
     plan = get_plan(compra['plan_key']) or {'nombre': compra['plan_key']}
 
     error = None

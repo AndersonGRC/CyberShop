@@ -339,10 +339,11 @@ def test_enlace_vence_y_libera_la_direccion(limpiar, cursor, client):
     assert pcs.reenviar_trial(cid) and pcs.confirmacion_vigente(pcs.get_por_id(cid))
 
 
-def test_pantalla_corregir_correo_por_sesion(limpiar, client, software_visible, monkeypatch):
+def test_pantalla_corregir_correo_por_sesion(limpiar, client, cursor, software_visible, monkeypatch):
     import routes.public as pub
     enviados = []
-    monkeypatch.setattr(pub, '_enviar_confirmacion_trial', lambda compra: enviados.append(compra['buyer_email']) or True)
+    monkeypatch.setattr(pub, '_enviar_confirmacion_trial',
+                        lambda compra, codigo: enviados.append((compra['buyer_email'], codigo)) or True)
     r = client.post('/prueba-gratis/correo', data={'accion': 'reenviar'})
     assert r.status_code == 302, 'sin prueba en la sesión no se puede tocar ningún registro'
     cid, _ = pcs.crear_trial('Ses Zyx', 'Ana Zyx', _email('s1'), f'ses-{MARCA}', telefono='3001234567')
@@ -351,10 +352,14 @@ def test_pantalla_corregir_correo_por_sesion(limpiar, client, software_visible, 
     html = client.post('/prueba-gratis/correo', data={'accion': 'corregir', 'email': 'ana@gmial.com'}).get_data(as_text=True)
     assert 'ana@gmail.com' in html and enviados == []
     html = client.post('/prueba-gratis/correo', data={'accion': 'corregir', 'email': _email('s2')}).get_data(as_text=True)
-    assert 'corregimos tu correo' in html and _email('s2') in html and enviados == [_email('s2')]
+    assert 'corregimos tu correo' in html and _email('s2') in html and [e for e, _c in enviados] == [_email('s2')]
     html = client.post('/prueba-gratis/correo', data={'accion': 'reenviar'}).get_data(as_text=True)
-    assert 'otra vez' in html and enviados[-1] == _email('s2')
-    assert 'Me equivoqué de correo' in html and 'Tu tienda se crea solo cuando confirmes tu correo' in html
+    assert 'hace un momento' in html and len(enviados) == 1, 'no se llena el buzón: espera antes de otro código'
+    with cursor() as cur:
+        cur.execute("UPDATE plan_compras SET codigo_enviado_at = NOW() - INTERVAL '2 minutes' WHERE id = %s", (cid,))
+    html = client.post('/prueba-gratis/correo', data={'accion': 'reenviar'}).get_data(as_text=True)
+    assert 'código nuevo' in html and len(enviados) == 2 and enviados[1][1] != enviados[0][1]
+    assert 'Me equivoqué de correo' in html and 'Tu tienda se crea solo cuando escribas el código' in html
 
 
 def test_registro_con_correo_mal_escrito_vuelve_al_paso_4(client, software_visible, monkeypatch):
