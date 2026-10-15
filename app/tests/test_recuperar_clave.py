@@ -105,8 +105,11 @@ def test_tienda_nueva_muestra_imagenes_de_muestra(client, modo_demo, monkeypatch
     assert 'demo_placeholders.js' in html and 'demo-barra' in html
     assert 'Iniciar sesión y personalizar' in html
 
+    # Servicios ya no lleva foto en el encabezado (sale de los colores de la tienda,
+    # 1.9.9.1): las imágenes de muestra van en los servicios de muestra.
+    monkeypatch.setattr('routes.public.get_home_services', lambda: [])
     serv = client.get('/servicios').get_data(as_text=True)
-    assert 'data-demo-img' in serv
+    assert 'data-demo-img' in serv and 'img/Fondo.jpg' not in serv
 
 
 def test_tienda_normal_no_carga_la_vista_previa(client, monkeypatch):

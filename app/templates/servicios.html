@@ -1,27 +1,23 @@
 {% extends './plantillaindex.html' %}
 {% block titulo %}{{ datosApp.titulo }}{% endblock %}
 {% block LinkAdicional %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/servicios.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/servicios.css') }}?v={{ config.APP_VERSION }}">
 {% endblock %}
 {% block body %}
-<!-- Título de la sección de Servicios con Imagen de Fondo -->
-<section class="servicios-titulo-seccion">
-    <!-- Contenedor de la imagen -->
-    <div class="servicios-titulo-fondo">
-        {% if tienda_demo %}
-        <img src="{{ url_for('static', filename='img/tu-logo-aqui.svg') }}" data-demo-img data-demo-icono="imagen" data-demo-modo="fondo" data-demo-alto="420"
-             data-demo-texto="" alt="Imagen de muestra para el encabezado de servicios">
-        {% else %}
-        <img src="{{ url_for('static', filename='img/Fondo.jpg') }}" alt="Fondo de servicios">
-        {% endif %}
-    </div>
-
-    <!-- Contenido del título -->
-    <div class="servicios-titulo-contenido">
-        <h2>{{ public_content.services_hero_title or 'Servicios' }}</h2>
-        {% if public_content.services_hero_subtitle %}
-        <p>{{ public_content.services_hero_subtitle }}</p>
-        {% endif %}
+{#- Encabezado con los colores y el nombre de la tienda (sin foto: la que había era de
+    CyberShop y salía igual en todas las tiendas). -#}
+{% set sv_negocio = brand_config.empresa_nombre or datosApp.titulo %}
+<section class="sv-hero{% if sv_capa and sv_capa != 10 %} sv-capa-{{ sv_capa }}{% endif %}" aria-labelledby="sv-titulo">
+    <div class="sv-hero-adorno" aria-hidden="true"></div>
+    <div class="sv-hero-contenido">
+        {#- div con role y no <nav>: layout.css le da estilos de menú a toda etiqueta nav -#}
+        <div class="sv-ruta" role="navigation" aria-label="Ruta">
+            <a href="{{ url_for('public.index') }}">Inicio</a> <span aria-hidden="true">›</span> Servicios
+        </div>
+        {% if sv_negocio %}<p class="sv-hero-marca">{{ sv_negocio }}</p>{% endif %}
+        <h1 id="sv-titulo">{{ sv_titulo }}</h1>
+        <span class="sv-hero-linea" aria-hidden="true"></span>
+        {% if sv_subtitulo %}<p class="sv-hero-texto">{{ sv_subtitulo }}</p>{% endif %}
     </div>
 </section>
 
@@ -66,8 +62,8 @@
     <a href="{{ url_for('auth.login', next=url_for('admin.mi_negocio')) }}">Inicia sesión</a>
     para poner los tuyos desde <strong>Contenido Web → Servicios</strong>.
 </p>
-{% else %}
-{# ---- Fallback: servicios estaticos originales ---- #}
+{% elif es_operador %}
+{# ---- La página de CyberShop (operador): sus servicios de siempre ---- #}
 <section class="servicios">
     <div class="servicio" data-beneficios="
         - Prolonga la vida útil de tus equipos.
@@ -162,6 +158,24 @@
         <div class="texto">
             <h2>Desarrollo web empresarial</h2>
             <p>Destaca en el mundo digital con páginas web empresariales diseñadas para impresionar.</p>
+        </div>
+    </div>
+</section>
+{% else %}
+{# ---- Tienda que aún no carga sus servicios: un aviso con su marca, nunca los de CyberShop ---- #}
+<section class="sv-vacio" aria-labelledby="sv-vacio-titulo">
+    <div class="sv-vacio-caja">
+        <svg class="sv-vacio-ico" width="54" height="54" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10.5"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg>
+        <h2 id="sv-vacio-titulo">Muy pronto verás aquí nuestros servicios</h2>
+        <p>Mientras tanto, escríbenos y te contamos todo lo que hacemos.</p>
+        <div class="sv-vacio-acciones">
+            {% if sv_whatsapp %}
+            <a class="sv-btn sv-btn-wa" href="https://wa.me/{{ sv_whatsapp }}?text={{ ('Hola, quiero saber qué servicios ofrecen.') | urlencode }}" target="_blank" rel="noopener">
+                <i class="fab fa-whatsapp" aria-hidden="true"></i> Escríbenos por WhatsApp<span class="sv-sr"> (se abre en otra pestaña)</span></a>
+            {% else %}
+            <a class="sv-btn sv-btn-wa" href="{{ url_for('public.contactenos') }}"><i class="fas fa-envelope" aria-hidden="true"></i> Escríbenos</a>
+            {% endif %}
+            <a class="sv-btn sv-btn-sec" href="{{ url_for('public.productos') }}">Ver productos</a>
         </div>
     </div>
 </section>

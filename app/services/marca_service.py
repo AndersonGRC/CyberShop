@@ -55,6 +55,26 @@ def contraste_con_blanco(color):
     return 1.05 / (_luminancia(color) + 0.05)
 
 
+# Capas oscuras (en %, las --negro-alpha-0NN de variables.css) que puede llevar un
+# encabezado pintado con los colores de la marca.
+CAPAS_OSCURAS = (10, 30, 52, 70)
+
+
+def capa_para_texto_blanco(*colores, minimo=4.5):
+    """La capa oscura más suave con la que el texto blanco (aun al 92 % y sobre los
+    adornos translúcidos, un 6 % de blanco) se lee sobre todos `colores`. Con un color
+    claro (amarillo, verde limón…) la capa sube; los que no son un color se ignoran."""
+    fondos = [c for c in map(normalizar, colores) if c]
+    for capa in CAPAS_OSCURAS:
+        def se_lee(color):
+            fondo = mezclar(mezclar(color, '#000000', capa / 100), '#ffffff', 0.06)
+            texto = mezclar(fondo, '#ffffff', 0.92)
+            return (_luminancia(texto) + 0.05) / (_luminancia(fondo) + 0.05) >= minimo
+        if all(se_lee(c) for c in fondos):
+            return capa
+    return CAPAS_OSCURAS[-1]
+
+
 def validar(color):
     """(color_normalizado, None) o (None, mensaje para la persona)."""
     c = normalizar(color)

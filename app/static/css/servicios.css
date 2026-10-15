@@ -1,61 +1,206 @@
 @import url('variables.css');
 
 
-.servicios-titulo-seccion {
+/* ── Encabezado: los colores y el nombre de la tienda, sin foto ──
+   Degradado del color principal a su tono oscuro y al de la barra (secundario),
+   puntos y círculos en blanco translúcido y una capa oscura para que el texto blanco
+   se lea con cualquier marca: suave por defecto y más fuerte (sv-capa-NN, la escoge
+   marca_service.capa_para_texto_blanco) cuando el color de la tienda es claro.
+   (La foto que había era de CyberShop y salía igual en todas las tiendas.) */
+.sv-hero {
+    --sv-capa: var(--negro-alpha-010);
+    clear: both;                         /* debajo del menú (.nav flota); sin esto se encoge a su lado */
     position: relative;
-    /* Necesario para que los elementos hijos con posición absoluta se posicionen correctamente */
-    width: 100%;
-    height: 150px;
-    /* Ajusta la altura según tus necesidades */
     overflow: hidden;
-    /* Para asegurarte de que la imagen no se desborde */
+    color: var(--color-blanco);
+    background:
+        linear-gradient(var(--sv-capa), var(--sv-capa)),
+        linear-gradient(120deg, var(--color-primario) 0%, var(--color-primario-oscuro) 55%, var(--color-secundario) 100%);
 }
 
-.servicios-titulo-fondo {
+.sv-hero.sv-capa-30 { --sv-capa: var(--negro-alpha-030); }
+.sv-hero.sv-capa-52 { --sv-capa: var(--negro-alpha-052); }
+.sv-hero.sv-capa-70 { --sv-capa: var(--negro-alpha-070); }
+
+.sv-hero::before {                       /* trama de puntos que se desvanece hacia la izquierda */
+    content: "";
     position: absolute;
-    /* Cambia a absoluto para que la imagen se posicione correctamente */
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: -1;
+    inset: 0;
+    background-image: radial-gradient(var(--blanco-alpha-12) 1.2px, transparent 1.2px);
+    background-size: 22px 22px;
+    -webkit-mask-image: linear-gradient(90deg, transparent 35%, var(--color-blanco) 100%);
+    mask-image: linear-gradient(90deg, transparent 35%, var(--color-blanco) 100%);
 }
 
-/* Estilos para la imagen de fondo */
-.servicios-titulo-fondo img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    /* Ajusta la imagen al tamaño del contenedor */
-}
-
-/* Estilos para el contenido del título */
-.servicios-titulo-contenido {
+.sv-hero::after {                        /* círculo grande arriba a la derecha */
+    content: "";
     position: absolute;
-    /* Cambia a absoluto para que el texto se posicione encima de la imagen */
-    top: 50%;
-    /* Centra verticalmente */
-    left: 50%;
-    /* Centra horizontalmente */
-    transform: translate(-50%, -50%);
-    /* Ajusta el centrado */
+    width: 520px;
+    height: 520px;
+    right: -140px;
+    top: -260px;
+    border-radius: 50%;
+    background: var(--blanco-alpha-12);
+    opacity: .5;                         /* 6 % de blanco: no le quita lectura al texto */
+}
+
+.sv-hero-adorno {                        /* anillo abajo */
+    position: absolute;
+    width: 300px;
+    height: 300px;
+    right: 18%;
+    bottom: -210px;
+    border-radius: 50%;
+    border: 2px solid var(--blanco-alpha-22);
+}
+
+.sv-hero-contenido {
+    position: relative;
     z-index: 1;
-    /* Asegúrate de que el título esté por encima de la imagen */
-    text-align: center;
-    /* Centra el texto */
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 44px 24px 56px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    text-align: left;
 }
 
-.servicios-titulo-contenido h2 {
-    font-size: 3rem;
-    /* Tamaño del título */
-    color: var(--color-fondo);
-    /* Color del texto */
-    text-shadow: 2px 2px 4px var(--negro-alpha-050);
-    /* Sombra para mejorar la legibilidad */
+.sv-ruta {
+    font-size: .875rem;
+    color: var(--color-blanco);
+}
+
+.sv-ruta a {
+    color: var(--color-blanco);
+    text-decoration: underline;
+}
+
+.sv-hero-marca {
+    margin: 6px 0 0;
+    font-size: .8125rem;
+    font-weight: 800;
+    letter-spacing: .2em;
     text-transform: uppercase;
-    /* Convertir texto a mayúsculas */
-    font-weight: bold;
-    /* Grosor de la fuente */
+    color: var(--color-blanco);
+}
+
+.sv-hero h1 {
+    margin: 0;
+    font-size: clamp(2rem, 1.2rem + 3vw, 3rem);
+    line-height: 1.1;
+    font-weight: 800;
+    color: var(--color-blanco);
+}
+
+.sv-hero-linea {
+    display: block;
+    width: 56px;
+    height: 4px;
+    border-radius: 99px;
+    background: var(--blanco-alpha-80);
+    background: color-mix(in srgb, var(--color-primario) 55%, var(--color-blanco));
+}
+
+.sv-hero-texto {
+    margin: 4px 0 0;
+    max-width: 640px;
+    font-size: 1.125rem;
+    line-height: 1.6;
+    color: var(--blanco-alpha-92);
+}
+
+@media (max-width: 600px) {
+    .sv-hero-contenido { padding: 26px 16px 34px; gap: 10px; }
+    .sv-hero::after { width: 260px; height: 260px; right: -110px; top: -120px; }
+    .sv-hero-adorno { display: none; }
+    .sv-hero-texto { font-size: 1rem; }
+}
+
+/* ── Tienda que aún no carga sus servicios: aviso con su marca ── */
+.sv-vacio {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 56px 24px 72px;
+}
+
+.sv-vacio-caja {
+    border: 1px solid var(--color-borde-claro);
+    border-radius: 18px;
+    padding: 36px 28px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    background: var(--color-fondo);
+    background: color-mix(in srgb, var(--color-primario) 8%, var(--color-blanco));
+}
+
+.sv-vacio-ico circle {
+    fill: var(--color-blanco);
+    stroke: var(--color-primario-oscuro);
+    stroke-width: 1.5;
+}
+
+.sv-vacio-ico path {
+    fill: none;
+    stroke: var(--color-primario-oscuro);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.sv-vacio-caja h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: var(--color-secundario);
+}
+
+.sv-vacio-caja p {
+    margin: 0;
+    max-width: 480px;
+    line-height: 1.6;
+    color: var(--color-texto-secundario);
+}
+
+.sv-vacio-acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 6px;
+}
+
+.sv-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 48px;
+    padding: 0 20px;
+    border-radius: 12px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.sv-btn-wa {
+    color: var(--color-blanco);
+    background: var(--color-exito-texto);
+}
+
+.sv-btn-sec {
+    color: var(--color-secundario);      /* el tono de la barra: oscuro aun con marcas claras */
+    background: var(--color-blanco);
+    border: 2px solid var(--color-primario);
+}
+
+.sv-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
 }
 
 /* Estilos generales */
