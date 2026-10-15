@@ -275,11 +275,33 @@ ALTER TABLE st_equipos ADD COLUMN IF NOT EXISTS empresa_id INTEGER REFERENCES st
 CREATE INDEX IF NOT EXISTS ix_st_equipos_empresa ON st_equipos (empresa_id);
 """
 
+# 0024: versiones de la ficha técnica. Cada cambio de la ficha de un equipo (al
+# volver a importar su documento, al guardarla o al editar el equipo) deja cómo
+# quedó, y la primera vez cómo estaba: la versión anterior no se pierde. Una
+# importación deshecha deja su versión activo = FALSE; nada se borra.
+DDL_0024 = """
+CREATE TABLE IF NOT EXISTS st_fichas_versiones (
+    id              SERIAL       PRIMARY KEY,
+    equipo_id       INTEGER      NOT NULL REFERENCES st_equipos(id),
+    version         INTEGER      NOT NULL DEFAULT 1,
+    estado          JSONB        NOT NULL DEFAULT '{}'::jsonb,
+    cambios         JSONB        NOT NULL DEFAULT '[]'::jsonb,
+    origen          VARCHAR(20)  NOT NULL DEFAULT 'manual',
+    importacion_id  INTEGER,
+    activo          BOOLEAN      NOT NULL DEFAULT TRUE,
+    creado_por      INTEGER,
+    creado_en       TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_st_fichas_versiones_equipo ON st_fichas_versiones (equipo_id, id);
+CREATE INDEX IF NOT EXISTS ix_st_fichas_versiones_importacion ON st_fichas_versiones (importacion_id);
+"""
+
 # Lo que asegurar_tablas crea si las migraciones aún no llegaron (en orden).
-DDL = DDL_0018 + DDL_0019 + DDL_0020 + DDL_0021 + DDL_0022 + DDL_0023
+DDL = DDL_0018 + DDL_0019 + DDL_0020 + DDL_0021 + DDL_0022 + DDL_0023 + DDL_0024
 
 TABLAS = ('st_equipos', 'st_ordenes', 'st_eventos', 'st_cambios', 'st_seguimientos',
-          'st_fotos', 'st_mantenimientos', 'st_importaciones', 'st_documentos', 'st_empresas')
+          'st_fotos', 'st_mantenimientos', 'st_importaciones', 'st_documentos', 'st_empresas',
+          'st_fichas_versiones')
 
 # ── Estados de la orden ──────────────────────────────────────────
 # (código, nombre, ícono, tono del chip)
@@ -537,8 +559,9 @@ def crear_equipo(cur, contacto_id, datos, usuario_id=None):
 def actualizar_equipo(equipo_id, datos, usuario_id=None):
     import json
     d = _datos_equipo(datos)
+    from services import servicio_tecnico_versiones as versiones
     with get_db_cursor(dict_cursor=True) as cur:
-        cur.execute('SELECT crm_contacto_id FROM st_equipos WHERE id = %s FOR UPDATE', (equipo_id,))
+        cur.execute('SELECT * FROM st_equipos WHERE id = %s FOR UPDATE', (equipo_id,))
         fila = cur.fetchone()
         if not fila:
             raise ErrorServicio('El equipo no existe.')
@@ -549,6 +572,10 @@ def actualizar_equipo(equipo_id, datos, usuario_id=None):
                    extras = %s::jsonb, notas = %s, actualizado_en = NOW()
             WHERE id = %s
         """, (d['tipo'], *[d[c] for c in _COLUMNAS_EQUIPO], json.dumps(d['extras']), d['notas'], equipo_id))
+        # Lo de antes no se pierde: queda como versión guardada de la ficha.
+        antes = dict(fila)
+        versiones.registrar(cur, equipo_id, versiones.estado_de(antes), versiones.estado_de(dict(antes, **d)),
+                            'manual', usuario_id=usuario_id)
         _evento(cur, None, equipo_id, 'equipo', 'Ficha del equipo actualizada', usuario_id)
 
 
@@ -1070,6 +1097,11 @@ def aplicar_info(equipo_id, campos, texto=None, resumen=None, sugerencias=None, 
             sets.append('sugerencias_ia = %s::jsonb')
             params.append(json.dumps(sugerencias[:8], ensure_ascii=False))
         cur.execute(f"UPDATE st_equipos SET {', '.join(sets)} WHERE id = %s", (*params, equipo_id))
+        from services import servicio_tecnico_versiones as versiones
+        despues = dict(equipo, **{c: d[c] for c in _COLUMNAS_EQUIPO}, extras=d['extras'],
+                       resumen_ia=_texto(resumen, 800) if resumen is not None else equipo.get('resumen_ia'))
+        versiones.registrar(cur, equipo_id, versiones.estado_de(equipo), versiones.estado_de(despues), 'manual',
+                            usuario_id=usuario_id)          # lo de antes queda como versión guardada
         _evento(cur, None, equipo_id, 'equipo',
                 f"Ficha completada desde la información del sistema ({len(aceptados)} campos)"
                 if aceptados else 'Información del sistema guardada', usuario_id)

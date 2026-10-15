@@ -35,6 +35,7 @@ def limpiar(cursor):
         cur.execute("DELETE FROM st_eventos WHERE orden_id = ANY(%s) OR equipo_id = ANY(%s)", (ords, eqs))
         cur.execute("DELETE FROM st_cambios WHERE equipo_id = ANY(%s)", (eqs,))
         cur.execute("DELETE FROM st_ordenes WHERE id = ANY(%s)", (ords,))
+        cur.execute("DELETE FROM st_fichas_versiones WHERE equipo_id = ANY(%s)", (eqs,))
         cur.execute("DELETE FROM st_equipos WHERE id = ANY(%s)", (eqs,))
         cur.execute("DELETE FROM crm_actividades WHERE contacto_id = ANY(%s)", (ids,))
         cur.execute("DELETE FROM crm_contactos WHERE id = ANY(%s)", (ids,))

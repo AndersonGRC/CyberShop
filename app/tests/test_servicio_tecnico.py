@@ -74,6 +74,7 @@ def limpiar(cursor):
                 cur.execute("DELETE FROM st_eventos WHERE orden_id = ANY(%s) OR equipo_id = ANY(%s)", (ords, eqs))
                 cur.execute("DELETE FROM st_cambios WHERE equipo_id = ANY(%s)", (eqs,))
                 cur.execute("DELETE FROM st_ordenes WHERE id = ANY(%s)", (ords,))
+                cur.execute("DELETE FROM st_fichas_versiones WHERE equipo_id = ANY(%s)", (eqs,))
                 cur.execute("DELETE FROM st_equipos WHERE id = ANY(%s)", (eqs,))
             cur.execute("DELETE FROM cotizaciones WHERE crm_contacto_id = ANY(%s)", (ids,))
             cur.execute("DELETE FROM crm_contactos WHERE id = ANY(%s)", (ids,))
@@ -137,7 +138,8 @@ def test_extras_solo_del_tipo():
                                                ('0020_servicio_tecnico_fotos_mantenimiento.sql', 'DDL_0020'),
                                                ('0021_servicio_tecnico_documentos_importacion.sql', 'DDL_0021'),
                                                ('0022_servicio_tecnico_ficha.sql', 'DDL_0022'),
-                                               ('0023_servicio_tecnico_empresas.sql', 'DDL_0023')])
+                                               ('0023_servicio_tecnico_empresas.sql', 'DDL_0023'),
+                                               ('0024_servicio_tecnico_fichas_versiones.sql', 'DDL_0024')])
 def test_migracion_del_maestro_igual_al_codigo(archivo, atributo):
     from services import servicio_tecnico_service as st
     app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

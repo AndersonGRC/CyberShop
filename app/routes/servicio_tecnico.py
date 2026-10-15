@@ -26,6 +26,7 @@ from services import servicio_tecnico_mensajes as msj
 from services import servicio_tecnico_seguimiento as seg
 from services import servicio_tecnico_service as st
 from services import servicio_tecnico_tipos as tipos
+from services import servicio_tecnico_versiones as versiones_st
 from tenant_features import MODULE_CRM, MODULE_SERVICIO_TECNICO, is_module_active, module_required
 
 servicio_tecnico_bp = Blueprint('servicio_tecnico', __name__)
@@ -347,7 +348,7 @@ def equipo_ver(equipo_id):
         validacion=st.validacion_equipo(equipo, fotos=len(fotos), recordatorios=len(pendientes)),
         documentos=st.documentos_de_equipo(equipo_id), acepta_documentos=st.ACEPTA_DOCUMENTOS,
         documentos_max=st.DOCUMENTOS_MAX, carpetas=emp.listar(incluir_vacias=True)['empresas'],
-        st_activo='equipos'))
+        versiones=versiones_st.de_equipo(equipo_id), st_activo='equipos'))
 
 
 def _a_la_ficha(equipo_id, seccion=''):
@@ -647,7 +648,11 @@ def importacion_importar(lote_id):
         flash(f'No se importó nada: {exc}', 'warning')
         return _a_la_importacion(lote_id)
     r = res['resumen']
-    flash(f"Listo: {r['equipos_creados']} equipo(s) nuevos, {r['equipos_completados']} completado(s), "
+    fichas, ya_estaban = r.get('fichas_actualizadas') or 0, ''
+    if r['equipos_completados']:
+        ya_estaban = (f' ({fichas} con su ficha en una versión nueva; la anterior quedó guardada)' if fichas
+                      else ' (su ficha ya estaba al día)')
+    flash(f"Listo: {r['equipos_creados']} equipo(s) nuevos, {r['equipos_completados']} que ya estaban{ya_estaban}, "
           f"{r['contactos_creados']} cliente(s) nuevos en el CRM y {r['mantenimientos']} mantenimiento(s) "
           'en las hojas de vida.', 'success')
     return redirect(url_for('servicio_tecnico.importacion', lote_id=lote_id))
@@ -788,6 +793,10 @@ def equipo_ficha_pdf(equipo_id):
     nombre = ficha_st.nombre_pdf(datos)
     if request.form.get('copia') == '1':
         ficha_st.guardar_copia(equipo_id, nombre, contenido, datos['codigo'], _usuario())
+    return _pdf_en_linea(contenido, nombre)
+
+
+def _pdf_en_linea(contenido, nombre):
     from urllib.parse import quote
 
     from flask import Response
@@ -797,6 +806,22 @@ def equipo_ficha_pdf(equipo_id):
     respuesta.headers['Cache-Control'] = 'private, no-store'
     respuesta.headers['X-Content-Type-Options'] = 'nosniff'
     return respuesta
+
+
+@servicio_tecnico_bp.route(PREFIJO + '/equipo/<int:equipo_id>/ficha/version/<int:version_id>.pdf')
+@rol_requerido(ADMIN_STAFF)
+@module_required(MODULE_SERVICIO_TECNICO)
+def equipo_ficha_version_pdf(equipo_id, version_id):
+    """Una versión guardada de la ficha, tal como era (solo para verla)."""
+    try:
+        datos = ficha_st.armar(equipo_id, version_id=version_id)
+    except st.ErrorServicio:
+        abort(404)
+    nombre = ficha_st.nombre_pdf(datos)
+    numero = (datos['version_guardada'] or {}).get('version')
+    if numero:
+        nombre = nombre[:-4] + f' - version {numero}.pdf' if nombre.lower().endswith('.pdf') else nombre
+    return _pdf_en_linea(ficha_st.pdf(datos), nombre)
 
 
 @servicio_tecnico_bp.route(PREFIJO + '/equipo/<int:equipo_id>/ficha/proponer', methods=['POST'])

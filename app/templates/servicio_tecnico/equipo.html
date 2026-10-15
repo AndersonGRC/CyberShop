@@ -162,6 +162,31 @@
         </form>
     </div>
 
+    {% if versiones and versiones | length > 1 %}
+    {# Cada cambio de la ficha deja guardada la versión anterior: nada se pierde. #}
+    <details class="st-fv-versiones" id="versiones">
+        <summary><i class="fas fa-history" aria-hidden="true"></i> Historial de la ficha ({{ versiones | length }} versiones guardadas)</summary>
+        <ol class="st-fv-lista-versiones">
+            {% for x in versiones %}
+            <li>
+                <div class="st-fv-version-cab">
+                    <strong>{% if x.version %}Versión {{ x.version }}{% else %}Datos iniciales{% endif %}</strong>
+                    {% if x.actual %}<span class="st-chip st-chip-exito">La de hoy</span>{% endif %}
+                    <span class="st-nota">{{ x.creado_en.strftime('%d/%m/%Y %H:%M') }} · {{ x.origen_nombre }}{% if x.importacion_id %} #{{ x.importacion_id }}{% if x.archivo %} («{{ x.archivo }}»){% endif %}{% endif %}{% if x.usuario_nombre %} · {{ x.usuario_nombre }}{% endif %}</span>
+                    <a href="{{ url_for('servicio_tecnico.equipo_ficha_version_pdf', equipo_id=equipo.id, version_id=x.id) }}" target="_blank" rel="noopener">Ver PDF<span class="st-sr"> de esta versión (se abre en otra pestaña)</span></a>
+                </div>
+                {% if x.cambios %}
+                <ul class="st-fv-cambios">
+                    {% for c in x.cambios[:8] %}<li><b>{{ c.etiqueta }}:</b> {{ c.antes or 'sin dato' }} → {{ c.ahora or 'sin dato' }}</li>{% endfor %}
+                    {% if x.cambios | length > 8 %}<li>y {{ x.cambios | length - 8 }} cambio{{ '' if x.cambios | length == 9 else 's' }} más</li>{% endif %}
+                </ul>
+                {% elif x.origen == 'anterior' %}<p class="st-nota">Así estaba antes del primer cambio.</p>{% endif %}
+            </li>
+            {% endfor %}
+        </ol>
+    </details>
+    {% endif %}
+
     {# Lo demás, plegado: no llena la vista. #}
     <div class="st-acordeon">
         <details id="mas-datos">

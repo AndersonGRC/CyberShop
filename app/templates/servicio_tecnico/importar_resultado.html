@@ -34,7 +34,7 @@
     <h2 id="res-tit"><i class="fas fa-list-ol" aria-hidden="true"></i> Qué se guardó</h2>
     <ul class="st-imp-cifras">
         <li class="st-imp-cifra-grande"><b>{{ r.equipos_creados or 0 }}</b> <span>equipo{{ '' if r.equipos_creados == 1 else 's' }} nuevo{{ '' if r.equipos_creados == 1 else 's' }}</span></li>
-        <li><b>{{ r.equipos_completados or 0 }}</b> <span>equipo{{ '' if r.equipos_completados == 1 else 's' }} que ya estaba{{ '' if r.equipos_completados == 1 else 'n' }} y se completó</span></li>
+        <li><b>{{ r.equipos_completados or 0 }}</b> <span>equipo{{ '' if r.equipos_completados == 1 else 's' }} que ya estaba{{ '' if r.equipos_completados == 1 else 'n' }}{% if r.fichas_actualizadas %}: {{ r.fichas_actualizadas }} con su ficha en una versión nueva (la anterior quedó guardada){% endif %}</span></li>
         <li><b>{{ r.contactos_creados or 0 }}</b> <span>cliente{{ '' if r.contactos_creados == 1 else 's' }} nuevo{{ '' if r.contactos_creados == 1 else 's' }} en el CRM</span></li>
         {% if r.carpetas %}<li><b>{{ r.carpetas }}</b> <span>carpeta{{ '' if r.carpetas == 1 else 's' }} de empresa con equipos de esta importación{% if r.carpetas_creadas %} ({{ r.carpetas_creadas }} nueva{{ '' if r.carpetas_creadas == 1 else 's' }}){% endif %} · <a href="{{ url_for('servicio_tecnico.equipos') }}">ver las carpetas</a></span></li>{% endif %}
         <li><b>{{ r.mantenimientos or 0 }}</b> <span>mantenimiento{{ '' if r.mantenimientos == 1 else 's' }} en las hojas de vida</span></li>
@@ -69,7 +69,9 @@
                 <td data-label="Estado">
                     {% if not e.activo %}<span class="st-chip st-chip-neutro">Retirado</span>
                     {% elif e.nuevo %}<span class="st-chip st-chip-exito">Nuevo</span>
-                    {% else %}<span class="st-chip st-chip-info">Completado</span>{% endif %}</td>
+                    {% elif e.actualizado %}<span class="st-chip st-chip-info">Actualizado{% if e.version %} · versión {{ e.version }}{% endif %}</span>
+                    {% elif e.completado %}<span class="st-chip st-chip-info">Completado</span>
+                    {% else %}<span class="st-chip st-chip-neutro">Ya estaba al día</span>{% endif %}</td>
             </tr>
             {% endfor %}
             </tbody>

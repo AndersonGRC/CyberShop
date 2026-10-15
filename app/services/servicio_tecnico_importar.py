@@ -43,6 +43,7 @@ from services import servicio_tecnico_ficha as fichas
 from services import servicio_tecnico_lector as lector
 from services import servicio_tecnico_service as st
 from services import servicio_tecnico_tipos as tipos
+from services import servicio_tecnico_versiones as ver
 from services.servicio_tecnico_service import ErrorServicio
 
 # ── Límites ─────────────────────────────────────────────────────
@@ -2390,10 +2391,22 @@ def editar_fila(lote_id, n, datos):
             fila['unir_con'] = otro
         elif accion == 'separar':
             fila['unir_con'] = None
-        elif accion == 'otro_equipo':                # no es el equipo ya registrado con su marca y modelo
+        elif accion == 'otro_equipo':                # no es el equipo ya registrado que se le parece
             fila['es_otro_equipo'] = True
+            fila.pop('usar_equipo', None)
         elif accion == 'mismo_registrado':
             fila.pop('es_otro_equipo', None)
+        elif accion == 'usar_equipo':                # «ya estaba registrado: es este» (se actualiza ese)
+            eid = str(datos.get('equipo_id') or '')
+            if not eid.isdigit():
+                raise ErrorServicio('Escoge cuál de los equipos registrados es.')
+            cur.execute('SELECT 1 FROM st_equipos WHERE id = %s AND activo', (int(eid),))
+            if not cur.fetchone():
+                raise ErrorServicio('Ese equipo ya no está registrado.')
+            fila['usar_equipo'] = int(eid)
+            fila.pop('es_otro_equipo', None)
+        elif accion == 'no_usar_equipo':
+            fila.pop('usar_equipo', None)
         elif accion == 'adjuntar':
             otro = int(datos.get('con') or 0)
             fila['adjuntar_a'] = otro if otro in numeros else None
@@ -2527,13 +2540,13 @@ def _equipos_existentes(cur, seriales, imeis, codigos=()):
     if not seriales and not imeis and not codigos:
         return por_clave
     cur.execute("""SELECT e.id, e.tipo, e.marca, e.modelo, e.serial, e.imei, e.crm_contacto_id, e.mant_cada_meses,
-                          e.mant_proximo, e.ficha_codigo, c.nombre AS cliente_nombre,
+                          e.mant_proximo, e.ficha_codigo, e.creado_en, c.nombre AS cliente_nombre,
                           x.id AS empresa_id, x.nombre AS empresa_nombre
                    FROM st_equipos e LEFT JOIN crm_contactos c ON c.id = e.crm_contacto_id
                    LEFT JOIN st_empresas x ON x.id = e.empresa_id AND x.activo
                    WHERE e.activo AND (regexp_replace(lower(COALESCE(e.serial, '')), '[\\s./-]', '', 'g') = ANY(%s)
                                        OR e.imei = ANY(%s) OR lower(e.ficha_codigo) = ANY(%s))
-                   ORDER BY e.id""", (sorted(seriales), sorted(imeis), sorted(codigos)))
+                   ORDER BY e.creado_en, e.id""", (sorted(seriales), sorted(imeis), sorted(codigos)))
     for r in cur.fetchall():
         r = dict(r)
         r['descripcion'] = st.descripcion_equipo(r)
@@ -2557,18 +2570,97 @@ def _modelo_clave(marca, modelo):
     return clave if re.search(r'\d', clave) else ''
 
 
-def _equipos_sin_serial(cur, contactos):
-    """Equipos activos de esos clientes sin serial, IMEI ni código de ficha."""
-    if not contactos:
+# ── El mismo equipo aunque el archivo no traiga su serial ───────
+# Lo que nombra a un equipo dentro de su cliente (en sus notas: «Área
+# correspondiente: Contabilidad», «Asignado a: …», «Nombre de usuario: …»).
+_ETIQ_ASIGNADO = re.compile(
+    r'(?im)^[ \t]*(?:asignado(?:\s+a)?|[aá]rea(?:\s+(?:correspondiente|asignada|responsable))?|'
+    r'usuario(?:\s+(?:asignado|responsable|windows))?|nombre\s+de\s+usuario|nombre\s+(?:del\s+)?equipo|'
+    r'hostname|nombre\s+de\s+host|ubicaci[oó]n|dependencia|oficina|responsable|funcionario)[ \t]*[:\-][ \t]*(.+)$')
+_NOMBRES_VACIOS = {'del', 'las', 'los', 'con', 'para', 'equipo', 'equipos', 'area', 'computador', 'usuario', 'user',
+                   'admin', 'administrador', 'hoja', 'sheet', 'ficha', 'tecnica', 'ninguno', 'sin', 'dato', 'historico'}
+_GRUPO_TIPO = {'computador': 'pc', 'portatil': 'pc'}
+_COLS_PARECIDOS = """e.id, e.tipo, e.marca, e.modelo, e.serial, e.imei, e.crm_contacto_id, e.mant_cada_meses,
+                     e.mant_proximo, e.ficha_codigo, e.ficha, e.notas, e.creado_en, c.nombre AS cliente_nombre,
+                     x.id AS empresa_id, x.nombre AS empresa_nombre"""
+
+
+def _nombres_de(notas, ficha, cliente_nombre='', hoja=None):
+    """Lo que nombra al equipo dentro de su cliente: la persona o el área a la que
+    está asignado, su usuario y la hoja del libro donde vino (si no es «Hoja1»).
+    Sin las palabras del nombre del cliente ni las de relleno."""
+    valores = [m.group(1) for m in _ETIQ_ASIGNADO.finditer(notas or '')]
+    ficha = ficha or {}
+    valores += [ficha.get('asignado_a'), (ficha.get('filas') or {}).get('Nombre de Usuario')]
+    if hoja and not re.match(r'(?i)^\s*(hoja|sheet|formato|plantilla|libro)\b', hoja):
+        valores.append(hoja)
+    vacias = _NOMBRES_VACIOS | set(_norm(cliente_nombre).split())
+    salida = set()
+    for v in valores:
+        palabras = [w for w in _norm(v).split() if len(w) >= 3 and w not in vacias]
+        if palabras:
+            salida.add(' '.join(palabras))
+    return salida
+
+
+def _parecido_nombre(a, b):
+    """2: el mismo nombre (persona, área o usuario); 1: comparten una palabra; 0: no."""
+    if not a or not b:
+        return 0
+    if a & b:
+        return 2
+    return 1 if {w for x in a for w in x.split()} & {w for x in b for w in x.split()} else 0
+
+
+def _parecido_modelo(marca_a, modelo_a, marca_b, modelo_b):
+    """3: el mismo modelo; 2: parecido (con los mismos números: «OptiPlex AIO 7410»
+    y «OptiPlex AIO 7410 65W»); 0: otro; None: no se puede comparar."""
+    ka, kb = _modelo_clave(marca_a, modelo_a), _modelo_clave(marca_b, modelo_b)
+    if not ka or not kb:
+        return None
+    if ka == kb:
+        return 3
+    ta, tb = set(ka.split()), set(kb.split())
+    na, nb = {t for t in ta if re.search(r'\d', t)}, {t for t in tb if re.search(r'\d', t)}
+    corto, largo = (na, nb) if len(na) <= len(nb) else (nb, na)
+    if corto and corto <= largo and len(ta & tb) / len(ta | tb) >= 0.5:
+        return 2
+    return 0
+
+
+def _serie_codigo(codigo):
+    return re.sub(r'\d+\s*$', '', (codigo or '').strip().lower())
+
+
+def _es_otro(equipo, codigo, candidato):
+    """¿Algo dice que NO es el mismo equipo? Serial, IMEI o número de ficha (de la
+    misma serie) distintos, otra marca o un tipo que no se parece."""
+    s1 = re.sub(r'[\s\-./]', '', str(equipo.get('serial') or '')).lower()
+    s2 = re.sub(r'[\s\-./]', '', str(candidato.get('serial') or '')).lower()
+    if len(s1) >= 4 and len(s2) >= 4 and s1 != s2:
+        return True
+    i1, i2 = re.sub(r'\D', '', str(equipo.get('imei') or '')), re.sub(r'\D', '', str(candidato.get('imei') or ''))
+    if i1 and i2 and i1 != i2:
+        return True
+    c2 = candidato.get('ficha_codigo')
+    if codigo and c2 and codigo.lower() != c2.lower() and _serie_codigo(codigo) == _serie_codigo(c2):
+        return True
+    m1, m2 = _norm(_marca_canonica(equipo.get('marca'))), _norm(_marca_canonica(candidato.get('marca')))
+    if m1 and m2 and m1 != m2:
+        return True
+    t1, t2 = equipo.get('tipo'), candidato.get('tipo')
+    return bool(t1 and t2 and 'otro' not in (t1, t2) and _GRUPO_TIPO.get(t1, t1) != _GRUPO_TIPO.get(t2, t2))
+
+
+def _equipos_por_id_o_cliente(cur, ids=(), contactos=()):
+    """Equipos activos por id o de esos clientes, del registrado primero al último."""
+    if not ids and not contactos:
         return []
-    cur.execute("""SELECT e.id, e.tipo, e.marca, e.modelo, e.serial, e.imei, e.crm_contacto_id, e.mant_cada_meses,
-                          e.mant_proximo, e.ficha_codigo, c.nombre AS cliente_nombre,
-                          x.id AS empresa_id, x.nombre AS empresa_nombre
-                   FROM st_equipos e LEFT JOIN crm_contactos c ON c.id = e.crm_contacto_id
-                   LEFT JOIN st_empresas x ON x.id = e.empresa_id AND x.activo
-                   WHERE e.activo AND e.crm_contacto_id = ANY(%s) AND COALESCE(TRIM(e.serial), '') = ''
-                     AND COALESCE(TRIM(e.imei), '') = '' AND COALESCE(TRIM(e.ficha_codigo), '') = ''
-                   ORDER BY e.id""", (sorted(contactos),))
+    cur.execute(f"""SELECT {_COLS_PARECIDOS}
+                    FROM st_equipos e LEFT JOIN crm_contactos c ON c.id = e.crm_contacto_id
+                    LEFT JOIN st_empresas x ON x.id = e.empresa_id AND x.activo
+                    WHERE e.activo AND (e.id = ANY(%s) OR e.crm_contacto_id = ANY(%s))
+                    ORDER BY e.creado_en, e.id""", (sorted(ids), sorted(contactos)))
     salida = []
     for r in cur.fetchall():
         r = dict(r)
@@ -2577,12 +2669,39 @@ def _equipos_sin_serial(cur, contactos):
     return salida
 
 
-def _ya_registrados_sin_serial(cur, equipos, raices, grupos, por_clave, cliente_de, buscadores, defecto):
-    """Equipos que ya están registrados SIN serial, IMEI ni código de ficha (p. ej.
-    los de una importación anterior de una tabla que solo traía marca y modelo):
-    si el cliente tiene UNO con la misma marca y modelo y en el lote hay UNA fila
-    así, es ese equipo y se completa en vez de crear otro igual. Si hay varios no
-    se adivina. Devuelve ({n: equipo}, {n: candidatos dudosos}, {n: candidatos})."""
+def _datos_del_grupo(filas, cliente_nombre):
+    """Lo que dice del equipo el grupo de filas que se juntan (la tabla de control
+    y su hoja): tipo, marca y modelo, serial, número de ficha y sus nombres."""
+    equipo = {}
+    con_modelo = next((f['equipo'] for f in filas if f['equipo'].get('marca') and f['equipo'].get('modelo')), None) \
+        or next((f['equipo'] for f in filas if f['equipo'].get('modelo')), None) or {}
+    for e in [con_modelo] + [f['equipo'] for f in filas]:
+        for k in ('tipo', 'marca', 'modelo', 'serial', 'imei'):
+            if e.get(k) and not equipo.get(k):
+                equipo[k] = e[k]
+    codigo = next((f.get('ficha_codigo') for f in filas if f.get('ficha_codigo')), None)
+    nombres = set()
+    for f in filas:
+        nombres |= _nombres_de('\n'.join(f.get('notas') or []), f.get('ficha'), cliente_nombre, f.get('fotos_hoja'))
+    return equipo, codigo, nombres
+
+
+def _parecidos_del_cliente(cur, equipos, grupos, por_clave, cliente_de, buscadores, defecto):
+    """El mismo equipo aunque el archivo no traiga su serial: del mismo cliente y
+    parecido —el mismo modelo o, si el modelo no se puede comparar, la misma
+    persona, área o usuario— y nada que diga que es otro (serial, IMEI, número de
+    ficha, marca o tipo). Si varios se parecen se queda el más parecido y, entre
+    iguales, el que se registró primero: se actualiza la ficha más antigua en vez
+    de crear otra. Cada equipo registrado sirve a una sola fila. «Es otro equipo»
+    lo deja aparte y «ya estaba registrado: es este» lo escoge a mano.
+
+    Si el parecido es un equipo que otra fila del lote ya encontró por su serial o
+    número de ficha (p. ej. la tabla de control sin número y la hoja con él), esa
+    fila se junta con aquella: es el mismo equipo, no uno nuevo.
+
+    Devuelve ({n: equipo}, {n: [otros parecidos]}, {n: [candidatos de la fila marcada
+    «es otro equipo»]}, {n: [equipos del cliente para escoger a mano]}, {n: fila con
+    la que se junta})."""
     por_correo, por_tel, por_nombre = buscadores
     fila_n = {f['n']: f for f in equipos}
 
@@ -2602,40 +2721,63 @@ def _ya_registrados_sin_serial(cur, equipos, raices, grupos, por_clave, cliente_
             return defecto['existente']['id']
         return None
 
-    sellos = {}
-    for raiz, ns in grupos.items():
-        if por_clave.get(raiz):
+    fuertes = {e['id']: r for r, e in por_clave.items() if e}    # ya los encontró una fila por serial o código
+    tomados = set(fuertes)
+    contacto_de = {r: contacto_probable(fila_n[r]) for r in grupos if not por_clave.get(r)}
+    elegidos = {r: fila_n[r]['usar_equipo'] for r in contacto_de if isinstance(fila_n[r].get('usar_equipo'), int)}
+    registrados = _equipos_por_id_o_cliente(cur, set(elegidos.values()), {c for c in contacto_de.values() if c})
+    por_id = {e['id']: e for e in registrados}
+    por_modelo, alternativas, candidatos_de, opciones, juntar = {}, {}, {}, {}, {}
+    for r, eid in sorted(elegidos.items()):        # escogido a mano: ese es, si nadie más lo tomó
+        if eid in por_id and eid not in tomados:
+            por_modelo[r] = dict(por_id[eid], manual=True)
+            tomados.add(eid)
+    nombres_de = {e['id']: _nombres_de(e.get('notas'), e.get('ficha'), e.get('cliente_nombre')) for e in registrados}
+    pares, posibles = [], {}
+    for r, contacto in contacto_de.items():
+        if not contacto or r in por_modelo:
             continue
-        contacto_id = contacto_probable(fila_n[raiz])
-        e = next((fila_n[n]['equipo'] for n in [raiz] + ns
-                  if fila_n[n]['equipo'].get('marca') and fila_n[n]['equipo'].get('modelo')), {})
-        sello = (contacto_id, _norm(_marca_canonica(e.get('marca'))), _modelo_clave(e.get('marca'), e.get('modelo')))
-        if contacto_id and sello[1] and sello[2]:
-            sellos[raiz] = sello
-    if not sellos:
-        return {}, {}, {}
-    registrados = {}
-    for r in _equipos_sin_serial(cur, {s[0] for s in sellos.values()}):
-        sello = (r['crm_contacto_id'], _norm(_marca_canonica(r['marca'])), _modelo_clave(r['marca'], r['modelo']))
-        if sello[1] and sello[2]:
-            registrados.setdefault(sello, []).append(r)
-    compiten = {}
-    for n, sello in sellos.items():
-        if not fila_n[n].get('es_otro_equipo'):
-            compiten.setdefault(sello, []).append(n)
-    por_modelo, dudosos, candidatos_de = {}, {}, {}
-    for n, sello in sellos.items():
-        candidatos = registrados.get(sello) or []
-        if not candidatos:
+        filas = [fila_n[n] for n in sorted(grupos[r])]
+        cliente = cliente_de[r].get('nombre') or cliente_de[r].get('empresa') or ''
+        equipo, codigo, nombres = _datos_del_grupo(filas, cliente)
+        for e in registrados:
+            if e['crm_contacto_id'] != contacto or (e['id'] in tomados and e['id'] not in fuertes) \
+                    or _es_otro(equipo, codigo, e):
+                continue
+            if e['id'] not in fuertes:
+                posibles.setdefault(r, []).append(e)
+            modelo = _parecido_modelo(equipo.get('marca'), equipo.get('modelo'), e.get('marca'), e.get('modelo'))
+            nombre = _parecido_nombre(nombres, nombres_de[e['id']])
+            if (modelo is not None and modelo < 2) or (modelo is None and nombre < 2):
+                continue
+            puntos = (modelo or 0) * 10 + nombre * 3 + (1 if equipo.get('tipo') == e.get('tipo') else 0)
+            pares.append((-puntos, e['creado_en'], e['id'], r, e))
+    pares.sort(key=lambda x: (x[0], x[1], x[2], x[3]))
+    juntados = set()
+    for _p, _f, eid, r, e in pares:
+        if r in por_modelo or r in juntar:
             continue
-        candidatos_de[n] = candidatos
-        if fila_n[n].get('es_otro_equipo'):
+        if fila_n[r].get('es_otro_equipo'):        # dijiste que es otro: no se junta (se recuerda con cuál)
+            if eid not in fuertes and eid not in {x['id'] for x in candidatos_de.get(r, [])}:
+                candidatos_de.setdefault(r, []).append(e)
             continue
-        if len(candidatos) == 1 and len(compiten[sello]) == 1:
-            por_modelo[n] = candidatos[0]
-        else:
-            dudosos[n] = candidatos
-    return por_modelo, dudosos, candidatos_de
+        if eid in fuertes:                         # otra fila del lote ya es ese equipo: van juntas
+            if eid not in juntados:
+                juntar[r] = fuertes[eid]
+                juntados.add(eid)
+            continue
+        if eid in tomados:
+            continue
+        por_modelo[r] = e
+        tomados.add(eid)
+    for _p, _f, eid, r, e in pares:                # los otros parecidos que nadie tomó: para escoger a mano
+        if r in por_modelo and eid not in tomados and eid not in {x['id'] for x in alternativas.get(r, [])}:
+            alternativas.setdefault(r, []).append(e)
+    for r, lista in posibles.items():              # para escoger a mano cuál era, si no se encontró solo
+        libres = [e for e in lista if e['id'] not in tomados]
+        if r not in por_modelo and r not in juntar and libres:
+            opciones[r] = libres[:30]
+    return por_modelo, alternativas, candidatos_de, opciones, juntar
 
 
 def _plan_final(fila, ajustes, hoy):
@@ -2740,6 +2882,50 @@ def _raices(equipos, claves):
     return {n: raiz(n) for n in incluidas}
 
 
+def _actualizaciones_previstas(cur, destino, grupos, fila_n, hoy):
+    """{raíz: versión que tiene, versión con la que queda y qué cambia} de los
+    equipos que ya estaban, haciendo la importación sin escribir nada."""
+    ids = sorted({e['id'] for e in destino.values() if e})
+    if not ids:
+        return {}
+    cur.execute('SELECT * FROM st_equipos WHERE id = ANY(%s)', (ids,))
+    completos = {r['id']: dict(r) for r in cur.fetchall()}
+    salida = {}
+    for raiz, e in destino.items():
+        actual = completos.get(e['id']) if e else None
+        if not actual:
+            continue
+        d, version_fija = actual, None
+        for n in [raiz] + sorted(x for x in grupos[raiz] if x != raiz):   # como al importar: la raíz primero
+            f = fila_n[n]
+            nuevo = dict(f['equipo'], notas='\n'.join(f['notas'])[:2000] or None, resumen_ia=f.get('resumen'))
+            d2 = _equipo_actualizado(d, nuevo, f, hoy, version_fija)
+            v2 = (d2.get('ficha') or {}).get('version')
+            if v2 and v2 != (d.get('ficha') or {}).get('version'):
+                version_fija = v2
+            d = d2
+        antes, despues = ver.estado_de(actual), ver.estado_de(d)
+        salida[raiz] = {'version_actual': ver.numero(antes), 'version_nueva': ver.numero(despues),
+                        'cambios': ver.diferencias(antes, despues)}
+    return salida
+
+
+def _texto_actualizacion(prev):
+    """Qué le pasa al equipo que ya estaba: su ficha pasa a una versión nueva y
+    la anterior se guarda; se dice qué cambia."""
+    if not prev or not prev['cambios']:
+        return 'su ficha ya dice esto, así que no cambia (solo se le agrega el historial que le falte).'
+    if prev['version_actual'] and prev['version_nueva'] != prev['version_actual']:
+        texto = (f"su ficha pasa a la versión {prev['version_nueva']} y la versión {prev['version_actual']} "
+                 'queda guardada.')
+    elif prev['version_nueva'] and not prev['version_actual']:
+        texto = f"se le pone su ficha técnica (versión {prev['version_nueva']}) y lo que tenía antes queda guardado."
+    else:
+        texto = 'se actualizan sus datos y lo que tenía antes queda guardado.'
+    return (f"{texto} Cambia: {ver.resumen_cambios(prev['cambios'])}. Sus fotos, documentos, mantenimientos y "
+            'piezas se conservan.')
+
+
 def _revisar(cur, filas, ajustes, hoy, archivos=()):
     equipos = [f for f in filas if f['clase'] == 'equipo']
     info_empresa = {a['id']: a.get('empresa') or {} for a in archivos or ()}
@@ -2811,8 +2997,16 @@ def _revisar(cur, filas, ajustes, hoy, archivos=()):
                 duplicado_de[f['n']] = primera['n']
     por_clave = {r: next((existentes[k] for n in grupos[r] for k in claves[n] if k in existentes), None)
                  for r in grupos}
-    por_modelo, dudosos, candidatos_de = _ya_registrados_sin_serial(
-        cur, equipos, raices, grupos, por_clave, cliente_de, (por_correo, por_tel, por_nombre), defecto)
+    por_modelo, alternativas, candidatos_de, opciones, juntar = _parecidos_del_cliente(
+        cur, equipos, grupos, por_clave, cliente_de, (por_correo, por_tel, por_nombre), defecto)
+    for r, destino in juntar.items():              # p. ej. la fila de la tabla sin número, con la de su hoja
+        for n in grupos.pop(r):
+            raices[n] = destino
+            grupos[destino].append(n)
+        por_clave.pop(r, None)
+    # Cómo quedará cada equipo que ya estaba: a qué versión pasa su ficha y qué cambia.
+    previstos = _actualizaciones_previstas(cur, {r: por_clave.get(r) or por_modelo.get(r) for r in grupos}, grupos,
+                                           {f['n']: f for f in equipos}, hoy)
 
     por_n = {f['n']: f for f in filas}
     vistas = {}
@@ -2825,7 +3019,7 @@ def _revisar(cur, filas, ajustes, hoy, archivos=()):
              'specs': _specs(e), 'contacto': None, 'cliente_accion': None, 'existente': None, 'mismo_que': None,
              'plan': (None, None), 'historial': f['historial'], 'notas': f['notas'], 'posible_duplicado': None,
              'estado': None, 'cliente': cliente_de.get(f['n'], f['cliente']), 'por_modelo': False,
-             'candidato': None}
+             'candidato': None, 'cambios': [], 'version_actual': None, 'version_nueva': None, 'opciones': []}
         vistas[f['n']] = v
         if f['clase'] != 'equipo':
             continue
@@ -2838,29 +3032,43 @@ def _revisar(cur, filas, ajustes, hoy, archivos=()):
             v['mensajes'].append(('ok', f'Es el mismo equipo de la fila {raiz}: se juntan en una sola ficha.'))
         else:
             existente = por_clave.get(raiz)
+            prev = previstos.get(raiz)
             if existente:
                 v['existente'] = existente
-                v['mensajes'].append(('aviso', f"Ya está registrado ({existente['descripcion']}, de "
-                                               f"{existente['cliente_nombre'] or 'otro cliente'}): se le agrega el "
-                                               'historial y se llenan solo los datos que le faltan.'))
+                v['mensajes'].append(('ok', f"Ya está registrado ({existente['descripcion']}, de "
+                                            f"{existente['cliente_nombre'] or 'otro cliente'}): "
+                                            + _texto_actualizacion(prev)))
             elif f['n'] in por_modelo:
                 existente = por_modelo[f['n']]
                 v['existente'], v['por_modelo'] = existente, True
-                v['mensajes'].append(('aviso', f"Ya está registrado sin serial ({existente['descripcion']}, de "
-                                               f"{existente['cliente_nombre'] or 'otro cliente'}): es el mismo cliente, "
-                                               'marca y modelo, así que se completa ese equipo con estos datos en vez '
-                                               'de crear otro igual. Si es un equipo distinto, pulsa «Es otro equipo».'))
-            elif f['n'] in dudosos:
-                k = len(dudosos[f['n']])
-                v['mensajes'].append(('aviso', f"El cliente ya tiene {k} equipo{'s' if k != 1 else ''} "
-                                               f"{st.descripcion_equipo(e)} sin serial y no se sabe si este es "
-                                               f"{'uno de ellos' if k != 1 else 'ese'}: se registra como nuevo. Si ya "
-                                               'estaba registrado, quita esta fila y complétalo desde la página de '
-                                               'ese equipo.'))
+                if existente.get('manual'):
+                    texto = (f"Escogiste que es el que ya estaba ({existente['descripcion']}, de "
+                             f"{existente['cliente_nombre'] or 'otro cliente'}): ")
+                else:
+                    texto = (f"Es el mismo cliente y un equipo parecido ({existente['descripcion']}, registrado el "
+                             f"{existente['creado_en']:%d/%m/%Y}), así que no se crea otro: ")
+                v['mensajes'].append(('ok', texto + _texto_actualizacion(prev)
+                                      + ('' if existente.get('manual') else
+                                         ' Si es un equipo distinto, pulsa «Es otro equipo».')))
+                otros = alternativas.get(f['n']) or []
+                if otros:
+                    v['mensajes'].append(('aviso', f"También se parece a {len(otros)} equipo"
+                                                   f"{'s' if len(otros) != 1 else ''} más de este cliente: se escogió "
+                                                   'el más parecido y, entre iguales, el que se registró primero. Si '
+                                                   'no es ese, escoge cuál es abajo.'))
             elif f.get('es_otro_equipo') and candidatos_de.get(f['n']):
                 v['candidato'] = candidatos_de[f['n']][0]
                 v['mensajes'].append(('ok', 'Marcaste que es otro equipo: se registra aparte del que ya estaba '
                                             f"({v['candidato']['descripcion']})."))
+            elif opciones.get(f['n']):
+                k = len(opciones[f['n']])
+                v['mensajes'].append(('ok', f"Se registra como equipo nuevo. El cliente ya tiene {k} equipo"
+                                            f"{'s' if k != 1 else ''} registrado{'s' if k != 1 else ''}: si es uno "
+                                            'de ellos, escógelo abajo y se actualiza en vez de crear otro.'))
+            if prev:
+                v.update(cambios=prev['cambios'], version_actual=prev['version_actual'],
+                         version_nueva=prev['version_nueva'])
+            v['opciones'] = opciones.get(f['n']) or alternativas.get(f['n']) or []
         if f.get('ficha'):
             fx = f['ficha']
             v['mensajes'].append(('ok', 'Ficha técnica reconocida' + (f" {f['ficha_codigo']}" if f.get('ficha_codigo') else '')
@@ -3115,6 +3323,153 @@ def _completar_existente(cur, equipo_id, nuevo):
     return {'equipo_id': equipo_id, 'columnas': columnas, 'extras': extras, 'notas': notas} if sets else None
 
 
+def _entero(valor):
+    try:
+        return int(valor or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _unir_ficha(actual, llega):
+    """La ficha que llega es la nueva versión, pero lo que ella no dice se conserva
+    de la anterior: filas, textos y las fotos escogidas. El estado (azul o roja),
+    las filas en rojo y el problema los dice el documento que llega."""
+    if not actual:
+        return {k: v for k, v in llega.items() if k != 'fotos'}
+    nueva = dict(actual)
+    for k, v in llega.items():
+        if k == 'filas':
+            filas = dict(actual.get('filas') or {})
+            filas.update({etq: x for etq, x in (v or {}).items() if str(x or '').strip()})
+            nueva['filas'] = filas
+        elif k == 'orden':
+            orden = [e for e in v or [] if isinstance(e, str)]
+            nueva['orden'] = orden + [e for e in actual.get('orden') or [] if e not in orden]
+        elif k in ('version', 'fecha', 'fotos'):
+            continue
+        elif v not in (None, '', [], {}):
+            nueva[k] = v
+    if llega.get('estado'):
+        nueva['destacar'] = list(llega.get('destacar') or [])
+        if llega['estado'] == 'bueno' and not llega.get('problema'):
+            nueva.pop('problema', None)
+    if llega.get('fabricante') and _norm(llega['fabricante']) != _norm(actual.get('fabricante')) \
+            and not llega.get('fabricante_url'):
+        nueva.pop('fabricante_url', None)            # el enlace era del fabricante de antes
+    return nueva
+
+
+def _ya_lo_dice(actual, nuevo):
+    """¿Lo que llega ya está dicho (igual o con menos detalle) en lo que hay? Una
+    tabla que dice «IdeaCentre B320» no reemplaza «IdeaCentre B320 (Touch)», ni
+    «16 GB» a «16 GB DDR4»; «16 GB DDR4» sí reemplaza «8 GB DDR4»."""
+    palabras = _norm(nuevo).split()
+    return bool(palabras) and set(palabras) <= set(_norm(actual).split())
+
+
+def _equipo_actualizado(actual, nuevo, fila, hoy, version_fija=None):
+    """Cómo queda un equipo que ya existía con lo que trae una fila del archivo
+    (sin escribir nada). Lo que trae el archivo manda y lo que no trae se
+    conserva; el serial y el IMEI solo se llenan si faltaban (si son otros, es
+    otro equipo). Si cambia lo que dice la ficha, queda como versión nueva
+    (`version_fija`: la que ya le dio esta misma importación)."""
+    d = dict(actual)
+    tipo = d['tipo']
+    if tipo == 'otro' and tipos.es_valido(nuevo.get('tipo') or '') and nuevo['tipo'] != 'otro' \
+            and not fila.get('tipo_adivinado'):
+        d['tipo'] = tipo = nuevo['tipo']             # la ficha dice qué es («Impresora de carnés…»)
+    permitidas = set(tipos.columnas(tipo)) | {'serial', 'imei'}
+    for c in st._COLUMNAS_EQUIPO:
+        valor = nuevo.get(c)
+        if not valor or c not in permitidas:
+            continue
+        valor = str(valor)[:st._LARGOS[c]]
+        if c == 'imei' and not st.imei_valido(valor):
+            continue
+        if d.get(c) and (c in ('serial', 'imei') or _ya_lo_dice(d[c], valor)):
+            continue
+        d[c] = valor
+    extras = dict(d.get('extras') or {})
+    for k, v in tipos.limpiar_extras(tipo, nuevo.get('extras') or {}).items():
+        if v not in (None, '') and not (extras.get(k) not in (None, '') and _ya_lo_dice(extras[k], v)):
+            extras[k] = v
+    d['extras'] = extras
+    resumen = ' '.join(str(nuevo.get('resumen_ia') or '').split())[:800]
+    if resumen and not _ya_lo_dice(d.get('resumen_ia'), resumen):
+        d['resumen_ia'] = resumen
+    if nuevo.get('notas'):                           # solo lo que no estaba ya en las notas
+        ya = {linea.strip() for linea in (d.get('notas') or '').split('\n')}
+        lineas = [x.strip() for x in nuevo['notas'].split('\n') if x.strip() and x.strip() not in ya]
+        if lineas:
+            d['notas'] = ((d.get('notas') or '') + '\n' + '\n'.join(lineas)).strip()[:2000]
+    if fila.get('ficha'):
+        d['ficha'] = _unir_ficha(actual.get('ficha') or {}, fila['ficha'])
+    if fila.get('ficha_codigo') and not d.get('ficha_codigo'):
+        d['ficha_codigo'] = fila['ficha_codigo'][:40]
+    antes, despues = ver.estado_de(actual), ver.estado_de(d)
+    if d.get('ficha') and ver.diferencias(antes, despues):
+        previa, llega = actual.get('ficha') or {}, fila.get('ficha') or {}
+        if version_fija:
+            numero = version_fija
+        elif previa:
+            numero = max(ver.numero(antes) + 1, _entero(llega.get('version')))
+        else:
+            numero = max(1, _entero(llega.get('version')))
+        # La primera ficha lleva la fecha de su documento; una versión nueva, la de hoy.
+        fecha = hoy.isoformat() if previa else (llega.get('fecha') or hoy.isoformat())
+        d['ficha'] = {**d['ficha'], 'version': numero, 'fecha': fecha}
+    elif ver.igual(antes, despues):
+        d = dict(actual, notas=d.get('notas'))     # la ficha ya decía esto: a lo sumo, notas nuevas
+    return d
+
+
+def _actualizar_existente(cur, equipo_id, nuevo, fila, lote_id, usuario_id, hoy, hechas):
+    """El archivo trae otra vez un equipo que ya existía: se actualiza con lo que
+    trae y su ficha queda como versión nueva; la anterior se guarda (versiones).
+    Lo que el archivo no trae se conserva, y sus fotos, documentos,
+    mantenimientos, piezas, órdenes y recordatorios no se tocan. `hechas` junta lo
+    de esta importación por equipo (una sola versión aunque venga en varias filas).
+    Devuelve lo hecho con este equipo (para deshacerlo) o None si no cambió nada."""
+    cur.execute('SELECT * FROM st_equipos WHERE id = %s FOR UPDATE', (equipo_id,))
+    actual = dict(cur.fetchone())
+    previa = hechas.get(equipo_id)
+    d = _equipo_actualizado(actual, nuevo, fila, hoy, version_fija=previa.get('version_nueva') if previa else None)
+    if d.get('ficha_codigo') and d['ficha_codigo'] != actual.get('ficha_codigo'):
+        cur.execute("SELECT pg_advisory_xact_lock(hashtext('st_ficha_codigo'))")   # el mismo candado del consecutivo
+        cur.execute('SELECT 1 FROM st_equipos WHERE lower(ficha_codigo) = lower(%s) AND activo AND id <> %s',
+                    (d['ficha_codigo'], equipo_id))
+        if cur.fetchone():
+            d['ficha_codigo'] = actual.get('ficha_codigo')
+    sets, params = [], []
+    for c in st._COLUMNAS_EQUIPO + ('tipo', 'notas', 'resumen_ia', 'ficha_codigo'):
+        if d.get(c) != actual.get(c):
+            sets.append(f'{c} = %s')
+            params.append(d.get(c))
+    for c in ('extras', 'ficha'):
+        if (d.get(c) or {}) != (actual.get(c) or {}):
+            sets.append(f'{c} = %s::jsonb')
+            params.append(json.dumps(d.get(c) or {}, ensure_ascii=False, default=str))
+    if not sets:
+        return previa
+    cur.execute(f"UPDATE st_equipos SET {', '.join(sets)}, actualizado_en = NOW() WHERE id = %s", (*params, equipo_id))
+    entrada = previa or {'equipo_id': equipo_id, 'antes': ver.estado_de(actual), 'notas_antes': actual.get('notas'),
+                         'version_id': None, 'version_nueva': None}
+    entrada['despues'] = ver.estado_de(d)
+    entrada['notas'] = ({'antes': entrada['notas_antes'], 'despues': d.get('notas')}
+                        if d.get('notas') != entrada['notas_antes'] else None)
+    version_id = ver.registrar(cur, equipo_id, entrada['antes'], entrada['despues'], 'importacion', lote_id, usuario_id)
+    entrada['version_id'] = version_id or entrada['version_id']
+    nueva = (d.get('ficha') or {}).get('version')
+    if nueva and nueva != (actual.get('ficha') or {}).get('version'):
+        entrada['version_nueva'] = nueva
+        st._evento(cur, None, equipo_id, 'equipo',
+                   f'Ficha técnica: versión {nueva} desde la importación #{lote_id}'
+                   + (' (la anterior queda guardada)' if actual.get('ficha') else ''), usuario_id)
+    entrada['cambios'] = ver.diferencias(entrada['antes'], entrada['despues'])
+    hechas[equipo_id] = entrada
+    return entrada
+
+
 def _poner_ficha(cur, equipo_id, fila):
     """La ficha técnica importada: si el equipo no tenía ficha, o si la que
     llega es más nueva (versión mayor o fecha posterior). El código se pone si
@@ -3218,8 +3573,8 @@ def importar(lote_id, usuario_id=None, hoy=None):
         nombres_archivo = {a['id']: a['nombre'] for a in lote['archivos']}
         res = {'equipos_creados': [], 'equipos_completados': [], 'contactos_creados': [], 'mantenimientos': [],
                'seguimientos': [], 'documentos': [], 'planes': [], 'filas': {}, 'fichas': [], 'fotos': [],
-               'empresas_creadas': [], 'carpetas_puestas': [], 'equipos_existentes': []}
-        carpetas_cache = {}
+               'empresas_creadas': [], 'carpetas_puestas': [], 'equipos_existentes': [], 'versiones': []}
+        carpetas_cache, hechas = {}, {}
         listas = [v for v in vista['filas'] if v['clase'] == 'equipo' and v['estado'] in ('ok', 'aviso')]
         # Clientes nuevos: uno por persona, con los datos de todas sus filas.
         agenda, persona_de = _Agenda(), {}
@@ -3255,21 +3610,20 @@ def importar(lote_id, usuario_id=None, hoy=None):
                     equipo_id = equipo_de_fila.get(v['mismo_que'])
                     if not equipo_id:
                         raise ErrorServicio(f"la fila {v['mismo_que']} con la que se junta no se pudo importar.")
-                    cambios = _completar_existente(cur, equipo_id, datos_equipo)
-                    if cambios and equipo_id not in res['equipos_creados']:
-                        res['equipos_completados'].append(cambios)
-                    if equipo_id in res['equipos_creados'] and tipos.es_valido(f['equipo'].get('tipo') or '') \
-                            and f['equipo']['tipo'] != 'otro' and not f.get('tipo_adivinado'):
-                        # La hoja de su ficha dice qué es («Impresora de carnés…»): manda sobre «Otro».
-                        cur.execute("UPDATE st_equipos SET tipo = %s WHERE id = %s AND tipo = 'otro'",
-                                    (f['equipo']['tipo'], equipo_id))
+                    if equipo_id in res['equipos_creados']:       # equipo nuevo de este lote: se completa
+                        _completar_existente(cur, equipo_id, datos_equipo)
+                        if tipos.es_valido(f['equipo'].get('tipo') or '') and f['equipo']['tipo'] != 'otro' \
+                                and not f.get('tipo_adivinado'):
+                            # La hoja de su ficha dice qué es («Impresora de carnés…»): manda sobre «Otro».
+                            cur.execute("UPDATE st_equipos SET tipo = %s WHERE id = %s AND tipo = 'otro'",
+                                        (f['equipo']['tipo'], equipo_id))
+                    else:                                         # se junta con uno que ya estaba: versión nueva
+                        _actualizar_existente(cur, equipo_id, datos_equipo, f, lote_id, usuario_id, hoy, hechas)
                 elif v['existente']:
                     equipo_id = v['existente']['id']
                     contacto_de_equipo[equipo_id] = v['existente']['crm_contacto_id']
                     res['equipos_existentes'].append(equipo_id)
-                    cambios = _completar_existente(cur, equipo_id, datos_equipo)
-                    if cambios:
-                        res['equipos_completados'].append(cambios)
+                    _actualizar_existente(cur, equipo_id, datos_equipo, f, lote_id, usuario_id, hoy, hechas)
                 else:
                     contacto_id = contacto_para(v)
                     equipo_id = st.crear_equipo(cur, contacto_id, datos_equipo, usuario_id)
@@ -3302,7 +3656,7 @@ def importar(lote_id, usuario_id=None, hoy=None):
                                 (equipo_id, f['documento_id'], lote_id))
                     if cur.rowcount:
                         res['documentos'].append(f['documento_id'])
-                if f.get('ficha'):
+                if f.get('ficha') and equipo_id in res['equipos_creados']:   # (la de uno que ya estaba: arriba)
                     ficha = _poner_ficha(cur, equipo_id, f)
                     if ficha:
                         res['fichas'].append(ficha)
@@ -3354,9 +3708,11 @@ def importar(lote_id, usuario_id=None, hoy=None):
             st._actividad_crm(cur, contacto_id, 'nota', 'Servicio técnico: equipos importados',
                               f'{len(equipos_ids)} equipo(s) traídos desde archivos (importación #{lote_id}).',
                               usuario_id)
+        res['versiones'] = [{k: x for k, x in h.items() if k != 'notas_antes'} for h in hechas.values()]
         res['resumen'] = {'equipos_creados': len(res['equipos_creados']),
                           'equipos_completados': len({c['equipo_id'] for c in res['equipos_completados']}
                                                      | set(res['equipos_existentes'])),
+                          'fichas_actualizadas': sum(1 for h in hechas.values() if h.get('version_id')),
                           'contactos_creados': len(res['contactos_creados']),
                           'mantenimientos': len(res['mantenimientos']), 'recordatorios': len(res['seguimientos']),
                           'documentos': len(res['documentos']),
@@ -3421,7 +3777,9 @@ def deshacer(lote_id, usuario_id=None):
         if res.get('fotos'):
             cur.execute('UPDATE st_fotos SET activo = FALSE WHERE id = ANY(%s) AND activo AND NOT (equipo_id = ANY(%s))',
                         (res['fotos'], conservados))
-        devueltos = 0
+        # Equipos que ya estaban: cada dato vuelve a la versión anterior si nadie lo cambió después.
+        devueltos = ver.deshacer_importacion(cur, lote_id, [x for x in res.get('versiones') or []
+                                                            if x['equipo_id'] not in retirar])
         for cambio in res.get('equipos_completados') or []:
             eid = cambio['equipo_id']
             for c, valor in (cambio.get('columnas') or {}).items():
@@ -3465,7 +3823,8 @@ def deshacer(lote_id, usuario_id=None):
             if cur.rowcount:
                 archivados.append(cid)
         for eid in set(retirar) | {c['equipo_id'] for c in res.get('equipos_completados') or []} | \
-                {p['equipo_id'] for p in res.get('planes') or []} | set(res.get('equipos_existentes') or []):
+                {p['equipo_id'] for p in res.get('planes') or []} | set(res.get('equipos_existentes') or []) | \
+                {x['equipo_id'] for x in res.get('versiones') or []}:
             st._evento(cur, None, eid, 'equipo', f'Importación #{lote_id} deshecha', usuario_id)
         res['deshecho'] = {'equipos_retirados': len(retirar), 'equipos_conservados': conservados,
                            'datos_devueltos': devueltos, 'contactos_archivados': len(archivados),
@@ -3501,9 +3860,13 @@ def equipos_del_resultado(lote):
                        FROM st_equipos e LEFT JOIN crm_contactos c ON c.id = e.crm_contacto_id
                        WHERE e.id = ANY(%s) ORDER BY e.id""", (lote['id'], ids))
         filas = [dict(r) for r in cur.fetchall()]
+    versiones = {x['equipo_id']: x for x in res.get('versiones') or []}
     for f in filas:
         f['descripcion'] = st.descripcion_equipo(f)
         f['nuevo'] = f['id'] in creados
+        hecho = versiones.get(f['id']) or {}
+        f['actualizado'], f['version'] = bool(hecho.get('cambios')), hecho.get('version_nueva')
+        f['completado'] = f['id'] in completados          # importaciones de antes de las versiones
     return filas
 
 

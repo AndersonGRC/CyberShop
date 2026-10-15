@@ -196,11 +196,24 @@ def _preposicion(asignado):
     return 'A '
 
 
-def armar(equipo_id):
-    """Todo lo que va en la ficha (para el PDF y la pantalla de edición)."""
+def armar(equipo_id, version_id=None):
+    """Todo lo que va en la ficha (para el PDF y la pantalla de edición). Con
+    `version_id`, la ficha como era en esa versión guardada (para verla o
+    imprimirla); las fotos son las de hoy."""
     equipo = st.obtener_equipo(equipo_id)
     if not equipo:
         raise ErrorServicio('El equipo no existe.')
+    guardada = None
+    if version_id:
+        from services import servicio_tecnico_versiones as versiones
+        guardada = versiones.obtener(equipo_id, version_id)
+        if not guardada:
+            raise ErrorServicio('Esa versión de la ficha no existe.')
+        estado = guardada['estado'] or {}
+        equipo.update(estado.get('equipo') or {})
+        equipo.update(extras=estado.get('extras') or {}, ficha=estado.get('ficha') or {},
+                      ficha_codigo=estado.get('ficha_codigo') or equipo.get('ficha_codigo'),
+                      resumen_ia=estado.get('resumen') or equipo.get('resumen_ia'))
     ficha = equipo.get('ficha') or {}
     cliente, ultimo = _cliente(equipo_id)
     propias = ficha.get('filas') or {}
@@ -240,6 +253,7 @@ def armar(equipo_id):
         'problema': ficha.get('problema') or '', 'requerimientos': ficha.get('requerimientos') or '',
         'fotos': fotos_de_la_ficha(equipo_id, ficha.get('fotos')), 'fotos_elegidas': ficha.get('fotos') or [],
         'negocio': datos_negocio().get('negocio') or '', 'guardada': bool(ficha),
+        'version_guardada': guardada,
     }
 
 
@@ -498,11 +512,18 @@ def guardar(equipo_id, datos, usuario_id=None):
         'fotos': fotos[:FOTOS_EN_FICHA],
     }
     ficha = {k: v for k, v in ficha.items() if v not in (None, '', [], {})}
-    with get_db_cursor() as cur:
+    from services import servicio_tecnico_versiones as versiones
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute('SELECT * FROM st_equipos WHERE id = %s FOR UPDATE', (equipo_id,))
+        actual = dict(cur.fetchone())
         # La descripción de la ficha es también el resumen del equipo (se ve en su página).
         cur.execute("""UPDATE st_equipos SET ficha = %s::jsonb, resumen_ia = COALESCE(%s, resumen_ia),
                               actualizado_en = NOW()
                        WHERE id = %s""", (json.dumps(ficha, ensure_ascii=False), descripcion, equipo_id))
+        # La ficha de antes no se pierde: queda como versión guardada.
+        despues = dict(actual, ficha=ficha, resumen_ia=descripcion or actual.get('resumen_ia'))
+        versiones.registrar(cur, equipo_id, versiones.estado_de(actual), versiones.estado_de(despues), 'manual',
+                            usuario_id=usuario_id)
         st._evento(cur, None, equipo_id, 'equipo',
                    'Ficha técnica actualizada (' + ('presenta inconvenientes' if estado == 'inconveniente'
                                                    else 'en buen estado') + ')', usuario_id)

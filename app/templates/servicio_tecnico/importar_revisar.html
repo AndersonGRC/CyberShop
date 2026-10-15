@@ -28,7 +28,7 @@
     <ul class="st-imp-cifras">
         <li class="st-imp-cifra-grande"><b>{{ r.incluidas }}</b> <span>equipo{{ '' if r.incluidas == 1 else 's' }} para importar</span></li>
         {% if r.nuevos %}<li><b>{{ r.nuevos }}</b> <span>ficha{{ '' if r.nuevos == 1 else 's' }} nueva{{ '' if r.nuevos == 1 else 's' }}</span></li>{% endif %}
-        {% if r.existentes %}<li><b>{{ r.existentes }}</b> <span>ya estaba{{ '' if r.existentes == 1 else 'n' }} registrado{{ '' if r.existentes == 1 else 's' }}: se completa{{ '' if r.existentes == 1 else 'n' }}</span></li>{% endif %}
+        {% if r.existentes %}<li><b>{{ r.existentes }}</b> <span>ya estaba{{ '' if r.existentes == 1 else 'n' }} registrado{{ '' if r.existentes == 1 else 's' }}: no se crea{{ '' if r.existentes == 1 else 'n' }} de nuevo, su ficha queda en una versión nueva y la anterior se guarda</span></li>{% endif %}
         {% if r.unidas %}<li><b>{{ r.unidas }}</b> <span>fila{{ '' if r.unidas == 1 else 's' }} se junta{{ '' if r.unidas == 1 else 'n' }} con otra del mismo equipo</span></li>{% endif %}
         <li><b>{{ r.clientes_nuevos }}</b> <span>cliente{{ '' if r.clientes_nuevos == 1 else 's' }} nuevo{{ '' if r.clientes_nuevos == 1 else 's' }} en el CRM ({{ r.clientes_existentes }} ya estaba{{ '' if r.clientes_existentes == 1 else 'n' }})</span></li>
         <li><b>{{ r.carpetas }}</b> <span>carpeta{{ '' if r.carpetas == 1 else 's' }} de empresa{% if r.carpetas_nuevas %} ({{ r.carpetas_nuevas }} nueva{{ '' if r.carpetas_nuevas == 1 else 's' }}){% endif %} · {{ r.particulares }} a Particulares</span></li>
@@ -206,6 +206,23 @@
     </ul>
     {% endif %}
 
+    {% if v.cambios %}
+    <details class="st-imp-mas">
+        <summary>Qué cambia en su ficha{% if v.version_actual and v.version_nueva != v.version_actual %} (versión {{ v.version_actual }} → {{ v.version_nueva }}){% elif v.version_nueva and not v.version_actual %} (queda con su ficha, versión {{ v.version_nueva }}){% endif %}</summary>
+        <div class="st-tabla-wrap">
+            <table class="st-tabla">
+                <thead><tr><th scope="col">Dato</th><th scope="col">Tenía</th><th scope="col">Queda</th></tr></thead>
+                <tbody>
+                {% for c in v.cambios[:15] %}
+                <tr><th scope="row">{{ c.etiqueta }}</th><td data-label="Tenía">{{ c.antes or '—' }}</td><td data-label="Queda">{{ c.ahora or '—' }}</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if v.cambios | length > 15 %}<p class="st-nota">Y {{ v.cambios | length - 15 }} cambio{{ '' if v.cambios | length == 16 else 's' }} más.</p>{% endif %}
+    </details>
+    {% endif %}
+
     {% if v.historial or v.notas or f.resumen %}
     <details class="st-imp-mas">
         <summary>Ver {% if v.historial %}la hoja de vida{% endif %}{% if v.historial and (v.notas or f.resumen) %} y {% endif %}{% if v.notas or f.resumen %}las notas{% endif %}</summary>
@@ -284,7 +301,22 @@
             <button class="st-btn st-btn-sec st-btn-sm" type="submit"><i class="fas fa-clone" aria-hidden="true"></i> Es otro equipo: registrarlo aparte</button></form>
         {% elif f.es_otro_equipo and v.candidato %}
         <form method="post" action="{{ accion_url }}">{{ ocultos() }}<input type="hidden" name="accion" value="mismo_registrado">
-            <button class="st-btn st-btn-sec st-btn-sm" type="submit"><i class="fas fa-link" aria-hidden="true"></i> Es el que ya está registrado: completarlo</button></form>
+            <button class="st-btn st-btn-sec st-btn-sm" type="submit"><i class="fas fa-link" aria-hidden="true"></i> Es el que ya está registrado: actualizarlo</button></form>
+        {% endif %}
+        {% if v.opciones and not v.mismo_que %}
+        <form method="post" action="{{ accion_url }}" class="st-imp-adjuntar">
+            {{ ocultos() }}<input type="hidden" name="accion" value="usar_equipo">
+            <label for="usar-{{ v.n }}">{% if v.existente %}¿No es ese? Es:{% else %}¿Ya estaba registrado? Es:{% endif %}</label>
+            <select id="usar-{{ v.n }}" name="equipo_id" required>
+                <option value="">Escoge el equipo</option>
+                {% for o in v.opciones %}<option value="{{ o.id }}">{{ o.descripcion }}{% if o.ficha_codigo %} · {{ o.ficha_codigo }}{% endif %}{% if o.serial %} · serial {{ o.serial }}{% endif %} · registrado el {{ o.creado_en.strftime('%d/%m/%Y') }}</option>{% endfor %}
+            </select>
+            <button class="st-btn st-btn-sec st-btn-sm" type="submit"><i class="fas fa-sync-alt" aria-hidden="true"></i> Actualizar ese</button>
+        </form>
+        {% endif %}
+        {% if f.usar_equipo %}
+        <form method="post" action="{{ accion_url }}">{{ ocultos() }}<input type="hidden" name="accion" value="no_usar_equipo">
+            <button class="st-btn st-btn-sec st-btn-sm" type="submit"><i class="fas fa-undo" aria-hidden="true"></i> Volver a buscarlo solo</button></form>
         {% endif %}
         {% endif %}
     </div>

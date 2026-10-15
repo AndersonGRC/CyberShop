@@ -169,9 +169,10 @@ def limpiar(cursor):
         equipos = [r['id'] for r in cur.fetchall()]
         cur.execute("SELECT DISTINCT empresa_id FROM st_equipos WHERE id = ANY(%s) AND empresa_id IS NOT NULL", (equipos,))
         empresas = [r['empresa_id'] for r in cur.fetchall()]
-        for tabla in ('st_documentos', 'st_mantenimientos', 'st_seguimientos', 'st_fotos', 'st_eventos'):
+        for tabla in ('st_documentos', 'st_mantenimientos', 'st_seguimientos', 'st_cambios', 'st_fotos', 'st_eventos'):
             cur.execute(f'DELETE FROM {tabla} WHERE equipo_id = ANY(%s)', (equipos,))
         cur.execute('DELETE FROM st_documentos WHERE importacion_id = ANY(%s)', (lotes,))
+        cur.execute('DELETE FROM st_fichas_versiones WHERE equipo_id = ANY(%s)', (equipos,))
         cur.execute('DELETE FROM st_equipos WHERE id = ANY(%s)', (equipos,))
         cur.execute("""DELETE FROM st_empresas x WHERE (x.id = ANY(%s) OR x.nombre ILIKE %s)
                        AND NOT EXISTS (SELECT 1 FROM st_equipos e WHERE e.empresa_id = x.id)""", (empresas, EMPRESA + '%'))
@@ -340,7 +341,10 @@ def test_completa_los_equipos_que_ya_estaban_sin_serial(flask_app, modulo, clien
         assert imp.revisar(imp.obtener_lote(lote_id))['por_n'][n]['por_modelo']
         res = imp.importar(lote_id, usuario_id=1)
     assert res['equipos_creados'] == [] and sorted(res['equipos_existentes']) == sorted(antes)
-    assert res['resumen']['equipos_completados'] == 2 and len(res['fichas']) == 2 and len(res['fotos']) == 2
+    assert res['resumen']['equipos_completados'] == 2 and len(res['fotos']) == 2
+    # Cada uno queda con su ficha (la versión del documento) y lo que tenía antes queda guardado.
+    assert sorted(x['equipo_id'] for x in res['versiones']) == sorted(antes)
+    assert {x['version_nueva'] for x in res['versiones']} == {1} and res['resumen']['fichas_actualizadas'] == 2
     with cursor() as cur:
         cur.execute("""SELECT e.*, x.nombre AS carpeta,
                               (SELECT COUNT(*) FROM st_fotos f WHERE f.equipo_id = e.id AND f.activo) AS fotos,
@@ -372,22 +376,54 @@ def test_completa_los_equipos_que_ya_estaban_sin_serial(flask_app, modulo, clien
         for r in cur.fetchall():
             assert r['activo'] and not r['ficha_codigo'] and r['ficha'] == {} and r['fotos'] == 0
             assert r['empresa_id'] is None and not r['procesador']
+        # La versión de la importación queda inactiva; la de antes sigue guardada. Nada se borró.
+        cur.execute('SELECT origen, activo FROM st_fichas_versiones WHERE equipo_id = ANY(%s) ORDER BY id', (antes,))
+        versiones = [(f['origen'], f['activo']) for f in cur.fetchall()]
+        assert sorted(versiones) == [('anterior', True), ('anterior', True), ('importacion', False),
+                                     ('importacion', False)]
 
 
-def test_si_hay_dos_iguales_sin_serial_no_se_adivina(flask_app, modulo, cursor, limpiar, sin_ia):
-    """Si el cliente tiene dos equipos de la misma marca y modelo sin serial, no se
-    sabe cuál es: la fila se registra como nueva y se avisa."""
+def _dos_iguales(flask_app, limpiar, areas):
+    """Dos equipos del mismo cliente, misma marca y modelo y sin serial (como los
+    deja la tabla de control), y después el libro completo con sus fichas."""
     from services import servicio_tecnico_importar as imp
-    dos = [('HP Pavilion All-in-One 24-xa1xx', 'Contabilidad', ''), ('HP Pavilion All-in-One 24-xa1xx', 'Gerencia', '')]
+    dos = [('HP Pavilion All-in-One 24-xa1xx', area, '') for area in areas]
     with flask_app.test_request_context('/'):
         primero, _ = imp.crear_lote([_archivo('control.xlsx', _libro(solo_control=True, filas_control=dos))],
                                     usuario_id=1)
         limpiar.append(primero)
-        assert len(imp.importar(primero, usuario_id=1)['equipos_creados']) == 2
+        creados = imp.importar(primero, usuario_id=1)['equipos_creados']
         lote_id, _ = imp.crear_lote([_archivo('fichas.xlsx', _libro())], usuario_id=1)
         limpiar.append(lote_id)
         vista = imp.revisar(imp.obtener_lote(lote_id))
     hp = next(v for v in vista['filas'] if not v['mismo_que'] and 'Pavilion' in v['titulo'])
-    assert not hp['existente'] and not hp['por_modelo']
-    assert any('ya tiene 2 equipos' in texto for _nivel, texto in hp['mensajes'])
-    assert vista['resumen']['nuevos'] == 2 and vista['resumen']['existentes'] == 0
+    return creados, hp, vista, lote_id
+
+
+def test_si_hay_dos_iguales_se_actualiza_el_del_mismo_area(flask_app, modulo, cursor, limpiar, sin_ia):
+    """Dos iguales sin serial: la ficha de «CONTABILIDAD» actualiza el equipo del
+    área Contabilidad aunque el de Gerencia se haya registrado primero. No se crea
+    otro, y el otro parecido queda para escogerlo a mano si no era ese."""
+    from services import servicio_tecnico_importar as imp
+    (gerencia, contabilidad), hp, vista, lote_id = _dos_iguales(flask_app, limpiar, ['Gerencia', 'Contabilidad'])
+    assert hp['existente']['id'] == contabilidad and hp['por_modelo']
+    assert [o['id'] for o in hp['opciones']] == [gerencia]
+    assert vista['resumen']['existentes'] == 1 and vista['resumen']['nuevos'] == 1         # el MC310 es nuevo
+    with flask_app.test_request_context('/'):
+        res = imp.importar(lote_id, usuario_id=1)
+    assert res['equipos_existentes'] == [contabilidad] and len(res['equipos_creados']) == 1
+    with cursor() as cur:
+        cur.execute('SELECT id, ficha_codigo, procesador FROM st_equipos WHERE id = ANY(%s) ORDER BY id',
+                    ([gerencia, contabilidad],))
+        g, c = cur.fetchall()
+    assert c['ficha_codigo'] == COD1 and c['procesador'].startswith('AMD Ryzen 7')
+    assert not g['ficha_codigo'] and not g['procesador']                                # el otro no se tocó
+
+
+def test_si_nada_los_distingue_se_actualiza_el_mas_antiguo(flask_app, modulo, cursor, limpiar, sin_ia):
+    """Si nada distingue a los dos iguales (otras áreas), se actualiza la ficha más
+    antigua —el que se registró primero— en vez de crear uno nuevo."""
+    (bodega, archivo), hp, vista, _lote = _dos_iguales(flask_app, limpiar, ['Bodega', 'Archivo'])
+    assert hp['existente']['id'] == bodega and [o['id'] for o in hp['opciones']] == [archivo]
+    assert any('el que se registró primero' in texto for _nivel, texto in hp['mensajes'])
+    assert any(c['etiqueta'] == 'Procesador' for c in hp['cambios']) and hp['version_nueva'] == 1

@@ -829,6 +829,15 @@
 .st-fv-acciones { margin-top: 16px; }
 .st-fv-acciones form { margin: 0; }
 .st-fv .st-acordeon { margin-top: 14px; margin-bottom: 18px; }
+/* Historial de la ficha: cada versión guardada, qué cambió y su PDF. */
+.st-fv-versiones { margin-top: 14px; border: 1px solid var(--st-linea); border-radius: var(--st-radio); padding: 10px 14px; }
+.st-fv-versiones > summary { cursor: pointer; font-weight: 700; min-height: 44px; display: flex; align-items: center; gap: 8px; }
+.st-fv-lista-versiones { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 12px; }
+.st-fv-lista-versiones > li { padding-top: 10px; border-top: 1px solid var(--st-linea); }
+.st-fv-version-cab { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
+.st-fv-version-cab .st-nota { margin: 0; }
+.st-fv-version-cab a { margin-left: auto; font-weight: 700; min-height: 44px; display: inline-flex; align-items: center; }
+.st-fv-cambios { margin: 6px 0 0; padding-left: 18px; color: var(--st-suave); overflow-wrap: anywhere; }
 @media (max-width: 560px) {
     .st-fv > :not(.st-fv-barra) { margin-left: 12px; margin-right: 12px; }
     .st-fv-codigo { margin-left: 0; width: 100%; }

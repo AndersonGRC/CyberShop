@@ -43,6 +43,7 @@ def limpiar(cursor):
         cur.execute("DELETE FROM st_ordenes WHERE id = ANY(%s)", (ordenes,))
         cur.execute("SELECT DISTINCT empresa_id FROM st_equipos WHERE id = ANY(%s) AND empresa_id IS NOT NULL", (equipos,))
         empresas = [r['empresa_id'] for r in cur.fetchall()]
+        cur.execute("DELETE FROM st_fichas_versiones WHERE equipo_id = ANY(%s)", (equipos,))
         cur.execute("DELETE FROM st_equipos WHERE id = ANY(%s)", (equipos,))
         cur.execute("""DELETE FROM st_empresas x WHERE (x.id = ANY(%s) OR x.nombre ILIKE %s)
                        AND NOT EXISTS (SELECT 1 FROM st_equipos e WHERE e.empresa_id = x.id)""", (empresas, MARCA + '%'))

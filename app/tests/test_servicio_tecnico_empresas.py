@@ -40,6 +40,7 @@ def limpiar(cursor):
         for tabla in ('st_documentos', 'st_mantenimientos', 'st_seguimientos', 'st_fotos', 'st_eventos'):
             cur.execute(f'DELETE FROM {tabla} WHERE equipo_id = ANY(%s)', (equipos,))
         cur.execute('DELETE FROM st_documentos WHERE importacion_id = ANY(%s)', (lotes,))
+        cur.execute('DELETE FROM st_fichas_versiones WHERE equipo_id = ANY(%s)', (equipos,))
         cur.execute('DELETE FROM st_equipos WHERE id = ANY(%s)', (equipos,))
         cur.execute("""DELETE FROM st_empresas x WHERE (x.id = ANY(%s) OR x.nombre ILIKE %s OR x.nombre ILIKE %s)
                        AND NOT EXISTS (SELECT 1 FROM st_equipos e WHERE e.empresa_id = x.id)""",
