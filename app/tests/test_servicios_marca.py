@@ -105,3 +105,12 @@ def test_titulo_propio(client, operador, monkeypatch):
                                  'services_hero_subtitle': 'Pan del día.'})
     html = client.get('/servicios').get_data(as_text=True)
     assert '<h1 id="sv-titulo">Lo que hacemos por ti</h1>' in html and 'Pan del día.' in html
+
+
+def test_sin_ruta_que_repita_el_menu(client, operador):
+    """«Inicio › Servicios» en el encabezado repetía el menú de arriba (1.9.10.1)."""
+    operador(True)
+    html = client.get('/servicios').get_data(as_text=True)
+    encabezado = html.split('class="sv-hero', 1)[1].split('</section>', 1)[0]
+    assert 'sv-ruta' not in encabezado and 'aria-label="Ruta"' not in encabezado
+    assert '<h1 id="sv-titulo">' in encabezado

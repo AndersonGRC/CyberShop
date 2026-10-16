@@ -66,18 +66,8 @@
     text-align: left;
 }
 
-.sv-ruta {
-    font-size: .875rem;
-    color: var(--color-blanco);
-}
-
-.sv-ruta a {
-    color: var(--color-blanco);
-    text-decoration: underline;
-}
-
 .sv-hero-marca {
-    margin: 6px 0 0;
+    margin: 0;
     font-size: .8125rem;
     font-weight: 800;
     letter-spacing: .2em;

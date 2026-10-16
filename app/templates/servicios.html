@@ -10,10 +10,7 @@
 <section class="sv-hero{% if sv_capa and sv_capa != 10 %} sv-capa-{{ sv_capa }}{% endif %}" aria-labelledby="sv-titulo">
     <div class="sv-hero-adorno" aria-hidden="true"></div>
     <div class="sv-hero-contenido">
-        {#- div con role y no <nav>: layout.css le da estilos de menú a toda etiqueta nav -#}
-        <div class="sv-ruta" role="navigation" aria-label="Ruta">
-            <a href="{{ url_for('public.index') }}">Inicio</a> <span aria-hidden="true">›</span> Servicios
-        </div>
+        {#- Sin ruta «Inicio › Servicios»: repetía el menú de arriba (pedido del usuario, 1.9.10.1). -#}
         {% if sv_negocio %}<p class="sv-hero-marca">{{ sv_negocio }}</p>{% endif %}
         <h1 id="sv-titulo">{{ sv_titulo }}</h1>
         <span class="sv-hero-linea" aria-hidden="true"></span>

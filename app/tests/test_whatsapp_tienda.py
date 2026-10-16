@@ -73,6 +73,7 @@ def test_boton_flotante(client, operador, contacto):
     contacto('3001234567', '')
     html = client.get('/contactenos').get_data(as_text=True)
     assert 'class="chat-button"' in html and html.count('wa.me/573001234567') >= 2, 'botón + dato de contacto'
+    assert 'aria-label="Chatea con nosotros por WhatsApp' in html, 'en el celular solo se ve el ícono'
 
     operador(True)
     contacto(WA_CYBERSHOP, TEL_CYBERSHOP)

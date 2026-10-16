@@ -335,7 +335,9 @@
         botón: nunca el de CyberShop en la tienda de un cliente. -#}
     {% if whatsapp_tienda %}
     <div class="chat-button">
-        <a href="https://wa.me/{{ whatsapp_tienda }}" target="_blank" rel="noopener">
+        {#- aria-label: en el celular el texto se oculta y solo queda el ícono. -#}
+        <a href="https://wa.me/{{ whatsapp_tienda }}" target="_blank" rel="noopener"
+           aria-label="Chatea con nosotros por WhatsApp (se abre en otra pestaña)">
             <img src="https://cdn-icons-png.flaticon.com/512/3670/3670051.png" alt="">
             <span>Chatea con nosotros</span>
         </a>
