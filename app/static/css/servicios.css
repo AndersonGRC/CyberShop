@@ -193,130 +193,454 @@
     white-space: nowrap;
 }
 
-/* Estilos generales */
-.servicios {
+/* ── Tarjetas de servicios (1.9.11.0, diseño A de Claude Design) ──
+   Todo sale del color principal de cada tienda: los tonos claros con color-mix (con
+   un respaldo antes, para navegadores sin color-mix) y la tinta de textos y botones
+   (--sv-tinta: el servidor la oscurece lo justo para 4,5:1, marca_service.tinta_legible). */
+.sv-servicios {
+    --sv-tinta-uso: var(--sv-tinta, var(--color-primario-oscuro));
+    background: var(--color-fondo);
+    background: color-mix(in srgb, var(--color-primario) 4%, var(--color-blanco));
+    padding: 44px 24px 72px;
+}
+
+.sv-servicios-contenido {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.sv-servicios-barra {
     display: flex;
     flex-wrap: wrap;
-    justify-content: center;
-    gap: 20px;
-    padding: 20px;
-}
-
-.servicio {
-    background: var(--color-fondo);
-    padding: 20px;
-    border-radius: 10px;
-    display: block;
     align-items: center;
-    border: 2px solid var(--color-transicion);
-    border-radius: 15px;
-    box-shadow: 0 4px 15px var(--negro-alpha-010);
-    width: 390px;
-    text-align: center;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    cursor: pointer;
+    justify-content: space-between;
+    gap: 12px;
 }
 
-.servicio:hover {
-    transform: scale(1.05);
-    box-shadow: 0px 8px 12px var(--negro-alpha-020);
-}
-
-.servicio .texto h2 {
-    font-size: 1.5rem;
-    margin-bottom: 10px;
-    color: var(--color-secundario);
-    text-align: center;
-}
-
-.servicio .texto {
-    flex: 1;
-    padding: 10px;
-}
-
-.servicio .texto p {
+.sv-servicios-ayuda {
+    margin: 0;
     font-size: 1rem;
-    color: var(--color-negro);
-    text-align: start;
+    color: var(--color-texto-secundario);
 }
 
-.servicio:hover {
-    transform: translateY(-10px);
-    box-shadow: 0 8px 25px var(--negro-alpha-020);
-    background: linear-gradient(135deg, var(--color-secundario), var(--color-transicion));
-    color: var(--color-fondo);
+.sv-servicios-cuenta {
+    font-size: .875rem;
+    font-weight: 700;
+    color: var(--sv-tinta-uso);
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: var(--color-fondo);
+    background: color-mix(in srgb, var(--color-primario) 8%, var(--color-blanco));
+    border: 1px solid var(--color-borde-claro);
+    border: 1px solid color-mix(in srgb, var(--color-primario) 18%, var(--color-blanco));
 }
 
-.servicio:hover .texto * {
-    color: var(--color-fondo);
-    /* Cambia este valor al color que desees */
+.sv-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+    gap: 28px;
 }
 
-.servicio .icono {
-    display: relative;
-    justify-content: center;
-    /* Centra horizontalmente */
-    align-items: center;
-    /* Centra verticalmente */
+/* Tarjeta */
+.sv-card {
+    position: relative;                  /* el ::after del botón la cubre: toda la tarjeta abre el detalle */
+    display: flex;
+    flex-direction: column;
+    background: var(--color-blanco);
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid var(--color-borde-claro);
+    border: 1px solid color-mix(in srgb, var(--color-primario) 16%, var(--color-blanco));
+    box-shadow: 0 1px 2px var(--negro-alpha-005), 0 12px 28px -18px var(--negro-alpha-030);
+    transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
 }
 
-.servicio .icono img {
-    width: 150px;
-    /* Ancho de la imagen */
-    height: auto;
-    /* Altura automática para mantener la proporción */
-    border-radius: 8px;
-    /* Bordes redondeados */
+.sv-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--color-primario);
+    border-color: color-mix(in srgb, var(--color-primario) 45%, var(--color-blanco));
+    box-shadow: 0 2px 4px var(--negro-alpha-007), 0 22px 40px -22px var(--negro-alpha-050);
 }
 
-/* Modal */
-.modal {
-    display: none;
-    position: fixed;
-    left: 0;
-    top: 0;
+.sv-card-media,
+.sv-dlg-media {
+    position: relative;
+    overflow: hidden;
+    background: var(--color-fondo);
+    background: color-mix(in srgb, var(--color-primario) 8%, var(--color-blanco));
+}
+
+.sv-card-media {
+    aspect-ratio: 16 / 10;
+}
+
+.sv-card-media img,
+.sv-dlg-media img {
+    display: block;
     width: 100%;
     height: 100%;
-    background-color: var(--overlay-claro);
+    object-fit: cover;
+}
+
+.sv-card-media img {
+    transition: transform .4s ease;
+}
+
+.sv-card:hover .sv-card-media img {
+    transform: scale(1.04);
+}
+
+/* Sin foto: la inicial del servicio sobre el tono claro de la marca */
+.sv-card-media--inicial {
+    display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 2;
 }
 
-.modal-content {
-    background: var(--color-fondo);
-    padding: 20px;
-    background: var(--color-fondo);
-    padding: 25px;
-    border-radius: 10px;
-    width: 50%;
-    text-align: left;
-    list-style-type: none;
-    width: 90%;
-    max-width: 500px;
-    position: relative;
-    animation: fadeIn 0.3s ease;
+.sv-card-inicial {
+    font-size: 4.5rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--sv-tinta-uso);
 }
 
-.modal-content h2 {
-    margin-bottom: 20px;
-    color: var(--color-secundario);
-}
-
-.modal-content ul {
-    list-style-type: none;
-    padding-left: 20px;
-    color: var(--color-secundario);
-}
-
-.close {
-    color: var(--color-eliminar);
-    font-size: 50px;
+.sv-card-num {
     position: absolute;
-    top: 10px;
-    right: 15px;
-    font-size: 24px;
-    color: var(--color-eliminar);
+    top: 14px;
+    left: 14px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: .75rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+    color: var(--sv-tinta-uso);
+    background: var(--color-blanco);
+    box-shadow: 0 2px 6px var(--negro-alpha-012);
+}
+
+.sv-card-cuerpo {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 22px 22px 4px;
+}
+
+.sv-card-titulo {
+    margin: 0;
+    font-size: 1.2rem;
+    line-height: 1.3;
+    color: var(--color-texto-oscuro);
+}
+
+.sv-card-texto {
+    margin: 0;
+    font-size: .95rem;
+    line-height: 1.6;
+    color: var(--color-texto-secundario);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.sv-card-lista {
+    list-style: none;
+    margin: 4px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.sv-card-lista li {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: .9rem;
+    line-height: 1.5;
+    color: var(--color-texto-oscuro);
+}
+
+.sv-card-lista svg {
+    flex: none;
+    margin-top: 3px;
+    color: var(--sv-tinta-uso);
+}
+
+.sv-card-ver {
+    margin: 14px 22px 22px;
+    min-height: 48px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border-radius: 12px;
+    border: 1.5px solid var(--color-primario);
+    border: 1.5px solid color-mix(in srgb, var(--color-primario) 55%, var(--color-blanco));
+    background: var(--color-blanco);
+    color: var(--sv-tinta-uso);
+    font: inherit;
+    font-size: .95rem;
+    font-weight: 700;
+    text-align: left;
     cursor: pointer;
-    float: right;
+    transition: background .2s ease;
+}
+
+.sv-card-ver::after {                    /* toda la tarjeta es tocable */
+    content: "";
+    position: absolute;
+    inset: 0;
+}
+
+.sv-card:hover .sv-card-ver {
+    background: var(--color-fondo);
+    background: color-mix(in srgb, var(--color-primario) 8%, var(--color-blanco));
+}
+
+.sv-card-ver:focus-visible {
+    outline: 3px solid var(--sv-tinta-uso);
+    outline-offset: 2px;
+}
+
+/* ── Detalle: <dialog> a pantalla completa con el panel en el centro ──
+   (el fondo oscuro es el propio dialog: así hereda las variables de la tienda) */
+.sv-dlg {
+    --sv-tinta-uso: var(--sv-tinta, var(--color-primario-oscuro));
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 24px;
+    border: none;
+    background: var(--negro-alpha-052);
+    font-family: 'Open Sans', sans-serif;
+}
+
+.sv-dlg::backdrop {
+    background: transparent;
+}
+
+.sv-dlg[open] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+html.sv-dlg-abierto {
+    overflow: hidden;                    /* la página de atrás no se mueve */
+}
+
+.sv-dlg-panel {
+    width: 100%;
+    max-width: 880px;
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    overflow: hidden;
+    border-radius: 24px;
+    background: var(--color-blanco);
+    box-shadow: 0 30px 80px -20px var(--negro-alpha-050);
+}
+
+.sv-dlg-media {
+    min-height: 100%;
+}
+
+.sv-dlg-media.sv-card-media--inicial .sv-card-inicial {
+    font-size: 6rem;
+}
+
+.sv-dlg-cuerpo {
+    position: relative;
+    max-height: min(88vh, 720px);
+    overflow-y: auto;
+    padding: 32px 32px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.sv-dlg-cerrar {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 999px;
+    color: var(--sv-tinta-uso);
+    background: var(--color-fondo);
+    background: color-mix(in srgb, var(--color-primario) 8%, var(--color-blanco));
+    cursor: pointer;
+}
+
+.sv-dlg-cerrar:focus-visible {
+    outline: 3px solid var(--sv-tinta-uso);
+    outline-offset: 2px;
+}
+
+.sv-dlg-eyebrow {
+    margin: 0;
+    font-size: .75rem;
+    font-weight: 800;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--sv-tinta-uso);
+}
+
+.sv-dlg-titulo {
+    margin: 0;
+    padding-right: 48px;
+    font-size: 1.6rem;
+    line-height: 1.25;
+    color: var(--color-texto-oscuro);
+}
+
+.sv-dlg-texto {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--color-texto-secundario);
+}
+
+.sv-dlg-sub {
+    margin: 6px 0 0;
+    font-size: .95rem;
+    color: var(--color-texto-oscuro);
+}
+
+.sv-dlg-lista {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sv-dlg-lista li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: .95rem;
+    line-height: 1.5;
+    color: var(--color-texto-oscuro);
+}
+
+.sv-dlg-check {
+    flex: none;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    color: var(--sv-tinta-uso);
+    background: var(--color-fondo);
+    background: color-mix(in srgb, var(--color-primario) 8%, var(--color-blanco));
+}
+
+.sv-dlg-acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.sv-dlg-acciones .sv-btn-sec {
+    color: var(--sv-tinta-uso);
+}
+
+.sv-dlg .sv-btn:focus-visible {
+    outline: 3px solid var(--sv-tinta-uso);
+    outline-offset: 2px;
+}
+
+/* Celular: el detalle sube desde abajo y los botones quedan siempre a la vista */
+@media (max-width: 640px) {
+    .sv-servicios {
+        padding: 28px 16px 48px;
+    }
+
+    .sv-grid {
+        gap: 18px;
+    }
+
+    .sv-dlg {
+        padding: 0;
+    }
+
+    .sv-dlg[open] {
+        align-items: flex-end;
+    }
+
+    .sv-dlg-panel {
+        max-width: none;
+        max-height: 92vh;
+        max-height: 92dvh;
+        overflow-y: auto;
+        grid-template-columns: minmax(0, 1fr);
+        border-radius: 24px 24px 0 0;
+    }
+
+    .sv-dlg-media {
+        height: 190px;
+        min-height: 0;
+    }
+
+    .sv-dlg-cuerpo {
+        max-height: none;
+        overflow: visible;
+        padding: 20px 20px 0;
+    }
+
+    .sv-dlg-acciones {
+        position: sticky;
+        bottom: 0;
+        margin: 6px -20px 0;
+        padding: 12px 20px 18px;
+        background: var(--color-blanco);
+        border-top: 1px solid var(--color-borde-claro);
+    }
+
+    .sv-dlg-acciones .sv-btn {
+        flex: 1 1 100%;
+        justify-content: center;
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .sv-dlg[open] .sv-dlg-panel {
+        animation: sv-dlg-entra .22s ease-out;
+    }
+}
+
+@keyframes sv-dlg-entra {
+    from { opacity: 0; transform: translateY(16px) scale(.98); }
+    to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sv-card,
+    .sv-card-media img {
+        transition: none;
+    }
+
+    .sv-card:hover {
+        transform: none;
+    }
+
+    .sv-card:hover .sv-card-media img {
+        transform: none;
+    }
 }

@@ -368,12 +368,21 @@ def servicios():
     # el encabezado lleva entonces una capa oscura más fuerte.
     capa = marca_service.capa_para_texto_blanco(
         marca.get('color_primario'), marca.get('color_primario_oscuro'), marca.get('color_secundario'))
+    # Tarjetas (1.9.11.0): las de la tienda; si no tiene, las de muestra (tienda nueva)
+    # o las de siempre de CyberShop (solo su página). La plantilla escoge en ese orden.
+    from services import servicios_publicos as sp
     return render_template(
         'servicios.html',
         datosApp=datosApp,
-        servicios_db=get_home_services(),
         public_content=contenido,
         sv_titulo=titulo, sv_subtitulo=subtitulo, es_operador=operador, sv_capa=capa,
+        sv_tarjetas_tienda=sp.tarjetas(get_home_services()),
+        sv_tarjetas_muestra=sp.tarjetas(sp.SERVICIOS_MUESTRA, demo=True),
+        sv_tarjetas_operador=sp.tarjetas(sp.SERVICIOS_OPERADOR) if operador else [],
+        # Color de marca legible para textos y botones de las tarjetas ('' si el color no
+        # es #RRGGBB: entonces el CSS usa el oscuro de la marca).
+        sv_tinta=(marca_service.tinta_legible(marca['color_primario'])
+                  if marca_service.normalizar(marca.get('color_primario')) else ''),
     )
 
 

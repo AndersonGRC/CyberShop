@@ -60,6 +60,25 @@ def contraste_con_blanco(color):
 CAPAS_OSCURAS = (10, 30, 52, 70)
 
 
+def contraste(a, b):
+    """Contraste WCAG entre dos colores #RRGGBB (1 a 21)."""
+    la, lb = sorted((_luminancia(a), _luminancia(b)))
+    return (lb + 0.05) / (la + 0.05)
+
+
+def tinta_legible(color, minimo=4.5):
+    """El color de la marca oscurecido lo justo para escribir con él (botones, números,
+    viñetas) sobre blanco y sobre su propio tono claro (el 8 % que usan las tarjetas de
+    Servicios). Parte de un 25 % más oscuro; con un amarillo baja hasta que se lee."""
+    c = normalizar(color) or NEUTRO
+    tono_claro = mezclar(c, '#ffffff', 0.92)
+    for paso in range(25, 100, 5):
+        tinta = mezclar(c, '#000000', paso / 100)
+        if contraste(tinta, tono_claro) >= minimo:
+            return tinta
+    return '#000000'
+
+
 def capa_para_texto_blanco(*colores, minimo=4.5):
     """La capa oscura más suave con la que el texto blanco (aun al 92 % y sobre los
     adornos translúcidos, un 6 % de blanco) se lee sobre todos `colores`. Con un color
