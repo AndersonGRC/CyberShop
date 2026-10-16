@@ -1304,6 +1304,60 @@ def get_brand_config():
     return values
 
 
+# ── WhatsApp de la tienda ───────────────────────────────────────
+# Los valores por defecto de los datos de contacto son los de CyberShop: una tienda
+# que no ha puesto los suyos no puede mandar a sus compradores al WhatsApp de CyberShop
+# (botón «Chatea con nosotros», página del pago, Contáctanos, Servicios, chat…).
+
+def numero_whatsapp(valor, solo_celular=False):
+    """`valor` como lo pide wa.me: solo dígitos y con el 57 si es un número colombiano
+    de 10. '' si no sirve. Con `solo_celular`, únicamente un celular colombiano (3…)."""
+    digitos = ''.join(ch for ch in str(valor or '') if ch.isdigit())
+    if len(digitos) == 10:
+        digitos = '57' + digitos
+    if solo_celular:
+        return digitos if len(digitos) == 12 and digitos.startswith('573') else ''
+    return digitos if 11 <= len(digitos) <= 15 else ''
+
+
+def numeros_de_cybershop():
+    """El WhatsApp y el celular de CyberShop (los valores por defecto de los campos)."""
+    return {numero_whatsapp(PUBLIC_FIELD_BY_KEY[clave]['default'])
+            for clave in ('empresa_whatsapp', 'empresa_telefono')} - {''}
+
+
+def _es_operador():
+    try:
+        return bool(is_public_section_enabled('mostrar_modulo_software', False))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def es_contacto_de_cybershop(valor, operador=None):
+    """¿`valor` es el WhatsApp o el celular de CyberShop puesto en la tienda de un
+    cliente? En la página del operador (CyberShop) son los suyos: False."""
+    if numero_whatsapp(valor) not in numeros_de_cybershop():
+        return False
+    return not (_es_operador() if operador is None else operador)
+
+
+def whatsapp_propio(valor, operador=None):
+    """`valor` listo para wa.me si es de esta tienda; '' si está vacío, no sirve o es
+    el de CyberShop en la tienda de un cliente."""
+    return '' if es_contacto_de_cybershop(valor, operador) else numero_whatsapp(valor)
+
+
+def whatsapp_de_la_tienda(marca=None, operador=None):
+    """El WhatsApp de ESTA tienda: el suyo o, si no tiene, su celular. '' si no tiene
+    ninguno propio: entonces no se muestra el botón de WhatsApp."""
+    marca = get_brand_config() if marca is None else marca
+    for clave, solo_celular in (('empresa_whatsapp', False), ('empresa_telefono', True)):
+        valor = marca.get(clave)
+        if numero_whatsapp(valor, solo_celular) and not es_contacto_de_cybershop(valor, operador):
+            return numero_whatsapp(valor)
+    return ''
+
+
 def get_public_site_settings():
     settings = get_brand_config()
     return {field['key']: settings.get(field['key'], field['default']) for field in PUBLIC_FIELD_BY_KEY.values()}

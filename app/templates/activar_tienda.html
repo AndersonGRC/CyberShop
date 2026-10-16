@@ -59,7 +59,7 @@
   @keyframes acspin { to { transform: rotate(360deg); } }
   .ac-dominio { font-size: 1.15rem; font-weight: 800; color: var(--ac-primario);
     background: #eef6ff; border-radius: 10px; padding: 12px 18px; display: inline-block; margin: 10px 0 16px; }
-  .ac-nota { font-size: .88rem; color: #7a8499; line-height: 1.55; }
+  .ac-nota { font-size: .88rem; color: #5b6577; line-height: 1.55; }   /* el de .ac-preview: 4,5:1 */
   .ac-etapas { list-style: none; margin: 18px auto 0; padding: 0; max-width: 430px; text-align: left; }
   .ac-etapas li { position: relative; padding: 0 0 14px 34px; display: flex; flex-direction: column; gap: 2px;
     font-size: .88rem; color: #667085; transition: color .3s; }
@@ -136,6 +136,14 @@
                value="{{ request.form.get('subdominio', '') }}">
         <p class="ac-preview">Tu tienda quedará en:
           <b>https://<span id="prev-slug">tu-negocio</span>.{{ base_domain }}</b></p>
+      </div>
+      <div class="ac-field">
+        <label for="buyer_telefono">WhatsApp de tu negocio</label>
+        <input type="tel" id="buyer_telefono" name="buyer_telefono" required maxlength="20"
+               inputmode="tel" autocomplete="tel" placeholder="300 123 4567" aria-describedby="acAyudaWa"
+               value="{{ request.form.get('buyer_telefono', compra.buyer_telefono or '') }}">
+        <p class="ac-preview" id="acAyudaWa">Tus clientes te escribirán a este número desde el botón
+          «Chatea con nosotros» de tu tienda.</p>
       </div>
       <button type="submit" class="ac-btn"><i class="fas fa-magic"></i> Crear mi tienda</button>
       <p class="ac-nota" style="margin-top:14px;"><i class="fas fa-info-circle"></i>

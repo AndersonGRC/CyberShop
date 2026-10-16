@@ -74,9 +74,9 @@
     </section>
     {% endif %}
 
-    {% if brand_config.empresa_whatsapp %}
+    {% if whatsapp_tienda %}
     <p style="text-align:center;margin:0">
-        <a class="st-btn st-btn-wa" href="https://wa.me/{{ brand_config.empresa_whatsapp | replace(' ', '') | replace('+', '') }}?text={{ ('Hola, quiero saber de mi orden ' ~ o.numero) | urlencode }}" target="_blank" rel="noopener">
+        <a class="st-btn st-btn-wa" href="https://wa.me/{{ whatsapp_tienda }}?text={{ ('Hola, quiero saber de mi orden ' ~ o.numero) | urlencode }}" target="_blank" rel="noopener">
             <i class="fab fa-whatsapp" aria-hidden="true"></i> Escribir por WhatsApp</a>
     </p>
     {% endif %}

@@ -170,12 +170,15 @@ def marcar_resumen_enviado(fecha_iso):
 
 def datos_negocio():
     try:
-        from services.public_site_service import get_brand_config
+        from services.public_site_service import es_contacto_de_cybershop, get_brand_config
         marca = get_brand_config() or {}
+        # El WhatsApp o teléfono tal como lo escribió el negocio; nunca el de CyberShop
+        # (el valor por defecto) en el taller de un cliente.
+        telefono = next((v for v in (marca.get('empresa_whatsapp'), marca.get('empresa_telefono'))
+                         if v and not es_contacto_de_cybershop(v)), '')
     except Exception:  # noqa: BLE001
-        marca = {}
-    return {'negocio': marca.get('empresa_nombre') or 'nuestro taller',
-            'telefono': marca.get('empresa_whatsapp') or marca.get('empresa_telefono') or ''}
+        marca, telefono = {}, ''
+    return {'negocio': marca.get('empresa_nombre') or 'nuestro taller', 'telefono': telefono}
 
 
 def armar(tipo, datos, cfg=None):

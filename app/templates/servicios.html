@@ -169,8 +169,8 @@
         <h2 id="sv-vacio-titulo">Muy pronto verás aquí nuestros servicios</h2>
         <p>Mientras tanto, escríbenos y te contamos todo lo que hacemos.</p>
         <div class="sv-vacio-acciones">
-            {% if sv_whatsapp %}
-            <a class="sv-btn sv-btn-wa" href="https://wa.me/{{ sv_whatsapp }}?text={{ ('Hola, quiero saber qué servicios ofrecen.') | urlencode }}" target="_blank" rel="noopener">
+            {% if whatsapp_tienda %}
+            <a class="sv-btn sv-btn-wa" href="https://wa.me/{{ whatsapp_tienda }}?text={{ ('Hola, quiero saber qué servicios ofrecen.') | urlencode }}" target="_blank" rel="noopener">
                 <i class="fab fa-whatsapp" aria-hidden="true"></i> Escríbenos por WhatsApp<span class="sv-sr"> (se abre en otra pestaña)</span></a>
             {% else %}
             <a class="sv-btn sv-btn-wa" href="{{ url_for('public.contactenos') }}"><i class="fas fa-envelope" aria-hidden="true"></i> Escríbenos</a>

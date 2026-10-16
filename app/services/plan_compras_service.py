@@ -211,17 +211,19 @@ def marcar_contacto(compra_id):
         return cur.rowcount > 0
 
 
-def marcar_activando(compra_id, slug):
-    """PAGADO/ERROR -> ACTIVANDO (reserva el intento; evita doble submit)."""
+def marcar_activando(compra_id, slug, telefono=None):
+    """PAGADO/ERROR -> ACTIVANDO (reserva el intento; evita doble submit). Con
+    `telefono`, también el WhatsApp del negocio (el de su botón de WhatsApp)."""
     _ensure_table()
     with get_db_cursor() as cur:
         cur.execute(
             """
             UPDATE plan_compras SET estado = 'ACTIVANDO', slug = %s, error = NULL,
-                   etapa = 'creando', activando_at = NOW(), listo_at = NULL
+                   etapa = 'creando', activando_at = NOW(), listo_at = NULL,
+                   buyer_telefono = COALESCE(%s, buyer_telefono)
             WHERE id = %s AND estado IN ('PAGADO', 'ERROR')
             """,
-            (slug, compra_id),
+            (slug, telefono or None, compra_id),
         )
         return cur.rowcount > 0
 

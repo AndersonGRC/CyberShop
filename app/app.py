@@ -306,10 +306,13 @@ _wrap_save_optimizado(user_images)
 @app.context_processor
 def inject_config_global():
     from tenant_features import get_active_module_codes, get_current_tenant_id
-    from services.public_site_service import get_brand_config, get_public_sections
+    from services.public_site_service import get_brand_config, get_public_sections, whatsapp_de_la_tienda
 
     config = get_public_sections()
     brand = get_brand_config()
+    # El WhatsApp de ESTA tienda (nunca el de CyberShop en la de un cliente): botón
+    # «Chatea con nosotros», página del pago, Contáctanos, Servicios. '' = sin botón.
+    whatsapp_tienda = whatsapp_de_la_tienda(brand, operador=bool(config.get('mostrar_modulo_software')))
     active_modules = set()
     current_tenant_id = get_current_tenant_id()
     from datetime import datetime
@@ -336,7 +339,7 @@ def inject_config_global():
                        and Config.PAYU_API_KEY and Config.PAYU_API_LOGIN),
         'google': bool(Config.GOOGLE_CLIENT_ID and Config.GOOGLE_CLIENT_SECRET),
         'mail':   bool(Config.MAIL_USERNAME and Config.MAIL_PASSWORD),
-        'whatsapp': bool(brand.get('empresa_whatsapp')),
+        'whatsapp': bool(whatsapp_tienda),
     }
 
     # Banner de PRUEBA GRATIS: si esta instancia es un trial (llaves sembradas
@@ -369,6 +372,7 @@ def inject_config_global():
         active_modules=active_modules,
         current_tenant_id=current_tenant_id,
         integraciones=integraciones,
+        whatsapp_tienda=whatsapp_tienda,
         meta_pixel_id=meta_pixel_id,
         tienda_demo=_tienda_demo(),
         trial_info=trial_info,

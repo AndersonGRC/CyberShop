@@ -58,9 +58,9 @@
       <div class="ct-item"><i class="fas fa-phone"></i>
         <span><strong>Teléfono</strong><br><a href="tel:{{ brand_config.empresa_telefono | replace(' ', '') }}">{{ brand_config.empresa_telefono }}</a></span></div>
       {% endif %}
-      {% if brand_config.empresa_whatsapp %}
+      {% if whatsapp_tienda %}
       <div class="ct-item"><i class="fab fa-whatsapp"></i>
-        <span><strong>WhatsApp</strong><br><a href="https://wa.me/{{ brand_config.empresa_whatsapp | replace(' ', '') | replace('+', '') }}" target="_blank" rel="noopener">Escríbenos</a></span></div>
+        <span><strong>WhatsApp</strong><br><a href="https://wa.me/{{ whatsapp_tienda }}" target="_blank" rel="noopener">Escríbenos</a></span></div>
       {% endif %}
       {% if brand_config.empresa_email %}
       <div class="ct-item"><i class="fas fa-envelope"></i>

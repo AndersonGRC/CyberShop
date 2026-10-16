@@ -331,12 +331,16 @@
     </div>
     {% endif %}
 
+    {#- Con el WhatsApp de ESTA tienda (el suyo o su celular). Sin número propio no hay
+        botón: nunca el de CyberShop en la tienda de un cliente. -#}
+    {% if whatsapp_tienda %}
     <div class="chat-button">
-        <a href="https://wa.me/{{ brand_config.empresa_whatsapp or '573027974969' }}" target="_blank">
-            <img src="https://cdn-icons-png.flaticon.com/512/3670/3670051.png" alt="Chat Icon">
+        <a href="https://wa.me/{{ whatsapp_tienda }}" target="_blank" rel="noopener">
+            <img src="https://cdn-icons-png.flaticon.com/512/3670/3670051.png" alt="">
             <span>Chatea con nosotros</span>
         </a>
     </div>
+    {% endif %}
 
 </body>
 

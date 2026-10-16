@@ -192,6 +192,16 @@ def _cortesia_con_nube(plan):
         return None
 
 
+def _whatsapp_propio(valor):
+    """El WhatsApp del negocio listo para wa.me; nunca el de CyberShop en la tienda de
+    un cliente (quedaba guardado al grabar el formulario con el valor por defecto)."""
+    try:
+        from services.public_site_service import whatsapp_propio
+        return whatsapp_propio(valor)
+    except Exception:  # noqa: BLE001
+        return re.sub(r'\D', '', valor or '')
+
+
 def config_publica():
     """Textos que el dueño configura para su chat."""
     valores = {}
@@ -215,7 +225,7 @@ def config_publica():
         # dueño no publicara esa respuesta en sus preguntas frecuentes.
         'sugerencias': sugerencias or ['¿Qué productos manejan?', '¿Dónde están ubicados?',
                                        '¿Cómo puedo comprar?'],
-        'whatsapp': re.sub(r'\D', '', valores.get('empresa_whatsapp') or ''),
+        'whatsapp': _whatsapp_propio(valores.get('empresa_whatsapp')),
         'tono': valores.get('chat_publico_tono') or 'cercano y breve',
     }
 

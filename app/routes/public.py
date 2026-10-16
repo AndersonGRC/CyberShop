@@ -350,9 +350,9 @@ def blog_post(slug):
 @public_bp.route('/servicios')
 def servicios():
     """Página de servicios: el encabezado sale de la marca de la tienda (sin foto) y
-    debajo van SUS servicios. Lo de CyberShop (su frase, sus servicios de siempre, su
-    WhatsApp) solo sale en la página del operador; una tienda que aún no carga los
-    suyos ve un aviso con su propio contacto."""
+    debajo van SUS servicios. Lo de CyberShop (su frase, sus servicios de siempre) solo
+    sale en la página del operador; una tienda que aún no carga los suyos ve un aviso
+    con su propio contacto (whatsapp_tienda, del context processor)."""
     from services.public_site_service import PUBLIC_FIELD_BY_KEY, get_brand_config
     datosApp = get_common_data()
     contenido = get_public_home_content()
@@ -364,9 +364,6 @@ def servicios():
     if not operador and subtitulo == PUBLIC_FIELD_BY_KEY['servicios_hero_subtitulo']['default']:
         subtitulo = 'Conoce lo que ofrecemos.'            # la frase por defecto es de CyberShop
     marca = get_brand_config() or {}
-    whatsapp = ''.join(ch for ch in str(marca.get('empresa_whatsapp') or '') if ch.isdigit())
-    if not operador and whatsapp == PUBLIC_FIELD_BY_KEY['empresa_whatsapp']['default']:
-        whatsapp = ''                                       # el de CyberShop, no el de esta tienda
     # Con un color de marca claro (amarillo, verde limón…) el texto blanco no se leería:
     # el encabezado lleva entonces una capa oscura más fuerte.
     capa = marca_service.capa_para_texto_blanco(
@@ -376,8 +373,7 @@ def servicios():
         datosApp=datosApp,
         servicios_db=get_home_services(),
         public_content=contenido,
-        sv_titulo=titulo, sv_subtitulo=subtitulo, sv_whatsapp=whatsapp, es_operador=operador,
-        sv_capa=capa,
+        sv_titulo=titulo, sv_subtitulo=subtitulo, es_operador=operador, sv_capa=capa,
     )
 
 
@@ -1314,6 +1310,7 @@ def activar_tienda(token):
 
     error = None
     if request.method == 'POST' and compra['estado'] in ('PAGADO', 'ERROR'):
+        telefono = None
         if compra.get('es_trial'):
             # Reintento de una prueba: con el nombre y la dirección que ya eligió.
             nombre_negocio = compra.get('nombre_negocio') or compra.get('slug') or ''
@@ -1321,10 +1318,15 @@ def activar_tienda(token):
         else:
             nombre_negocio = (request.form.get('nombre_negocio') or '').strip()
             slug, error = validar_slug(request.form.get('subdominio'))
+            # Toda tienda nueva sale con SU WhatsApp (botón «Chatea con nosotros»).
+            telefono, tel_err = pcs.normalizar_whatsapp(request.form.get('buyer_telefono'))
             if not nombre_negocio or len(nombre_negocio) < 3:
                 error = 'Escribe el nombre de tu negocio (mínimo 3 caracteres).'
+            elif not error and tel_err:
+                error = ('Escribe el WhatsApp de tu negocio de 10 dígitos (ej. 300 123 4567): '
+                         'es el número del botón «Chatea con nosotros» de tu tienda.')
         if not error:
-            if pcs.marcar_activando(compra['id'], slug):
+            if pcs.marcar_activando(compra['id'], slug, telefono=telefono):
                 from flask import current_app
                 activar_tienda_async(current_app._get_current_object(),
                                      compra['id'], slug, nombre_negocio)

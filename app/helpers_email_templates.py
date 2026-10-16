@@ -20,6 +20,12 @@ def _get_empresa_info():
             for row in cur.fetchall():
                 if row['valor']:
                     info[campos[row['clave']]] = row['valor']
+        # Nunca el WhatsApp o el celular de CyberShop en los correos de la tienda de un
+        # cliente (quedaban guardados al grabar el formulario con el valor por defecto).
+        from services.public_site_service import es_contacto_de_cybershop
+        for campo in ('whatsapp', 'telefono'):
+            if es_contacto_de_cybershop(info[campo]):
+                info[campo] = ''
     except Exception:
         pass
     return info

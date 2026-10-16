@@ -75,18 +75,30 @@
             <a href="javascript:location.reload()" class="btn-cyber">
                 <i class="fas fa-sync-alt"></i> Actualizar estado
             </a>
-            <a href="https://wa.me/{{ brand_config.empresa_whatsapp or '573027974969' }}?text=Hola,%20necesito%20ayuda%20con%20mi%20pago%20ref%20{{ datos.referencia }}"
-               target="_blank" class="btn-cyber btn-cyber-sec">
+            {% if whatsapp_tienda %}
+            <a href="https://wa.me/{{ whatsapp_tienda }}?text={{ ('Hola, necesito ayuda con mi pago ref ' ~ datos.referencia) | urlencode }}"
+               target="_blank" rel="noopener" class="btn-cyber btn-cyber-sec">
                 <i class="fab fa-whatsapp"></i> Necesito ayuda
             </a>
+            {% else %}
+            <a href="{{ url_for('public.contactenos') }}" class="btn-cyber btn-cyber-sec">
+                <i class="fas fa-envelope"></i> Necesito ayuda
+            </a>
+            {% endif %}
             {% else %}
             <a href="{{ url_for('public.ver_carrito') }}" class="btn-cyber">
                 <i class="fas fa-redo"></i> Intentar de nuevo
             </a>
-            <a href="https://wa.me/{{ brand_config.empresa_whatsapp or '573027974969' }}?text=Hola,%20mi%20pago%20fue%20rechazado%20ref%20{{ datos.referencia }}"
-               target="_blank" class="btn-cyber btn-cyber-sec">
+            {% if whatsapp_tienda %}
+            <a href="https://wa.me/{{ whatsapp_tienda }}?text={{ ('Hola, mi pago fue rechazado ref ' ~ datos.referencia) | urlencode }}"
+               target="_blank" rel="noopener" class="btn-cyber btn-cyber-sec">
                 <i class="fab fa-whatsapp"></i> Necesito ayuda
             </a>
+            {% else %}
+            <a href="{{ url_for('public.contactenos') }}" class="btn-cyber btn-cyber-sec">
+                <i class="fas fa-envelope"></i> Necesito ayuda
+            </a>
+            {% endif %}
             {% endif %}
             <a href="{{ url_for('public.index') }}" class="ticket-volver">
                 <i class="fas fa-arrow-left"></i> Volver al inicio
