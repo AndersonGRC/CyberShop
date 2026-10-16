@@ -1301,7 +1301,7 @@ def get_brand_config():
 
     if not values.get('empresa_logo_url'):
         values['empresa_logo_url'] = '/static/img/Logo.png'
-    return values
+    return _sin_datos_de_cybershop(values)
 
 
 # ── WhatsApp de la tienda ───────────────────────────────────────
@@ -1327,18 +1327,57 @@ def numeros_de_cybershop():
 
 
 def _es_operador():
+    """¿Esta tienda es la de CyberShop (el operador)? Una vez por petición. None si no
+    se puede saber: entonces no se esconde nada (los datos del operador nunca se pierden)."""
     try:
-        return bool(is_public_section_enabled('mostrar_modulo_software', False))
+        from flask import has_request_context, request
+        guardado = getattr(request, '_cs_operador', None) if has_request_context() else None
+        if guardado is not None:
+            return guardado
+        valor = bool(is_public_section_enabled('mostrar_modulo_software', False))
+        if has_request_context():
+            request._cs_operador = valor
+        return valor
     except Exception:  # noqa: BLE001
+        return None
+
+
+# Datos que vienen por defecto con los de CyberShop (o que quedaron guardados al grabar
+# el formulario con ese valor): en la tienda de un cliente no son suyos y no se muestran.
+_DATOS_DE_CYBERSHOP = ('empresa_tagline', 'empresa_copyright', 'empresa_maps_embed',
+                       'empresa_email', 'contacto_email_destino', 'empresa_telefono', 'empresa_whatsapp')
+
+
+def _igual_al_de_cybershop(clave, valor):
+    if clave in ('empresa_telefono', 'empresa_whatsapp'):
+        return bool(valor) and numero_whatsapp(valor) in numeros_de_cybershop()
+    defecto = str(PUBLIC_FIELD_BY_KEY[clave]['default'] or '').strip().lower()
+    return bool(defecto) and str(valor or '').strip().lower() == defecto
+
+
+def es_dato_de_cybershop(clave, valor, operador=None):
+    """¿`valor` es el dato de CyberShop en `clave` puesto en la tienda de un cliente?
+    En la página del operador son los suyos (False); si no se sabe, tampoco se esconde."""
+    if not _igual_al_de_cybershop(clave, valor):
         return False
+    return (_es_operador() if operador is None else operador) is False
 
 
 def es_contacto_de_cybershop(valor, operador=None):
     """¿`valor` es el WhatsApp o el celular de CyberShop puesto en la tienda de un
     cliente? En la página del operador (CyberShop) son los suyos: False."""
-    if numero_whatsapp(valor) not in numeros_de_cybershop():
-        return False
-    return not (_es_operador() if operador is None else operador)
+    return es_dato_de_cybershop('empresa_whatsapp', valor, operador)
+
+
+def _sin_datos_de_cybershop(values):
+    """En la tienda de un cliente, deja vacíos el lema, el ©, el mapa, el correo, el
+    teléfono y el WhatsApp que sean los de CyberShop: el pie de página, Contáctanos, el
+    mapa del inicio y el JSON-LD muestran entonces solo lo de la tienda (o nada)."""
+    sospechosos = [c for c in _DATOS_DE_CYBERSHOP if _igual_al_de_cybershop(c, values.get(c))]
+    if sospechosos and _es_operador() is False:
+        for clave in sospechosos:
+            values[clave] = ''
+    return values
 
 
 def whatsapp_propio(valor, operador=None):
@@ -1489,8 +1528,23 @@ def get_public_home_content():
 
 
 def get_public_contact_destination_email():
+    """A dónde llegan los mensajes del formulario de contacto: el correo que eligió la
+    tienda, si no su correo público y si no el de su dueño (rol propietario). Nunca el
+    de CyberShop en la tienda de un cliente (get_brand_config lo deja vacío)."""
     settings = get_brand_config()
-    return settings.get('contacto_email_destino') or settings.get('empresa_email') or ''
+    destino = settings.get('contacto_email_destino') or settings.get('empresa_email') or ''
+    if destino:
+        return destino
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("""SELECT email FROM usuarios
+                           WHERE rol_id = 2 AND COALESCE(estado, 'habilitado') = 'habilitado'
+                             AND COALESCE(email, '') <> ''
+                           ORDER BY id LIMIT 1""")
+            fila = cur.fetchone()
+        return (fila['email'] if fila else '') or ''
+    except Exception:  # noqa: BLE001
+        return ''
 
 
 def get_home_slides():

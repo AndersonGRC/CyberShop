@@ -203,11 +203,12 @@ def datos_del_negocio(**_):
             crudos = {r['clave']: (r['valor'] or '').strip() for r in cur.fetchall()}
         valores = {nombre: crudos[clave] for clave, nombre in _CAMPOS_NEGOCIO
                    if crudos.get(clave)}
-        # El WhatsApp o el celular de CyberShop guardados en la tienda de un cliente
-        # (al grabar el formulario con el valor por defecto) no son de este negocio.
-        from services.public_site_service import es_contacto_de_cybershop
-        for nombre in ('whatsapp', 'telefono'):
-            if es_contacto_de_cybershop(valores.get(nombre)):
+        # El WhatsApp, el celular o el correo de CyberShop guardados en la tienda de un
+        # cliente (al grabar el formulario con el valor por defecto) no son de este negocio.
+        from services.public_site_service import es_dato_de_cybershop
+        for nombre, clave in (('whatsapp', 'empresa_whatsapp'), ('telefono', 'empresa_telefono'),
+                              ('correo', 'empresa_email')):
+            if es_dato_de_cybershop(clave, valores.get(nombre)):
                 valores.pop(nombre)
     except Exception as exc:  # noqa: BLE001
         current_app.logger.warning(f'chat público: datos del negocio ({exc})')

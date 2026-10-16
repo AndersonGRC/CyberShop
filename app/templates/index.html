@@ -181,14 +181,19 @@
     {% if public_content.contact_intro %}<p class="contact-lead">{{ public_content.contact_intro }}</p>{% endif %}
   </div>
 
-  <div class="contact-container">
-    {# Tienda nueva (autoservicio) sin su mapa: no se muestra el de CyberShop. #}
-    {% if config.get('mostrar_mapa', true) and (brand_config.empresa_maps_embed or not tienda_demo) %}
+  {#- Solo el mapa de la tienda. Una tienda sin el suyo no muestra el de CyberShop
+      (get_brand_config ya deja vacío el de CyberShop fuera de su página); sin mapa, el
+      formulario va centrado en vez de quedar a un lado con un hueco. -#}
+  {% set in_mapa = (brand_config.empresa_maps_embed or '').strip() if config.get('mostrar_mapa', true) else '' %}
+  <div class="contact-container{% if not in_mapa %} contact-container--sin-mapa{% endif %}">
+    {% if in_mapa %}
     <div class="map-container scroll-reveal reveal-left">
+      {% if in_mapa.startswith('http') %}
       <iframe
-        src="{{ brand_config.empresa_maps_embed or 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3976.1438661161997!2d-74.12405722491505!3d4.7450433952301445!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8e3f8481ac8fae15%3A0xd086f2615f6ea83!2sCra.%20151%20%23136a11%2C%20Suba%2C%20Bogot%C3%A1!5e0!3m2!1ses!2sco!4v1737344695200!5m2!1ses!2sco' }}"
+        src="{{ in_mapa }}" title="Mapa de ubicación"
         width="100%" height="100%" class="mapa-iframe" allowfullscreen="" loading="lazy"
         referrerpolicy="no-referrer-when-downgrade"></iframe>
+      {% else %}{{ in_mapa | safe }}{% endif %}
     </div>
     {% endif %}
 

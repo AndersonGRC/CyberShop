@@ -547,6 +547,12 @@
     align-items: stretch;
 }
 
+/* Tienda sin su mapa: el formulario centrado, sin el hueco de la columna del mapa */
+.contact-container--sin-mapa {
+    grid-template-columns: minmax(0, 760px);
+    justify-content: center;
+}
+
 .map-container {
     border-radius: 20px;
     overflow: hidden;

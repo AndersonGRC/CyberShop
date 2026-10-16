@@ -84,8 +84,17 @@
       </form>
     </div>
   </div>
-  {% if brand_config.empresa_maps_embed and config_global.get('mostrar_mapa', True) %}
-  <div class="ct-mapa">{{ brand_config.empresa_maps_embed | safe }}</div>
+  {#- El mapa se guarda como dirección (https://www.google.com/maps/embed?…) o como el
+      código <iframe> que da Google: con la dirección se arma el iframe (antes salía la
+      dirección como texto). -#}
+  {% set ct_mapa = (brand_config.empresa_maps_embed or '').strip() %}
+  {% if ct_mapa and config_global.get('mostrar_mapa', True) %}
+  <div class="ct-mapa">
+    {% if ct_mapa.startswith('http') %}
+    <iframe src="{{ ct_mapa }}" title="Mapa de ubicación" width="100%" height="360" style="border:0; display:block"
+            loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+    {% else %}{{ ct_mapa | safe }}{% endif %}
+  </div>
   {% endif %}
 </div>
 {% endblock %}
