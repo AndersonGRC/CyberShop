@@ -106,9 +106,35 @@
     }
 
     .cotizar-help {
-        color: #777;
+        color: #666;
         font-size: 0.78rem;
         margin-top: 4px;
+    }
+
+    /* ---- Notas adicionales ---- */
+    .cotizar-card textarea.cotizar-notas {
+        width: 100%;
+        max-width: 100%;
+        min-height: 110px;
+        padding: 9px 11px;
+        border: 1px solid #d6d8dc;
+        border-radius: 8px;
+        font: inherit;
+        font-size: 0.92rem;
+        line-height: 1.5;
+        resize: vertical;
+    }
+
+    .cotizar-card textarea.cotizar-notas:focus {
+        outline: none;
+        border-color: var(--color-primario, #122C94);
+        box-shadow: 0 0 0 3px var(--marca-focus-ring, rgba(18, 44, 148, 0.15));
+    }
+
+    .cotizar-opcional {
+        font-weight: 400;
+        font-size: 0.82rem;
+        color: #666;
     }
 
     /* ---- Cabecera del card de ítems ---- */
@@ -556,6 +582,18 @@
             <div class="items-total">
                 <span class="label">Total</span>
                 <span class="value" id="total-display">$0</span>
+            </div>
+        </div>
+
+        <!-- NOTAS ADICIONALES: van al final del PDF, antes de la firma (vacías no salen) -->
+        <div class="cotizar-card">
+            <h3><i class="fas fa-sticky-note" aria-hidden="true"></i> Notas adicionales <span class="cotizar-opcional">(opcional)</span></h3>
+            <div class="form-group">
+                <label for="notasAdicionales">Impuestos, condiciones de pago, tiempo de entrega, garantía, vigencia…</label>
+                <textarea id="notasAdicionales" name="notas_adicionales" class="form-control cotizar-notas" rows="4"
+                    maxlength="2000" aria-describedby="notasAyuda"
+                    placeholder="Ej.: Precios con IVA incluido. Vigencia de la oferta: 15 días. Entrega en 5 días hábiles.">{{ cotizacion.notas_adicionales or '' if cotizacion else '' }}</textarea>
+                <small id="notasAyuda" class="cotizar-help">Salen al final del PDF, antes de la firma. Si lo dejas vacío, no aparece nada.</small>
             </div>
         </div>
 

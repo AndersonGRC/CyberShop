@@ -180,6 +180,55 @@
             color: black;
         }
 
+        /* NOTAS ADICIONALES (solo si las escribieron) */
+        .notas-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid {{ colores.borde }};
+            margin-top: 20px;
+        }
+
+        .notas-titulo {
+            font-weight: bold;
+            padding: 5px 8px;
+            border: 1px solid {{ colores.borde }};
+            background-color: {{ colores.fondo_claro }};
+        }
+
+        .notas-texto {
+            padding: 8px;
+            border: 1px solid {{ colores.borde }};
+            font-size: 10px;
+            line-height: 1.5;
+        }
+
+        /* FIRMA (en tabla: xhtml2pdf no pinta bordes ni márgenes de un div vacío).
+           Va pegada a la línea «Visítanos en…»: si no caben, pasan juntas a la
+           página siguiente (nunca esa línea sola en una hoja). */
+        .firma-tabla {
+            width: 100%;
+            margin-top: 30px;
+            -pdf-keep-with-next: true;
+        }
+
+        .firma-col {
+            width: 40%;
+        }
+
+        .firma-espacio {
+            height: 45px;
+        }
+
+        .firma-linea {
+            border-top: 1px solid {{ colores.texto }};
+            padding-top: 4px;
+        }
+
+        .firma-pie {
+            font-size: 9px;
+            color: {{ colores.texto_claro }};
+        }
+
         #footerContent {
             text-align: center;
             color: {{ colores.texto_claro }};
@@ -283,10 +332,14 @@
             <td class="total-label">Subtotal</td>
             <td class="total-value">{{ subtotal }}</td>
         </tr>
+        {#- Sin descuento no sale el renglón. Si quien llama no manda la bandera (el PDF
+            de la app de escritorio usa una copia de esta plantilla), sale como antes. -#}
+        {% if mostrar_descuento is not defined or mostrar_descuento %}
         <tr>
             <td class="total-label">Descuentos</td>
             <td class="total-value">{{ descuento }}</td>
         </tr>
+        {% endif %}
         <tr>
             <td class="total-label">IVA (19%)</td>
             <td class="total-value">{{ iva }}</td>
@@ -297,10 +350,41 @@
         </tr>
     </table>
 
+    {# Notas adicionales: impuestos, condiciones, entrega… (vacías no salen) #}
+    {% if notas %}
+    <table class="notas-table">
+        <tr>
+            <td class="notas-titulo">Notas adicionales</td>
+        </tr>
+        <tr>
+            <td class="notas-texto">
+                {%- for linea in notas.split('\n') %}{{ linea }}{% if not loop.last %}<br>{% endif %}{% endfor -%}
+            </td>
+        </tr>
+    </table>
+    {% endif %}
+
+    {# Firma (después de las notas) #}
+    {% if firma_empresa is defined %}
+    <table class="firma-tabla">
+        <tr><td class="firma-col">Cordialmente,</td><td></td></tr>
+        <tr><td class="firma-col firma-espacio">&nbsp;</td><td></td></tr>
+        <tr>
+            <td class="firma-col firma-linea">
+                {%- if firma_empresa %}<b>{{ firma_empresa }}</b><br>{% endif -%}
+                <span class="firma-pie">Firma autorizada</span>
+            </td>
+            <td></td>
+        </tr>
+    </table>
+    {% endif %}
+
+    {% if colores.website %}
     <div style="margin-top: 30px; font-size: 10px; text-align: center;">
         <p>Visítanos en <span class="contact-link"><a href="{{ colores.website }}">{{ colores.website }}</a></span>
         </p>
     </div>
+    {% endif %}
 
     <!-- Footer de Paginacion -->
     <div id="footerContent">

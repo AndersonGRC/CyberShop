@@ -29,7 +29,7 @@ def _get_brand_colors():
     """Lee colores de marca y datos de empresa desde cliente_config con fallback a Config."""
     from config import Config
     colores = dict(Config.BRAND_COLORS)
-    colores['website'] = 'https://cybershopcol.com'
+    colores['website'] = ''
     try:
         with get_db_cursor(dict_cursor=True) as cur:
             cur.execute("SELECT clave, valor FROM cliente_config WHERE grupo IN ('colores', 'empresa')")
@@ -45,12 +45,88 @@ def _get_brand_colors():
                     colores['website'] = row['valor']
     except Exception:
         pass
+    if not colores['website']:
+        colores['website'] = _sitio_de_la_tienda()
     return colores
+
+
+def _sitio_de_la_tienda():
+    """«Visítanos en…» de una tienda que no escribió su sitio web: su propia página
+    (la dirección desde donde se hace la cotización). La de CyberShop solo en la
+    cotización de CyberShop; '' (la línea no sale) si no se puede saber."""
+    try:
+        from flask import has_request_context
+        from services.public_site_service import get_brand_config, is_public_section_enabled
+        propio = ((get_brand_config() or {}).get('empresa_website') or '').strip()
+        if propio:
+            return propio
+        if is_public_section_enabled('mostrar_modulo_software', False):
+            return 'https://cybershopcol.com'
+        return request.url_root.rstrip('/') if has_request_context() else ''
+    except Exception:  # noqa: BLE001
+        return ''
 
 
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+# ── Notas adicionales (impuestos, condiciones, entrega, garantía…) ──────────
+# Van al final del PDF, antes de la firma; vacías no salen. Columna aditiva:
+# la misma sentencia de la migración del maestro 0025_cotizaciones_notas.sql.
+DDL_NOTAS = "ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS notas_adicionales TEXT"
+NOTAS_MAX = 2000
+_BD_CON_NOTAS = set()
+
+
+def _soporta_notas():
+    """True si cotizaciones.notas_adicionales existe (la crea si falta, una vez por
+    BD y proceso). Nunca frena la cotización: si no se puede, las notas salen en el
+    PDF pero no se guardan, y queda en el log."""
+    from database import _current_db_name
+    bd = _current_db_name()
+    if bd in _BD_CON_NOTAS:
+        return True
+    try:
+        with get_db_cursor() as cur:
+            cur.execute("""SELECT 1 FROM information_schema.columns
+                           WHERE table_schema = current_schema() AND table_name = 'cotizaciones'
+                             AND column_name = 'notas_adicionales'""")
+            if not cur.fetchone():
+                cur.execute(DDL_NOTAS)
+        _BD_CON_NOTAS.add(bd)
+        return True
+    except Exception as exc:  # noqa: BLE001
+        app.logger.warning(f"Cotizaciones: no se pudo preparar notas_adicionales ({exc})")
+        return False
+
+
+def _limpiar_notas(texto):
+    """Las notas como las escribió la persona, sin espacios sobrantes ni más de una
+    línea en blanco seguida, y con un máximo de NOTAS_MAX caracteres."""
+    limpio, vacias = [], 0
+    for linea in str(texto or '').splitlines():
+        linea = linea.rstrip()
+        vacias = vacias + 1 if not linea else 0
+        if vacias <= 1:
+            limpio.append(linea)
+    return '\n'.join(limpio).strip()[:NOTAS_MAX].strip()
+
+
+def _firma_empresa():
+    """Nombre del negocio bajo la firma del PDF. Nunca «CyberShop» (el valor por
+    defecto) en la cotización de un cliente: entonces la firma va sin nombre."""
+    try:
+        from services.public_site_service import (PUBLIC_FIELD_BY_KEY, get_brand_config,
+                                                  is_public_section_enabled)
+        nombre = ((get_brand_config() or {}).get('empresa_nombre') or '').strip()
+        de_cybershop = nombre == PUBLIC_FIELD_BY_KEY['empresa_nombre']['default']
+        if de_cybershop and not is_public_section_enabled('mostrar_modulo_software', False):
+            return ''
+        return nombre
+    except Exception:  # noqa: BLE001
+        return ''
 
 
 @quotes_bp.route('/admin/cotizar')
@@ -115,6 +191,8 @@ def generar_cotizacion():
         cliente_representante = request.form.get('cliente_representante', 'N/A')
         cliente_cargo       = request.form.get('cliente_cargo', 'N/A')
         cliente_localidad   = request.form.get('cliente_localidad', '')
+        notas_adicionales   = _limpiar_notas(request.form.get('notas_adicionales'))
+        con_notas           = _soporta_notas()
 
         # 2. Logo: ruta local para PDF, URL para BD
         logo_local_path = None
@@ -164,6 +242,9 @@ def generar_cotizacion():
                       cliente_direccion, cliente_ciudad, cliente_telefono,
                       cliente_representante, cliente_cargo, cliente_localidad,
                       cotizacion_id_edit))
+                if con_notas:
+                    cur.execute("UPDATE cotizaciones SET notas_adicionales=%s WHERE id=%s",
+                                (notas_adicionales or None, cotizacion_id_edit))
                 cotizacion_id = int(cotizacion_id_edit)
                 cur.execute("DELETE FROM detalle_cotizacion WHERE cotizacion_id=%s", (cotizacion_id,))
             else:
@@ -178,6 +259,9 @@ def generar_cotizacion():
                       cliente_direccion, cliente_ciudad, cliente_telefono,
                       cliente_representante, cliente_cargo, cliente_localidad))
                 cotizacion_id = cur.fetchone()['id']
+                if con_notas and notas_adicionales:
+                    cur.execute("UPDATE cotizaciones SET notas_adicionales=%s WHERE id=%s",
+                                (notas_adicionales, cotizacion_id))
 
             for i in range(len(descripciones)):
                 cantidad        = int(cantidades[i]) if i < len(cantidades) and cantidades[i] else 1
@@ -317,7 +401,11 @@ def generar_cotizacion():
             'total':    formatear_moneda(total_cotizacion),
             'subtotal': formatear_moneda(total_subtotal),
             'descuento': formatear_moneda(total_descuentos),
+            # Sin descuento no sale el renglón: el cliente no lee «Descuentos $0».
+            'mostrar_descuento': round(total_descuentos, 2) > 0,
             'iva':      formatear_moneda(total_iva),
+            'notas':    notas_adicionales,   # al final; vacías no salen
+            'firma_empresa': _firma_empresa(),
             'logo':     logo_local_path,   # ruta local, sin peticion HTTP
             'colores':  _get_brand_colors()
         }
