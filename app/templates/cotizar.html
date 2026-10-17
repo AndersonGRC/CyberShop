@@ -176,6 +176,31 @@
         cursor: pointer;
     }
 
+    .btn-ia[hidden],
+    .btn-ia-sec[hidden] {
+        display: none;
+    }
+
+    .cot-ia-texto {
+        resize: vertical;
+        min-height: 64px;
+        font-family: inherit;
+        font-size: 0.95rem;
+        line-height: 1.5;
+    }
+
+    .cot-ia-tag {
+        display: inline-block;
+        margin-left: 6px;
+        padding: 1px 8px;
+        border-radius: 999px;
+        background: #e8f0fe;
+        color: #1a3a8a;
+        font-size: 0.75rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
     .btn-ia-sec:hover {
         background: #f1f3f7;
     }
@@ -745,14 +770,18 @@
                 <div class="cot-ia-barra">
                     <div class="form-group cot-ia-ind">
                         <label for="cotIaIndicaciones">Indicaciones para la IA (opcional)</label>
-                        <input type="text" id="cotIaIndicaciones" class="form-control" maxlength="300"
-                               placeholder="Ej.: anticipo del 60 %, entrega en 8 días, garantía de 6 meses">
+                        <textarea id="cotIaIndicaciones" class="form-control cot-ia-texto" rows="2" maxlength="500"
+                                  aria-describedby="cotIaAyuda"
+                                  placeholder="Ej.: anticipo del 60 %, entrega en 8 días. El valor incluye los materiales básicos; regletas o gabinete se cobran aparte."></textarea>
+                        <p class="cotizar-help" id="cotIaAyuda">Escribe lo que quieras agregar o complementar. La IA revisa
+                            las notas que ya tienes y no te repite lo que ya está escrito ni lo que ya te mostró.</p>
                     </div>
                     <button type="button" class="btn-ia" id="cotIaBtn">
                         <i class="fas fa-magic" aria-hidden="true"></i> Sugerir notas con IA
                     </button>
                 </div>
                 <p class="cotizar-help cot-ia-estado" id="cotIaEstado" role="status" aria-live="polite"></p>
+                <button type="button" class="btn-ia-sec" id="cotIaReiniciar" hidden>Volver a ver todas las sugerencias</button>
                 <div class="cot-ia-panel" id="cotIaPanel" hidden>
                     <h4 class="cot-ia-titulo" id="cotIaTitulo" tabindex="-1">Sugerencias de la IA</h4>
                     <div id="cotIaAvisos"></div>

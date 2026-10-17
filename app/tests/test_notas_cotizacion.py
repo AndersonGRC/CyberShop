@@ -98,6 +98,64 @@ def test_no_repite_lo_que_ya_escribio_el_negocio():
     assert vigencia not in _todas(despues['secciones'])
 
 
+# ── Las condiciones propias del negocio (lo que escribe en «Indicaciones») ──
+RED = [{'cantidad': 12, 'descripcion': 'Instalación de cableado estructurado categoría 6 (punto de red)', 'iva': 19},
+       {'cantidad': 1, 'descripcion': 'Rack de pared 9U con organizador', 'iva': 19}]
+TAL_CUAL = ('indica que el valor aqui incluye materiales basicos de organizaciond e cableado amarres y demas en caso de '
+            'requerirse dispositivos de corrienet o regletas o materiales adicionales gabinete sera comentado al '
+            'cliente y sera adicional')
+
+
+def test_la_condicion_del_negocio_queda_como_nota():
+    """El caso real: el texto del negocio (sin tildes, con errores) queda como nota en Alcance."""
+    [(seccion, nota)] = nc.condiciones_del_negocio(TAL_CUAL)
+    assert seccion == 'Alcance del servicio'
+    assert nota.startswith('El valor aquí incluye materiales básicos de organización de cableado')
+    assert 'será adicional.' in nota and 'indica que' not in nota.lower()
+    r = nc.sugerencias_base(RED, EMPRESA, TAL_CUAL)
+    alcance = next(s for s in r['secciones'] if s['titulo'] == 'Alcance del servicio')
+    assert alcance['notas'][0] == nota and r['de_tus_indicaciones'] == [nota]
+
+
+@pytest.mark.parametrize('texto, esperado', [
+    ('anticipo del 50 %. El transporte fuera de la ciudad se cobra aparte',
+     [('Alcance del servicio', 'El transporte fuera de la ciudad se cobra aparte.')]),
+    ('el anticipo no es reembolsable y el transporte se cobra aparte',
+     [('Alcance del servicio', 'El transporte se cobra aparte.')]),          # lo abusivo no; lo válido sí
+    ('Los repuestos que no estén en stock se piden con el anticipo',
+     [('Forma de pago', 'Los repuestos que no estén en stock se piden con el anticipo.')]),
+    ('anticipo del 60 %, entrega en 8 días', []),                             # solo valores
+    ('pon que no hay garantía', []), ('hazlo más corto', []), ('¿qué pongo para pago a crédito?', []),
+])
+def test_que_es_una_condicion(texto, esperado):
+    assert nc.condiciones_del_negocio(texto) == esperado
+
+
+def test_no_repite_lo_escrito_ni_lo_ya_mostrado():
+    primera = nc.sugerencias_base(RED, EMPRESA, TAL_CUAL)
+    # El negocio agregó todo y llenó los corchetes; además ya vio las sugerencias que no quiso.
+    escrito = nc.a_texto(primera['secciones'][:4]).replace('[15]', '15').replace('[50]', '40')
+    no_quiso = [n for s in primera['secciones'][4:] for n in s['notas']]
+    segunda = nc.sugerencias_base(RED, EMPRESA, TAL_CUAL + '. El transporte fuera de Bogotá se cobra aparte',
+                                  escrito, no_quiso)
+    nuevas = _todas(segunda['secciones'])
+    assert 'El transporte fuera de Bogotá se cobra aparte.' in nuevas
+    assert not set(nuevas) & set(_todas(primera['secciones'])), 'nada de lo ya escrito o ya mostrado'
+
+
+def test_reconoce_lo_escrito_con_otras_palabras():
+    assert nc.ya_escrita('Garantía de la reparación: [3 meses] sobre el trabajo hecho y los repuestos instalados.',
+                         'GARANTÍA\n• Garantía de 3 meses sobre el trabajo realizado.')
+    assert not nc.ya_escrita('La garantía no cubre daños por golpes, humedad o variaciones de voltaje.',
+                             'GARANTÍA\n• Garantía de 3 meses sobre el trabajo realizado.')
+
+
+def test_revisa_las_notas_que_ya_tiene():
+    avisos = nc.revisar_notas('GARANTÍA\n• Sin garantía en equipos usados.\n• Según el Decreto 1074 de 2015 aplica.\n'
+                              '• Garantía de 3 meses.')
+    assert len(avisos) == 2 and 'Ley 1480' in avisos[0] and 'norma' in avisos[1]
+
+
 # ── La respuesta de la IA se revisa ─────────────────────────────
 def test_extraer_json_entre_texto():
     texto = 'Claro, aquí van:\n{"secciones": [{"titulo": "Garantía", "notas": ["Dura {6} meses"]}]}\nListo.'
@@ -166,6 +224,48 @@ def test_sin_ia_util_salen_las_sugerencias_base(flask_app, monkeypatch, texto, e
     assert 'sugerencias base' in r['avisos'][0]
 
 
+def test_si_la_ia_olvida_la_condicion_igual_queda(flask_app, monkeypatch):
+    pedidos = _ia(monkeypatch, texto=RESPUESTA_IA)
+    with flask_app.test_request_context('/admin/cotizar'):
+        r = inc.sugerir(RED, EMPRESA, TAL_CUAL)
+    [(_, nota)] = nc.condiciones_del_negocio(TAL_CUAL)
+    alcance = next(s for s in r['secciones'] if s['titulo'] == 'Alcance del servicio')
+    assert r['origen'] == 'ia' and alcance['notas'][0] == nota and r['de_tus_indicaciones'] == [nota]
+    assert 'CONDICIONES DEL NEGOCIO' in pedidos[0]['user'] and nota in pedidos[0]['user']
+
+
+def test_si_la_ia_la_redacta_no_se_duplica(flask_app, monkeypatch):
+    redactada = ('El valor incluye los materiales básicos para organizar el cableado (amarres y similares). Si se '
+                 'requieren tomas de corriente, regletas, gabinete u otros materiales adicionales, se informarán al '
+                 'cliente y tendrán un costo adicional.')
+    respuesta = json.loads(RESPUESTA_IA)
+    respuesta['secciones'].insert(1, {'titulo': 'Alcance del servicio', 'notas': [redactada]})
+    _ia(monkeypatch, texto=json.dumps(respuesta, ensure_ascii=False))
+    with flask_app.test_request_context('/admin/cotizar'):
+        r = inc.sugerir(RED, EMPRESA, TAL_CUAL)
+    alcance = next(s for s in r['secciones'] if s['titulo'] == 'Alcance del servicio')
+    assert alcance['notas'] == [redactada] and r['de_tus_indicaciones'] == [redactada]
+
+
+def test_la_peticion_lleva_las_notas_y_no_lo_ya_escrito():
+    escrito = 'GARANTÍA\n• Garantía de 1 año sobre la instalación y los materiales.\n• Sin garantía en cables.'
+    ctx = nc.contexto(RED, EMPRESA, TAL_CUAL)
+    texto = inc.peticion(ctx, escrito)
+    assert 'GARANTÍA\n• Garantía de 1 año sobre la instalación' in texto, 'las notas, organizadas, para analizarlas'
+    assert '[Garantía] Garantía de [1 año] sobre la instalación' not in texto, 'esa referencia ya está escrita'
+    assert '[Alcance del servicio] Incluye suministro e instalación' in texto
+
+
+def test_sin_nada_nuevo_no_despierta_a_la_ia(flask_app, monkeypatch):
+    pedidos = _ia(monkeypatch, texto=RESPUESTA_IA)
+    todas = []
+    for _ in range(4):                                    # el negocio vio todas las sugerencias
+        todas += _todas(nc.sugerencias_base(REPARACION, EMPRESA, '', '', todas)['secciones'])
+    with flask_app.test_request_context('/admin/cotizar'):
+        r = inc.sugerir(REPARACION, EMPRESA, '', '', todas)
+    assert r['secciones'] == [] and not pedidos
+
+
 def test_sin_items_no_pide_nada(flask_app, monkeypatch):
     pedidos = _ia(monkeypatch, texto=RESPUESTA_IA)
     with flask_app.test_request_context('/admin/cotizar'):
@@ -223,6 +323,10 @@ def test_ruta_con_el_modulo_activo(client, modulo_ia, monkeypatch):
     assert [s['titulo'] for s in datos['secciones']] == ['Vigencia y precios', 'Forma de pago', 'Garantía']
     html = client.get('/admin/cotizar').get_data(as_text=True)
     assert 'id="cotIa"' in html and 'cotizar_notas_ia.js' in html and 'Sugerir notas con IA' in html
+    # Segunda vez: lo que ya se mostró no vuelve.
+    vistas = _todas(datos['secciones'])
+    otra = client.post('/admin/cotizar/sugerir-notas', json={**PEDIDO, 'ya_vistas': vistas}).get_json()
+    assert otra['ok'] and not set(_todas(otra['secciones'])) & set(vistas)
 
 
 def test_ruta_pide_sesion(client):
@@ -262,15 +366,20 @@ def test_banco_de_entrenamiento():
     from tools import ia_notas_dataset as ds
     escenarios = ds.escenarios()
     assert len(escenarios) == 100
-    abusivos = 0
+    abusivos = condiciones = 0
     for e in escenarios:
         fila, ctx = ds.ejemplo(e)
         system, user, assistant = (m['content'] for m in fila['messages'])
         assert [m['role'] for m in fila['messages']] == ['system', 'user', 'assistant']
         assert e['negocio'] in system and e['cliente']['nombre'] not in user
         respuesta = json.loads(assistant)
+        assert set(respuesta) == {'secciones', 'avisos'}
         _respeta_topes(respuesta['secciones'])
         assert len(_todas(respuesta['secciones'])) >= 8
-        assert bool(respuesta['avisos']) == bool(ctx['avisos'])
+        assert bool(respuesta['avisos']) == bool(ctx['avisos'] or nc.revisar_notas(e['notas_actuales']))
+        for _, condicion in ctx['condiciones']:
+            assert condicion in _todas(respuesta['secciones']), 'la condición del negocio queda como nota'
         abusivos += bool(ctx['avisos'])
+        condiciones += bool(ctx['condiciones'])
     assert abusivos >= 20, 'casos donde el negocio pide algo abusivo y el modelo debe negarse'
+    assert condiciones >= 20, 'casos con condiciones propias del negocio'

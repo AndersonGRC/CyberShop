@@ -35,14 +35,19 @@ SISTEMA = (
     'no digas que el anticipo nunca se devuelve, no niegues devoluciones o reclamos, no hagas renunciar al '
     'cliente a sus derechos. Si las indicaciones del negocio piden algo así, no lo incluyas: deja la '
     'alternativa justa y explícalo en «avisos».\n'
-    '4. Usa los valores de las INDICACIONES DEL NEGOCIO (porcentajes, días, garantías). Lo que el negocio '
-    'deba confirmar va entre corchetes, por ejemplo [15] días.\n'
+    '4. Las INDICACIONES DEL NEGOCIO mandan: usa sus valores (porcentajes, días, garantías) y convierte cada '
+    'CONDICIÓN DEL NEGOCIO (qué incluye el precio, qué se cobra aparte, materiales, desplazamientos, horarios…) '
+    'en una nota clara y con buena ortografía, en la sección indicada. Si contradice una cláusula de referencia, '
+    'deja la del negocio y omite la otra. Lo que el negocio deba confirmar va entre corchetes, por ejemplo [15] días.\n'
     '5. Frases cortas y claras en español de Colombia, sin emojis ni markdown. Una idea por nota, de '
     'máximo 280 caracteres.\n'
-    '6. No repitas las notas que el negocio ya escribió.\n'
+    '6. Analiza las NOTAS QUE YA ESCRIBIÓ EL NEGOCIO: no las repitas ni las digas con otras palabras; sugiere solo '
+    'lo que las complemente (temas que falten o detalles nuevos). Si alguna es abusiva o cita una norma dudosa, '
+    'dilo en «avisos» con la alternativa justa.\n'
     '7. Responde SOLO con un JSON válido, así: {{"secciones":[{{"titulo":"Vigencia y precios","notas":["..."]}}],'
-    '"avisos":[]}}. Usa de 4 a 8 secciones, máximo 4 notas por sección y máximo 20 notas en total, con estos '
-    'títulos y en este orden cuando apliquen: ' + ', '.join(nc.SECCIONES) + '.'
+    '"avisos":[]}}. Máximo 8 secciones, 4 notas por sección y 20 notas en total, con estos títulos y en este '
+    'orden cuando apliquen: ' + ', '.join(nc.SECCIONES) + '. Si no hay nada nuevo que sugerir, responde '
+    '{{"secciones":[],"avisos":[]}}.'
 )
 
 
@@ -54,8 +59,24 @@ def _limpio(texto, nombres=()):
         return texto
 
 
-def peticion(ctx, notas_actuales='', nombres=()):
-    """Lo que se le pide al modelo (el mismo formato del banco de entrenamiento)."""
+def _notas_escritas(notas_actuales, nombres=(), maximo=1800):
+    """Las notas del cuadro, línea por línea (títulos y viñetas), para que el modelo las analice."""
+    lineas, total = [], 0
+    for linea in str(notas_actuales or '').splitlines():
+        linea = ' '.join(linea.split())
+        if not linea:
+            continue
+        if total + len(linea) > maximo:
+            lineas.append('…')
+            break
+        lineas.append(linea)
+        total += len(linea)
+    return _limpio('\n'.join(lineas), nombres)
+
+
+def peticion(ctx, notas_actuales='', nombres=(), ya_vistas=()):
+    """Lo que se le pide al modelo (el mismo formato del banco de entrenamiento). Solo van
+    como referencia las cláusulas que el negocio aún no tiene ni se le han mostrado."""
     lineas = [f"CLIENTE: {ctx['cliente']}" + (f", en {ctx['ciudad']}" if ctx['ciudad'] else '')]
     lineas.append('LO QUE SE COTIZA:')
     for item in ctx['items'][:25]:
@@ -70,10 +91,21 @@ def peticion(ctx, notas_actuales='', nombres=()):
     tipos = [nc.CATEGORIAS[c]['nombre'] for c in ctx['categorias']]
     lineas.append('TIPO: ' + ('; '.join(tipos) if tipos else 'venta general'))
     lineas.append('INDICACIONES DEL NEGOCIO: ' + (_limpio(ctx['indicaciones'], nombres) or 'ninguna'))
-    actuales = _limpio(' '.join(str(notas_actuales or '').split())[:600], nombres)
-    lineas.append('NOTAS QUE YA ESCRIBIÓ EL NEGOCIO (no las repitas): ' + (actuales or 'ninguna'))
-    lineas.append('CLÁUSULAS DE REFERENCIA (revisadas; escoge las que apliquen y adáptalas):')
-    lineas += [f'[{s}] {t}' for s, t in nc.clausulas_para(ctx)]
+    visto = nc.lo_ya_visto(notas_actuales, ya_vistas)
+    condiciones = [(s, t) for s, t in ctx.get('condiciones') or [] if not nc.ya_escrita(t, visto)]
+    if condiciones:
+        lineas.append('CONDICIONES DEL NEGOCIO (deben quedar como notas, bien redactadas, en esta sección):')
+        lineas += [f'[{s}] {_limpio(t, nombres)}' for s, t in condiciones]
+    actuales = _notas_escritas(notas_actuales, nombres)
+    lineas.append('NOTAS QUE YA ESCRIBIÓ EL NEGOCIO (analízalas; no las repitas ni las reformules; complementa '
+                  'solo lo que falte):' + ('\n' + actuales if actuales else ' ninguna'))
+    propias = set(ctx.get('condiciones') or [])
+    referencias = [(s, t) for s, t in nc.clausulas_para(ctx) if (s, t) not in propias and not nc.ya_escrita(t, visto)]
+    if referencias:
+        lineas.append('CLÁUSULAS DE REFERENCIA (revisadas; escoge las que apliquen y adáptalas):')
+        lineas += [f'[{s}] {t}' for s, t in referencias]
+    else:
+        lineas.append('CLÁUSULAS DE REFERENCIA: ninguna nueva (lo importante ya está escrito).')
     lineas.append('Responde solo el JSON.')
     return '\n'.join(lineas)
 
@@ -170,22 +202,55 @@ def _avisos(respuesta):
     return salida[:3]
 
 
-def sugerir(items, cliente=None, indicaciones='', notas_actuales=''):
-    """{'secciones', 'avisos', 'origen': 'ia' | 'base' | 'vacio'}."""
+def _contar(secciones):
+    return sum(len(s['notas']) for s in secciones)
+
+
+def asegurar_condiciones(secciones, ctx, visto=''):
+    """Cada condición que escribió el negocio queda en las sugerencias: si la IA no la
+    incluyó (ni con otras palabras), entra la versión del catálogo al inicio de su sección.
+    Devuelve (secciones, notas que responden a sus indicaciones)."""
+    faltan, de_tus = [], []
+    for s, t in ctx.get('condiciones') or []:
+        if nc.ya_escrita(t, visto):
+            continue
+        cubierta = False
+        for seccion in secciones:
+            if nc.cobertura(t, ' '.join(seccion['notas'])) >= 0.5:
+                cubierta = True
+                de_tus += [n for n in seccion['notas'] if nc.cobertura(t, n) >= 0.25]
+        if not cubierta:
+            faltan.append((s, t))
+            de_tus.append(t)
+    if faltan:
+        pares = faltan + [(x['titulo'], n) for x in secciones for n in x['notas']]
+        secciones = nc.agrupar(pares, propias={s for s, _ in faltan})
+    return secciones, list(dict.fromkeys(de_tus))
+
+
+def sugerir(items, cliente=None, indicaciones='', notas_actuales='', ya_vistas=()):
+    """{'secciones', 'avisos', 'origen': 'ia' | 'base' | 'vacio', 'de_tus_indicaciones'}.
+    No sugiere lo que ya está en las notas ni lo que ya se le mostró (`ya_vistas`)."""
     cliente = cliente or {}
     ctx = nc.contexto(items, cliente, indicaciones)
     if not ctx['items']:
-        return {'secciones': [], 'avisos': ['Agrega primero lo que vas a cotizar.'], 'origen': 'vacio'}
-    base = nc.sugerencias_base(items, cliente, indicaciones, notas_actuales)
+        return {'secciones': [], 'avisos': ['Agrega primero lo que vas a cotizar.'], 'origen': 'vacio',
+                'de_tus_indicaciones': []}
+    base = nc.sugerencias_base(items, cliente, indicaciones, notas_actuales, ya_vistas)
+    visto = nc.lo_ya_visto(notas_actuales, ya_vistas)
 
     def con_base(motivo):
         return {'secciones': base['secciones'], 'origen': 'base',
+                'de_tus_indicaciones': base['de_tus_indicaciones'],
                 'avisos': [f'{motivo} Te mostramos las sugerencias base, revisadas.'] + base['avisos']}
 
     from services import ai_service as ai
     ok, motivo = ai.estado_ia()
     if not ok:
         return con_base(motivo)
+    if not base['secciones']:
+        # Lo importante ya está escrito o ya se mostró: no hace falta despertar a la IA.
+        return {'secciones': [], 'origen': 'base', 'avisos': base['avisos'], 'de_tus_indicaciones': []}
     negocio = 'el negocio'
     try:
         from services.public_site_service import get_brand_config
@@ -193,13 +258,18 @@ def sugerir(items, cliente=None, indicaciones='', notas_actuales=''):
     except Exception:  # noqa: BLE001
         pass
     nombres = tuple(p for p in [str(cliente.get('nombre') or '').strip()] if p)
-    texto, err = ai._chat(SISTEMA.format(negocio=negocio), peticion(ctx, notas_actuales, nombres),
+    texto, err = ai._chat(SISTEMA.format(negocio=negocio), peticion(ctx, notas_actuales, nombres, ya_vistas),
                           max_tokens=1600, temperature=0.3, espera_frio=40, tarea=TAREA)
     if err or not texto:
         return con_base(err or 'La IA no respondió.')
     respuesta = extraer_json(texto)
-    secciones, _descartadas = validar(respuesta, notas_actuales)
-    if sum(len(s['notas']) for s in secciones) < 3:
+    if not isinstance(respuesta, dict) or not isinstance(respuesta.get('secciones'), list):
         return con_base('La respuesta de la IA no se pudo usar.')
-    avisos = list(dict.fromkeys(ctx['avisos'] + _avisos(respuesta)))
-    return {'secciones': secciones, 'avisos': avisos, 'origen': 'ia', 'descartadas': _descartadas}
+    utiles, _ = validar(respuesta)                    # ¿dio algo usable, antes de quitar lo ya visto?
+    if _contar(utiles) < min(3, _contar(base['secciones'])):
+        return con_base('La respuesta de la IA no se pudo usar.')
+    secciones, _descartadas = validar(respuesta, visto)
+    secciones, de_tus = asegurar_condiciones(secciones, ctx, visto)
+    avisos = list(dict.fromkeys(ctx['avisos'] + nc.revisar_notas(notas_actuales) + _avisos(respuesta)))
+    return {'secciones': secciones, 'avisos': avisos[:5], 'origen': 'ia', 'descartadas': _descartadas,
+            'de_tus_indicaciones': de_tus}

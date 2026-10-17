@@ -201,10 +201,13 @@ def sugerir_notas():
                           'cantidad': item.get('cantidad'), 'iva': item.get('iva')})
     cliente = datos.get('cliente') if isinstance(datos.get('cliente'), dict) else {}
     cliente = {k: str(cliente.get(k) or '')[:120] for k in ('nombre', 'documento', 'ciudad')}
+    # Sugerencias que ya se le mostraron en esta pantalla: no se repiten.
+    vistas = datos.get('ya_vistas') if isinstance(datos.get('ya_vistas'), list) else []
+    ya_vistas = [v[:300] for v in vistas[-80:] if isinstance(v, str) and v.strip()]
     from services import ia_notas_cotizacion
     try:
-        resultado = ia_notas_cotizacion.sugerir(items, cliente, str(datos.get('indicaciones') or '')[:300],
-                                                str(datos.get('notas_actuales') or '')[:NOTAS_MAX])
+        resultado = ia_notas_cotizacion.sugerir(items, cliente, str(datos.get('indicaciones') or '')[:500],
+                                                str(datos.get('notas_actuales') or '')[:NOTAS_MAX], ya_vistas)
     except Exception as exc:  # noqa: BLE001
         app.logger.error(f"Sugerir notas de cotización: {exc}")
         return jsonify({'ok': False, 'error': 'No se pudieron preparar las sugerencias. Intenta de nuevo.'}), 500

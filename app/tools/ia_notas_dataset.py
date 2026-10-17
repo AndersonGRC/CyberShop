@@ -86,11 +86,24 @@ PERSONAS = [('Laura Gómez', '1.032.456.789'), ('Andrés Rojas', '79.845.123'), 
 # para que el modelo aprenda a aplicarlos y a negarse con la alternativa justa.
 INDICACIONES = ['', 'anticipo del 50 %', 'anticipo del 60 %, entrega en 8 días', 'vigencia de 30 días',
                 'garantía de 6 meses', 'pon que no hay garantía', 'entrega en 15 días y anticipo del 40 %',
-                'el anticipo no es reembolsable', '', 'no se aceptan devoluciones', 'vigencia de 10 días, anticipo del 30 %',
-                'no nos hacemos responsables por daños', 'entrega en 5 días', '', 'garantía de 1 año']
+                'el anticipo no es reembolsable',
+                'el valor incluye los materiales básicos; los materiales adicionales se informan al cliente y se cobran aparte',
+                'no se aceptan devoluciones', 'vigencia de 10 días, anticipo del 30 %',
+                'no nos hacemos responsables por daños', 'entrega en 5 días', '', 'garantía de 1 año',
+                # Condiciones propias del negocio: deben quedar como notas, bien redactadas.
+                'el transporte fuera del perímetro urbano se cobra aparte',
+                'anticipo del 50 %. Los trabajos en domingo o festivo tienen un recargo del 20 %',
+                'indica que incluye una visita de seguimiento sin costo durante el primer mes',
+                'el anticipo no es reembolsable y el transporte se cobra aparte',
+                'agrega que los precios no incluyen el desplazamiento fuera de la ciudad']
+# Notas que el negocio ya tiene: el modelo las analiza, no las repite y solo complementa;
+# si alguna es abusiva, lo advierte.
 NOTAS_PREVIAS = ['', '', 'Precios con IVA incluido.', '',
-                 'VIGENCIA Y PRECIOS\n• Esta cotización es válida por [15] días calendario desde su fecha; durante ese '
-                 'plazo se mantienen los precios y condiciones ofrecidos (arts. 845 y 846 del Código de Comercio).', '']
+                 'VIGENCIA Y PRECIOS\n• Esta cotización es válida por 15 días calendario desde su fecha; durante ese '
+                 'plazo se mantienen los precios y condiciones ofrecidos (arts. 845 y 846 del Código de Comercio).', '',
+                 'FORMA DE PAGO\n• 50 % de anticipo y el saldo contra entrega.\n\nGARANTÍA\n'
+                 '• Garantía de 3 meses sobre el trabajo realizado.',
+                 'CONDICIONES\n• No se aceptan devoluciones.']
 
 
 def escenarios():
@@ -112,7 +125,8 @@ def escenarios():
 
 def ejemplo(e):
     ctx = nc.contexto(e['items'], e['cliente'], e['indicaciones'])
-    respuesta = nc.sugerencias_base(e['items'], e['cliente'], e['indicaciones'], e['notas_actuales'])
+    base = nc.sugerencias_base(e['items'], e['cliente'], e['indicaciones'], e['notas_actuales'])
+    respuesta = {'secciones': base['secciones'], 'avisos': base['avisos']}     # el formato que pide la app
     return {'messages': [
         {'role': 'system', 'content': inc.SISTEMA.format(negocio=e['negocio'])},
         {'role': 'user', 'content': inc.peticion(ctx, e['notas_actuales'], (e['cliente']['nombre'],))},
@@ -129,13 +143,15 @@ def main():
             fila, ctx = ejemplo(e)
             f.write(json.dumps(fila, ensure_ascii=False) + '\n')
             banco.append({**e, 'categorias_esperadas': ctx['categorias'], 'cliente_tipo': ctx['cliente'],
-                          'pide_algo_abusivo': bool(ctx['avisos'])})
+                          'pide_algo_abusivo': bool(ctx['avisos'] or nc.revisar_notas(e['notas_actuales'])),
+                          'condiciones_esperadas': [t for _, t in ctx['condiciones']]})
     with open(os.path.join(SALIDA, 'banco_notas_cotizacion.json'), 'w', encoding='utf-8', newline='\n') as f:
         json.dump(banco, f, ensure_ascii=False, indent=1)
     print(f'{len(lista)} ejemplos → {SALIDA}')
     sin_categoria = [e['items'][0]['descripcion'] for e in banco if not e['categorias_esperadas']]
     print('Sin categoría (venta general):', len(sin_categoria), sin_categoria[:6])
     print('Con pedido abusivo:', sum(e['pide_algo_abusivo'] for e in banco))
+    print('Con condiciones propias del negocio:', sum(bool(e['condiciones_esperadas']) for e in banco))
 
 
 if __name__ == '__main__':

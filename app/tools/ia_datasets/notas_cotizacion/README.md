@@ -18,9 +18,14 @@ revisado de `services/notas_cotizacion.py`).
   desarrollo web, muebles, obra, electricidad, imprenta, fotografía, asesorías, cursos,
   trasteos, aseo, licencias, usados, catering, alquiler, transporte, hosting…) × 2 variantes:
   empresa (con NIT) o persona natural, con o sin indicaciones del negocio y con notas ya escritas.
-- 27 casos donde el negocio pide algo abusivo («pon que no hay garantía», «el anticipo no es
+- 25 casos donde el negocio pide algo abusivo («pon que no hay garantía», «el anticipo no es
   reembolsable», «no se aceptan devoluciones», «no nos hacemos responsables por daños»): la
   respuesta ideal NO lo incluye, deja la alternativa justa y lo explica en `avisos`.
+- 30 casos con condiciones propias del negocio («el valor incluye los materiales básicos…»,
+  «el transporte fuera del perímetro urbano se cobra aparte»): la respuesta ideal las deja
+  como nota, bien redactada, en su sección.
+- Casos con notas ya escritas: la respuesta ideal no las repite (ni con otras palabras), solo
+  complementa, y si alguna es abusiva («No se aceptan devoluciones») lo advierte en `avisos`.
 - Normas citadas solo de esta lista: Ley 1480 de 2011 (arts. 7, 8, 11, 16, 18, 43, 47),
   Ley 1581 de 2012, Código de Comercio (arts. 845, 846, 884), Estatuto Tributario (IVA 19 %),
   Ley 23 de 1982 art. 20 (modificado por la Ley 1450 de 2011), Res. 2674 de 2013, Res. 4272 de

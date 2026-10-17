@@ -535,6 +535,111 @@ def leer_indicaciones(texto):
     return valores, avisos
 
 
+# ── Condiciones propias del negocio («el valor incluye…», «el transporte va aparte») ──
+# Lo que el negocio escribe en «Indicaciones» y no es un valor (anticipo, días, garantía),
+# ni un pedido abusivo, ni una orden de estilo, es una condición suya: va como nota en su
+# sección, siempre (con IA o sin ella).
+_VALORES = (r'(?:con |un |el )?anticipo (?:del? )?\d{1,3} ?%|\d{1,3} ?% (?:de )?anticipo',
+            r'(?:con |una )?(?:vigencia|valida|valido|vale)\D{0,20}?\d{1,3} ?dias(?: habiles| calendario)?',
+            r'(?:con )?(?:entrega|plazo|tiempo de entrega|se entrega|ejecucion)\D{0,20}?\d{1,3} ?dias'
+            r'(?: habiles| calendario)?',
+            r'(?:con )?garantia (?:de |por )?\d{1,2} ?(?:mes(?:es)?|ano|anos|dias)')
+_ORDEN_AL_ASISTENTE = re.compile(
+    r'^(?:por favor,?\s+)?(?:indica|indique|indicar|pon|ponga|poner|coloca|coloque|agrega|agregue|agregar|anota|'
+    r'anote|aclara|aclare|menciona|mencione|di|deja|escribe|escriba|especifica|especifique|recuerda|recuerde)'
+    r'\s+(?:en las notas\s+|tambien\s+)?(?:que\s+)?')
+_ORDEN_DE_ESTILO = re.compile(r'^(?:hazl[oa]s?|haz|usa|redacta|resume|resumelo|que sean?|en tono|mas |menos |'
+                              r'solo |sin |no repitas|cortas?|formal)\b')
+_TILDES = {'aqui': 'aquí', 'alli': 'allí', 'sera': 'será', 'seran': 'serán', 'estara': 'estará', 'demas': 'demás',
+           'tambien': 'también', 'ademas': 'además', 'despues': 'después', 'dias': 'días', 'habiles': 'hábiles',
+           'garantia': 'garantía', 'basico': 'básico', 'basicos': 'básicos', 'basica': 'básica', 'basicas': 'básicas',
+           'electrico': 'eléctrico', 'electricos': 'eléctricos', 'electrica': 'eléctrica', 'electricas': 'eléctricas',
+           'tecnico': 'técnico', 'tecnicos': 'técnicos', 'credito': 'crédito', 'energia': 'energía',
+           'informara': 'informará', 'cobrara': 'cobrará', 'cobraran': 'cobrarán', 'incluira': 'incluirá',
+           'tendra': 'tendrá', 'tendran': 'tendrán', 'podra': 'podrá', 'debera': 'deberá', 'deberan': 'deberán',
+           'facturara': 'facturará', 'mas': 'más', 'perimetro': 'perímetro', 'telefono': 'teléfono'}
+_SECCION_DE = ((r'\bgarantia', 'Garantía'),
+               (r'\b(anticipo|abono|pago|pagos|cuotas?|transferencia|efectivo|credito|contado)\b', 'Forma de pago'),
+               (r'\b(cancel|reprogram|retracto)', 'Cancelaciones'),
+               (r'\b(iva|factura|facturacion|impuestos?|retencion(es)?)\b', 'Impuestos y facturación'),
+               (r'\b(derechos|propiedad|autor|codigo fuente)\b', 'Propiedad intelectual'),
+               (r'\b(datos personales|privacidad)\b', 'Datos personales'),
+               (r'\b(material|incluye|incluido|incluidos|adicional|alcance|aparte|recargo|transporte|'
+                r'desplazamiento|visita)', 'Alcance del servicio'),
+               (r'\b(entrega|plazo|habiles|tiempo)', 'Tiempos de entrega'),
+               (r'\b(cliente debe|cliente se compromete|responsab|acceso|permiso)', 'Responsabilidades del cliente'),
+               (r'\b(vigencia|valida|precio)', 'Vigencia y precios'))
+
+
+def _quitar(texto, patrones):
+    """Quita del texto (con tildes) lo que los patrones encuentran en su versión normalizada."""
+    n = normalizar(texto)
+    if len(n) != len(texto):
+        return texto
+    for patron in patrones:
+        for m in reversed(list(re.finditer(patron, n))):
+            texto, n = texto[:m.start()] + texto[m.end():], n[:m.start()] + n[m.end():]
+    return texto
+
+
+def redactar_condicion(texto):
+    """La condición como nota: sin «indica que…», con tildes frecuentes, mayúscula y punto."""
+    t = ' '.join(str(texto or '').split())
+    n = normalizar(t)
+    m = _ORDEN_AL_ASISTENTE.match(n)
+    if m and len(n) == len(t):
+        t = t[m.end():]
+    t = t.strip(' ,;:-–y').strip()
+    t = re.sub(r'^(?:y|e|ademas|además|tambien|también)\s+', '', t, flags=re.I)
+    t = re.sub(r'\b(\w+?(?:cion|sion))d e\b', r'\1 de', t)               # «organizaciond e» → «organizacion de»
+    t = re.sub(r'\b(\w+?)([cs])ion\b', r'\1\2ión', t)                     # -cion / -sion → -ción / -sión
+    t = re.sub(r'(\w{3,}) (en caso de|si se requiere|si se requieren)\b', r'\1; \2', t)   # frase larga sin pausa
+    t = re.sub(r'\b[A-Za-z]+\b', lambda w: _TILDES.get(w.group(0).lower(), w.group(0))
+               if w.group(0).islower() else w.group(0), t)
+    if not t:
+        return ''
+    t = t[0].upper() + t[1:]
+    if len(t) > MAX_LARGO_NOTA:
+        t = t[:MAX_LARGO_NOTA - 1].rsplit(' ', 1)[0]
+    return t if t.endswith(('.', '!', ')')) else t.rstrip(',;:') + '.'
+
+
+def seccion_de(texto):
+    n = normalizar(texto)
+    for patron, seccion in _SECCION_DE:
+        if re.search(patron, n):
+            return seccion
+    return 'Alcance del servicio'
+
+
+def condiciones_del_negocio(indicaciones):
+    """[(sección, nota)] con las condiciones propias que escribió el negocio."""
+    def abusiva(texto):
+        n = normalizar(texto)
+        return any(re.search(p, n) for p in _PEDIDOS_ABUSIVOS) or es_abusiva(texto)
+
+    frases = []
+    for frase in re.split(r'[.;\n]+(?:\s|$)|\n', str(indicaciones or '')):
+        # «el anticipo no es reembolsable y el transporte va aparte»: se separa y se
+        # conserva la parte válida.
+        frases += (re.split(r'\s+y\s+(?=(?:el|la|los|las)\s)', frase, flags=re.I) if abusiva(frase) else [frase])
+    salida = []
+    for frase in frases:
+        frase = ' '.join(frase.split())
+        n = normalizar(frase)
+        if not frase or frase.startswith('¿') or frase.endswith('?'):
+            continue
+        if abusiva(frase):
+            continue                                      # va como aviso, nunca como nota
+        if _ORDEN_DE_ESTILO.match(n):
+            continue                                      # «hazlo más corto»: es para la IA
+        nota = redactar_condicion(_quitar(frase, _VALORES))
+        palabras = re.findall(r'[a-záéíóúñü]{3,}', nota.lower())
+        if len(palabras) >= 3 and len(nota) >= 15 and not cita_norma_no_permitida(nota):
+            salida.append((seccion_de(nota), nota))
+    return salida[:4]
+
+
 # ── Sugerencias base (sin IA) ─────────────────────────────────────────────────
 def contexto(items, cliente=None, indicaciones=''):
     """Lo que se sabe de la cotización, sin datos personales del cliente."""
@@ -551,7 +656,8 @@ def contexto(items, cliente=None, indicaciones=''):
         'ciudad': str(cliente.get('ciudad') or '').strip()[:60],
         'valores': valores,
         'avisos': avisos,
-        'indicaciones': ' '.join(str(indicaciones or '').split())[:300],
+        'condiciones': condiciones_del_negocio(indicaciones),
+        'indicaciones': ' '.join(str(indicaciones or '').split())[:500],
     }
 
 
@@ -580,8 +686,11 @@ def clausulas_con_origen(ctx):
     """(sección, texto, propia): propia = viene del tipo de servicio o de una indicación
     del negocio (se conserva antes que las generales al recortar)."""
     v = ctx['valores']
-    salida = [COMUNES['vigencia']]
-    propias = set()
+    # Las condiciones propias del negocio van primero en su sección (y la vuelven propia).
+    condiciones = ctx.get('condiciones') or []
+    salida = list(condiciones) + [COMUNES['vigencia']]
+    propias = {s for s, _ in condiciones}
+    dice_materiales = any('material' in normalizar(t) for _, t in condiciones)
     for c in ctx['categorias']:
         datos = CATEGORIAS[c]
         defectos = {k: datos[k] for k in ('garantia', 'entrega') if k in datos}
@@ -589,6 +698,8 @@ def clausulas_con_origen(ctx):
             s, t = clausula[0], clausula[1]
             if len(clausula) > 2 and clausula[2] == 'servicio' and not ctx['hay_servicios']:
                 continue                                  # p. ej. «incluye instalación» en una venta sin instalación
+            if dice_materiales and '[incluye / no incluye] los materiales' in t:
+                continue                                  # el negocio ya dijo qué materiales incluye
             salida.append((s, _llenar(t, v, defectos)))
             propias.add(s)
     if ctx['hay_bienes'] and not (set(ctx['categorias']) & _SIN_GARANTIA_GENERICA):
@@ -654,21 +765,79 @@ def agrupar(pares, maximo_secciones=MAX_SECCIONES, maximo_notas=MAX_NOTAS_SECCIO
     return [{'titulo': s, 'notas': por_seccion[s]} for s in orden]
 
 
-def sugerencias_base(items, cliente=None, indicaciones='', notas_actuales=''):
-    """Sugerencias sin IA: las cláusulas revisadas que aplican, organizadas."""
+def sugerencias_base(items, cliente=None, indicaciones='', notas_actuales='', ya_vistas=()):
+    """Sugerencias sin IA: las cláusulas revisadas que aplican, organizadas, sin lo que ya
+    está escrito ni lo que ya se le mostró al negocio; con la revisión de sus notas."""
     ctx = contexto(items, cliente, indicaciones)
-    trios = [c for c in clausulas_con_origen(ctx) if not ya_escrita(c[1], notas_actuales)]
+    visto = lo_ya_visto(notas_actuales, ya_vistas)
+    trios = [c for c in clausulas_con_origen(ctx) if not ya_escrita(c[1], visto)]
     propias = {s for s, _, propia in trios if propia}
-    return {'secciones': agrupar([(s, t) for s, t, _ in trios], propias=propias), 'avisos': ctx['avisos']}
+    secciones = agrupar([(s, t) for s, t, _ in trios], propias=propias)
+    todas = {n for s in secciones for n in s['notas']}
+    return {'secciones': secciones, 'avisos': ctx['avisos'] + revisar_notas(notas_actuales),
+            'de_tus_indicaciones': [t for _, t in ctx['condiciones'] if t in todas]}
+
+
+def lo_ya_visto(notas_actuales='', ya_vistas=()):
+    """Las notas del cuadro más las sugerencias que ya se le mostraron, una por línea."""
+    return '\n'.join([str(notas_actuales or '')] + [str(v) for v in (ya_vistas or []) if v])
+
+
+_VACIAS = {'para', 'como', 'esta', 'este', 'estos', 'estas', 'desde', 'sobre', 'entre', 'cada', 'todo', 'toda',
+           'todos', 'todas', 'solo', 'cuando', 'donde', 'segun', 'hasta', 'dentro', 'mismo', 'misma', 'debe',
+           'puede', 'pueden', 'cual', 'cuales', 'tiene', 'tienen', 'sera', 'seran', 'otro', 'otros', 'otra', 'otras',
+           'ante', 'bajo', 'tras', 'pero', 'sino', 'tambien', 'ademas', 'aqui', 'caso', 'hace', 'haya', 'sean',
+           'esto', 'ellos', 'ellas', 'nuestro', 'nuestra', 'usted', 'ustedes'}
+
+
+def _raices(texto):
+    """Raíces (5 letras) de las palabras con contenido, para comparar sin importar la redacción."""
+    return {w[:5] for w in re.findall(r'[a-z]{4,}', normalizar(texto)) if w not in _VACIAS}
+
+
+def cobertura(nota, texto):
+    """Qué parte de las ideas de `nota` aparece en `texto` (0 a 1)."""
+    r = _raices(nota)
+    return len(r & _raices(texto)) / len(r) if r else 0.0
 
 
 def ya_escrita(nota, notas_actuales):
-    """¿La nota (o casi la misma) ya está en lo que escribió el negocio?"""
+    """¿La nota (o una muy parecida, dicha con otras palabras o con los [corchetes] ya
+    llenos) está en lo que escribió el negocio o en lo que ya se le mostró?"""
     actual = normalizar(notas_actuales)
     if not actual.strip():
         return False
-    clave = normalizar(nota)[:60]
-    return clave in actual
+    if normalizar(nota)[:60] in actual:
+        return True
+    r = _raices(nota)
+    if not r:
+        return False
+    for linea in str(notas_actuales).splitlines():
+        if not linea.strip() or _es_titulo(linea):
+            continue
+        rl = _raices(linea)
+        comun = len(r & rl)
+        if comun / len(r) >= 0.6 or (comun >= 2 and comun / max(len(rl), 1) >= 0.75):
+            return True
+    return False
+
+
+def revisar_notas(notas_actuales):
+    """Avisos sobre lo que ya escribió el negocio: cláusulas abusivas o normas dudosas."""
+    avisos = []
+    for linea in str(notas_actuales or '').splitlines():
+        t = _LINEA_VINETA.sub('', linea).strip()
+        if not t or _es_titulo(linea):
+            continue
+        corta = t if len(t) <= 70 else t[:67].rsplit(' ', 1)[0] + '…'
+        if es_abusiva(t):
+            avisos.append(f'Revisa tu nota «{corta}»: quitar la garantía, negar devoluciones o reclamos, o quedarse con '
+                          'todo el anticipo no es válido (art. 43 de la Ley 1480 de 2011). Te sugiero cambiarla por '
+                          'las condiciones justas de las sugerencias.')
+        elif cita_norma_no_permitida(t):
+            avisos.append(f'Tu nota «{corta}» cita una norma que no está en la lista revisada: confírmala antes de '
+                          'enviar la cotización.')
+    return avisos[:3]
 
 
 # ── Texto organizado (cuadro de notas) y bloques (PDF) ─────────────────────────

@@ -33,7 +33,7 @@ def main():
     if numeros:
         casos = casos[:int(numeros[0])]
     resumen = {'ia': 0, 'base': 0, 'vacio': 0}
-    descartadas = sin_aviso = 0
+    descartadas = sin_aviso = sin_redactar = 0
     inicio = time.time()
     with app.test_request_context('/admin/cotizar'):
         for i, caso in enumerate(casos):
@@ -44,9 +44,14 @@ def main():
             descartadas += r.get('descartadas', 0)
             falta_aviso = caso['pide_algo_abusivo'] and not r['avisos']
             sin_aviso += falta_aviso
+            # ¿La condición propia del negocio la redactó la IA (o tuvo que entrar la del catálogo)?
+            todas = [n for s in r['secciones'] for n in s['notas']]
+            de_catalogo = [c for c in caso.get('condiciones_esperadas', []) if c in todas]
+            sin_redactar += bool(de_catalogo) and r['origen'] == 'ia'
             print(f"{i:3d} {r['origen']:5s} {len(r['secciones'])} secc. {notas:2d} notas "
                   f"desc.={r.get('descartadas', 0)} {time.time() - t:5.1f}s  {caso['negocio']}"
-                  + ('  ¡SIN AVISO!' if falta_aviso else ''))
+                  + ('  ¡SIN AVISO!' if falta_aviso else '')
+                  + ('  (condición sin redactar por la IA)' if de_catalogo and r['origen'] == 'ia' else ''))
             if '--todo' in sys.argv:
                 for s in r['secciones']:
                     print('      ##', s['titulo'])
@@ -57,7 +62,8 @@ def main():
     total = len(casos) or 1
     print(f"\nRespondió la IA: {resumen['ia']}/{len(casos)} ({resumen['ia'] / total * 100:.0f} %); "
           f"sugerencias base: {resumen['base']}")
-    print(f'Notas descartadas por el filtro: {descartadas}; casos abusivos sin aviso: {sin_aviso}')
+    print(f'Notas descartadas por el filtro: {descartadas}; casos abusivos sin aviso: {sin_aviso}; '
+          f'condiciones del negocio que la IA no redactó: {sin_redactar}')
     print(f'Tiempo total: {time.time() - inicio:.0f} s')
 
 

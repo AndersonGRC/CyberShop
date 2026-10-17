@@ -23,8 +23,12 @@
     var indicaciones = document.getElementById('cotIaIndicaciones');
     var meta = document.querySelector('meta[name="csrf-token"]');
     var CSRF = meta ? meta.getAttribute('content') : '';
+    var reiniciar = document.getElementById('cotIaReiniciar');
+    var agregar = document.getElementById('cotIaAgregar');
     var VINETA = '•';
-    var orden = [];   // orden de las secciones en el PDF (lo manda el servidor)
+    var orden = [];      // orden de las secciones en el PDF (lo manda el servidor)
+    var vistas = [];     // sugerencias ya mostradas en esta pantalla: no se vuelven a sugerir
+    var mostradas = [];  // las del panel abierto
 
     function decir(texto) { estado.textContent = texto || ''; }
 
@@ -103,9 +107,17 @@
     }
 
     // ── Panel de sugerencias ──
+    function recordarMostradas() {
+        mostradas.forEach(function (n) { if (vistas.indexOf(n) === -1) vistas.push(n); });
+        mostradas = [];
+    }
+
     function pintar(datos) {
         contAvisos.textContent = '';
         contSecciones.textContent = '';
+        mostradas = [];
+        reiniciar.hidden = true;
+        var propias = datos.de_tus_indicaciones || [];
         (datos.avisos || []).forEach(function (a) {
             var p = document.createElement('p');
             p.className = 'cot-ia-aviso';
@@ -133,21 +145,35 @@
                 var etiqueta = document.createElement('label');
                 etiqueta.htmlFor = id;
                 etiqueta.textContent = n;
+                if (propias.indexOf(n) !== -1) {
+                    var marca = document.createElement('span');
+                    marca.className = 'cot-ia-tag';
+                    marca.textContent = 'Tu indicación';
+                    etiqueta.appendChild(marca);
+                }
                 fila.appendChild(caja);
                 fila.appendChild(etiqueta);
                 grupo.appendChild(fila);
+                mostradas.push(n);
                 total += 1;
             });
             contSecciones.appendChild(grupo);
         });
-        if (!total) {
+        var avisos = (datos.avisos || []).length;
+        if (!total && !avisos) {
             panel.hidden = true;
-            decir((datos.avisos || [])[0] || 'No hay sugerencias nuevas para esta cotización.');
+            reiniciar.hidden = !vistas.length;
+            decir('No hay sugerencias nuevas: tus notas ya cubren lo importante' +
+                  (vistas.length ? ' y ya viste las demás.' : '.') +
+                  ' Si quieres otra condición, escríbela en «Indicaciones para la IA».');
             return;
         }
-        titulo.textContent = datos.origen === 'ia' ? 'Sugerencias de la IA' : 'Sugerencias base (revisadas)';
+        agregar.hidden = !total;
+        titulo.textContent = !total ? 'Revisión de tus notas'
+            : (datos.origen === 'ia' ? 'Sugerencias de la IA' : 'Sugerencias base (revisadas)');
         panel.hidden = false;
-        decir(total + ' sugerencias listas. Marca las que quieras y pulsa «Agregar las seleccionadas».');
+        decir(total ? total + ' sugerencias nuevas. Marca las que quieras y pulsa «Agregar las seleccionadas».'
+                    : 'No hay sugerencias nuevas; revisa los avisos sobre tus notas.');
         titulo.focus();
     }
 
@@ -167,7 +193,8 @@
                 items: items,
                 cliente: { nombre: campo('cliente_nombre'), documento: campo('cliente_documento'), ciudad: campo('cliente_ciudad') },
                 indicaciones: indicaciones ? indicaciones.value : '',
-                notas_actuales: notas.value
+                notas_actuales: notas.value,
+                ya_vistas: vistas.slice(-80)
             }),
             signal: control ? control.signal : undefined
         }).then(function (r) {
@@ -199,6 +226,7 @@
         });
         notas.value = aTexto(bloques);
         notas.dispatchEvent(new Event('input', { bubbles: true }));
+        recordarMostradas();
         panel.hidden = true;
         decir(agregadas ? 'Agregué ' + agregadas + ' notas, organizadas por sección. Completa los valores entre [corchetes].'
                         : 'Esas notas ya estaban escritas.');
@@ -206,9 +234,17 @@
     });
 
     document.getElementById('cotIaDescartar').addEventListener('click', function () {
+        recordarMostradas();
         panel.hidden = true;
-        decir('Sugerencias descartadas.');
+        decir('Sugerencias descartadas. No te las volveré a sugerir en esta cotización.');
+        reiniciar.hidden = !vistas.length;
         boton.focus();
+    });
+
+    reiniciar.addEventListener('click', function () {
+        vistas = [];
+        reiniciar.hidden = true;
+        boton.click();
     });
 
     // Antes del PDF: ¿quedan valores por confirmar entre [corchetes]?
