@@ -36,7 +36,7 @@
       <div class="tg-candado">
         <i class="fas fa-shield-alt"></i>
         <span><b>Tu tienda se crea solo cuando escribas el código.</b> Así sabemos que el correo es tuyo y te llega
-          tu acceso. El código vale {{ codigo_horas or 24 }} horas.</span>
+          tu acceso. El código vale {{ codigo_horas or 2 }} horas.</span>
       </div>
       <div class="tg-correo-acciones">
         <form method="POST" action="{{ url_for('public.prueba_gratis_correo') }}">

@@ -4,7 +4,7 @@ números que le llegó al correo (1.9.9.0).
 
 Antes bastaba con abrir el enlace del correo y los filtros de seguridad de los
 correos (y los robots) lo abren solos: se creaban tiendas que nadie confirmó.
-Ahora el enlace solo lleva a escribir el código; el código vale 24 horas y 5
+Ahora el enlace solo lleva a escribir el código; el código vale 2 horas y 5
 intentos; pedir otro invalida el anterior; un WhatsApp sirve para una sola
 prueba; y hay un tope de pruebas nuevas por hora. Además, los acentos de la
 tienda salen del color que se eligió (no el naranja de CyberShop).
@@ -140,12 +140,22 @@ def test_cinco_errores_piden_otro_codigo(limpiar, client, cursor, software_visib
 
 
 def test_el_codigo_vence(limpiar, cursor):
+    assert pcs.CODIGO_HORAS == 2, 'el código vale 2 horas (pedido del usuario: 1 a 2 horas)'
     cid, _token = pcs.crear_trial('Vence', 'Ana Vence', _email('d'), f'vence-{MARCA}', telefono='3001234560')
     _fila, codigo = pcs.nuevo_codigo(cid)
     with cursor() as cur:
-        cur.execute("UPDATE plan_compras SET codigo_enviado_at = NOW() - INTERVAL '25 hours' WHERE id = %s", (cid,))
+        cur.execute("UPDATE plan_compras SET codigo_enviado_at = NOW() - INTERVAL '121 minutes' WHERE id = %s", (cid,))
     assert pcs.verificar_codigo(cid, codigo) == ('vencido', 0)
-    assert pcs.get_por_id(cid)['estado'] == 'TRIAL_PENDIENTE'
+    assert pcs.get_por_id(cid)['estado'] == 'TRIAL_PENDIENTE', 'sin código vigente no se crea nada'
+
+
+def test_el_codigo_sirve_dentro_de_las_dos_horas(limpiar, cursor):
+    cid, _token = pcs.crear_trial('Vigente', 'Ana Vigente', _email('e'), f'vigente-{MARCA}', telefono='3001234561')
+    _fila, codigo = pcs.nuevo_codigo(cid)
+    with cursor() as cur:
+        cur.execute("UPDATE plan_compras SET codigo_enviado_at = NOW() - INTERVAL '115 minutes' WHERE id = %s", (cid,))
+    assert pcs.verificar_codigo(cid, codigo)[0] == 'ok'
+    assert pcs.get_por_id(cid)['estado'] == 'PAGADO'
 
 
 def test_tope_de_pruebas_por_hora_no_gasta_el_codigo(limpiar, client, software_visible, correo, creacion,

@@ -398,7 +398,7 @@ def generar_email_bienvenida_tienda(compra, plan, resultado):
     <h3 style="color:{colores['primario']};margin:24px 0 8px;">✨ Tus primeros pasos (5 minutos)</h3>
     <ol style="font-size:14px;color:#333;line-height:1.7;padding-left:20px;margin:0;">
       <li>Entra a <a href="{url_admin}" style="color:{colores['primario']};">{url_admin}</a> con tu usuario y la contraseña temporal.</li>
-      <li>En <strong>Mi Negocio</strong>: sube tu logo (hoy ves «Tu logo aquí») y ajusta tus colores y textos.</li>
+      <li>En <strong>Mi Negocio</strong>: sube tu logo{'' if compra.get('origen') == 'maestro' else ' (hoy ves «Tu logo aquí»)'} y ajusta tus colores y textos.</li>
       <li>En <strong>Inventario</strong>: agrega tu primer producto y míralo en tu tienda.</li>
     </ol>
     {pos_html}

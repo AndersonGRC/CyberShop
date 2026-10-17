@@ -435,7 +435,7 @@ def cambiar_correo_trial(compra_id, nuevo_email):
 
 # ── Código que confirma el correo (antes de crear la tienda) ────
 CODIGO_INTENTOS_MAX = 5      # errores seguidos antes de pedir otro código
-CODIGO_HORAS = 24            # lo que vale cada código
+CODIGO_HORAS = 2             # lo que vale cada código (pedido del usuario: 1 a 2 horas)
 CODIGO_ESPERA_SEGUNDOS = 45  # entre un código y el siguiente (no llenar el buzón)
 # Pruebas que se pueden empezar a crear por hora: freno si alguien intenta
 # llenar el servidor de tiendas (el código ya exige tener el correo).

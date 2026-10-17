@@ -689,6 +689,9 @@ api_blueprints = register_blueprints(app)
 # PayU envia POST server-to-server sin token CSRF; la firma MD5 lo autentica.
 csrf.exempt(app.view_functions['payments.confirmacion_pago'])
 
+# --- Llamadas internas del maestro: secreto compartido X-Internal-Key, sin CSRF ---
+csrf.exempt(app.blueprints['interno'])
+
 # --- Exentar blueprints de la API REST del CSRF (usan Bearer JWT) ---
 if api_blueprints:
     for bp in api_blueprints:

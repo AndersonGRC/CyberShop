@@ -99,6 +99,10 @@ def register_blueprints(app):
     from routes.admin_chat_publico import admin_chat_publico_bp
     app.register_blueprint(admin_chat_publico_bp)
 
+    # Llamadas internas del maestro (correo de bienvenida; X-Internal-Key, sin CSRF)
+    from routes.interno import interno_bp
+    app.register_blueprint(interno_bp)
+
     # API REST v1 (habilitada con CYBERSHOP_API_ENABLED=1)
     if os.getenv('CYBERSHOP_API_ENABLED', '0') == '1':
         from routes.api_auth import api_auth_bp
