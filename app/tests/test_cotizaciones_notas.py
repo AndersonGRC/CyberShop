@@ -23,7 +23,7 @@ def test_limpiar_notas():
     assert rq._limpiar_notas(None) == '' and rq._limpiar_notas('  \r\n  ') == ''
     escrito = 'Precios con IVA incluido.   \r\n\r\n\r\n\r\nEntrega: 5 días hábiles.\r\n'
     assert rq._limpiar_notas(escrito) == 'Precios con IVA incluido.\n\nEntrega: 5 días hábiles.'
-    assert len(rq._limpiar_notas('x' * 5000)) == rq.NOTAS_MAX
+    assert len(rq._limpiar_notas('x' * 9000)) == rq.NOTAS_MAX
 
 
 # ── El PDF ──────────────────────────────────────────────────────

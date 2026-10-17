@@ -57,7 +57,9 @@ CANAL_PUBLICO = 'publico'
 # Medido con el contador de tokens de la API: redactar una respuesta del sitio
 # cuesta ~US$0,0008, mientras que un artículo de blog pasa de US$0,02. La
 # diferencia entre pagar todo y pagar solo lo interactivo es de dos órdenes.
-TAREAS_CON_NUBE = {'chat_panel', 'chat_publico'}
+# cotizacion_notas: quien cotiza está esperando las sugerencias (1.9.13.0); a la nube no
+# llegan datos personales del cliente (services/ia_notas_cotizacion.py).
+TAREAS_CON_NUBE = {'chat_panel', 'chat_publico', 'cotizacion_notas'}
 TAREA_POR_DEFECTO = 'chat_panel'
 
 # Frases exactas con las que se pide el análisis profundo. Se comparan al inicio

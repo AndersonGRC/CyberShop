@@ -131,6 +131,148 @@
         box-shadow: 0 0 0 3px var(--marca-focus-ring, rgba(18, 44, 148, 0.15));
     }
 
+    /* ---- Sugerencias de notas con IA ---- */
+    .cot-ia {
+        margin-top: 14px;
+        padding-top: 14px;
+        border-top: 1px dashed #d6d8dc;
+    }
+
+    .cot-ia-barra {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 10px 14px;
+    }
+
+    .cot-ia-ind {
+        flex: 1 1 280px;
+    }
+
+    .btn-ia {
+        min-height: 44px;
+        padding: 0 16px;
+        border: none;
+        border-radius: 10px;
+        background: var(--color-primario, #122C94);
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.9rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-ia-sec {
+        min-height: 44px;
+        padding: 0 16px;
+        border: 1px solid #c9ccd3;
+        border-radius: 10px;
+        background: #fff;
+        color: var(--color-secundario, #0e1b33);
+        font-weight: 600;
+        font-size: 0.9rem;
+        cursor: pointer;
+    }
+
+    .btn-ia-sec:hover {
+        background: #f1f3f7;
+    }
+
+    .btn-ia-sec:focus-visible {
+        outline: 3px solid var(--color-primario, #122C94);
+        outline-offset: 2px;
+    }
+
+    .btn-ia:disabled {
+        opacity: .65;
+        cursor: progress;
+    }
+
+    .btn-ia:focus-visible,
+    .cot-ia-nota input:focus-visible {
+        outline: 3px solid var(--color-primario, #122C94);
+        outline-offset: 2px;
+    }
+
+    .cot-ia-estado:empty {
+        display: none;
+    }
+
+    .cot-ia-panel {
+        margin-top: 10px;
+        padding: 14px;
+        border: 1px solid #d6d8dc;
+        border-radius: 12px;
+        background: #f8f9fc;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .cot-ia-panel[hidden] {
+        display: none;
+    }
+
+    .cot-ia-titulo {
+        margin: 0;
+        font-size: 1rem;
+        color: var(--color-secundario, #0e1b33);
+    }
+
+    .cot-ia-aviso {
+        margin: 0;
+        padding: 8px 12px;
+        border-radius: 8px;
+        background: #fff7e6;
+        color: #7a4b00;
+        font-size: 0.85rem;
+        line-height: 1.5;
+    }
+
+    .cot-ia-seccion {
+        margin: 0;
+        padding: 8px 12px 10px;
+        border: 1px solid #e3e6ec;
+        border-radius: 10px;
+        background: #fff;
+    }
+
+    .cot-ia-seccion legend {
+        padding: 0 6px;
+        font-weight: 700;
+        font-size: 0.85rem;
+        color: var(--color-secundario, #0e1b33);
+    }
+
+    .cot-ia-nota {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 5px 0;
+    }
+
+    .cot-ia-nota input {
+        flex: none;
+        width: 18px;
+        height: 18px;
+        margin-top: 2px;
+    }
+
+    .cotizar-card .cot-ia-nota label {
+        font-weight: 400;
+        font-size: 0.88rem;
+        line-height: 1.5;
+        color: #333;
+    }
+
+    .cot-ia-acciones {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
     .cotizar-opcional {
         font-weight: 400;
         font-size: 0.82rem;
@@ -590,11 +732,40 @@
             <h3><i class="fas fa-sticky-note" aria-hidden="true"></i> Notas adicionales <span class="cotizar-opcional">(opcional)</span></h3>
             <div class="form-group">
                 <label for="notasAdicionales">Impuestos, condiciones de pago, tiempo de entrega, garantía, vigencia…</label>
-                <textarea id="notasAdicionales" name="notas_adicionales" class="form-control cotizar-notas" rows="4"
-                    maxlength="2000" aria-describedby="notasAyuda"
+                <textarea id="notasAdicionales" name="notas_adicionales" class="form-control cotizar-notas" rows="6"
+                    maxlength="6000" aria-describedby="notasAyuda"
                     placeholder="Ej.: Precios con IVA incluido. Vigencia de la oferta: 15 días. Entrega en 5 días hábiles.">{{ cotizacion.notas_adicionales or '' if cotizacion else '' }}</textarea>
-                <small id="notasAyuda" class="cotizar-help">Salen al final del PDF, antes de la firma. Si lo dejas vacío, no aparece nada.</small>
+                <small id="notasAyuda" class="cotizar-help">Salen al final del PDF, antes de la firma. Si lo dejas vacío, no aparece nada.
+                    Para organizarlas, escribe el título de cada sección en MAYÚSCULAS y cada nota en una línea que empiece con «•» o «-».</small>
             </div>
+
+            {% if 'ai_assistant' in active_modules %}
+            {#- Sugerencias con la IA del negocio (solo con el módulo Asistente IA). -#}
+            <div class="cot-ia" id="cotIa" data-url="{{ url_for('quotes.sugerir_notas') }}">
+                <div class="cot-ia-barra">
+                    <div class="form-group cot-ia-ind">
+                        <label for="cotIaIndicaciones">Indicaciones para la IA (opcional)</label>
+                        <input type="text" id="cotIaIndicaciones" class="form-control" maxlength="300"
+                               placeholder="Ej.: anticipo del 60 %, entrega en 8 días, garantía de 6 meses">
+                    </div>
+                    <button type="button" class="btn-ia" id="cotIaBtn">
+                        <i class="fas fa-magic" aria-hidden="true"></i> Sugerir notas con IA
+                    </button>
+                </div>
+                <p class="cotizar-help cot-ia-estado" id="cotIaEstado" role="status" aria-live="polite"></p>
+                <div class="cot-ia-panel" id="cotIaPanel" hidden>
+                    <h4 class="cot-ia-titulo" id="cotIaTitulo" tabindex="-1">Sugerencias de la IA</h4>
+                    <div id="cotIaAvisos"></div>
+                    <div id="cotIaSecciones"></div>
+                    <div class="cot-ia-acciones">
+                        <button type="button" class="btn-ia" id="cotIaAgregar">Agregar las seleccionadas</button>
+                        <button type="button" class="btn-ia-sec" id="cotIaDescartar">Descartar</button>
+                    </div>
+                    <p class="cotizar-help">La IA lee lo que estás cotizando y propone condiciones según la ley colombiana,
+                        justas para tu cliente y para ti. Revísalas antes de enviar: no reemplazan la asesoría de un abogado.</p>
+                </div>
+            </div>
+            {% endif %}
         </div>
 
         <div class="cotizar-actions">
@@ -760,4 +931,7 @@
         }
     };
 </script>
+{% if 'ai_assistant' in active_modules %}
+<script src="{{ url_for('static', filename='js/cotizar_notas_ia.js') }}" defer></script>
+{% endif %}
 {% endblock %}

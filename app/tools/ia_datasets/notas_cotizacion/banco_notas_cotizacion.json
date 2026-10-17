@@ -1,0 +1,2612 @@
+[
+ {
+  "negocio": "TecnoSoluciones Andina",
+  "cliente": {
+   "nombre": "Comercializadora Delta S.A.S.",
+   "documento": "901.234.567-1",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 2,
+    "descripcion": "Mantenimiento preventivo de portátil",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Cambio de pantalla de portátil 15.6\"",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "reparacion"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "TecnoSoluciones Andina",
+  "cliente": {
+   "nombre": "Andrés Rojas",
+   "documento": "79.845.123",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 2,
+    "descripcion": "Mantenimiento preventivo de portátil",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Cambio de pantalla de portátil 15.6\"",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "anticipo del 50 %",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "reparacion"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Redes y Datos del Caribe",
+  "cliente": {
+   "nombre": "Camila Torres",
+   "documento": "1.144.987.321",
+   "ciudad": "Barranquilla"
+  },
+  "items": [
+   {
+    "cantidad": 12,
+    "descripcion": "Instalación de cableado estructurado categoría 6 (punto de red)",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Rack de pared 9U con organizador",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "anticipo del 60 %, entrega en 8 días",
+  "notas_actuales": "Precios con IVA incluido.",
+  "categorias_esperadas": [
+   "red"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Redes y Datos del Caribe",
+  "cliente": {
+   "nombre": "Grupo Horizonte S.A.S.",
+   "documento": "901.555.210-8",
+   "ciudad": "Barranquilla"
+  },
+  "items": [
+   {
+    "cantidad": 12,
+    "descripcion": "Instalación de cableado estructurado categoría 6 (punto de red)",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Rack de pared 9U con organizador",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "vigencia de 30 días",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "red"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Vigilancia Segura",
+  "cliente": {
+   "nombre": "Comercializadora Delta S.A.S.",
+   "documento": "901.234.567-1",
+   "ciudad": "Cali"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Kit 8 cámaras de videovigilancia con NVR",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Instalación y configuración del sistema de cámaras",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "garantía de 6 meses",
+  "notas_actuales": "VIGENCIA Y PRECIOS\n• Esta cotización es válida por [15] días calendario desde su fecha; durante ese plazo se mantienen los precios y condiciones ofrecidos (arts. 845 y 846 del Código de Comercio).",
+  "categorias_esperadas": [
+   "cctv"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Vigilancia Segura",
+  "cliente": {
+   "nombre": "Andrés Rojas",
+   "documento": "79.845.123",
+   "ciudad": "Cali"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Kit 8 cámaras de videovigilancia con NVR",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Instalación y configuración del sistema de cámaras",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "pon que no hay garantía",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "cctv"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": true
+ },
+ {
+  "negocio": "Dulce Tentación Repostería",
+  "cliente": {
+   "nombre": "Camila Torres",
+   "documento": "1.144.987.321",
+   "ciudad": "Medellín"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Torta personalizada de tres pisos para 60 personas",
+    "iva": 0
+   },
+   {
+    "cantidad": 60,
+    "descripcion": "Cupcakes decorados",
+    "iva": 0
+   }
+  ],
+  "indicaciones": "entrega en 15 días y anticipo del 40 %",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "alimentos"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Dulce Tentación Repostería",
+  "cliente": {
+   "nombre": "Grupo Horizonte S.A.S.",
+   "documento": "901.555.210-8",
+   "ciudad": "Medellín"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Torta personalizada de tres pisos para 60 personas",
+    "iva": 0
+   },
+   {
+    "cantidad": 60,
+    "descripcion": "Cupcakes decorados",
+    "iva": 0
+   }
+  ],
+  "indicaciones": "el anticipo no es reembolsable",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "alimentos"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": true
+ },
+ {
+  "negocio": "Eventos Bambú",
+  "cliente": {
+   "nombre": "Comercializadora Delta S.A.S.",
+   "documento": "901.234.567-1",
+   "ciudad": "Bucaramanga"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Alquiler de sonido profesional para evento",
+    "iva": 19
+   },
+   {
+    "cantidad": 80,
+    "descripcion": "Alquiler de sillas Tiffany",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Decoración y montaje del salón",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "",
+  "notas_actuales": "Precios con IVA incluido.",
+  "categorias_esperadas": [
+   "eventos",
+   "alquiler"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Eventos Bambú",
+  "cliente": {
+   "nombre": "Andrés Rojas",
+   "documento": "79.845.123",
+   "ciudad": "Bucaramanga"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Alquiler de sonido profesional para evento",
+    "iva": 19
+   },
+   {
+    "cantidad": 80,
+    "descripcion": "Alquiler de sillas Tiffany",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Decoración y montaje del salón",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "no se aceptan devoluciones",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "eventos",
+   "alquiler"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": true
+ },
+ {
+  "negocio": "Web Creativa",
+  "cliente": {
+   "nombre": "Camila Torres",
+   "documento": "1.144.987.321",
+   "ciudad": "Pereira"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Diseño y desarrollo de página web corporativa (5 secciones)",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Hosting y dominio .com por un año",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "vigencia de 10 días, anticipo del 30 %",
+  "notas_actuales": "VIGENCIA Y PRECIOS\n• Esta cotización es válida por [15] días calendario desde su fecha; durante ese plazo se mantienen los precios y condiciones ofrecidos (arts. 845 y 846 del Código de Comercio).",
+  "categorias_esperadas": [
+   "desarrollo",
+   "software"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Web Creativa",
+  "cliente": {
+   "nombre": "Grupo Horizonte S.A.S.",
+   "documento": "901.555.210-8",
+   "ciudad": "Pereira"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Diseño y desarrollo de página web corporativa (5 secciones)",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Hosting y dominio .com por un año",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "no nos hacemos responsables por daños",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "desarrollo",
+   "software"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": true
+ },
+ {
+  "negocio": "Mueblería El Roble",
+  "cliente": {
+   "nombre": "Comercializadora Delta S.A.S.",
+   "documento": "901.234.567-1",
+   "ciudad": "Cúcuta"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Cocina integral en madera a medida",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Closet en madera de 2,40 m",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "entrega en 5 días",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "muebles"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Mueblería El Roble",
+  "cliente": {
+   "nombre": "Andrés Rojas",
+   "documento": "79.845.123",
+   "ciudad": "Cúcuta"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Cocina integral en madera a medida",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Closet en madera de 2,40 m",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "muebles"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Pinturas y Acabados JM",
+  "cliente": {
+   "nombre": "Camila Torres",
+   "documento": "1.144.987.321",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Mano de obra pintura de apartamento de 70 m²",
+    "iva": 0
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Resane y estuco de muros",
+    "iva": 0
+   }
+  ],
+  "indicaciones": "garantía de 1 año",
+  "notas_actuales": "Precios con IVA incluido.",
+  "categorias_esperadas": [
+   "obra"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Pinturas y Acabados JM",
+  "cliente": {
+   "nombre": "Grupo Horizonte S.A.S.",
+   "documento": "901.555.210-8",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Mano de obra pintura de apartamento de 70 m²",
+    "iva": 0
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Resane y estuco de muros",
+    "iva": 0
+   }
+  ],
+  "indicaciones": "",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "obra"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Electro Instalaciones Pacífico",
+  "cliente": {
+   "nombre": "Comercializadora Delta S.A.S.",
+   "documento": "901.234.567-1",
+   "ciudad": "Cali"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Instalación eléctrica de oficina (10 tomas y 6 luminarias)",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Tablero eléctrico de 12 circuitos",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "anticipo del 50 %",
+  "notas_actuales": "VIGENCIA Y PRECIOS\n• Esta cotización es válida por [15] días calendario desde su fecha; durante ese plazo se mantienen los precios y condiciones ofrecidos (arts. 845 y 846 del Código de Comercio).",
+  "categorias_esperadas": [
+   "electrico"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Electro Instalaciones Pacífico",
+  "cliente": {
+   "nombre": "Andrés Rojas",
+   "documento": "79.845.123",
+   "ciudad": "Cali"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Instalación eléctrica de oficina (10 tomas y 6 luminarias)",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Tablero eléctrico de 12 circuitos",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "anticipo del 60 %, entrega en 8 días",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "electrico"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Impresos Rápidos",
+  "cliente": {
+   "nombre": "Camila Torres",
+   "documento": "1.144.987.321",
+   "ciudad": "Manizales"
+  },
+  "items": [
+   {
+    "cantidad": 1000,
+    "descripcion": "Tarjetas de presentación impresas a full color",
+    "iva": 19
+   },
+   {
+    "cantidad": 2,
+    "descripcion": "Pendón 1 x 2 m en gran formato",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "vigencia de 30 días",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "impresion"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Impresos Rápidos",
+  "cliente": {
+   "nombre": "Grupo Horizonte S.A.S.",
+   "documento": "901.555.210-8",
+   "ciudad": "Manizales"
+  },
+  "items": [
+   {
+    "cantidad": 1000,
+    "descripcion": "Tarjetas de presentación impresas a full color",
+    "iva": 19
+   },
+   {
+    "cantidad": 2,
+    "descripcion": "Pendón 1 x 2 m en gran formato",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "garantía de 6 meses",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "impresion"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Lente Mágico Estudio",
+  "cliente": {
+   "nombre": "Comercializadora Delta S.A.S.",
+   "documento": "901.234.567-1",
+   "ciudad": "Medellín"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Sesión fotográfica de producto (40 fotos editadas)",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Video promocional de 1 minuto",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "pon que no hay garantía",
+  "notas_actuales": "Precios con IVA incluido.",
+  "categorias_esperadas": [
+   "foto"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": true
+ },
+ {
+  "negocio": "Lente Mágico Estudio",
+  "cliente": {
+   "nombre": "Andrés Rojas",
+   "documento": "79.845.123",
+   "ciudad": "Medellín"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Sesión fotográfica de producto (40 fotos editadas)",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Video promocional de 1 minuto",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "entrega en 15 días y anticipo del 40 %",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "foto"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Asesorías Contables Integrales",
+  "cliente": {
+   "nombre": "Camila Torres",
+   "documento": "1.144.987.321",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Asesoría contable y tributaria mensual (8 horas)",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "el anticipo no es reembolsable",
+  "notas_actuales": "VIGENCIA Y PRECIOS\n• Esta cotización es válida por [15] días calendario desde su fecha; durante ese plazo se mantienen los precios y condiciones ofrecidos (arts. 845 y 846 del Código de Comercio).",
+  "categorias_esperadas": [
+   "consultoria"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": true
+ },
+ {
+  "negocio": "Asesorías Contables Integrales",
+  "cliente": {
+   "nombre": "Grupo Horizonte S.A.S.",
+   "documento": "901.555.210-8",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Asesoría contable y tributaria mensual (8 horas)",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "consultoria"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Capacitaciones Pro",
+  "cliente": {
+   "nombre": "Comercializadora Delta S.A.S.",
+   "documento": "901.234.567-1",
+   "ciudad": "Armenia"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Curso de Excel avanzado para 15 personas (16 horas)",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "no se aceptan devoluciones",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "consultoria"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": true
+ },
+ {
+  "negocio": "Capacitaciones Pro",
+  "cliente": {
+   "nombre": "Andrés Rojas",
+   "documento": "79.845.123",
+   "ciudad": "Armenia"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Curso de Excel avanzado para 15 personas (16 horas)",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "vigencia de 10 días, anticipo del 30 %",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "consultoria"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Agencia Impulso Digital",
+  "cliente": {
+   "nombre": "Camila Torres",
+   "documento": "1.144.987.321",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Gestión de redes sociales (12 publicaciones al mes)",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Diseño de logotipo e identidad corporativa",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "no nos hacemos responsables por daños",
+  "notas_actuales": "Precios con IVA incluido.",
+  "categorias_esperadas": [
+   "diseno"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": true
+ },
+ {
+  "negocio": "Agencia Impulso Digital",
+  "cliente": {
+   "nombre": "Grupo Horizonte S.A.S.",
+   "documento": "901.555.210-8",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Gestión de redes sociales (12 publicaciones al mes)",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Diseño de logotipo e identidad corporativa",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "entrega en 5 días",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "diseno"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Mudanzas Express",
+  "cliente": {
+   "nombre": "Comercializadora Delta S.A.S.",
+   "documento": "901.234.567-1",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Trasteo de apartamento de 3 habitaciones dentro de la ciudad",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "",
+  "notas_actuales": "VIGENCIA Y PRECIOS\n• Esta cotización es válida por [15] días calendario desde su fecha; durante ese plazo se mantienen los precios y condiciones ofrecidos (arts. 845 y 846 del Código de Comercio).",
+  "categorias_esperadas": [
+   "transporte"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Mudanzas Express",
+  "cliente": {
+   "nombre": "Andrés Rojas",
+   "documento": "79.845.123",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Trasteo de apartamento de 3 habitaciones dentro de la ciudad",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "garantía de 1 año",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "transporte"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Limpieza Total",
+  "cliente": {
+   "nombre": "Camila Torres",
+   "documento": "1.144.987.321",
+   "ciudad": "Barranquilla"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Servicio de limpieza profunda de oficina de 200 m²",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Fumigación de bodega",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "aseo"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Limpieza Total",
+  "cliente": {
+   "nombre": "Grupo Horizonte S.A.S.",
+   "documento": "901.555.210-8",
+   "ciudad": "Barranquilla"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Servicio de limpieza profunda de oficina de 200 m²",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Fumigación de bodega",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "anticipo del 50 %",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "aseo"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Software Licencias",
+  "cliente": {
+   "nombre": "Comercializadora Delta S.A.S.",
+   "documento": "901.234.567-1",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 10,
+    "descripcion": "Licencia Microsoft 365 Empresa Estándar (1 año)",
+    "iva": 19
+   },
+   {
+    "cantidad": 10,
+    "descripcion": "Antivirus corporativo (1 año)",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "anticipo del 60 %, entrega en 8 días",
+  "notas_actuales": "Precios con IVA incluido.",
+  "categorias_esperadas": [
+   "software"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Software Licencias",
+  "cliente": {
+   "nombre": "Andrés Rojas",
+   "documento": "79.845.123",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 10,
+    "descripcion": "Licencia Microsoft 365 Empresa Estándar (1 año)",
+    "iva": 19
+   },
+   {
+    "cantidad": 10,
+    "descripcion": "Antivirus corporativo (1 año)",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "vigencia de 30 días",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "software"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "TecnoCel Reparaciones",
+  "cliente": {
+   "nombre": "Camila Torres",
+   "documento": "1.144.987.321",
+   "ciudad": "Ibagué"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Cambio de batería de celular Samsung A54",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Diagnóstico de celular que no enciende",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "garantía de 6 meses",
+  "notas_actuales": "VIGENCIA Y PRECIOS\n• Esta cotización es válida por [15] días calendario desde su fecha; durante ese plazo se mantienen los precios y condiciones ofrecidos (arts. 845 y 846 del Código de Comercio).",
+  "categorias_esperadas": [
+   "reparacion"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "TecnoCel Reparaciones",
+  "cliente": {
+   "nombre": "Grupo Horizonte S.A.S.",
+   "documento": "901.555.210-8",
+   "ciudad": "Ibagué"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Cambio de batería de celular Samsung A54",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Diagnóstico de celular que no enciende",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "pon que no hay garantía",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "reparacion"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": true
+ },
+ {
+  "negocio": "Computadores Nuevos",
+  "cliente": {
+   "nombre": "Comercializadora Delta S.A.S.",
+   "documento": "901.234.567-1",
+   "ciudad": "Medellín"
+  },
+  "items": [
+   {
+    "cantidad": 5,
+    "descripcion": "Portátil Lenovo IdeaPad 15\" Core i5 nuevo",
+    "iva": 19
+   },
+   {
+    "cantidad": 5,
+    "descripcion": "Mouse inalámbrico",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "entrega en 15 días y anticipo del 40 %",
+  "notas_actuales": "",
+  "categorias_esperadas": [],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Computadores Nuevos",
+  "cliente": {
+   "nombre": "Andrés Rojas",
+   "documento": "79.845.123",
+   "ciudad": "Medellín"
+  },
+  "items": [
+   {
+    "cantidad": 5,
+    "descripcion": "Portátil Lenovo IdeaPad 15\" Core i5 nuevo",
+    "iva": 19
+   },
+   {
+    "cantidad": 5,
+    "descripcion": "Mouse inalámbrico",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "el anticipo no es reembolsable",
+  "notas_actuales": "",
+  "categorias_esperadas": [],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": true
+ },
+ {
+  "negocio": "ReCompu Usados",
+  "cliente": {
+   "nombre": "Camila Torres",
+   "documento": "1.144.987.321",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 3,
+    "descripcion": "Portátil Dell Latitude reacondicionado",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "iPhone 12 de 128 GB usado",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "",
+  "notas_actuales": "Precios con IVA incluido.",
+  "categorias_esperadas": [
+   "usados"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "ReCompu Usados",
+  "cliente": {
+   "nombre": "Grupo Horizonte S.A.S.",
+   "documento": "901.555.210-8",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 3,
+    "descripcion": "Portátil Dell Latitude reacondicionado",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "iPhone 12 de 128 GB usado",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "no se aceptan devoluciones",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "usados"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": true
+ },
+ {
+  "negocio": "Catering Sabores",
+  "cliente": {
+   "nombre": "Comercializadora Delta S.A.S.",
+   "documento": "901.234.567-1",
+   "ciudad": "Cartagena"
+  },
+  "items": [
+   {
+    "cantidad": 120,
+    "descripcion": "Refrigerios para evento empresarial",
+    "iva": 0
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Servicio de meseros para evento (4 meseros)",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "vigencia de 10 días, anticipo del 30 %",
+  "notas_actuales": "VIGENCIA Y PRECIOS\n• Esta cotización es válida por [15] días calendario desde su fecha; durante ese plazo se mantienen los precios y condiciones ofrecidos (arts. 845 y 846 del Código de Comercio).",
+  "categorias_esperadas": [
+   "alimentos",
+   "eventos"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Catering Sabores",
+  "cliente": {
+   "nombre": "Andrés Rojas",
+   "documento": "79.845.123",
+   "ciudad": "Cartagena"
+  },
+  "items": [
+   {
+    "cantidad": 120,
+    "descripcion": "Refrigerios para evento empresarial",
+    "iva": 0
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Servicio de meseros para evento (4 meseros)",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "no nos hacemos responsables por daños",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "alimentos",
+   "eventos"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": true
+ },
+ {
+  "negocio": "Construcciones Firmes",
+  "cliente": {
+   "nombre": "Camila Torres",
+   "documento": "1.144.987.321",
+   "ciudad": "Villavicencio"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Remodelación de baño con enchape de cerámica",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Impermeabilización de cubierta de 50 m²",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "entrega en 5 días",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "obra"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Construcciones Firmes",
+  "cliente": {
+   "nombre": "Grupo Horizonte S.A.S.",
+   "documento": "901.555.210-8",
+   "ciudad": "Villavicencio"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Remodelación de baño con enchape de cerámica",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Impermeabilización de cubierta de 50 m²",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "obra"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Soporte IT Empresarial",
+  "cliente": {
+   "nombre": "Comercializadora Delta S.A.S.",
+   "documento": "901.234.567-1",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Plan de mantenimiento mensual de equipos (20 computadores)",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Mesa de ayuda remota",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "garantía de 1 año",
+  "notas_actuales": "Precios con IVA incluido.",
+  "categorias_esperadas": [
+   "plan"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Soporte IT Empresarial",
+  "cliente": {
+   "nombre": "Andrés Rojas",
+   "documento": "79.845.123",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Plan de mantenimiento mensual de equipos (20 computadores)",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Mesa de ayuda remota",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "plan"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Panadería La Espiga",
+  "cliente": {
+   "nombre": "Camila Torres",
+   "documento": "1.144.987.321",
+   "ciudad": "Tunja"
+  },
+  "items": [
+   {
+    "cantidad": 200,
+    "descripcion": "Panes para evento (pan francés y mantequilla)",
+    "iva": 0
+   },
+   {
+    "cantidad": 4,
+    "descripcion": "Ponqué de vainilla de 2 libras",
+    "iva": 0
+   }
+  ],
+  "indicaciones": "anticipo del 50 %",
+  "notas_actuales": "VIGENCIA Y PRECIOS\n• Esta cotización es válida por [15] días calendario desde su fecha; durante ese plazo se mantienen los precios y condiciones ofrecidos (arts. 845 y 846 del Código de Comercio).",
+  "categorias_esperadas": [
+   "alimentos",
+   "eventos"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Panadería La Espiga",
+  "cliente": {
+   "nombre": "Grupo Horizonte S.A.S.",
+   "documento": "901.555.210-8",
+   "ciudad": "Tunja"
+  },
+  "items": [
+   {
+    "cantidad": 200,
+    "descripcion": "Panes para evento (pan francés y mantequilla)",
+    "iva": 0
+   },
+   {
+    "cantidad": 4,
+    "descripcion": "Ponqué de vainilla de 2 libras",
+    "iva": 0
+   }
+  ],
+  "indicaciones": "anticipo del 60 %, entrega en 8 días",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "alimentos",
+   "eventos"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Drone Visual",
+  "cliente": {
+   "nombre": "Comercializadora Delta S.A.S.",
+   "documento": "901.234.567-1",
+   "ciudad": "Santa Marta"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Cubrimiento aéreo con drone de evento (2 horas)",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Edición de video del evento",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "vigencia de 30 días",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "eventos",
+   "foto"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Drone Visual",
+  "cliente": {
+   "nombre": "Andrés Rojas",
+   "documento": "79.845.123",
+   "ciudad": "Santa Marta"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Cubrimiento aéreo con drone de evento (2 horas)",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Edición de video del evento",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "garantía de 6 meses",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "eventos",
+   "foto"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Alquiler Equipos Andes",
+  "cliente": {
+   "nombre": "Camila Torres",
+   "documento": "1.144.987.321",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 2,
+    "descripcion": "Alquiler de videobeam por día",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Alquiler de pantalla de proyección",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "pon que no hay garantía",
+  "notas_actuales": "Precios con IVA incluido.",
+  "categorias_esperadas": [
+   "alquiler"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": true
+ },
+ {
+  "negocio": "Alquiler Equipos Andes",
+  "cliente": {
+   "nombre": "Grupo Horizonte S.A.S.",
+   "documento": "901.555.210-8",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 2,
+    "descripcion": "Alquiler de videobeam por día",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Alquiler de pantalla de proyección",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "entrega en 15 días y anticipo del 40 %",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "alquiler"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Seguridad Electrónica del Sur",
+  "cliente": {
+   "nombre": "Comercializadora Delta S.A.S.",
+   "documento": "901.234.567-1",
+   "ciudad": "Pasto"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Alarma inalámbrica con 6 sensores",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Control de acceso biométrico para puerta principal",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "el anticipo no es reembolsable",
+  "notas_actuales": "VIGENCIA Y PRECIOS\n• Esta cotización es válida por [15] días calendario desde su fecha; durante ese plazo se mantienen los precios y condiciones ofrecidos (arts. 845 y 846 del Código de Comercio).",
+  "categorias_esperadas": [
+   "cctv"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": true
+ },
+ {
+  "negocio": "Seguridad Electrónica del Sur",
+  "cliente": {
+   "nombre": "Andrés Rojas",
+   "documento": "79.845.123",
+   "ciudad": "Pasto"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Alarma inalámbrica con 6 sensores",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Control de acceso biométrico para puerta principal",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "cctv"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Fibra y Conexión",
+  "cliente": {
+   "nombre": "Camila Torres",
+   "documento": "1.144.987.321",
+   "ciudad": "Neiva"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Tendido de fibra óptica entre dos edificios (200 m)",
+    "iva": 19
+   },
+   {
+    "cantidad": 2,
+    "descripcion": "Configuración de access point empresarial",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "no se aceptan devoluciones",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "red"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": true
+ },
+ {
+  "negocio": "Fibra y Conexión",
+  "cliente": {
+   "nombre": "Grupo Horizonte S.A.S.",
+   "documento": "901.555.210-8",
+   "ciudad": "Neiva"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Tendido de fibra óptica entre dos edificios (200 m)",
+    "iva": 19
+   },
+   {
+    "cantidad": 2,
+    "descripcion": "Configuración de access point empresarial",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "vigencia de 10 días, anticipo del 30 %",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "red"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Tienda Virtual Fácil",
+  "cliente": {
+   "nombre": "Comercializadora Delta S.A.S.",
+   "documento": "901.234.567-1",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Desarrollo de tienda virtual con pasarela de pagos",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Capacitación para administrar la tienda (2 horas)",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "no nos hacemos responsables por daños",
+  "notas_actuales": "Precios con IVA incluido.",
+  "categorias_esperadas": [
+   "desarrollo",
+   "consultoria"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": true
+ },
+ {
+  "negocio": "Tienda Virtual Fácil",
+  "cliente": {
+   "nombre": "Andrés Rojas",
+   "documento": "79.845.123",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Desarrollo de tienda virtual con pasarela de pagos",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Capacitación para administrar la tienda (2 horas)",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "entrega en 5 días",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "desarrollo",
+   "consultoria"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Carpintería Artesanal",
+  "cliente": {
+   "nombre": "Camila Torres",
+   "documento": "1.144.987.321",
+   "ciudad": "Popayán"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Puerta en madera maciza con instalación",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Escritorio en madera a medida",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "",
+  "notas_actuales": "VIGENCIA Y PRECIOS\n• Esta cotización es válida por [15] días calendario desde su fecha; durante ese plazo se mantienen los precios y condiciones ofrecidos (arts. 845 y 846 del Código de Comercio).",
+  "categorias_esperadas": [
+   "muebles"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Carpintería Artesanal",
+  "cliente": {
+   "nombre": "Grupo Horizonte S.A.S.",
+   "documento": "901.555.210-8",
+   "ciudad": "Popayán"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Puerta en madera maciza con instalación",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Escritorio en madera a medida",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "garantía de 1 año",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "muebles"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "PrintFix Taller de Impresoras",
+  "cliente": {
+   "nombre": "Comercializadora Delta S.A.S.",
+   "documento": "901.234.567-1",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 3,
+    "descripcion": "Mantenimiento de impresora láser",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Cambio de rodillo de impresora",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "reparacion",
+   "impresion"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "PrintFix Taller de Impresoras",
+  "cliente": {
+   "nombre": "Andrés Rojas",
+   "documento": "79.845.123",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 3,
+    "descripcion": "Mantenimiento de impresora láser",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Cambio de rodillo de impresora",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "anticipo del 50 %",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "reparacion",
+   "impresion"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Banquetes Elegancia",
+  "cliente": {
+   "nombre": "Camila Torres",
+   "documento": "1.144.987.321",
+   "ciudad": "Medellín"
+  },
+  "items": [
+   {
+    "cantidad": 150,
+    "descripcion": "Banquete para boda (plato fuerte y postre)",
+    "iva": 0
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Menaje y mantelería para 150 personas",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "anticipo del 60 %, entrega en 8 días",
+  "notas_actuales": "Precios con IVA incluido.",
+  "categorias_esperadas": [
+   "alimentos",
+   "eventos"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Banquetes Elegancia",
+  "cliente": {
+   "nombre": "Grupo Horizonte S.A.S.",
+   "documento": "901.555.210-8",
+   "ciudad": "Medellín"
+  },
+  "items": [
+   {
+    "cantidad": 150,
+    "descripcion": "Banquete para boda (plato fuerte y postre)",
+    "iva": 0
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Menaje y mantelería para 150 personas",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "vigencia de 30 días",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "alimentos",
+   "eventos"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Gráficas del Norte",
+  "cliente": {
+   "nombre": "Comercializadora Delta S.A.S.",
+   "documento": "901.234.567-1",
+   "ciudad": "Barranquilla"
+  },
+  "items": [
+   {
+    "cantidad": 5000,
+    "descripcion": "Volantes impresos media carta",
+    "iva": 19
+   },
+   {
+    "cantidad": 500,
+    "descripcion": "Sticker troquelado",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "garantía de 6 meses",
+  "notas_actuales": "VIGENCIA Y PRECIOS\n• Esta cotización es válida por [15] días calendario desde su fecha; durante ese plazo se mantienen los precios y condiciones ofrecidos (arts. 845 y 846 del Código de Comercio).",
+  "categorias_esperadas": [
+   "impresion"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Gráficas del Norte",
+  "cliente": {
+   "nombre": "Andrés Rojas",
+   "documento": "79.845.123",
+   "ciudad": "Barranquilla"
+  },
+  "items": [
+   {
+    "cantidad": 5000,
+    "descripcion": "Volantes impresos media carta",
+    "iva": 19
+   },
+   {
+    "cantidad": 500,
+    "descripcion": "Sticker troquelado",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "pon que no hay garantía",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "impresion"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": true
+ },
+ {
+  "negocio": "Consultoría Gestión SST",
+  "cliente": {
+   "nombre": "Camila Torres",
+   "documento": "1.144.987.321",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Consultoría para diseño del sistema de gestión SST",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Auditoría interna",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "entrega en 15 días y anticipo del 40 %",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "consultoria"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Consultoría Gestión SST",
+  "cliente": {
+   "nombre": "Grupo Horizonte S.A.S.",
+   "documento": "901.555.210-8",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Consultoría para diseño del sistema de gestión SST",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Auditoría interna",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "el anticipo no es reembolsable",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "consultoria"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": true
+ },
+ {
+  "negocio": "Academia de Inglés Bridge",
+  "cliente": {
+   "nombre": "Comercializadora Delta S.A.S.",
+   "documento": "901.234.567-1",
+   "ciudad": "Cali"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Curso de inglés empresarial para 10 personas (40 horas)",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "",
+  "notas_actuales": "Precios con IVA incluido.",
+  "categorias_esperadas": [
+   "consultoria"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Academia de Inglés Bridge",
+  "cliente": {
+   "nombre": "Andrés Rojas",
+   "documento": "79.845.123",
+   "ciudad": "Cali"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Curso de inglés empresarial para 10 personas (40 horas)",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "no se aceptan devoluciones",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "consultoria"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": true
+ },
+ {
+  "negocio": "Luz Eficiente",
+  "cliente": {
+   "nombre": "Camila Torres",
+   "documento": "1.144.987.321",
+   "ciudad": "Valledupar"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Instalación de sistema de iluminación LED para bodega",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "vigencia de 10 días, anticipo del 30 %",
+  "notas_actuales": "VIGENCIA Y PRECIOS\n• Esta cotización es válida por [15] días calendario desde su fecha; durante ese plazo se mantienen los precios y condiciones ofrecidos (arts. 845 y 846 del Código de Comercio).",
+  "categorias_esperadas": [
+   "electrico"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Luz Eficiente",
+  "cliente": {
+   "nombre": "Grupo Horizonte S.A.S.",
+   "documento": "901.555.210-8",
+   "ciudad": "Valledupar"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Instalación de sistema de iluminación LED para bodega",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "no nos hacemos responsables por daños",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "electrico"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": true
+ },
+ {
+  "negocio": "Agua Pura Tanques",
+  "cliente": {
+   "nombre": "Comercializadora Delta S.A.S.",
+   "documento": "901.234.567-1",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 2,
+    "descripcion": "Lavado y desinfección de tanques de agua",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "entrega en 5 días",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "aseo"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Agua Pura Tanques",
+  "cliente": {
+   "nombre": "Andrés Rojas",
+   "documento": "79.845.123",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 2,
+    "descripcion": "Lavado y desinfección de tanques de agua",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "aseo"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Jardines Verdes",
+  "cliente": {
+   "nombre": "Camila Torres",
+   "documento": "1.144.987.321",
+   "ciudad": "Rionegro"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Mantenimiento de jardines mensual",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "garantía de 1 año",
+  "notas_actuales": "Precios con IVA incluido.",
+  "categorias_esperadas": [
+   "aseo"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Jardines Verdes",
+  "cliente": {
+   "nombre": "Grupo Horizonte S.A.S.",
+   "documento": "901.555.210-8",
+   "ciudad": "Rionegro"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Mantenimiento de jardines mensual",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "aseo"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Marketing Local",
+  "cliente": {
+   "nombre": "Comercializadora Delta S.A.S.",
+   "documento": "901.234.567-1",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Campaña publicitaria en redes sociales por un mes",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Pauta en Instagram y Facebook",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "anticipo del 50 %",
+  "notas_actuales": "VIGENCIA Y PRECIOS\n• Esta cotización es válida por [15] días calendario desde su fecha; durante ese plazo se mantienen los precios y condiciones ofrecidos (arts. 845 y 846 del Código de Comercio).",
+  "categorias_esperadas": [
+   "diseno"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Marketing Local",
+  "cliente": {
+   "nombre": "Andrés Rojas",
+   "documento": "79.845.123",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Campaña publicitaria en redes sociales por un mes",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Pauta en Instagram y Facebook",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "anticipo del 60 %, entrega en 8 días",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "diseno"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "App Móvil Studio",
+  "cliente": {
+   "nombre": "Camila Torres",
+   "documento": "1.144.987.321",
+   "ciudad": "Medellín"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Desarrollo de aplicación móvil para pedidos (Android y iOS)",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "vigencia de 30 días",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "desarrollo"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "App Móvil Studio",
+  "cliente": {
+   "nombre": "Grupo Horizonte S.A.S.",
+   "documento": "901.555.210-8",
+   "ciudad": "Medellín"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Desarrollo de aplicación móvil para pedidos (Android y iOS)",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "garantía de 6 meses",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "desarrollo"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Servicio Técnico Hogar",
+  "cliente": {
+   "nombre": "Comercializadora Delta S.A.S.",
+   "documento": "901.234.567-1",
+   "ciudad": "Bucaramanga"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Reparación de nevera que no enfría",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Mantenimiento de lavadora",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "pon que no hay garantía",
+  "notas_actuales": "Precios con IVA incluido.",
+  "categorias_esperadas": [
+   "reparacion"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": true
+ },
+ {
+  "negocio": "Servicio Técnico Hogar",
+  "cliente": {
+   "nombre": "Andrés Rojas",
+   "documento": "79.845.123",
+   "ciudad": "Bucaramanga"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Reparación de nevera que no enfría",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Mantenimiento de lavadora",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "entrega en 15 días y anticipo del 40 %",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "reparacion"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Hogar Seguro Cámaras",
+  "cliente": {
+   "nombre": "Camila Torres",
+   "documento": "1.144.987.321",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Kit 4 cámaras de videovigilancia con DVR",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "el anticipo no es reembolsable",
+  "notas_actuales": "VIGENCIA Y PRECIOS\n• Esta cotización es válida por [15] días calendario desde su fecha; durante ese plazo se mantienen los precios y condiciones ofrecidos (arts. 845 y 846 del Código de Comercio).",
+  "categorias_esperadas": [
+   "cctv"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": true
+ },
+ {
+  "negocio": "Hogar Seguro Cámaras",
+  "cliente": {
+   "nombre": "Grupo Horizonte S.A.S.",
+   "documento": "901.555.210-8",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Kit 4 cámaras de videovigilancia con DVR",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "cctv"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Tecnología Gamer",
+  "cliente": {
+   "nombre": "Comercializadora Delta S.A.S.",
+   "documento": "901.234.567-1",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Tarjeta de video RTX 4060 nueva",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Fuente de poder 650 W",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "no se aceptan devoluciones",
+  "notas_actuales": "",
+  "categorias_esperadas": [],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": true
+ },
+ {
+  "negocio": "Tecnología Gamer",
+  "cliente": {
+   "nombre": "Andrés Rojas",
+   "documento": "79.845.123",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Tarjeta de video RTX 4060 nueva",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Fuente de poder 650 W",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "vigencia de 10 días, anticipo del 30 %",
+  "notas_actuales": "",
+  "categorias_esperadas": [],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Fiesta Feliz Decoraciones",
+  "cliente": {
+   "nombre": "Camila Torres",
+   "documento": "1.144.987.321",
+   "ciudad": "Cali"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Decoración de fiesta infantil con globos",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Animación infantil (2 horas)",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "no nos hacemos responsables por daños",
+  "notas_actuales": "Precios con IVA incluido.",
+  "categorias_esperadas": [
+   "eventos"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": true
+ },
+ {
+  "negocio": "Fiesta Feliz Decoraciones",
+  "cliente": {
+   "nombre": "Grupo Horizonte S.A.S.",
+   "documento": "901.555.210-8",
+   "ciudad": "Cali"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Decoración de fiesta infantil con globos",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Animación infantil (2 horas)",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "entrega en 5 días",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "eventos"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Fotografía Eventos Luz",
+  "cliente": {
+   "nombre": "Comercializadora Delta S.A.S.",
+   "documento": "901.234.567-1",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Cubrimiento fotográfico de matrimonio (8 horas)",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Álbum impreso de 30 páginas",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "",
+  "notas_actuales": "VIGENCIA Y PRECIOS\n• Esta cotización es válida por [15] días calendario desde su fecha; durante ese plazo se mantienen los precios y condiciones ofrecidos (arts. 845 y 846 del Código de Comercio).",
+  "categorias_esperadas": [
+   "foto",
+   "impresion"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Fotografía Eventos Luz",
+  "cliente": {
+   "nombre": "Andrés Rojas",
+   "documento": "79.845.123",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Cubrimiento fotográfico de matrimonio (8 horas)",
+    "iva": 19
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Álbum impreso de 30 páginas",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "garantía de 1 año",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "foto",
+   "impresion"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Transportes Rápidos",
+  "cliente": {
+   "nombre": "Camila Torres",
+   "documento": "1.144.987.321",
+   "ciudad": "Medellín"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Transporte de mercancía Medellín - Bogotá (1 tonelada)",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "transporte"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Transportes Rápidos",
+  "cliente": {
+   "nombre": "Grupo Horizonte S.A.S.",
+   "documento": "901.555.210-8",
+   "ciudad": "Medellín"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Transporte de mercancía Medellín - Bogotá (1 tonelada)",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "anticipo del 50 %",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "transporte"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Asesoría Empresarial Pyme",
+  "cliente": {
+   "nombre": "Comercializadora Delta S.A.S.",
+   "documento": "901.234.567-1",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Asesoría para constitución de empresa (S.A.S.)",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "anticipo del 60 %, entrega en 8 días",
+  "notas_actuales": "Precios con IVA incluido.",
+  "categorias_esperadas": [
+   "consultoria"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Asesoría Empresarial Pyme",
+  "cliente": {
+   "nombre": "Andrés Rojas",
+   "documento": "79.845.123",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Asesoría para constitución de empresa (S.A.S.)",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "vigencia de 30 días",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "consultoria"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Hosting Colombia",
+  "cliente": {
+   "nombre": "Camila Torres",
+   "documento": "1.144.987.321",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Hosting empresarial por un año",
+    "iva": 19
+   },
+   {
+    "cantidad": 5,
+    "descripcion": "Correo corporativo (1 año)",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "garantía de 6 meses",
+  "notas_actuales": "VIGENCIA Y PRECIOS\n• Esta cotización es válida por [15] días calendario desde su fecha; durante ese plazo se mantienen los precios y condiciones ofrecidos (arts. 845 y 846 del Código de Comercio).",
+  "categorias_esperadas": [
+   "software"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Hosting Colombia",
+  "cliente": {
+   "nombre": "Grupo Horizonte S.A.S.",
+   "documento": "901.555.210-8",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Hosting empresarial por un año",
+    "iva": 19
+   },
+   {
+    "cantidad": 5,
+    "descripcion": "Correo corporativo (1 año)",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "pon que no hay garantía",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "software"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": true
+ },
+ {
+  "negocio": "WiFi Hogar",
+  "cliente": {
+   "nombre": "Comercializadora Delta S.A.S.",
+   "documento": "901.234.567-1",
+   "ciudad": "Medellín"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Instalación de red WiFi en malla para casa",
+    "iva": 19
+   },
+   {
+    "cantidad": 3,
+    "descripcion": "Access point en malla con configuración",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "entrega en 15 días y anticipo del 40 %",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "red"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "WiFi Hogar",
+  "cliente": {
+   "nombre": "Andrés Rojas",
+   "documento": "79.845.123",
+   "ciudad": "Medellín"
+  },
+  "items": [
+   {
+    "cantidad": 1,
+    "descripcion": "Instalación de red WiFi en malla para casa",
+    "iva": 19
+   },
+   {
+    "cantidad": 3,
+    "descripcion": "Access point en malla con configuración",
+    "iva": 19
+   }
+  ],
+  "indicaciones": "el anticipo no es reembolsable",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "red"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": true
+ },
+ {
+  "negocio": "Pastelería Fina",
+  "cliente": {
+   "nombre": "Camila Torres",
+   "documento": "1.144.987.321",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 2,
+    "descripcion": "Caja de galletas artesanales",
+    "iva": 0
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Postre de tres leches familiar",
+    "iva": 0
+   }
+  ],
+  "indicaciones": "",
+  "notas_actuales": "Precios con IVA incluido.",
+  "categorias_esperadas": [
+   "alimentos"
+  ],
+  "cliente_tipo": "persona natural",
+  "pide_algo_abusivo": false
+ },
+ {
+  "negocio": "Pastelería Fina",
+  "cliente": {
+   "nombre": "Grupo Horizonte S.A.S.",
+   "documento": "901.555.210-8",
+   "ciudad": "Bogotá"
+  },
+  "items": [
+   {
+    "cantidad": 2,
+    "descripcion": "Caja de galletas artesanales",
+    "iva": 0
+   },
+   {
+    "cantidad": 1,
+    "descripcion": "Postre de tres leches familiar",
+    "iva": 0
+   }
+  ],
+  "indicaciones": "no se aceptan devoluciones",
+  "notas_actuales": "",
+  "categorias_esperadas": [
+   "alimentos"
+  ],
+  "cliente_tipo": "empresa",
+  "pide_algo_abusivo": true
+ }
+]

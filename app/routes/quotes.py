@@ -76,7 +76,7 @@ def allowed_file(filename):
 # Van al final del PDF, antes de la firma; vacías no salen. Columna aditiva:
 # la misma sentencia de la migración del maestro 0025_cotizaciones_notas.sql.
 DDL_NOTAS = "ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS notas_adicionales TEXT"
-NOTAS_MAX = 2000
+NOTAS_MAX = 6000            # notas organizadas por secciones (con IA llegan a ~4.000)
 _BD_CON_NOTAS = set()
 
 
@@ -112,6 +112,11 @@ def _limpiar_notas(texto):
         if vacias <= 1:
             limpio.append(linea)
     return '\n'.join(limpio).strip()[:NOTAS_MAX].strip()
+
+
+def _bloques_notas(notas):
+    from services.notas_cotizacion import bloques
+    return bloques(notas)
 
 
 def _firma_empresa():
@@ -173,6 +178,38 @@ def _orden_servicio_para_cotizar(orden_id):
     except Exception as exc:  # noqa: BLE001
         app.logger.warning(f"Cotizar desde orden de servicio: {exc}")
         return None, []
+
+
+@quotes_bp.route('/admin/cotizar/sugerir-notas', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+def sugerir_notas():
+    """Notas adicionales sugeridas por la IA a partir de lo que se cotiza (1.9.13.0).
+    Solo con el módulo Asistente IA activo. Devuelve secciones para que la persona
+    escoja cuáles agregar; nada se guarda aquí."""
+    from tenant_features import MODULE_AI, is_module_active
+    if not is_module_active(MODULE_AI):
+        return jsonify({'ok': False, 'error': 'El módulo Asistente IA no está activo en tu plan.'}), 403
+    from security import controlar_tasa_solicitudes
+    if not controlar_tasa_solicitudes(f"cot-notas:{session.get('usuario_id') or request.remote_addr}",
+                                      max_requests=12, interval=600):
+        return jsonify({'ok': False, 'error': 'Pediste muchas sugerencias seguidas. Espera unos minutos.'}), 429
+    datos = request.get_json(silent=True) or {}
+    items = []
+    for item in (datos.get('items') or [])[:40]:
+        if isinstance(item, dict):
+            items.append({'descripcion': str(item.get('descripcion') or '')[:200],
+                          'cantidad': item.get('cantidad'), 'iva': item.get('iva')})
+    cliente = datos.get('cliente') if isinstance(datos.get('cliente'), dict) else {}
+    cliente = {k: str(cliente.get(k) or '')[:120] for k in ('nombre', 'documento', 'ciudad')}
+    from services import ia_notas_cotizacion
+    try:
+        resultado = ia_notas_cotizacion.sugerir(items, cliente, str(datos.get('indicaciones') or '')[:300],
+                                                str(datos.get('notas_actuales') or '')[:NOTAS_MAX])
+    except Exception as exc:  # noqa: BLE001
+        app.logger.error(f"Sugerir notas de cotización: {exc}")
+        return jsonify({'ok': False, 'error': 'No se pudieron preparar las sugerencias. Intenta de nuevo.'}), 500
+    from services.notas_cotizacion import SECCIONES
+    return jsonify({'ok': True, 'orden': list(SECCIONES), **resultado})
 
 
 @quotes_bp.route('/admin/cotizar/generar', methods=['POST'])
@@ -405,6 +442,8 @@ def generar_cotizacion():
             'mostrar_descuento': round(total_descuentos, 2) > 0,
             'iva':      formatear_moneda(total_iva),
             'notas':    notas_adicionales,   # al final; vacías no salen
+            # Organizadas: títulos (MAYÚSCULAS o «:») y viñetas, para que se vean bien.
+            'notas_bloques': _bloques_notas(notas_adicionales),
             'firma_empresa': _firma_empresa(),
             'logo':     logo_local_path,   # ruta local, sin peticion HTTP
             'colores':  _get_brand_colors()
