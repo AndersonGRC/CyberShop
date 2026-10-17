@@ -22,7 +22,7 @@ class Config:
     # clientes, código compartido → todos ven la misma = la última desplegada).
     #   A = cambio radical de plataforma · B = módulo nuevo grande
     #   C = estabilización / mejora · D = correcciones y ajustes de UI
-    APP_VERSION = "1.9.13.1"
+    APP_VERSION = "1.9.14.0"
 
     # --- General / Sesion ---
     # SECURITY M2: Sin fallback débil — falla explícitamente si no está configurado
@@ -131,6 +131,9 @@ class Config:
     # Fallback automático: si AI_MODEL falla (memoria/timeout/error del server)
     # se reintenta UNA vez con este modelo más liviano. Vacío = sin fallback.
     AI_MODEL_FALLBACK = os.getenv('AI_MODEL_FALLBACK', 'qwen2.5:7b')
+    # Modelo que mira imágenes (capturas de WhatsApp, documentos, fotos) para la
+    # cotización con IA. Si el equipo no lo tiene, se sigue con el OCR del navegador.
+    AI_MODEL_VISION = os.getenv('AI_MODEL_VISION', 'qwen3.5:9b')
     AI_API_KEY  = os.getenv('AI_API_KEY', '')           # vacío para Ollama
     # read timeout amplio: el cold-start del modelo (carga a VRAM) puede tardar.
     # El connect timeout es corto (fast-fail si la GPU está apagada) — ver ai_service.
@@ -162,6 +165,8 @@ class Config:
     AI_NUBE_API_KEY     = os.getenv('AI_NUBE_API_KEY', '')
     AI_NUBE_MODEL       = os.getenv('AI_NUBE_MODEL', 'claude-haiku-4-5-20251001')
     AI_NUBE_MAX_TOKENS  = int(os.getenv('AI_NUBE_MAX_TOKENS', '220'))
+    # Consulta de precios que faltan en una cotización con IA (una llamada corta).
+    AI_NUBE_PRECIOS_MAX_TOKENS = int(os.getenv('AI_NUBE_PRECIOS_MAX_TOKENS', '500'))
     AI_NUBE_TIMEOUT     = int(os.getenv('AI_NUBE_TIMEOUT', '25'))
     AI_NUBE_ESPERA_LOCAL_S = int(os.getenv('AI_NUBE_ESPERA_LOCAL_S', '180'))
     AI_NUBE_FALLOS_LOCAL_MIN = int(os.getenv('AI_NUBE_FALLOS_LOCAL_MIN', '3'))

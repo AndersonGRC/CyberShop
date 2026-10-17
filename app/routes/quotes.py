@@ -215,6 +215,43 @@ def sugerir_notas():
     return jsonify({'ok': True, 'orden': list(SECCIONES), **resultado})
 
 
+@quotes_bp.route('/admin/cotizar/ia/generar', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+def generar_con_ia():
+    """Cotización armada por la IA con lo que mandó el cliente (capturas, PDF, conversación)
+    (1.9.14.0). Solo con el módulo Asistente IA. Responde en streaming (SSE) el plan y cada
+    paso mientras trabaja; al final, la propuesta para llenar el formulario. Nada se guarda."""
+    import json
+    from flask import stream_with_context
+    from tenant_features import MODULE_AI, is_module_active
+    if not is_module_active(MODULE_AI):
+        return jsonify({'ok': False, 'error': 'El módulo Asistente IA no está activo en tu plan.'}), 403
+    from security import controlar_tasa_solicitudes
+    if not controlar_tasa_solicitudes(f"cot-ia:{session.get('usuario_id') or request.remote_addr}",
+                                      max_requests=6, interval=1800):
+        return jsonify({'ok': False, 'error': 'Ya pediste varias cotizaciones con IA seguidas. Espera unos minutos.'}), 429
+    from services import ia_cotizacion_auto as auto
+    try:
+        entrada = auto.leer_entrada(request.get_json(silent=True))
+    except auto.EntradaInvalida as exc:
+        return jsonify({'ok': False, 'error': str(exc)}), 400
+
+    def eventos():
+        try:
+            for tipo, dato in auto.generar(entrada):
+                if tipo == 'latido':
+                    yield ': latido\n\n'          # nginx y Cloudflare no cortan mientras la IA piensa
+                    continue
+                yield f"data: {json.dumps({'e': tipo, 'd': dato}, ensure_ascii=False)}\n\n"
+        except Exception as exc:  # noqa: BLE001
+            app.logger.exception(f'Cotización con IA: {exc}')
+            mensaje = 'Algo falló al armar la cotización. Intenta de nuevo.'
+            yield f"data: {json.dumps({'e': 'error', 'd': mensaje}, ensure_ascii=False)}\n\n"
+
+    return Response(stream_with_context(eventos()), mimetype='text/event-stream',
+                    headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
+
+
 @quotes_bp.route('/admin/cotizar/generar', methods=['POST'])
 @rol_requerido(ADMIN_STAFF)
 def generar_cotizacion():

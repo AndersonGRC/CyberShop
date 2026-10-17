@@ -275,6 +275,97 @@ def responder(sistema, usuario, max_tokens=None, temperature=0.4, timeout=25):
     return None, f'El respaldo en la nube respondió {r.status_code}.'
 
 
+# ── Precios de mercado actualizados (cotización con IA, 1.9.14.0) ──────────
+# La IA local arma la cotización; la nube solo se consulta para los ítems que quedaron
+# sin ningún precio (ni catálogo, ni historial, ni costo), en UNA llamada corta con
+# búsqueda en internet. Solo viajan las descripciones de los ítems (nunca datos del
+# cliente) y lo ya consultado se recuerda un día para no pagar dos veces.
+_PRECIOS_RECORDADOS = {}             # (bd, descripción normalizada) -> (hora, precio, fuente)
+_RECORDAR_PRECIO_S = 24 * 3600
+USD_POR_BUSQUEDA = 0.01              # tarifa de la herramienta de búsqueda de Anthropic
+
+_SISTEMA_PRECIOS = ('Precios de venta al público hoy en Colombia, en pesos (COP). Busca cada ítem en internet. '
+                    'Responde SOLO un JSON: [{"n":1,"precio":123000,"fuente":"dominio.com"}]; precio null si no '
+                    'lo encuentras. Sin explicaciones.')
+
+
+def _tokens_por_busqueda():
+    """La búsqueda se cobra aparte; se suma al contador como tokens de entrada equivalentes."""
+    p_in = max(1.0, float(_cfg('AI_NUBE_PRECIO_ENTRADA_USD_MTOK', 1.0)))
+    return int(USD_POR_BUSQUEDA / p_in * 1_000_000)
+
+
+def buscar_precios(descripciones, ciudad=''):
+    """{índice: (precio, fuente)} para las descripciones, o ({}, motivo). Nunca lanza.
+    Lo recordado no se vuelve a pagar."""
+    import json as _json
+    import re as _re
+    from services.notas_cotizacion import normalizar
+    if not disponible('panel'):
+        return {}, (motivo_bloqueo() or 'la nube no está configurada o se alcanzó el tope de gasto del mes')
+    bd = _clave_bloqueo()
+    ahora = time.time()
+    hallados, pendientes = {}, []
+    for i, d in enumerate(descripciones):
+        visto = _PRECIOS_RECORDADOS.get((bd, normalizar(d)))
+        if visto and ahora - visto[0] < _RECORDAR_PRECIO_S:
+            if visto[1]:
+                hallados[i] = (visto[1], visto[2])
+        else:
+            pendientes.append(i)
+    pendientes = pendientes[:6]
+    if not pendientes:
+        return hallados, None
+    pedido = '\n'.join(f'{n}. {" ".join(str(descripciones[i]).split())[:90]}' for n, i in enumerate(pendientes, 1))
+    herramienta = {'type': 'web_search_20250305', 'name': 'web_search', 'max_uses': min(4, len(pendientes)),
+                   'user_location': {'type': 'approximate', 'country': 'CO', 'city': (ciudad or 'Bogotá')[:40],
+                                     'timezone': 'America/Bogota'}}
+    try:
+        r = requests.post(
+            API_URL,
+            headers={'x-api-key': str(_cfg('AI_NUBE_API_KEY', '')),
+                     'anthropic-version': VERSION_API, 'content-type': 'application/json'},
+            json={'model': str(_cfg('AI_NUBE_MODEL', _MODELO_CON_PRECIO_VALIDADO)),
+                  'max_tokens': max(150, min(800, int(_cfg('AI_NUBE_PRECIOS_MAX_TOKENS', 500)))),
+                  'system': _SISTEMA_PRECIOS, 'tools': [herramienta],
+                  'messages': [{'role': 'user', 'content': pedido}]},
+            timeout=(5, 90))
+    except requests.RequestException as exc:
+        return hallados, f'no se pudo alcanzar la nube ({type(exc).__name__})'
+    if r.status_code != 200:
+        if r.status_code in (401, 403, 429):
+            _bloquear(f'La nube respondió {r.status_code} al consultar precios.')
+        return hallados, f'la nube respondió {r.status_code}'
+    d = r.json()
+    uso = d.get('usage') or {}
+    busquedas = int(((uso.get('server_tool_use') or {}).get('web_search_requests')) or 0)
+    _sumar_uso(int(uso.get('input_tokens') or 0) + busquedas * _tokens_por_busqueda(),
+               int(uso.get('output_tokens') or 0))
+    texto = ''.join(b.get('text', '') for b in d.get('content', []) if b.get('type') == 'text')
+    m = _re.search(r'\[.*\]', texto, _re.S)
+    try:
+        lista = _json.loads(m.group(0)) if m else []
+    except ValueError:
+        lista = []
+    for fila in lista if isinstance(lista, list) else []:
+        try:
+            n = int(fila.get('n'))
+            precio = float(fila.get('precio')) if fila.get('precio') is not None else None
+        except (TypeError, ValueError, AttributeError):
+            continue
+        if not 1 <= n <= len(pendientes):
+            continue
+        i = pendientes[n - 1]
+        fuente = ' '.join(str(fila.get('fuente') or 'internet').split())[:60]
+        valido = precio if precio and 0 < precio < 1e10 else None
+        _PRECIOS_RECORDADOS[(bd, normalizar(descripciones[i]))] = (ahora, valido, fuente)
+        if valido:
+            hallados[i] = (valido, fuente)
+    for i in pendientes:                                  # lo no encontrado tampoco se repite hoy
+        _PRECIOS_RECORDADOS.setdefault((bd, normalizar(descripciones[i])), (ahora, None, ''))
+    return hallados, None
+
+
 def estado():
     """Para el panel: configurada, disponible, gasto del mes y por qué no se usa."""
     uso = uso_del_mes()

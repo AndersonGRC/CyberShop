@@ -1,0 +1,3457 @@
+[
+ {
+  "negocio": "TecnoSoluciones Andina",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Andrés Rojas: Buenas tardes, me llamo Andrés. Les escribo desde Bogotá\n17/10/26, 10:01 - Andrés Rojas: necesito 2 mantenimiento preventivo de portátil\n17/10/26, 10:02 - Andrés Rojas: y también me cotizan 1 cambio de pantalla de portátil 15.6\"\n17/10/26, 10:03 - TecnoSoluciones Andina: Con gusto, ya le preparo la cotización\n17/10/26, 10:04 - Andrés Rojas: Lo necesito antes del 30 de este mes"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Mantenimiento preventivo de portátil",
+     2
+    ],
+    [
+     "Cambio de pantalla de portátil 15.6\"",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "El cliente lo necesita antes del 30 de este mes."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "TecnoSoluciones Andina",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Laura Gómez\nCliente: Hola, buen día, me llamo Laura. Les escribo desde Bogotá\nCliente: me cotizan 2 mantenimiento preventivo de portátil\nCliente: y también quiero 1 cambio de pantalla de portátil 15.6\"\nNegocio: Con gusto, ya le preparo la cotización\nCliente: ¿Puedo pagar la mitad al inicio y la otra al terminar?\nNegocio: Sí, claro"
+   },
+   {
+    "nombre": "Cotizacion_100.pdf",
+    "tipo": "pdf",
+    "texto": "[Página 1]\nCOTIZACIÓN No. 100\nTecnoSoluciones Andina\nCliente: Laura Gómez\nDescripción Cant. Precio unit.\nMantenimiento preventivo de portátil 1 $45.000\nTOTAL $45.000"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Mantenimiento preventivo de portátil",
+    "precio": null
+   },
+   {
+    "nombre": "Cambio de pantalla de portátil 15.6\"",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Mantenimiento preventivo de portátil",
+     2
+    ],
+    [
+     "Cambio de pantalla de portátil 15.6\"",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    45000,
+    null
+   ],
+   "condiciones": [
+    "Anticipo del 50 % y el saldo al terminar."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Redes y Datos del Caribe",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Camila Torres\nCliente: Buenas, me llamo Camila, de Comercializadora Delta S.A.S.. Les escribo desde Barranquilla\nCliente: quiero 12 instalación de cableado estructurado categoría 6\nCliente: y también ¿cuánto me salen 1 rack de pared 9U con organizador?\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Necesito factura electrónica a nombre de la empresa\nNegocio: Con gusto"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Instalación de cableado estructurado categoría 6",
+     12
+    ],
+    [
+     "Rack de pared 9U con organizador",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "El cliente necesita factura electrónica a nombre de su empresa."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Redes y Datos del Caribe",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Juan Pablo Díaz: Buenos días, ¿cómo están?, me llamo Juan, de Inversiones Montaña S.A.S.. Les escribo desde Barranquilla\n17/10/26, 10:01 - Juan Pablo Díaz: ¿cuánto me salen 12 instalación de cableado estructurado categoría 6?\n17/10/26, 10:02 - Juan Pablo Díaz: y también serían 1 rack de pared 9U con organizador\n17/10/26, 10:03 - Redes y Datos del Caribe: Con gusto, ya le preparo la cotización\n17/10/26, 10:04 - Juan Pablo Díaz: ¿Eso incluye el transporte?\n17/10/26, 10:05 - Redes y Datos del Caribe: Le confirmo en la cotización"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Instalación de cableado estructurado categoría 6 (punto de red)",
+    "precio": 30000
+   },
+   {
+    "nombre": "Rack de pared 9U con organizador",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Instalación de cableado estructurado categoría 6 (punto de red)",
+     12
+    ],
+    [
+     "Rack de pared 9U con organizador",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Vigilancia Segura",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Valentina Ruiz\nCliente: Buenas tardes, me llamo Valentina. Les escribo desde Cali\nCliente: serían 1 kit 8 cámaras de videovigilancia con NVR\nCliente: y también necesito 1 instalación y configuración del sistema de cámaras\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Es para un local en el centro"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Kit 8 cámaras de videovigilancia con NVR",
+     1
+    ],
+    [
+     "Instalación y configuración del sistema de cámaras",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Vigilancia Segura",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Felipe Castro\nCliente: Hola, buen día, me llamo Felipe, de Grupo Horizonte S.A.S.. Les escribo desde Cali\nCliente: necesito 1 kit 8 cámaras de videovigilancia con NVR\nCliente: y también me cotizan 1 instalación y configuración del sistema de cámaras\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Lo necesito antes del 30 de este mes"
+   },
+   {
+    "nombre": "Cotizacion_102.pdf",
+    "tipo": "pdf",
+    "texto": "[Página 1]\nCOTIZACIÓN No. 102\nVigilancia Segura\nCliente: Grupo Horizonte S.A.S.\nDescripción Cant. Precio unit.\nKit 8 cámaras de videovigilancia con NVR 1 $55.000\nTOTAL $55.000"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Kit 8 cámaras de videovigilancia con NVR",
+    "precio": null
+   },
+   {
+    "nombre": "Instalación y configuración del sistema de cámaras",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Kit 8 cámaras de videovigilancia con NVR",
+     1
+    ],
+    [
+     "Instalación y configuración del sistema de cámaras",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    55000,
+    null
+   ],
+   "condiciones": [
+    "El cliente lo necesita antes del 30 de este mes."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Dulce Tentación Repostería",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Andrés Rojas: Buenas, me llamo Andrés. Les escribo desde Medellín\n17/10/26, 10:01 - Andrés Rojas: me cotizan 1 torta personalizada de tres pisos para 60 personas\n17/10/26, 10:02 - Andrés Rojas: y también quiero 60 cupcakes decorados\n17/10/26, 10:03 - Dulce Tentación Repostería: Con gusto, ya le preparo la cotización\n17/10/26, 10:04 - Andrés Rojas: ¿Puedo pagar la mitad al inicio y la otra al terminar?\n17/10/26, 10:05 - Dulce Tentación Repostería: Sí, claro"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Torta personalizada de tres pisos para 60 personas",
+     1
+    ],
+    [
+     "Cupcakes decorados",
+     60
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "Anticipo del 50 % y el saldo al terminar."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Dulce Tentación Repostería",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Laura Gómez\nCliente: Buenos días, ¿cómo están?, me llamo Laura. Les escribo desde Medellín\nCliente: quiero 1 torta personalizada de tres pisos para 60 personas\nCliente: y también ¿cuánto me salen 60 cupcakes decorados?\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Necesito factura electrónica a nombre de la empresa\nNegocio: Con gusto"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Torta personalizada de tres pisos para 60 personas",
+    "precio": 30000
+   },
+   {
+    "nombre": "Cupcakes decorados",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Torta personalizada de tres pisos para 60 personas",
+     1
+    ],
+    [
+     "Cupcakes decorados",
+     60
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "El cliente necesita factura electrónica a nombre de su empresa."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Eventos Bambú",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Camila Torres\nCliente: Buenas tardes, me llamo Camila, de Comercializadora Delta S.A.S.. Les escribo desde Bucaramanga\nCliente: ¿cuánto me salen 1 alquiler de sonido profesional para evento?\nCliente: y también serían 80 alquiler de sillas Tiffany\nCliente: y también necesito 1 decoración y montaje del salón\nNegocio: Con gusto, ya le preparo la cotización\nCliente: ¿Eso incluye el transporte?\nNegocio: Le confirmo en la cotización"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Alquiler de sonido profesional para evento",
+     1
+    ],
+    [
+     "Alquiler de sillas Tiffany",
+     80
+    ],
+    [
+     "Decoración y montaje del salón",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Eventos Bambú",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Juan Pablo Díaz: Hola, buen día, me llamo Juan, de Inversiones Montaña S.A.S.. Les escribo desde Bucaramanga\n17/10/26, 10:01 - Juan Pablo Díaz: serían 1 alquiler de sonido profesional para evento\n17/10/26, 10:02 - Juan Pablo Díaz: y también necesito 80 alquiler de sillas Tiffany\n17/10/26, 10:03 - Juan Pablo Díaz: y también me cotizan 1 decoración y montaje del salón\n17/10/26, 10:04 - Eventos Bambú: Con gusto, ya le preparo la cotización\n17/10/26, 10:05 - Juan Pablo Díaz: Es para un local en el centro"
+   },
+   {
+    "nombre": "Cotizacion_104.pdf",
+    "tipo": "pdf",
+    "texto": "[Página 1]\nCOTIZACIÓN No. 104\nEventos Bambú\nCliente: Inversiones Montaña S.A.S.\nDescripción Cant. Precio unit.\nAlquiler de sonido profesional para evento 1 $65.000\nTOTAL $65.000"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Alquiler de sonido profesional para evento",
+    "precio": null
+   },
+   {
+    "nombre": "Alquiler de sillas Tiffany",
+    "precio": 40000
+   },
+   {
+    "nombre": "Decoración y montaje del salón",
+    "precio": 50000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Alquiler de sonido profesional para evento",
+     1
+    ],
+    [
+     "Alquiler de sillas Tiffany",
+     80
+    ],
+    [
+     "Decoración y montaje del salón",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    65000,
+    null,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Web Creativa",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Valentina Ruiz\nCliente: Buenas, me llamo Valentina. Les escribo desde Pereira\nCliente: necesito 1 diseño y desarrollo de página web corporativa\nCliente: y también me cotizan 1 hosting y dominio .com por un año\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Lo necesito antes del 30 de este mes"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Diseño y desarrollo de página web corporativa",
+     1
+    ],
+    [
+     "Hosting y dominio .com por un año",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "El cliente lo necesita antes del 30 de este mes."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Web Creativa",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Felipe Castro\nCliente: Buenos días, ¿cómo están?, me llamo Felipe, de Grupo Horizonte S.A.S.. Les escribo desde Pereira\nCliente: me cotizan 1 diseño y desarrollo de página web corporativa\nCliente: y también quiero 1 hosting y dominio .com por un año\nNegocio: Con gusto, ya le preparo la cotización\nCliente: ¿Puedo pagar la mitad al inicio y la otra al terminar?\nNegocio: Sí, claro"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Diseño y desarrollo de página web corporativa (5 secciones)",
+    "precio": 30000
+   },
+   {
+    "nombre": "Hosting y dominio .com por un año",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Diseño y desarrollo de página web corporativa (5 secciones)",
+     1
+    ],
+    [
+     "Hosting y dominio .com por un año",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "Anticipo del 50 % y el saldo al terminar."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Mueblería El Roble",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Andrés Rojas: Buenas tardes, me llamo Andrés. Les escribo desde Cúcuta\n17/10/26, 10:01 - Andrés Rojas: quiero 1 cocina integral en madera a medida\n17/10/26, 10:02 - Andrés Rojas: y también ¿cuánto me salen 1 closet en madera de 2,40 m?\n17/10/26, 10:03 - Mueblería El Roble: Con gusto, ya le preparo la cotización\n17/10/26, 10:04 - Andrés Rojas: Necesito factura electrónica a nombre de la empresa\n17/10/26, 10:05 - Mueblería El Roble: Con gusto"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Cocina integral en madera a medida",
+     1
+    ],
+    [
+     "Closet en madera de 2,40 m",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "El cliente necesita factura electrónica a nombre de su empresa."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Mueblería El Roble",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Laura Gómez\nCliente: Hola, buen día, me llamo Laura. Les escribo desde Cúcuta\nCliente: ¿cuánto me salen 1 cocina integral en madera a medida?\nCliente: y también serían 1 closet en madera de 2,40 m\nNegocio: Con gusto, ya le preparo la cotización\nCliente: ¿Eso incluye el transporte?\nNegocio: Le confirmo en la cotización"
+   },
+   {
+    "nombre": "Cotizacion_106.pdf",
+    "tipo": "pdf",
+    "texto": "[Página 1]\nCOTIZACIÓN No. 106\nMueblería El Roble\nCliente: Laura Gómez\nDescripción Cant. Precio unit.\nCocina integral en madera a medida 1 $75.000\nTOTAL $75.000"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Cocina integral en madera a medida",
+    "precio": null
+   },
+   {
+    "nombre": "Closet en madera de 2,40 m",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Cocina integral en madera a medida",
+     1
+    ],
+    [
+     "Closet en madera de 2,40 m",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    75000,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Pinturas y Acabados JM",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Camila Torres\nCliente: Buenas, me llamo Camila, de Comercializadora Delta S.A.S.. Les escribo desde Bogotá\nCliente: serían 1 mano de obra pintura de apartamento de 70 m²\nCliente: y también necesito 1 resane y estuco de muros\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Es para un local en el centro"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Mano de obra pintura de apartamento de 70 m²",
+     1
+    ],
+    [
+     "Resane y estuco de muros",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Pinturas y Acabados JM",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Juan Pablo Díaz: Buenos días, ¿cómo están?, me llamo Juan, de Inversiones Montaña S.A.S.. Les escribo desde Bogotá\n17/10/26, 10:01 - Juan Pablo Díaz: necesito 1 mano de obra pintura de apartamento de 70 m²\n17/10/26, 10:02 - Juan Pablo Díaz: y también me cotizan 1 resane y estuco de muros\n17/10/26, 10:03 - Pinturas y Acabados JM: Con gusto, ya le preparo la cotización\n17/10/26, 10:04 - Juan Pablo Díaz: Lo necesito antes del 30 de este mes"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Mano de obra pintura de apartamento de 70 m²",
+    "precio": 30000
+   },
+   {
+    "nombre": "Resane y estuco de muros",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Mano de obra pintura de apartamento de 70 m²",
+     1
+    ],
+    [
+     "Resane y estuco de muros",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "El cliente lo necesita antes del 30 de este mes."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Electro Instalaciones Pacífico",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Valentina Ruiz\nCliente: Buenas tardes, me llamo Valentina. Les escribo desde Cali\nCliente: me cotizan 1 instalación eléctrica de oficina\nCliente: y también quiero 1 tablero eléctrico de 12 circuitos\nNegocio: Con gusto, ya le preparo la cotización\nCliente: ¿Puedo pagar la mitad al inicio y la otra al terminar?\nNegocio: Sí, claro"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Instalación eléctrica de oficina",
+     1
+    ],
+    [
+     "Tablero eléctrico de 12 circuitos",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "Anticipo del 50 % y el saldo al terminar."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Electro Instalaciones Pacífico",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Felipe Castro\nCliente: Hola, buen día, me llamo Felipe, de Grupo Horizonte S.A.S.. Les escribo desde Cali\nCliente: quiero 1 instalación eléctrica de oficina\nCliente: y también ¿cuánto me salen 1 tablero eléctrico de 12 circuitos?\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Necesito factura electrónica a nombre de la empresa\nNegocio: Con gusto"
+   },
+   {
+    "nombre": "Cotizacion_108.pdf",
+    "tipo": "pdf",
+    "texto": "[Página 1]\nCOTIZACIÓN No. 108\nElectro Instalaciones Pacífico\nCliente: Grupo Horizonte S.A.S.\nDescripción Cant. Precio unit.\nInstalación eléctrica de oficina (10 tomas y 6 luminarias) 1 $85.000\nTOTAL $85.000"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Instalación eléctrica de oficina (10 tomas y 6 luminarias)",
+    "precio": null
+   },
+   {
+    "nombre": "Tablero eléctrico de 12 circuitos",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Instalación eléctrica de oficina (10 tomas y 6 luminarias)",
+     1
+    ],
+    [
+     "Tablero eléctrico de 12 circuitos",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    85000,
+    null
+   ],
+   "condiciones": [
+    "El cliente necesita factura electrónica a nombre de su empresa."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Impresos Rápidos",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Andrés Rojas: Buenas, me llamo Andrés. Les escribo desde Manizales\n17/10/26, 10:01 - Andrés Rojas: ¿cuánto me salen 1000 tarjetas de presentación impresas a full color?\n17/10/26, 10:02 - Andrés Rojas: y también serían 2 pendón 1 x 2 m en gran formato\n17/10/26, 10:03 - Impresos Rápidos: Con gusto, ya le preparo la cotización\n17/10/26, 10:04 - Andrés Rojas: ¿Eso incluye el transporte?\n17/10/26, 10:05 - Impresos Rápidos: Le confirmo en la cotización"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Tarjetas de presentación impresas a full color",
+     1000
+    ],
+    [
+     "Pendón 1 x 2 m en gran formato",
+     2
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Impresos Rápidos",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Laura Gómez\nCliente: Buenos días, ¿cómo están?, me llamo Laura. Les escribo desde Manizales\nCliente: serían 1000 tarjetas de presentación impresas a full color\nCliente: y también necesito 2 pendón 1 x 2 m en gran formato\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Es para un local en el centro"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Tarjetas de presentación impresas a full color",
+    "precio": 30000
+   },
+   {
+    "nombre": "Pendón 1 x 2 m en gran formato",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Tarjetas de presentación impresas a full color",
+     1000
+    ],
+    [
+     "Pendón 1 x 2 m en gran formato",
+     2
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Lente Mágico Estudio",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Camila Torres\nCliente: Buenas tardes, me llamo Camila, de Comercializadora Delta S.A.S.. Les escribo desde Medellín\nCliente: necesito 1 sesión fotográfica de producto\nCliente: y también me cotizan 1 video promocional de 1 minuto\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Lo necesito antes del 30 de este mes"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Sesión fotográfica de producto",
+     1
+    ],
+    [
+     "Video promocional de 1 minuto",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "El cliente lo necesita antes del 30 de este mes."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Lente Mágico Estudio",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Juan Pablo Díaz: Hola, buen día, me llamo Juan, de Inversiones Montaña S.A.S.. Les escribo desde Medellín\n17/10/26, 10:01 - Juan Pablo Díaz: me cotizan 1 sesión fotográfica de producto\n17/10/26, 10:02 - Juan Pablo Díaz: y también quiero 1 video promocional de 1 minuto\n17/10/26, 10:03 - Lente Mágico Estudio: Con gusto, ya le preparo la cotización\n17/10/26, 10:04 - Juan Pablo Díaz: ¿Puedo pagar la mitad al inicio y la otra al terminar?\n17/10/26, 10:05 - Lente Mágico Estudio: Sí, claro"
+   },
+   {
+    "nombre": "Cotizacion_110.pdf",
+    "tipo": "pdf",
+    "texto": "[Página 1]\nCOTIZACIÓN No. 110\nLente Mágico Estudio\nCliente: Inversiones Montaña S.A.S.\nDescripción Cant. Precio unit.\nSesión fotográfica de producto (40 fotos editadas) 1 $50.000\nTOTAL $50.000"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Sesión fotográfica de producto (40 fotos editadas)",
+    "precio": null
+   },
+   {
+    "nombre": "Video promocional de 1 minuto",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Sesión fotográfica de producto (40 fotos editadas)",
+     1
+    ],
+    [
+     "Video promocional de 1 minuto",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    50000,
+    null
+   ],
+   "condiciones": [
+    "Anticipo del 50 % y el saldo al terminar."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Asesorías Contables Integrales",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Valentina Ruiz\nCliente: Buenas, me llamo Valentina. Les escribo desde Bogotá\nCliente: quiero 1 asesoría contable y tributaria mensual\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Necesito factura electrónica a nombre de la empresa\nNegocio: Con gusto"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Asesoría contable y tributaria mensual",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null
+   ],
+   "condiciones": [
+    "El cliente necesita factura electrónica a nombre de su empresa."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Asesorías Contables Integrales",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Felipe Castro\nCliente: Buenos días, ¿cómo están?, me llamo Felipe, de Grupo Horizonte S.A.S.. Les escribo desde Bogotá\nCliente: ¿cuánto me salen 1 asesoría contable y tributaria mensual?\nNegocio: Con gusto, ya le preparo la cotización\nCliente: ¿Eso incluye el transporte?\nNegocio: Le confirmo en la cotización"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Asesoría contable y tributaria mensual (8 horas)",
+    "precio": 30000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Asesoría contable y tributaria mensual (8 horas)",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Capacitaciones Pro",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Andrés Rojas: Buenas tardes, me llamo Andrés. Les escribo desde Armenia\n17/10/26, 10:01 - Andrés Rojas: serían 1 curso de Excel avanzado para 15 personas\n17/10/26, 10:02 - Capacitaciones Pro: Con gusto, ya le preparo la cotización\n17/10/26, 10:03 - Andrés Rojas: Es para un local en el centro"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Curso de Excel avanzado para 15 personas",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Capacitaciones Pro",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Laura Gómez\nCliente: Hola, buen día, me llamo Laura. Les escribo desde Armenia\nCliente: necesito 1 curso de Excel avanzado para 15 personas\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Lo necesito antes del 30 de este mes"
+   },
+   {
+    "nombre": "Cotizacion_112.pdf",
+    "tipo": "pdf",
+    "texto": "[Página 1]\nCOTIZACIÓN No. 112\nCapacitaciones Pro\nCliente: Laura Gómez\nDescripción Cant. Precio unit.\nCurso de Excel avanzado para 15 personas (16 horas) 1 $60.000\nTOTAL $60.000"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Curso de Excel avanzado para 15 personas (16 horas)",
+    "precio": null
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Curso de Excel avanzado para 15 personas (16 horas)",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    60000
+   ],
+   "condiciones": [
+    "El cliente lo necesita antes del 30 de este mes."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Agencia Impulso Digital",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Camila Torres\nCliente: Buenas, me llamo Camila, de Comercializadora Delta S.A.S.. Les escribo desde Bogotá\nCliente: me cotizan 1 gestión de redes sociales\nCliente: y también quiero 1 diseño de logotipo e identidad corporativa\nNegocio: Con gusto, ya le preparo la cotización\nCliente: ¿Puedo pagar la mitad al inicio y la otra al terminar?\nNegocio: Sí, claro"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Gestión de redes sociales",
+     1
+    ],
+    [
+     "Diseño de logotipo e identidad corporativa",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "Anticipo del 50 % y el saldo al terminar."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Agencia Impulso Digital",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Juan Pablo Díaz: Buenos días, ¿cómo están?, me llamo Juan, de Inversiones Montaña S.A.S.. Les escribo desde Bogotá\n17/10/26, 10:01 - Juan Pablo Díaz: quiero 1 gestión de redes sociales\n17/10/26, 10:02 - Juan Pablo Díaz: y también ¿cuánto me salen 1 diseño de logotipo e identidad corporativa?\n17/10/26, 10:03 - Agencia Impulso Digital: Con gusto, ya le preparo la cotización\n17/10/26, 10:04 - Juan Pablo Díaz: Necesito factura electrónica a nombre de la empresa\n17/10/26, 10:05 - Agencia Impulso Digital: Con gusto"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Gestión de redes sociales (12 publicaciones al mes)",
+    "precio": 30000
+   },
+   {
+    "nombre": "Diseño de logotipo e identidad corporativa",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Gestión de redes sociales (12 publicaciones al mes)",
+     1
+    ],
+    [
+     "Diseño de logotipo e identidad corporativa",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "El cliente necesita factura electrónica a nombre de su empresa."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Mudanzas Express",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Valentina Ruiz\nCliente: Buenas tardes, me llamo Valentina. Les escribo desde Bogotá\nCliente: ¿cuánto me salen 1 trasteo de apartamento de 3 habitaciones dentro de la ciudad?\nNegocio: Con gusto, ya le preparo la cotización\nCliente: ¿Eso incluye el transporte?\nNegocio: Le confirmo en la cotización"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Trasteo de apartamento de 3 habitaciones dentro de la ciudad",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Mudanzas Express",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Felipe Castro\nCliente: Hola, buen día, me llamo Felipe, de Grupo Horizonte S.A.S.. Les escribo desde Bogotá\nCliente: serían 1 trasteo de apartamento de 3 habitaciones dentro de la ciudad\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Es para un local en el centro"
+   },
+   {
+    "nombre": "Cotizacion_114.pdf",
+    "tipo": "pdf",
+    "texto": "[Página 1]\nCOTIZACIÓN No. 114\nMudanzas Express\nCliente: Grupo Horizonte S.A.S.\nDescripción Cant. Precio unit.\nTrasteo de apartamento de 3 habitaciones dentro de la ciudad 1 $70.000\nTOTAL $70.000"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Trasteo de apartamento de 3 habitaciones dentro de la ciudad",
+    "precio": null
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Trasteo de apartamento de 3 habitaciones dentro de la ciudad",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    70000
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Limpieza Total",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Andrés Rojas: Buenas, me llamo Andrés. Les escribo desde Barranquilla\n17/10/26, 10:01 - Andrés Rojas: necesito 1 servicio de limpieza profunda de oficina de 200 m²\n17/10/26, 10:02 - Andrés Rojas: y también me cotizan 1 fumigación de bodega\n17/10/26, 10:03 - Limpieza Total: Con gusto, ya le preparo la cotización\n17/10/26, 10:04 - Andrés Rojas: Lo necesito antes del 30 de este mes"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Servicio de limpieza profunda de oficina de 200 m²",
+     1
+    ],
+    [
+     "Fumigación de bodega",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "El cliente lo necesita antes del 30 de este mes."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Limpieza Total",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Laura Gómez\nCliente: Buenos días, ¿cómo están?, me llamo Laura. Les escribo desde Barranquilla\nCliente: me cotizan 1 servicio de limpieza profunda de oficina de 200 m²\nCliente: y también quiero 1 fumigación de bodega\nNegocio: Con gusto, ya le preparo la cotización\nCliente: ¿Puedo pagar la mitad al inicio y la otra al terminar?\nNegocio: Sí, claro"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Servicio de limpieza profunda de oficina de 200 m²",
+    "precio": 30000
+   },
+   {
+    "nombre": "Fumigación de bodega",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Servicio de limpieza profunda de oficina de 200 m²",
+     1
+    ],
+    [
+     "Fumigación de bodega",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "Anticipo del 50 % y el saldo al terminar."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Software Licencias",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Camila Torres\nCliente: Buenas tardes, me llamo Camila, de Comercializadora Delta S.A.S.. Les escribo desde Bogotá\nCliente: quiero 10 licencia Microsoft 365 Empresa Estándar\nCliente: y también ¿cuánto me salen 10 antivirus corporativo?\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Necesito factura electrónica a nombre de la empresa\nNegocio: Con gusto"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Licencia Microsoft 365 Empresa Estándar",
+     10
+    ],
+    [
+     "Antivirus corporativo",
+     10
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "El cliente necesita factura electrónica a nombre de su empresa."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Software Licencias",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Juan Pablo Díaz: Hola, buen día, me llamo Juan, de Inversiones Montaña S.A.S.. Les escribo desde Bogotá\n17/10/26, 10:01 - Juan Pablo Díaz: ¿cuánto me salen 10 licencia Microsoft 365 Empresa Estándar?\n17/10/26, 10:02 - Juan Pablo Díaz: y también serían 10 antivirus corporativo\n17/10/26, 10:03 - Software Licencias: Con gusto, ya le preparo la cotización\n17/10/26, 10:04 - Juan Pablo Díaz: ¿Eso incluye el transporte?\n17/10/26, 10:05 - Software Licencias: Le confirmo en la cotización"
+   },
+   {
+    "nombre": "Cotizacion_116.pdf",
+    "tipo": "pdf",
+    "texto": "[Página 1]\nCOTIZACIÓN No. 116\nSoftware Licencias\nCliente: Inversiones Montaña S.A.S.\nDescripción Cant. Precio unit.\nLicencia Microsoft 365 Empresa Estándar (1 año) 1 $80.000\nTOTAL $80.000"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Licencia Microsoft 365 Empresa Estándar (1 año)",
+    "precio": null
+   },
+   {
+    "nombre": "Antivirus corporativo (1 año)",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Licencia Microsoft 365 Empresa Estándar (1 año)",
+     10
+    ],
+    [
+     "Antivirus corporativo (1 año)",
+     10
+    ]
+   ],
+   "precio_referencia": [
+    80000,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "TecnoCel Reparaciones",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Valentina Ruiz\nCliente: Buenas, me llamo Valentina. Les escribo desde Ibagué\nCliente: serían 1 cambio de batería de celular Samsung A54\nCliente: y también necesito 1 diagnóstico de celular que no enciende\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Es para un local en el centro"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Cambio de batería de celular Samsung A54",
+     1
+    ],
+    [
+     "Diagnóstico de celular que no enciende",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "TecnoCel Reparaciones",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Felipe Castro\nCliente: Buenos días, ¿cómo están?, me llamo Felipe, de Grupo Horizonte S.A.S.. Les escribo desde Ibagué\nCliente: necesito 1 cambio de batería de celular Samsung A54\nCliente: y también me cotizan 1 diagnóstico de celular que no enciende\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Lo necesito antes del 30 de este mes"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Cambio de batería de celular Samsung A54",
+    "precio": 30000
+   },
+   {
+    "nombre": "Diagnóstico de celular que no enciende",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Cambio de batería de celular Samsung A54",
+     1
+    ],
+    [
+     "Diagnóstico de celular que no enciende",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "El cliente lo necesita antes del 30 de este mes."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Computadores Nuevos",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Andrés Rojas: Buenas tardes, me llamo Andrés. Les escribo desde Medellín\n17/10/26, 10:01 - Andrés Rojas: me cotizan 5 portátil Lenovo IdeaPad 15\" Core i5 nuevo\n17/10/26, 10:02 - Andrés Rojas: y también quiero 5 mouse inalámbrico\n17/10/26, 10:03 - Computadores Nuevos: Con gusto, ya le preparo la cotización\n17/10/26, 10:04 - Andrés Rojas: ¿Puedo pagar la mitad al inicio y la otra al terminar?\n17/10/26, 10:05 - Computadores Nuevos: Sí, claro"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Portátil Lenovo IdeaPad 15\" Core i5 nuevo",
+     5
+    ],
+    [
+     "Mouse inalámbrico",
+     5
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "Anticipo del 50 % y el saldo al terminar."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Computadores Nuevos",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Laura Gómez\nCliente: Hola, buen día, me llamo Laura. Les escribo desde Medellín\nCliente: quiero 5 portátil Lenovo IdeaPad 15\" Core i5 nuevo\nCliente: y también ¿cuánto me salen 5 mouse inalámbrico?\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Necesito factura electrónica a nombre de la empresa\nNegocio: Con gusto"
+   },
+   {
+    "nombre": "Cotizacion_118.pdf",
+    "tipo": "pdf",
+    "texto": "[Página 1]\nCOTIZACIÓN No. 118\nComputadores Nuevos\nCliente: Laura Gómez\nDescripción Cant. Precio unit.\nPortátil Lenovo IdeaPad 15\" Core i5 nuevo 1 $45.000\nTOTAL $45.000"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Portátil Lenovo IdeaPad 15\" Core i5 nuevo",
+    "precio": null
+   },
+   {
+    "nombre": "Mouse inalámbrico",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Portátil Lenovo IdeaPad 15\" Core i5 nuevo",
+     5
+    ],
+    [
+     "Mouse inalámbrico",
+     5
+    ]
+   ],
+   "precio_referencia": [
+    45000,
+    null
+   ],
+   "condiciones": [
+    "El cliente necesita factura electrónica a nombre de su empresa."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "ReCompu Usados",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Camila Torres\nCliente: Buenas, me llamo Camila, de Comercializadora Delta S.A.S.. Les escribo desde Bogotá\nCliente: ¿cuánto me salen 3 portátil Dell Latitude reacondicionado?\nCliente: y también serían 1 iPhone 12 de 128 GB usado\nNegocio: Con gusto, ya le preparo la cotización\nCliente: ¿Eso incluye el transporte?\nNegocio: Le confirmo en la cotización"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Portátil Dell Latitude reacondicionado",
+     3
+    ],
+    [
+     "IPhone 12 de 128 GB usado",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "ReCompu Usados",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Juan Pablo Díaz: Buenos días, ¿cómo están?, me llamo Juan, de Inversiones Montaña S.A.S.. Les escribo desde Bogotá\n17/10/26, 10:01 - Juan Pablo Díaz: serían 3 portátil Dell Latitude reacondicionado\n17/10/26, 10:02 - Juan Pablo Díaz: y también necesito 1 iPhone 12 de 128 GB usado\n17/10/26, 10:03 - ReCompu Usados: Con gusto, ya le preparo la cotización\n17/10/26, 10:04 - Juan Pablo Díaz: Es para un local en el centro"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Portátil Dell Latitude reacondicionado",
+    "precio": 30000
+   },
+   {
+    "nombre": "iPhone 12 de 128 GB usado",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Portátil Dell Latitude reacondicionado",
+     3
+    ],
+    [
+     "iPhone 12 de 128 GB usado",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Catering Sabores",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Valentina Ruiz\nCliente: Buenas tardes, me llamo Valentina. Les escribo desde Cartagena\nCliente: necesito 120 refrigerios para evento empresarial\nCliente: y también me cotizan 1 servicio de meseros para evento\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Lo necesito antes del 30 de este mes"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Refrigerios para evento empresarial",
+     120
+    ],
+    [
+     "Servicio de meseros para evento",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "El cliente lo necesita antes del 30 de este mes."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Catering Sabores",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Felipe Castro\nCliente: Hola, buen día, me llamo Felipe, de Grupo Horizonte S.A.S.. Les escribo desde Cartagena\nCliente: me cotizan 120 refrigerios para evento empresarial\nCliente: y también quiero 1 servicio de meseros para evento\nNegocio: Con gusto, ya le preparo la cotización\nCliente: ¿Puedo pagar la mitad al inicio y la otra al terminar?\nNegocio: Sí, claro"
+   },
+   {
+    "nombre": "Cotizacion_120.pdf",
+    "tipo": "pdf",
+    "texto": "[Página 1]\nCOTIZACIÓN No. 120\nCatering Sabores\nCliente: Grupo Horizonte S.A.S.\nDescripción Cant. Precio unit.\nRefrigerios para evento empresarial 1 $55.000\nTOTAL $55.000"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Refrigerios para evento empresarial",
+    "precio": null
+   },
+   {
+    "nombre": "Servicio de meseros para evento (4 meseros)",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Refrigerios para evento empresarial",
+     120
+    ],
+    [
+     "Servicio de meseros para evento (4 meseros)",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    55000,
+    null
+   ],
+   "condiciones": [
+    "Anticipo del 50 % y el saldo al terminar."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Construcciones Firmes",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Andrés Rojas: Buenas, me llamo Andrés. Les escribo desde Villavicencio\n17/10/26, 10:01 - Andrés Rojas: quiero 1 remodelación de baño con enchape de cerámica\n17/10/26, 10:02 - Andrés Rojas: y también ¿cuánto me salen 1 impermeabilización de cubierta de 50 m²?\n17/10/26, 10:03 - Construcciones Firmes: Con gusto, ya le preparo la cotización\n17/10/26, 10:04 - Andrés Rojas: Necesito factura electrónica a nombre de la empresa\n17/10/26, 10:05 - Construcciones Firmes: Con gusto"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Remodelación de baño con enchape de cerámica",
+     1
+    ],
+    [
+     "Impermeabilización de cubierta de 50 m²",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "El cliente necesita factura electrónica a nombre de su empresa."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Construcciones Firmes",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Laura Gómez\nCliente: Buenos días, ¿cómo están?, me llamo Laura. Les escribo desde Villavicencio\nCliente: ¿cuánto me salen 1 remodelación de baño con enchape de cerámica?\nCliente: y también serían 1 impermeabilización de cubierta de 50 m²\nNegocio: Con gusto, ya le preparo la cotización\nCliente: ¿Eso incluye el transporte?\nNegocio: Le confirmo en la cotización"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Remodelación de baño con enchape de cerámica",
+    "precio": 30000
+   },
+   {
+    "nombre": "Impermeabilización de cubierta de 50 m²",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Remodelación de baño con enchape de cerámica",
+     1
+    ],
+    [
+     "Impermeabilización de cubierta de 50 m²",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Soporte IT Empresarial",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Camila Torres\nCliente: Buenas tardes, me llamo Camila, de Comercializadora Delta S.A.S.. Les escribo desde Bogotá\nCliente: serían 1 plan de mantenimiento mensual de equipos\nCliente: y también necesito 1 mesa de ayuda remota\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Es para un local en el centro"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Plan de mantenimiento mensual de equipos",
+     1
+    ],
+    [
+     "Mesa de ayuda remota",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Soporte IT Empresarial",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Juan Pablo Díaz: Hola, buen día, me llamo Juan, de Inversiones Montaña S.A.S.. Les escribo desde Bogotá\n17/10/26, 10:01 - Juan Pablo Díaz: necesito 1 plan de mantenimiento mensual de equipos\n17/10/26, 10:02 - Juan Pablo Díaz: y también me cotizan 1 mesa de ayuda remota\n17/10/26, 10:03 - Soporte IT Empresarial: Con gusto, ya le preparo la cotización\n17/10/26, 10:04 - Juan Pablo Díaz: Lo necesito antes del 30 de este mes"
+   },
+   {
+    "nombre": "Cotizacion_122.pdf",
+    "tipo": "pdf",
+    "texto": "[Página 1]\nCOTIZACIÓN No. 122\nSoporte IT Empresarial\nCliente: Inversiones Montaña S.A.S.\nDescripción Cant. Precio unit.\nPlan de mantenimiento mensual de equipos (20 computadores) 1 $65.000\nTOTAL $65.000"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Plan de mantenimiento mensual de equipos (20 computadores)",
+    "precio": null
+   },
+   {
+    "nombre": "Mesa de ayuda remota",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Plan de mantenimiento mensual de equipos (20 computadores)",
+     1
+    ],
+    [
+     "Mesa de ayuda remota",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    65000,
+    null
+   ],
+   "condiciones": [
+    "El cliente lo necesita antes del 30 de este mes."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Panadería La Espiga",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Valentina Ruiz\nCliente: Buenas, me llamo Valentina. Les escribo desde Tunja\nCliente: me cotizan 200 panes para evento\nCliente: y también quiero 4 ponqué de vainilla de 2 libras\nNegocio: Con gusto, ya le preparo la cotización\nCliente: ¿Puedo pagar la mitad al inicio y la otra al terminar?\nNegocio: Sí, claro"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Panes para evento",
+     200
+    ],
+    [
+     "Ponqué de vainilla de 2 libras",
+     4
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "Anticipo del 50 % y el saldo al terminar."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Panadería La Espiga",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Felipe Castro\nCliente: Buenos días, ¿cómo están?, me llamo Felipe, de Grupo Horizonte S.A.S.. Les escribo desde Tunja\nCliente: quiero 200 panes para evento\nCliente: y también ¿cuánto me salen 4 ponqué de vainilla de 2 libras?\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Necesito factura electrónica a nombre de la empresa\nNegocio: Con gusto"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Panes para evento (pan francés y mantequilla)",
+    "precio": 30000
+   },
+   {
+    "nombre": "Ponqué de vainilla de 2 libras",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Panes para evento (pan francés y mantequilla)",
+     200
+    ],
+    [
+     "Ponqué de vainilla de 2 libras",
+     4
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "El cliente necesita factura electrónica a nombre de su empresa."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Drone Visual",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Andrés Rojas: Buenas tardes, me llamo Andrés. Les escribo desde Santa Marta\n17/10/26, 10:01 - Andrés Rojas: ¿cuánto me salen 1 cubrimiento aéreo con drone de evento?\n17/10/26, 10:02 - Andrés Rojas: y también serían 1 edición de video del evento\n17/10/26, 10:03 - Drone Visual: Con gusto, ya le preparo la cotización\n17/10/26, 10:04 - Andrés Rojas: ¿Eso incluye el transporte?\n17/10/26, 10:05 - Drone Visual: Le confirmo en la cotización"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Cubrimiento aéreo con drone de evento",
+     1
+    ],
+    [
+     "Edición de video del evento",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Drone Visual",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Laura Gómez\nCliente: Hola, buen día, me llamo Laura. Les escribo desde Santa Marta\nCliente: serían 1 cubrimiento aéreo con drone de evento\nCliente: y también necesito 1 edición de video del evento\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Es para un local en el centro"
+   },
+   {
+    "nombre": "Cotizacion_124.pdf",
+    "tipo": "pdf",
+    "texto": "[Página 1]\nCOTIZACIÓN No. 124\nDrone Visual\nCliente: Laura Gómez\nDescripción Cant. Precio unit.\nCubrimiento aéreo con drone de evento (2 horas) 1 $75.000\nTOTAL $75.000"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Cubrimiento aéreo con drone de evento (2 horas)",
+    "precio": null
+   },
+   {
+    "nombre": "Edición de video del evento",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Cubrimiento aéreo con drone de evento (2 horas)",
+     1
+    ],
+    [
+     "Edición de video del evento",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    75000,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Alquiler Equipos Andes",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Camila Torres\nCliente: Buenas, me llamo Camila, de Comercializadora Delta S.A.S.. Les escribo desde Bogotá\nCliente: necesito 2 alquiler de videobeam por día\nCliente: y también me cotizan 1 alquiler de pantalla de proyección\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Lo necesito antes del 30 de este mes"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Alquiler de videobeam por día",
+     2
+    ],
+    [
+     "Alquiler de pantalla de proyección",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "El cliente lo necesita antes del 30 de este mes."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Alquiler Equipos Andes",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Juan Pablo Díaz: Buenos días, ¿cómo están?, me llamo Juan, de Inversiones Montaña S.A.S.. Les escribo desde Bogotá\n17/10/26, 10:01 - Juan Pablo Díaz: me cotizan 2 alquiler de videobeam por día\n17/10/26, 10:02 - Juan Pablo Díaz: y también quiero 1 alquiler de pantalla de proyección\n17/10/26, 10:03 - Alquiler Equipos Andes: Con gusto, ya le preparo la cotización\n17/10/26, 10:04 - Juan Pablo Díaz: ¿Puedo pagar la mitad al inicio y la otra al terminar?\n17/10/26, 10:05 - Alquiler Equipos Andes: Sí, claro"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Alquiler de videobeam por día",
+    "precio": 30000
+   },
+   {
+    "nombre": "Alquiler de pantalla de proyección",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Alquiler de videobeam por día",
+     2
+    ],
+    [
+     "Alquiler de pantalla de proyección",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "Anticipo del 50 % y el saldo al terminar."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Seguridad Electrónica del Sur",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Valentina Ruiz\nCliente: Buenas tardes, me llamo Valentina. Les escribo desde Pasto\nCliente: quiero 1 alarma inalámbrica con 6 sensores\nCliente: y también ¿cuánto me salen 1 control de acceso biométrico para puerta principal?\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Necesito factura electrónica a nombre de la empresa\nNegocio: Con gusto"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Alarma inalámbrica con 6 sensores",
+     1
+    ],
+    [
+     "Control de acceso biométrico para puerta principal",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "El cliente necesita factura electrónica a nombre de su empresa."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Seguridad Electrónica del Sur",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Felipe Castro\nCliente: Hola, buen día, me llamo Felipe, de Grupo Horizonte S.A.S.. Les escribo desde Pasto\nCliente: ¿cuánto me salen 1 alarma inalámbrica con 6 sensores?\nCliente: y también serían 1 control de acceso biométrico para puerta principal\nNegocio: Con gusto, ya le preparo la cotización\nCliente: ¿Eso incluye el transporte?\nNegocio: Le confirmo en la cotización"
+   },
+   {
+    "nombre": "Cotizacion_126.pdf",
+    "tipo": "pdf",
+    "texto": "[Página 1]\nCOTIZACIÓN No. 126\nSeguridad Electrónica del Sur\nCliente: Grupo Horizonte S.A.S.\nDescripción Cant. Precio unit.\nAlarma inalámbrica con 6 sensores 1 $85.000\nTOTAL $85.000"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Alarma inalámbrica con 6 sensores",
+    "precio": null
+   },
+   {
+    "nombre": "Control de acceso biométrico para puerta principal",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Alarma inalámbrica con 6 sensores",
+     1
+    ],
+    [
+     "Control de acceso biométrico para puerta principal",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    85000,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Fibra y Conexión",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Andrés Rojas: Buenas, me llamo Andrés. Les escribo desde Neiva\n17/10/26, 10:01 - Andrés Rojas: serían 1 tendido de fibra óptica entre dos edificios\n17/10/26, 10:02 - Andrés Rojas: y también necesito 2 configuración de access point empresarial\n17/10/26, 10:03 - Fibra y Conexión: Con gusto, ya le preparo la cotización\n17/10/26, 10:04 - Andrés Rojas: Es para un local en el centro"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Tendido de fibra óptica entre dos edificios",
+     1
+    ],
+    [
+     "Configuración de access point empresarial",
+     2
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Fibra y Conexión",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Laura Gómez\nCliente: Buenos días, ¿cómo están?, me llamo Laura. Les escribo desde Neiva\nCliente: necesito 1 tendido de fibra óptica entre dos edificios\nCliente: y también me cotizan 2 configuración de access point empresarial\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Lo necesito antes del 30 de este mes"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Tendido de fibra óptica entre dos edificios (200 m)",
+    "precio": 30000
+   },
+   {
+    "nombre": "Configuración de access point empresarial",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Tendido de fibra óptica entre dos edificios (200 m)",
+     1
+    ],
+    [
+     "Configuración de access point empresarial",
+     2
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "El cliente lo necesita antes del 30 de este mes."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Tienda Virtual Fácil",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Camila Torres\nCliente: Buenas tardes, me llamo Camila, de Comercializadora Delta S.A.S.. Les escribo desde Bogotá\nCliente: me cotizan 1 desarrollo de tienda virtual con pasarela de pagos\nCliente: y también quiero 1 capacitación para administrar la tienda\nNegocio: Con gusto, ya le preparo la cotización\nCliente: ¿Puedo pagar la mitad al inicio y la otra al terminar?\nNegocio: Sí, claro"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Desarrollo de tienda virtual con pasarela de pagos",
+     1
+    ],
+    [
+     "Capacitación para administrar la tienda",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "Anticipo del 50 % y el saldo al terminar."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Tienda Virtual Fácil",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Juan Pablo Díaz: Hola, buen día, me llamo Juan, de Inversiones Montaña S.A.S.. Les escribo desde Bogotá\n17/10/26, 10:01 - Juan Pablo Díaz: quiero 1 desarrollo de tienda virtual con pasarela de pagos\n17/10/26, 10:02 - Juan Pablo Díaz: y también ¿cuánto me salen 1 capacitación para administrar la tienda?\n17/10/26, 10:03 - Tienda Virtual Fácil: Con gusto, ya le preparo la cotización\n17/10/26, 10:04 - Juan Pablo Díaz: Necesito factura electrónica a nombre de la empresa\n17/10/26, 10:05 - Tienda Virtual Fácil: Con gusto"
+   },
+   {
+    "nombre": "Cotizacion_128.pdf",
+    "tipo": "pdf",
+    "texto": "[Página 1]\nCOTIZACIÓN No. 128\nTienda Virtual Fácil\nCliente: Inversiones Montaña S.A.S.\nDescripción Cant. Precio unit.\nDesarrollo de tienda virtual con pasarela de pagos 1 $50.000\nTOTAL $50.000"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Desarrollo de tienda virtual con pasarela de pagos",
+    "precio": null
+   },
+   {
+    "nombre": "Capacitación para administrar la tienda (2 horas)",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Desarrollo de tienda virtual con pasarela de pagos",
+     1
+    ],
+    [
+     "Capacitación para administrar la tienda (2 horas)",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    50000,
+    null
+   ],
+   "condiciones": [
+    "El cliente necesita factura electrónica a nombre de su empresa."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Carpintería Artesanal",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Valentina Ruiz\nCliente: Buenas, me llamo Valentina. Les escribo desde Popayán\nCliente: ¿cuánto me salen 1 puerta en madera maciza con instalación?\nCliente: y también serían 1 escritorio en madera a medida\nNegocio: Con gusto, ya le preparo la cotización\nCliente: ¿Eso incluye el transporte?\nNegocio: Le confirmo en la cotización"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Puerta en madera maciza con instalación",
+     1
+    ],
+    [
+     "Escritorio en madera a medida",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Carpintería Artesanal",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Felipe Castro\nCliente: Buenos días, ¿cómo están?, me llamo Felipe, de Grupo Horizonte S.A.S.. Les escribo desde Popayán\nCliente: serían 1 puerta en madera maciza con instalación\nCliente: y también necesito 1 escritorio en madera a medida\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Es para un local en el centro"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Puerta en madera maciza con instalación",
+    "precio": 30000
+   },
+   {
+    "nombre": "Escritorio en madera a medida",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Puerta en madera maciza con instalación",
+     1
+    ],
+    [
+     "Escritorio en madera a medida",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "PrintFix Taller de Impresoras",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Andrés Rojas: Buenas tardes, me llamo Andrés. Les escribo desde Bogotá\n17/10/26, 10:01 - Andrés Rojas: necesito 3 mantenimiento de impresora láser\n17/10/26, 10:02 - Andrés Rojas: y también me cotizan 1 cambio de rodillo de impresora\n17/10/26, 10:03 - PrintFix Taller de Impresoras: Con gusto, ya le preparo la cotización\n17/10/26, 10:04 - Andrés Rojas: Lo necesito antes del 30 de este mes"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Mantenimiento de impresora láser",
+     3
+    ],
+    [
+     "Cambio de rodillo de impresora",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "El cliente lo necesita antes del 30 de este mes."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "PrintFix Taller de Impresoras",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Laura Gómez\nCliente: Hola, buen día, me llamo Laura. Les escribo desde Bogotá\nCliente: me cotizan 3 mantenimiento de impresora láser\nCliente: y también quiero 1 cambio de rodillo de impresora\nNegocio: Con gusto, ya le preparo la cotización\nCliente: ¿Puedo pagar la mitad al inicio y la otra al terminar?\nNegocio: Sí, claro"
+   },
+   {
+    "nombre": "Cotizacion_130.pdf",
+    "tipo": "pdf",
+    "texto": "[Página 1]\nCOTIZACIÓN No. 130\nPrintFix Taller de Impresoras\nCliente: Laura Gómez\nDescripción Cant. Precio unit.\nMantenimiento de impresora láser 1 $60.000\nTOTAL $60.000"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Mantenimiento de impresora láser",
+    "precio": null
+   },
+   {
+    "nombre": "Cambio de rodillo de impresora",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Mantenimiento de impresora láser",
+     3
+    ],
+    [
+     "Cambio de rodillo de impresora",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    60000,
+    null
+   ],
+   "condiciones": [
+    "Anticipo del 50 % y el saldo al terminar."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Banquetes Elegancia",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Camila Torres\nCliente: Buenas, me llamo Camila, de Comercializadora Delta S.A.S.. Les escribo desde Medellín\nCliente: quiero 150 banquete para boda\nCliente: y también ¿cuánto me salen 1 menaje y mantelería para 150 personas?\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Necesito factura electrónica a nombre de la empresa\nNegocio: Con gusto"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Banquete para boda",
+     150
+    ],
+    [
+     "Menaje y mantelería para 150 personas",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "El cliente necesita factura electrónica a nombre de su empresa."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Banquetes Elegancia",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Juan Pablo Díaz: Buenos días, ¿cómo están?, me llamo Juan, de Inversiones Montaña S.A.S.. Les escribo desde Medellín\n17/10/26, 10:01 - Juan Pablo Díaz: ¿cuánto me salen 150 banquete para boda?\n17/10/26, 10:02 - Juan Pablo Díaz: y también serían 1 menaje y mantelería para 150 personas\n17/10/26, 10:03 - Banquetes Elegancia: Con gusto, ya le preparo la cotización\n17/10/26, 10:04 - Juan Pablo Díaz: ¿Eso incluye el transporte?\n17/10/26, 10:05 - Banquetes Elegancia: Le confirmo en la cotización"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Banquete para boda (plato fuerte y postre)",
+    "precio": 30000
+   },
+   {
+    "nombre": "Menaje y mantelería para 150 personas",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Banquete para boda (plato fuerte y postre)",
+     150
+    ],
+    [
+     "Menaje y mantelería para 150 personas",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Gráficas del Norte",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Valentina Ruiz\nCliente: Buenas tardes, me llamo Valentina. Les escribo desde Barranquilla\nCliente: serían 5000 volantes impresos media carta\nCliente: y también necesito 500 sticker troquelado\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Es para un local en el centro"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Volantes impresos media carta",
+     5000
+    ],
+    [
+     "Sticker troquelado",
+     500
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Gráficas del Norte",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Felipe Castro\nCliente: Hola, buen día, me llamo Felipe, de Grupo Horizonte S.A.S.. Les escribo desde Barranquilla\nCliente: necesito 5000 volantes impresos media carta\nCliente: y también me cotizan 500 sticker troquelado\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Lo necesito antes del 30 de este mes"
+   },
+   {
+    "nombre": "Cotizacion_132.pdf",
+    "tipo": "pdf",
+    "texto": "[Página 1]\nCOTIZACIÓN No. 132\nGráficas del Norte\nCliente: Grupo Horizonte S.A.S.\nDescripción Cant. Precio unit.\nVolantes impresos media carta 1 $70.000\nTOTAL $70.000"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Volantes impresos media carta",
+    "precio": null
+   },
+   {
+    "nombre": "Sticker troquelado",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Volantes impresos media carta",
+     5000
+    ],
+    [
+     "Sticker troquelado",
+     500
+    ]
+   ],
+   "precio_referencia": [
+    70000,
+    null
+   ],
+   "condiciones": [
+    "El cliente lo necesita antes del 30 de este mes."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Consultoría Gestión SST",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Andrés Rojas: Buenas, me llamo Andrés. Les escribo desde Bogotá\n17/10/26, 10:01 - Andrés Rojas: me cotizan 1 consultoría para diseño del sistema de gestión SST\n17/10/26, 10:02 - Andrés Rojas: y también quiero 1 auditoría interna\n17/10/26, 10:03 - Consultoría Gestión SST: Con gusto, ya le preparo la cotización\n17/10/26, 10:04 - Andrés Rojas: ¿Puedo pagar la mitad al inicio y la otra al terminar?\n17/10/26, 10:05 - Consultoría Gestión SST: Sí, claro"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Consultoría para diseño del sistema de gestión SST",
+     1
+    ],
+    [
+     "Auditoría interna",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "Anticipo del 50 % y el saldo al terminar."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Consultoría Gestión SST",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Laura Gómez\nCliente: Buenos días, ¿cómo están?, me llamo Laura. Les escribo desde Bogotá\nCliente: quiero 1 consultoría para diseño del sistema de gestión SST\nCliente: y también ¿cuánto me salen 1 auditoría interna?\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Necesito factura electrónica a nombre de la empresa\nNegocio: Con gusto"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Consultoría para diseño del sistema de gestión SST",
+    "precio": 30000
+   },
+   {
+    "nombre": "Auditoría interna",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Consultoría para diseño del sistema de gestión SST",
+     1
+    ],
+    [
+     "Auditoría interna",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "El cliente necesita factura electrónica a nombre de su empresa."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Academia de Inglés Bridge",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Camila Torres\nCliente: Buenas tardes, me llamo Camila, de Comercializadora Delta S.A.S.. Les escribo desde Cali\nCliente: ¿cuánto me salen 1 curso de inglés empresarial para 10 personas?\nNegocio: Con gusto, ya le preparo la cotización\nCliente: ¿Eso incluye el transporte?\nNegocio: Le confirmo en la cotización"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Curso de inglés empresarial para 10 personas",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Academia de Inglés Bridge",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Juan Pablo Díaz: Hola, buen día, me llamo Juan, de Inversiones Montaña S.A.S.. Les escribo desde Cali\n17/10/26, 10:01 - Juan Pablo Díaz: serían 1 curso de inglés empresarial para 10 personas\n17/10/26, 10:02 - Academia de Inglés Bridge: Con gusto, ya le preparo la cotización\n17/10/26, 10:03 - Juan Pablo Díaz: Es para un local en el centro"
+   },
+   {
+    "nombre": "Cotizacion_134.pdf",
+    "tipo": "pdf",
+    "texto": "[Página 1]\nCOTIZACIÓN No. 134\nAcademia de Inglés Bridge\nCliente: Inversiones Montaña S.A.S.\nDescripción Cant. Precio unit.\nCurso de inglés empresarial para 10 personas (40 horas) 1 $80.000\nTOTAL $80.000"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Curso de inglés empresarial para 10 personas (40 horas)",
+    "precio": null
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Curso de inglés empresarial para 10 personas (40 horas)",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    80000
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Luz Eficiente",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Valentina Ruiz\nCliente: Buenas, me llamo Valentina. Les escribo desde Valledupar\nCliente: necesito 1 instalación de sistema de iluminación LED para bodega\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Lo necesito antes del 30 de este mes"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Instalación de sistema de iluminación LED para bodega",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null
+   ],
+   "condiciones": [
+    "El cliente lo necesita antes del 30 de este mes."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Luz Eficiente",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Felipe Castro\nCliente: Buenos días, ¿cómo están?, me llamo Felipe, de Grupo Horizonte S.A.S.. Les escribo desde Valledupar\nCliente: me cotizan 1 instalación de sistema de iluminación LED para bodega\nNegocio: Con gusto, ya le preparo la cotización\nCliente: ¿Puedo pagar la mitad al inicio y la otra al terminar?\nNegocio: Sí, claro"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Instalación de sistema de iluminación LED para bodega",
+    "precio": 30000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Instalación de sistema de iluminación LED para bodega",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null
+   ],
+   "condiciones": [
+    "Anticipo del 50 % y el saldo al terminar."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Agua Pura Tanques",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Andrés Rojas: Buenas tardes, me llamo Andrés. Les escribo desde Bogotá\n17/10/26, 10:01 - Andrés Rojas: quiero 2 lavado y desinfección de tanques de agua\n17/10/26, 10:02 - Agua Pura Tanques: Con gusto, ya le preparo la cotización\n17/10/26, 10:03 - Andrés Rojas: Necesito factura electrónica a nombre de la empresa\n17/10/26, 10:04 - Agua Pura Tanques: Con gusto"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Lavado y desinfección de tanques de agua",
+     2
+    ]
+   ],
+   "precio_referencia": [
+    null
+   ],
+   "condiciones": [
+    "El cliente necesita factura electrónica a nombre de su empresa."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Agua Pura Tanques",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Laura Gómez\nCliente: Hola, buen día, me llamo Laura. Les escribo desde Bogotá\nCliente: ¿cuánto me salen 2 lavado y desinfección de tanques de agua?\nNegocio: Con gusto, ya le preparo la cotización\nCliente: ¿Eso incluye el transporte?\nNegocio: Le confirmo en la cotización"
+   },
+   {
+    "nombre": "Cotizacion_136.pdf",
+    "tipo": "pdf",
+    "texto": "[Página 1]\nCOTIZACIÓN No. 136\nAgua Pura Tanques\nCliente: Laura Gómez\nDescripción Cant. Precio unit.\nLavado y desinfección de tanques de agua 1 $45.000\nTOTAL $45.000"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Lavado y desinfección de tanques de agua",
+    "precio": null
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Lavado y desinfección de tanques de agua",
+     2
+    ]
+   ],
+   "precio_referencia": [
+    45000
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Jardines Verdes",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Camila Torres\nCliente: Buenas, me llamo Camila, de Comercializadora Delta S.A.S.. Les escribo desde Rionegro\nCliente: serían 1 mantenimiento de jardines mensual\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Es para un local en el centro"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Mantenimiento de jardines mensual",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Jardines Verdes",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Juan Pablo Díaz: Buenos días, ¿cómo están?, me llamo Juan, de Inversiones Montaña S.A.S.. Les escribo desde Rionegro\n17/10/26, 10:01 - Juan Pablo Díaz: necesito 1 mantenimiento de jardines mensual\n17/10/26, 10:02 - Jardines Verdes: Con gusto, ya le preparo la cotización\n17/10/26, 10:03 - Juan Pablo Díaz: Lo necesito antes del 30 de este mes"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Mantenimiento de jardines mensual",
+    "precio": 30000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Mantenimiento de jardines mensual",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null
+   ],
+   "condiciones": [
+    "El cliente lo necesita antes del 30 de este mes."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Marketing Local",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Valentina Ruiz\nCliente: Buenas tardes, me llamo Valentina. Les escribo desde Bogotá\nCliente: me cotizan 1 campaña publicitaria en redes sociales por un mes\nCliente: y también quiero 1 pauta en Instagram y Facebook\nNegocio: Con gusto, ya le preparo la cotización\nCliente: ¿Puedo pagar la mitad al inicio y la otra al terminar?\nNegocio: Sí, claro"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Campaña publicitaria en redes sociales por un mes",
+     1
+    ],
+    [
+     "Pauta en Instagram y Facebook",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "Anticipo del 50 % y el saldo al terminar."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Marketing Local",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Felipe Castro\nCliente: Hola, buen día, me llamo Felipe, de Grupo Horizonte S.A.S.. Les escribo desde Bogotá\nCliente: quiero 1 campaña publicitaria en redes sociales por un mes\nCliente: y también ¿cuánto me salen 1 pauta en Instagram y Facebook?\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Necesito factura electrónica a nombre de la empresa\nNegocio: Con gusto"
+   },
+   {
+    "nombre": "Cotizacion_138.pdf",
+    "tipo": "pdf",
+    "texto": "[Página 1]\nCOTIZACIÓN No. 138\nMarketing Local\nCliente: Grupo Horizonte S.A.S.\nDescripción Cant. Precio unit.\nCampaña publicitaria en redes sociales por un mes 1 $55.000\nTOTAL $55.000"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Campaña publicitaria en redes sociales por un mes",
+    "precio": null
+   },
+   {
+    "nombre": "Pauta en Instagram y Facebook",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Campaña publicitaria en redes sociales por un mes",
+     1
+    ],
+    [
+     "Pauta en Instagram y Facebook",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    55000,
+    null
+   ],
+   "condiciones": [
+    "El cliente necesita factura electrónica a nombre de su empresa."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "App Móvil Studio",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Andrés Rojas: Buenas, me llamo Andrés. Les escribo desde Medellín\n17/10/26, 10:01 - Andrés Rojas: ¿cuánto me salen 1 desarrollo de aplicación móvil para pedidos?\n17/10/26, 10:02 - App Móvil Studio: Con gusto, ya le preparo la cotización\n17/10/26, 10:03 - Andrés Rojas: ¿Eso incluye el transporte?\n17/10/26, 10:04 - App Móvil Studio: Le confirmo en la cotización"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Desarrollo de aplicación móvil para pedidos",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "App Móvil Studio",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Laura Gómez\nCliente: Buenos días, ¿cómo están?, me llamo Laura. Les escribo desde Medellín\nCliente: serían 1 desarrollo de aplicación móvil para pedidos\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Es para un local en el centro"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Desarrollo de aplicación móvil para pedidos (Android y iOS)",
+    "precio": 30000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Desarrollo de aplicación móvil para pedidos (Android y iOS)",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Servicio Técnico Hogar",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Camila Torres\nCliente: Buenas tardes, me llamo Camila, de Comercializadora Delta S.A.S.. Les escribo desde Bucaramanga\nCliente: necesito 1 reparación de nevera que no enfría\nCliente: y también me cotizan 1 mantenimiento de lavadora\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Lo necesito antes del 30 de este mes"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Reparación de nevera que no enfría",
+     1
+    ],
+    [
+     "Mantenimiento de lavadora",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "El cliente lo necesita antes del 30 de este mes."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Servicio Técnico Hogar",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Juan Pablo Díaz: Hola, buen día, me llamo Juan, de Inversiones Montaña S.A.S.. Les escribo desde Bucaramanga\n17/10/26, 10:01 - Juan Pablo Díaz: me cotizan 1 reparación de nevera que no enfría\n17/10/26, 10:02 - Juan Pablo Díaz: y también quiero 1 mantenimiento de lavadora\n17/10/26, 10:03 - Servicio Técnico Hogar: Con gusto, ya le preparo la cotización\n17/10/26, 10:04 - Juan Pablo Díaz: ¿Puedo pagar la mitad al inicio y la otra al terminar?\n17/10/26, 10:05 - Servicio Técnico Hogar: Sí, claro"
+   },
+   {
+    "nombre": "Cotizacion_140.pdf",
+    "tipo": "pdf",
+    "texto": "[Página 1]\nCOTIZACIÓN No. 140\nServicio Técnico Hogar\nCliente: Inversiones Montaña S.A.S.\nDescripción Cant. Precio unit.\nReparación de nevera que no enfría 1 $65.000\nTOTAL $65.000"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Reparación de nevera que no enfría",
+    "precio": null
+   },
+   {
+    "nombre": "Mantenimiento de lavadora",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Reparación de nevera que no enfría",
+     1
+    ],
+    [
+     "Mantenimiento de lavadora",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    65000,
+    null
+   ],
+   "condiciones": [
+    "Anticipo del 50 % y el saldo al terminar."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Hogar Seguro Cámaras",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Valentina Ruiz\nCliente: Buenas, me llamo Valentina. Les escribo desde Bogotá\nCliente: quiero 1 kit 4 cámaras de videovigilancia con DVR\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Necesito factura electrónica a nombre de la empresa\nNegocio: Con gusto"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Kit 4 cámaras de videovigilancia con DVR",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null
+   ],
+   "condiciones": [
+    "El cliente necesita factura electrónica a nombre de su empresa."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Hogar Seguro Cámaras",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Felipe Castro\nCliente: Buenos días, ¿cómo están?, me llamo Felipe, de Grupo Horizonte S.A.S.. Les escribo desde Bogotá\nCliente: ¿cuánto me salen 1 kit 4 cámaras de videovigilancia con DVR?\nNegocio: Con gusto, ya le preparo la cotización\nCliente: ¿Eso incluye el transporte?\nNegocio: Le confirmo en la cotización"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Kit 4 cámaras de videovigilancia con DVR",
+    "precio": 30000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Kit 4 cámaras de videovigilancia con DVR",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Tecnología Gamer",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Andrés Rojas: Buenas tardes, me llamo Andrés. Les escribo desde Bogotá\n17/10/26, 10:01 - Andrés Rojas: serían 1 tarjeta de video RTX 4060 nueva\n17/10/26, 10:02 - Andrés Rojas: y también necesito 1 fuente de poder 650 W\n17/10/26, 10:03 - Tecnología Gamer: Con gusto, ya le preparo la cotización\n17/10/26, 10:04 - Andrés Rojas: Es para un local en el centro"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Tarjeta de video RTX 4060 nueva",
+     1
+    ],
+    [
+     "Fuente de poder 650 W",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Tecnología Gamer",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Laura Gómez\nCliente: Hola, buen día, me llamo Laura. Les escribo desde Bogotá\nCliente: necesito 1 tarjeta de video RTX 4060 nueva\nCliente: y también me cotizan 1 fuente de poder 650 W\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Lo necesito antes del 30 de este mes"
+   },
+   {
+    "nombre": "Cotizacion_142.pdf",
+    "tipo": "pdf",
+    "texto": "[Página 1]\nCOTIZACIÓN No. 142\nTecnología Gamer\nCliente: Laura Gómez\nDescripción Cant. Precio unit.\nTarjeta de video RTX 4060 nueva 1 $75.000\nTOTAL $75.000"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Tarjeta de video RTX 4060 nueva",
+    "precio": null
+   },
+   {
+    "nombre": "Fuente de poder 650 W",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Tarjeta de video RTX 4060 nueva",
+     1
+    ],
+    [
+     "Fuente de poder 650 W",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    75000,
+    null
+   ],
+   "condiciones": [
+    "El cliente lo necesita antes del 30 de este mes."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Fiesta Feliz Decoraciones",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Camila Torres\nCliente: Buenas, me llamo Camila, de Comercializadora Delta S.A.S.. Les escribo desde Cali\nCliente: me cotizan 1 decoración de fiesta infantil con globos\nCliente: y también quiero 1 animación infantil\nNegocio: Con gusto, ya le preparo la cotización\nCliente: ¿Puedo pagar la mitad al inicio y la otra al terminar?\nNegocio: Sí, claro"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Decoración de fiesta infantil con globos",
+     1
+    ],
+    [
+     "Animación infantil",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "Anticipo del 50 % y el saldo al terminar."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Fiesta Feliz Decoraciones",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Juan Pablo Díaz: Buenos días, ¿cómo están?, me llamo Juan, de Inversiones Montaña S.A.S.. Les escribo desde Cali\n17/10/26, 10:01 - Juan Pablo Díaz: quiero 1 decoración de fiesta infantil con globos\n17/10/26, 10:02 - Juan Pablo Díaz: y también ¿cuánto me salen 1 animación infantil?\n17/10/26, 10:03 - Fiesta Feliz Decoraciones: Con gusto, ya le preparo la cotización\n17/10/26, 10:04 - Juan Pablo Díaz: Necesito factura electrónica a nombre de la empresa\n17/10/26, 10:05 - Fiesta Feliz Decoraciones: Con gusto"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Decoración de fiesta infantil con globos",
+    "precio": 30000
+   },
+   {
+    "nombre": "Animación infantil (2 horas)",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Decoración de fiesta infantil con globos",
+     1
+    ],
+    [
+     "Animación infantil (2 horas)",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "El cliente necesita factura electrónica a nombre de su empresa."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Fotografía Eventos Luz",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Valentina Ruiz\nCliente: Buenas tardes, me llamo Valentina. Les escribo desde Bogotá\nCliente: ¿cuánto me salen 1 cubrimiento fotográfico de matrimonio?\nCliente: y también serían 1 álbum impreso de 30 páginas\nNegocio: Con gusto, ya le preparo la cotización\nCliente: ¿Eso incluye el transporte?\nNegocio: Le confirmo en la cotización"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Cubrimiento fotográfico de matrimonio",
+     1
+    ],
+    [
+     "Álbum impreso de 30 páginas",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Fotografía Eventos Luz",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Felipe Castro\nCliente: Hola, buen día, me llamo Felipe, de Grupo Horizonte S.A.S.. Les escribo desde Bogotá\nCliente: serían 1 cubrimiento fotográfico de matrimonio\nCliente: y también necesito 1 álbum impreso de 30 páginas\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Es para un local en el centro"
+   },
+   {
+    "nombre": "Cotizacion_144.pdf",
+    "tipo": "pdf",
+    "texto": "[Página 1]\nCOTIZACIÓN No. 144\nFotografía Eventos Luz\nCliente: Grupo Horizonte S.A.S.\nDescripción Cant. Precio unit.\nCubrimiento fotográfico de matrimonio (8 horas) 1 $85.000\nTOTAL $85.000"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Cubrimiento fotográfico de matrimonio (8 horas)",
+    "precio": null
+   },
+   {
+    "nombre": "Álbum impreso de 30 páginas",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Cubrimiento fotográfico de matrimonio (8 horas)",
+     1
+    ],
+    [
+     "Álbum impreso de 30 páginas",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    85000,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Transportes Rápidos",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Andrés Rojas: Buenas, me llamo Andrés. Les escribo desde Medellín\n17/10/26, 10:01 - Andrés Rojas: necesito 1 transporte de mercancía Medellín - Bogotá\n17/10/26, 10:02 - Transportes Rápidos: Con gusto, ya le preparo la cotización\n17/10/26, 10:03 - Andrés Rojas: Lo necesito antes del 30 de este mes"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Transporte de mercancía Medellín - Bogotá",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null
+   ],
+   "condiciones": [
+    "El cliente lo necesita antes del 30 de este mes."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Transportes Rápidos",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Laura Gómez\nCliente: Buenos días, ¿cómo están?, me llamo Laura. Les escribo desde Medellín\nCliente: me cotizan 1 transporte de mercancía Medellín - Bogotá\nNegocio: Con gusto, ya le preparo la cotización\nCliente: ¿Puedo pagar la mitad al inicio y la otra al terminar?\nNegocio: Sí, claro"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Transporte de mercancía Medellín - Bogotá (1 tonelada)",
+    "precio": 30000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Transporte de mercancía Medellín - Bogotá (1 tonelada)",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null
+   ],
+   "condiciones": [
+    "Anticipo del 50 % y el saldo al terminar."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Asesoría Empresarial Pyme",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Camila Torres\nCliente: Buenas tardes, me llamo Camila, de Comercializadora Delta S.A.S.. Les escribo desde Bogotá\nCliente: quiero 1 asesoría para constitución de empresa\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Necesito factura electrónica a nombre de la empresa\nNegocio: Con gusto"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Asesoría para constitución de empresa",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null
+   ],
+   "condiciones": [
+    "El cliente necesita factura electrónica a nombre de su empresa."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Asesoría Empresarial Pyme",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Juan Pablo Díaz: Hola, buen día, me llamo Juan, de Inversiones Montaña S.A.S.. Les escribo desde Bogotá\n17/10/26, 10:01 - Juan Pablo Díaz: ¿cuánto me salen 1 asesoría para constitución de empresa?\n17/10/26, 10:02 - Asesoría Empresarial Pyme: Con gusto, ya le preparo la cotización\n17/10/26, 10:03 - Juan Pablo Díaz: ¿Eso incluye el transporte?\n17/10/26, 10:04 - Asesoría Empresarial Pyme: Le confirmo en la cotización"
+   },
+   {
+    "nombre": "Cotizacion_146.pdf",
+    "tipo": "pdf",
+    "texto": "[Página 1]\nCOTIZACIÓN No. 146\nAsesoría Empresarial Pyme\nCliente: Inversiones Montaña S.A.S.\nDescripción Cant. Precio unit.\nAsesoría para constitución de empresa (S.A.S.) 1 $50.000\nTOTAL $50.000"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Asesoría para constitución de empresa (S.A.S.)",
+    "precio": null
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Asesoría para constitución de empresa (S.A.S.)",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    50000
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Hosting Colombia",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Valentina Ruiz\nCliente: Buenas, me llamo Valentina. Les escribo desde Bogotá\nCliente: serían 1 hosting empresarial por un año\nCliente: y también necesito 5 correo corporativo\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Es para un local en el centro"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Hosting empresarial por un año",
+     1
+    ],
+    [
+     "Correo corporativo",
+     5
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Hosting Colombia",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Felipe Castro\nCliente: Buenos días, ¿cómo están?, me llamo Felipe, de Grupo Horizonte S.A.S.. Les escribo desde Bogotá\nCliente: necesito 1 hosting empresarial por un año\nCliente: y también me cotizan 5 correo corporativo\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Lo necesito antes del 30 de este mes"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Hosting empresarial por un año",
+    "precio": 30000
+   },
+   {
+    "nombre": "Correo corporativo (1 año)",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Hosting empresarial por un año",
+     1
+    ],
+    [
+     "Correo corporativo (1 año)",
+     5
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "El cliente lo necesita antes del 30 de este mes."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "WiFi Hogar",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Andrés Rojas: Buenas tardes, me llamo Andrés. Les escribo desde Medellín\n17/10/26, 10:01 - Andrés Rojas: me cotizan 1 instalación de red WiFi en malla para casa\n17/10/26, 10:02 - Andrés Rojas: y también quiero 3 access point en malla con configuración\n17/10/26, 10:03 - WiFi Hogar: Con gusto, ya le preparo la cotización\n17/10/26, 10:04 - Andrés Rojas: ¿Puedo pagar la mitad al inicio y la otra al terminar?\n17/10/26, 10:05 - WiFi Hogar: Sí, claro"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Instalación de red WiFi en malla para casa",
+     1
+    ],
+    [
+     "Access point en malla con configuración",
+     3
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [
+    "Anticipo del 50 % y el saldo al terminar."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "WiFi Hogar",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Laura Gómez\nCliente: Hola, buen día, me llamo Laura. Les escribo desde Medellín\nCliente: quiero 1 instalación de red WiFi en malla para casa\nCliente: y también ¿cuánto me salen 3 access point en malla con configuración?\nNegocio: Con gusto, ya le preparo la cotización\nCliente: Necesito factura electrónica a nombre de la empresa\nNegocio: Con gusto"
+   },
+   {
+    "nombre": "Cotizacion_148.pdf",
+    "tipo": "pdf",
+    "texto": "[Página 1]\nCOTIZACIÓN No. 148\nWiFi Hogar\nCliente: Laura Gómez\nDescripción Cant. Precio unit.\nInstalación de red WiFi en malla para casa 1 $60.000\nTOTAL $60.000"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Instalación de red WiFi en malla para casa",
+    "precio": null
+   },
+   {
+    "nombre": "Access point en malla con configuración",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Instalación de red WiFi en malla para casa",
+     1
+    ],
+    [
+     "Access point en malla con configuración",
+     3
+    ]
+   ],
+   "precio_referencia": [
+    60000,
+    null
+   ],
+   "condiciones": [
+    "El cliente necesita factura electrónica a nombre de su empresa."
+   ],
+   "dudas": 1
+  }
+ },
+ {
+  "negocio": "Pastelería Fina",
+  "lectura": [
+   {
+    "nombre": "captura_whatsapp.png",
+    "tipo": "imagen",
+    "texto": "Contacto: Camila Torres\nCliente: Buenas, me llamo Camila, de Comercializadora Delta S.A.S.. Les escribo desde Bogotá\nCliente: ¿cuánto me salen 2 caja de galletas artesanales?\nCliente: y también serían 1 postre de tres leches familiar\nNegocio: Con gusto, ya le preparo la cotización\nCliente: ¿Eso incluye el transporte?\nNegocio: Le confirmo en la cotización"
+   }
+  ],
+  "relacionados": [],
+  "esperado": {
+   "items": [
+    [
+     "Caja de galletas artesanales",
+     2
+    ],
+    [
+     "Postre de tres leches familiar",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ },
+ {
+  "negocio": "Pastelería Fina",
+  "lectura": [
+   {
+    "nombre": "Chat de WhatsApp.txt",
+    "tipo": "texto",
+    "texto": "17/10/26, 10:00 - Juan Pablo Díaz: Buenos días, ¿cómo están?, me llamo Juan, de Inversiones Montaña S.A.S.. Les escribo desde Bogotá\n17/10/26, 10:01 - Juan Pablo Díaz: serían 2 caja de galletas artesanales\n17/10/26, 10:02 - Juan Pablo Díaz: y también necesito 1 postre de tres leches familiar\n17/10/26, 10:03 - Pastelería Fina: Con gusto, ya le preparo la cotización\n17/10/26, 10:04 - Juan Pablo Díaz: Es para un local en el centro"
+   }
+  ],
+  "relacionados": [
+   {
+    "nombre": "Caja de galletas artesanales",
+    "precio": 30000
+   },
+   {
+    "nombre": "Postre de tres leches familiar",
+    "precio": 40000
+   }
+  ],
+  "esperado": {
+   "items": [
+    [
+     "Caja de galletas artesanales",
+     2
+    ],
+    [
+     "Postre de tres leches familiar",
+     1
+    ]
+   ],
+   "precio_referencia": [
+    null,
+    null
+   ],
+   "condiciones": [],
+   "dudas": 2
+  }
+ }
+]
