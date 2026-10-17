@@ -219,10 +219,9 @@ def sugerir_notas():
 @rol_requerido(ADMIN_STAFF)
 def generar_con_ia():
     """Cotización armada por la IA con lo que mandó el cliente (capturas, PDF, conversación)
-    (1.9.14.0). Solo con el módulo Asistente IA. Responde en streaming (SSE) el plan y cada
-    paso mientras trabaja; al final, la propuesta para llenar el formulario. Nada se guarda."""
-    import json
-    from flask import stream_with_context
+    (1.9.14.0). Solo con el módulo Asistente IA. Arranca el análisis en segundo plano (tarda
+    minutos y gunicorn corta a los 120 s) y devuelve el trabajo; la pantalla pregunta el
+    avance en /estado. Al final, la propuesta para llenar el formulario. Nada se guarda."""
     from tenant_features import MODULE_AI, is_module_active
     if not is_module_active(MODULE_AI):
         return jsonify({'ok': False, 'error': 'El módulo Asistente IA no está activo en tu plan.'}), 403
@@ -235,21 +234,31 @@ def generar_con_ia():
         entrada = auto.leer_entrada(request.get_json(silent=True))
     except auto.EntradaInvalida as exc:
         return jsonify({'ok': False, 'error': str(exc)}), 400
+    trabajo = auto.iniciar_trabajo(entrada, session.get('usuario_id'))
+    return jsonify({'ok': True, 'trabajo': trabajo}), 202
 
-    def eventos():
-        try:
-            for tipo, dato in auto.generar(entrada):
-                if tipo == 'latido':
-                    yield ': latido\n\n'          # nginx y Cloudflare no cortan mientras la IA piensa
-                    continue
-                yield f"data: {json.dumps({'e': tipo, 'd': dato}, ensure_ascii=False)}\n\n"
-        except Exception as exc:  # noqa: BLE001
-            app.logger.exception(f'Cotización con IA: {exc}')
-            mensaje = 'Algo falló al armar la cotización. Intenta de nuevo.'
-            yield f"data: {json.dumps({'e': 'error', 'd': mensaje}, ensure_ascii=False)}\n\n"
 
-    return Response(stream_with_context(eventos()), mimetype='text/event-stream',
-                    headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
+@quotes_bp.route('/admin/cotizar/ia/estado/<trabajo>')
+@rol_requerido(ADMIN_STAFF)
+def estado_con_ia(trabajo):
+    """Avance del análisis: los eventos nuevos desde `desde` (plan, pasos, resultado)."""
+    from services import ia_cotizacion_auto as auto
+    estado = auto.leer_trabajo(trabajo, session.get('usuario_id'), request.args.get('desde', 0, type=int))
+    if estado is None:
+        return jsonify({'ok': False, 'error': 'Ese análisis ya no está disponible. Empieza de nuevo.'}), 404
+    respuesta = jsonify({'ok': True, **estado})
+    respuesta.headers['Cache-Control'] = 'no-store'
+    return respuesta
+
+
+@quotes_bp.route('/admin/cotizar/ia/cancelar/<trabajo>', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+def cancelar_con_ia(trabajo):
+    """Detiene el análisis (libera el equipo de IA para los demás)."""
+    from services import ia_cotizacion_auto as auto
+    if not auto.cancelar_trabajo(trabajo, session.get('usuario_id')):
+        return jsonify({'ok': False}), 404
+    return jsonify({'ok': True})
 
 
 @quotes_bp.route('/admin/cotizar/generar', methods=['POST'])

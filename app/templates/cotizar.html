@@ -1267,7 +1267,9 @@
     </form>
 
     {% if 'ai_assistant' in active_modules and not cotizacion %}
-    <dialog class="cia" id="ciaDialogo" aria-labelledby="ciaTitulo" data-url="{{ url_for('quotes.generar_con_ia') }}">
+    <dialog class="cia" id="ciaDialogo" aria-labelledby="ciaTitulo" data-url="{{ url_for('quotes.generar_con_ia') }}"
+            data-estado="{{ url_for('quotes.estado_con_ia', trabajo='__T__') }}"
+            data-cancelar="{{ url_for('quotes.cancelar_con_ia', trabajo='__T__') }}">
         <div class="cia-cabeza">
             <h2 id="ciaTitulo"><i class="fas fa-robot" aria-hidden="true"></i> Generar cotización con IA</h2>
             <button type="button" class="cia-cerrar" id="ciaCerrar" aria-label="Cerrar">&times;</button>

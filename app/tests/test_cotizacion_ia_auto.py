@@ -338,6 +338,36 @@ def _login(client):
         s['usuario_id'], s['rol_id'], s['username'] = 1, 2, 'PytestCotIA'
 
 
+def _hasta_el_fin(client, trabajo, segundos=20):
+    import time as _time
+    fin = _time.time() + segundos
+    while _time.time() < fin:
+        d = client.get(f'/admin/cotizar/ia/estado/{trabajo}').get_json()
+        if d['fin']:
+            return d['eventos']
+        _time.sleep(0.1)
+    pytest.fail('el análisis no terminó')
+
+
+def test_cancelar_el_analisis(client, modulo_ia, simulado, monkeypatch):
+    import security
+    import time as _time
+    security.request_log.pop('cot-ia:1', None)
+
+    def lento(sistema, peticion):
+        _time.sleep(1.5)
+        return json.dumps(PLAN, ensure_ascii=False), None
+    monkeypatch.setattr(auto, '_razonar', lento)
+    modulo_ia('true')
+    _login(client)
+    trabajo = client.post('/admin/cotizar/ia/generar', json={'conversacion': 'Cliente: necesito 2 mouse'}).get_json()['trabajo']
+    assert client.post(f'/admin/cotizar/ia/cancelar/{trabajo}').get_json()['ok']
+    eventos = _hasta_el_fin(client, trabajo)
+    assert eventos[-1] == {'e': 'error', 'd': 'Análisis detenido.'}
+    assert not any(e['e'] == 'resultado' for e in eventos)
+    assert client.post('/admin/cotizar/ia/cancelar/noexiste1234567890').status_code == 404
+
+
 def test_ruta_sin_el_modulo(client, modulo_ia):
     modulo_ia('false')
     _login(client)
@@ -354,9 +384,18 @@ def test_ruta_con_el_modulo(client, modulo_ia, simulado):
     _login(client)
     assert client.post('/admin/cotizar/ia/generar', json={}).status_code == 400
     r = client.post('/admin/cotizar/ia/generar', json={'conversacion': 'Cliente: necesito 2 mouse inalámbricos'})
-    assert r.status_code == 200 and r.mimetype == 'text/event-stream'
-    eventos = [json.loads(l[5:]) for l in r.get_data(as_text=True).splitlines() if l.startswith('data:')]
+    assert r.status_code == 202, 'arranca en segundo plano: gunicorn corta las peticiones de más de 120 s'
+    trabajo = r.get_json()['trabajo']
+    eventos = _hasta_el_fin(client, trabajo)
     assert eventos[0]['e'] == 'plan' and eventos[-1]['e'] == 'resultado'
     assert eventos[-1]['d']['items'][0]['fuente'].startswith('Catálogo')
+    # Pedir desde un punto devuelve solo lo nuevo.
+    parte = client.get(f'/admin/cotizar/ia/estado/{trabajo}?desde={len(eventos) - 1}').get_json()
+    assert parte['fin'] and [e['e'] for e in parte['eventos']] == ['resultado']
+    # Otro usuario de la misma tienda no ve el análisis ajeno.
+    with client.session_transaction() as s:
+        s['usuario_id'] = 2
+    assert client.get(f'/admin/cotizar/ia/estado/{trabajo}').status_code == 404
+    assert client.get('/admin/cotizar/ia/estado/..%2F..%2Fetc').status_code == 404
     html = client.get('/admin/cotizar').get_data(as_text=True)
     assert 'Generar cotización con IA' in html and 'cotizar_ia_auto.js' in html and 'id="ciaDialogo"' in html

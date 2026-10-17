@@ -24,7 +24,10 @@ import base64
 import binascii
 import json
 import math
+import os
 import re
+import secrets
+import tempfile
 import threading
 import time
 
@@ -496,13 +499,31 @@ def notas_para(items, cliente, condiciones):
 
 
 # ── Hilo con latidos: el análisis tarda minutos y el proxy no debe cortar ──
+def _tenant_actual():
+    try:
+        from flask import g
+        return getattr(g, 'current_tenant', None)
+    except RuntimeError:
+        return None
+
+
+def _poner_tenant(tenant):
+    """El hilo arranca con un `g` vacío: se le pasa la tienda de la petición para que la
+    base de datos sea la de ese cliente y no la de otro."""
+    if tenant:
+        from flask import g
+        g.current_tenant = tenant
+
+
 def en_hilo(funcion, *args, cada=5):
     """Generador: corre `funcion` en otro hilo (con el contexto de la petición) y
     emite None cada `cada` s mientras trabaja. Con `yield from` devuelve su resultado."""
     caja = {}
+    tenant = _tenant_actual()
 
     @copy_current_request_context
     def correr():
+        _poner_tenant(tenant)
         try:
             caja['valor'] = funcion(*args)
         except Exception as exc:  # noqa: BLE001
@@ -673,3 +694,136 @@ def generar(entrada):
         'avisos': avisos,
         'margen': entrada['margen'],
     }
+
+
+# ── Trabajo en segundo plano ────────────────────────────────────
+# Cada tienda corre con gunicorn (workers sync, --timeout 120): una petición que dure más
+# de 120 s se corta aunque vaya enviando latidos, y el análisis real tarda de 5 a 8 min.
+# Por eso corre en un hilo aparte y la pantalla pregunta el avance cada pocos segundos.
+# El avance vive en un archivo (los dos workers de la tienda lo ven), atado a la base de
+# datos de la tienda y a quien lo pidió.
+CARPETA_TRABAJOS = os.path.join(tempfile.gettempdir(), 'cybershop_cotizacion_ia')
+VIDA_TRABAJO_S = 3 * 3600
+_ID_VALIDO = re.compile(r'^[A-Za-z0-9_-]{16,64}$')
+
+
+def _base_actual():
+    from database import _current_db_name
+    return re.sub(r'[^A-Za-z0-9_-]', '_', str(_current_db_name() or 'base'))[:60]
+
+
+def _ruta(trabajo, base=None):
+    return os.path.join(CARPETA_TRABAJOS, f'{base or _base_actual()}__{trabajo}.json')
+
+
+def _escribir(ruta, estado):
+    temporal = f'{ruta}.{threading.get_ident()}.tmp'
+    with open(temporal, 'w', encoding='utf-8') as f:
+        json.dump(estado, f, ensure_ascii=False, default=str)
+    for intento in range(20):
+        try:
+            os.replace(temporal, ruta)          # en Windows falla si alguien lo está leyendo justo ahora
+            return
+        except PermissionError:
+            time.sleep(0.05)
+    try:
+        os.remove(temporal)
+    except OSError:
+        pass
+
+
+def _limpiar_viejos():
+    try:
+        ahora = time.time()
+        for nombre in os.listdir(CARPETA_TRABAJOS):
+            ruta = os.path.join(CARPETA_TRABAJOS, nombre)
+            if ahora - os.path.getmtime(ruta) > VIDA_TRABAJO_S:
+                os.remove(ruta)
+    except OSError:
+        pass
+
+
+def iniciar_trabajo(entrada, usuario_id):
+    """Arranca el análisis en un hilo y devuelve el identificador del trabajo."""
+    os.makedirs(CARPETA_TRABAJOS, exist_ok=True)
+    _limpiar_viejos()
+    trabajo = secrets.token_urlsafe(18)
+    ruta = _ruta(trabajo)
+    estado = {'usuario': usuario_id, 'creado': time.time(), 'eventos': [], 'fin': False}
+    _escribir(ruta, estado)
+    tenant = _tenant_actual()
+
+    @copy_current_request_context
+    def correr():
+        _poner_tenant(tenant)
+        ultimo_latido = 0.0
+        try:
+            for tipo, dato in generar(entrada):
+                if os.path.exists(ruta + '.cancelar'):
+                    estado['eventos'].append({'e': 'error', 'd': 'Análisis detenido.'})
+                    break
+                if tipo == 'latido':
+                    if time.time() - ultimo_latido < 15:
+                        continue
+                    ultimo_latido = time.time()          # solo deja constancia de que sigue vivo
+                else:
+                    estado['eventos'].append({'e': tipo, 'd': dato})
+                _escribir(ruta, estado)
+        except Exception as exc:  # noqa: BLE001
+            try:
+                current_app.logger.exception(f'Cotización con IA: {exc}')
+            except Exception:  # noqa: BLE001
+                pass
+            estado['eventos'].append({'e': 'error', 'd': 'Algo falló al armar la cotización. Intenta de nuevo.'})
+        finally:
+            estado['fin'] = True
+            _escribir(ruta, estado)
+            try:
+                os.remove(ruta + '.cancelar')
+            except OSError:
+                pass
+
+    threading.Thread(target=correr, name=f'cotizacion-ia-{trabajo[:6]}', daemon=True).start()
+    return trabajo
+
+
+def _cargar(trabajo, usuario_id):
+    if not _ID_VALIDO.match(str(trabajo or '')):
+        return None, None
+    ruta = _ruta(trabajo)
+    estado = None
+    for intento in range(10):
+        try:
+            with open(ruta, encoding='utf-8') as f:
+                estado = json.load(f)
+            break
+        except FileNotFoundError:
+            return None, None
+        except (PermissionError, ValueError):
+            time.sleep(0.05)                    # se está reemplazando en este instante
+        except OSError:
+            return None, None
+    if estado is None:
+        return None, None
+    if estado.get('usuario') != usuario_id:
+        return None, None                                  # solo quien lo pidió ve su análisis
+    return ruta, estado
+
+
+def leer_trabajo(trabajo, usuario_id, desde=0):
+    """{'eventos': los nuevos desde `desde`, 'total', 'fin'} o None si no existe."""
+    _, estado = _cargar(trabajo, usuario_id)
+    if estado is None:
+        return None
+    eventos = estado.get('eventos') or []
+    desde = max(0, min(int(desde or 0), len(eventos)))
+    return {'eventos': eventos[desde:], 'total': len(eventos), 'fin': bool(estado.get('fin'))}
+
+
+def cancelar_trabajo(trabajo, usuario_id):
+    ruta, estado = _cargar(trabajo, usuario_id)
+    if estado is None:
+        return False
+    if not estado.get('fin'):
+        open(ruta + '.cancelar', 'w').close()
+    return True

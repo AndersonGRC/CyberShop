@@ -4,9 +4,10 @@
  *    (Tesseract.js, español), texto de los PDF (pdf.js; las páginas escaneadas se
  *    leen con OCR) y el chat exportado de WhatsApp (.txt). Las capturas no se suben a
  *    ningún servicio externo: viajan solo al servidor del negocio y a su equipo de IA.
- * 2. Manda todo al servidor, que responde paso a paso (SSE): visión, catálogo e
- *    historial, análisis profundo, precios, consulta de precios faltantes y notas.
- *    La pantalla muestra el plan y lo que está haciendo en cada momento.
+ * 2. Manda todo al servidor, que arranca el análisis en segundo plano (tarda minutos)
+ *    y la pantalla pregunta el avance cada 2 s: visión, catálogo e historial, análisis
+ *    profundo, precios, consulta de precios faltantes y notas. Se ve el plan y lo que
+ *    está haciendo en cada momento; cerrar la ventana detiene el análisis.
  * 3. Muestra la propuesta (ítems con la fuente de cada precio, totales, dudas para el
  *    cliente y notas) y, si el negocio la acepta, llena el formulario. Nada se guarda
  *    hasta que el negocio genere el PDF.
@@ -266,23 +267,40 @@
         return salida;
     }
 
-    // ── Conversación con el servidor (SSE) ──
-    async function escuchar(respuesta) {
-        var lector_ = respuesta.body.getReader(), decodificador = new TextDecoder(), resto = '';
+    // ── Conversación con el servidor ──
+    // El análisis corre en segundo plano (tarda minutos): se pregunta el avance cada 2 s.
+    var urlEstado = dialogo.getAttribute('data-estado'), urlCancelar = dialogo.getAttribute('data-cancelar');
+    var trabajo = null;
+    function esperar(ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); }
+    async function seguir(id) {
+        var desde = 0, fallos = 0;
         for (;;) {
-            var parte = await lector_.read();
-            if (parte.done) break;
-            resto += decodificador.decode(parte.value, { stream: true });
-            var corte;
-            while ((corte = resto.indexOf('\n\n')) >= 0) {
-                var bloque = resto.slice(0, corte);
-                resto = resto.slice(corte + 2);
-                bloque.split('\n').forEach(function (linea) {
-                    if (linea.indexOf('data:') !== 0) return;
-                    try { manejar(JSON.parse(linea.slice(5))); } catch (e) { /* línea incompleta */ }
-                });
+            if (control && control.signal.aborted) throw new DOMException('cancelado', 'AbortError');
+            var r;
+            try {
+                r = await fetch(urlEstado.replace('__T__', encodeURIComponent(id)) + '?desde=' + desde,
+                                { credentials: 'same-origin', cache: 'no-store', signal: control ? control.signal : undefined });
+            } catch (e) {
+                if (e && e.name === 'AbortError') throw e;
+                if (++fallos > 15) throw new Error('Se perdió la conexión con el servidor.');
+                await esperar(4000);
+                continue;
             }
+            var d = await r.json().catch(function () { return {}; });
+            if (!r.ok || !d.ok) throw new Error(d.error || 'No se pudo consultar el avance.');
+            fallos = 0;
+            d.eventos.forEach(manejar);
+            desde = d.total;
+            if (d.fin) return;
+            await esperar(2000);
         }
+    }
+    function cancelarTrabajo() {
+        if (!trabajo) return;
+        fetch(urlCancelar.replace('__T__', encodeURIComponent(trabajo)), {
+            method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': CSRF }
+        }).catch(function () { /* si falla, el trabajo termina solo */ });
+        trabajo = null;
     }
     function manejar(ev) {
         if (ev.e === 'plan') pintarPlan(ev.d.map(function (p) { return [p.id, p.titulo]; }));
@@ -328,13 +346,13 @@
                 }),
                 signal: control ? control.signal : undefined
             });
-            if (!respuesta.ok) {
-                var d = await respuesta.json().catch(function () { return {}; });
-                throw new Error(d.error || 'El servidor no pudo empezar el análisis.');
-            }
-            await escuchar(respuesta);
+            var d = await respuesta.json().catch(function () { return {}; });
+            if (!respuesta.ok || !d.trabajo) throw new Error(d.error || 'El servidor no pudo empezar el análisis.');
+            trabajo = d.trabajo;
+            await seguir(trabajo);
+            trabajo = null;
         } catch (e) {
-            if (e && e.name === 'AbortError') decir('Análisis detenido.');
+            if (e && e.name === 'AbortError') { cancelarTrabajo(); decir('Análisis detenido.'); }
             else decir((e && e.message) || 'Se perdió la conexión. Intenta de nuevo.');
             btnOtra.hidden = false;
         } finally {
