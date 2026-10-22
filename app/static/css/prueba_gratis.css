@@ -14,14 +14,18 @@
     --tg-aviso-bg: #fff6df;
     --tg-aviso: #8a5a00;
     /* Color que la persona elige en el paso 3 (lo cambia el JS). */
-    --tg-guia: #111111;
-    --tg-guia-texto: #ffffff;
-    --tg-negro: #000000;
-    --tg-foco: #f5b400;
-    --tg-ayuda-fondo: #ffb000;
-    --tg-ayuda-hover: #ffc53d;
-    --tg-ayuda-texto: #1d1300;
-    --tg-ayuda-pulso: rgba(255, 176, 0, .55);
+    /* Ayuda y recorrido: tokens de «CYBERSHOP Design System». */
+    --tg-guia: #061240;                         /* surface-inverse (blue-900) */
+    --tg-guia-texto: #FFFFFF;                   /* text-on-brand */
+    --tg-guia-suave: #A6BDF7;                   /* blue-200: texto secundario sobre blue-900 */
+    --tg-negro: #061240;
+    --tg-foco: #4A72E4;                         /* focus-ring (blue-400) */
+    --tg-ayuda-fondo: #103098;                  /* surface-brand (blue-600) */
+    --tg-ayuda-hover: #0C2679;                  /* surface-brand-hover (blue-700) */
+    --tg-ayuda-press: #091C5C;                  /* surface-brand-press (blue-800) */
+    --tg-ayuda-texto: #FFFFFF;
+    --tg-ayuda-sombra: 0 8px 24px rgba(16, 48, 152, .28);   /* shadow-brand */
+    --tg-ayuda-pulso: rgba(74, 114, 228, .45);
     --tg-marca: #334155;
     --tg-marca-oscuro: #212a37;
     --tg-marca-claro: #eef0f3;
@@ -340,9 +344,10 @@
     font: inherit;
     font-size: 1rem;
     font-weight: 800;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, .3);
+    box-shadow: var(--tg-ayuda-sombra);
     cursor: pointer;
-    animation: tg-ayuda-pulso 2.2s ease-out infinite;
+    transition: background 120ms cubic-bezier(.4, 0, .2, 1), transform 120ms cubic-bezier(.4, 0, .2, 1);
+    animation: tg-ayuda-pulso 2.4s cubic-bezier(.4, 0, .2, 1) infinite;
 }
 
 .tg-ayuda-btn i {
@@ -359,13 +364,17 @@
 
 .tg-ayuda-btn:hover {
     background: var(--tg-ayuda-hover);
-    transform: translateY(-1px);
+}
+
+.tg-ayuda-btn:active {
+    background: var(--tg-ayuda-press);
+    transform: scale(0.98);
 }
 
 @keyframes tg-ayuda-pulso {
-    0% { box-shadow: 0 10px 28px rgba(0, 0, 0, .3), 0 0 0 0 var(--tg-ayuda-pulso); }
-    70% { box-shadow: 0 10px 28px rgba(0, 0, 0, .3), 0 0 0 16px rgba(255, 176, 0, 0); }
-    100% { box-shadow: 0 10px 28px rgba(0, 0, 0, .3), 0 0 0 0 rgba(255, 176, 0, 0); }
+    0% { box-shadow: var(--tg-ayuda-sombra), 0 0 0 0 var(--tg-ayuda-pulso); }
+    70% { box-shadow: var(--tg-ayuda-sombra), 0 0 0 14px rgba(74, 114, 228, 0); }
+    100% { box-shadow: var(--tg-ayuda-sombra), 0 0 0 0 rgba(74, 114, 228, 0); }
 }
 
 .tg-ayuda-btn:focus-visible,
@@ -382,12 +391,12 @@
     position: relative;
     max-width: min(300px, calc(100vw - 110px));   /* no tapa el botón de WhatsApp */
     padding: 14px 16px;
-    border-radius: 12px;
+    border-radius: 16px;
     background: var(--tg-guia);
     color: var(--tg-guia-texto);
     font-size: 0.92rem;
     line-height: 1.5;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+    box-shadow: 0 12px 32px rgba(8, 14, 31, .14);
     animation: tg-guia-entra .35s ease-out;
 }
 
@@ -452,7 +461,7 @@
 }
 
 .tg-video::backdrop {
-    background: rgba(0, 0, 0, .75);
+    background: rgba(6, 18, 64, .75);
 }
 
 .tg-video-cabeza {
@@ -530,7 +539,7 @@
 .tg-video-barra {
     flex: 1;
     min-width: 0;
-    accent-color: var(--tg-ayuda-fondo);
+    accent-color: var(--tg-foco);
     height: 24px;
 }
 
@@ -555,7 +564,7 @@
     position: fixed;
     z-index: 1101;
     border-radius: 14px;
-    box-shadow: 0 0 0 9999px rgba(0, 0, 0, .62), 0 0 0 3px var(--tg-ayuda-fondo);
+    box-shadow: 0 0 0 9999px rgba(6, 18, 64, .62), 0 0 0 3px var(--tg-foco);
     pointer-events: none;
     transition: top .25s ease, left .25s ease, width .25s ease, height .25s ease;
 }
@@ -564,10 +573,10 @@
     position: fixed;
     z-index: 1102;
     padding: 16px 18px;
-    border-radius: 14px;
+    border-radius: 16px;
     background: var(--tg-guia);
     color: var(--tg-guia-texto);
-    box-shadow: 0 14px 36px rgba(0, 0, 0, .4);
+    box-shadow: 0 12px 32px rgba(8, 14, 31, .14);
 }
 
 .tg-recorrido-cuenta {
@@ -575,7 +584,7 @@
     margin-bottom: 4px;
     font-size: 0.78rem;
     font-weight: 700;
-    color: var(--tg-ayuda-fondo);
+    color: var(--tg-guia-suave);
 }
 
 .tg-recorrido-burbuja h2 {
@@ -613,8 +622,8 @@
 
 .tg-recorrido-sig {
     border: none;
-    background: var(--tg-ayuda-fondo);
-    color: var(--tg-ayuda-texto);
+    background: var(--tg-guia-texto);
+    color: var(--tg-ayuda-fondo);
 }
 
 .tg-recorrido-acciones button:focus-visible {
