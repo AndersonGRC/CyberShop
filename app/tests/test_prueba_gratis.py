@@ -191,6 +191,8 @@ def test_boton_de_ayuda_con_el_video_tutorial(client, flask_app, software_visibl
         flask_app.config['TUTORIAL_PRUEBA_GRATIS_URL'] = antes
     if video:
         assert f'data-video="{video}"' in html and 'id="tgAyudaBtn"' in html and 'id="tgAyudaGuia"' in html
+        # Un tutorial por paso del asistente: tramos del video completo.
+        assert '"inicio": 35' in html and '"fin": 64' in html and 'Tu dirección web' in html
     else:
         assert 'id="tgAyuda"' not in html
 

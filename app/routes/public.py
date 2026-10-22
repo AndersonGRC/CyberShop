@@ -1074,15 +1074,30 @@ def prueba_gratis():
                            form=form, error=error, error_paso=error_paso,
                            muestras=marca_service.MUESTRAS,
                            color_neutro=marca_service.NEUTRO, tipos=TIPOS_NEGOCIO,
-                           tutorial_id=_tutorial_prueba_gratis(), **sw_colors)
+                           tutorial_id=_tutorial_prueba_gratis(), tutorial_tramos=_tramos_tutorial(),
+                           tutorial_paso=1, **sw_colors)
+
+
+TITULOS_TUTORIAL = ('Tu negocio', 'Tu dirección web', 'El diseño de tu tienda', 'Tus datos y tu código')
 
 
 def _tutorial_prueba_gratis():
-    """Id de YouTube del «Video tutorial 1 · Prueba gratis» (TUTORIAL_PRUEBA_GRATIS_URL,
-    video no listado). Vacío = la página no muestra el botón de ayuda."""
+    """Id de YouTube del video de los tutoriales de la prueba gratis
+    (TUTORIAL_PRUEBA_GRATIS_URL, no listado). Vacío = sin botón de ayuda."""
     url = str(app.config.get('TUTORIAL_PRUEBA_GRATIS_URL') or '')
     m = re.search(r'(?:youtu\.be/|[?&]v=|/embed/|/shorts/|/live/)([A-Za-z0-9_-]{11})', url)
     return m.group(1) if m else ''
+
+
+def _tramos_tutorial():
+    """[{inicio, fin, titulo}] de cada tutorial: uno por paso del asistente."""
+    salida = []
+    for n, parte in enumerate(str(app.config.get('TUTORIAL_PRUEBA_GRATIS_TRAMOS') or '').split(',')):
+        m = re.fullmatch(r'\s*(\d+)\s*-\s*(\d+)\s*', parte)
+        if m and int(m.group(2)) > int(m.group(1)):
+            salida.append({'inicio': int(m.group(1)), 'fin': int(m.group(2)),
+                           'titulo': TITULOS_TUTORIAL[n] if n < len(TITULOS_TUTORIAL) else f'Parte {n + 1}'})
+    return salida or [{'inicio': 0, 'fin': 0, 'titulo': 'Cómo crear tu tienda gratis'}]
 
 
 def _enviar_confirmacion_trial(compra, codigo):
@@ -1112,7 +1127,8 @@ def _pantalla_enviado(datosApp, sw_colors, compra, aviso=None, error=None, token
     return render_template('prueba_gratis.html', datosApp=datosApp, enviado=True,
                            email_destino=_correo_oculto(compra['buyer_email']) if token else compra['buyer_email'],
                            aviso=aviso, error=error, form={}, token=token or '',
-                           codigo_horas=pcs.CODIGO_HORAS, tutorial_id=_tutorial_prueba_gratis(), **sw_colors)
+                           codigo_horas=pcs.CODIGO_HORAS, tutorial_id=_tutorial_prueba_gratis(),
+                           tutorial_tramos=_tramos_tutorial(), tutorial_paso=99, **sw_colors)
 
 
 def _prueba_pendiente(token=None):

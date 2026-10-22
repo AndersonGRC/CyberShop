@@ -246,13 +246,13 @@
   </div>
 </div>
 {% if tutorial_id %}
-<!-- Ayuda: «Video tutorial 1 · Prueba gratis». El video (YouTube sin cookies) solo se
-     carga cuando la persona lo pide. -->
-<div class="tg-ayuda" id="tgAyuda" data-video="{{ tutorial_id }}"
-     data-inicio="{{ config.TUTORIAL_PRUEBA_GRATIS_INICIO or 0 }}" data-fin="{{ config.TUTORIAL_PRUEBA_GRATIS_FIN or 0 }}">
+<!-- Ayuda: un video tutorial por paso del asistente (tramos del video completo). El
+     video (YouTube sin cookies) solo se carga cuando la persona lo pide. -->
+<div class="tg-ayuda" id="tgAyuda" data-video="{{ tutorial_id }}" data-paso="{{ tutorial_paso or 1 }}"
+     data-tramos='{{ tutorial_tramos | tojson }}'>
   <div class="tg-ayuda-guia" id="tgAyudaGuia" role="note" hidden>
-    <p><b>¿Tienes dudas?</b> Toca este botón y mira el video tutorial: te mostramos paso a paso cómo crear
-      tu tienda gratis.</p>
+    <p><b>¿Tienes dudas?</b> <span id="tgAyudaGuiaTexto">Toca este botón y mira el video tutorial: te mostramos
+      paso a paso cómo crear tu tienda gratis.</span></p>
     <button type="button" class="tg-ayuda-entendido" id="tgAyudaEntendido">Entendido</button>
   </div>
   <button type="button" class="tg-ayuda-btn" id="tgAyudaBtn" aria-haspopup="dialog" aria-controls="tgVideo">

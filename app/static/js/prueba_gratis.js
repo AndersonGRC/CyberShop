@@ -91,6 +91,8 @@
         btnCrear.hidden = actual !== pasos.length;
         if (actual === 4) resumen();
         if (actual === 3) vistaPrevia();
+        // El botón de ayuda cambia al tutorial de este paso.
+        document.dispatchEvent(new CustomEvent('tg:paso', { detail: actual }));
         var primero = pasos[actual - 1].querySelector('input:not([type="radio"]):not([type="hidden"])');
         if (primero && window.matchMedia('(pointer: fine)').matches) primero.focus({ preventScroll: true });
         // El menú del sitio es fijo: se deja la tarjeta debajo de él, no tapada.
@@ -271,27 +273,53 @@
     mostrar(errorPaso || 1);
 })();
 
-// ── Ayuda: video tutorial 1 ──────────────────────────────────────
-// Botón flotante que abre el video cuando la persona lo pide. La primera vez aparece
-// una guía negra señalándolo; «Entendido» o abrir el video la ocultan para siempre
-// (en este navegador). El video (YouTube sin cookies) solo se carga al abrirlo.
+// ── Ayuda: un video tutorial por paso ────────────────────────────
+// Botón flotante que abre el tutorial del paso en que está la persona (paso 1 →
+// tutorial 1, «Siguiente» → tutorial 2… hasta el 4); en la pantalla del código, el
+// último. Al llegar a un paso nuevo, una guía negra señala el botón (una vez por paso,
+// en este navegador). El video (YouTube sin cookies) solo se carga al abrirlo.
 (function () {
   var raiz = document.getElementById('tgAyuda');
   if (!raiz) return;
   var btn = document.getElementById('tgAyudaBtn');
   var guia = document.getElementById('tgAyudaGuia');
+  var guiaTexto = document.getElementById('tgAyudaGuiaTexto');
   var dialogo = document.getElementById('tgVideo');
+  var titulo = document.getElementById('tgVideoTitulo');
   var marco = document.getElementById('tgVideoMarco');
-  var CLAVE = 'tg-ayuda-vista';
+  var tramos = [];
+  try { tramos = JSON.parse(raiz.getAttribute('data-tramos') || '[]'); } catch (e) { tramos = []; }
+  if (!tramos.length) return;
+  var paso = Math.min(Number(raiz.getAttribute('data-paso')) || 1, tramos.length);
+  // El asistente ya pudo abrir en otro paso (p. ej. volvió con un error en el paso 3).
+  var marcaActual = document.querySelector('.tg-progress-steps li.is-on');
+  if (marcaActual) paso = Math.min(Number(marcaActual.getAttribute('data-ind')) || paso, tramos.length);
+  var reloj = null;
 
-  function yaVista() {
-    try { return localStorage.getItem(CLAVE) === '1'; } catch (e) { return false; }
+  function tramo() { return tramos[paso - 1]; }
+  function vista(n) {
+    try { return localStorage.getItem('tg-ayuda-vista-' + n) === '1'; } catch (e) { return false; }
   }
   function ocultarGuia() {
     guia.hidden = true;
-    try { localStorage.setItem(CLAVE, '1'); } catch (e) { /* sin almacenamiento */ }
+    try { localStorage.setItem('tg-ayuda-vista-' + paso, '1'); } catch (e) { /* sin almacenamiento */ }
   }
-  if (!yaVista()) setTimeout(function () { guia.hidden = false; }, 1200);
+  function pintar() {
+    var t = tramo();
+    btn.setAttribute('aria-label', 'Ayuda: ver el video tutorial ' + paso + ' (' + t.titulo + ')');
+    guiaTexto.textContent = paso === 1
+      ? 'Toca este botón y mira el video tutorial: te mostramos paso a paso cómo crear tu tienda gratis.'
+      : 'Tutorial ' + paso + ' de ' + tramos.length + ': ' + t.titulo + '. Tócalo si tienes dudas en este paso.';
+    clearTimeout(reloj);
+    guia.hidden = true;
+    if (!vista(paso)) reloj = setTimeout(function () { guia.hidden = false; }, paso === 1 ? 1200 : 500);
+  }
+  document.addEventListener('tg:paso', function (e) {
+    var n = Math.min(Number(e.detail) || 1, tramos.length);
+    if (n !== paso) { paso = n; pintar(); }
+  });
+  pintar();
+
   document.getElementById('tgAyudaEntendido').addEventListener('click', function () {
     ocultarGuia();
     btn.focus();
@@ -299,15 +327,15 @@
 
   btn.addEventListener('click', function () {
     ocultarGuia();
+    var t = tramo();
     var iframe = document.createElement('iframe');
-    // Tramo del video: con el «tutorial completo» solo se ve la parte del tutorial 1.
-    var inicio = parseInt(raiz.getAttribute('data-inicio'), 10) || 0;
-    var fin = parseInt(raiz.getAttribute('data-fin'), 10) || 0;
     iframe.src = 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(raiz.getAttribute('data-video')) +
-      '?autoplay=1&rel=0&modestbranding=1' + (inicio ? '&start=' + inicio : '') + (fin > inicio ? '&end=' + fin : '');
-    iframe.title = 'Video tutorial: cómo crear tu tienda gratis';
+      '?autoplay=1&rel=0&modestbranding=1' + (t.inicio ? '&start=' + t.inicio : '') +
+      (t.fin > t.inicio ? '&end=' + t.fin : '');
+    iframe.title = 'Video tutorial ' + paso + ': ' + t.titulo;
     iframe.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
     iframe.allowFullscreen = true;
+    titulo.textContent = 'Video tutorial ' + paso + ' · ' + t.titulo;
     marco.textContent = '';
     marco.appendChild(iframe);
     if (typeof dialogo.showModal === 'function') dialogo.showModal(); else dialogo.setAttribute('open', '');
