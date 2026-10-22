@@ -22,7 +22,7 @@ class Config:
     # clientes, código compartido → todos ven la misma = la última desplegada).
     #   A = cambio radical de plataforma · B = módulo nuevo grande
     #   C = estabilización / mejora · D = correcciones y ajustes de UI
-    APP_VERSION = "1.9.14.6"
+    APP_VERSION = "1.9.14.7"
 
     # --- General / Sesion ---
     # SECURITY M2: Sin fallback débil — falla explícitamente si no está configurado
@@ -137,9 +137,11 @@ class Config:
     AI_API_KEY  = os.getenv('AI_API_KEY', '')           # vacío para Ollama
     # «Video tutorial 1 · Prueba gratis» (YouTube no listado): botón de ayuda en /prueba-gratis.
     TUTORIAL_PRUEBA_GRATIS_URL = os.getenv('TUTORIAL_PRUEBA_GRATIS_URL', 'https://www.youtube.com/watch?v=ygHogta-uH4')
-    # Tramos del video completo (segundos), uno por paso del asistente:
+    # Tramos del video completo (segundos, con décimas), uno por paso del asistente:
     # tutorial 1 = paso 1 (tu negocio) … tutorial 4 = paso 4 (tus datos) y el código.
-    TUTORIAL_PRUEBA_GRATIS_TRAMOS = os.getenv('TUTORIAL_PRUEBA_GRATIS_TRAMOS', '0-35,35-64,64-87,87-187')
+    # Medidos con los cortes reales del video (entre tutoriales hay ~0,6 s de transición).
+    TUTORIAL_PRUEBA_GRATIS_TRAMOS = os.getenv('TUTORIAL_PRUEBA_GRATIS_TRAMOS',
+                                              '0-35.8,36.5-65.5,66.2-88.7,89.4-187.2')
     # read timeout amplio: el cold-start del modelo (carga a VRAM) puede tardar.
     # El connect timeout es corto (fast-fail si la GPU está apagada) — ver ai_service.
     AI_TIMEOUT  = int(os.getenv('AI_TIMEOUT', '120'))

@@ -1093,9 +1093,9 @@ def _tramos_tutorial():
     """[{inicio, fin, titulo}] de cada tutorial: uno por paso del asistente."""
     salida = []
     for n, parte in enumerate(str(app.config.get('TUTORIAL_PRUEBA_GRATIS_TRAMOS') or '').split(',')):
-        m = re.fullmatch(r'\s*(\d+)\s*-\s*(\d+)\s*', parte)
-        if m and int(m.group(2)) > int(m.group(1)):
-            salida.append({'inicio': int(m.group(1)), 'fin': int(m.group(2)),
+        m = re.fullmatch(r'\s*(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*', parte)
+        if m and float(m.group(2)) > float(m.group(1)):
+            salida.append({'inicio': float(m.group(1)), 'fin': float(m.group(2)),
                            'titulo': TITULOS_TUTORIAL[n] if n < len(TITULOS_TUTORIAL) else f'Parte {n + 1}'})
     return salida or [{'inicio': 0, 'fin': 0, 'titulo': 'Cómo crear tu tienda gratis'}]
 

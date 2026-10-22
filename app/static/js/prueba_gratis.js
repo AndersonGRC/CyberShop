@@ -351,7 +351,7 @@
       if (!jugador || !jugador.getCurrentTime) return;
       var t = jugador.getCurrentTime();
       if (t < actualTramo.inicio - 1) { jugador.seekTo(actualTramo.inicio, true); t = actualTramo.inicio; }
-      if (largo() && t >= actualTramo.fin - 0.25) {          // fin del tramo: no sigue con el siguiente tutorial
+      if (largo() && t >= actualTramo.fin - 0.08) {          // fin del tramo: no sigue con el siguiente tutorial
         jugador.pauseVideo();
         jugador.seekTo(actualTramo.inicio, true);
         pintarTiempo(largo());
@@ -360,7 +360,7 @@
         return;
       }
       pintarTiempo(t - actualTramo.inicio);
-    }, 250);
+    }, 100);
   }
   function cargarApi(listo) {
     if (window.YT && window.YT.Player) { listo(); return; }
@@ -385,8 +385,11 @@
       if (jugador && jugador.destroy) jugador.destroy();
       marco.innerHTML = '<div id="tgVideoReproductor"></div>';
       var vars = { autoplay: 1, controls: 0, disablekb: 1, rel: 0, modestbranding: 1, playsinline: 1,
-                   iv_load_policy: 3, start: actualTramo.inicio };
-      if (largo()) vars.end = actualTramo.fin;
+                   iv_load_policy: 3, start: Math.floor(actualTramo.inicio) };
+      // YouTube solo acepta segundos enteros: se arranca en el entero anterior, se salta al
+      // inicio exacto y la imagen se muestra solo ya dentro del tramo (sin el fotograma de la
+      // transición del tutorial anterior). El final lo controla el vigilante.
+      marco.classList.add('tg-video-oculto');
       jugador = new window.YT.Player('tgVideoReproductor', {
         host: 'https://www.youtube-nocookie.com',
         videoId: raiz.getAttribute('data-video'),
@@ -400,7 +403,12 @@
             vigilar();
           },
           onStateChange: function (e) {
-            if (e.data === 1) { icono(true); repetir.hidden = true; } else if (e.data === 2) icono(false);
+            if (e.data === 1) {
+              icono(true);
+              repetir.hidden = true;
+              if (e.target.getCurrentTime() >= actualTramo.inicio - 0.1) marco.classList.remove('tg-video-oculto');
+              else e.target.seekTo(actualTramo.inicio, true);
+            } else if (e.data === 2) icono(false);
           }
         }
       });

@@ -634,3 +634,9 @@
 @media (prefers-reduced-motion: reduce) {
     .tg-recorrido-foco { transition: none; }
 }
+
+/* Mientras el video busca el inicio exacto del tramo no se ve (evita el fotograma
+   de la transición del tutorial anterior). */
+.tg-video-oculto {
+    opacity: 0;
+}
