@@ -539,3 +539,89 @@
     font-variant-numeric: tabular-nums;
     font-size: 0.9rem;
 }
+
+/* ── Recorrido de bienvenida (primera vez) ── */
+.tg-en-recorrido .tg-ayuda-guia {
+    display: none !important;              /* el recorrido ya explica el botón de ayuda */
+}
+
+.tg-recorrido-capa {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;                         /* tapa la página: solo se usa la burbuja */
+}
+
+.tg-recorrido-foco {
+    position: fixed;
+    z-index: 1101;
+    border-radius: 14px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, .62), 0 0 0 3px var(--tg-ayuda-fondo);
+    pointer-events: none;
+    transition: top .25s ease, left .25s ease, width .25s ease, height .25s ease;
+}
+
+.tg-recorrido-burbuja {
+    position: fixed;
+    z-index: 1102;
+    padding: 16px 18px;
+    border-radius: 14px;
+    background: var(--tg-guia);
+    color: var(--tg-guia-texto);
+    box-shadow: 0 14px 36px rgba(0, 0, 0, .4);
+}
+
+.tg-recorrido-cuenta {
+    display: inline-block;
+    margin-bottom: 4px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--tg-ayuda-fondo);
+}
+
+.tg-recorrido-burbuja h2 {
+    margin: 0 0 4px;
+    font-size: 1.05rem;
+    color: var(--tg-guia-texto);
+}
+
+.tg-recorrido-burbuja p {
+    margin: 0 0 14px;
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+
+.tg-recorrido-acciones {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.tg-recorrido-acciones button {
+    min-height: 40px;
+    padding: 0 16px;
+    border-radius: 10px;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.tg-recorrido-saltar {
+    border: 1px solid rgba(255, 255, 255, .55);
+    background: transparent;
+    color: var(--tg-guia-texto);
+}
+
+.tg-recorrido-sig {
+    border: none;
+    background: var(--tg-ayuda-fondo);
+    color: var(--tg-ayuda-texto);
+}
+
+.tg-recorrido-acciones button:focus-visible {
+    outline: 3px solid var(--tg-foco);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tg-recorrido-foco { transition: none; }
+}

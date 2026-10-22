@@ -438,3 +438,111 @@
     btn.focus();
   });
 })();
+
+// ── Recorrido de bienvenida (solo la primera vez) ────────────────
+// PRIMERA_VEZ: ¿esta persona entra por primera vez al asistente (en este navegador)?
+// Si sí, un recorrido corto ilumina qué llenar, cómo avanzar y dónde está la ayuda.
+// Se puede saltar en cualquier momento (botón o Esc) y no vuelve a salir.
+(function () {
+  var CLAVE = 'tg-recorrido-visto';
+  var PRIMERA_VEZ = (function () {
+    try { return localStorage.getItem(CLAVE) !== '1'; } catch (e) { return false; }
+  })();
+  window.tgPrimeraVez = PRIMERA_VEZ;
+  var page = document.querySelector('.tg-page');
+  var marcaUno = document.querySelector('.tg-progress-steps li.is-on');
+  if (!PRIMERA_VEZ || !page || !document.getElementById('tgNegocio') ||
+      !marcaUno || marcaUno.getAttribute('data-ind') !== '1') return;
+
+  var pasos = [
+    { el: '#tgNegocio', titulo: 'Nombre de tu negocio',
+      texto: 'Escribe cómo se llama tu negocio. Así aparecerá en tu tienda.' },
+    { el: '.tg-tipos', titulo: '¿A qué se dedica?',
+      texto: 'Toca la opción que más se parezca. Solo cambia los textos de ejemplo.' },
+    { el: '#tgSiguiente', titulo: 'Avanza con «Siguiente»',
+      texto: 'Son 4 pasos cortos: tu negocio, tu dirección web, el diseño y tus datos.' },
+    { el: '#tgAyudaBtn', titulo: '¿Dudas? Aquí está la ayuda',
+      texto: 'En cualquier paso, toca este botón y mira un video corto de ese paso.' }
+  ].filter(function (p) {
+    var el = document.querySelector(p.el);
+    return el && el.getClientRects().length;
+  });
+  if (!pasos.length) return;
+
+  var foco = document.createElement('div');
+  foco.className = 'tg-recorrido-foco';
+  var capa = document.createElement('div');
+  capa.className = 'tg-recorrido-capa';
+  var burbuja = document.createElement('div');
+  burbuja.className = 'tg-recorrido-burbuja';
+  burbuja.setAttribute('role', 'dialog');
+  burbuja.setAttribute('aria-labelledby', 'tgRecTitulo');
+  burbuja.setAttribute('aria-describedby', 'tgRecTexto');
+  burbuja.innerHTML =
+    '<span class="tg-recorrido-cuenta" id="tgRecCuenta"></span>' +
+    '<h2 id="tgRecTitulo"></h2><p id="tgRecTexto"></p>' +
+    '<div class="tg-recorrido-acciones">' +
+    '<button type="button" class="tg-recorrido-saltar" id="tgRecSaltar">Saltar</button>' +
+    '<button type="button" class="tg-recorrido-sig" id="tgRecSig">Siguiente</button></div>';
+  [capa, foco, burbuja].forEach(function (n) { page.appendChild(n); });
+  document.body.classList.add('tg-en-recorrido');
+
+  var i = 0;
+  function objetivo() { return document.querySelector(pasos[i].el); }
+  function ubicar() {
+    var el = objetivo();
+    if (!el) return;
+    var r = el.getBoundingClientRect();
+    var m = 8;
+    foco.style.top = (r.top - m) + 'px';
+    foco.style.left = (r.left - m) + 'px';
+    foco.style.width = (r.width + m * 2) + 'px';
+    foco.style.height = (r.height + m * 2) + 'px';
+    var ancho = Math.min(320, window.innerWidth - 32);
+    burbuja.style.width = ancho + 'px';
+    var alto = burbuja.offsetHeight;
+    var arriba = r.bottom + m + 12;
+    if (arriba + alto > window.innerHeight - 8) arriba = Math.max(8, r.top - m - 12 - alto);
+    var izquierda = Math.min(Math.max(16, r.left), window.innerWidth - ancho - 16);
+    burbuja.style.top = arriba + 'px';
+    burbuja.style.left = izquierda + 'px';
+  }
+  function mostrar() {
+    var p = pasos[i];
+    document.getElementById('tgRecCuenta').textContent = (i + 1) + ' de ' + pasos.length;
+    document.getElementById('tgRecTitulo').textContent = p.titulo;
+    document.getElementById('tgRecTexto').textContent = p.texto;
+    document.getElementById('tgRecSig').textContent = i === pasos.length - 1 ? 'Empezar' : 'Siguiente';
+    var el = objetivo();
+    var r = el.getBoundingClientRect();
+    if (r.top < 80 || r.bottom > window.innerHeight - 80) el.scrollIntoView({ block: 'center' });
+    ubicar();
+    setTimeout(ubicar, 350);
+    document.getElementById('tgRecSig').focus();
+  }
+  function terminar() {
+    try {
+      localStorage.setItem(CLAVE, '1');
+      localStorage.setItem('tg-ayuda-vista-1', '1');      // el recorrido ya mostró la ayuda
+    } catch (e) { /* sin almacenamiento */ }
+    window.tgPrimeraVez = false;
+    var guiaAyuda = document.getElementById('tgAyudaGuia');
+    if (guiaAyuda) guiaAyuda.hidden = true;
+    [capa, foco, burbuja].forEach(function (n) { n.remove(); });
+    document.body.classList.remove('tg-en-recorrido');
+    window.removeEventListener('resize', ubicar);
+    window.removeEventListener('scroll', ubicar, true);
+    document.removeEventListener('keydown', teclas);
+    var nombre = document.getElementById('tgNegocio');
+    if (nombre) nombre.focus();
+  }
+  function teclas(e) { if (e.key === 'Escape') terminar(); }
+  document.getElementById('tgRecSig').addEventListener('click', function () {
+    if (i < pasos.length - 1) { i += 1; mostrar(); } else terminar();
+  });
+  document.getElementById('tgRecSaltar').addEventListener('click', terminar);
+  window.addEventListener('resize', ubicar);
+  window.addEventListener('scroll', ubicar, true);
+  document.addEventListener('keydown', teclas);
+  setTimeout(mostrar, 400);
+})();
