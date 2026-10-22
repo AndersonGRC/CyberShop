@@ -325,27 +325,116 @@
     btn.focus();
   });
 
+  // ── Reproductor: API de YouTube sin sus controles (mostraban el video completo);
+  // los nuestros solo conocen el tramo del paso y no dejan salirse de él.
+  var play = document.getElementById('tgVideoPlay');
+  var barra = document.getElementById('tgVideoBarra');
+  var tiempo = document.getElementById('tgVideoTiempo');
+  var repetir = document.getElementById('tgVideoRepetir');
+  var jugador = null, vigilante = null, actualTramo = null, arrastrando = false;
+
+  function mmss(s) { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
+  function largo() { return actualTramo.fin > actualTramo.inicio ? actualTramo.fin - actualTramo.inicio : 0; }
+  function pintarTiempo(seg) {
+    var total = largo() || (jugador && jugador.getDuration ? jugador.getDuration() : 0);
+    barra.max = total || 1;
+    if (!arrastrando) barra.value = seg;
+    tiempo.textContent = mmss(seg) + ' / ' + mmss(total);
+  }
+  function icono(sonando) {
+    play.innerHTML = '<i class="fas fa-' + (sonando ? 'pause' : 'play') + '" aria-hidden="true"></i>';
+    play.setAttribute('aria-label', sonando ? 'Pausar' : 'Reproducir');
+  }
+  function vigilar() {
+    clearInterval(vigilante);
+    vigilante = setInterval(function () {
+      if (!jugador || !jugador.getCurrentTime) return;
+      var t = jugador.getCurrentTime();
+      if (t < actualTramo.inicio - 1) { jugador.seekTo(actualTramo.inicio, true); t = actualTramo.inicio; }
+      if (largo() && t >= actualTramo.fin - 0.25) {          // fin del tramo: no sigue con el siguiente tutorial
+        jugador.pauseVideo();
+        jugador.seekTo(actualTramo.inicio, true);
+        pintarTiempo(largo());
+        repetir.hidden = false;
+        icono(false);
+        return;
+      }
+      pintarTiempo(t - actualTramo.inicio);
+    }, 250);
+  }
+  function cargarApi(listo) {
+    if (window.YT && window.YT.Player) { listo(); return; }
+    var previo = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = function () { if (previo) previo(); listo(); };
+    if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+      var s = document.createElement('script');
+      s.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(s);
+    }
+  }
+
   btn.addEventListener('click', function () {
     ocultarGuia();
-    var t = tramo();
-    var iframe = document.createElement('iframe');
-    iframe.src = 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(raiz.getAttribute('data-video')) +
-      '?autoplay=1&rel=0&modestbranding=1' + (t.inicio ? '&start=' + t.inicio : '') +
-      (t.fin > t.inicio ? '&end=' + t.fin : '');
-    iframe.title = 'Video tutorial ' + paso + ': ' + t.titulo;
-    iframe.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
-    iframe.allowFullscreen = true;
-    titulo.textContent = 'Video tutorial ' + paso + ' · ' + t.titulo;
-    marco.textContent = '';
-    marco.appendChild(iframe);
+    actualTramo = tramo();
+    titulo.textContent = 'Video tutorial ' + paso + ' · ' + actualTramo.titulo;
+    repetir.hidden = true;
+    icono(true);
+    pintarTiempo(0);
     if (typeof dialogo.showModal === 'function') dialogo.showModal(); else dialogo.setAttribute('open', '');
+    cargarApi(function () {
+      if (jugador && jugador.destroy) jugador.destroy();
+      marco.innerHTML = '<div id="tgVideoReproductor"></div>';
+      var vars = { autoplay: 1, controls: 0, disablekb: 1, rel: 0, modestbranding: 1, playsinline: 1,
+                   iv_load_policy: 3, start: actualTramo.inicio };
+      if (largo()) vars.end = actualTramo.fin;
+      jugador = new window.YT.Player('tgVideoReproductor', {
+        host: 'https://www.youtube-nocookie.com',
+        videoId: raiz.getAttribute('data-video'),
+        playerVars: vars,
+        events: {
+          onReady: function (e) {
+            var iframe = marco.querySelector('iframe');
+            if (iframe) iframe.title = 'Video tutorial ' + paso + ': ' + actualTramo.titulo;
+            e.target.seekTo(actualTramo.inicio, true);
+            e.target.playVideo();
+            vigilar();
+          },
+          onStateChange: function (e) {
+            if (e.data === 1) { icono(true); repetir.hidden = true; } else if (e.data === 2) icono(false);
+          }
+        }
+      });
+    });
+  });
+
+  play.addEventListener('click', function () {
+    if (!jugador || !jugador.getPlayerState) return;
+    if (jugador.getPlayerState() === 1) jugador.pauseVideo(); else { repetir.hidden = true; jugador.playVideo(); }
+  });
+  repetir.addEventListener('click', function () {
+    if (!jugador) return;
+    jugador.seekTo(actualTramo.inicio, true);
+    jugador.playVideo();
+    repetir.hidden = true;
+    play.focus();
+  });
+  barra.addEventListener('input', function () {
+    arrastrando = true;
+    tiempo.textContent = mmss(barra.value) + ' / ' + mmss(largo());
+  });
+  barra.addEventListener('change', function () {
+    arrastrando = false;
+    if (jugador) jugador.seekTo(actualTramo.inicio + Number(barra.value), true);   // solo dentro del tramo
   });
 
   function cerrar() { if (dialogo.open) dialogo.close(); }
   document.getElementById('tgVideoCerrar').addEventListener('click', cerrar);
   dialogo.addEventListener('click', function (e) { if (e.target === dialogo) cerrar(); });
   dialogo.addEventListener('close', function () {
-    marco.textContent = '';            // detiene el video
+    clearInterval(vigilante);
+    if (jugador && jugador.destroy) jugador.destroy();          // detiene el video
+    jugador = null;
+    marco.textContent = '';
     btn.focus();
   });
 })();
