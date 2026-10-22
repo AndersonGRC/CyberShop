@@ -270,3 +270,54 @@
     vistaPrevia();
     mostrar(errorPaso || 1);
 })();
+
+// ── Ayuda: video tutorial 1 ──────────────────────────────────────
+// Botón flotante que abre el video cuando la persona lo pide. La primera vez aparece
+// una guía negra señalándolo; «Entendido» o abrir el video la ocultan para siempre
+// (en este navegador). El video (YouTube sin cookies) solo se carga al abrirlo.
+(function () {
+  var raiz = document.getElementById('tgAyuda');
+  if (!raiz) return;
+  var btn = document.getElementById('tgAyudaBtn');
+  var guia = document.getElementById('tgAyudaGuia');
+  var dialogo = document.getElementById('tgVideo');
+  var marco = document.getElementById('tgVideoMarco');
+  var CLAVE = 'tg-ayuda-vista';
+
+  function yaVista() {
+    try { return localStorage.getItem(CLAVE) === '1'; } catch (e) { return false; }
+  }
+  function ocultarGuia() {
+    guia.hidden = true;
+    try { localStorage.setItem(CLAVE, '1'); } catch (e) { /* sin almacenamiento */ }
+  }
+  if (!yaVista()) setTimeout(function () { guia.hidden = false; }, 1200);
+  document.getElementById('tgAyudaEntendido').addEventListener('click', function () {
+    ocultarGuia();
+    btn.focus();
+  });
+
+  btn.addEventListener('click', function () {
+    ocultarGuia();
+    var iframe = document.createElement('iframe');
+    // Tramo del video: con el «tutorial completo» solo se ve la parte del tutorial 1.
+    var inicio = parseInt(raiz.getAttribute('data-inicio'), 10) || 0;
+    var fin = parseInt(raiz.getAttribute('data-fin'), 10) || 0;
+    iframe.src = 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(raiz.getAttribute('data-video')) +
+      '?autoplay=1&rel=0&modestbranding=1' + (inicio ? '&start=' + inicio : '') + (fin > inicio ? '&end=' + fin : '');
+    iframe.title = 'Video tutorial: cómo crear tu tienda gratis';
+    iframe.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+    iframe.allowFullscreen = true;
+    marco.textContent = '';
+    marco.appendChild(iframe);
+    if (typeof dialogo.showModal === 'function') dialogo.showModal(); else dialogo.setAttribute('open', '');
+  });
+
+  function cerrar() { if (dialogo.open) dialogo.close(); }
+  document.getElementById('tgVideoCerrar').addEventListener('click', cerrar);
+  dialogo.addEventListener('click', function (e) { if (e.target === dialogo) cerrar(); });
+  dialogo.addEventListener('close', function () {
+    marco.textContent = '';            // detiene el video
+    btn.focus();
+  });
+})();

@@ -14,6 +14,10 @@
     --tg-aviso-bg: #fff6df;
     --tg-aviso: #8a5a00;
     /* Color que la persona elige en el paso 3 (lo cambia el JS). */
+    --tg-guia: #111111;
+    --tg-guia-texto: #ffffff;
+    --tg-negro: #000000;
+    --tg-foco: #f5b400;
     --tg-marca: #334155;
     --tg-marca-oscuro: #212a37;
     --tg-marca-claro: #eef0f3;
@@ -302,4 +306,162 @@
 }
 @media (max-width: 640px) {
     .tg-corregir-fila { flex-direction: column; }
+}
+
+/* ── Ayuda: video tutorial 1 (botón flotante + guía negra que lo señala) ── */
+.tg-ayuda {
+    /* Abajo a la izquierda: a la derecha está el botón del menú en celular. */
+    position: fixed;
+    left: 16px;
+    bottom: 16px;
+    z-index: 900;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.tg-ayuda-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 48px;
+    padding: 0 18px 0 14px;
+    border: none;
+    border-radius: 999px;
+    background: var(--tg-primario, #122C94);
+    color: var(--tg-guia-texto);
+    font: inherit;
+    font-weight: 700;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+    cursor: pointer;
+}
+
+.tg-ayuda-btn i {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, .2);
+}
+
+.tg-ayuda-btn:hover {
+    background: var(--tg-oscuro, #091C5A);
+}
+
+.tg-ayuda-btn:focus-visible,
+.tg-ayuda-entendido:focus-visible,
+.tg-video-cerrar:focus-visible {
+    outline: 3px solid var(--tg-foco);
+    outline-offset: 3px;
+}
+
+/* La guía negra: aparece sola la primera vez, señalando el botón. */
+.tg-ayuda-guia {
+    position: relative;
+    max-width: min(300px, calc(100vw - 110px));   /* no tapa el botón de WhatsApp */
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: var(--tg-guia);
+    color: var(--tg-guia-texto);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+    animation: tg-guia-entra .35s ease-out;
+}
+
+.tg-ayuda-guia[hidden] {
+    display: none;
+}
+
+.tg-ayuda-guia::after {
+    content: "";
+    position: absolute;
+    left: 34px;
+    bottom: -8px;
+    width: 16px;
+    height: 16px;
+    background: var(--tg-guia);
+    transform: rotate(45deg);
+}
+
+.tg-ayuda-guia p {
+    margin: 0 0 10px;
+}
+
+.tg-ayuda-entendido {
+    min-height: 36px;
+    padding: 0 14px;
+    border: 1px solid rgba(255, 255, 255, .6);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--tg-guia-texto);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+@keyframes tg-guia-entra {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tg-ayuda-guia { animation: none; }
+}
+
+.tg-video {
+    width: min(960px, calc(100vw - 24px));
+    padding: 0;
+    border: none;
+    border-radius: 14px;
+    background: var(--tg-negro);
+    color: var(--tg-guia-texto);
+}
+
+.tg-video::backdrop {
+    background: rgba(0, 0, 0, .7);
+}
+
+.tg-video-cabeza {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 8px 8px 16px;
+}
+
+.tg-video-cabeza h2 {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--tg-guia-texto);
+}
+
+.tg-video-cerrar {
+    flex: none;
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--tg-guia-texto);
+    font-size: 1.8rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.tg-video-marco {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: var(--tg-negro);
+}
+
+.tg-video-marco iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
 }

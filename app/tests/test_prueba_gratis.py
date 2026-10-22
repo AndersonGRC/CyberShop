@@ -175,6 +175,26 @@ def test_asistente_muestra_los_4_pasos(client, software_visible):
         assert texto in html
 
 
+@pytest.mark.parametrize('url, video', [
+    ('https://youtu.be/AbCdEfGhI_1', 'AbCdEfGhI_1'),
+    ('https://www.youtube.com/watch?v=AbCdEfGhI_1&t=3s', 'AbCdEfGhI_1'),
+    ('https://www.youtube.com/shorts/AbCdEfGhI_1', 'AbCdEfGhI_1'),
+    ('', ''), ('https://vimeo.com/123', ''),
+])
+def test_boton_de_ayuda_con_el_video_tutorial(client, flask_app, software_visible, url, video):
+    """Video tutorial 1: el botón de ayuda y su guía solo salen con un enlace de YouTube."""
+    antes = flask_app.config.get('TUTORIAL_PRUEBA_GRATIS_URL')
+    flask_app.config['TUTORIAL_PRUEBA_GRATIS_URL'] = url
+    try:
+        html = client.get('/prueba-gratis').get_data(as_text=True)
+    finally:
+        flask_app.config['TUTORIAL_PRUEBA_GRATIS_URL'] = antes
+    if video:
+        assert f'data-video="{video}"' in html and 'id="tgAyudaBtn"' in html and 'id="tgAyudaGuia"' in html
+    else:
+        assert 'id="tgAyuda"' not in html
+
+
 def test_whatsapp_obligatorio_vuelve_al_paso_4(client, software_visible, monkeypatch):
     import routes.public as pub
     monkeypatch.setattr(pub, '_slug_ocupado', lambda slug: False)

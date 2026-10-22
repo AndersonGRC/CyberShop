@@ -1073,7 +1073,16 @@ def prueba_gratis():
     return render_template('prueba_gratis.html', datosApp=datosApp, enviado=False,
                            form=form, error=error, error_paso=error_paso,
                            muestras=marca_service.MUESTRAS,
-                           color_neutro=marca_service.NEUTRO, tipos=TIPOS_NEGOCIO, **sw_colors)
+                           color_neutro=marca_service.NEUTRO, tipos=TIPOS_NEGOCIO,
+                           tutorial_id=_tutorial_prueba_gratis(), **sw_colors)
+
+
+def _tutorial_prueba_gratis():
+    """Id de YouTube del «Video tutorial 1 · Prueba gratis» (TUTORIAL_PRUEBA_GRATIS_URL,
+    video no listado). Vacío = la página no muestra el botón de ayuda."""
+    url = str(app.config.get('TUTORIAL_PRUEBA_GRATIS_URL') or '')
+    m = re.search(r'(?:youtu\.be/|[?&]v=|/embed/|/shorts/|/live/)([A-Za-z0-9_-]{11})', url)
+    return m.group(1) if m else ''
 
 
 def _enviar_confirmacion_trial(compra, codigo):
@@ -1103,7 +1112,7 @@ def _pantalla_enviado(datosApp, sw_colors, compra, aviso=None, error=None, token
     return render_template('prueba_gratis.html', datosApp=datosApp, enviado=True,
                            email_destino=_correo_oculto(compra['buyer_email']) if token else compra['buyer_email'],
                            aviso=aviso, error=error, form={}, token=token or '',
-                           codigo_horas=pcs.CODIGO_HORAS, **sw_colors)
+                           codigo_horas=pcs.CODIGO_HORAS, tutorial_id=_tutorial_prueba_gratis(), **sw_colors)
 
 
 def _prueba_pendiente(token=None):
