@@ -61,6 +61,18 @@
  },
  {
   "proceso": "crear_producto",
+  "peticion": "<datos_orden_json>\n{\"historial\": [], \"orden_actual\": \"Agrega Cable HDMI 2 metros a 18.900 en Cables\"}\n</datos_orden_json>",
+  "esperado": {
+   "tipo": "crear_producto",
+   "campos": {
+    "nombre": "Cable HDMI 2 metros",
+    "precio": 18900,
+    "categoria": "Cables"
+   }
+  }
+ },
+ {
+  "proceso": "crear_producto",
   "peticion": "<datos_orden_json>\n{\"historial\": [], \"orden_actual\": \"Crea el producto Café americano a 4.000 en Bebidas calientes\"}\n</datos_orden_json>",
   "esperado": {
    "tipo": "crear_producto",
@@ -181,6 +193,18 @@
  },
  {
   "proceso": "crear_producto",
+  "peticion": "<datos_orden_json>\n{\"historial\": [], \"orden_actual\": \"Agrega Bolsa de hielo 2kg a 3.000 en la categoría Hielo\"}\n</datos_orden_json>",
+  "esperado": {
+   "tipo": "crear_producto",
+   "campos": {
+    "nombre": "Bolsa de hielo 2kg",
+    "precio": 3000,
+    "categoria": "Hielo"
+   }
+  }
+ },
+ {
+  "proceso": "crear_producto",
   "peticion": "<datos_orden_json>\n{\"historial\": [], \"orden_actual\": \"Crea el producto Cargador USB-C 20W a $39.900 en Cargadores\"}\n</datos_orden_json>",
   "esperado": {
    "tipo": "crear_producto",
@@ -229,6 +253,18 @@
  },
  {
   "proceso": "crear_producto",
+  "peticion": "<datos_orden_json>\n{\"historial\": [], \"orden_actual\": \"agregame el producto Galletas de avena a 1.800 en la categoria Galletas\"}\n</datos_orden_json>",
+  "esperado": {
+   "tipo": "crear_producto",
+   "campos": {
+    "nombre": "Galletas de avena",
+    "precio": 1800,
+    "categoria": "Galletas"
+   }
+  }
+ },
+ {
+  "proceso": "crear_producto",
   "peticion": "<datos_orden_json>\n{\"historial\": [], \"orden_actual\": \"Por favor crea el producto Mantenimiento preventivo de portátil a 80.000 en Servicio técnico\"}\n</datos_orden_json>",
   "esperado": {
    "tipo": "crear_producto",
@@ -236,6 +272,18 @@
     "nombre": "Mantenimiento preventivo de portátil",
     "precio": 80000,
     "categoria": "Servicio técnico"
+   }
+  }
+ },
+ {
+  "proceso": "crear_producto",
+  "peticion": "<datos_orden_json>\n{\"historial\": [], \"orden_actual\": \"Necesito que registres el producto Funda para celular Samsung A54 a 25.000 en Fundas\"}\n</datos_orden_json>",
+  "esperado": {
+   "tipo": "crear_producto",
+   "campos": {
+    "nombre": "Funda para celular Samsung A54",
+    "precio": 25000,
+    "categoria": "Fundas"
    }
   }
  },
@@ -301,6 +349,20 @@
     "categoria": "Panadería",
     "costo": 1500,
     "stock": 30
+   }
+  }
+ },
+ {
+  "proceso": "crear_producto",
+  "peticion": "<datos_orden_json>\n{\"historial\": [], \"orden_actual\": \"Agrega el producto Disco SSD 480GB a 150.000 en Almacenamiento con referencia SSD480 y 5 unidades\"}\n</datos_orden_json>",
+  "esperado": {
+   "tipo": "crear_producto",
+   "campos": {
+    "nombre": "Disco SSD 480GB",
+    "precio": 150000,
+    "categoria": "Almacenamiento",
+    "referencia": "SSD480",
+    "stock": 5
    }
   }
  },
@@ -632,6 +694,17 @@
  },
  {
   "proceso": "editar_producto",
+  "peticion": "<datos_orden_json>\n{\"historial\": [], \"orden_actual\": \"Pasa el producto Brownie a la categoría Postres\"}\n</datos_orden_json>",
+  "esperado": {
+   "tipo": "editar_producto",
+   "producto": "Brownie",
+   "cambios": {
+    "categoria": "Postres"
+   }
+  }
+ },
+ {
+  "proceso": "editar_producto",
   "peticion": "<datos_orden_json>\n{\"historial\": [], \"orden_actual\": \"Cambia el nombre del producto Cable HDMI a Cable HDMI 2 metros\"}\n</datos_orden_json>",
   "esperado": {
    "tipo": "editar_producto",
@@ -654,12 +727,34 @@
  },
  {
   "proceso": "editar_producto",
+  "peticion": "<datos_orden_json>\n{\"historial\": [], \"orden_actual\": \"Pon el stock mínimo de la Leche entera 1 litro en 10\"}\n</datos_orden_json>",
+  "esperado": {
+   "tipo": "editar_producto",
+   "producto": "Leche entera 1 litro",
+   "cambios": {
+    "stock_minimo": 10
+   }
+  }
+ },
+ {
+  "proceso": "editar_producto",
   "peticion": "<datos_orden_json>\n{\"historial\": [], \"orden_actual\": \"Baja el precio de la pizza familiar hawaiana a 45 mil\"}\n</datos_orden_json>",
   "esperado": {
    "tipo": "editar_producto",
    "producto": "pizza familiar hawaiana",
    "cambios": {
     "precio": 45000
+   }
+  }
+ },
+ {
+  "proceso": "editar_producto",
+  "peticion": "<datos_orden_json>\n{\"historial\": [], \"orden_actual\": \"Cambia la descripción del Brownie: con helado de vainilla\"}\n</datos_orden_json>",
+  "esperado": {
+   "tipo": "editar_producto",
+   "producto": "Brownie",
+   "cambios": {
+    "descripcion": "con helado de vainilla"
    }
   }
  },
@@ -715,6 +810,17 @@
  },
  {
   "proceso": "movimiento_inventario",
+  "peticion": "<datos_orden_json>\n{\"historial\": [], \"orden_actual\": \"Recibimos 10 cables HDMI del proveedor\"}\n</datos_orden_json>",
+  "esperado": {
+   "tipo": "movimiento_inventario",
+   "producto": "cables HDMI",
+   "direccion": "entrada",
+   "cantidad": 10,
+   "motivo": "recibimos"
+  }
+ },
+ {
+  "proceso": "movimiento_inventario",
   "peticion": "<datos_orden_json>\n{\"historial\": [], \"orden_actual\": \"Se vencieron 6 leches enteras\"}\n</datos_orden_json>",
   "esperado": {
    "tipo": "movimiento_inventario",
@@ -733,6 +839,17 @@
    "direccion": "entrada",
    "cantidad": 50,
    "motivo": "entraron"
+  }
+ },
+ {
+  "proceso": "movimiento_inventario",
+  "peticion": "<datos_orden_json>\n{\"historial\": [], \"orden_actual\": \"Se perdieron 3 memorias USB 64GB\"}\n</datos_orden_json>",
+  "esperado": {
+   "tipo": "movimiento_inventario",
+   "producto": "memorias USB 64GB",
+   "direccion": "salida",
+   "cantidad": 3,
+   "motivo": "se perdieron"
   }
  },
  {
@@ -758,6 +875,14 @@
  },
  {
   "proceso": "movimiento_inventario",
+  "peticion": "<datos_orden_json>\n{\"historial\": [], \"orden_actual\": \"Llegaron cargadores USB-C al inventario\"}\n</datos_orden_json>",
+  "esperado": {
+   "tipo": "aclarar",
+   "campo": "cantidad"
+  }
+ },
+ {
+  "proceso": "movimiento_inventario",
   "peticion": "<datos_orden_json>\n{\"historial\": [], \"orden_actual\": \"Llegaron 20 unidades\"}\n</datos_orden_json>",
   "esperado": {
    "tipo": "aclarar",
@@ -766,7 +891,7 @@
  },
  {
   "proceso": "movimiento_inventario",
-  "peticion": "<datos_orden_json>\n{\"historial\": [], \"orden_actual\": \"Llegaron cargadores USB-C. Dato adicional: 15\"}\n</datos_orden_json>",
+  "peticion": "<datos_orden_json>\n{\"historial\": [], \"orden_actual\": \"Llegaron cargadores USB-C al inventario. Dato adicional: 15\"}\n</datos_orden_json>",
   "esperado": {
    "tipo": "movimiento_inventario",
    "producto": "cargadores USB-C",
@@ -846,10 +971,37 @@
  },
  {
   "proceso": "archivar_producto",
+  "peticion": "<datos_orden_json>\n{\"historial\": [], \"orden_actual\": \"Ya no vendo el Cuaderno argollado 100 hojas, archívalo\"}\n</datos_orden_json>",
+  "esperado": {
+   "tipo": "archivar_producto",
+   "producto": "Cuaderno argollado 100 hojas"
+  }
+ },
+ {
+  "proceso": "archivar_producto",
   "peticion": "<datos_orden_json>\n{\"historial\": [], \"orden_actual\": \"Archiva un producto\"}\n</datos_orden_json>",
   "esperado": {
    "tipo": "aclarar",
    "campo": "producto"
+  }
+ },
+ {
+  "proceso": "archivar_producto",
+  "peticion": "<datos_orden_json>\n{\"historial\": [], \"orden_actual\": \"Ya no manejamos la gaseosa de uva\"}\n</datos_orden_json>",
+  "esperado": {
+   "tipo": "archivar_producto",
+   "producto": "gaseosa de uva"
+  }
+ },
+ {
+  "proceso": "movimiento_inventario",
+  "peticion": "<datos_orden_json>\n{\"historial\": [], \"orden_actual\": \"Se rompieron 2 vasos de vidrio\"}\n</datos_orden_json>",
+  "esperado": {
+   "tipo": "movimiento_inventario",
+   "producto": "vasos de vidrio",
+   "direccion": "salida",
+   "cantidad": 2,
+   "motivo": "se rompieron"
   }
  },
  {
@@ -870,6 +1022,29 @@
  },
  {
   "proceso": "crear_producto",
+  "peticion": "<datos_orden_json>\n{\"historial\": [{\"pregunta_usuario\": \"Quiero vender Gaseosa 400ml\", \"respuesta_asistente\": \"¿Quieres que lo cree como producto? Dime el precio y la categoría.\"}], \"orden_actual\": \"Créalo a 3.500 en Bebidas\"}\n</datos_orden_json>",
+  "esperado": {
+   "tipo": "crear_producto",
+   "campos": {
+    "nombre": "Gaseosa 400ml",
+    "precio": 3500,
+    "categoria": "Bebidas"
+   }
+  }
+ },
+ {
+  "proceso": "editar_producto",
+  "peticion": "<datos_orden_json>\n{\"historial\": [{\"pregunta_usuario\": \"¿Cuánto cuesta el Café americano?\", \"respuesta_asistente\": \"El Café americano está en $3.800.\"}], \"orden_actual\": \"Sube el precio a 4.000\"}\n</datos_orden_json>",
+  "esperado": {
+   "tipo": "editar_producto",
+   "producto": "Café americano",
+   "cambios": {
+    "precio": 4000
+   }
+  }
+ },
+ {
+  "proceso": "crear_producto",
   "peticion": "<datos_orden_json>\n{\"historial\": [{\"pregunta_usuario\": \"Crea el producto Croissant a 3.800 en Panadería\", \"respuesta_asistente\": \"Listo, te muestro la propuesta para confirmar.\"}], \"orden_actual\": \"Ahora crea el producto Pandebono a 1.500 en Panadería\"}\n</datos_orden_json>",
   "esperado": {
    "tipo": "crear_producto",
@@ -878,6 +1053,14 @@
     "precio": 1500,
     "categoria": "Panadería"
    }
+  }
+ },
+ {
+  "proceso": "crear_producto",
+  "peticion": "<datos_orden_json>\n{\"historial\": [{\"pregunta_usuario\": \"Tengo un producto que se llama Calentado paisa\", \"respuesta_asistente\": \"¿Quieres que lo cree? Dime el precio y la categoría.\"}], \"orden_actual\": \"Agrégalo como producto en Desayunos\"}\n</datos_orden_json>",
+  "esperado": {
+   "tipo": "aclarar",
+   "campo": "precio"
   }
  }
 ]

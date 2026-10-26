@@ -73,7 +73,10 @@ _VERBOS = re.compile(r'\b(crea|crear|creame|agrega|agregar|registra|registrar|'
                     r'completa|completar|termina|terminar|finaliza|finalizar|reabre|reabrir|'
                     r'mueve|mover|aplaza|aplazar|posterga|postergar|pasa|pasar|marca|marcar|'
                     r'avanza|avanzar|abre|abrir|guarda|guardar|deja|dejar|ganamos|perdimos|'
-                    r'cerramos)\b')
+                    r'cerramos|agregame|anademe|registrame|crealo|creala|agregalo|agregala|'
+                    r'registralo|registrala|anadelo|archivalo|archivala|eliminalo|eliminala|'
+                    r'borralo|borrala|ocultalo|ocultala|reactivalo|reactivala|cambialo|cambiala|'
+                    r'subele|bajale|crees|agregues|registres|anadas|archives|cambies)\b')
 # Un contacto también se nombra por su tipo: «crea un proveedor», «agrega el
 # socio…», «registra un cliente nuevo». Antes solo contaba la palabra
 # «contacto» y «crea un proveedor» se iba al chat de consultas.
@@ -99,6 +102,7 @@ _OBJETOS = re.compile(r'\b(' + '|'.join((_CONTACTO, _STOCK, _PRODUCTO, _CATEGORI
 _ENTRADA = (r'entraron|entro|llegaron|llego|ingresaron|ingreso|recibimos|recibi|entrada|'
             r'suma|sumale|sumar')
 _SALIDA = (r'salieron|salio|salida|danaron|dano|merma|vencieron|vencio|perdimos|perdio|'
+           r'perdieron|rompieron|rompio|quebraron|quebro|'
            r'robaron|resta|restale|restar|descuenta|descontar|descuentale')
 _MOVIMIENTO = re.compile(r'\b(' + _ENTRADA + '|' + _SALIDA + r')\b')
 _MOVIMIENTO_STOCK = re.compile(r'\b(' + _ENTRADA + '|' + _SALIDA +
@@ -119,17 +123,33 @@ _VERBOS_INVENTARIO = re.compile(r'\b(cuadra|cuadrar|ajusta|ajustar|fija|fijar|'
                                 r'pon|poner|sube|subir|baja|bajar|cambia|cambiar|'
                                 r'actualiza|actualizar|deja|dejar)\b')
 # Crear va primero: «crea el producto Gaseosa y ponle precio 3000» es crear.
+_CREAR = (r'crea|crear|creame|agrega|agregar|agregame|registra|registrar|registrame|anade|anadir|'
+          r'anademe|crealo|creala|agregalo|agregala|registralo|registrala|anadelo|crees|agregues|'
+          r'registres|anadas')
 _VERBOS_PRODUCTO = {
-    'crear_producto': re.compile(r'\b(crea|crear|creame|agrega|agregar|registra|registrar|'
-                                 r'anade|anadir)\b'),
+    'crear_producto': re.compile(r'\b(' + _CREAR + r')\b'),
     'archivar_producto': re.compile(r'\b(elimina|eliminar|borra|borrar|desactiva|desactivar|'
-                                    r'archiva|archivar|oculta|ocultar)\b'),
+                                    r'archiva|archivar|oculta|ocultar|archivalo|archivala|eliminalo|'
+                                    r'eliminala|borralo|borrala|ocultalo|ocultala|archives)\b'),
     'reactivar_producto': re.compile(r'\b(reactiva|reactivar|activa|activar|restaura|restaurar|'
-                                     r'recupera|recuperar)\b'),
+                                     r'recupera|recuperar|reactivalo|reactivala)\b'),
     'editar_producto': re.compile(r'\b(edita|editar|modifica|modificar|cambia|cambiar|actualiza|'
                                   r'actualizar|sube|subir|baja|bajar|pon|ponle|poner|ajusta|'
-                                  r'ajustar|fija|fijar)\b'),
+                                  r'ajustar|fija|fijar|pasa|pasar|mueve|mover|cambialo|cambiala|'
+                                  r'subele|bajale|cambies)\b'),
 }
+# «Crea el producto…» manda aunque después diga «con 5 unidades» (antes se iba a stock).
+_CREAR_PRODUCTO_DICHO = re.compile(r'\b(' + _CREAR + r')\s+(?:el|un|una|la|este|ese|otro)?\s*'
+                                   r'(?:nuevo\s+)?(?:producto|articulo)s?\b')
+# Crear con precio sin decir «producto»: «Agrega Cable HDMI a 18.900 en Cables».
+_PRECIO_DICHO = re.compile(r'(?:\ba\s+\$?\s*\d[\d.,]*(?:\s*(?:mil|k|pesos))?\b|\$\s*\d|\bprecio\b|'
+                           r'\b\d[\d.,]*\s*(?:mil|pesos)\b)')
+# «Ya no vendo el termo, archívalo» / «ya no manejamos X»: archivar un producto.
+_YA_NO_VENDO = re.compile(r'\bya no (?:vendo|vendemos|manejo|manejamos|tengo|tenemos|ofrezco|ofrecemos)\b')
+
+
+def _crea_con_precio(frase):
+    return bool(re.search(r'\b(' + _CREAR + r')\b', frase) and _PRECIO_DICHO.search(frase))
 _VERBOS_CATEGORIA = {
     'crear_categoria': re.compile(r'\b(crea|crear|creame|agrega|agregar|registra|registrar|'
                                   r'anade|anadir)\b'),
@@ -301,7 +321,9 @@ def parece_operativa(pregunta):
     if _SOLO_LECTURA.match(frase):
         return False
     return bool((_VERBOS.search(frase) and _OBJETOS.search(frase))
-                or _movimiento_suelto(frase, pregunta) or _orden_de_atencion(frase))
+                or _movimiento_suelto(frase, pregunta) or _orden_de_atencion(frase)
+                or _crea_con_precio(frase) or _YA_NO_VENDO.search(frase)
+                or (_VERBOS.search(frase) and re.search(r'\bdescripcion\b', frase)))
 
 
 def _tipo_solicitado(pregunta):
@@ -315,6 +337,13 @@ def _tipo_solicitado(pregunta):
     atencion = _orden_de_atencion(frase)
     if atencion:
         return atencion
+    if _CREAR_PRODUCTO_DICHO.search(frase):
+        return 'crear_producto'
+    if _YA_NO_VENDO.search(frase):
+        return 'archivar_producto'
+    # «Pon el stock mínimo de la leche en 10»: es un dato del producto, no el inventario.
+    if re.search(r'\bstock minimo\b', frase) and _VERBOS_PRODUCTO['editar_producto'].search(frase):
+        return 'editar_producto'
     if re.search(r'\b(' + _STOCK + r')\b', frase):
         if _MOVIMIENTO_STOCK.search(frase):
             return 'movimiento_inventario'
@@ -336,7 +365,10 @@ def _tipo_solicitado(pregunta):
         tipo = _unico(_VERBOS_ACTIVIDAD, frase)
         if tipo:
             return tipo
-    if re.search(r'\b(' + _PRODUCTO + r')\b', frase):
+    if _crea_con_precio(frase) and not re.search(r'\b(' + _CONTACTO + r')\b', frase):
+        return 'crear_producto'
+    if re.search(r'\b(' + _PRODUCTO + r'|descripcion)\b', frase) or re.search(
+            r'\b(?:pasa|pasar|mueve|mover)\b.{1,80}\ba la categoria\b', frase):
         tipo = _unico(_VERBOS_PRODUCTO, frase, primero='crear_producto')
         if tipo:
             return tipo

@@ -223,6 +223,14 @@ def _preparar_crear_producto(cur, plan):
     _nombre_libre(cur, nombre)
     if referencia:
         _referencia_libre(cur, referencia)
+    # ¿Ya existe, escrito de otra forma («aceite diana 1L» = «DIANA ACEITE 1000 ML»)?
+    from services import productos_parecidos
+    revision = productos_parecidos.revisar(nombre, productos_parecidos.catalogo(cur))
+    if revision['duplicado']:
+        dup = revision['duplicado']
+        raise AccionError(f'Ya existe «{dup["nombre"]}» (ID {dup["id"]}): parece el mismo producto y la misma '
+                          'presentación. Si es el mismo, edítalo o súmale stock; si es otro, dime en qué se '
+                          'diferencia (marca, tamaño o sabor) y lo creo.')
     payload = {'tipo': 'crear_producto', 'campos': {
         'nombre': nombre, 'precio': str(precio), 'genero_id': cat['id'], 'categoria': cat['nombre'],
         'referencia': referencia, 'descripcion': descripcion,
@@ -236,6 +244,7 @@ def _preparar_crear_producto(cur, plan):
         detalles.append(f'Costo: {_pesos(costo)}')
     detalles.append(f'Stock inicial: {stock}')
     detalles.append('Sin foto: la puedes subir después en el panel de productos.')
+    detalles += revision['avisos']
     return payload, f'Crear producto {nombre} a {_pesos(precio)}.', detalles
 
 
