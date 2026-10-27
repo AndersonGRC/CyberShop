@@ -394,7 +394,11 @@ def listar_cuentas():
     cuentas = []
     cartera_ok = False
     filtro = request.args.get('pago') if request.args.get('pago') in FILTROS else None
+    from routes.factura_electronica import sql_columnas_fe
     try:
+        # Igual con las de facturación electrónica: en bases sin ellas, pedirlas a
+        # secas dejaba la lista entera vacía.
+        columnas_fe = sql_columnas_fe('cuentas_cobro')
         with get_db_cursor(dict_cursor=True) as cur:
             # Los clientes que aún no han actualizado no tienen las columnas de
             # cobro: se consultan solo si existen, y la lista sale igual que antes.
@@ -406,7 +410,7 @@ def listar_cuentas():
             donde = f"WHERE {sql_filtro(filtro)}" if (cartera_ok and filtro) else ""
             cur.execute(f"""
                 SELECT id, consecutivo, fecha, cliente_nombre, total, pdf_path,
-                       factura_dian_id{extra}
+                       {columnas_fe}{extra}
                 FROM cuentas_cobro {donde} ORDER BY fecha DESC, id DESC
             """)
             cuentas = cur.fetchall()

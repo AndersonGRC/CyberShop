@@ -460,6 +460,15 @@
         cursor: not-allowed;
     }
 
+    /* Estado de la factura electrónica en el comprobante (no se imprime) */
+    .comp-fe {
+        margin: 10px 0 0; padding: 9px 12px; border-radius: 8px;
+        font-size: .86rem; line-height: 1.4; text-align: left;
+    }
+    .comp-fe.ok { background: #e2f5e6; color: #1c5f2c; }
+    .comp-fe.error { background: #fde8e8; color: #7d1515; }
+    @media print { .comp-fe { display: none !important; } }
+
     /* Modal atajos */
     .shortcuts-modal {
         display: none;
@@ -987,9 +996,10 @@
         <div class="comp-efectivo" id="comp-fila-cambio" style="display:none">
             <span><strong>Cambio:</strong></span><span id="comp-cambio"><strong></strong></span>
         </div>
+        <p class="comp-fe" id="comp-fe" role="status" style="display:none"></p>
         <div class="comp-actions">
             <button class="btn-imprimir" onclick="window.print()"><i class="fas fa-print"></i> Imprimir</button>
-            <button class="btn-facturar-dian" id="btn-facturar-dian" onclick="facturarDian()" title="Emitir factura electrónica DIAN"><i class="fas fa-file-invoice"></i> Facturar</button>
+            <button class="btn-facturar-dian" id="btn-facturar-dian" onclick="facturarDian()" title="Volver a intentar la factura electrónica" style="display:none"><i class="fas fa-redo"></i> Reintentar factura</button>
             <button class="btn-nueva-venta" onclick="nuevaVenta()"><i class="fas fa-plus"></i> Nueva Venta</button>
         </div>
     </div>
@@ -2233,12 +2243,24 @@ let ventaIdActual = null;
 
 function mostrarComprobante(data) {
     ventaIdActual = data.venta_id || null;
+    // La factura electrónica la pone en cola el servidor al cobrar; aquí solo se
+    // informa cómo quedó y, si falló, se ofrece reintentar.
+    const fe = data.facturar_electronicamente ? data.factura_electronica : null;
     const btnFacturar = document.getElementById('btn-facturar-dian');
     if (btnFacturar) {
-        btnFacturar.disabled = !data.facturar_electronicamente;
-        btnFacturar.innerHTML = data.facturar_electronicamente
-            ? '<i class="fas fa-file-invoice"></i> Facturar'
-            : '<i class="fas fa-file-invoice"></i> FE no marcada';
+        btnFacturar.style.display = (fe && !fe.ok) ? '' : 'none';
+        btnFacturar.disabled = false;
+        btnFacturar.innerHTML = '<i class="fas fa-redo"></i> Reintentar factura';
+    }
+    const feInfo = document.getElementById('comp-fe');
+    if (feInfo) {
+        feInfo.style.display = fe ? 'block' : 'none';
+        if (fe) {
+            feInfo.className = 'comp-fe ' + (fe.ok ? 'ok' : 'error');
+            feInfo.textContent = fe.ok
+                ? 'Factura electrónica en cola. Sale a la DIAN según tu configuración; puedes revisarla o reversarla en Facturación electrónica → Bandeja.'
+                : 'La factura electrónica no quedó en cola: ' + (fe.mensaje || 'error desconocido.');
+        }
     }
     document.getElementById('comp-numero').textContent = data.numero_venta;
     document.getElementById('comp-fecha').textContent = data.fecha;
@@ -2289,26 +2311,33 @@ function facturarDian() {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
 
     fetch('/admin/pos/' + ventaIdActual + '/facturar', { method: 'POST', headers: { 'X-CSRFToken': CSRF_TOKEN } })
-        .then(r => r.json())
+        .then(r => {
+            if (r.status === 401 || r.status === 403) {
+                return r.json().catch(() => ({})).then(d => ({
+                    success: false,
+                    error: d.error || 'Tu usuario no puede facturar electrónicamente. Pide al administrador que lo haga desde el historial de ventas.'
+                }));
+            }
+            return r.json();
+        })
         .then(data => {
+            const feInfo = document.getElementById('comp-fe');
             if (data.success) {
-                btn.innerHTML = '<i class="fas fa-check"></i> Facturada';
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Factura enviada',
-                    text: 'La factura fue encolada en el sistema DIAN. El CUFE estará disponible en el portal de facturación.',
-                    confirmButtonText: 'Aceptar'
-                });
+                btn.style.display = 'none';
+                if (feInfo) {
+                    feInfo.className = 'comp-fe ok';
+                    feInfo.textContent = 'Factura electrónica en cola. Sale a la DIAN según tu configuración; puedes revisarla o reversarla en Facturación electrónica → Bandeja.';
+                }
             } else {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-file-invoice"></i> Facturar';
-                Swal.fire('Error', data.error || 'No se pudo enviar la factura.', 'error');
+                btn.innerHTML = '<i class="fas fa-redo"></i> Reintentar factura';
+                Swal.fire('No se pudo facturar', data.error || 'No se pudo poner en cola la factura.', 'error');
             }
         })
         .catch(() => {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-file-invoice"></i> Facturar';
-            Swal.fire('Error', 'Error de conexión al enviar la factura.', 'error');
+            btn.innerHTML = '<i class="fas fa-redo"></i> Reintentar factura';
+            Swal.fire('Sin conexión', 'No se pudo comunicar con el servidor. Revisa tu internet e intenta de nuevo.', 'error');
         });
 }
 

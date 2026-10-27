@@ -1,299 +1,386 @@
 {% extends "plantillaapp.html" %}
 
-{% block titulo %}Bandeja de Facturación Electrónica{% endblock %}
+{% block titulo %}Facturación electrónica{% endblock %}
 
 {% block LinkAdicional %}
 <style>
+    /* La plantilla base solo pinta el bloque `body`: con `contenido` esta página
+       salía en blanco. Colores por variables de marca, con respaldo. */
     .fe-wrap { padding: 24px 20px; max-width: 1180px; margin: 0 auto; }
-    .fe-titulo {
-        display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-        margin-bottom: 6px;
-    }
-    .fe-titulo h2 {
-        margin: 0; font-size: 1.5rem;
-        color: var(--color-primario-oscuro, #091C5A);
-    }
-    .fe-sub { color: #666; font-size: .92rem; margin: 0 0 22px; }
+    .fe-titulo { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+    .fe-titulo h1 { margin: 0; font-size: 1.5rem; color: var(--color-primario-oscuro, #091C5A); }
+    .fe-sub { color: #555; font-size: .95rem; margin: 0 0 20px; max-width: 760px; }
 
     .fe-card {
         background: #fff; border-radius: 12px; padding: 22px 24px;
         box-shadow: var(--marca-sombra-card, 0 4px 18px rgba(0,0,0,.08));
         margin-bottom: 22px;
     }
-    .fe-card h3 {
-        margin: 0 0 4px; font-size: 1.05rem;
-        color: var(--color-primario, #122C94);
-    }
-    .fe-card .fe-ayuda { color: #777; font-size: .86rem; margin: 0 0 18px; }
+    .fe-card h2 { margin: 0 0 4px; font-size: 1.08rem; color: var(--color-primario, #122C94); }
+    .fe-card .fe-ayuda { color: #555; font-size: .9rem; margin: 0 0 16px; }
 
-    /* ── Política de envío ── */
+    /* ── Conexión ── */
+    .fe-conexion { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+    .fe-conexion .fe-icono {
+        width: 44px; height: 44px; border-radius: 50%; flex: none;
+        display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
+    }
+    .fe-conexion.ok .fe-icono { background: #e2f5e6; color: #1c7a33; }
+    .fe-conexion.mal .fe-icono { background: #fde8e8; color: #a01b1b; }
+    .fe-conexion .fe-texto { flex: 1; min-width: 240px; }
+    .fe-conexion .fe-texto p { margin: 2px 0; color: #333; font-size: .93rem; }
+    .fe-conexion .fe-texto strong.fe-grande { font-size: 1.02rem; color: #111; }
+    .fe-dato { color: #555; }
+    .fe-ambiente {
+        display: inline-block; margin-top: 8px; padding: 5px 12px; border-radius: 16px;
+        font-size: .82rem; font-weight: 700;
+    }
+    .fe-ambiente.pruebas { background: #fff4d6; color: #6b4b00; }
+    .fe-ambiente.produccion { background: #e2ecff; color: #173f8a; }
+
+    .fe-pasos { margin: 0; padding-left: 20px; color: #333; font-size: .92rem; line-height: 1.6; }
+
+    /* ── Cuándo sale a la DIAN ── */
+    .fe-opciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
     .fe-opcion {
-        display: block; border: 1px solid #e4e4e4; border-radius: 8px;
-        padding: 12px 14px; margin-bottom: 10px; cursor: pointer;
+        display: flex; gap: 10px; align-items: flex-start;
+        border: 1px solid #ddd; border-radius: 8px; padding: 12px 14px; cursor: pointer;
         transition: border-color .15s, background .15s;
     }
     .fe-opcion:hover { border-color: var(--marca-tinte-medio, #c7d0ef); }
-    .fe-opcion input { margin-right: 8px; }
-    .fe-opcion.activa {
-        border-color: var(--color-primario, #122C94);
-        background: var(--marca-tinte-leve, #eef1fb);
+    .fe-opcion input { margin-top: 3px; accent-color: var(--color-primario, #122C94); }
+    .fe-opcion:has(input:checked) {
+        border-color: var(--color-primario, #122C94); background: var(--marca-tinte-leve, #eef1fb);
     }
-    .fe-opcion b { color: var(--color-primario-oscuro, #091C5A); }
-    .fe-opcion span { display: block; color: #666; font-size: .85rem; margin-top: 3px; }
-
-    .fe-grace { margin: 14px 0 18px; }
-    .fe-grace label { font-weight: 600; font-size: .9rem; color: #444; }
-    .fe-grace input {
-        width: 110px; padding: 8px 10px; margin-left: 10px;
-        border: 1px solid #d5d5d5; border-radius: 6px;
+    .fe-opcion b { color: var(--color-primario-oscuro, #091C5A); display: block; }
+    .fe-opcion span { color: #555; font-size: .85rem; }
+    .fe-opcion input:focus-visible { outline: 3px solid var(--marca-focus-ring, rgba(18,44,148,.35)); }
+    .fe-legal {
+        margin: 16px 0; padding: 12px 16px; border-radius: 8px; font-size: .88rem; line-height: 1.5;
+        background: #fff8e6; color: #5c4300; border-left: 4px solid #e0a800;
     }
-    .fe-grace input:focus {
-        outline: none; border-color: var(--color-primario, #122C94);
-        box-shadow: 0 0 0 3px var(--marca-focus-ring, rgba(18,44,148,.15));
-    }
-    .fe-grace small { display: block; color: #888; margin-top: 6px; font-size: .82rem; }
 
     .fe-btn {
-        padding: 10px 22px; border: none; border-radius: 6px; cursor: pointer;
-        background: var(--color-primario, #122C94); color: #fff; font-weight: 600;
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; text-decoration: none;
+        background: var(--color-primario, #122C94); color: #fff; font-weight: 600; font-size: .92rem;
     }
-    .fe-btn:hover { background: var(--color-primario-oscuro, #091C5A); }
+    .fe-btn:hover { background: var(--color-primario-oscuro, #091C5A); color: #fff; }
+    .fe-btn:focus-visible { outline: 3px solid var(--marca-focus-ring, rgba(18,44,148,.35)); outline-offset: 2px; }
+    .fe-btn.secundario {
+        background: #fff; color: var(--color-primario, #122C94);
+        border: 1px solid var(--color-primario, #122C94);
+    }
+    .fe-btn.secundario:hover { background: var(--marca-tinte-leve, #eef1fb); }
 
     /* ── Filtros ── */
     .fe-filtros { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
     .fe-filtro {
-        padding: 6px 14px; border-radius: 20px; text-decoration: none;
-        font-size: .85rem; font-weight: 600; border: 1px solid #e0e0e0; color: #555;
-        background: #fff;
+        padding: 7px 14px; border-radius: 20px; text-decoration: none;
+        font-size: .86rem; font-weight: 600; border: 1px solid #d5d5d5; color: #444; background: #fff;
     }
-    .fe-filtro.activo {
-        background: var(--color-primario, #122C94); color: #fff;
-        border-color: var(--color-primario, #122C94);
-    }
+    .fe-filtro:hover { border-color: var(--color-primario, #122C94); }
+    .fe-filtro.activo { background: var(--color-primario, #122C94); color: #fff; border-color: var(--color-primario, #122C94); }
 
-    /* ── Tabla ── */
+    /* ── Documentos ── */
     .fe-tabla-wrap { overflow-x: auto; }
-    table.fe-tabla { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    table.fe-tabla { width: 100%; border-collapse: collapse; font-size: .92rem; }
     table.fe-tabla th {
-        text-align: left; padding: 11px 12px; font-size: .78rem;
-        text-transform: uppercase; letter-spacing: .03em; color: #fff;
-        background: var(--color-primario, #122C94); white-space: nowrap;
+        text-align: left; padding: 11px 12px; font-size: .8rem; color: #fff; white-space: nowrap;
+        background: var(--color-primario, #122C94);
     }
-    table.fe-tabla td {
-        padding: 11px 12px; border-bottom: 1px solid #eee; vertical-align: middle;
-    }
+    table.fe-tabla td { padding: 12px; border-bottom: 1px solid #eee; vertical-align: middle; }
     table.fe-tabla tr:hover td { background: #fafbff; }
 
-    .fe-badge {
-        display: inline-block; padding: 3px 10px; border-radius: 12px;
-        font-size: .75rem; font-weight: 700; white-space: nowrap;
+    .fe-estado {
+        display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 14px;
+        font-size: .8rem; font-weight: 700; white-space: nowrap;
     }
-    .fe-badge.PENDIENTE  { background: #fff4d6; color: #8a6100; }
-    .fe-badge.PROCESANDO { background: #e2ecff; color: #1d4ea8; }
-    .fe-badge.ACEPTADA   { background: #e2f5e6; color: #1c7a33; }
-    .fe-badge.RECHAZADA,
-    .fe-badge.ERROR      { background: #fde8e8; color: #a01b1b; }
-    .fe-badge.CANCELADA  { background: #eee; color: #666; }
+    .fe-estado.PENDIENTE  { background: #fff4d6; color: #6b4b00; }
+    .fe-estado.PROCESANDO { background: #e2ecff; color: #173f8a; }
+    .fe-estado.ACEPTADA   { background: #e2f5e6; color: #1c5f2c; }
+    .fe-estado.RECHAZADA,
+    .fe-estado.ERROR      { background: #fde8e8; color: #7d1515; }
+    .fe-estado.CANCELADA  { background: #eee; color: #555; }
+    .fe-motivo { display: block; color: #7d1515; font-size: .82rem; margin-top: 5px; max-width: 340px; }
+    .fe-origen { font-weight: 600; color: #222; }
+    .fe-ref { color: #666; font-size: .83rem; }
+    .fe-sigue { font-size: .86rem; color: #333; }
+    .fe-cuenta { font-weight: 700; color: #6b4b00; white-space: nowrap; }
 
-    .fe-cuenta { font-weight: 700; color: #8a6100; white-space: nowrap; }
-    .fe-cuenta.vencido { color: #1d4ea8; }
-    .fe-aprobacion { font-weight: 700; color: #a01b1b; white-space: nowrap; }
-    .fe-motivo {
-        display: block; color: #a01b1b; font-size: .8rem; margin-top: 4px;
-        max-width: 320px;
+    .fe-acciones { display: flex; gap: 6px; flex-wrap: wrap; }
+    .fe-acciones form { margin: 0; }
+    .fe-accion {
+        display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 6px;
+        font-size: .82rem; font-weight: 600; cursor: pointer; white-space: nowrap; text-decoration: none;
+        border: 1px solid var(--color-primario, #122C94); background: #fff; color: var(--color-primario, #122C94);
     }
-    .fe-ref { color: #666; font-size: .82rem; }
-
-    .fe-btn-rev {
-        padding: 6px 14px; border: 1px solid var(--color-eliminar, #c0392b);
+    .fe-accion:hover { background: var(--marca-tinte-leve, #eef1fb); }
+    .fe-accion.enviar { background: var(--color-primario, #122C94); color: #fff; }
+    .fe-accion.enviar:hover { background: var(--color-primario-oscuro, #091C5A); }
+    .fe-accion.reversar {
+        border-color: var(--color-eliminar, #c0392b); color: var(--color-eliminar, #c0392b);
         background: var(--color-peligro-tinte, #ffebee);
-        color: var(--color-eliminar, #c0392b);
-        border-radius: 6px; font-size: .82rem; font-weight: 600; cursor: pointer;
-        white-space: nowrap;
     }
-    .fe-btn-rev:hover { background: var(--color-peligro-tinte-hover, #ffcdd2); }
-    .fe-no-rev { color: #aaa; font-size: .82rem; }
+    .fe-accion:focus-visible { outline: 3px solid var(--marca-focus-ring, rgba(18,44,148,.35)); outline-offset: 1px; }
+    .fe-nada { color: #888; font-size: .84rem; }
 
     .fe-aviso {
-        padding: 12px 16px; border-radius: 8px; font-size: .88rem;
-        margin-bottom: 18px; border-left: 4px solid;
+        padding: 12px 16px; border-radius: 8px; font-size: .9rem; margin-bottom: 18px; border-left: 4px solid;
     }
     .fe-aviso.error  { background: #fde8e8; color: #7d1515; border-color: #c0392b; }
-    .fe-aviso.manual { background: #fff4d6; color: #6b4b00; border-color: #e0a800; }
-    .fe-vacio { text-align: center; padding: 42px 20px; color: #999; }
-    .fe-vacio i { font-size: 2.4rem; display: block; margin-bottom: 12px; color: #ccc; }
+    .fe-aviso.manual { background: #fff4d6; color: #5c4300; border-color: #e0a800; }
+    .fe-vacio { text-align: center; padding: 40px 20px; color: #666; }
+    .fe-vacio i { font-size: 2.2rem; display: block; margin-bottom: 12px; color: #bbb; }
 
-    @media (max-width: 640px) {
+    @media (max-width: 760px) {
         .fe-wrap { padding: 16px 12px; }
         .fe-card { padding: 18px 15px; }
-        table.fe-tabla { font-size: .84rem; }
+        /* En el celular cada documento es una tarjeta: nada se sale de la pantalla. */
+        table.fe-tabla thead { display: none; }
+        table.fe-tabla, table.fe-tabla tbody, table.fe-tabla tr, table.fe-tabla td { display: block; width: 100%; }
+        table.fe-tabla tr { border: 1px solid #e6e6e6; border-radius: 10px; margin-bottom: 12px; padding: 6px 4px; }
+        table.fe-tabla td { border: none; padding: 6px 10px; }
+        table.fe-tabla td[data-label]::before {
+            content: attr(data-label); display: block; font-size: .74rem; color: #777; font-weight: 600;
+        }
     }
 </style>
 {% endblock %}
 
-{% block contenido %}
+{% block body %}
+{% set origenes = [('COT-', 'Cotización'), ('POS-', 'Venta en el POS'), ('MESA-', 'Mesa (restaurante)'),
+                   ('REST-', 'Mesa (restaurante)'), ('CC-', 'Cuenta de cobro')] %}
 <div class="fe-wrap">
 
     <div class="fe-titulo">
-        <h2><i class="fas fa-file-invoice-dollar"></i>&nbsp; Facturación Electrónica</h2>
-        <a href="{{ url_for('admin.facturacion_dian') }}" class="fe-filtro">
-            <i class="fas fa-external-link-alt"></i>&nbsp; Abrir portal tributario
-        </a>
+        <h1><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i>&nbsp; Facturación electrónica</h1>
     </div>
     <p class="fe-sub">
-        Documentos camino a la DIAN. Mientras un documento no haya salido puedes
-        <strong>reversarlo</strong> desde aquí.
+        Aquí ves cada factura electrónica de tu negocio: las que esperan en la cola, las que ya
+        llegaron a la DIAN y las que reversaste. Nada sale a la DIAN sin pasar por esta cola.
     </p>
 
-    {% if error_politica or error_listado %}
-    <div class="fe-aviso error">
-        <i class="fas fa-exclamation-triangle"></i>&nbsp;
-        No se pudo hablar con el servicio de facturación:
-        {{ error_politica or error_listado }}
-    </div>
-    {% endif %}
+    <!-- ── Conexión con el portal tributario ───────────────────────────── -->
+    <section class="fe-card" aria-labelledby="fe-t-conexion">
+        <h2 id="fe-t-conexion">Conexión con la DIAN</h2>
+        {% if conexion.ok %}
+        <div class="fe-conexion ok">
+            <div class="fe-icono" aria-hidden="true"><i class="fas fa-check"></i></div>
+            <div class="fe-texto">
+                <p><strong class="fe-grande">Conectado con el portal tributario.</strong></p>
+                {% if not conexion.sin_detalle %}
+                <p>Tus facturas salen a nombre de <strong>{{ conexion.razon_social or conexion.nombre }}</strong>
+                   <span class="fe-dato">· NIT {{ conexion.nit }}{% if conexion.dv is not none %}-{{ conexion.dv }}{% endif %}</span></p>
+                {% if conexion.prefijo %}
+                <p class="fe-dato">Numeración autorizada: prefijo <strong>{{ conexion.prefijo }}</strong>
+                   {% if conexion.resolucion %}· resolución {{ conexion.resolucion }}{% endif %}
+                   {% if conexion.vigencia_hasta %}· vigente hasta {{ conexion.vigencia_hasta[:10] }}{% endif %}</p>
+                {% endif %}
+                {% if conexion.ambiente == 'produccion' %}
+                <span class="fe-ambiente produccion"><i class="fas fa-shield-alt" aria-hidden="true"></i> Producción: tus facturas son reales ante la DIAN</span>
+                {% else %}
+                <span class="fe-ambiente pruebas"><i class="fas fa-flask" aria-hidden="true"></i> Modo de pruebas: lo que emitas no tiene validez fiscal</span>
+                {% endif %}
+                {% if conexion.listo_para_emitir is defined and not conexion.listo_para_emitir %}
+                <p class="fe-motivo" style="max-width:none">Falta completar la configuración tributaria
+                   (certificado, numeración o clave técnica). Hasta entonces los documentos quedarán con error.
+                   Avisa a soporte CyberShop.</p>
+                {% endif %}
+                {% endif %}
+                {% if conexion.portal_activo is not defined or conexion.portal_activo %}
+                <p style="margin-top:12px">
+                    <a href="{{ url_for('admin.facturacion_dian') }}" class="fe-btn secundario">
+                        <i class="fas fa-external-link-alt" aria-hidden="true"></i> Abrir mi portal tributario
+                    </a>
+                </p>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="fe-conexion mal" role="alert">
+            <div class="fe-icono" aria-hidden="true"><i class="fas fa-plug"></i></div>
+            <div class="fe-texto">
+                <p><strong class="fe-grande">No hay conexión con el portal tributario.</strong></p>
+                <p>{{ conexion.error }}</p>
+                <p class="fe-dato">Mientras tanto, tus ventas se guardan normalmente; solo la factura electrónica queda sin enviar.</p>
+            </div>
+        </div>
+        {% endif %}
+    </section>
 
-    <!-- ── Política de envío ─────────────────────────────────────────── -->
+    {% if conexion.ok %}
+    <!-- ── Cómo funciona ─────────────────────────────────────────────────── -->
+    <section class="fe-card" aria-labelledby="fe-t-como">
+        <h2 id="fe-t-como">Cómo funciona</h2>
+        <ol class="fe-pasos">
+            <li>Cuando facturas una venta (POS, mesa, cotización aprobada o cuenta de cobro), la factura entra a esta cola.</li>
+            <li>Sale a la DIAN según la opción que elijas abajo: sola después de una espera, o solo cuando tú la envíes.</li>
+            <li>Mientras esté en la cola puedes <strong>Enviarla ya</strong> o <strong>Reversarla</strong> (no se envía y puedes volver a facturar la venta).</li>
+            <li>Si la DIAN la acepta, aquí mismo puedes ver su <strong>PDF</strong>.</li>
+        </ol>
+    </section>
+
+    <!-- ── Cuándo sale a la DIAN ─────────────────────────────────────────── -->
     {% if politica %}
     {% set modo = politica.modo_aprobacion or 'automatico' %}
-    <div class="fe-card">
-        <h3><i class="fas fa-sliders-h"></i>&nbsp; Cuándo se envía a la DIAN</h3>
-        <p class="fe-ayuda">
-            Define si los documentos salen solos y cuánto tiempo tienes para reversarlos.
-        </p>
+    {% set espera = politica.grace_minutos %}
+    <section class="fe-card" aria-labelledby="fe-t-envio">
+        <h2 id="fe-t-envio">¿Cuándo sale cada factura a la DIAN?</h2>
+        <p class="fe-ayuda">Elige una opción y guarda. Aplica a las facturas nuevas.</p>
 
         {% if modo == 'manual' %}
-        <div class="fe-aviso manual">
-            <i class="fas fa-hand-paper"></i>&nbsp;
-            <strong>Modo manual activo:</strong> ningún documento sale a la DIAN sin que
-            tú lo apruebes. Se acumulan en la bandeja esperando tu visto bueno.
+        <div class="fe-aviso manual" role="status">
+            <i class="fas fa-hand-paper" aria-hidden="true"></i>&nbsp;
+            <strong>Ahora mismo nada sale solo:</strong> cada factura espera a que tú pulses «Enviar ya».
         </div>
         {% endif %}
 
         <form method="POST" action="{{ url_for('admin.facturacion_politica') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <fieldset style="border:0;padding:0;margin:0">
+                <legend class="sr-only" style="position:absolute;left:-9999px">Momento de envío a la DIAN</legend>
+                <div class="fe-opciones">
+                    <label class="fe-opcion">
+                        <input type="radio" name="envio" value="manual" {% if modo == 'manual' %}checked{% endif %}>
+                        <div><b>Solo cuando yo la envíe</b><span>Nada sale sin que pulses «Enviar ya».</span></div>
+                    </label>
+                    {% for minutos, texto in esperas %}
+                    <label class="fe-opcion">
+                        <input type="radio" name="envio" value="{{ minutos }}"
+                               {% if modo != 'manual' and espera == minutos %}checked{% endif %}>
+                        <div><b>{{ texto }}</b><span>Sale sola; antes puedes reversarla.</span></div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </fieldset>
 
-            <label class="fe-opcion {% if modo == 'manual' %}activa{% endif %}">
-                <input type="radio" name="modo_aprobacion" value="manual"
-                       {% if modo == 'manual' %}checked{% endif %}>
-                <b>Manual — nada sale sin mi aprobación</b>
-                <span>Cada documento espera tu visto bueno. Tú decides cuáles aprobar o reversar.</span>
-            </label>
+            {% if modo != 'manual' and espera not in esperas|map('first')|list %}
+            <p class="fe-ayuda" style="margin-top:12px">Tu espera actual es de {{ espera }} minutos (una opción anterior). Elige una de la lista para cambiarla.</p>
+            {% endif %}
 
-            <label class="fe-opcion {% if modo != 'manual' %}activa{% endif %}">
-                <input type="radio" name="modo_aprobacion" value="automatico"
-                       {% if modo != 'manual' %}checked{% endif %}>
-                <b>Automático con espera</b>
-                <span>Salen solos al vencer la espera. Durante ese tiempo puedes reversarlos.</span>
-            </label>
-
-            <div class="fe-grace">
-                <label for="grace_minutos">Espera antes del envío:</label>
-                <input type="number" id="grace_minutos" name="grace_minutos" min="0" max="10080"
-                       value="{{ politica.grace_minutos if politica.grace_minutos is not none else 60 }}">
-                <small>
-                    Minutos. Es la ventana para reversar: 60 = 1 hora, 1440 = 1 día, 10080 = 1 semana.
-                    Solo aplica en modo automático.
-                </small>
+            <div class="fe-legal">
+                <i class="fas fa-balance-scale" aria-hidden="true"></i>&nbsp;
+                <strong>Ten en cuenta:</strong> la DIAN exige expedir la factura al momento de la venta. La espera sirve
+                para revisar y reversar errores antes de que salga. Si eliges varios días, la factura saldrá con la fecha
+                del día en que se envía. Cuando una factura ya llegó a la DIAN, se corrige con una nota crédito.
+                Antes de usar esperas largas, consúltalo con tu contador.
             </div>
 
-            <button type="submit" class="fe-btn">
-                <i class="fas fa-save"></i>&nbsp; Guardar política
-            </button>
+            <button type="submit" class="fe-btn"><i class="fas fa-save" aria-hidden="true"></i> Guardar</button>
         </form>
-    </div>
+    </section>
+    {% elif error_politica %}
+    <div class="fe-aviso error" role="alert"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i>&nbsp; No se pudo leer cuándo salen tus facturas: {{ error_politica }}</div>
     {% endif %}
 
-    <!-- ── Bandeja ───────────────────────────────────────────────────── -->
-    <div class="fe-card">
-        <h3><i class="fas fa-inbox"></i>&nbsp; Documentos</h3>
-        <p class="fe-ayuda">Los más recientes primero (hasta 100).</p>
+    <!-- ── Documentos ────────────────────────────────────────────────────── -->
+    <section class="fe-card" aria-labelledby="fe-t-docs">
+        <h2 id="fe-t-docs">Mis facturas electrónicas</h2>
+        <p class="fe-ayuda">Las más recientes primero (hasta 100).</p>
 
-        <div class="fe-filtros">
-            {% set filtros = [('', 'Todos'), ('PENDIENTE', 'Por salir'),
-                              ('ACEPTADA', 'Aceptadas'), ('RECHAZADA', 'Rechazadas'),
-                              ('ERROR', 'Con error'), ('CANCELADA', 'Reversadas')] %}
+        <nav class="fe-filtros" aria-label="Filtrar por estado">
+            {% set filtros = [('', 'Todas'), ('PENDIENTE', 'En cola'), ('ACEPTADA', 'Aceptadas'),
+                              ('RECHAZADA', 'Rechazadas'), ('ERROR', 'Con error'), ('CANCELADA', 'Reversadas')] %}
             {% for valor, etiqueta in filtros %}
             <a class="fe-filtro {% if estado_filtro == valor %}activo{% endif %}"
-               href="{{ url_for('admin.facturacion_bandeja') }}{% if valor %}?estado={{ valor }}{% endif %}">
-                {{ etiqueta }}
-            </a>
+               {% if estado_filtro == valor %}aria-current="page"{% endif %}
+               href="{{ url_for('admin.facturacion_bandeja') }}{% if valor %}?estado={{ valor }}{% endif %}">{{ etiqueta }}</a>
             {% endfor %}
-        </div>
+        </nav>
 
-        {% if documentos %}
+        {% if error_listado %}
+        <div class="fe-aviso error" role="alert"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i>&nbsp; No se pudo traer la lista: {{ error_listado }}</div>
+        {% elif documentos %}
         <div class="fe-tabla-wrap">
             <table class="fe-tabla">
                 <thead>
                     <tr>
-                        <th>Estado</th>
-                        <th>Número</th>
-                        <th>Origen</th>
-                        <th>Creado</th>
-                        <th>Sale en</th>
-                        <th>Acción</th>
+                        <th scope="col">Estado</th>
+                        <th scope="col">Venta</th>
+                        <th scope="col">Factura No.</th>
+                        <th scope="col">Creada</th>
+                        <th scope="col">Qué sigue</th>
+                        <th scope="col">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                 {% for d in documentos %}
+                    {% set ref = d.referencia_pedido or '' %}
+                    {% set ns = namespace(origen='Pedido en línea') %}
+                    {% for prefijo, nombre in origenes %}{% if ref.startswith(prefijo) %}{% set ns.origen = nombre %}{% endif %}{% endfor %}
                     <tr>
-                        <td>
-                            <span class="fe-badge {{ d.estado }}">{{ d.estado }}</span>
-                            {% if d.error_mensaje %}
-                            <span class="fe-motivo" title="{{ d.error_mensaje }}">
-                                {{ d.error_mensaje[:120] }}{% if d.error_mensaje|length > 120 %}…{% endif %}
-                            </span>
+                        <td data-label="Estado">
+                            <span class="fe-estado {{ d.estado }}">{{ estados_fe.get(d.estado, d.estado) }}</span>
+                            {% if d.error_mensaje and d.estado in ('RECHAZADA', 'ERROR') %}
+                            <span class="fe-motivo" title="{{ d.error_mensaje }}">{{ d.error_mensaje[:160] }}{% if d.error_mensaje|length > 160 %}…{% endif %}</span>
                             {% endif %}
                         </td>
-                        <td>{{ d.numero_factura or '—' }}</td>
-                        <td class="fe-ref">{{ d.referencia_pedido or '—' }}</td>
-                        <td class="fe-ref">{{ (d.creado_en or '')[:16]|replace('T', ' ') }}</td>
-                        <td>
+                        <td data-label="Venta"><span class="fe-origen">{{ ns.origen }}</span><br><span class="fe-ref">{{ ref or '—' }}</span></td>
+                        <td data-label="Factura No.">{{ d.numero_factura or 'Se asigna al enviar' }}</td>
+                        <td data-label="Creada" class="fe-ref">{{ (d.creado_en or '')[:16]|replace('T', ' ') }}</td>
+                        <td data-label="Qué sigue" class="fe-sigue">
                             {% if d.estado == 'PENDIENTE' and d.requiere_aprobacion %}
-                                <span class="fe-aprobacion">
-                                    <i class="fas fa-hand-paper"></i> Espera tu aprobación
-                                </span>
+                                Espera que la envíes
                             {% elif d.estado == 'PENDIENTE' and d.procesar_en %}
-                                <span class="fe-cuenta" data-sale-en="{{ d.procesar_en }}">…</span>
-                            {% else %}
-                                <span class="fe-no-rev">—</span>
-                            {% endif %}
+                                Sale sola en <span class="fe-cuenta" data-sale-en="{{ d.procesar_en }}">…</span>
+                            {% elif d.estado == 'PROCESANDO' %}
+                                La DIAN la está revisando
+                            {% elif d.estado == 'ACEPTADA' %}
+                                Lista. Si hay que corregirla: nota crédito
+                            {% elif d.estado == 'RECHAZADA' %}
+                                Corrige los datos de la venta y vuelve a facturarla
+                            {% elif d.estado == 'ERROR' %}
+                                Se reintenta sola; si sigue, avisa a soporte
+                            {% elif d.estado == 'CANCELADA' %}
+                                No se envió. Puedes volver a facturar la venta
+                            {% else %}—{% endif %}
                         </td>
-                        <td>
-                            {% if d.cancelable %}
-                            <form method="POST" style="margin:0"
-                                  action="{{ url_for('admin.facturacion_reversar', factura_id=d.id) }}"
-                                  onsubmit="return confirm('¿Reversar este documento? No se enviará a la DIAN.')">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="fe-btn-rev">
-                                    <i class="fas fa-undo"></i>&nbsp; Reversar
-                                </button>
-                            </form>
-                            {% else %}
-                            <span class="fe-no-rev">
-                                {% if d.estado == 'ACEPTADA' %}Ya en la DIAN{% else %}No reversable{% endif %}
-                            </span>
+                        <td data-label="Acciones">
+                            <div class="fe-acciones">
+                            {% if d.estado == 'PENDIENTE' %}
+                                <form method="POST" action="{{ url_for('admin.facturacion_enviar_ya', factura_id=d.id) }}"
+                                      onsubmit="return confirm('¿Enviar ya esta factura a la DIAN? Después de enviarla ya no se puede reversar.')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="fe-accion enviar"><i class="fas fa-paper-plane" aria-hidden="true"></i> Enviar ya</button>
+                                </form>
                             {% endif %}
+                            {% if d.cancelable %}
+                                <form method="POST" action="{{ url_for('admin.facturacion_reversar', factura_id=d.id) }}"
+                                      onsubmit="return confirm('¿Reversar esta factura? No se enviará a la DIAN y podrás volver a facturar la venta.')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="fe-accion reversar"><i class="fas fa-undo" aria-hidden="true"></i> Reversar</button>
+                                </form>
+                            {% endif %}
+                            {% if d.estado == 'ACEPTADA' %}
+                                <a class="fe-accion" target="_blank" rel="noopener"
+                                   href="{{ url_for('admin.facturacion_pdf', factura_id=d.id) }}"><i class="fas fa-file-pdf" aria-hidden="true"></i> Ver PDF</a>
+                            {% endif %}
+                            {% if d.estado not in ('PENDIENTE', 'ACEPTADA') and not d.cancelable %}
+                                <span class="fe-nada">—</span>
+                            {% endif %}
+                            </div>
                         </td>
                     </tr>
                 {% endfor %}
                 </tbody>
             </table>
         </div>
-        {% elif not error_listado %}
+        {% else %}
         <div class="fe-vacio">
-            <i class="fas fa-inbox"></i>
-            No hay documentos{% if estado_filtro %} en este estado{% endif %}.
+            <i class="fas fa-inbox" aria-hidden="true"></i>
+            {% if estado_filtro %}No hay facturas en este estado.{% else %}Todavía no hay facturas electrónicas. Cuando factures una venta, aparecerá aquí.{% endif %}
         </div>
         {% endif %}
-    </div>
+    </section>
+    {% endif %}
 </div>
 
 <script>
-/* Cuenta atrás de los documentos que salen solos. El servidor manda la hora de
+/* Cuenta atrás de las facturas que salen solas. El servidor manda la hora de
    envío en ISO; el navegador la compara con su reloj, así que no hace falta
-   recargar para ver cuánto queda. Los que esperan aprobación no llevan cuenta:
-   no salen nunca por sí solos. */
+   recargar para ver cuánto queda. Las que esperan aprobación no llevan cuenta:
+   no salen nunca por sí solas. */
 (function () {
     var marcas = document.querySelectorAll('[data-sale-en]');
     if (!marcas.length) return;
@@ -304,18 +391,14 @@
             var destino = new Date(el.getAttribute('data-sale-en')).getTime();
             if (isNaN(destino)) { el.textContent = '—'; return; }
             var resta = Math.floor((destino - ahora) / 1000);
-            if (resta <= 0) {
-                el.textContent = 'Enviando…';
-                el.classList.add('vencido');
-                return;
-            }
+            if (resta <= 0) { el.textContent = 'unos minutos'; return; }
             var d = Math.floor(resta / 86400),
                 h = Math.floor((resta % 86400) / 3600),
                 m = Math.floor((resta % 3600) / 60),
                 s = resta % 60;
-            el.textContent = d ? (d + 'd ' + h + 'h')
-                           : h ? (h + 'h ' + m + 'm')
-                               : (m + 'm ' + s + 's');
+            el.textContent = d ? (d + ' d ' + h + ' h')
+                           : h ? (h + ' h ' + m + ' min')
+                               : (m + ' min ' + s + ' s');
         });
     }
 

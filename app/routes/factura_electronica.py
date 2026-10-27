@@ -23,6 +23,8 @@ Variables de entorno requeridas en .cybershop.conf:
 
 import os
 import logging
+from pathlib import Path
+
 import requests
 from database import get_db_cursor
 from tenant_features import MODULE_FACTURACION_ELECTRONICA, is_module_active
@@ -88,6 +90,48 @@ def _table_has_column(table_name: str, column_name: str) -> bool:
             return cur.fetchone() is not None
     except Exception:
         return False
+
+
+def _tipo_columna(table_name: str, column_name: str) -> str | None:
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("""
+                SELECT data_type
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = %s
+                  AND column_name = %s
+                LIMIT 1
+            """, (table_name, column_name))
+            fila = cur.fetchone()
+            return fila['data_type'] if fila else None
+    except Exception:
+        return None
+
+
+def columna_fe(tabla: str) -> str | None:
+    """Columna donde `tabla` guarda el id (UUID) de su documento DIAN, o None.
+
+    Las bases nuevas no la traían en cotizaciones, cuentas de cobro ni mesas, y
+    algunas heredadas la tienen como número (no cabe un UUID): ahí la migración
+    0026 agrega `factura_dian_uuid` en vez de cambiar el tipo de la existente.
+    """
+    if _tipo_columna(tabla, 'factura_dian_id') in ('uuid', 'text', 'character varying'):
+        return 'factura_dian_id'
+    if _table_has_column(tabla, 'factura_dian_uuid'):
+        return 'factura_dian_uuid'
+    return None
+
+
+def sql_columnas_fe(tabla: str) -> str:
+    """Fragmento de SELECT con `facturar_electronicamente` y `factura_dian_id`
+    que nunca falla: si una columna no existe en esta base, sale NULL/FALSE.
+    Antes, sin ellas, la lista completa de cotizaciones o cuentas salía vacía."""
+    marca = ("COALESCE(facturar_electronicamente, FALSE) AS facturar_electronicamente"
+             if _table_has_column(tabla, 'facturar_electronicamente')
+             else "FALSE AS facturar_electronicamente")
+    col = columna_fe(tabla)
+    return f"{marca}, {col + '::text' if col else 'NULL'} AS factura_dian_id"
 
 
 def facturacion_habilitada() -> bool:
@@ -182,7 +226,9 @@ def _email_adquiriente(email_crudo) -> str:
     """Correo del comprador con respaldo. La DIAN rechaza la factura si va vacío.
 
     Cae al correo de contacto del negocio cuando la venta no capturó uno (típico
-    en mostrador), y solo como último recurso a un genérico.
+    en mostrador). Sin ninguno va vacío y el portal pide el correo del cliente:
+    antes se ponía 'facturacion@empresa.co', un dominio ajeno que recibiría la
+    factura de un desconocido si algún día se envía por correo.
     """
     email = str(email_crudo or '').strip()
     if '@' in email:
@@ -192,7 +238,7 @@ def _email_adquiriente(email_crudo) -> str:
         email = (get_public_contact_destination_email() or '').strip()
     except Exception:
         email = ''
-    return email if '@' in email else 'facturacion@empresa.co'
+    return email if '@' in email else ''
 
 
 def _documento_adquiriente(documento_crudo) -> str:
@@ -219,8 +265,7 @@ def construir_json_generico(pedido_id: int) -> dict | None:
                       p.direccion_envio,
                       p.ciudad,
                       p.metodo_pago,
-                      p.monto_total,
-                      p.factura_dian_id
+                      p.monto_total
                FROM pedidos p
                WHERE p.id = %s""",
             (pedido_id,)
@@ -371,197 +416,166 @@ def construir_json_pos(venta_id: int) -> dict | None:
     }
 
 
-def emitir_factura_electronica(pedido_id: int) -> dict:
+# ── Conexión con el portal tributario ───────────────────────────────────────
+
+# Tablas de CyberShop que guardan el documento DIAN de su venta (factura_dian_id).
+TABLAS_FE = ('pedidos', 'ventas_pos', 'restaurant_table_orders', 'cuentas_cobro', 'cotizaciones')
+
+# Un documento reversado o rechazado no bloquea volver a facturar la misma venta.
+ESTADOS_REEMITIBLES = ('CANCELADA', 'RECHAZADA')
+MAX_REEMISIONES = 9
+
+
+def _llave_compartida() -> str:
+    """DIAN_API_KEY del .cybershop.conf compartido (la de la tienda operadora).
+
+    Cada instancia lee ese archivo y solo lo sobrescribe con su propio env, así
+    que una tienda sin llave propia HEREDA la de CyberShop. Saberlo evita que
+    facture a nombre de otro negocio.
     """
-    Envía la factura del pedido al microservicio DIAN.
+    try:
+        from dotenv import dotenv_values
+        ruta = Path(__file__).resolve().parent.parent / '.cybershop.conf'
+        return str(dotenv_values(ruta).get('DIAN_API_KEY') or '').strip()
+    except Exception:
+        return ''
 
-    El microservicio responde 202 INMEDIATAMENTE con estado PENDIENTE.
-    El procesamiento real (XML + firma + DIAN) ocurre en background.
 
-    Es idempotente: si el pedido ya tiene factura_dian_id asignado, retorna
-    el id existente sin reenviar.
+def _es_tienda_operadora() -> bool:
+    """La tienda dueña del .cybershop.conf (la que vende el Software CyberShop)."""
+    try:
+        from services.public_site_service import is_public_section_enabled
+        return bool(is_public_section_enabled('mostrar_modulo_software', False))
+    except Exception:
+        return False
 
-    Returns:
-        Dict con {"id": "uuid", "estado": "PENDIENTE"} o {"error": ...}
-    """
+
+def estado_conexion_local():
+    """(ok, motivo) sin salir a la red: ¿esta tienda puede hablar con el portal?"""
     if not DIAN_API_KEY:
-        logger.warning("DIAN_API_KEY no configurada — facturación electrónica desactivada")
-        return {"error": "Facturación electrónica no configurada"}
-
-    # Guard idempotente: no reenviar si ya tiene factura
-    try:
-        with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute(
-                "SELECT factura_dian_id FROM pedidos WHERE id = %s", (pedido_id,)
-            )
-            row = cur.fetchone()
-            if row and row['factura_dian_id']:
-                logger.info(f"Pedido {pedido_id} ya tiene factura {row['factura_dian_id']}, se omite reenvío")
-                return {"id": str(row['factura_dian_id']), "estado": "YA_EMITIDA"}
-    except Exception as e:
-        logger.warning(f"No se pudo verificar factura_dian_id para pedido {pedido_id}: {e}")
-
-    payload = construir_json_generico(pedido_id)
-    if not payload:
-        logger.error(f"Pedido {pedido_id} no encontrado para facturación")
-        return {"error": f"Pedido {pedido_id} no encontrado"}
-
-    try:
-        resp = requests.post(
-            f"{DIAN_SERVICE_URL}/facturas",
-            json=payload,
-            headers={
-                "X-API-Key":    DIAN_API_KEY,
-                "Content-Type": "application/json",
-            },
-            timeout=10,
-        )
-        resp.raise_for_status()
-        resultado = resp.json()
-
-        _guardar_factura_id_en_pedido(pedido_id, resultado.get('id'))
-
-        logger.info(
-            f"Factura encolada para pedido {pedido_id}: "
-            f"id={resultado.get('id')}, estado={resultado.get('estado')}"
-        )
-        return resultado
-
-    except requests.exceptions.Timeout:
-        logger.error(f"Timeout al enviar factura del pedido {pedido_id} al microservicio DIAN")
-        return {"error": "Timeout al conectar con el servicio de facturación"}
-
-    except requests.exceptions.ConnectionError:
-        logger.error(f"No se pudo conectar al microservicio DIAN para pedido {pedido_id}")
-        return {"error": "Servicio de facturación no disponible"}
-
-    except requests.exceptions.HTTPError as e:
-        logger.error(f"Error HTTP del microservicio DIAN para pedido {pedido_id}: {e}")
-        return {"error": f"Error del servicio de facturación: {e}"}
-
-    except Exception as e:
-        logger.error(f"Error inesperado al facturar pedido {pedido_id}: {e}")
-        return {"error": str(e)}
+        return False, ('Tu facturación electrónica todavía no está conectada. '
+                       'Pide a soporte CyberShop que la active con los datos de tu negocio.')
+    compartida = _llave_compartida()
+    if compartida and compartida == DIAN_API_KEY.strip() and not _es_tienda_operadora():
+        return False, ('Tu facturación electrónica todavía no está conectada con el NIT de tu negocio. '
+                       'Para que ninguna factura salga a nombre de otro, no se envía nada hasta que '
+                       'soporte CyberShop la configure con tus datos.')
+    return True, None
 
 
-def emitir_factura_pos(venta_id: int) -> dict:
-    """
-    Envía la factura de una venta POS al microservicio DIAN.
-
-    Es idempotente: si la venta ya tiene factura_dian_id asignado, retorna
-    el id existente sin reenviar.
-
-    Returns:
-        Dict con {"id": "uuid", "estado": "PENDIENTE"} o {"error": ...}
-    """
-    if not DIAN_API_KEY:
-        logger.warning("DIAN_API_KEY no configurada — facturación electrónica desactivada")
-        return {"error": "Facturación electrónica no configurada"}
-
-    # Guard idempotente
-    try:
-        with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute(
-                "SELECT factura_dian_id FROM ventas_pos WHERE id = %s", (venta_id,)
-            )
-            row = cur.fetchone()
-            if row and row['factura_dian_id']:
-                logger.info(f"Venta POS {venta_id} ya tiene factura {row['factura_dian_id']}, se omite reenvío")
-                return {"id": str(row['factura_dian_id']), "estado": "YA_EMITIDA"}
-    except Exception as e:
-        logger.warning(f"No se pudo verificar factura_dian_id para venta POS {venta_id}: {e}")
-
-    payload = construir_json_pos(venta_id)
-    if not payload:
-        logger.error(f"Venta POS {venta_id} no encontrada para facturación")
-        return {"error": f"Venta POS {venta_id} no encontrada"}
-
-    try:
-        resp = requests.post(
-            f"{DIAN_SERVICE_URL}/facturas",
-            json=payload,
-            headers={
-                "X-API-Key":    DIAN_API_KEY,
-                "Content-Type": "application/json",
-            },
-            timeout=10,
-        )
-        resp.raise_for_status()
-        resultado = resp.json()
-
-        _guardar_factura_id_en_venta_pos(venta_id, resultado.get('id'))
-
-        logger.info(
-            f"Factura encolada para venta POS {venta_id}: "
-            f"id={resultado.get('id')}, estado={resultado.get('estado')}"
-        )
-        return resultado
-
-    except requests.exceptions.Timeout:
-        logger.error(f"Timeout al enviar factura de venta POS {venta_id}")
-        return {"error": "Timeout al conectar con el servicio de facturación"}
-
-    except requests.exceptions.ConnectionError:
-        logger.error(f"No se pudo conectar al microservicio DIAN para venta POS {venta_id}")
-        return {"error": "Servicio de facturación no disponible"}
-
-    except requests.exceptions.HTTPError as e:
-        logger.error(f"Error HTTP del microservicio DIAN para venta POS {venta_id}: {e}")
-        return {"error": f"Error del servicio de facturación: {e}"}
-
-    except Exception as e:
-        logger.error(f"Error inesperado al facturar venta POS {venta_id}: {e}")
-        return {"error": str(e)}
+_CAMPOS_API = (
+    (r'cliente\.email', 'el correo del cliente'),
+    (r'cliente\.numero_documento', 'el número de documento del cliente'),
+    (r'cliente\.tipo_documento', 'el tipo de documento del cliente'),
+    (r'cliente\.tipo_persona', 'el tipo de persona del cliente'),
+    (r'cliente\.nombre', 'el nombre del cliente'),
+    (r'\.precio_unitario', ' (precio)'),
+    (r'\.cantidad', ' (cantidad)'),
+    (r'\.descripcion', ' (descripción)'),
+    (r'\.impuesto_iva', ' (IVA)'),
+)
 
 
-def consultar_estado_factura(factura_id: str) -> dict:
-    """
-    Consulta el estado de una factura en el microservicio DIAN.
-    Útil para mostrar al cliente el CUFE y número de factura una vez procesada.
-    """
-    if not DIAN_API_KEY:
-        return {"error": "Facturación electrónica no configurada"}
-
-    try:
-        resp = requests.get(
-            f"{DIAN_SERVICE_URL}/facturas/{factura_id}/estado",
-            headers={"X-API-Key": DIAN_API_KEY},
-            timeout=10,
-        )
-        resp.raise_for_status()
-        return resp.json()
-    except Exception as e:
-        logger.error(f"Error consultando estado de factura {factura_id}: {e}")
-        return {"error": str(e)}
+def _traducir_campos(mensaje: str) -> str:
+    """'cliente.email debe tener formato válido' → 'El correo del cliente debe…'."""
+    import re
+    texto = str(mensaje or '')
+    texto = re.sub(r'items\[(\d+)\]', lambda m: f"el producto {int(m.group(1)) + 1}", texto)
+    for patron, humano in _CAMPOS_API:
+        texto = re.sub(patron, humano, texto)
+    return texto[:1].upper() + texto[1:] if texto else texto
 
 
-# ── Bandeja y política de envío (panel del cliente) ──────────────────────────
+def _error_amigable(status=None, datos=None, exc=None) -> str:
+    """Motivo de un fallo en palabras que entiende el dueño del negocio."""
+    if isinstance(exc, requests.exceptions.Timeout):
+        return ('El portal tributario tardó demasiado en responder. '
+                'Intenta de nuevo en unos minutos.')
+    if isinstance(exc, requests.exceptions.ConnectionError):
+        return ('No hay conexión con el portal tributario en este momento. Intenta de nuevo '
+                'en unos minutos; si sigue igual, avisa a soporte CyberShop.')
+    if exc is not None:
+        return 'Ocurrió un error inesperado al hablar con el portal tributario.'
+    mensaje = datos.get('error') if isinstance(datos, dict) else ''
+    if status in (401, 403):
+        return ('El portal tributario rechazó la conexión de esta tienda (su llave no es '
+                'válida o fue cambiada). Avisa a soporte CyberShop para que la revise.')
+    if status and status >= 500:
+        return 'El portal tributario tuvo un error interno. Intenta de nuevo en unos minutos.'
+    if mensaje:
+        return _traducir_campos(mensaje)
+    return f"El portal tributario respondió con un error (código {status})."
+
 
 def _dian_call(metodo: str, ruta: str, *, payload=None, params=None,
-               timeout: int = 12) -> dict:
-    """Llamada al microservicio con la API key del tenant.
+               headers=None, timeout: int = 12) -> dict:
+    """Llamada al portal con la llave de esta tienda.
 
-    Centraliza el manejo de error, que hasta ahora cada función de emisión
-    repetía por su cuenta. Devuelve SIEMPRE un dict: ante fallo, {'error': …},
-    para que el panel pueda mostrar el motivo en vez de romperse.
+    Devuelve SIEMPRE un dict: ante fallo, {'error': motivo en palabras simples,
+    'status': código}, para que el panel lo muestre en vez de romperse. Nunca
+    llama si la tienda no tiene llave propia (ver estado_conexion_local).
     """
-    if not DIAN_API_KEY:
-        return {'error': 'Facturación electrónica no configurada'}
+    ok, motivo = estado_conexion_local()
+    if not ok:
+        return {'error': motivo, 'status': None}
     try:
         resp = requests.request(
             metodo, f"{DIAN_SERVICE_URL}{ruta}",
-            headers={'X-API-Key': DIAN_API_KEY},
+            headers={'X-API-Key': DIAN_API_KEY, **(headers or {})},
             json=payload, params=params, timeout=timeout,
         )
-        datos = resp.json() if resp.content else {}
+        try:
+            datos = resp.json() if resp.content else {}
+        except ValueError:
+            datos = {}
         if resp.status_code >= 400:
-            return {'error': (datos.get('error') if isinstance(datos, dict) else None)
-                             or f"HTTP {resp.status_code}"}
+            return {'error': _error_amigable(resp.status_code, datos), 'status': resp.status_code}
         return datos if isinstance(datos, dict) else {'items': datos}
     except Exception as e:
         logger.error(f"Error llamando al servicio DIAN {metodo} {ruta}: {e}")
-        return {'error': str(e)}
+        return {'error': _error_amigable(exc=e), 'status': None}
 
+
+def informacion_conexion() -> dict:
+    """A nombre de quién factura esta tienda y si la conexión responde.
+
+    Usa /me del portal; si el portal aún no lo tiene (versión anterior), basta
+    con que la política de envío responda para saber que la llave funciona.
+    """
+    datos = _dian_call('GET', '/me', timeout=8)
+    if datos.get('status') == 404:
+        politica = _dian_call('GET', '/config-envio', timeout=8)
+        if politica.get('error'):
+            return {'ok': False, 'error': politica['error']}
+        return {'ok': True, 'sin_detalle': True}
+    if datos.get('error'):
+        return {'ok': False, 'error': datos['error']}
+    return {'ok': True, **datos}
+
+
+def enlace_portal() -> dict:
+    """Enlace de 30 s al portal tributario, SOLO con los documentos de esta tienda.
+
+    Antes se firmaba con la llave maestra del portal, que abre la vista de
+    administrador con los datos de todos los clientes.
+    """
+    datos = _dian_call('GET', '/portal/token', timeout=8)
+    if datos.get('status') == 403:
+        return {'error': ('Tu acceso al portal tributario no está habilitado. Tus facturas '
+                          'las puedes ver y gestionar aquí mismo, en esta bandeja.')}
+    if datos.get('error'):
+        return {'error': datos['error']}
+    if not datos.get('url'):
+        return {'error': 'El portal tributario no entregó el enlace de acceso.'}
+    return {'url': datos['url']}
+
+
+def consultar_estado_factura(factura_id: str) -> dict:
+    """Estado, número y CUFE de un documento (útil una vez procesado)."""
+    return _dian_call('GET', f"/facturas/{factura_id}/estado", timeout=10)
+
+
+# ── Bandeja y política de envío (panel del cliente) ──────────────────────────
 
 def listar_facturas_dian(estado: str = None, limite: int = 50) -> dict:
     """Documentos del tenant en el microservicio, recientes primero.
@@ -578,7 +592,39 @@ def listar_facturas_dian(estado: str = None, limite: int = 50) -> dict:
 
 def cancelar_factura_dian(factura_id: str) -> dict:
     """Reversa un documento que aún no se envió a la DIAN."""
-    return _dian_call('POST', f"/facturas/{factura_id}/cancelar")
+    res = _dian_call('POST', f"/facturas/{factura_id}/cancelar")
+    if not res.get('error'):
+        desvincular_factura(factura_id)
+    return res
+
+
+def enviar_factura_ya(factura_id: str, usuario: str = '') -> dict:
+    """Manda YA a la DIAN un documento en cola (aprobación manual o en espera)."""
+    return _dian_call('POST', f"/facturas/{factura_id}/enviar",
+                      headers={'X-Usuario': str(usuario or '')[:80]})
+
+
+def descargar_pdf_factura(factura_id: str):
+    """(contenido, nombre_archivo) del PDF de un documento aceptado, o {'error'}."""
+    ok, motivo = estado_conexion_local()
+    if not ok:
+        return {'error': motivo}
+    try:
+        resp = requests.get(f"{DIAN_SERVICE_URL}/facturas/{factura_id}/pdf",
+                            headers={'X-API-Key': DIAN_API_KEY}, timeout=20)
+    except Exception as e:
+        return {'error': _error_amigable(exc=e)}
+    if resp.status_code == 404:
+        return {'error': 'El PDF de este documento todavía no está disponible.'}
+    if resp.status_code >= 400 or 'pdf' not in resp.headers.get('Content-Type', ''):
+        try:
+            datos = resp.json()
+        except ValueError:
+            datos = {}
+        return {'error': _error_amigable(resp.status_code, datos)}
+    import re
+    nombre = re.search(r'filename="?([^";]+)', resp.headers.get('Content-Disposition', ''))
+    return resp.content, (nombre.group(1) if nombre else f"factura-{factura_id}.pdf")
 
 
 def obtener_politica_envio() -> dict:
@@ -592,62 +638,48 @@ def guardar_politica_envio(modo: str, grace_minutos: int) -> dict:
                                'grace_minutos': grace_minutos})
 
 
-def _guardar_factura_id_en_pedido(pedido_id: int, factura_dian_id: str):
-    """Guarda el UUID de factura DIAN en la tabla pedidos."""
-    if not factura_dian_id:
-        return
-    try:
-        with get_db_cursor() as cur:
-            cur.execute(
-                "UPDATE pedidos SET factura_dian_id = %s WHERE id = %s",
-                (factura_dian_id, pedido_id)
-            )
-    except Exception as e:
-        logger.warning(
-            f"No se pudo guardar factura_dian_id en pedido {pedido_id}: {e}. "
-            "Ejecutar: ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS factura_dian_id UUID;"
-        )
-
-
-def _guardar_factura_id_en_venta_pos(venta_id: int, factura_dian_id: str):
-    """Guarda el UUID de factura DIAN en la tabla ventas_pos."""
-    if not factura_dian_id:
-        return
-    try:
-        with get_db_cursor() as cur:
-            cur.execute(
-                "UPDATE ventas_pos SET factura_dian_id = %s WHERE id = %s",
-                (factura_dian_id, venta_id)
-            )
-    except Exception as e:
-        logger.warning(
-            f"No se pudo guardar factura_dian_id en venta POS {venta_id}: {e}. "
-            "Ejecutar: ALTER TABLE ventas_pos ADD COLUMN IF NOT EXISTS factura_dian_id UUID;"
-        )
-
-
 # ============================================================================
-# Extensión FE a más módulos de dinero: Restaurante, Cuenta de cobro, Cotización
-# Mismo patrón: facturacion_habilitada() + flag por registro + idempotencia
-# (factura_dian_id). El plazo/modo de envío lo decide el cliente en su portal
-# tributario (el microservicio respeta grace_minutos/modo_aprobacion por tenant).
+# Emisión desde los módulos de dinero: pedidos en línea, POS, mesas, cuentas
+# de cobro y cotizaciones. Mismo patrón: facturacion_habilitada() + flag por
+# registro + idempotencia (factura_dian_id). Nada sale directo a la DIAN: el
+# portal lo deja en cola según la política de envío del cliente (espera para
+# reversar, o aprobación manual).
 # ============================================================================
 
 def _guardar_factura_id_tabla(tabla: str, registro_id: int, factura_dian_id: str):
-    """Guarda el UUID de factura DIAN en {tabla}.factura_dian_id (tabla interna, no input)."""
+    """Guarda el UUID del documento DIAN en la columna de `tabla` (tabla interna, no input).
+
+    Sin columna (base sin la migración 0026) no se guarda, y no pasa nada grave:
+    el portal tampoco duplica, porque reconoce la venta por su referencia.
+    """
     if not factura_dian_id:
+        return
+    col = columna_fe(tabla)
+    if not col:
+        logger.warning(f"{tabla} no tiene dónde guardar el documento DIAN {factura_dian_id}: "
+                       "falta la migración 0026 (Actualizar app).")
         return
     try:
         with get_db_cursor() as cur:
-            cur.execute(
-                f"UPDATE {tabla} SET factura_dian_id = %s WHERE id = %s",
-                (factura_dian_id, registro_id)
-            )
+            cur.execute(f"UPDATE {tabla} SET {col} = %s WHERE id = %s",
+                        (factura_dian_id, registro_id))
     except Exception as e:
-        logger.warning(
-            f"No se pudo guardar factura_dian_id en {tabla} {registro_id}: {e}. "
-            f"Ejecutar: ALTER TABLE {tabla} ADD COLUMN IF NOT EXISTS factura_dian_id UUID;"
-        )
+        logger.warning(f"No se pudo guardar el documento DIAN en {tabla} {registro_id}: {e}")
+
+
+def desvincular_factura(factura_dian_id: str):
+    """Tras reversar, la venta deja de verse como facturada y se puede volver a
+    facturar. El documento reversado sigue en el portal (no se borra nada)."""
+    for tabla in TABLAS_FE:
+        col = columna_fe(tabla)
+        if not col:
+            continue
+        try:
+            with get_db_cursor() as cur:
+                cur.execute(f"UPDATE {tabla} SET {col} = NULL "
+                            f"WHERE {col}::text = %s", (str(factura_dian_id),))
+        except Exception as e:
+            logger.warning(f"No se pudo desvincular {factura_dian_id} de {tabla}: {e}")
 
 
 def _emitir_a_dian(tabla: str, registro_id: int, payload: dict | None) -> dict:
@@ -655,45 +687,55 @@ def _emitir_a_dian(tabla: str, registro_id: int, payload: dict | None) -> dict:
     Envío genérico al microservicio DIAN, idempotente por {tabla}.factura_dian_id.
     `tabla` es una constante interna (no entrada del usuario). Devuelve dict
     {'id','estado'} o {'error': ...} — NUNCA lanza (no debe frenar el flujo de dinero).
+
+    Si la venta ya tuvo un documento reversado o rechazado, el portal lo devuelve
+    por su referencia; entonces se emite con la referencia «-R2», «-R3»…, para
+    que corregir y volver a facturar sea posible sin tocar el documento anterior.
     """
-    if not DIAN_API_KEY:
-        logger.warning("DIAN_API_KEY no configurada — facturación electrónica desactivada")
-        return {"error": "Facturación electrónica no configurada"}
+    ok, motivo = estado_conexion_local()
+    if not ok:
+        logger.warning(f"FE {tabla} {registro_id}: {motivo}")
+        return {"error": motivo}
 
     # Guard idempotente: si ya tiene factura, no reenviar
-    try:
-        with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute(f"SELECT factura_dian_id FROM {tabla} WHERE id = %s", (registro_id,))
-            row = cur.fetchone()
-            if row and row['factura_dian_id']:
-                return {"id": str(row['factura_dian_id']), "estado": "YA_EMITIDA"}
-    except Exception as e:
-        logger.warning(f"No se pudo verificar factura_dian_id en {tabla} {registro_id}: {e}")
+    col = columna_fe(tabla)
+    if col:
+        try:
+            with get_db_cursor(dict_cursor=True) as cur:
+                cur.execute(f"SELECT {col} AS doc FROM {tabla} WHERE id = %s", (registro_id,))
+                row = cur.fetchone()
+                if row and row['doc']:
+                    return {"id": str(row['doc']), "estado": "YA_EMITIDA"}
+        except Exception as e:
+            logger.warning(f"No se pudo verificar el documento DIAN de {tabla} {registro_id}: {e}")
 
     if not payload:
-        return {"error": f"Registro {registro_id} no encontrado en {tabla}"}
+        return {"error": f"No se encontró el registro {registro_id} para facturar"}
 
-    try:
-        resp = requests.post(
-            f"{DIAN_SERVICE_URL}/facturas",
-            json=payload,
-            headers={"X-API-Key": DIAN_API_KEY, "Content-Type": "application/json"},
-            timeout=10,
-        )
-        resp.raise_for_status()
-        resultado = resp.json()
-        _guardar_factura_id_tabla(tabla, registro_id, resultado.get('id'))
-        logger.info(f"Factura encolada para {tabla} {registro_id}: id={resultado.get('id')}")
-        return resultado
-    except requests.exceptions.Timeout:
-        return {"error": "Timeout al conectar con el servicio de facturación"}
-    except requests.exceptions.ConnectionError:
-        return {"error": "Servicio de facturación no disponible"}
-    except requests.exceptions.HTTPError as e:
-        return {"error": f"Error del servicio de facturación: {e}"}
-    except Exception as e:
-        logger.error(f"Error inesperado al facturar {tabla} {registro_id}: {e}")
-        return {"error": str(e)}
+    referencia = str(payload.get('referencia_pedido') or f"{tabla}-{registro_id}")
+    for intento in range(1, MAX_REEMISIONES + 1):
+        payload['referencia_pedido'] = referencia if intento == 1 else f"{referencia}-R{intento}"
+        resultado = _dian_call('POST', '/facturas', payload=payload, timeout=10)
+        if resultado.get('error'):
+            logger.error(f"FE {tabla} {registro_id}: {resultado['error']}")
+            return {"error": resultado['error']}
+        if resultado.get('estado') not in ESTADOS_REEMITIBLES:
+            _guardar_factura_id_tabla(tabla, registro_id, resultado.get('id'))
+            logger.info(f"Factura encolada para {tabla} {registro_id}: id={resultado.get('id')}")
+            return resultado
+    return {"error": "Esta venta ya se reversó demasiadas veces; revísala con soporte CyberShop."}
+
+
+# ── Pedidos en línea y POS ───────────────────────────────────────────────────
+
+def emitir_factura_electronica(pedido_id: int) -> dict:
+    """Factura del pedido en línea (se llama al aprobarse el pago, si se pidió)."""
+    return _emitir_a_dian('pedidos', pedido_id, construir_json_generico(pedido_id))
+
+
+def emitir_factura_pos(venta_id: int) -> dict:
+    """Factura de una venta POS marcada «Facturar electrónicamente»."""
+    return _emitir_a_dian('ventas_pos', venta_id, construir_json_pos(venta_id))
 
 
 # ── Restaurante (mesas) ──────────────────────────────────────────────────────
@@ -732,16 +774,8 @@ def construir_json_restaurante(order_id: int) -> dict | None:
     # documento mapeado, email obligatorio para la DIAN (fallback al del negocio),
     # y documento por defecto 222222222222 (consumidor final).
     tipo_doc = TIPO_DOC_MAP.get(str(orden.get('cliente_tipo_doc') or '').strip().upper(), 'CC')
-    email = (orden.get('cliente_email') or '').strip()
-    if '@' not in email:
-        try:
-            from services.public_site_service import get_public_contact_destination_email
-            email = (get_public_contact_destination_email() or '').strip()
-        except Exception:
-            email = ''
-    if '@' not in email:
-        email = 'facturacion@empresa.co'
-    documento = str(orden.get('cliente_documento') or '').strip() or '222222222222'
+    email = _email_adquiriente(orden.get('cliente_email'))
+    documento = _documento_adquiriente(orden.get('cliente_documento'))
 
     return {
         "referencia_pedido": f"REST-{order_id}",
@@ -776,7 +810,7 @@ def construir_json_cuenta_cobro(cuenta_id: int) -> dict | None:
                     else ", NULL AS cliente_email")
         cur.execute(
             f"""SELECT consecutivo, cliente_nombre, cliente_nit, cliente_direccion,
-                      cliente_telefono, cliente_ciudad, total, factura_dian_id
+                      cliente_telefono, cliente_ciudad, total
                       {sel_mail}
                FROM cuentas_cobro WHERE id = %s""", (cuenta_id,))
         cuenta = cur.fetchone()
@@ -830,7 +864,7 @@ def construir_json_cotizacion(cotizacion_id: int) -> dict | None:
         cur.execute(
             # Opcionales según la antigüedad del tenant.
             f"""SELECT cliente_nombre, cliente_documento, cliente_direccion,
-                      cliente_ciudad, cliente_telefono, total, factura_dian_id
+                      cliente_ciudad, cliente_telefono, total
                       {", cliente_email" if _table_has_column('cotizaciones', 'cliente_email') else ", NULL AS cliente_email"}
                       {", cliente_tipo_doc" if _table_has_column('cotizaciones', 'cliente_tipo_doc') else ", NULL AS cliente_tipo_doc"}
                FROM cotizaciones WHERE id = %s""", (cotizacion_id,))

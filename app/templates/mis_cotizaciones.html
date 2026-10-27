@@ -237,6 +237,8 @@
     .btn-rechazar { background: #6c757d; }
     .btn-editar   { background: #007bff; }
     .btn-eliminar { background: #dc3545; }
+    .btn-facturar-fe { background: var(--color-primario, #122C94); }
+    .btn-facturar-fe:disabled { opacity: .65; cursor: wait; }
     .btn-act:hover { filter: brightness(0.95); }
 
     /* ---- Estado vacío ---- */
@@ -404,7 +406,7 @@
                             {% endif %}
                             {% if fe_habilitada %}
                               {% if cot.factura_dian_id %}
-                                <span class="estado-badge aprobada" title="Facturada electrónicamente"><i class="fas fa-file-invoice-dollar"></i> FE</span>
+                                <span class="estado-badge aprobada" title="Tiene factura electrónica (en cola o enviada a la DIAN)"><i class="fas fa-file-invoice-dollar"></i> Factura electrónica</span>
                               {% elif cot.estado == 'pendiente' %}
                                 <label style="display:block;margin-top:6px;font-size:.78em;cursor:pointer;color:#555;">
                                   <input type="checkbox" class="fe-cot-check" data-id="{{ cot.id }}"
@@ -441,6 +443,14 @@
                                 <a href="{{ url_for('quotes.editar_cotizacion', id=cot.id) }}" class="btn-act btn-editar">
                                     <i class="fas fa-edit"></i> Editar
                                 </a>
+                                {% endif %}
+
+                                {# Factura electrónica de una aprobada que aún no la tiene #}
+                                {% if puede_facturar and cot.estado == 'aprobada' and not cot.factura_dian_id %}
+                                <button type="button" class="btn-act btn-facturar-fe" data-id="{{ cot.id }}"
+                                        data-nombre="COT {{ '%010d' % cot.id }}">
+                                    <i class="fas fa-file-invoice"></i> Facturar
+                                </button>
                                 {% endif %}
 
                                 {# Cobro: solo en las aprobadas, y solo para quien maneja cuentas de cobro #}
@@ -549,6 +559,43 @@ document.querySelectorAll('.fe-cot-check').forEach(function (chk) {
         }).then(function (r) { return r.json(); }).then(function (d) {
             if (!d.success) { chk.checked = !activar; alert('No se pudo actualizar.'); }
         }).catch(function () { chk.checked = !activar; alert('Error de conexión.'); });
+    });
+});
+
+// Facturar electrónicamente una cotización ya aprobada (queda en la cola del portal)
+document.querySelectorAll('.btn-facturar-fe').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        var csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        var id = btn.dataset.id;
+        Swal.fire({
+            title: '¿Facturar electrónicamente?',
+            html: 'Se crea la factura electrónica de <b>' + btn.dataset.nombre + '</b>. Queda en la cola de envío a la DIAN '
+                + 'y, mientras no salga, puedes reversarla en <b>Facturación electrónica → Bandeja</b>.',
+            icon: 'question', showCancelButton: true,
+            confirmButtonText: 'Sí, facturar', cancelButtonText: 'Cancelar',
+            confirmButtonColor: (typeof BRAND_COLOR_BTN !== 'undefined' ? BRAND_COLOR_BTN : undefined)
+        }).then(function (r) {
+            if (!r.isConfirmed) return;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Facturando…';
+            fetch('/admin/cotizar/' + id + '/facturar', { method: 'POST', headers: { 'X-CSRFToken': csrf } })
+                .then(function (resp) { return resp.json().catch(function () { return { success: false }; }); })
+                .then(function (d) {
+                    if (d.success) {
+                        btn.outerHTML = '<span class="estado-badge aprobada"><i class="fas fa-file-invoice-dollar"></i> En cola DIAN</span>';
+                        Swal.fire('Listo', 'La factura quedó en la cola de envío a la DIAN.', 'success');
+                    } else {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-file-invoice"></i> Facturar';
+                        Swal.fire('No se pudo facturar', d.error || 'Intenta de nuevo en unos minutos.', 'error');
+                    }
+                })
+                .catch(function () {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-file-invoice"></i> Facturar';
+                    Swal.fire('Sin conexión', 'Revisa tu internet e intenta de nuevo.', 'error');
+                });
+        });
     });
 });
 </script>

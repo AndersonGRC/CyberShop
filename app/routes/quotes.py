@@ -547,7 +547,11 @@ def ver_cotizaciones():
     cotizaciones = []
     cartera_ok = False
     filtro_pago = request.args.get('pago') if request.args.get('pago') in FILTROS else None
+    from routes.factura_electronica import sql_columnas_fe
     try:
+        # Igual con las de facturación electrónica: en bases sin ellas, pedirlas a
+        # secas dejaba la lista entera vacía.
+        columnas_fe = sql_columnas_fe('cotizaciones')
         with get_db_cursor(dict_cursor=True) as cur:
             # Las columnas de cobro solo existen si el cliente ya actualizó:
             # se consultan condicionalmente para no romper a quien no lo ha hecho.
@@ -562,8 +566,7 @@ def ver_cotizaciones():
             cur.execute(f"""
                 SELECT id, fecha, cliente_nombre, cliente_documento, total, pdf_path,
                        COALESCE(estado, 'pendiente') AS estado,
-                       COALESCE(facturar_electronicamente, FALSE) AS facturar_electronicamente,
-                       factura_dian_id{extra}
+                       {columnas_fe}{extra}
                 FROM cotizaciones {donde}
                 ORDER BY fecha DESC
             """)
@@ -588,7 +591,19 @@ def ver_cotizaciones():
     return render_template('mis_cotizaciones.html', datosApp=datosApp,
                            cotizaciones=cotizaciones, fe_habilitada=fe_habilitada,
                            cartera_ok=cartera_ok, filtro_pago=filtro_pago,
-                           puede_cobrar=puede_cobrar)
+                           puede_cobrar=puede_cobrar,
+                           puede_facturar=fe_habilitada and _es_admin_full())
+
+
+def _es_admin_full():
+    """¿Dueño o super admin? (incluye roles personalizados basados en ellos)."""
+    rol = session.get('rol_id')
+    try:
+        from services.permisos_service import rol_base_efectivo
+        rol = rol if rol in ADMIN_FULL else rol_base_efectivo(rol)
+    except Exception:
+        pass
+    return rol in ADMIN_FULL
 
 
 @quotes_bp.route('/admin/cotizar/<int:id>/fe', methods=['POST'])
@@ -605,6 +620,39 @@ def toggle_fe_cotizacion(id):
     except Exception as e:
         app.logger.warning(f"toggle FE cotización {id}: {e}")
         return jsonify({'success': False, 'error': 'No se pudo actualizar'}), 500
+
+
+@quotes_bp.route('/admin/cotizar/<int:id>/facturar', methods=['POST'])
+@permiso_requerido('quotes', 'eliminar')
+@rol_requerido(ADMIN_FULL)  # mismo nivel que aprobar: registra un documento tributario
+def facturar_cotizacion(id):
+    """Factura electrónica de una cotización YA aprobada.
+
+    Antes solo se facturaba si se marcaba «Facturar al aprobar» antes de
+    aprobarla; una cotización aprobada sin esa marca no tenía forma de facturarse.
+    """
+    from routes.factura_electronica import emitir_factura_cotizacion, facturacion_habilitada
+    if not facturacion_habilitada():
+        return jsonify({'success': False,
+                        'error': 'Tu plan no incluye facturación electrónica.'}), 403
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute("SELECT estado FROM cotizaciones WHERE id = %s", (id,))
+        cot = cur.fetchone()
+    if not cot:
+        return jsonify({'success': False, 'error': 'La cotización no existe.'}), 404
+    if cot['estado'] != 'aprobada':
+        return jsonify({'success': False,
+                        'error': 'Solo se facturan cotizaciones aprobadas.'}), 400
+    try:
+        with get_db_cursor() as cur:
+            cur.execute("UPDATE cotizaciones SET facturar_electronicamente = TRUE WHERE id = %s", (id,))
+    except Exception:
+        pass   # columna no existe → la idempotencia sigue por factura_dian_id
+    resultado = emitir_factura_cotizacion(id)
+    if resultado.get('error'):
+        return jsonify({'success': False, 'error': resultado['error']}), 502
+    return jsonify({'success': True, 'factura_id': resultado.get('id'),
+                    'estado': resultado.get('estado')})
 
 
 @quotes_bp.route('/admin/cotizar/editar/<int:id>')

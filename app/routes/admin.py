@@ -2266,10 +2266,29 @@ def procesar_venta_pos():
         cur.close()
         conn.close()
 
+        # Venta marcada «Facturar electrónicamente»: queda en la cola del portal
+        # (sale según la espera o la aprobación que el negocio eligió). Antes había
+        # que pulsar un segundo botón que el cajero ni siquiera tenía permitido.
+        # Nunca frena la venta: si falla, el comprobante dice por qué.
+        factura_electronica = None
+        if facturar_electronicamente:
+            try:
+                from routes.factura_electronica import emitir_factura_pos, facturacion_habilitada
+                if facturacion_habilitada():
+                    res_fe = emitir_factura_pos(venta_id)
+                    factura_electronica = (
+                        {'ok': False, 'mensaje': res_fe['error']} if res_fe.get('error')
+                        else {'ok': True, 'estado': res_fe.get('estado')})
+            except Exception as _fe:
+                current_app.logger.warning(f"FE venta POS {venta_id}: {_fe}")
+                factura_electronica = {'ok': False,
+                                       'mensaje': 'No se pudo poner en cola la factura electrónica.'}
+
         return jsonify({
             'success': True,
             'venta_id': venta_id,
             'numero_venta': numero_venta,
+            'factura_electronica': factura_electronica,
             'total': float(total_venta),
             'fecha': datetime.now().strftime('%Y-%m-%d %H:%M'),
             'items': [{'descripcion': d[1], 'cantidad': d[2], 'precio_unitario': d[3], 'subtotal': d[4]} for d in detalles_para_insertar],
@@ -3207,28 +3226,24 @@ def software_planes():
 @admin_bp.route('/admin/facturacion-dian')
 @rol_requerido(ADMIN_CONTADOR)
 def facturacion_dian():
-    """Genera un token SSO de 30 segundos y redirige al panel de Facturación DIAN.
-    Si el módulo no está contratado, muestra la página de módulo bloqueado.
+    """Abre el portal tributario con un enlace de 30 s que entrega el propio portal
+    para ESTA tienda (solo sus documentos). Si el módulo no está contratado,
+    muestra la página de módulo bloqueado.
+
+    Antes el enlace se firmaba con la llave maestra del portal y entraba como
+    administrador general: cualquier cliente con el módulo veía los documentos
+    y la configuración de todos los demás.
     """
-    from routes.factura_electronica import facturacion_habilitada
+    from routes.factura_electronica import facturacion_habilitada, enlace_portal
     if not facturacion_habilitada():
         datosApp = get_data_app()
         return render_template('facturacion_bloqueada.html', datosApp=datosApp)
 
-    master_key = os.getenv('DIAN_MASTER_KEY', '')
-    if not master_key:
-        flash('DIAN_MASTER_KEY no configurado en .env', 'error')
-        return redirect(url_for('admin.dashboard_admin'))
-
-    ts    = int(time.time())
-    token = hmac.new(
-        master_key.encode(),
-        f"{ts}:dian-autologin".encode(),
-        hashlib.sha256,
-    ).hexdigest()
-
-    dian_base = os.getenv('DIAN_UI_URL', '/ui')
-    return redirect(f"{dian_base}/auto-login?token={token}&ts={ts}")
+    enlace = enlace_portal()
+    if enlace.get('error'):
+        flash(enlace['error'], 'warning')
+        return redirect(url_for('admin.facturacion_bandeja'))
+    return redirect(enlace['url'])
 
 
 @admin_bp.route('/admin/facturacion-dian/bandeja')
@@ -3242,24 +3257,86 @@ def facturacion_bandeja():
     """
     from routes.factura_electronica import (
         facturacion_habilitada, listar_facturas_dian, obtener_politica_envio,
+        informacion_conexion,
     )
     datosApp = get_data_app()
     if not facturacion_habilitada():
         return render_template('facturacion_bloqueada.html', datosApp=datosApp)
 
     estado = (request.args.get('estado') or '').strip().upper() or None
-    listado = listar_facturas_dian(estado=estado, limite=100)
-    politica = obtener_politica_envio()
+    if estado and estado not in ESTADOS_FE:
+        estado = None
+    conexion = informacion_conexion()
+    # Sin conexión no tiene sentido pedir listado ni política: el aviso de la
+    # conexión ya dice qué pasa y qué hacer.
+    listado = listar_facturas_dian(estado=estado, limite=100) if conexion.get('ok') else {}
+    politica = obtener_politica_envio() if conexion.get('ok') else {}
 
     return render_template(
         'facturacion_bandeja.html',
         datosApp=datosApp,
+        conexion=conexion,
         documentos=listado.get('items') or [],
         error_listado=listado.get('error'),
         politica=politica if not politica.get('error') else {},
         error_politica=politica.get('error'),
         estado_filtro=estado or '',
+        estados_fe=ESTADOS_FE,
+        esperas=ESPERAS_FE,
     )
+
+
+# Estados del documento en el portal, dichos como los entiende el dueño del negocio.
+ESTADOS_FE = {
+    'PENDIENTE':  'En cola',
+    'PROCESANDO': 'Enviando a la DIAN',
+    'ACEPTADA':   'Aceptada por la DIAN',
+    'RECHAZADA':  'Rechazada por la DIAN',
+    'ERROR':      'Con error',
+    'CANCELADA':  'Reversada (no se envió)',
+}
+
+# Esperas antes del envío automático: las mismas que ofrece el portal tributario.
+ESPERAS_FE = [
+    (1, 'Apenas se emite (1 minuto)'),
+    (30, '30 minutos después'),
+    (120, '2 horas después'),
+    (1440, 'Al día siguiente (24 horas)'),
+    (10080, 'A los 7 días'),
+    (21600, 'A los 15 días'),
+]
+
+
+@admin_bp.route('/admin/facturacion-dian/bandeja/<factura_id>/enviar', methods=['POST'])
+@rol_requerido(ADMIN_CONTADOR)
+def facturacion_enviar_ya(factura_id):
+    """Envía YA a la DIAN un documento en cola (aprobación manual o en espera)."""
+    from routes.factura_electronica import facturacion_habilitada, enviar_factura_ya
+    if not facturacion_habilitada():
+        abort(403)
+    res = enviar_factura_ya(factura_id, usuario=session.get('username') or '')
+    if res.get('error'):
+        flash(f"No se pudo enviar: {res['error']}", 'error')
+    else:
+        flash('Documento enviado a la DIAN. En unos minutos verás si fue aceptado.', 'success')
+    return redirect(url_for('admin.facturacion_bandeja'))
+
+
+@admin_bp.route('/admin/facturacion-dian/bandeja/<factura_id>/pdf')
+@rol_requerido(ADMIN_CONTADOR)
+def facturacion_pdf(factura_id):
+    """PDF (representación gráfica) de un documento: lo trae del portal con la
+    llave de la tienda, que nunca llega al navegador."""
+    from routes.factura_electronica import facturacion_habilitada, descargar_pdf_factura
+    if not facturacion_habilitada():
+        abort(403)
+    res = descargar_pdf_factura(factura_id)
+    if isinstance(res, dict):
+        flash(res['error'], 'error')
+        return redirect(url_for('admin.facturacion_bandeja'))
+    contenido, nombre = res
+    return Response(contenido, mimetype='application/pdf', headers={
+        'Content-Disposition': f'inline; filename="{secure_filename(nombre) or "factura.pdf"}"'})
 
 
 @admin_bp.route('/admin/facturacion-dian/bandeja/<factura_id>/reversar', methods=['POST'])
@@ -3288,19 +3365,39 @@ def facturacion_politica():
     if not facturacion_habilitada():
         abort(403)
 
-    modo = (request.form.get('modo_aprobacion') or '').strip().lower()
-    try:
-        grace = int(request.form.get('grace_minutos') or 0)
-    except ValueError:
-        flash('La ventana de reversa debe ser un número de minutos.', 'error')
+    # Una sola elección en la pantalla: 'manual' o los minutos de espera.
+    envio = (request.form.get('envio') or '').strip().lower()
+    if envio == 'manual':
+        modo, grace = 'manual', 0
+    else:
+        modo = 'automatico' if envio else (request.form.get('modo_aprobacion') or '').strip().lower()
+        try:
+            grace = int(envio or request.form.get('grace_minutos') or 0)
+        except ValueError:
+            grace = -1
+    if modo not in ('manual', 'automatico') or (
+            modo == 'automatico' and grace not in dict(ESPERAS_FE)):
+        flash('Elige una de las opciones de envío de la lista.', 'error')
         return redirect(url_for('admin.facturacion_bandeja'))
+    if modo == 'manual':
+        # En manual la espera no aplica: se conserva la que ya tenía.
+        grace = int((obtener_politica_envio_actual() or {}).get('grace_minutos') or 30)
 
     res = guardar_politica_envio(modo, grace)
     if res.get('error'):
-        flash(f"No se pudo guardar la política: {res['error']}", 'error')
+        flash(f"No se pudo guardar: {res['error']}", 'error')
+    elif modo == 'manual':
+        flash('Listo: ningún documento sale a la DIAN sin que tú lo envíes.', 'success')
     else:
-        flash('Política de envío actualizada.', 'success')
+        flash(f"Listo: los documentos salen solos {dict(ESPERAS_FE)[grace].lower()}. "
+              'Mientras tanto puedes reversarlos.', 'success')
     return redirect(url_for('admin.facturacion_bandeja'))
+
+
+def obtener_politica_envio_actual():
+    from routes.factura_electronica import obtener_politica_envio
+    politica = obtener_politica_envio()
+    return None if politica.get('error') else politica
 
 
 @admin_bp.route('/admin/pos/<int:venta_id>/facturar', methods=['POST'])
