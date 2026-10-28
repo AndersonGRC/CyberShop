@@ -466,6 +466,18 @@ def _es_tienda_operadora() -> bool:
         return False
 
 
+def _con_volver(url: str) -> str:
+    """Agrega al enlace del portal la dirección de esta bandeja, para su botón
+    «Volver a mi panel» (antes no había cómo regresar)."""
+    try:
+        from urllib.parse import quote
+        from flask import url_for
+        volver = url_for('admin.facturacion_bandeja', _external=True)
+    except Exception:
+        return url
+    return f"{url}{'&' if '?' in url else '?'}volver={quote(volver, safe='')}"
+
+
 def enlace_portal_operador() -> dict | None:
     """La tienda operadora entra al portal como administrador general, como
     siempre: es la dueña del portal. Ningún cliente entra así (a ellos el portal
@@ -479,7 +491,7 @@ def enlace_portal_operador() -> dict | None:
     ts = int(time.time())
     token = hmac.new(master.encode(), f"{ts}:dian-autologin".encode(), hashlib.sha256).hexdigest()
     base = os.getenv('DIAN_UI_URL', '/ui').rstrip('/')
-    return {'url': f"{base}/auto-login?token={token}&ts={ts}"}
+    return {'url': _con_volver(f"{base}/auto-login?token={token}&ts={ts}")}
 
 
 def estado_conexion_local():
@@ -614,7 +626,7 @@ def enlace_portal() -> dict:
         return {'error': datos['error']}
     if not datos.get('url'):
         return {'error': 'El portal tributario no entregó el enlace de acceso.'}
-    return {'url': datos['url']}
+    return {'url': _con_volver(datos['url'])}
 
 
 def consultar_estado_factura(factura_id: str) -> dict:

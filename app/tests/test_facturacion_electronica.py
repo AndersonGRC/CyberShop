@@ -235,6 +235,7 @@ def test_portal_con_enlace_de_la_tienda_no_con_la_maestra(as_propietario, portal
     r = as_propietario.get('/admin/facturacion-dian')
     assert r.status_code == 302 and 'tenant-auto-login' in r.headers['Location']
     assert '/ui/auto-login' not in r.headers['Location']
+    assert '&volver=' in r.headers['Location']          # «Volver a mi panel» en el portal
 
 
 def test_portal_no_habilitado_vuelve_a_la_bandeja(as_propietario, portal, modulo_on):
@@ -504,6 +505,7 @@ def test_operador_entra_al_portal_como_administrador(as_propietario, portal, mod
     r = as_propietario.get('/admin/facturacion-dian')
     assert r.status_code == 302
     assert r.headers['Location'].startswith('https://portal.test/ui/auto-login?token=')
+    assert 'volver=http%3A%2F%2Flocalhost%2Fadmin%2Ffacturacion-dian%2Fbandeja' in r.headers['Location']
     assert portal.llamadas == []
 
 
