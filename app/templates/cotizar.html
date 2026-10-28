@@ -763,7 +763,8 @@
     }
 
     .btn-add-row {
-        background: #28a745;
+        /* Verde con contraste suficiente para el texto blanco (≥ 4.5:1) */
+        background: #1e7e34;
         color: #fff;
         padding: 9px 14px;
         border: none;
@@ -777,7 +778,7 @@
     }
 
     .btn-add-row:hover {
-        background: #218838;
+        background: #19692c;
     }
 
     /* ============================================================
@@ -921,6 +922,328 @@
         font-size: 1.35rem;
     }
 
+    .items-total[hidden],
+    .cotizar-help[hidden] {
+        display: none;
+    }
+
+    /* ---- Orden de los ítems: flechas y arrastre ---- */
+    .item-row__acciones {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+    }
+
+    .btn-mover {
+        background: none;
+        border: 1px solid transparent;
+        color: var(--color-primario, #122C94);
+        cursor: pointer;
+        min-width: 36px;
+        min-height: 36px;
+        border-radius: 6px;
+        font-size: 0.95rem;
+    }
+
+    .btn-mover:hover:not(:disabled) {
+        background: rgba(18, 44, 148, 0.08);
+    }
+
+    .btn-mover:disabled {
+        color: #b8bcc6;
+        cursor: default;
+    }
+
+    .item-row__agarre {
+        cursor: grab;
+        color: #8a90a0;
+        padding: 4px 2px;
+        touch-action: none;
+    }
+
+    .item-row--arrastrando {
+        opacity: 0.45;
+        border-style: dashed;
+    }
+
+    .items-ayuda {
+        margin: -4px 0 14px;
+    }
+
+    .item-row__acciones .btn-eliminar {
+        margin-left: 6px;
+    }
+
+    /* Ítems para todas las opciones: el título solo sale cuando hay opciones */
+    .cot-comunes-cabeza {
+        margin: 0 0 10px;
+    }
+
+    .cot-comunes-cabeza[hidden] {
+        display: none;
+    }
+
+    .cot-comunes-cabeza h4,
+    .cot-opcion-nueva strong {
+        margin: 0;
+        font-size: 0.95rem;
+        color: var(--color-secundario, #0e1b33);
+    }
+
+    .cot-comunes-cabeza .cotizar-help {
+        margin: 2px 0 0;
+    }
+
+    /* ---- Opciones: alternativas con su propio total (no se suman) ---- */
+    .cot-opcion {
+        margin-top: 18px;
+        border: 1px solid #d6dbea;
+        border-left: 5px solid var(--color-primario, #122C94);
+        border-radius: 12px;
+        padding: 14px;
+        background: #fff;
+        box-shadow: 0 1px 4px rgba(14, 27, 51, 0.06);
+    }
+
+    .cot-opcion__head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+    }
+
+    .cot-opcion__numero {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.85rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--color-primario, #122C94);
+    }
+
+    .cot-opcion__nombre {
+        flex: 1 1 100%;
+        display: block;
+    }
+
+    .cot-opcion__etiqueta {
+        display: block;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #444;
+        margin-bottom: 4px;
+    }
+
+    .cot-opcion__titulo.form-control {
+        width: 100%;
+        font-weight: 600;
+    }
+
+    .items-list--vacia {
+        min-height: 64px;
+        border: 2px dashed #c9cfdc;
+        border-radius: 12px;
+        justify-content: center;
+    }
+
+    .items-list--vacia::before {
+        content: attr(data-vacia);
+        color: #666;
+        font-size: 0.85rem;
+        text-align: center;
+        padding: 10px;
+    }
+
+    .cot-opcion__foot {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid #e3e6ec;
+    }
+
+    .btn-add-row--sec {
+        background: #fff;
+        color: #1e7e34;
+        border: 1px solid #1e7e34;
+    }
+
+    .btn-add-row--sec:hover {
+        background: #eaf6ec;
+    }
+
+    .cot-opcion__resumen {
+        text-align: right;
+        margin-left: auto;
+    }
+
+    .cot-opcion__valor {
+        display: block;
+        font-size: 1.25rem;
+        color: var(--color-secundario, #0e1b33);
+    }
+
+    .cot-opcion__incluye {
+        display: block;
+        font-size: 0.78rem;
+        color: #555;
+    }
+
+    .cot-opcion__incluye[hidden] {
+        display: none;
+    }
+
+    /* Invitación a crear opciones (y «Agregar otra opción» cuando ya hay) */
+    .cot-opcion-nueva {
+        margin-top: 18px;
+        padding: 14px 16px;
+        border: 2px dashed #c9cfdc;
+        border-radius: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .cot-opcion-nueva__texto {
+        flex: 1 1 260px;
+    }
+
+    .cot-opcion-nueva__texto span {
+        display: block;
+        font-size: 0.85rem;
+        color: #555;
+        margin-top: 2px;
+    }
+
+    .cot-opcion-nueva--compacta {
+        border: none;
+        padding: 0;
+        justify-content: center;
+    }
+
+    .cot-opcion-nueva--compacta .cot-opcion-nueva__texto {
+        display: none;
+    }
+
+    .btn-opcion {
+        min-height: 42px;
+        padding: 0 16px;
+        border: 1px solid var(--color-primario, #122C94);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--color-primario, #122C94);
+        font-weight: 700;
+        font-size: 0.88rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-opcion:hover {
+        background: rgba(18, 44, 148, 0.06);
+    }
+
+    /* Resumen con opciones: un total por opción, sin gran total */
+    .items-total--opciones {
+        display: block;
+    }
+
+    .items-total__titulo {
+        margin: 0 0 6px;
+        font-size: 0.85rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        opacity: 0.9;
+    }
+
+    .items-total--opciones ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .items-total--opciones li {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 5px 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    .items-total--opciones li:first-child {
+        border-top: none;
+    }
+
+    .items-total--opciones li span {
+        overflow-wrap: anywhere;
+        font-weight: 600;
+    }
+
+    .items-total--opciones li strong {
+        font-size: 1.15rem;
+        white-space: nowrap;
+    }
+
+    .items-total__nota {
+        margin: 8px 0 0;
+        font-size: 0.8rem;
+        font-weight: 400;
+        opacity: 0.9;
+    }
+
+    /* Ventana: ¿qué hacer con los ítems ya escritos al crear la primera opción? */
+    .cot-dialogo {
+        border: none;
+        border-radius: 14px;
+        padding: 22px;
+        width: calc(100% - 32px);
+        max-width: 470px;
+        box-shadow: 0 12px 40px rgba(14, 27, 51, 0.25);
+    }
+
+    .cot-dialogo::backdrop {
+        background: rgba(14, 27, 51, 0.45);
+    }
+
+    .cot-dialogo h2 {
+        margin: 0 0 8px;
+        font-size: 1.05rem;
+        color: var(--color-secundario, #0e1b33);
+    }
+
+    .cot-dialogo p {
+        margin: 0 0 18px;
+        color: #444;
+        line-height: 1.5;
+        font-size: 0.92rem;
+    }
+
+    .cot-dialogo__botones {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .cot-sr {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+
     /* Acciones del formulario */
     .cotizar-actions {
         display: flex;
@@ -1003,6 +1326,34 @@
             padding: 11px 14px;
         }
 
+        .cot-opcion {
+            padding: 12px 10px;
+        }
+
+        .cot-opcion__foot {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .btn-mover {
+            min-width: 40px;
+            min-height: 40px;
+        }
+
+        .btn-opcion {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .cot-dialogo__botones {
+            flex-direction: column-reverse;
+        }
+
+        .cot-dialogo__botones button {
+            width: 100%;
+            justify-content: center;
+        }
+
         .cotizar-actions {
             flex-direction: column-reverse;
             align-items: stretch;
@@ -1041,6 +1392,125 @@
 {% endblock %}
 
 {% block body %}
+{#- Un ítem del formulario: los guardados, el de una orden de servicio y la plantilla
+    vacía (d = None). `opcion[]` dice a qué opción pertenece ('' = común); lo llena el
+    JS según el bloque donde esté la fila. -#}
+{% macro fila_item(d=None) -%}
+<div class="item-row">
+    <input type="hidden" name="opcion[]" class="item-opcion" value="">
+    <div class="item-row__head">
+        <span class="item-row__title">
+            <span class="item-row__agarre" title="Arrastra para cambiar el orden" aria-hidden="true"><i class="fas fa-grip-vertical"></i></span>
+            <i class="fas fa-box" aria-hidden="true"></i> <span class="item-row__num">Ítem</span>
+        </span>
+        <span class="item-row__acciones">
+            <button type="button" class="btn-mover" data-mover="-1" aria-label="Subir ítem" title="Subir">
+                <i class="fas fa-arrow-up" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="btn-mover" data-mover="1" aria-label="Bajar ítem" title="Bajar">
+                <i class="fas fa-arrow-down" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="btn-eliminar" onclick="eliminarFila(this)" aria-label="Eliminar ítem">
+                <i class="fas fa-trash"></i>
+            </button>
+        </span>
+    </div>
+
+    <div class="item-row__grid">
+        <div class="form-group col-full">
+            <label>Descripción / Producto</label>
+            <input type="text" name="descripcion[]" class="form-control" aria-label="Descripción o producto"
+                placeholder="Concepto o Producto" required value="{{ d.descripcion if d else '' }}">
+            <select onchange="seleccionarProducto(this)" style="margin-top: 6px; color: #666;" aria-label="Seleccionar de inventario">
+                <option value="">-- Seleccionar de Inventario --</option>
+                {% for p in productos %}
+                <option value="{{ p.nombre }}" data-precio="{{ p.precio }}"
+                    data-imagen="{{ p.imagen or '' }}">
+                    {{ p.nombre }} (Stock: {{ p.stock }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group col-full">
+            <label>Imagen (opcional)</label>
+            <input type="hidden" name="imagen_ref[]" class="imagen-ref" value="{{ (d.imagen_url or '') if d else '' }}">
+            <input type="file" class="imagen-custom-input" aria-label="Imagen del ítem (opcional)"
+                accept="image/*" onchange="previewImage(this)" title="Subir imagen opcional para PDF">
+        </div>
+
+        <div class="form-group">
+            <label>Cantidad</label>
+            <input type="number" name="cantidad[]" class="form-control" aria-label="Cantidad"
+                value="{{ d.cantidad if d else 1 }}" min="1" required oninput="calcular(this)">
+        </div>
+        <div class="form-group">
+            <label>Precio Unit.</label>
+            <input type="number" name="precio[]" class="form-control" aria-label="Precio unitario"
+                value="{{ d.precio_unitario if d else 0 }}" min="0" required oninput="calcular(this)">
+        </div>
+        <div class="form-group">
+            <label>Descuento %</label>
+            <input type="number" name="descuento[]" class="form-control" aria-label="Descuento en porcentaje"
+                value="{{ (d.descuento_porc or 0) if d else 0 }}" min="0" max="100" oninput="calcular(this)">
+        </div>
+        <div class="form-group">
+            <label>IVA</label>
+            <label class="iva-toggle">
+                <input type="checkbox" name="iva_check[]" value="19" onchange="calcular(this)"
+                    {% if d and d.iva_porc and d.iva_porc > 0 %}checked{% endif %}>
+                <span>Aplicar 19%</span>
+            </label>
+            <input type="hidden" name="iva[]" value="{{ (d.iva_porc or 0) if d else 0 }}">
+        </div>
+    </div>
+
+    <div class="item-row__foot">
+        <span class="item-row__sub-label">Subtotal</span>
+        <span class="item-row__sub-value subtotal-display">$0</span>
+    </div>
+</div>
+{%- endmacro %}
+
+{#- Una opción: alternativa con su número (lo pone el JS según el orden), un nombre
+    opcional, sus ítems y su total (no se suma a las demás). -#}
+{% macro bloque_opcion(nombre='', filas=[]) -%}
+<section class="cot-opcion" role="group">
+    <div class="cot-opcion__head">
+        <span class="cot-opcion__numero"><i class="fas fa-layer-group" aria-hidden="true"></i> <span class="cot-opcion__n">Opción</span></span>
+        <span class="item-row__acciones">
+            <button type="button" class="btn-mover" data-mover-opcion="-1" aria-label="Subir opción" title="Subir opción">
+                <i class="fas fa-arrow-up" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="btn-mover" data-mover-opcion="1" aria-label="Bajar opción" title="Bajar opción">
+                <i class="fas fa-arrow-down" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="btn-eliminar" data-quitar-opcion aria-label="Quitar opción" title="Quitar opción">
+                <i class="fas fa-trash" aria-hidden="true"></i>
+            </button>
+        </span>
+        <label class="cot-opcion__nombre">
+            <span class="cot-opcion__etiqueta">Nombre que verá el cliente <span class="cotizar-opcional">(opcional)</span></span>
+            <input type="text" class="form-control cot-opcion__titulo" maxlength="60" value="{{ nombre }}"
+                   placeholder="Ej.: Equipo de oficina">
+        </label>
+    </div>
+    <div class="items-list cot-opcion__items" data-vacia="Sin ítems. Usa «Agregar ítem a esta opción» o arrastra uno aquí.">
+        {% for d in filas %}{{ fila_item(d) }}{% endfor %}
+    </div>
+    <div class="cot-opcion__foot">
+        <button type="button" class="btn-add-row btn-add-row--sec" data-agregar-item>
+            <i class="fas fa-plus" aria-hidden="true"></i> Agregar ítem a esta opción
+        </button>
+        <div class="cot-opcion__resumen">
+            <span class="item-row__sub-label">Total <span class="cot-opcion__n">Opción</span></span>
+            <strong class="cot-opcion__valor">$0</strong>
+            <small class="cot-opcion__incluye" hidden></small>
+        </div>
+    </div>
+</section>
+{%- endmacro %}
+
 <div class="cotizar-wrap">
     <h1 class="page-title">
         <i class="fas fa-file-invoice"></i>
@@ -1128,86 +1598,51 @@
             </div>
         </div>
 
-        <!-- ITEMS -->
-        <div class="cotizar-card">
+        <!-- ITEMS: los comunes arriba y, si hay, las opciones (alternativas que no se suman) -->
+        <div class="cotizar-card" id="items-card">
             <div class="cotizar-card-head">
                 <h3><i class="fas fa-list"></i> Ítems a Cotizar</h3>
                 <button type="button" class="btn-add-row" onclick="addItem()">
-                    <i class="fas fa-plus"></i> Agregar Ítem
+                    <i class="fas fa-plus" aria-hidden="true"></i> <span id="agregar-item-texto">Agregar ítem</span>
+                </button>
+            </div>
+            <p class="cotizar-help items-ayuda">Ordena los ítems con las flechas
+                <i class="fas fa-arrow-up" aria-hidden="true"></i><i class="fas fa-arrow-down" aria-hidden="true"></i>
+                o arrastrándolos desde <i class="fas fa-grip-vertical" aria-hidden="true"></i>: así salen en el PDF.</p>
+
+            <div class="cot-comunes-cabeza" id="comunes-cabeza" hidden>
+                <h4>Para todas las opciones</h4>
+                <p class="cotizar-help">Se suman al total de la opción que elija el cliente (por ejemplo, instalación o transporte). Es opcional.</p>
+            </div>
+            <div class="items-list" id="items-container"
+                 data-vacia="Sin ítems para todas las opciones. Agrégalos con «Agregar ítem para todas» o arrastra uno aquí.">
+                {% for d in detalles %}{{ fila_item(d) }}{% endfor %}
+            </div>
+
+            <div id="opciones-container">
+                {% for op in opciones or [] %}{{ bloque_opcion(op.nombre, op.detalles) }}{% endfor %}
+            </div>
+
+            <div class="cot-opcion-nueva" id="opcion-nueva">
+                <div class="cot-opcion-nueva__texto">
+                    <strong>¿Vas a ofrecer alternativas?</strong>
+                    <span>Por ejemplo, dos computadores. Crea una opción para cada una: el cliente elige y los totales no se suman.</span>
+                </div>
+                <button type="button" class="btn-opcion" onclick="agregarOpcion()">
+                    <i class="fas fa-layer-group" aria-hidden="true"></i> <span id="agregar-opcion-texto">Agregar opción</span>
                 </button>
             </div>
 
-            <div class="items-list" id="items-container">
-                {% for d in detalles %}
-                <div class="item-row">
-                    <div class="item-row__head">
-                        <span class="item-row__title"><i class="fas fa-box"></i> Ítem</span>
-                        <button type="button" class="btn-eliminar" onclick="eliminarFila(this)" aria-label="Eliminar ítem">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-
-                    <div class="item-row__grid">
-                        <div class="form-group col-full">
-                            <label>Descripción / Producto</label>
-                            <input type="text" name="descripcion[]" class="form-control"
-                                placeholder="Concepto o Producto" required value="{{ d.descripcion }}">
-                            <select onchange="seleccionarProducto(this)" style="margin-top: 6px; color: #666;">
-                                <option value="">-- Seleccionar de Inventario --</option>
-                                {% for p in productos %}
-                                <option value="{{ p.nombre }}" data-precio="{{ p.precio }}"
-                                    data-imagen="{{ p.imagen or '' }}">
-                                    {{ p.nombre }} (Stock: {{ p.stock }})
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                        <div class="form-group col-full">
-                            <label>Imagen (opcional)</label>
-                            <input type="hidden" name="imagen_ref[]" class="imagen-ref" value="{{ d.imagen_url or '' }}">
-                            <input type="file" name="imagen_upload_{{ loop.index0 }}" class="imagen-custom-input"
-                                accept="image/*" onchange="previewImage(this)" title="Subir imagen opcional para PDF">
-                        </div>
-
-                        <div class="form-group">
-                            <label>Cantidad</label>
-                            <input type="number" name="cantidad[]" class="form-control"
-                                value="{{ d.cantidad }}" min="1" required oninput="calcular(this)">
-                        </div>
-                        <div class="form-group">
-                            <label>Precio Unit.</label>
-                            <input type="number" name="precio[]" class="form-control"
-                                value="{{ d.precio_unitario }}" min="0" required oninput="calcular(this)">
-                        </div>
-                        <div class="form-group">
-                            <label>Descuento %</label>
-                            <input type="number" name="descuento[]" class="form-control"
-                                value="{{ d.descuento_porc or 0 }}" min="0" max="100" oninput="calcular(this)">
-                        </div>
-                        <div class="form-group">
-                            <label>IVA</label>
-                            <label class="iva-toggle">
-                                <input type="checkbox" name="iva_check[]" value="19" onchange="calcular(this)"
-                                    {% if d.iva_porc and d.iva_porc > 0 %}checked{% endif %}>
-                                <span>Aplicar 19%</span>
-                            </label>
-                            <input type="hidden" name="iva[]" value="{{ d.iva_porc or 0 }}">
-                        </div>
-                    </div>
-
-                    <div class="item-row__foot">
-                        <span class="item-row__sub-label">Subtotal</span>
-                        <span class="item-row__sub-value subtotal-display">$0</span>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-
-            <div class="items-total">
+            <div class="items-total" id="items-total">
                 <span class="label">Total</span>
                 <span class="value" id="total-display">$0</span>
             </div>
+            <div class="items-total items-total--opciones" id="totales-opciones" hidden>
+                <p class="items-total__titulo" id="totales-titulo">Total según la opción que elija el cliente</p>
+                <ul id="totales-lista" aria-labelledby="totales-titulo"></ul>
+                <p class="items-total__nota">Los totales no se suman: el cliente paga solo la opción que elija.</p>
+            </div>
+            <p class="cot-sr" id="items-aviso" role="status" aria-live="polite"></p>
         </div>
 
         <!-- NOTAS ADICIONALES: van al final del PDF, antes de la firma (vacías no salen) -->
@@ -1265,6 +1700,18 @@
             </button>
         </div>
     </form>
+
+    {#- Al crear la primera opción con ítems ya escritos: dos salidas claras (no «Aceptar/Cancelar»). -#}
+    <dialog class="cot-dialogo" id="dialogoPasar" aria-labelledby="dialogoPasarTitulo" aria-describedby="dialogoPasarTexto">
+        <form method="dialog">
+            <h2 id="dialogoPasarTitulo">¿Qué hacemos con los ítems que ya escribiste?</h2>
+            <p id="dialogoPasarTexto"></p>
+            <div class="cot-dialogo__botones">
+                <button type="submit" class="btn-ia-sec" value="dejar">Dejarlos para todas las opciones</button>
+                <button type="submit" class="btn-ia" value="pasar" id="dialogoPasarSi">Pasarlos a la opción 1</button>
+            </div>
+        </form>
+    </dialog>
 
     {% if 'ai_assistant' in active_modules and not cotizacion %}
     <dialog class="cia" id="ciaDialogo" aria-labelledby="ciaTitulo" data-url="{{ url_for('quotes.generar_con_ia') }}"
@@ -1329,78 +1776,174 @@
     {% endif %}
 </div>
 
-<!-- Template para nuevo ítem -->
-<template id="item-template">
-    <div class="item-row">
-        <div class="item-row__head">
-            <span class="item-row__title"><i class="fas fa-box"></i> Ítem</span>
-            <button type="button" class="btn-eliminar" onclick="eliminarFila(this)" aria-label="Eliminar ítem">
-                <i class="fas fa-trash"></i>
-            </button>
-        </div>
-
-        <div class="item-row__grid">
-            <div class="form-group col-full">
-                <label>Descripción / Producto</label>
-                <input type="text" name="descripcion[]" class="form-control" placeholder="Concepto o Producto" required>
-                <select onchange="seleccionarProducto(this)" style="margin-top: 6px; color: #666;">
-                    <option value="">-- Seleccionar de Inventario --</option>
-                    {% for p in productos %}
-                    <option value="{{ p.nombre }}" data-precio="{{ p.precio }}" data-imagen="{{ p.imagen or '' }}">
-                        {{ p.nombre }} (Stock: {{ p.stock }})
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="form-group col-full">
-                <label>Imagen (opcional)</label>
-                <input type="hidden" name="imagen_ref[]" class="imagen-ref" value="">
-                <input type="file" class="imagen-custom-input" accept="image/*"
-                    onchange="previewImage(this)" title="Subir imagen opcional para PDF">
-            </div>
-
-            <div class="form-group">
-                <label>Cantidad</label>
-                <input type="number" name="cantidad[]" class="form-control" value="1" min="1" required
-                    oninput="calcular(this)">
-            </div>
-            <div class="form-group">
-                <label>Precio Unit.</label>
-                <input type="number" name="precio[]" class="form-control" value="0" min="0" required
-                    oninput="calcular(this)">
-            </div>
-            <div class="form-group">
-                <label>Descuento %</label>
-                <input type="number" name="descuento[]" class="form-control" value="0" min="0" max="100"
-                    oninput="calcular(this)">
-            </div>
-            <div class="form-group">
-                <label>IVA</label>
-                <label class="iva-toggle">
-                    <input type="checkbox" name="iva_check[]" value="19" onchange="calcular(this)">
-                    <span>Aplicar 19%</span>
-                </label>
-                <input type="hidden" name="iva[]" value="0">
-            </div>
-        </div>
-
-        <div class="item-row__foot">
-            <span class="item-row__sub-label">Subtotal</span>
-            <span class="item-row__sub-value subtotal-display">$0</span>
-        </div>
-    </div>
-</template>
+<!-- Plantillas para un ítem y una opción nuevos -->
+<template id="item-template">{{ fila_item() }}</template>
+<template id="opcion-template">{{ bloque_opcion() }}</template>
 
 <script>
-    function addItem() {
-        const template = document.getElementById('item-template');
-        const clone = template.content.cloneNode(true);
-        const contenedor = document.getElementById('items-container');
-        const index = contenedor.children.length;
-        const fileInput = clone.querySelector('.imagen-custom-input');
-        if (fileInput) fileInput.name = 'imagen_upload_' + index;
-        contenedor.appendChild(clone);
+    const tarjetaItems = document.getElementById('items-card');
+    const comunes = () => document.getElementById('items-container');
+    const secciones = () => Array.from(document.querySelectorAll('#opciones-container .cot-opcion'));
+    // Las listas en el orden del formulario y del PDF: los comunes y luego cada opción.
+    const listas = () => [comunes()].concat(secciones().map(s => s.querySelector('.cot-opcion__items')));
+    const filas = () => Array.from(tarjetaItems.querySelectorAll('.item-row'));
+    const moneda = v => v.toLocaleString('es-CO', { style: 'currency', currency: 'COP' });
+
+    function avisar(texto) {
+        const aviso = document.getElementById('items-aviso');
+        aviso.textContent = '';
+        setTimeout(() => { aviso.textContent = texto; }, 50);
+    }
+
+    function nuevaFila(lista) {
+        const clone = document.getElementById('item-template').content.cloneNode(true);
+        const fila = clone.querySelector('.item-row');
+        lista.appendChild(clone);
+        return fila;
+    }
+
+    // `lista`: dónde va el ítem (por omisión, los comunes). La IA de cotizaciones también la usa.
+    function addItem(lista) {
+        const fila = nuevaFila(lista || comunes());
+        actualizarItems();
+        return fila;
+    }
+
+    // Título de cada opción como se guarda y sale en el PDF: el número lo da el orden
+    // («Opción 1», «Opción 2»…, nunca se repite) y el nombre es opcional
+    // («Opción 2 — Equipo gamer»).
+    function titulos() {
+        return secciones().map((s, i) => {
+            const nombre = s.querySelector('.cot-opcion__titulo').value.trim().replace(/\s+/g, ' ');
+            return 'Opción ' + (i + 1) + (nombre ? ' — ' + nombre : '');
+        });
+    }
+
+    function nombreLista(lista) {
+        if (lista === comunes()) return secciones().length ? 'los ítems para todas las opciones' : 'la cotización';
+        return '«' + titulos()[secciones().indexOf(lista.closest('.cot-opcion'))] + '»';
+    }
+
+    // ¿Pasar a la primera opción los ítems que ya estaban escritos? Ventana con dos
+    // salidas claras; Esc o cerrar = dejarlos donde están.
+    function preguntarSiPasar(cuantos) {
+        const dialogo = document.getElementById('dialogoPasar');
+        const uno = cuantos === 1;
+        const texto = uno ? 'Ya tienes 1 ítem escrito.' : 'Ya tienes ' + cuantos + ' ítems escritos.';
+        const lo = uno ? 'lo' : 'los';
+        if (!dialogo || typeof dialogo.showModal !== 'function') {
+            return Promise.resolve(confirm(texto + ' ¿Pasar' + lo + ' a la opción 1?'));
+        }
+        document.getElementById('dialogoPasarTexto').textContent = texto +
+            ' Puedes pasar' + lo + ' a la opción 1, o dejar' + lo + ' para todas las opciones: así ' +
+            (uno ? 'se suma' : 'se suman') + ' al total de la que elija el cliente (útil para instalación o transporte).';
+        document.getElementById('dialogoPasarSi').textContent = 'Pasar' + lo + ' a la opción 1';
+        dialogo.querySelector('[value="dejar"]').textContent = 'Dejar' + lo + ' para todas las opciones';
+        dialogo.returnValue = '';
+        return new Promise(resolver => {
+            dialogo.addEventListener('close', () => resolver(dialogo.returnValue === 'pasar'), { once: true });
+            dialogo.showModal();
+            document.getElementById('dialogoPasarSi').focus();
+        });
+    }
+
+    async function agregarOpcion() {
+        const primera = !secciones().length;
+        const vacia = f => !f.querySelector('input[name="descripcion[]"]').value.trim()
+            && !(parseFloat(f.querySelector('input[name="precio[]"]').value) > 0);
+        // Las filas sin llenar de arriba sobran: el formulario pediría llenarlas.
+        Array.from(comunes().querySelectorAll('.item-row')).filter(vacia).forEach(f => f.remove());
+        const escritas = Array.from(comunes().querySelectorAll('.item-row'));
+        const pasar = primera && escritas.length > 0 && await preguntarSiPasar(escritas.length);
+
+        const clone = document.getElementById('opcion-template').content.cloneNode(true);
+        const seccion = clone.querySelector('.cot-opcion');
+        document.getElementById('opciones-container').appendChild(clone);
+        const items = seccion.querySelector('.cot-opcion__items');
+
+        if (pasar) {
+            escritas.forEach(f => items.appendChild(f));
+            actualizarItems();
+            seccion.querySelector('.cot-opcion__titulo').focus();
+        } else {
+            const fila = nuevaFila(items);
+            actualizarItems();
+            fila.querySelector('input[name="descripcion[]"]').focus();
+        }
+        avisar('Agregada la opción ' + secciones().length + '.');
+    }
+
+    function quitarOpcion(seccion) {
+        const nombre = titulos()[secciones().indexOf(seccion)];
+        const n = seccion.querySelectorAll('.item-row').length;
+        if (n && !confirm('¿Quitar «' + nombre + '» y ' + (n === 1 ? 'su ítem' : 'sus ' + n + ' ítems') + '?')) return;
+        seccion.remove();
+        if (!filas().length) nuevaFila(comunes());
+        actualizarItems();
+        avisar('Se quitó «' + nombre + '».');
+    }
+
+    // Una posición arriba o abajo; en el borde de su lista pasa a la lista vecina
+    // (de los comunes a la primera opción, de una opción a la siguiente…).
+    function moverFila(fila, paso) {
+        const lista = fila.parentElement;
+        const vecina = paso < 0 ? fila.previousElementSibling : fila.nextElementSibling;
+        if (vecina) {
+            lista.insertBefore(fila, paso < 0 ? vecina : vecina.nextElementSibling);
+        } else {
+            const ls = listas();
+            const otra = ls[ls.indexOf(lista) + paso];
+            if (!otra) return;
+            if (paso < 0) otra.appendChild(fila); else otra.insertBefore(fila, otra.firstElementChild);
+        }
+        actualizarItems();
+        const boton = fila.querySelector('[data-mover="' + paso + '"]');
+        (boton.disabled ? fila.querySelector('[data-mover="' + (-paso) + '"]') : boton).focus();
+        fila.scrollIntoView({ block: 'nearest' });
+        avisar(fila.querySelector('.item-row__num').textContent + ' de ' + nombreLista(fila.parentElement));
+    }
+
+    function moverOpcion(seccion, paso) {
+        const vecina = paso < 0 ? seccion.previousElementSibling : seccion.nextElementSibling;
+        if (!vecina) return;
+        seccion.parentElement.insertBefore(seccion, paso < 0 ? vecina : vecina.nextElementSibling);
+        actualizarItems();
+        const boton = seccion.querySelector('[data-mover-opcion="' + paso + '"]');
+        (boton.disabled ? seccion.querySelector('[data-mover-opcion="' + (-paso) + '"]') : boton).focus();
+        seccion.scrollIntoView({ block: 'nearest' });
+        avisar('Ahora es la ' + titulos()[secciones().indexOf(seccion)] + ', de ' + secciones().length + '.');
+    }
+
+    // Numera los ítems, les pone su opción, habilita las flechas y recalcula.
+    function actualizarItems() {
+        const nombres = titulos();
+        const hayOpciones = nombres.length > 0;
+        const ls = listas();
+        ls.forEach((lista, i) => {
+            const propias = Array.from(lista.children).filter(f => f.classList.contains('item-row'));
+            propias.forEach((fila, n) => {
+                fila.querySelector('.item-opcion').value = i ? nombres[i - 1] : '';
+                fila.querySelector('.item-row__num').textContent = 'Ítem ' + (n + 1);
+                // Solo en los extremos: una opción vacía también recibe ítems con las flechas.
+                fila.querySelector('[data-mover="-1"]').disabled = i === 0 && n === 0;
+                fila.querySelector('[data-mover="1"]').disabled = i === ls.length - 1 && n === propias.length - 1;
+            });
+            lista.classList.toggle('items-list--vacia', !propias.length && hayOpciones);
+        });
+        // El servidor toma la imagen subida de cada ítem por su posición en el formulario.
+        filas().forEach((fila, n) => { fila.querySelector('.imagen-custom-input').name = 'imagen_upload_' + n; });
+        secciones().forEach((s, n, todasLasOpciones) => {
+            s.querySelectorAll('.cot-opcion__n').forEach(e => { e.textContent = 'Opción ' + (n + 1); });
+            s.setAttribute('aria-label', nombres[n]);
+            s.querySelector('[data-mover-opcion="-1"]').disabled = n === 0;
+            s.querySelector('[data-mover-opcion="1"]').disabled = n === todasLasOpciones.length - 1;
+        });
+        // Con opciones, lo de arriba es «para todas» y el botón lo dice.
+        document.getElementById('comunes-cabeza').hidden = !hayOpciones;
+        document.getElementById('agregar-item-texto').textContent = hayOpciones ? 'Agregar ítem para todas' : 'Agregar ítem';
+        document.getElementById('opcion-nueva').classList.toggle('cot-opcion-nueva--compacta', hayOpciones);
+        document.getElementById('agregar-opcion-texto').textContent = hayOpciones ? 'Agregar otra opción' : 'Agregar opción';
+        calcularTotal();
     }
 
     function previewImage(input) {
@@ -1411,9 +1954,9 @@
 
     function eliminarFila(btn) {
         const fila = btn.closest('.item-row');
-        if (document.querySelectorAll('.item-row').length > 1) {
+        if (filas().length > 1) {
             fila.remove();
-            calcularTotal();
+            actualizarItems();
         }
     }
 
@@ -1429,11 +1972,20 @@
         calcular(select);
     }
 
-    function calcular(elemento) {
-        const fila = elemento.closest('.item-row');
+    function totalFila(fila) {
         const cant = parseFloat(fila.querySelector('input[name="cantidad[]"]').value) || 0;
         const prec = parseFloat(fila.querySelector('input[name="precio[]"]').value) || 0;
         const descPorcentaje = parseFloat(fila.querySelector('input[name="descuento[]"]').value) || 0;
+        const ivaCheck = fila.querySelector('input[name="iva_check[]"]');
+        const subtotalBase = cant * prec;
+        const montoDescuento = subtotalBase * (descPorcentaje / 100);
+        const subtotalMenosDesc = subtotalBase - montoDescuento;
+        const montoIva = (ivaCheck && ivaCheck.checked) ? subtotalMenosDesc * 0.19 : 0;
+        return subtotalMenosDesc + montoIva;
+    }
+
+    function calcular(elemento) {
+        const fila = elemento.closest('.item-row');
         const ivaCheck = fila.querySelector('input[name="iva_check[]"]');
         const ivaInput = fila.querySelector('input[name="iva[]"]');
 
@@ -1441,43 +1993,104 @@
             ivaInput.value = ivaCheck.checked ? 19 : 0;
         }
 
-        const subtotalBase = cant * prec;
-        const montoDescuento = subtotalBase * (descPorcentaje / 100);
-        const subtotalMenosDesc = subtotalBase - montoDescuento;
-        const montoIva = (ivaCheck && ivaCheck.checked) ? subtotalMenosDesc * 0.19 : 0;
-        const totalLinea = subtotalMenosDesc + montoIva;
-
-        fila.querySelector('.subtotal-display').textContent =
-            totalLinea.toLocaleString('es-CO', { style: 'currency', currency: 'COP' });
+        fila.querySelector('.subtotal-display').textContent = moneda(totalFila(fila));
         calcularTotal();
     }
 
+    // Sin opciones, un total. Con opciones, el de cada una (sus ítems + los comunes):
+    // no se suman entre sí.
     function calcularTotal() {
-        let total = 0;
-        document.querySelectorAll('.item-row').forEach(fila => {
-            const cant = parseFloat(fila.querySelector('input[name="cantidad[]"]').value) || 0;
-            const prec = parseFloat(fila.querySelector('input[name="precio[]"]').value) || 0;
-            const descPorcentaje = parseFloat(fila.querySelector('input[name="descuento[]"]').value) || 0;
-            const ivaCheck = fila.querySelector('input[name="iva_check[]"]');
-            const subtotalBase = cant * prec;
-            const montoDescuento = subtotalBase * (descPorcentaje / 100);
-            const subtotalMenosDesc = subtotalBase - montoDescuento;
-            const montoIva = (ivaCheck && ivaCheck.checked) ? subtotalMenosDesc * 0.19 : 0;
-            total += (subtotalMenosDesc + montoIva);
+        const sumar = lista => Array.from(lista.querySelectorAll('.item-row')).reduce((t, f) => t + totalFila(f), 0);
+        const comun = sumar(comunes());
+        const nombres = titulos();
+        const totales = document.getElementById('totales-opciones');
+        const lista = document.getElementById('totales-lista');
+        lista.replaceChildren();
+        secciones().forEach((s, i) => {
+            const total = comun + sumar(s.querySelector('.cot-opcion__items'));
+            s.querySelector('.cot-opcion__valor').textContent = moneda(total);
+            const incluye = s.querySelector('.cot-opcion__incluye');
+            incluye.hidden = !(comun > 0);
+            incluye.textContent = 'Incluye ' + moneda(comun) + ' de los ítems para todas las opciones';
+            const li = document.createElement('li');
+            const nombre = document.createElement('span');
+            const valor = document.createElement('strong');
+            nombre.textContent = nombres[i];
+            valor.textContent = moneda(total);
+            li.append(nombre, valor);
+            lista.appendChild(li);
         });
-        document.getElementById('total-display').textContent =
-            total.toLocaleString('es-CO', { style: 'currency', currency: 'COP' });
+        document.getElementById('items-total').hidden = nombres.length > 0;
+        totales.hidden = !nombres.length;
+        document.getElementById('total-display').textContent = moneda(comun);
     }
 
-    window.onload = function () {
-        if (document.querySelectorAll('.item-row').length === 0) {
-            addItem();
-        } else {
-            document.querySelectorAll('.item-row').forEach(fila => {
-                const cantInput = fila.querySelector('input[name="cantidad[]"]');
-                if (cantInput) calcular(cantInput);
-            });
+    tarjetaItems.addEventListener('click', e => {
+        const b = e.target.closest('button');
+        if (!b) return;
+        if (b.dataset.mover) moverFila(b.closest('.item-row'), Number(b.dataset.mover));
+        else if (b.dataset.moverOpcion) moverOpcion(b.closest('.cot-opcion'), Number(b.dataset.moverOpcion));
+        else if (b.hasAttribute('data-quitar-opcion')) quitarOpcion(b.closest('.cot-opcion'));
+        else if (b.hasAttribute('data-agregar-item')) {
+            addItem(b.closest('.cot-opcion').querySelector('.cot-opcion__items'))
+                .querySelector('input[name="descripcion[]"]').focus();
         }
+    });
+
+    tarjetaItems.addEventListener('input', e => {
+        if (e.target.classList.contains('cot-opcion__titulo')) actualizarItems();
+    });
+
+    // Arrastrar con el mouse desde el ícono de la izquierda (en el celular, las flechas).
+    // Solo la fila tomada del ícono es arrastrable: así se puede seguir seleccionando texto.
+    let arrastrada = null, marcaArrastre = 0;
+    tarjetaItems.addEventListener('mousedown', e => {
+        const agarre = e.target.closest('.item-row__agarre');
+        if (agarre) agarre.closest('.item-row').draggable = true;
+    });
+    document.addEventListener('mouseup', () => {
+        if (!arrastrada) tarjetaItems.querySelectorAll('.item-row[draggable="true"]').forEach(f => { f.draggable = false; });
+    });
+    tarjetaItems.addEventListener('dragstart', e => {
+        const fila = e.target.closest && e.target.closest('.item-row');
+        if (!fila || !fila.draggable) return;
+        arrastrada = fila;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', '');
+        // Al siguiente cuadro, para que la imagen que se arrastra salga sin transparencia.
+        marcaArrastre = requestAnimationFrame(() => fila.classList.add('item-row--arrastrando'));
+    });
+    tarjetaItems.addEventListener('dragover', e => {
+        const lista = arrastrada && e.target.closest('.items-list');
+        if (!lista) return;
+        e.preventDefault();
+        const debajo = Array.from(lista.children).find(f => f !== arrastrada && f.classList.contains('item-row')
+            && e.clientY < f.getBoundingClientRect().top + f.offsetHeight / 2);
+        if (debajo) {
+            if (debajo.previousElementSibling !== arrastrada) lista.insertBefore(arrastrada, debajo);
+        } else if (lista.lastElementChild !== arrastrada) {
+            lista.appendChild(arrastrada);
+        }
+    });
+    tarjetaItems.addEventListener('drop', e => { if (arrastrada) e.preventDefault(); });
+    tarjetaItems.addEventListener('dragend', () => {
+        if (!arrastrada) return;
+        const fila = arrastrada;
+        cancelAnimationFrame(marcaArrastre);
+        fila.classList.remove('item-row--arrastrando');
+        fila.draggable = false;
+        arrastrada = null;
+        actualizarItems();
+        avisar(fila.querySelector('.item-row__num').textContent + ' de ' + nombreLista(fila.parentElement));
+    });
+
+    // Lo que se ve es lo que se guarda: cada ítem con su opción y su imagen.
+    tarjetaItems.closest('form').addEventListener('submit', actualizarItems);
+
+    window.onload = function () {
+        if (!filas().length) nuevaFila(comunes());
+        filas().forEach(fila => calcular(fila.querySelector('input[name="cantidad[]"]')));
+        actualizarItems();
     };
 </script>
 {% if 'ai_assistant' in active_modules %}

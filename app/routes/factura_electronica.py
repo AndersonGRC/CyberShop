@@ -930,9 +930,16 @@ def construir_json_cotizacion(cotizacion_id: int) -> dict | None:
         cot = cur.fetchone()
         if not cot:
             return None
+        # Con opciones (alternativas que no se suman) se factura lo común y la
+        # opción que eligió el cliente al aprobar.
+        solo_elegida = (_table_has_column('detalle_cotizacion', 'opcion')
+                        and _table_has_column('cotizaciones', 'opcion_elegida'))
         cur.execute(
-            """SELECT descripcion, cantidad, precio_unitario, descuento_porc, iva_porc
-               FROM detalle_cotizacion WHERE cotizacion_id = %s ORDER BY id""", (cotizacion_id,))
+            f"""SELECT descripcion, cantidad, precio_unitario, descuento_porc, iva_porc
+               FROM detalle_cotizacion WHERE cotizacion_id = %s
+               {"AND (opcion IS NULL OR opcion = (SELECT opcion_elegida FROM cotizaciones WHERE id = %s))"
+                if solo_elegida else ""}
+               ORDER BY id""", (cotizacion_id, cotizacion_id) if solo_elegida else (cotizacion_id,))
         items_db = cur.fetchall()
 
     cot = dict(cot)

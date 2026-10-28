@@ -212,6 +212,7 @@
 
     .acciones-grid form { display: block; margin: 0; }
     .acciones-grid form .btn-act { width: 100%; }
+    .acciones-grid form.acciones-full { grid-column: 1 / -1; }
 
     .btn-act {
         display: inline-flex;
@@ -240,6 +241,18 @@
     .btn-facturar-fe { background: var(--color-primario, #122C94); }
     .btn-facturar-fe:disabled { opacity: .65; cursor: wait; }
     .btn-act:hover { filter: brightness(0.95); }
+
+    /* Cotizaciones con opciones (alternativas que no se suman) */
+    .cot-desde { font-size: 0.78em; color: #666; }
+    .cot-opcion-info { display: block; margin-top: 3px; font-size: 0.75em; color: #555; }
+    .cot-opcion-elegir {
+        width: 100%;
+        margin-bottom: 4px;
+        padding: 6px;
+        border: 1px solid #c9ccd3;
+        border-radius: 7px;
+        font-size: 0.8rem;
+    }
 
     /* ---- Estado vacío ---- */
     .empty-state {
@@ -386,7 +399,15 @@
                         <td data-label="Fecha">{{ cot.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
                         <td data-label="Cliente">{{ cot.cliente_nombre }}</td>
                         <td data-label="Documento">{{ cot.cliente_documento }}</td>
-                        <td data-label="Total" class="right">{{ cot.total }}</td>
+                        <td data-label="Total" class="right">
+                            {%- set ops = opciones.get(cot.id) if opciones else none %}
+                            {% if ops and cot.estado != 'aprobada' %}<span class="cot-desde">desde</span> {% endif %}{{ cot.total }}
+                            {% if cot.opcion_elegida %}
+                            <small class="cot-opcion-info">Opción elegida: {{ cot.opcion_elegida }}</small>
+                            {% elif ops %}
+                            <small class="cot-opcion-info">{{ ops|length }} opciones (no se suman)</small>
+                            {% endif %}
+                        </td>
                         <td data-label="Estado" class="center">
                             {% if cot.estado == 'aprobada' %}
                                 <span class="estado-badge aprobada">
@@ -425,8 +446,18 @@
                                 {% endif %}
 
                                 {% if cot.estado == 'pendiente' %}
-                                <form action="{{ url_for('quotes.aprobar_cotizacion', id=cot.id) }}" method="POST"
+                                <form action="{{ url_for('quotes.aprobar_cotizacion', id=cot.id) }}" method="POST"{% if ops %} class="acciones-full"{% endif %}
                                     onsubmit="return confirm('¿Aprobar esta cotización y registrarla en contabilidad?');">
+                                    {% if ops %}
+                                    {#- Con opciones se registra solo la que aceptó el cliente. -#}
+                                    <select name="opcion" class="cot-opcion-elegir" required
+                                            aria-label="Opción que aceptó el cliente (COT {{ '%010d' % cot.id }})">
+                                        <option value="">¿Qué opción aceptó?</option>
+                                        {% for op in ops %}
+                                        <option value="{{ op.titulo }}">{{ op.titulo }} — {{ op.total }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    {% endif %}
                                     <button type="submit" class="btn-act btn-aprobar">
                                         <i class="fas fa-check"></i> Aprobar
                                     </button>

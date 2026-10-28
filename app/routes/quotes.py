@@ -6,6 +6,7 @@ items de inventario o personalizados, y exportar a PDF.
 """
 
 import os
+import re
 from datetime import datetime
 from flask import Blueprint, render_template, request, Response, session, current_app as app, send_file, url_for, flash, redirect, jsonify
 from werkzeug.utils import secure_filename
@@ -117,6 +118,89 @@ def _limpiar_notas(texto):
 def _bloques_notas(notas):
     from services.notas_cotizacion import bloques
     return bloques(notas)
+
+
+# ── Opciones (1.9.18.0): alternativas que el cliente compara y elige ─────────
+# Ej.: dos computadores armados. Cada opción tiene su total y NO se suman entre
+# sí; los ítems sin opción (instalación, transporte…) van en todas. Columnas
+# aditivas: las mismas sentencias de la migración del maestro 0027.
+DDL_OPCIONES = (
+    "ALTER TABLE detalle_cotizacion ADD COLUMN IF NOT EXISTS opcion VARCHAR(80)",
+    "ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS opcion_elegida VARCHAR(80)",
+)
+OPCION_MAX = 80
+_BD_CON_OPCIONES = set()
+
+
+def _soporta_opciones():
+    """True si existen detalle_cotizacion.opcion y cotizaciones.opcion_elegida (las
+    crea si faltan, una vez por BD y proceso). Si no se puede, la cotización sale
+    como siempre (todo suma) y queda en el log."""
+    from database import _current_db_name
+    bd = _current_db_name()
+    if bd in _BD_CON_OPCIONES:
+        return True
+    try:
+        with get_db_cursor() as cur:
+            cur.execute("""SELECT COUNT(*) FROM information_schema.columns
+                           WHERE table_schema = current_schema()
+                             AND ((table_name = 'detalle_cotizacion' AND column_name = 'opcion')
+                               OR (table_name = 'cotizaciones' AND column_name = 'opcion_elegida'))""")
+            if cur.fetchone()[0] < 2:
+                for ddl in DDL_OPCIONES:
+                    cur.execute(ddl)
+        _BD_CON_OPCIONES.add(bd)
+        return True
+    except Exception as exc:  # noqa: BLE001
+        app.logger.warning(f"Cotizaciones: no se pudieron preparar las opciones ({exc})")
+        return False
+
+
+def _titulo_opcion(texto):
+    """Título de la opción como llega, sin espacios de más. '' → None (común)."""
+    return ' '.join(str(texto or '').split())[:OPCION_MAX] or None
+
+
+# El formulario arma el título con el número (según el orden) y el nombre opcional.
+_TITULO_NUMERADO = re.compile(r'^Opción \d+(?: — (.*))?$')
+
+
+def _nombre_de_opcion(titulo):
+    """Lo que escribió la persona: «Opción 2 — Equipo gamer» → «Equipo gamer»;
+    «Opción 1» → ''."""
+    m = _TITULO_NUMERADO.match(titulo or '')
+    return (m.group(1) or '') if m else (titulo or '')
+
+
+def _agrupar_por_opcion(lineas):
+    """(comunes, opciones). Cada opción: {titulo, lineas, subtotal, descuento, iva,
+    total}, en el orden en que aparecen. Sus montos incluyen los ítems comunes: es lo
+    que paga el cliente si elige esa opción."""
+    comunes = [l for l in lineas if not l['opcion']]
+    titulos = list(dict.fromkeys(l['opcion'] for l in lineas if l['opcion']))
+    opciones = []
+    for titulo in titulos:
+        propias = [l for l in lineas if l['opcion'] == titulo]
+        opciones.append({'titulo': titulo, 'lineas': propias,
+                         **{c: sum(l[c] for l in comunes + propias)
+                            for c in ('subtotal', 'descuento', 'iva', 'total')}})
+    return comunes, opciones
+
+
+def _opciones_por_cotizacion(cur, ids):
+    """{cotizacion_id: [(titulo, total con los comunes)]} de las que tienen opciones."""
+    if not ids:
+        return {}
+    cur.execute("""SELECT cotizacion_id, opcion, SUM(subtotal) AS suma
+                   FROM detalle_cotizacion WHERE cotizacion_id = ANY(%s)
+                   GROUP BY cotizacion_id, opcion ORDER BY cotizacion_id, MIN(id)""", (list(ids),))
+    comunes, opciones = {}, {}
+    for f in cur.fetchall():
+        if f['opcion']:
+            opciones.setdefault(f['cotizacion_id'], []).append((f['opcion'], float(f['suma'] or 0)))
+        else:
+            comunes[f['cotizacion_id']] = float(f['suma'] or 0)
+    return {cid: [(t, comunes.get(cid, 0.0) + s) for t, s in ops] for cid, ops in opciones.items()}
 
 
 def _firma_empresa():
@@ -261,6 +345,18 @@ def cancelar_con_ia(trabajo):
     return jsonify({'ok': True})
 
 
+def _item_pdf(linea):
+    return {
+        'descripcion':       linea['descripcion'],
+        'cantidad':          linea['cantidad'],
+        'precio_unitario':   formatear_moneda(linea['precio_unitario']),
+        'subtotal':          formatear_moneda(linea['total']),
+        'imagen_local_path': linea['imagen_local_path'],
+        'descuento': f"{int(linea['descuento_porc'])}%" if linea['descuento_porc'] > 0 else "0%",
+        'iva':       f"{int(linea['iva_porc'])}%" if linea['iva_porc'] > 0 else "0%",
+    }
+
+
 @quotes_bp.route('/admin/cotizar/generar', methods=['POST'])
 @rol_requerido(ADMIN_STAFF)
 def generar_cotizacion():
@@ -301,18 +397,15 @@ def generar_cotizacion():
             logo_local_path = logo_local_path[7:]
 
         # 3. Procesar Items
-        items = []
+        lineas = []
         cantidades    = request.form.getlist('cantidad[]')
         descripciones = request.form.getlist('descripcion[]')
         precios       = request.form.getlist('precio[]')
         descuentos    = request.form.getlist('descuento[]')
         ivas          = request.form.getlist('iva[]')
         imagenes_ref  = request.form.getlist('imagen_ref[]')
-
-        total_cotizacion = 0
-        total_subtotal   = 0
-        total_descuentos = 0
-        total_iva        = 0
+        opciones_form = request.form.getlist('opcion[]')
+        con_opciones  = _soporta_opciones()
 
         cotizacion_id = 0
         with get_db_cursor(dict_cursor=True) as cur:
@@ -363,11 +456,6 @@ def generar_cotizacion():
                 monto_iva          = subtotal_menos_desc * (iva_porc / 100) if iva_porc > 0 else 0
                 total_linea        = subtotal_menos_desc + monto_iva
 
-                total_subtotal   += subtotal_linea
-                total_descuentos += monto_descuento
-                total_iva        += monto_iva
-                total_cotizacion += total_linea
-
                 # Imagen: ruta local para PDF, URL para BD
                 img_path_final = None
                 img_url_db     = None
@@ -395,24 +483,33 @@ def generar_cotizacion():
                     except Exception:
                         pass
 
-                cur.execute("""
-                    INSERT INTO detalle_cotizacion
-                        (cotizacion_id, descripcion, cantidad, precio_unitario, subtotal,
-                         imagen_url, descuento_porc, iva_porc)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                """, (cotizacion_id, descripcion, cantidad, precio_unitario, total_linea,
-                      img_url_db, descuento_porc, iva_porc))
-
-                items.append({
-                    'descripcion':     descripcion,
-                    'cantidad':        cantidad,
-                    'precio_unitario': formatear_moneda(precio_unitario),
-                    'subtotal':        formatear_moneda(total_linea),
-                    'imagen_local_path': img_path_final,
-                    'descuento': f"{int(descuento_porc)}%" if descuento_porc > 0 else "0%",
-                    'iva':       f"{int(iva_porc)}%" if iva_porc > 0 else "0%"
+                lineas.append({
+                    'descripcion': descripcion, 'cantidad': cantidad,
+                    'precio_unitario': precio_unitario, 'descuento_porc': descuento_porc,
+                    'iva_porc': iva_porc, 'subtotal': subtotal_linea, 'descuento': monto_descuento,
+                    'iva': monto_iva, 'total': total_linea,
+                    'imagen_url': img_url_db, 'imagen_local_path': img_path_final,
+                    'opcion': _titulo_opcion(opciones_form[i]) if con_opciones and i < len(opciones_form) else None,
                 })
 
+            # Se guardan en el orden del formulario y del PDF: primero los comunes y
+            # luego cada opción con sus ítems.
+            comunes, opciones = _agrupar_por_opcion(lineas)
+            col_opcion = ", opcion" if con_opciones else ""
+            for l in comunes + [l for op in opciones for l in op['lineas']]:
+                cur.execute(f"""
+                    INSERT INTO detalle_cotizacion
+                        (cotizacion_id, descripcion, cantidad, precio_unitario, subtotal,
+                         imagen_url, descuento_porc, iva_porc{col_opcion})
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s{", %s" if con_opciones else ""})
+                """, (cotizacion_id, l['descripcion'], l['cantidad'], l['precio_unitario'], l['total'],
+                      l['imagen_url'], l['descuento_porc'], l['iva_porc'])
+                     + ((l['opcion'],) if con_opciones else ()))
+
+            # Con opciones el total es «desde» (la más barata): al aprobar queda el de
+            # la opción que eligió el cliente.
+            total_cotizacion = (min(op['total'] for op in opciones) if opciones
+                                else sum(l['total'] for l in lineas))
             cur.execute("UPDATE cotizaciones SET total = %s WHERE id = %s",
                         (total_cotizacion, cotizacion_id))
 
@@ -483,13 +580,20 @@ def generar_cotizacion():
                 'cargo':          cliente_cargo,
                 'localidad':      cliente_localidad,
             },
-            'items':    items,
+            # Con opciones, `items` son los comunes y cada opción trae los suyos.
+            'items':    [_item_pdf(l) for l in (comunes if opciones else lineas)],
+            'opciones': [{'titulo': op['titulo'], 'items': [_item_pdf(l) for l in op['lineas']],
+                          'subtotal': formatear_moneda(op['subtotal']),
+                          'descuento': formatear_moneda(op['descuento']),
+                          'mostrar_descuento': round(op['descuento'], 2) > 0,
+                          'iva': formatear_moneda(op['iva']), 'total': formatear_moneda(op['total'])}
+                         for op in opciones],
             'total':    formatear_moneda(total_cotizacion),
-            'subtotal': formatear_moneda(total_subtotal),
-            'descuento': formatear_moneda(total_descuentos),
+            'subtotal': formatear_moneda(sum(l['subtotal'] for l in lineas)),
+            'descuento': formatear_moneda(sum(l['descuento'] for l in lineas)),
             # Sin descuento no sale el renglón: el cliente no lee «Descuentos $0».
-            'mostrar_descuento': round(total_descuentos, 2) > 0,
-            'iva':      formatear_moneda(total_iva),
+            'mostrar_descuento': round(sum(l['descuento'] for l in lineas), 2) > 0,
+            'iva':      formatear_moneda(sum(l['iva'] for l in lineas)),
             'notas':    notas_adicionales,   # al final; vacías no salen
             # Organizadas: títulos (MAYÚSCULAS o «:») y viñetas, para que se vean bien.
             'notas_bloques': _bloques_notas(notas_adicionales),
@@ -545,6 +649,7 @@ def ver_cotizaciones():
     from services.cartera_service import soporta_cartera, sql_filtro, FILTROS
     datosApp = get_data_app()
     cotizaciones = []
+    opciones = {}
     cartera_ok = False
     filtro_pago = request.args.get('pago') if request.args.get('pago') in FILTROS else None
     from routes.factura_electronica import sql_columnas_fe
@@ -552,6 +657,9 @@ def ver_cotizaciones():
         # Igual con las de facturación electrónica: en bases sin ellas, pedirlas a
         # secas dejaba la lista entera vacía.
         columnas_fe = sql_columnas_fe('cotizaciones')
+        con_opciones = _soporta_opciones()
+        if con_opciones:
+            columnas_fe += ", opcion_elegida"
         with get_db_cursor(dict_cursor=True) as cur:
             # Las columnas de cobro solo existen si el cliente ya actualizó:
             # se consultan condicionalmente para no romper a quien no lo ha hecho.
@@ -571,6 +679,11 @@ def ver_cotizaciones():
                 ORDER BY fecha DESC
             """)
             cotizaciones = cur.fetchall()
+            if con_opciones:
+                # Las pendientes con opciones se aprueban eligiendo la del cliente.
+                opciones = {cid: [{'titulo': t, 'total': formatear_moneda(v)} for t, v in ops]
+                            for cid, ops in _opciones_por_cotizacion(
+                                cur, [c['id'] for c in cotizaciones]).items()}
     except Exception as e:
         app.logger.error(f"Error listando cotizaciones: {e}")
 
@@ -589,7 +702,7 @@ def ver_cotizaciones():
         puede_cobrar = False
 
     return render_template('mis_cotizaciones.html', datosApp=datosApp,
-                           cotizaciones=cotizaciones, fe_habilitada=fe_habilitada,
+                           cotizaciones=cotizaciones, opciones=opciones, fe_habilitada=fe_habilitada,
                            cartera_ok=cartera_ok, filtro_pago=filtro_pago,
                            puede_cobrar=puede_cobrar,
                            puede_facturar=fe_habilitada and _es_admin_full())
@@ -643,6 +756,15 @@ def facturar_cotizacion(id):
     if cot['estado'] != 'aprobada':
         return jsonify({'success': False,
                         'error': 'Solo se facturan cotizaciones aprobadas.'}), 400
+    if _soporta_opciones():
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT opcion_elegida FROM cotizaciones WHERE id = %s", (id,))
+            elegida = cur.fetchone()['opcion_elegida']
+            if not elegida and _opciones_por_cotizacion(cur, [id]):
+                # Aprobada sin elegir (desde la app de escritorio): se facturaría solo lo común.
+                return jsonify({'success': False,
+                                'error': 'Esta cotización tiene opciones y no se registró cuál eligió '
+                                         'el cliente.'}), 400
     try:
         with get_db_cursor() as cur:
             cur.execute("UPDATE cotizaciones SET facturar_electronicamente = TRUE WHERE id = %s", (id,))
@@ -685,23 +807,35 @@ def editar_cotizacion(id):
         flash("Cotización no encontrada.", "warning")
         return redirect(url_for('quotes.ver_cotizaciones'))
 
+    # Los ítems comunes arriba y cada opción en su bloque, en el orden guardado.
+    opciones = {}
+    for d in detalles:
+        if d.get('opcion'):
+            opciones.setdefault(d['opcion'], []).append(d)
+
     return render_template('cotizar.html',
                            datosApp=datosApp,
                            productos=productos,
                            cotizacion=cotizacion,
-                           detalles=detalles)
+                           detalles=[d for d in detalles if not d.get('opcion')],
+                           opciones=[{'nombre': _nombre_de_opcion(t), 'detalles': ds}
+                                     for t, ds in opciones.items()])
 
 
-def _aprobar_cotizacion_core(id):
+def _aprobar_cotizacion_core(id, opcion=None):
     """Aprueba una cotización y la registra en contabilidad. Sin flash/redirect.
 
     Devuelve (ok: bool, msg: str). Reutilizable por la acción individual y la
     acción en bloque. La lógica es idéntica a la del flujo individual previo.
+    Con opciones hay que decir cuál eligió el cliente (`opcion`): se registra el
+    total de esa opción. En bloque no se sabe, así que esas se omiten.
     """
     try:
         with get_db_cursor(dict_cursor=True) as cur:
             cur.execute("SELECT id, cliente_nombre, total, estado FROM cotizaciones WHERE id=%s", (id,))
             cot = cur.fetchone()
+            opciones = (_opciones_por_cotizacion(cur, [id]).get(id, [])
+                        if cot and _soporta_opciones() else [])
 
         if not cot:
             return False, f"COT {str(id).zfill(10)}: no encontrada."
@@ -709,8 +843,21 @@ def _aprobar_cotizacion_core(id):
         if cot['estado'] == 'aprobada':
             return False, f"COT {str(id).zfill(10)}: ya estaba aprobada."
 
+        total = float(cot['total'] or 0)
+        elegida = None
+        if opciones:
+            elegida = next((o for o in opciones if o[0] == _titulo_opcion(opcion)), None)
+            if not elegida:
+                return False, (f"COT {str(id).zfill(10)}: tiene {len(opciones)} opciones; "
+                               f"apruébala con su botón y elige la que aceptó el cliente.")
+            total = elegida[1]
+
         with get_db_cursor() as cur:
-            cur.execute("UPDATE cotizaciones SET estado='aprobada' WHERE id=%s", (id,))
+            if elegida:
+                cur.execute("UPDATE cotizaciones SET estado='aprobada', opcion_elegida=%s, total=%s "
+                            "WHERE id=%s", (elegida[0], total, id))
+            else:
+                cur.execute("UPDATE cotizaciones SET estado='aprobada' WHERE id=%s", (id,))
 
         # Cartera: al aprobar queda "pendiente de pago" hasta que alguien
         # registre el cobro. No toca contabilidad ni la aprobación en sí.
@@ -726,8 +873,9 @@ def _aprobar_cotizacion_core(id):
         sincronizar_movimiento_referencia(
             tipo='ingreso',
             categoria='cuenta_cobro',
-            descripcion=f"Cotización aprobada COT {str(id).zfill(10)} — {cot['cliente_nombre']}",
-            monto=float(cot['total'] or 0),
+            descripcion=f"Cotización aprobada COT {str(id).zfill(10)} — {cot['cliente_nombre']}"
+                        + (f" ({elegida[0]})" if elegida else ""),
+            monto=total,
             referencia_tipo='cotizacion',
             referencia_id=id,
             usuario_id=session.get('usuario_id'),
@@ -740,7 +888,7 @@ def _aprobar_cotizacion_core(id):
             sync_oportunidad_cotizacion(
                 cotizacion_id=id,
                 etapa='ganada',
-                monto=float(cot['total'] or 0),
+                monto=total,
             )
         except Exception as _oe:
             app.logger.warning(f"Sync oportunidad ganada: {_oe}")
@@ -764,7 +912,9 @@ def _aprobar_cotizacion_core(id):
         except Exception as _fe:
             app.logger.warning(f"FE cotización {id}: {_fe}")
 
-        return True, f"COT {str(id).zfill(10)} aprobada y registrada en contabilidad."
+        return True, (f"COT {str(id).zfill(10)} aprobada"
+                      + (f" con la opción «{elegida[0]}»" if elegida else "")
+                      + " y registrada en contabilidad.")
     except Exception as e:
         app.logger.error(f"Error aprobando cotización {id}: {e}")
         return False, f"COT {str(id).zfill(10)}: error al aprobar (revisa el log)."
@@ -795,7 +945,7 @@ def _rechazar_cotizacion_core(id, motivo=None):
 @rol_requerido(ADMIN_FULL)  # SECURITY A2: solo Admin/Propietario puede registrar ingresos
 def aprobar_cotizacion(id):
     """Marca la cotización como aprobada y la registra en contabilidad."""
-    ok, msg = _aprobar_cotizacion_core(id)
+    ok, msg = _aprobar_cotizacion_core(id, request.form.get('opcion'))
     flash(msg, "success" if ok else ("info" if "ya estaba" in msg else "warning"))
     return redirect(url_for('quotes.ver_cotizaciones'))
 

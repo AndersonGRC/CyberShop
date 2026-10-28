@@ -38,7 +38,7 @@
     }
 
     function itemsCotizados() {
-        var filas = document.querySelectorAll('#items-container .item-row');
+        var filas = document.querySelectorAll('#items-card .item-row');   // comunes y opciones
         var lista = [];
         Array.prototype.forEach.call(filas, function (fila) {
             var d = fila.querySelector('input[name="descripcion[]"]');

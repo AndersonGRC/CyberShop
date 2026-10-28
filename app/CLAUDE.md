@@ -247,6 +247,8 @@ BRAND_COLORS = {
 5. PDF se guarda en `static/cotizaciones/pdf/Cotizacion_{id}.pdf`
 6. Se registra en tabla `cotizaciones` de la BD
 
+**Opciones (1.9.18.0):** alternativas que el cliente elige (ej.: dos computadores). Cada ítem lleva `detalle_cotizacion.opcion` (NULL = común, va en todas); cada opción sale en el PDF con su total (sus ítems + los comunes) y no se suman entre sí. `cotizaciones.total` es «desde» (la más barata) hasta aprobar; al aprobar se elige la opción (`opcion_elegida`) y a contabilidad va su total; la FE lleva lo común + esa opción; aprobar en bloque omite las que tienen opciones. El orden del formulario (flechas y arrastre) es el orden guardado: comunes primero y luego cada opción. La app de escritorio aún no conoce las opciones.
+
 **Para modificar el formato del PDF:**
 - Estructura/contenido: editar `templates/pdf_quote.html`
 - Colores: editar `config.py` → `Config.BRAND_COLORS`

@@ -180,6 +180,23 @@
             color: black;
         }
 
+        /* OPCIONES: cada alternativa en su bloque, con su propio total */
+        .opcion-titulo {
+            font-weight: bold;
+            border: 1px solid {{ colores.borde }};
+            border-bottom: none;
+            padding: 5px 8px;
+            color: {{ colores.primario }};
+            background-color: {{ colores.fondo_claro }};
+            -pdf-keep-with-next: true;
+        }
+
+        .opciones-nota {
+            margin-top: 8px;
+            font-size: 10px;
+            font-style: italic;
+        }
+
         /* NOTAS ADICIONALES (solo si las escribieron) */
         .notas-table {
             width: 100%;
@@ -332,6 +349,7 @@
     <div class="items-header-title">COTIZACIÓN</div>
 
     <!-- Tabla Items -->
+    {% macro tabla_items(lista) -%}
     <table class="items-table">
         <thead>
             <tr>
@@ -344,7 +362,7 @@
             </tr>
         </thead>
         <tbody>
-            {% for item in items %}
+            {% for item in lista %}
             <tr>
                 <td class="col-img">
                     {% if item.imagen_local_path %}
@@ -361,6 +379,42 @@
             {% endfor %}
         </tbody>
     </table>
+    {%- endmacro %}
+
+    {% if opciones is defined and opciones %}
+    {#- Opciones: alternativas que el cliente compara y elige. Cada una con su total
+        (que incluye lo común a todas); no hay un gran total que las sume. -#}
+    {% if items %}
+    <div class="opcion-titulo">Incluido en todas las opciones</div>
+    {{ tabla_items(items) }}
+    {% endif %}
+    {% for op in opciones %}
+    <div class="opcion-titulo"{% if items or not loop.first %} style="margin-top: 14px;"{% endif %}>{{ op.titulo }}</div>
+    {{ tabla_items(op['items']) }}
+    <table class="totals-table">
+        <tr>
+            <td class="total-label">Subtotal{% if items %} (con lo incluido en todas las opciones){% endif %}</td>
+            <td class="total-value">{{ op.subtotal }}</td>
+        </tr>
+        {% if op.mostrar_descuento %}
+        <tr>
+            <td class="total-label">Descuentos</td>
+            <td class="total-value">{{ op.descuento }}</td>
+        </tr>
+        {% endif %}
+        <tr>
+            <td class="total-label">IVA (19%)</td>
+            <td class="total-value">{{ op.iva }}</td>
+        </tr>
+        <tr class="gran-total-row">
+            <td class="total-label">TOTAL {{ op.titulo|upper }}</td>
+            <td class="total-value gran-total-bg">{{ op.total }}</td>
+        </tr>
+    </table>
+    {% endfor %}
+    <p class="opciones-nota">Las opciones son alternativas: elija la que más le convenga. Sus valores no se suman entre sí.</p>
+    {% else %}
+    {{ tabla_items(items) }}
 
     <!-- Tabla Totales -->
     <table class="totals-table">
@@ -385,6 +439,7 @@
             <td class="total-value gran-total-bg">{{ total }}</td>
         </tr>
     </table>
+    {% endif %}
 
     {# Notas adicionales: impuestos, condiciones, entrega… (vacías no salen) #}
     {% if notas and notas_bloques is defined and notas_bloques %}
