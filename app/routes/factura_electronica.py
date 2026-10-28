@@ -500,6 +500,10 @@ def _error_amigable(status=None, datos=None, exc=None) -> str:
     if status in (401, 403):
         return ('El portal tributario rechazó la conexión de esta tienda (su llave no es '
                 'válida o fue cambiada). Avisa a soporte CyberShop para que la revise.')
+    if status == 404 and mensaje == 'Endpoint no encontrado':
+        # Respuesta del propio portal a una ruta que su versión aún no tiene.
+        return ('El portal tributario está desactualizado y todavía no tiene esta función. '
+                'Hay que instalarle su versión nueva.')
     if status and status >= 500:
         return 'El portal tributario tuvo un error interno. Intenta de nuevo en unos minutos.'
     if mensaje:
@@ -529,7 +533,8 @@ def _dian_call(metodo: str, ruta: str, *, payload=None, params=None,
         except ValueError:
             datos = {}
         if resp.status_code >= 400:
-            return {'error': _error_amigable(resp.status_code, datos), 'status': resp.status_code}
+            return {'error': _error_amigable(resp.status_code, datos), 'status': resp.status_code,
+                    'detalle': str(datos.get('error') or '') if isinstance(datos, dict) else ''}
         return datos if isinstance(datos, dict) else {'items': datos}
     except Exception as e:
         logger.error(f"Error llamando al servicio DIAN {metodo} {ruta}: {e}")
@@ -560,9 +565,19 @@ def enlace_portal() -> dict:
     administrador con los datos de todos los clientes.
     """
     datos = _dian_call('GET', '/portal/token', timeout=8)
-    if datos.get('status') == 403:
-        return {'error': ('Tu acceso al portal tributario no está habilitado. Tus facturas '
-                          'las puedes ver y gestionar aquí mismo, en esta bandeja.')}
+    # El 403 tiene dos causas que se resuelven distinto: la llave rechazada (lo
+    # dice el mensaje de error general) o el acceso de la tienda apagado.
+    if datos.get('status') == 403 and 'habilitado' in datos.get('detalle', '').lower():
+        if _dian_call('GET', '/me', timeout=8).get('status') == 404:
+            # Portal sin actualizar: su /portal/token responde «no habilitado» SIEMPRE
+            # (no leía portal_activo), esté encendido o no.
+            return {'error': ('El portal tributario está desactualizado y por eso no abre. '
+                              'Hay que instalarle su versión nueva. Mientras tanto, tus facturas '
+                              'las ves y gestionas aquí mismo, en esta bandeja.')}
+        return {'error': ('El acceso de tu tienda al portal tributario está apagado. Lo enciende '
+                          'el administrador del portal: datos del cliente → Portal Tributario → '
+                          'Acceso al portal: Habilitado. Mientras tanto, tus facturas las ves y '
+                          'gestionas aquí mismo, en esta bandeja.')}
     if datos.get('error'):
         return {'error': datos['error']}
     if not datos.get('url'):

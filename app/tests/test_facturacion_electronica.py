@@ -243,6 +243,40 @@ def test_portal_no_habilitado_vuelve_a_la_bandeja(as_propietario, portal, modulo
     assert r.status_code == 302 and r.headers['Location'].endswith('/admin/facturacion-dian/bandeja')
 
 
+NO_HABILITADO = {'error': 'El portal no está habilitado para este tenant. Contacta al administrador.'}
+
+
+def test_enlace_portal_desactualizado(portal):
+    """El portal viejo responde «no habilitado» SIEMPRE: hay que decir que falta actualizarlo."""
+    portal.responder('GET', '/portal/token', _Resp(403, NO_HABILITADO))
+    portal.responder('GET', '/me', _Resp(404, {'error': 'Endpoint no encontrado'}))
+    assert 'desactualizado' in fe.enlace_portal()['error']
+
+
+def test_enlace_portal_acceso_apagado(portal):
+    portal.responder('GET', '/portal/token', _Resp(403, NO_HABILITADO))
+    portal.responder('GET', '/me', _Resp(200, ME))
+    assert 'Acceso al portal: Habilitado' in fe.enlace_portal()['error']
+
+
+def test_enlace_portal_llave_rechazada(portal):
+    portal.responder('GET', '/portal/token', _Resp(403, {'error': 'API Key inválido o tenant inactivo'}))
+    assert 'rechazó la conexión' in fe.enlace_portal()['error']
+
+
+def test_funcion_que_el_portal_viejo_no_tiene(portal):
+    portal.responder('POST', '/facturas/d1/enviar', _Resp(404, {'error': 'Endpoint no encontrado'}))
+    assert 'desactualizado' in fe.enviar_factura_ya('d1')['error']
+
+
+def test_bandeja_avisa_portal_desactualizado(as_propietario, portal, modulo_on):
+    portal.responder('GET', '/me', _Resp(404, {'error': 'Endpoint no encontrado'}))
+    portal.responder('GET', '/config-envio', _Resp(200, {'modo_aprobacion': 'automatico', 'grace_minutos': 30}))
+    portal.responder('GET', '/facturas', _Resp(200, {'items': []}))
+    h = as_propietario.get('/admin/facturacion-dian/bandeja').get_data(as_text=True)
+    assert 'Conectado con el portal tributario' in h and 'está desactualizado' in h
+
+
 def test_enviar_ya(as_propietario, portal, modulo_on):
     portal.responder('POST', '/facturas/d1/enviar', _Resp(200, {'estado': 'PENDIENTE'}))
     r = as_propietario.post('/admin/facturacion-dian/bandeja/d1/enviar')

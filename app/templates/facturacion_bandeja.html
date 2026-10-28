@@ -169,6 +169,11 @@
             <div class="fe-icono" aria-hidden="true"><i class="fas fa-check"></i></div>
             <div class="fe-texto">
                 <p><strong class="fe-grande">Conectado con el portal tributario.</strong></p>
+                {% if conexion.sin_detalle %}
+                <p class="fe-motivo" style="max-width:none">El portal tributario está desactualizado: hasta
+                   instalarle su versión nueva no funcionan «Enviar ya», el acceso al portal ni los datos de
+                   a nombre de quién facturas. Lo demás funciona.</p>
+                {% endif %}
                 {% if not conexion.sin_detalle %}
                 <p>Tus facturas salen a nombre de <strong>{{ conexion.razon_social or conexion.nombre }}</strong>
                    <span class="fe-dato">· NIT {{ conexion.nit }}{% if conexion.dv is not none %}-{{ conexion.dv }}{% endif %}</span></p>
