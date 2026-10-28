@@ -3234,12 +3234,14 @@ def facturacion_dian():
     administrador general: cualquier cliente con el módulo veía los documentos
     y la configuración de todos los demás.
     """
-    from routes.factura_electronica import facturacion_habilitada, enlace_portal
+    from routes.factura_electronica import (facturacion_habilitada, enlace_portal,
+                                            enlace_portal_operador)
     if not facturacion_habilitada():
         datosApp = get_data_app()
         return render_template('facturacion_bloqueada.html', datosApp=datosApp)
 
-    enlace = enlace_portal()
+    # CyberShop (dueña del portal) entra como administrador; cada cliente, solo a lo suyo.
+    enlace = enlace_portal_operador() or enlace_portal()
     if enlace.get('error'):
         flash(enlace['error'], 'warning')
         return redirect(url_for('admin.facturacion_bandeja'))
@@ -3257,7 +3259,7 @@ def facturacion_bandeja():
     """
     from routes.factura_electronica import (
         facturacion_habilitada, listar_facturas_dian, obtener_politica_envio,
-        informacion_conexion,
+        informacion_conexion, _es_tienda_operadora,
     )
     datosApp = get_data_app()
     if not facturacion_habilitada():
@@ -3283,6 +3285,7 @@ def facturacion_bandeja():
         estado_filtro=estado or '',
         estados_fe=ESTADOS_FE,
         esperas=ESPERAS_FE,
+        es_operador=_es_tienda_operadora(),
     )
 
 

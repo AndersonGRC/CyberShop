@@ -441,13 +441,45 @@ def _llave_compartida() -> str:
         return ''
 
 
-def _es_tienda_operadora() -> bool:
-    """La tienda dueña del .cybershop.conf (la que vende el Software CyberShop)."""
+def _base_del_conf() -> str:
+    """DB_NAME del .cybershop.conf compartido: la base de la tienda operadora."""
     try:
-        from services.public_site_service import is_public_section_enabled
-        return bool(is_public_section_enabled('mostrar_modulo_software', False))
+        from dotenv import dotenv_values
+        ruta = Path(__file__).resolve().parent.parent / '.cybershop.conf'
+        return str(dotenv_values(ruta).get('DB_NAME') or '').strip()
+    except Exception:
+        return ''
+
+
+def _es_tienda_operadora() -> bool:
+    """La tienda dueña del .cybershop.conf (CyberShop, la dueña del portal).
+
+    Se decide por su base de datos, que cada cliente tiene propia y no puede
+    cambiar. No por una opción de su sitio (como el módulo Software POS), que el
+    mismo cliente podría encender desde su panel.
+    """
+    try:
+        from database import _current_db_name
+        base = _base_del_conf()
+        return bool(base) and base == _current_db_name()
     except Exception:
         return False
+
+
+def enlace_portal_operador() -> dict | None:
+    """La tienda operadora entra al portal como administrador general, como
+    siempre: es la dueña del portal. Ningún cliente entra así (a ellos el portal
+    les da un enlace solo de lo suyo, ver enlace_portal)."""
+    master = os.getenv('DIAN_MASTER_KEY', '')
+    if not master or not _es_tienda_operadora():
+        return None
+    import hashlib
+    import hmac
+    import time
+    ts = int(time.time())
+    token = hmac.new(master.encode(), f"{ts}:dian-autologin".encode(), hashlib.sha256).hexdigest()
+    base = os.getenv('DIAN_UI_URL', '/ui').rstrip('/')
+    return {'url': f"{base}/auto-login?token={token}&ts={ts}"}
 
 
 def estado_conexion_local():

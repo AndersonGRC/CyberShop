@@ -481,3 +481,35 @@ def test_columnas_fe_sin_columnas_no_rompen(monkeypatch):
     monkeypatch.setattr(fe, '_tipo_columna', lambda t, c: None)
     assert fe.columna_fe('cotizaciones') is None
     assert fe.sql_columnas_fe('cotizaciones') == 'FALSE AS facturar_electronicamente, NULL AS factura_dian_id'
+
+
+# ── La tienda operadora (dueña del portal) entra como administrador ─────────
+
+def test_operador_se_decide_por_su_base(monkeypatch):
+    import database
+    monkeypatch.setattr(fe, '_base_del_conf', lambda: 'cybershop')
+    monkeypatch.setattr(database, '_current_db_name', lambda: 'cybershop')
+    assert fe._es_tienda_operadora() is True
+    monkeypatch.setattr(database, '_current_db_name', lambda: 'cyber_t014')
+    assert fe._es_tienda_operadora() is False          # un cliente no puede hacerse pasar
+    monkeypatch.setattr(fe, '_base_del_conf', lambda: '')
+    monkeypatch.setattr(database, '_current_db_name', lambda: '')
+    assert fe._es_tienda_operadora() is False
+
+
+def test_operador_entra_al_portal_como_administrador(as_propietario, portal, modulo_on, monkeypatch):
+    monkeypatch.setattr(fe, '_es_tienda_operadora', lambda: True)
+    monkeypatch.setenv('DIAN_MASTER_KEY', 'maestra-pytest')
+    monkeypatch.setenv('DIAN_UI_URL', 'https://portal.test/ui')
+    r = as_propietario.get('/admin/facturacion-dian')
+    assert r.status_code == 302
+    assert r.headers['Location'].startswith('https://portal.test/ui/auto-login?token=')
+    assert portal.llamadas == []
+
+
+def test_cliente_nunca_entra_como_administrador(as_propietario, portal, modulo_on, monkeypatch):
+    monkeypatch.setenv('DIAN_MASTER_KEY', 'maestra-heredada')   # aunque la herede del conf
+    portal.responder('GET', '/portal/token',
+                     _Resp(200, {'url': 'https://portal.test/ui/tenant-auto-login?tenant=t1', 'expires_in': 30}))
+    r = as_propietario.get('/admin/facturacion-dian')
+    assert 'tenant-auto-login' in r.headers['Location'] and 'auto-login?token' not in r.headers['Location'].replace('tenant-auto-login', '')

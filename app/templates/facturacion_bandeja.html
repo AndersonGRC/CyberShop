@@ -169,7 +169,7 @@
             <div class="fe-icono" aria-hidden="true"><i class="fas fa-check"></i></div>
             <div class="fe-texto">
                 <p><strong class="fe-grande">Conectado con el portal tributario.</strong></p>
-                {% if conexion.sin_detalle %}
+                {% if conexion.sin_detalle and not es_operador %}
                 <p class="fe-motivo" style="max-width:none">El portal tributario está desactualizado: hasta
                    instalarle su versión nueva no funcionan «Enviar ya», el acceso al portal ni los datos de
                    a nombre de quién facturas. Lo demás funciona.</p>
@@ -193,7 +193,7 @@
                    Avisa a soporte CyberShop.</p>
                 {% endif %}
                 {% endif %}
-                {% if conexion.portal_activo is not defined or conexion.portal_activo %}
+                {% if es_operador or conexion.portal_activo is not defined or conexion.portal_activo %}
                 <p style="margin-top:12px">
                     <a href="{{ url_for('admin.facturacion_dian') }}" class="fe-btn secundario">
                         <i class="fas fa-external-link-alt" aria-hidden="true"></i> Abrir mi portal tributario
