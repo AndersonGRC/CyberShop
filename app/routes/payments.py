@@ -402,8 +402,8 @@ def crear_orden():
 
     payu_url = "https://sandbox.checkout.payulatam.com/ppp-web-gateway-payu/" if payu_env == "sandbox" else "https://checkout.payulatam.com/ppp-web-gateway-payu/"
 
-    from services.real_sale_notifier import registrar_salida_a_payu
-    registrar_salida_a_payu(referencia)
+    # Pedido de productos: a Meta no le llega (solo planes, ver RealSaleNotifier),
+    # así que no se guarda el navegador del comprador.
     return render_template('redireccion_payu.html',
                            merchantId=merchant_id,
                            accountId=account_id,

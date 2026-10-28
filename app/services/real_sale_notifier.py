@@ -1,9 +1,11 @@
 """
 RealSaleNotifier — el ÚNICO lugar desde donde sale el evento Purchase hacia Meta.
 
-Una venta real es un pedido que PayU confirmó como APROBADO en su webhook
-firmado (/confirmacion-pago). La página de respuesta no avisa nada: se recarga,
-el cliente puede cerrarla antes de que cargue y su URL se puede editar.
+Lo único que le llega a Meta es la primera compra de un plan del software por
+un cliente nuevo, cuando PayU la confirma como APROBADA en su webhook firmado
+(/confirmacion-pago). Los pedidos de productos (e-commerce) no salen: no son
+ventas del software. La página de respuesta no avisa nada: se recarga, el
+cliente puede cerrarla antes de que cargue y su URL se puede editar.
 
 - Una sola vez por pedido: la fila de `ventas_reales_meta` se reclama en una
   sola sentencia (enviado_en) antes de enviar. Un reintento del webhook no
@@ -11,9 +13,8 @@ el cliente puede cerrarla antes de que cargue y su URL se puede editar.
   evento que contar una compra dos veces.
 - Valor y productos: los del pedido guardado (monto_total y detalle_pedidos),
   nunca los de la URL.
-- Solo clientes nuevos: en los planes, la primera compra. Renovaciones,
-  reactivaciones y quien ya había pagado otro plan no salen; la prueba gratis
-  que paga sí (es su primer pago). Los pedidos de productos no son planes.
+- Solo clientes nuevos: renovaciones, reactivaciones y quien ya había pagado
+  otro plan no salen; la prueba gratis que paga sí (es su primer pago).
 - Para que Meta reconozca al comprador: el webhook llega desde el servidor de
   PayU, así que el navegador (IP, user-agent, cookies _fbp/_fbc) se guarda al
   salir hacia PayU. Correo, teléfono y nombre salen del pedido y meta_capi los
@@ -89,37 +90,39 @@ def _telefono(valor):
     return digitos or None
 
 
-def _ya_era_cliente(cur, referencia):
-    """¿Este pago de un plan es de alguien que ya era cliente?
+def _primera_compra_de_plan(cur, referencia):
+    """¿Este pago es la primera compra de un plan del software por un cliente nuevo?
 
-    - Una renovación (o la que reactiva una tienda suspendida) nunca es cliente
-      nuevo, salvo que la tienda haya nacido como prueba gratis (referencia
-      TRIAL-…): su primer pago es la conversión.
-    - Ya era cliente si antes pagó (pedido APROBADO) otro plan de la misma
-      tienda o con el mismo correo: otra tienda, una que canceló y vuelve.
+    - Un pedido de productos no tiene fila en plan_compras: no.
+    - Una renovación (o la que reactiva una tienda suspendida): no, salvo que
+      la tienda haya nacido como prueba gratis (referencia TRIAL-…): su primer
+      pago es la conversión.
+    - Si antes pagó (pedido APROBADO) otro plan de la misma tienda o con el
+      mismo correo (otra tienda, una que canceló y vuelve): no, ya era cliente.
 
     Solo mira pagos de otras filas, así que da lo mismo si procesar_compra_plan
-    ya corrió (la conversión le quita es_trial al padre). Un pedido de
-    productos no tiene plan: devuelve False."""
+    ya corrió (la conversión le quita es_trial al padre)."""
     cur.execute("SELECT to_regclass('plan_compras') IS NOT NULL AS hay")
     if not cur.fetchone()['hay']:
         return False
     cur.execute("""
-        SELECT (esta.renovacion_de IS NOT NULL
-                AND COALESCE(padre.referencia_pedido, '') NOT LIKE 'TRIAL-%%')
-               OR EXISTS (
-                   SELECT 1 FROM plan_compras antes
-                   JOIN pedidos p ON p.referencia_pedido = antes.referencia_pedido
-                   WHERE antes.id < esta.id AND p.estado_pago = 'APROBADO'
-                     AND (COALESCE(antes.renovacion_de, antes.id) = COALESCE(esta.renovacion_de, esta.id)
-                          OR LOWER(antes.buyer_email) = LOWER(esta.buyer_email))
-               ) AS ya_era_cliente
+        SELECT NOT (
+                   (esta.renovacion_de IS NOT NULL
+                    AND COALESCE(padre.referencia_pedido, '') NOT LIKE 'TRIAL-%%')
+                   OR EXISTS (
+                       SELECT 1 FROM plan_compras antes
+                       JOIN pedidos p ON p.referencia_pedido = antes.referencia_pedido
+                       WHERE antes.id < esta.id AND p.estado_pago = 'APROBADO'
+                         AND (COALESCE(antes.renovacion_de, antes.id) = COALESCE(esta.renovacion_de, esta.id)
+                              OR LOWER(antes.buyer_email) = LOWER(esta.buyer_email))
+                   )
+               ) AS cliente_nuevo
         FROM plan_compras esta
         LEFT JOIN plan_compras padre ON padre.id = esta.renovacion_de
         WHERE esta.referencia_pedido = %s
     """, (referencia,))
     fila = cur.fetchone()
-    return bool(fila and fila['ya_era_cliente'])
+    return bool(fila and fila['cliente_nuevo'])
 
 
 def notificar_venta(referencia):
@@ -139,9 +142,9 @@ def notificar_venta(referencia):
             pedido = cur.fetchone()
             if not pedido or float(pedido['monto_total'] or 0) <= 0:
                 return False
-            if _ya_era_cliente(cur, referencia):
-                current_app.logger.info(f"RealSaleNotifier {referencia}: renovación o cliente que ya "
-                                        f"había pagado; no es una venta nueva para Meta")
+            if not _primera_compra_de_plan(cur, referencia):
+                current_app.logger.info(f"RealSaleNotifier {referencia}: pedido de productos, renovación "
+                                        f"o cliente que ya había pagado; no se avisa a Meta")
                 return False
             # Reclamo atómico: solo una petición obtiene la fila; las demás, nada.
             cur.execute("""
