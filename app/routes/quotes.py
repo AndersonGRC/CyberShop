@@ -357,6 +357,21 @@ def _item_pdf(linea):
     }
 
 
+def _opciones_pdf(opciones):
+    """Cada opción para el PDF: sus ítems, la cuenta (lo común + lo suyo) y su color,
+    que sigue el orden (Opción 1 azul, Opción 2 ámbar…)."""
+    from config import Config
+    paleta = Config.OPCIONES_COLORES
+    return [{'titulo': op['titulo'], 'items': [_item_pdf(l) for l in op['lineas']],
+             'color': paleta[n % len(paleta)][0], 'tinte': paleta[n % len(paleta)][1],
+             'subtotal': formatear_moneda(op['subtotal']),
+             'subtotal_propio': formatear_moneda(sum(l['subtotal'] for l in op['lineas'])),
+             'descuento': formatear_moneda(op['descuento']),
+             'mostrar_descuento': round(op['descuento'], 2) > 0,
+             'iva': formatear_moneda(op['iva']), 'total': formatear_moneda(op['total'])}
+            for n, op in enumerate(opciones)]
+
+
 @quotes_bp.route('/admin/cotizar/generar', methods=['POST'])
 @rol_requerido(ADMIN_STAFF)
 def generar_cotizacion():
@@ -582,12 +597,8 @@ def generar_cotizacion():
             },
             # Con opciones, `items` son los comunes y cada opción trae los suyos.
             'items':    [_item_pdf(l) for l in (comunes if opciones else lineas)],
-            'opciones': [{'titulo': op['titulo'], 'items': [_item_pdf(l) for l in op['lineas']],
-                          'subtotal': formatear_moneda(op['subtotal']),
-                          'descuento': formatear_moneda(op['descuento']),
-                          'mostrar_descuento': round(op['descuento'], 2) > 0,
-                          'iva': formatear_moneda(op['iva']), 'total': formatear_moneda(op['total'])}
-                         for op in opciones],
+            'opciones': _opciones_pdf(opciones),
+            'base_subtotal': formatear_moneda(sum(l['subtotal'] for l in comunes)),
             'total':    formatear_moneda(total_cotizacion),
             'subtotal': formatear_moneda(sum(l['subtotal'] for l in lineas)),
             'descuento': formatear_moneda(sum(l['descuento'] for l in lineas)),

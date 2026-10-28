@@ -136,12 +136,12 @@
 
         .col-unit {
             text-align: center;
-            width: 15%;
+            width: 18%;
         }
 
         .col-total {
             text-align: center;
-            width: 15%;
+            width: 18%;
         }
 
         /* TOTALES */
@@ -162,16 +162,16 @@
         .total-label {
             text-align: right;
             font-weight: bold;
-            width: 85%;
+            width: 82%;
         }
 
         .total-value {
             text-align: center;
-            width: 15%;
+            width: 18%;
         }
 
         .gran-total-row td {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: bold;
         }
 
@@ -180,19 +180,79 @@
             color: black;
         }
 
-        /* OPCIONES: cada alternativa en su bloque, con su propio total */
-        .opcion-titulo {
-            font-weight: bold;
+        /* OPCIONES: cada alternativa con su color (Config.OPCIONES_COLORES), sus ítems
+           y la cuenta de su total; al final, un resumen para compararlas. */
+        .opcion-cabeza {
+            width: 100%;
+            border-collapse: collapse;
             border: 1px solid {{ colores.borde }};
             border-bottom: none;
-            padding: 5px 8px;
-            color: {{ colores.primario }};
-            background-color: {{ colores.fondo_claro }};
             -pdf-keep-with-next: true;
         }
 
-        .opciones-nota {
-            margin-top: 8px;
+        .opcion-marca {
+            width: 10px;
+        }
+
+        .opcion-cabeza-texto {
+            padding: 4px 8px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .opcion-base {
+            color: {{ colores.texto }};
+            background-color: {{ colores.fondo_claro }};
+        }
+
+        /* Una opción no se parte entre páginas: encabezado, ítems y totales van
+           encadenados (keep-with-next); si no caben, pasan juntos a la siguiente. */
+        .items-junta {
+            -pdf-keep-with-next: true;
+        }
+
+        .opcion-espacio {
+            height: 10px;
+            font-size: 2px;
+        }
+
+        .resumen-opciones {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+
+        .resumen-titulo {
+            padding: 4px 8px;
+            font-size: 12px;
+            font-weight: bold;
+            border: 1px solid {{ colores.borde }};
+            background-color: {{ colores.fondo_claro }};
+        }
+
+        .resumen-marca {
+            width: 10px;
+            border-bottom: 1px solid #ffffff;
+        }
+
+        .resumen-nombre {
+            padding: 3px 8px;
+            font-size: 11px;
+            font-weight: bold;
+            border-bottom: 1px solid #dddddd;
+        }
+
+        .resumen-valor {
+            width: 24%;
+            padding: 3px 8px;
+            text-align: right;
+            font-size: 13px;
+            font-weight: bold;
+            border-bottom: 1px solid #dddddd;
+        }
+
+        .resumen-nota {
+            padding: 4px 8px;
             font-size: 10px;
             font-style: italic;
         }
@@ -349,8 +409,8 @@
     <div class="items-header-title">COTIZACIÓN</div>
 
     <!-- Tabla Items -->
-    {% macro tabla_items(lista) -%}
-    <table class="items-table">
+    {% macro tabla_items(lista, junta=false) -%}
+    <table class="items-table{% if junta %} items-junta{% endif %}">
         <thead>
             <tr>
                 <!-- Split columns: IMG | PROD -->
@@ -382,20 +442,46 @@
     {%- endmacro %}
 
     {% if opciones is defined and opciones %}
-    {#- Opciones: alternativas que el cliente compara y elige. Cada una con su total
-        (que incluye lo común a todas); no hay un gran total que las sume. -#}
+    {#- Opciones: alternativas que el cliente compara y elige. Lo común va primero (gris);
+        cada opción, con su color, muestra la cuenta (lo común + lo suyo = su total) y no
+        se parte entre páginas. No hay un gran total que las sume: al final, un resumen. -#}
     {% if items %}
-    <div class="opcion-titulo">Incluido en todas las opciones</div>
-    {{ tabla_items(items) }}
-    {% endif %}
-    {% for op in opciones %}
-    <div class="opcion-titulo"{% if items or not loop.first %} style="margin-top: 14px;"{% endif %}>{{ op.titulo }}</div>
-    {{ tabla_items(op['items']) }}
+    <table class="opcion-cabeza" width="100%">
+        <tr><td class="opcion-cabeza-texto opcion-base">Incluido en todas las opciones</td></tr>
+    </table>
+    {{ tabla_items(items, true) }}
     <table class="totals-table">
         <tr>
-            <td class="total-label">Subtotal{% if items %} (con lo incluido en todas las opciones){% endif %}</td>
+            <td class="total-label">Subtotal incluido en todas las opciones</td>
+            <td class="total-value">{{ base_subtotal }}</td>
+        </tr>
+    </table>
+    {% endif %}
+    {% for op in opciones %}
+    {% if items or not loop.first %}<div class="opcion-espacio">&nbsp;</div>{% endif %}
+    <table class="opcion-cabeza" width="100%">
+        <tr>
+            <td class="opcion-marca" style="background-color: {{ op.color }};">&nbsp;</td>
+            <td class="opcion-cabeza-texto" style="color: {{ op.color }}; background-color: {{ op.tinte }};">{{ op.titulo }}</td>
+        </tr>
+    </table>
+    {{ tabla_items(op['items'], true) }}
+    <table class="totals-table">
+        {% if items %}
+        <tr>
+            <td class="total-label">Incluido en todas las opciones</td>
+            <td class="total-value">{{ base_subtotal }}</td>
+        </tr>
+        <tr>
+            <td class="total-label">+ Ítems de esta opción</td>
+            <td class="total-value">{{ op.subtotal_propio }}</td>
+        </tr>
+        {% else %}
+        <tr>
+            <td class="total-label">Subtotal</td>
             <td class="total-value">{{ op.subtotal }}</td>
         </tr>
+        {% endif %}
         {% if op.mostrar_descuento %}
         <tr>
             <td class="total-label">Descuentos</td>
@@ -407,12 +493,22 @@
             <td class="total-value">{{ op.iva }}</td>
         </tr>
         <tr class="gran-total-row">
-            <td class="total-label">TOTAL {{ op.titulo|upper }}</td>
-            <td class="total-value gran-total-bg">{{ op.total }}</td>
+            <td class="total-label" style="color: {{ op.color }};">TOTAL {{ op.titulo|upper }}</td>
+            <td class="total-value" style="color: #ffffff; background-color: {{ op.color }};">{{ op.total }}</td>
         </tr>
     </table>
     {% endfor %}
-    <p class="opciones-nota">Las opciones son alternativas: elija la que más le convenga. Sus valores no se suman entre sí.</p>
+    <table class="resumen-opciones" width="100%">
+        <tr><td class="resumen-titulo" colspan="3">Resumen: elija una opción</td></tr>
+        {% for op in opciones %}
+        <tr>
+            <td class="resumen-marca" style="background-color: {{ op.color }};">&nbsp;</td>
+            <td class="resumen-nombre">{{ op.titulo }}</td>
+            <td class="resumen-valor" style="color: {{ op.color }};">{{ op.total }}</td>
+        </tr>
+        {% endfor %}
+        <tr><td class="resumen-nota" colspan="3">Las opciones son alternativas: elija la que más le convenga. Sus valores no se suman entre sí.</td></tr>
+    </table>
     {% else %}
     {{ tabla_items(items) }}
 

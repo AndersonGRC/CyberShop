@@ -22,7 +22,7 @@ class Config:
     # clientes, código compartido → todos ven la misma = la última desplegada).
     #   A = cambio radical de plataforma · B = módulo nuevo grande
     #   C = estabilización / mejora · D = correcciones y ajustes de UI
-    APP_VERSION = "1.9.18.0"
+    APP_VERSION = "1.9.18.1"
 
     # --- General / Sesion ---
     # SECURITY M2: Sin fallback débil — falla explícitamente si no está configurado
@@ -114,6 +114,19 @@ class Config:
         'exito': '#28a745',
         'borde': '#000000',
     }
+
+    # Colores de las opciones de una cotización (PDF y formulario), en orden:
+    # (color, tinte). Distintos entre sí y de la marca; el texto blanco sobre el
+    # color y el color sobre el tinte pasan el contraste 4.5:1. El formulario
+    # (templates/cotizar.html) los lee de aquí con `config.OPCIONES_COLORES`.
+    OPCIONES_COLORES = (
+        ('#1d4ed8', '#dbeafe'),   # azul
+        ('#b45309', '#fef3c7'),   # ámbar
+        ('#047857', '#d1fae5'),   # verde
+        ('#6d28d9', '#ede9fe'),   # violeta
+        ('#be123c', '#ffe4e6'),   # rosa
+        ('#0e7490', '#cffafe'),   # cian
+    )
 
     # --- Google Calendar OAuth 2.0 ---
     # Venta automática: secreto compartido con el maestro (API interna localhost)

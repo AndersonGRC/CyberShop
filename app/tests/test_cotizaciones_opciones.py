@@ -58,34 +58,42 @@ def _pdf(flask_app, **extra):
         return render_template('pdf_quote.html', **datos)
 
 
-def _opcion_pdf(titulo, descripcion, total):
+def _opcion_pdf(titulo, descripcion, total, color='#1d4ed8', tinte='#dbeafe'):
     return {'titulo': titulo, 'items': [{'descripcion': descripcion, 'cantidad': 1, 'precio_unitario': total,
                                          'subtotal': total, 'imagen_local_path': None}],
-            'subtotal': total, 'descuento': '$0', 'mostrar_descuento': False, 'iva': '$0', 'total': total}
+            'color': color, 'tinte': tinte, 'subtotal': total, 'subtotal_propio': total,
+            'descuento': '$0', 'mostrar_descuento': False, 'iva': '$0', 'total': total}
 
 
 def test_pdf_con_opciones_un_total_por_opcion_y_sin_gran_total(flask_app):
     html = _pdf(flask_app, items=[{'descripcion': 'Instalación de Windows', 'cantidad': 1,
                                    'precio_unitario': '$50.000', 'subtotal': '$50.000', 'imagen_local_path': None}],
+                base_subtotal='$50.000',
                 opciones=[_opcion_pdf('Opción 1 — Intel', 'Core i5 12400', '$2.050.000'),
-                          _opcion_pdf('Opción 2 — AMD', 'Ryzen 5 5600', '$1.850.000')])
+                          _opcion_pdf('Opción 2 — AMD', 'Ryzen 5 5600', '$1.850.000', '#b45309', '#fef3c7')])
     assert '>Incluido en todas las opciones<' in html
     assert '>TOTAL OPCIÓN 1 — INTEL<' in html and '>TOTAL OPCIÓN 2 — AMD<' in html
     assert '>TOTAL<' not in html, 'no hay un total que sume las opciones'
     assert 'Sus valores no se suman entre sí' in html
     assert (html.index('Instalación de Windows') < html.index('Core i5 12400') < html.index('Ryzen 5 5600')), \
         'lo común arriba y las opciones en su orden'
-    assert '(con lo incluido en todas las opciones)' in html
+    # La cuenta de cada opción: lo común + lo suyo = su total.
+    assert '>Subtotal incluido en todas las opciones<' in html and html.count('>+ Ítems de esta opción<') == 2
+    # Cada opción con su color (encabezado, total y resumen) y un resumen para comparar.
+    assert html.count('background-color: #b45309') == 3 and 'background-color: #fef3c7' in html
+    assert '>Resumen: elija una opción<' in html
+    assert html.index('>TOTAL OPCIÓN 2 — AMD<') < html.index('>Resumen: elija una opción<')
 
 
 def test_pdf_sin_comunes_ni_opciones(flask_app):
     solo_opciones = _pdf(flask_app, opciones=[_opcion_pdf('Básico', 'Equipo A', '$1'),
                                               _opcion_pdf('Pro', 'Equipo B', '$2')])
-    assert 'Incluido en todas' not in solo_opciones and '(con lo incluido' not in solo_opciones
+    assert 'Incluido en todas' not in solo_opciones and 'Ítems de esta opción' not in solo_opciones
     assert '>TOTAL BÁSICO<' in solo_opciones and '>TOTAL PRO<' in solo_opciones
     # Sin opciones (y la copia de la plantilla del escritorio, que no las manda): como antes.
     for html in (_pdf(flask_app, opciones=[]), _pdf(flask_app)):
-        assert '>TOTAL<' in html and 'opcion-titulo">' not in html
+        assert '>TOTAL<' in html and 'opcion-cabeza' not in html.split('</style>', 1)[1]
+        assert 'items-junta' not in html.split('</style>', 1)[1], 'sin opciones no se encadenan tablas'
 
 
 # ── De punta a punta ────────────────────────────────────────────
@@ -152,6 +160,24 @@ def test_guarda_cada_item_en_su_opcion_y_el_total_es_desde(generar):
     assert [i['descripcion'] for i in pdf['items']] == ['Instalación de Windows']
     assert [(o['titulo'], len(o['items'])) for o in pdf['opciones']] == [('Opción 1 — Intel', 2), ('Opción 2 — AMD', 1)]
     assert [o['total'] for o in pdf['opciones']] == [rq.formatear_moneda(1250000.0), rq.formatear_moneda(850000.0)]
+
+
+def test_cada_opcion_con_su_color_en_orden(generar):
+    from config import Config
+    _, _, pdf = generar(COMPUTADOR)
+    assert [(o['color'], o['tinte']) for o in pdf['opciones']] == list(Config.OPCIONES_COLORES[:2])
+    assert pdf['base_subtotal'] == rq.formatear_moneda(50000.0)
+    assert [o['subtotal_propio'] for o in pdf['opciones']] == [rq.formatear_moneda(1200000.0),
+                                                              rq.formatear_moneda(800000.0)]
+
+
+def test_una_opcion_mas_larga_que_una_pagina(generar):
+    """Las tablas de una opción van encadenadas para no partirse; si la opción no cabe
+    ni en una página entera, igual se genera (empieza en página nueva y sigue)."""
+    fila, lineas, pdf = generar([('Instalación', 50000, '')]
+                                + [(f'Componente {n}', 1000, 'Opción 1 — Grande') for n in range(60)]
+                                + [('Otro equipo', 900000, 'Opción 2')])
+    assert len(pdf['opciones'][0]['items']) == 60 and len(lineas) == 62
 
 
 def test_sin_opciones_todo_suma_como_siempre(generar):

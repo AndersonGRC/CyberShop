@@ -995,10 +995,19 @@
     }
 
     /* ---- Opciones: alternativas con su propio total (no se suman) ---- */
+    /* Cada opción con su color, el mismo del PDF (Config.OPCIONES_COLORES, por orden). */
+    {% for color, tinte in config.OPCIONES_COLORES %}
+    .cot-opcion[data-color="{{ loop.index }}"],
+    .cot-chip[data-color="{{ loop.index }}"] {
+        --opc: {{ color }};
+        --opc-tinte: {{ tinte }};
+    }
+    {% endfor %}
+
     .cot-opcion {
         margin-top: 18px;
         border: 1px solid #d6dbea;
-        border-left: 5px solid var(--color-primario, #122C94);
+        border-left: 6px solid var(--opc, var(--color-primario, #122C94));
         border-radius: 12px;
         padding: 14px;
         background: #fff;
@@ -1022,7 +1031,10 @@
         font-weight: 800;
         letter-spacing: 0.05em;
         text-transform: uppercase;
-        color: var(--color-primario, #122C94);
+        color: var(--opc, var(--color-primario, #122C94));
+        background: var(--opc-tinte, transparent);
+        padding: 5px 12px;
+        border-radius: 999px;
     }
 
     .cot-opcion__nombre {
@@ -1087,7 +1099,19 @@
     .cot-opcion__valor {
         display: block;
         font-size: 1.25rem;
-        color: var(--color-secundario, #0e1b33);
+        color: var(--opc, var(--color-secundario, #0e1b33));
+    }
+
+    .cot-chip {
+        display: inline-block;
+        flex: none;
+        width: 14px;
+        height: 14px;
+        margin-right: 8px;
+        border-radius: 4px;
+        background: var(--opc);
+        box-shadow: 0 0 0 2px #fff;
+        vertical-align: -2px;
     }
 
     .cot-opcion__incluye {
@@ -1788,6 +1812,8 @@
     const listas = () => [comunes()].concat(secciones().map(s => s.querySelector('.cot-opcion__items')));
     const filas = () => Array.from(tarjetaItems.querySelectorAll('.item-row'));
     const moneda = v => v.toLocaleString('es-CO', { style: 'currency', currency: 'COP' });
+    // Color de cada opción según su orden: el mismo que tendrá en el PDF.
+    const colorDeOpcion = n => (n % {{ config.OPCIONES_COLORES|length }}) + 1;
 
     function avisar(texto) {
         const aviso = document.getElementById('items-aviso');
@@ -1933,6 +1959,7 @@
         // El servidor toma la imagen subida de cada ítem por su posición en el formulario.
         filas().forEach((fila, n) => { fila.querySelector('.imagen-custom-input').name = 'imagen_upload_' + n; });
         secciones().forEach((s, n, todasLasOpciones) => {
+            s.dataset.color = colorDeOpcion(n);
             s.querySelectorAll('.cot-opcion__n').forEach(e => { e.textContent = 'Opción ' + (n + 1); });
             s.setAttribute('aria-label', nombres[n]);
             s.querySelector('[data-mover-opcion="-1"]').disabled = n === 0;
@@ -2014,8 +2041,11 @@
             incluye.textContent = 'Incluye ' + moneda(comun) + ' de los ítems para todas las opciones';
             const li = document.createElement('li');
             const nombre = document.createElement('span');
+            const chip = document.createElement('span');
             const valor = document.createElement('strong');
-            nombre.textContent = nombres[i];
+            chip.className = 'cot-chip';
+            chip.dataset.color = colorDeOpcion(i);
+            nombre.append(chip, nombres[i]);
             valor.textContent = moneda(total);
             li.append(nombre, valor);
             lista.appendChild(li);
