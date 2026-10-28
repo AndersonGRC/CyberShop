@@ -12,6 +12,7 @@
 - los correos no dejan pasar HTML de lo que escribió el cliente.
 
 Contra la base de pruebas; lo creado se borra y lo cambiado se restaura."""
+import time
 import uuid
 from datetime import date, timedelta
 
@@ -345,8 +346,10 @@ def test_quien_tiene_prueba_no_compra_una_segunda_tienda(client, monkeypatch):
 
 # ── Píxel y correos ────────────────────────────────────────────
 def test_pixel_desde_la_configuracion(client, monkeypatch):
+    import routes.factura_electronica as fe
     from config import Config
     from services.meta_capi import should_track_pageview
+    monkeypatch.setattr(fe, '_es_tienda_operadora', lambda: True)
     monkeypatch.setattr(Config, 'META_PIXEL_ID', '')
     assert "fbq('init'" not in client.get('/').get_data(as_text=True)      # tienda de prueba: sin píxel
     monkeypatch.setattr(Config, 'META_PIXEL_ID', '123456')
@@ -360,6 +363,36 @@ def test_pixel_desde_la_configuracion(client, monkeypatch):
     assert should_track_pageview(_Req('/activar-tienda/token-secreto')) is False
     assert should_track_pageview(_Req('/renovar/token-secreto')) is False
     assert should_track_pageview(_Req('/software')) is True
+
+
+def test_los_clientes_no_llevan_el_pixel(client, flask_app, monkeypatch):
+    """Solo la tienda de CyberShop usa el píxel: un cliente que hereda el ID y el
+    token del .conf compartido no lo pinta ni le manda nada a Meta."""
+    import routes.factura_electronica as fe
+    from config import Config
+    from services import meta_capi
+    monkeypatch.setattr(Config, 'META_PIXEL_ID', '4412332785657284')
+    monkeypatch.setattr(Config, 'META_CAPI_ACCESS_TOKEN', 'token-heredado')
+    enviados = []
+    monkeypatch.setattr(meta_capi, '_send_sync',
+                        lambda payload, logger, pixel: enviados.append((payload['data'][0]['event_name'], pixel)))
+
+    monkeypatch.setattr(fe, '_es_tienda_operadora', lambda: False)        # tienda de un cliente
+    assert "fbq('init'" not in client.get('/').get_data(as_text=True)
+    with flask_app.test_request_context('/respuesta-pago'):
+        assert meta_capi.pixel_id() == '' and meta_capi.is_enabled() is False
+        meta_capi.send_event_async('Purchase', 'purchase-REF', user_data={})
+    assert enviados == []                                                  # ni PageView ni Purchase
+
+    monkeypatch.setattr(fe, '_es_tienda_operadora', lambda: True)         # CyberShop
+    assert "fbq('init', \"4412332785657284\")" in client.get('/').get_data(as_text=True)
+    with flask_app.test_request_context('/respuesta-pago'):
+        meta_capi.send_event_async('Purchase', 'purchase-REF', user_data={})
+    for _ in range(50):                                                    # el envío va en un hilo
+        if ('Purchase', '4412332785657284') in enviados:
+            break
+        time.sleep(0.02)
+    assert ('Purchase', '4412332785657284') in enviados
 
 
 def test_correos_escapan_lo_que_escribe_el_cliente(flask_app):

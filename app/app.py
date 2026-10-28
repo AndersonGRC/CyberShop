@@ -357,12 +357,10 @@ def inject_config_global():
         except Exception:
             plan_aviso = None
 
-    # Píxel de Meta: el ID que tenga ESTA tienda (las de prueba y autoservicio lo
-    # tienen vacío: no usan el de CyberShop). Nunca en páginas con enlace secreto.
-    from services.meta_capi import ruta_privada
-    meta_pixel_id = (Config.META_PIXEL_ID or '').strip()
-    if ruta_privada(request.path):
-        meta_pixel_id = ''
+    # Píxel de Meta: solo en la tienda de CyberShop; los clientes no llevan
+    # ninguno (ver meta_capi.pixel_id). Nunca en páginas con enlace secreto.
+    from services.meta_capi import pixel_id, ruta_privada
+    meta_pixel_id = '' if ruta_privada(request.path) else pixel_id()
 
     return dict(
         config_global=config,

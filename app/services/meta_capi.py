@@ -46,9 +46,22 @@ _HASH_FIELDS = {
 }
 
 
+def pixel_id() -> str:
+    """El píxel de esta instancia: solo la tienda de CyberShop (el operador) lo usa.
+
+    Cada cliente hereda el .cybershop.conf compartido (y el valor por defecto de
+    Config), así que sin este filtro mandaba sus visitas y pedidos al píxel de
+    CyberShop. Se decide por la base de datos, que el cliente no puede cambiar.
+    """
+    from routes.factura_electronica import _es_tienda_operadora
+    if not _es_tienda_operadora():
+        return ''
+    return (Config.META_PIXEL_ID or '').strip()
+
+
 def is_enabled() -> bool:
     """True si CAPI está configurado y debe enviar eventos."""
-    return bool(Config.META_CAPI_ACCESS_TOKEN and Config.META_PIXEL_ID)
+    return bool(Config.META_CAPI_ACCESS_TOKEN and pixel_id())
 
 
 def _sha256_hex(value: str) -> str:
@@ -121,9 +134,9 @@ def _build_payload(*, event_name: str, event_id: str,
     return payload
 
 
-def _send_sync(payload: dict, logger):
+def _send_sync(payload: dict, logger, pixel: str):
     """Envía un evento sincrónicamente. Usar via send_event_async para no bloquear."""
-    url = f'https://graph.facebook.com/{GRAPH_API_VERSION}/{Config.META_PIXEL_ID}/events'
+    url = f'https://graph.facebook.com/{GRAPH_API_VERSION}/{pixel}/events'
     try:
         resp = requests.post(url, json=payload, timeout=5)
         if resp.status_code >= 400:
@@ -147,7 +160,8 @@ def send_event_async(event_name: str, event_id: str, user_data: dict,
     se loguea pero NO se levanta excepción al caller. CAPI nunca debe
     romper el flujo de checkout/navegación del cliente.
     """
-    if not is_enabled():
+    pixel = pixel_id()
+    if not (pixel and Config.META_CAPI_ACCESS_TOKEN):
         return
 
     payload = _build_payload(
@@ -158,7 +172,7 @@ def send_event_async(event_name: str, event_id: str, user_data: dict,
     # Capturamos el logger ANTES del thread (current_app no funciona fuera del request).
     logger = current_app.logger
     threading.Thread(
-        target=_send_sync, args=(payload, logger), daemon=True
+        target=_send_sync, args=(payload, logger, pixel), daemon=True
     ).start()
 
 
