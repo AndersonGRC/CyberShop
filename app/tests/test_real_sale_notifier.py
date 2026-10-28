@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """RealSaleNotifier: la compra le llega a Meta una sola vez, cuando PayU la
 confirma en su webhook firmado, con el valor y los productos del pedido
-guardado (no los de la URL), aunque el cliente cierre el navegador. Contra la
-base de pruebas; todo lo creado se borra al final."""
+guardado (no los de la URL), aunque el cliente cierre el navegador. En los
+planes, solo la primera compra de un cliente nuevo (no renovaciones ni
+reactivaciones). Contra la base de pruebas; todo lo creado se borra al final."""
 import hashlib
 import uuid
 
@@ -62,14 +63,14 @@ def _compras(enviados):
 def pedido(cursor):
     refs = []
 
-    def crear(dias=0):
+    def crear(dias=0, email='ana@ejemplo.com'):
         ref = f'PYTEST-RSN-{MARCA}-{len(refs)}'
         with cursor() as cur:
             cur.execute("""INSERT INTO pedidos (referencia_pedido, cliente_nombre, cliente_email, cliente_telefono,
                                                 monto_total, estado_pago, estado_envio, fecha_creacion)
-                           VALUES (%s, 'Ana María Pytest', 'ana@ejemplo.com', '300 123 4567', 1000,
+                           VALUES (%s, 'Ana María Pytest', %s, '300 123 4567', 1000,
                                    'PENDIENTE', 'ESPERA_PAGO', CURRENT_TIMESTAMP - make_interval(days => %s))
-                           RETURNING id""", (ref, dias))
+                           RETURNING id""", (ref, email, dias))
             cur.execute("""INSERT INTO detalle_pedidos (pedido_id, producto_nombre, cantidad, precio_unitario, subtotal)
                            VALUES (%s, 'Plan: Básico', 1, 1000, 1000)""", (cur.fetchone()['id'],))
         refs.append(ref)
@@ -82,6 +83,33 @@ def pedido(cursor):
         cur.execute('DELETE FROM detalle_pedidos WHERE pedido_id IN '
                     '(SELECT id FROM pedidos WHERE referencia_pedido = ANY(%s))', (refs,))
         cur.execute('DELETE FROM pedidos WHERE referencia_pedido = ANY(%s)', (refs,))
+
+
+@pytest.fixture()
+def plan(cursor, pedido):
+    """Compras de planes (plan_compras). Con pagar=True llevan su pedido
+    pendiente (el webhook lo aprueba); sin él, solo la fila (prueba gratis o
+    cliente cargado a mano al cobro automático)."""
+    from services import plan_compras_service as pcs
+    pcs._ensure_table()
+    creadas = []
+
+    def crear(email, renovacion_de=None, referencia=None, pagar=True, **campos):
+        fila = {'referencia_pedido': pedido(email=email) if pagar else referencia, 'plan_key': 'ultra',
+                'buyer_email': email, 'renovacion_de': renovacion_de, 'estado': 'PENDIENTE_PAGO', **campos}
+        with cursor() as cur:
+            cur.execute(f"INSERT INTO plan_compras ({', '.join(fila)}) "
+                        f"VALUES ({', '.join(['%s'] * len(fila))}) RETURNING id", list(fila.values()))
+            creadas.append(cur.fetchone()['id'])
+        return fila['referencia_pedido'], creadas[-1]
+    yield crear
+    with cursor() as cur:
+        cur.execute('UPDATE plan_compras SET renovacion_de = NULL WHERE id = ANY(%s)', (creadas,))
+        cur.execute('DELETE FROM plan_compras WHERE id = ANY(%s)', (creadas,))
+
+
+def _avisados(enviados):
+    return [c['custom_data']['order_id'] for c in _compras(enviados)]
 
 
 def test_webhook_avisa_una_sola_vez_con_los_datos_del_pedido(client, flask_app, meta, pedido):
@@ -139,6 +167,41 @@ def test_sin_aprobacion_o_pedido_viejo_no_hay_venta(client, meta, pedido, cursor
     with cursor() as cur:
         cur.execute('SELECT estado_pago FROM pedidos WHERE referencia_pedido = %s', (viejo,))
         assert cur.fetchone()['estado_pago'] == 'APROBADO'   # el pago se registra; solo no se avisa
+
+
+def test_solo_la_primera_compra_de_un_cliente_nuevo(client, meta, plan):
+    """La compra del plan sí; su renovación y otra tienda del mismo correo no."""
+    correo = f'rsn-nuevo-{MARCA}@ejemplo.com'.lower()
+    primera, compra = plan(correo)
+    _webhook(client, primera)
+    renovacion, _ = plan(correo, renovacion_de=compra)
+    _webhook(client, renovacion)
+    otra_tienda, _ = plan(correo.upper())                  # el mismo cliente, escrito distinto
+    _webhook(client, otra_tienda)
+    assert _avisados(meta) == [primera]
+
+
+def test_la_prueba_gratis_que_paga_es_cliente_nuevo(client, meta, plan):
+    """Su primer pago sí (la prueba no se pagó); la renovación siguiente no.
+    El padre ya viene sin es_trial: procesar_compra_plan corre antes del aviso."""
+    correo = f'rsn-prueba-{MARCA}@ejemplo.com'.lower()
+    _, prueba = plan(correo, referencia=f'TRIAL-PYTEST{MARCA}', pagar=False, estado='ACTIVADA')
+    conversion, _ = plan(correo, renovacion_de=prueba)
+    _webhook(client, conversion)
+    siguiente, _ = plan(correo, renovacion_de=prueba)
+    _webhook(client, siguiente)
+    assert _avisados(meta) == [conversion]
+
+
+def test_renovar_o_reactivar_a_un_cliente_antiguo_no_es_venta_nueva(client, meta, plan):
+    """Cliente cargado a mano al cobro automático (sin pedido pagado) que paga
+    para reactivar su tienda suspendida: no sale."""
+    correo = f'rsn-antiguo-{MARCA}@ejemplo.com'.lower()
+    _, antiguo = plan(correo, referencia=f'BACKFILL-PYTEST{MARCA}', pagar=False, estado='ACTIVADA',
+                      suspendida_por_pago=True)
+    reactivacion, _ = plan(correo, renovacion_de=antiguo)
+    _webhook(client, reactivacion)
+    assert _avisados(meta) == []
 
 
 def test_los_clientes_no_avisan_ventas(client, meta, pedido, monkeypatch):

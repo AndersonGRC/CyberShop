@@ -484,8 +484,12 @@ def confirmacion_pago():
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # SECURITY M5: Verificar idempotencia — no procesar si ya fue APROBADO
-        cur.execute("SELECT estado_pago FROM pedidos WHERE referencia_pedido = %s", (reference_sale,))
+        # SECURITY M5: Verificar idempotencia — no procesar si ya fue APROBADO.
+        # FOR UPDATE bloquea el pedido hasta el commit: si la página de respuesta
+        # lo está aprobando en ese momento, el webhook espera y lo ve APROBADO
+        # (antes ambos lo aprobaban y el ingreso quedaba dos veces en contabilidad).
+        cur.execute("SELECT estado_pago FROM pedidos WHERE referencia_pedido = %s FOR UPDATE",
+                    (reference_sale,))
         row = cur.fetchone()
         if row and row[0] == 'APROBADO':
             cur.close()

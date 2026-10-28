@@ -4,9 +4,9 @@
 Antes bastaba escribir «transactionState=4» en la URL para dejar un pedido
 APROBADO (y activar tiendas, renovar planes o convertir pruebas gratis sin
 pagar). Ahora sin firma válida se le pregunta a PayU y, si no responde, queda
-«en proceso» hasta el webhook. Además, recargar la página no repite la
-contabilidad ni la devolución de inventario. Contra la base de pruebas; todo lo
-creado se borra al final."""
+«en proceso» hasta el webhook. Además, recargar la página (o que el webhook
+llegue al mismo tiempo) no repite la contabilidad ni la devolución de
+inventario. Contra la base de pruebas; todo lo creado se borra al final."""
 import hashlib
 import uuid
 
@@ -127,6 +127,42 @@ def test_firma_valida_aprueba_una_sola_vez(client, cursor, payu, pedido):
     client.get(url)                                    # recargar la página
     assert payu['contabilidad'] == 1                   # no se repite el ingreso
     assert payu['planes'] == 2                         # la venta de planes es idempotente (respaldo del webhook)
+
+
+def test_pagina_y_webhook_a_la_vez_registran_el_ingreso_una_vez(client, cursor, payu, pedido, monkeypatch):
+    """La página de respuesta está aprobando el pedido (su transacción aún no
+    termina) cuando llega el webhook: el webhook espera, lo ve APROBADO y no
+    registra un segundo ingreso. Antes leía PENDIENTE y lo aprobaba otra vez."""
+    import threading
+    import routes.payments as pagos
+    from database import get_db_connection
+    from tests.test_real_sale_notifier import _webhook
+    monkeypatch.setattr(pagos, '_avisar_venta_real', lambda ref: None)
+    ref = pedido()
+    respuesta = {}
+    hilo = threading.Thread(target=lambda: respuesta.update(r=_webhook(client, ref)))
+    pagina = get_db_connection()
+    try:
+        cur = pagina.cursor()
+        cur.execute("""UPDATE pedidos SET estado_pago = 'APROBADO'
+                       WHERE referencia_pedido = %s AND estado_pago = 'PENDIENTE'""", (ref,))
+        hilo.start()
+        esperando = False
+        for _ in range(200):                           # hasta ~10 s
+            with cursor() as c:
+                c.execute("""SELECT 1 FROM pg_stat_activity WHERE datname = current_database()
+                             AND wait_event_type = 'Lock' AND query ILIKE '%pedidos%'""")
+                esperando = c.fetchone() is not None
+            if esperando:
+                break
+            hilo.join(0.05)
+        assert esperando                               # el webhook quedó esperando el pedido
+        pagina.commit()                                # la página termina (registra su ingreso)
+    finally:
+        pagina.close()
+    hilo.join(10)
+    assert respuesta['r'].status_code == 200
+    assert payu['contabilidad'] == 0                   # el webhook no registró otro
 
 
 def test_rechazo_firmado_devuelve_stock_una_vez(client, cursor, payu, pedido):
