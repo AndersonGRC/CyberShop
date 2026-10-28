@@ -103,6 +103,20 @@ def test_sin_firma_pero_payu_confirma(client, cursor, payu, pedido):
     assert _estado(cursor, ref) == 'APROBADO' and payu['contabilidad'] == 1
 
 
+def test_contabilidad_usa_el_monto_del_pedido_no_el_de_la_url(client, cursor, payu, pedido, monkeypatch):
+    """Sin firma, el estado se le confirma a PayU pero TX_VALUE lo escribe
+    cualquiera: el ingreso y el comprobante usan el monto guardado del pedido."""
+    import routes.contabilidad as conta
+    ingresos = []
+    monkeypatch.setattr(conta, 'registrar_movimiento', lambda **kw: ingresos.append(kw['monto']))
+    ref = pedido()                                     # monto_total = 1000
+    payu['payu'] = '4'
+    html = client.get(f'/respuesta-pago?transactionState=4&referenceCode={ref}&TX_VALUE=99999999&currency=COP'
+                      ).get_data(as_text=True)
+    assert _estado(cursor, ref) == 'APROBADO' and ingresos == [1000.0]
+    assert '1000.00 COP' in html and '99999999' not in html
+
+
 def test_firma_valida_aprueba_una_sola_vez(client, cursor, payu, pedido):
     ref = pedido()
     url = (f'/respuesta-pago?merchantId=508029&transactionState=4&referenceCode={ref}&TX_VALUE=1000.00'

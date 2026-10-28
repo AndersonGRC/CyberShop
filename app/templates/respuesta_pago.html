@@ -123,19 +123,6 @@
     } catch (e) { /* sin bloqueo si localStorage no está disponible */ }
 </script>
 {% endif %}
-
-<!-- Meta Pixel: Purchase (dedup vs CAPI por eventID determinista) -->
-{% if datos.estado == 'APROBADO' and fb_purchase_event_id %}
-<script>
-    if (typeof fbq === 'function') {
-        var FB_PURCHASE_ID = "{{ fb_purchase_event_id }}";
-        var FB_PURCHASE_VALUE = parseFloat("{{ datos.monto|default('0')|replace(' COP','')|replace(',','')|trim }}") || 0;
-        fbq('track', 'Purchase', {
-            currency: 'COP',
-            value:    FB_PURCHASE_VALUE,
-            order_id: "{{ datos.referencia }}"
-        }, { eventID: FB_PURCHASE_ID });
-    }
-</script>
-{% endif %}
+{# Sin Purchase en el navegador: lo envía el servidor desde el webhook de PayU
+   (services/real_sale_notifier.py), una sola vez por pedido. #}
 {% endblock %}

@@ -113,6 +113,8 @@ CyberShop opera en modelo **control plane + 1 base de datos por cliente**:
 | `ia_datos/` | Herramientas de datos del Asistente IA, una por dominio (`ventas`, `inventario`, `finanzas`, `caja`, `restaurante`, `comercial`, `operacion`, `nomina`). `base.py` = períodos/rangos + registro; `acceso.py` = módulo del plan + permiso del rol + canal (web/escritorio/sistema); `__init__.py` = catálogo y `ejecutar()`. `ai_tools.py` quedó como fachada |
 | `ia_rag/` | Índice de textos (RAG) en dos mitades que no se mezclan: pública (`canal_publico`, la lee el chat del sitio con `solo_publico=True`) e interna (documentos internos por rol desde `/admin/ia/documentos`, solo el panel y nunca hacia la nube). Ver su README |
 | `ventas_consolidado_service.py` | Consolidado de ventas por canal desde `contabilidad_movimientos` (lo usan el reporte y la reconciliación de la IA) |
+| `meta_capi.py` | Píxel y API de conversiones de Meta. `pixel_id()` solo lo entrega en la tienda de CyberShop: los clientes no envían nada a Meta |
+| `real_sale_notifier.py` | **Único** emisor del Purchase a Meta: lo llama el webhook firmado de PayU, una vez por pedido (tabla `ventas_reales_meta`), con el monto y los productos guardados. `tests/test_meta_purchase_unico.py` falla si el Purchase aparece en otro archivo |
 | `auth/jwt_handler.py` | Creación/validación/revocación de JWT (RS256 prod, HS256 dev) |
 | `auth/decorators.py` | `@jwt_required()`, `@jwt_role_required([...])` |
 

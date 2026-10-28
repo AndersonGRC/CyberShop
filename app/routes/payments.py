@@ -152,6 +152,8 @@ def construir_redireccion_payu(referencia, nombre, email, amount_value, descript
                 if payu_env == "sandbox"
                 else "https://checkout.payulatam.com/ppp-web-gateway-payu/")
 
+    from services.real_sale_notifier import registrar_salida_a_payu
+    registrar_salida_a_payu(referencia)
     return render_template(
         'redireccion_payu.html',
         merchantId=merchant_id,
@@ -400,6 +402,8 @@ def crear_orden():
 
     payu_url = "https://sandbox.checkout.payulatam.com/ppp-web-gateway-payu/" if payu_env == "sandbox" else "https://checkout.payulatam.com/ppp-web-gateway-payu/"
 
+    from services.real_sale_notifier import registrar_salida_a_payu
+    registrar_salida_a_payu(referencia)
     return render_template('redireccion_payu.html',
                            merchantId=merchant_id,
                            accountId=account_id,
@@ -414,6 +418,15 @@ def crear_orden():
                            payu_url=payu_url,
                            responseUrl=url_for('payments.respuesta_pago', _external=True),
                            confirmationUrl=url_for('payments.confirmacion_pago', _external=True))
+
+
+def _avisar_venta_real(referencia):
+    """Purchase a Meta (solo CyberShop). Nunca hace fallar el webhook."""
+    try:
+        from services.real_sale_notifier import notificar_venta
+        notificar_venta(referencia)
+    except Exception as _e:
+        app.logger.warning(f"RealSaleNotifier (webhook) {referencia}: {_e}")
 
 
 @payments_bp.route('/confirmacion-pago', methods=['POST'])
@@ -478,6 +491,10 @@ def confirmacion_pago():
             cur.close()
             conn.close()
             app.logger.info(f"Webhook duplicado ignorado para referencia {reference_sale}")
+            # Si la página de respuesta lo aprobó primero, la venta a Meta sale
+            # aquí (una sola vez: RealSaleNotifier descarta los reintentos).
+            if state_pol == '4':
+                _avisar_venta_real(reference_sale)
             return "OK", 200
 
         cur.execute("""
@@ -514,6 +531,7 @@ def confirmacion_pago():
                 procesar_compra_plan(reference_sale, base_url=request.url_root)
             except Exception as _e:
                 app.logger.error(f"Venta automática (webhook) {reference_sale}: {_e}")
+            _avisar_venta_real(reference_sale)
 
         # Notificación por email al cliente (solo si pago aprobado)
         if estado_bd == 'APROBADO':
@@ -666,9 +684,15 @@ def respuesta_pago():
 
     # Solo cuenta lo que ESTA petición cambió: al recargar la página (o si el
     # webhook llegó primero) no se repiten la contabilidad ni la devolución de stock.
+    # El monto es el del pedido guardado: TX_VALUE viene en la URL y, sin firma,
+    # cualquiera lo puede cambiar (el estado sí se le confirma a PayU).
     cambio = False
+    monto_pedido = None
     try:
         with get_db_cursor() as cur:
+            cur.execute("SELECT monto_total FROM pedidos WHERE referencia_pedido = %s", (referencia,))
+            fila = cur.fetchone()
+            monto_pedido = fila[0] if fila else None
             cur.execute("""
                 UPDATE pedidos
                 SET estado_pago = %s, id_transaccion_payu = %s, metodo_pago = %s, estado_envio = %s
@@ -678,6 +702,8 @@ def respuesta_pago():
             cambio = cur.fetchone() is not None and estado_bd != 'PENDIENTE'
     except Exception as e:
         app.logger.error(f"Error BD Respuesta: {e}")
+    if monto_pedido is not None:
+        datos_comprobante['monto'] = f"{float(monto_pedido):.2f} COP"
 
     if estado_bd == 'RECHAZADO' and cambio:
         liberar_stock(referencia)
@@ -690,7 +716,7 @@ def respuesta_pago():
                 tipo='ingreso',
                 categoria='pedido_online',
                 descripcion=f"Pedido online {referencia}",
-                monto=float(valor or 0),
+                monto=float(monto_pedido or 0),
                 referencia_tipo='pedido',
                 usuario_id=session.get('usuario_id'),
                 auto_generado=True
@@ -706,59 +732,10 @@ def respuesta_pago():
         except Exception as _e:
             app.logger.error(f"Venta automática (respuesta) {referencia}: {_e}")
 
-    # --- Meta CAPI Purchase (server-side, complementa al pixel del browser) ---
-    # Idempotente: solo dispara cuando el estado transiciona a APROBADO en esta request,
-    # nunca se re-emite si el usuario refresca la pagina.
-    purchase_event_id = None
-    if estado_bd == 'APROBADO':
-        import uuid as _uuid
-        from services import meta_capi as _meta_capi
-        purchase_event_id = f"purchase-{referencia}"  # determinista por orden = dedup natural
-        try:
-            # Datos del cliente para mejor match en Meta
-            cust_email = None
-            cust_phone = None
-            cust_nombre = None
-            try:
-                with get_db_cursor(dict_cursor=True) as _cur:
-                    _cur.execute(
-                        """SELECT u.email, u.telefono, u.nombre
-                           FROM pedidos p
-                           LEFT JOIN usuarios u ON u.id = p.usuario_id
-                           WHERE p.referencia_pedido = %s LIMIT 1""",
-                        (referencia,)
-                    )
-                    _row = _cur.fetchone()
-                    if _row:
-                        cust_email  = _row.get('email')
-                        cust_phone  = _row.get('telefono')
-                        cust_nombre = _row.get('nombre')
-            except Exception:
-                pass
-
-            _meta_capi.send_event_async(
-                event_name='Purchase',
-                event_id=purchase_event_id,
-                user_data=_meta_capi.build_user_data(
-                    request,
-                    email=cust_email,
-                    phone=cust_phone,
-                    first_name=(cust_nombre or '').split(' ')[0] if cust_nombre else None,
-                    external_id=str(session['usuario_id']) if session.get('usuario_id') else None,
-                ),
-                custom_data={
-                    'currency': (moneda or 'COP'),
-                    'value':    float(valor or 0),
-                    'order_id': referencia,
-                },
-                event_source_url=request.url,
-            )
-        except Exception as _exc:
-            app.logger.warning(f"CAPI Purchase: {_exc}")
-
+    # Esta página no le avisa nada a Meta: la venta sale del webhook firmado
+    # (RealSaleNotifier), una sola vez y con los datos del pedido guardado.
     return render_template('respuesta_pago.html', datosApp=datosApp,
-                           datos=datos_comprobante,
-                           fb_purchase_event_id=purchase_event_id)
+                           datos=datos_comprobante)
 
 
 @payments_bp.route('/procesar-carrito', methods=['POST'])

@@ -10,13 +10,16 @@ event_id para el mismo evento, Meta elimina duplicados automáticamente.
 Uso típico:
     from services.meta_capi import send_event_async, build_user_data
     send_event_async(
-        event_name='Purchase',
+        event_name='ViewContent',
         event_id=str(uuid.uuid4()),
         user_data=build_user_data(request, email=user_email, phone=user_phone),
         custom_data={'currency': 'COP', 'value': 150000.0,
                      'content_ids': ['SKU-123'], 'content_type': 'product'},
         event_source_url=request.url,
     )
+
+La compra (Purchase) NO se envía desde aquí ni desde ninguna vista: solo desde
+services/real_sale_notifier.py (lo verifica tests/test_meta_purchase_unico.py).
 
 Docs Meta:
     https://developers.facebook.com/docs/marketing-api/conversions-api
