@@ -234,6 +234,10 @@
     .btn-act i { font-size: 0.85em; }
 
     .btn-pdf      { background: #28a745; }
+    .btn-wa       { background: #128c7e; }
+    .btn-enlace   { background: #fff; color: #33475b; border: 1px solid #c5ced8; }
+    .btn-enlace.copiado { background: #e8f6ec; color: #1c7a33; border-color: #9fd3ae; }
+    .acciones-grid > .acciones-full { grid-column: 1 / -1; }
     .btn-aprobar  { background: #17a2b8; }
     .btn-rechazar { background: #6c757d; }
     .btn-editar   { background: #007bff; }
@@ -252,6 +256,13 @@
         border: 1px solid #c9ccd3;
         border-radius: 7px;
         font-size: 0.8rem;
+    }
+
+    /* Portátiles (1366 con el menú abierto): menos aire entre columnas para que
+       los botones de la derecha se vean sin deslizar la tabla. */
+    @media (min-width: 769px) and (max-width: 1500px) {
+        .mis-cot-table th,
+        .mis-cot-table td { padding-left: 8px; padding-right: 8px; }
     }
 
     /* ---- Estado vacío ---- */
@@ -438,7 +449,26 @@
                         </td>
                         <td data-label="Acciones" class="center cell-acciones acciones-cell">
                             <div class="acciones-grid">
-                                {% if cot.pdf_path %}
+                                {#- El PDF se abre con la sesión de la tienda (ya no es un archivo
+                                    público). Ruta escrita a mano: una tienda sin actualizar que
+                                    lea esta plantilla no conoce la ruta nueva y sigue como antes. -#}
+                                {% if cot.pdf_privado %}
+                                <a href="/admin/cotizar/{{ cot.id }}/pdf" target="_blank"
+                                    class="btn-act btn-pdf">
+                                    <i class="fas fa-file-pdf"></i> PDF
+                                </a>
+                                {% if cot.enlace %}
+                                <a href="{{ cot.wa }}" target="_blank" rel="noopener" class="btn-act btn-wa"
+                                    title="Enviar la cotización al cliente por WhatsApp (enlace privado, dura 30 días)">
+                                    <i class="fab fa-whatsapp"></i> WhatsApp
+                                </a>
+                                <button type="button" class="btn-act btn-enlace js-copiar-enlace acciones-full"
+                                    data-enlace="{{ cot.enlace }}"
+                                    title="Copiar el enlace privado para enviarlo por correo u otro medio (dura 30 días)">
+                                    <i class="fas fa-link"></i> <span>Copiar enlace</span>
+                                </button>
+                                {% endif %}
+                                {% elif cot.pdf_path %}
                                 <a href="{{ url_for('static', filename=cot.pdf_path) }}" target="_blank"
                                     class="btn-act btn-pdf">
                                     <i class="fas fa-file-pdf"></i> PDF
@@ -628,6 +658,40 @@ document.querySelectorAll('.btn-facturar-fe').forEach(function (btn) {
                 });
         });
     });
+});
+
+/* ── Copiar el enlace privado del documento ─────────────────────────── */
+document.addEventListener('click', function (e) {
+    var btn = e.target.closest ? e.target.closest('.js-copiar-enlace') : null;
+    if (!btn) return;
+    var enlace = btn.getAttribute('data-enlace') || '';
+    var texto = btn.querySelector('span');
+    function listo() {
+        btn.classList.add('copiado');
+        if (texto) texto.textContent = '¡Enlace copiado!';
+        setTimeout(function () {
+            btn.classList.remove('copiado');
+            if (texto) texto.textContent = 'Copiar enlace';
+        }, 2500);
+    }
+    function aMano() {
+        var caja = document.createElement('textarea');
+        caja.value = enlace;
+        caja.setAttribute('readonly', '');
+        caja.style.position = 'fixed';
+        caja.style.opacity = '0';
+        document.body.appendChild(caja);
+        caja.select();
+        var ok = false;
+        try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+        document.body.removeChild(caja);
+        if (ok) { listo(); } else { window.prompt('Copia este enlace:', enlace); }
+    }
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(enlace).then(listo, aMano);
+    } else {
+        aMano();
+    }
 });
 </script>
 {% endblock %}

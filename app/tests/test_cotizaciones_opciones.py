@@ -10,7 +10,6 @@
   no se sabe cuál, así que esas cotizaciones se omiten.
 - Las cotizaciones sin opciones no cambian.
 Contra la base de pruebas; lo que se crea se borra al final."""
-import os
 import uuid
 
 import pytest
@@ -137,11 +136,6 @@ def generar(as_propietario, cursor, monkeypatch, flask_app):
     with cursor() as cur:
         cur.execute('DELETE FROM detalle_cotizacion WHERE cotizacion_id = ANY(%s)', (creadas,))
         cur.execute('DELETE FROM cotizaciones WHERE id = ANY(%s)', (creadas,))
-    carpeta = os.path.join(flask_app.root_path, 'static', 'cotizaciones', 'pdf')
-    for cid in creadas:
-        archivo = os.path.join(carpeta, f'Cotizacion_{cid}.pdf')
-        if os.path.isfile(archivo):
-            os.remove(archivo)
 
 
 COMPUTADOR = [('Core i5 12400', 1000000, 'Opción 1 — Intel'),

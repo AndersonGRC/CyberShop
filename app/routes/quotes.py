@@ -372,6 +372,115 @@ def _opciones_pdf(opciones):
             for n, op in enumerate(opciones)]
 
 
+# ── El PDF se arma con lo guardado, no se deja en disco (1.9.19.0) ──────────
+# Antes quedaba en static/ del código compartido: público y mezclado entre tiendas.
+MESES = {1: "enero", 2: "febrero", 3: "marzo", 4: "abril", 5: "mayo", 6: "junio",
+         7: "julio", 8: "agosto", 9: "septiembre", 10: "octubre", 11: "noviembre", 12: "diciembre"}
+
+
+def _linea(descripcion, cantidad, precio_unitario, descuento_porc, iva_porc,
+           imagen_url=None, imagen_local_path=None, opcion=None):
+    """Un ítem con sus cuentas: descuento sobre el subtotal y el IVA sobre lo que queda."""
+    subtotal = cantidad * precio_unitario
+    descuento = subtotal * (descuento_porc / 100)
+    base = subtotal - descuento
+    iva = base * (iva_porc / 100) if iva_porc > 0 else 0
+    return {'descripcion': descripcion, 'cantidad': cantidad,
+            'precio_unitario': precio_unitario, 'descuento_porc': descuento_porc,
+            'iva_porc': iva_porc, 'subtotal': subtotal, 'descuento': descuento,
+            'iva': iva, 'total': base + iva,
+            'imagen_url': imagen_url, 'imagen_local_path': imagen_local_path, 'opcion': opcion}
+
+
+def _imagen_local(url):
+    """'file://…' de una imagen de static/ a partir de su dirección, para que el PDF
+    la lea del disco; None si no es de static/ o ya no está."""
+    try:
+        if url and 'static' in url:
+            parte = url.split('static')[-1].split('?')[0].lstrip('/').lstrip('\\')
+            raiz = os.path.normpath(os.path.join(app.root_path, 'static'))
+            local = os.path.normpath(os.path.join(raiz, parte))
+            if local.startswith(raiz + os.sep) and os.path.isfile(local):
+                return 'file://' + local
+    except Exception:  # noqa: BLE001
+        pass
+    return None
+
+
+def _datos_pdf(cotizacion_id, cliente, lineas, notas, logo, dia):
+    """Lo que recibe pdf_quote.html. `logo`: ruta local; `dia`: fecha del documento."""
+    comunes, opciones = _agrupar_por_opcion(lineas)
+    # Con opciones el total es «desde» (la más barata).
+    total = min(op['total'] for op in opciones) if opciones else sum(l['total'] for l in lineas)
+    return {
+        'id':     f"COT {str(cotizacion_id).zfill(10)}",
+        'fecha':  f"Bogotá {dia.day} de {MESES[dia.month]} de {dia.year}",
+        'cliente': cliente,
+        # Con opciones, `items` son los comunes y cada opción trae los suyos.
+        'items':    [_item_pdf(l) for l in (comunes if opciones else lineas)],
+        'opciones': _opciones_pdf(opciones),
+        'base_subtotal': formatear_moneda(sum(l['subtotal'] for l in comunes)),
+        'total':    formatear_moneda(total),
+        'subtotal': formatear_moneda(sum(l['subtotal'] for l in lineas)),
+        'descuento': formatear_moneda(sum(l['descuento'] for l in lineas)),
+        # Sin descuento no sale el renglón: el cliente no lee «Descuentos $0».
+        'mostrar_descuento': round(sum(l['descuento'] for l in lineas), 2) > 0,
+        'iva':      formatear_moneda(sum(l['iva'] for l in lineas)),
+        'notas':    notas,   # al final; vacías no salen
+        # Organizadas: títulos (MAYÚSCULAS o «:») y viñetas, para que se vean bien.
+        'notas_bloques': _bloques_notas(notas),
+        'firma_empresa': _firma_empresa(),
+        'logo':     logo,   # ruta local, sin peticion HTTP
+        'colores':  _get_brand_colors()
+    }
+
+
+def _crear_pdf(datos_pdf):
+    """El PDF en bytes; None si xhtml2pdf falla."""
+    salida = BytesIO()
+    estado = pisa.CreatePDF(render_template('pdf_quote.html', **datos_pdf), dest=salida,
+                            link_callback=pdf_link_callback)
+    return None if estado.err else salida.getvalue()
+
+
+def pdf_cotizacion_desde_bd(cotizacion_id):
+    """El PDF de una cotización de ESTA tienda, armado con lo guardado en su base
+    (mismas cuentas que al generarla). None si no existe."""
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute("SELECT * FROM cotizaciones WHERE id = %s", (cotizacion_id,))
+        cot = cur.fetchone()
+        if not cot:
+            return None
+        cur.execute("SELECT * FROM detalle_cotizacion WHERE cotizacion_id = %s ORDER BY id",
+                    (cotizacion_id,))
+        detalles = cur.fetchall()
+    lineas = [_linea(d['descripcion'], int(d['cantidad'] or 0), float(d['precio_unitario'] or 0),
+                     float(d.get('descuento_porc') or 0), float(d.get('iva_porc') or 0),
+                     d.get('imagen_url'), _imagen_local(d.get('imagen_url')),
+                     d.get('opcion') or None)
+              for d in detalles]
+    cliente = {campo: cot.get(f'cliente_{campo}') or ''
+               for campo in ('nombre', 'documento', 'direccion', 'ciudad', 'telefono',
+                             'representante', 'cargo', 'localidad')}
+    # El logo que se subió con la cotización; si no, el de la tienda.
+    logo = (_imagen_local(cot.get('logo_url')) or '')[7:] or resolve_logo_path(app.root_path)
+    notas = _limpiar_notas(cot.get('notas_adicionales'))
+    return _crear_pdf(_datos_pdf(cotizacion_id, cliente, lineas, notas, logo,
+                                 cot.get('fecha') or datetime.now()))
+
+
+@quotes_bp.route('/admin/cotizar/<int:id>/pdf')
+@rol_requerido(ADMIN_STAFF)
+def pdf_cotizacion(id):
+    """El PDF de la cotización, con la sesión de la tienda (ya no es un archivo público)."""
+    from services import documentos_privados as docs
+    contenido = docs.pdf_de('cotizacion', id)
+    if not contenido:
+        flash("No se pudo abrir el PDF de esa cotización.", "danger")
+        return redirect(url_for('quotes.ver_cotizaciones'))
+    return docs.respuesta_pdf(contenido, docs.nombre_archivo('cotizacion', id))
+
+
 @quotes_bp.route('/admin/cotizar/generar', methods=['POST'])
 @rol_requerido(ADMIN_STAFF)
 def generar_cotizacion():
@@ -465,12 +574,6 @@ def generar_cotizacion():
                 descuento_porc  = max(0.0, min(100.0, float(descuentos[i]) if i < len(descuentos) and descuentos[i] else 0))
                 iva_porc        = max(0.0, float(ivas[i]) if i < len(ivas) and ivas[i] else 0)
 
-                subtotal_linea     = cantidad * precio_unitario
-                monto_descuento    = subtotal_linea * (descuento_porc / 100)
-                subtotal_menos_desc = subtotal_linea - monto_descuento
-                monto_iva          = subtotal_menos_desc * (iva_porc / 100) if iva_porc > 0 else 0
-                total_linea        = subtotal_menos_desc + monto_iva
-
                 # Imagen: ruta local para PDF, URL para BD
                 img_path_final = None
                 img_url_db     = None
@@ -487,25 +590,13 @@ def generar_cotizacion():
                         img_path_final = 'file://' + fpath
                         img_url_db = url_for('static', filename=f'uploads/{fname}', _external=True)
                 elif i < len(imagenes_ref) and imagenes_ref[i]:
-                    ref_url = imagenes_ref[i]
-                    img_url_db = ref_url
-                    try:
-                        if 'static' in ref_url:
-                            part_static = ref_url.split('static')[-1].lstrip('/').lstrip('\\')
-                            local = os.path.join(app.root_path, 'static', part_static)
-                            if os.path.isfile(local):
-                                img_path_final = 'file://' + local
-                    except Exception:
-                        pass
+                    img_url_db = imagenes_ref[i]
+                    img_path_final = _imagen_local(img_url_db)
 
-                lineas.append({
-                    'descripcion': descripcion, 'cantidad': cantidad,
-                    'precio_unitario': precio_unitario, 'descuento_porc': descuento_porc,
-                    'iva_porc': iva_porc, 'subtotal': subtotal_linea, 'descuento': monto_descuento,
-                    'iva': monto_iva, 'total': total_linea,
-                    'imagen_url': img_url_db, 'imagen_local_path': img_path_final,
-                    'opcion': _titulo_opcion(opciones_form[i]) if con_opciones and i < len(opciones_form) else None,
-                })
+                lineas.append(_linea(
+                    descripcion, cantidad, precio_unitario, descuento_porc, iva_porc,
+                    img_url_db, img_path_final,
+                    _titulo_opcion(opciones_form[i]) if con_opciones and i < len(opciones_form) else None))
 
             # Se guardan en el orden del formulario y del PDF: primero los comunes y
             # luego cada opción con sus ítems.
@@ -573,76 +664,24 @@ def generar_cotizacion():
             except Exception as _se:
                 app.logger.warning(f"Enlazar cotización a orden de servicio: {_se}")
 
-        # 4. Generar PDF
-        meses = {
-            1: "enero", 2: "febrero", 3: "marzo", 4: "abril",
-            5: "mayo", 6: "junio", 7: "julio", 8: "agosto",
-            9: "septiembre", 10: "octubre", 11: "noviembre", 12: "diciembre"
-        }
-        hoy = datetime.now()
-        fecha_actual = f"Bogotá {hoy.day} de {meses[hoy.month]} de {hoy.year}"
+        # 4. Generar PDF. No se guarda en disco (antes quedaba público en static/ y
+        # mezclado entre tiendas): «PDF» y el enlace del cliente lo arman de nuevo.
+        contenido_pdf = _crear_pdf(_datos_pdf(cotizacion_id, {
+            'nombre':         cliente_nombre,
+            'documento':      cliente_documento,
+            'direccion':      cliente_direccion,
+            'ciudad':         cliente_ciudad,
+            'telefono':       cliente_telefono,
+            'representante':  cliente_representante,
+            'cargo':          cliente_cargo,
+            'localidad':      cliente_localidad,
+        }, lineas, notas_adicionales, logo_local_path, datetime.now()))
 
-        datos_pdf = {
-            'id':     f"COT {str(cotizacion_id).zfill(10)}",
-            'fecha':  fecha_actual,
-            'cliente': {
-                'nombre':         cliente_nombre,
-                'documento':      cliente_documento,
-                'direccion':      cliente_direccion,
-                'ciudad':         cliente_ciudad,
-                'telefono':       cliente_telefono,
-                'representante':  cliente_representante,
-                'cargo':          cliente_cargo,
-                'localidad':      cliente_localidad,
-            },
-            # Con opciones, `items` son los comunes y cada opción trae los suyos.
-            'items':    [_item_pdf(l) for l in (comunes if opciones else lineas)],
-            'opciones': _opciones_pdf(opciones),
-            'base_subtotal': formatear_moneda(sum(l['subtotal'] for l in comunes)),
-            'total':    formatear_moneda(total_cotizacion),
-            'subtotal': formatear_moneda(sum(l['subtotal'] for l in lineas)),
-            'descuento': formatear_moneda(sum(l['descuento'] for l in lineas)),
-            # Sin descuento no sale el renglón: el cliente no lee «Descuentos $0».
-            'mostrar_descuento': round(sum(l['descuento'] for l in lineas), 2) > 0,
-            'iva':      formatear_moneda(sum(l['iva'] for l in lineas)),
-            'notas':    notas_adicionales,   # al final; vacías no salen
-            # Organizadas: títulos (MAYÚSCULAS o «:») y viñetas, para que se vean bien.
-            'notas_bloques': _bloques_notas(notas_adicionales),
-            'firma_empresa': _firma_empresa(),
-            'logo':     logo_local_path,   # ruta local, sin peticion HTTP
-            'colores':  _get_brand_colors()
-        }
-
-        rendered_html = render_template('pdf_quote.html', **datos_pdf)
-
-        pdf_output = BytesIO()
-        pisa_status = pisa.CreatePDF(rendered_html, dest=pdf_output,
-                                     link_callback=pdf_link_callback)
-
-        if pisa_status.err:
+        if contenido_pdf is None:
             return Response("Error generando PDF", status=500)
 
-        pdf_output.seek(0)
-
-        # Guardar en disco
-        try:
-            filename_pdf = f"Cotizacion_{cotizacion_id}.pdf"
-            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            pdf_folder = os.path.join(base_dir, 'static', 'cotizaciones', 'pdf')
-            os.makedirs(pdf_folder, exist_ok=True)
-            pdf_path_disk = os.path.join(pdf_folder, filename_pdf)
-            with open(pdf_path_disk, 'wb') as f:
-                f.write(pdf_output.getvalue())
-            pdf_rel_path = f"cotizaciones/pdf/{filename_pdf}"
-            with get_db_cursor() as cur:
-                cur.execute("UPDATE cotizaciones SET pdf_path = %s WHERE id = %s",
-                            (pdf_rel_path, cotizacion_id))
-        except Exception as e:
-            app.logger.error(f"Error guardando PDF en disco: {e}")
-
-        pdf_output.seek(0)
         return send_file(
-            pdf_output,
+            BytesIO(contenido_pdf),
             as_attachment=True,
             download_name=f"Cotizacion_{cotizacion_id}.pdf",
             mimetype='application/pdf'
@@ -683,7 +722,7 @@ def ver_cotizaciones():
             donde = (f"WHERE COALESCE(estado, 'pendiente') = 'aprobada' AND {sql_filtro(filtro_pago)}"
                      if (cartera_ok and filtro_pago) else "")
             cur.execute(f"""
-                SELECT id, fecha, cliente_nombre, cliente_documento, total, pdf_path,
+                SELECT id, fecha, cliente_nombre, cliente_documento, cliente_telefono, total, pdf_path,
                        COALESCE(estado, 'pendiente') AS estado,
                        {columnas_fe}{extra}
                 FROM cotizaciones {donde}
@@ -697,6 +736,14 @@ def ver_cotizaciones():
                                 cur, [c['id'] for c in cotizaciones]).items()}
     except Exception as e:
         app.logger.error(f"Error listando cotizaciones: {e}")
+
+    # «PDF» con sesión + enlace privado (30 días) para WhatsApp o copiar.
+    from services import documentos_privados as docs
+    empresa = _firma_empresa()
+    cotizaciones = docs.preparar_filas('cotizacion', cotizaciones, lambda fila, enlace: (
+        f"Hola{' ' + fila['cliente_nombre'].strip() if (fila.get('cliente_nombre') or '').strip() else ''}, "
+        f"te compartimos la cotización COT {fila['id']:010d}{' de ' + empresa if empresa else ''}. "
+        f"Puedes verla aquí: {enlace}"))
 
     try:
         from routes.factura_electronica import facturacion_habilitada
@@ -1036,21 +1083,11 @@ def bulk_accion():
 @permiso_requerido('quotes', 'eliminar')
 @rol_requerido(ADMIN_STAFF)
 def eliminar_cotizacion(id):
-    """Elimina una cotización y su archivo PDF."""
+    """Elimina una cotización. No toca archivos: el PDF ya no se guarda, y el viejo
+    de static/ era compartido (borrarlo se llevaba el de otra tienda)."""
     try:
-        pdf_path = None
         with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute("SELECT pdf_path FROM cotizaciones WHERE id=%s", (id,))
-            res = cur.fetchone()
-            if res and res['pdf_path']:
-                pdf_path = res['pdf_path']
             cur.execute("DELETE FROM cotizaciones WHERE id=%s", (id,))
-
-        if pdf_path:
-            base_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'static')
-            full_path = os.path.normpath(os.path.join(base_dir, pdf_path.replace('/', os.sep)))
-            if full_path.startswith(os.path.normpath(base_dir)) and os.path.exists(full_path):
-                os.remove(full_path)
 
         flash("Cotización eliminada correctamente.", "success")
     except Exception as e:

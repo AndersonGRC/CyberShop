@@ -7,7 +7,6 @@
 - Las cotizaciones ya hechas no cambian: sus notas quedan vacías y su PDF guardado
   sigue igual.
 Contra la base de pruebas; lo que se crea se borra al final."""
-import os
 import uuid
 
 import pytest
@@ -109,11 +108,6 @@ def generar(as_propietario, cursor, monkeypatch, flask_app):
     with cursor() as cur:
         cur.execute('DELETE FROM detalle_cotizacion WHERE cotizacion_id = ANY(%s)', (creadas,))
         cur.execute('DELETE FROM cotizaciones WHERE id = ANY(%s)', (creadas,))
-    carpeta = os.path.join(flask_app.root_path, 'static', 'cotizaciones', 'pdf')
-    for cid in creadas:
-        archivo = os.path.join(carpeta, f'Cotizacion_{cid}.pdf')
-        if os.path.isfile(archivo):
-            os.remove(archivo)
 
 
 def test_crear_con_notas_y_sin_descuento(generar, as_propietario):

@@ -153,6 +153,9 @@
     }
 
     .cc-icon-btn.pdf      { color: #28a745; }
+    .cc-icon-btn.wa       { color: #128c7e; }
+    .cc-icon-btn.enlace   { color: #52606d; }
+    .cc-icon-btn.enlace.copiado { color: #1c7a33; background: #e8f6ec; }
     .cc-icon-btn.editar   { color: #007bff; }
     .cc-icon-btn.eliminar { color: #dc3545; }
     .cc-icon-btn:hover    { background: rgba(0,0,0,0.05); }
@@ -335,7 +338,27 @@
                     </td>
                     <td data-label="Acciones" class="acciones cell-acciones">
                         <div class="cc-acciones-grid">
-                            {% if c.pdf_path %}
+                            {#- El PDF se abre con la sesión de la tienda (ya no es un archivo
+                                público). Ruta escrita a mano: una tienda sin actualizar que
+                                lea esta plantilla no conoce la ruta nueva y sigue como antes. -#}
+                            {% if c.pdf_privado %}
+                            <a href="/admin/cuenta_cobro/{{ c.id }}/pdf" target="_blank"
+                                class="cc-icon-btn pdf" title="Ver PDF" aria-label="Ver PDF">
+                                <i class="fas fa-file-pdf"></i>
+                            </a>
+                            {% if c.enlace %}
+                            <a href="{{ c.wa }}" target="_blank" rel="noopener" class="cc-icon-btn wa"
+                                title="Enviar al cliente por WhatsApp (enlace privado, dura 30 días)"
+                                aria-label="Enviar al cliente por WhatsApp">
+                                <i class="fab fa-whatsapp"></i>
+                            </a>
+                            <button type="button" class="cc-icon-btn enlace js-copiar-enlace"
+                                data-enlace="{{ c.enlace }}"
+                                title="Copiar el enlace privado (dura 30 días)" aria-label="Copiar el enlace privado">
+                                <i class="fas fa-link"></i>
+                            </button>
+                            {% endif %}
+                            {% elif c.pdf_path %}
                             <a href="{{ url_for('static', filename=c.pdf_path) }}" target="_blank"
                                 class="cc-icon-btn pdf" title="Ver PDF">
                                 <i class="fas fa-file-pdf"></i>
@@ -411,5 +434,39 @@ function facturarCuentaDian(id, btn) {
     });
   });
 }
+
+/* ── Copiar el enlace privado del documento ─────────────────────────── */
+document.addEventListener('click', function (e) {
+  var btn = e.target.closest ? e.target.closest('.js-copiar-enlace') : null;
+  if (!btn) return;
+  var enlace = btn.getAttribute('data-enlace') || '';
+  function listo() {
+    btn.classList.add('copiado');
+    setTimeout(function () { btn.classList.remove('copiado'); }, 2500);
+    if (window.Swal) {
+      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Enlace copiado',
+                  text: 'Pégalo en el mensaje para tu cliente. Dura 30 días.',
+                  showConfirmButton: false, timer: 2600 });
+    }
+  }
+  function aMano() {
+    var caja = document.createElement('textarea');
+    caja.value = enlace;
+    caja.setAttribute('readonly', '');
+    caja.style.position = 'fixed';
+    caja.style.opacity = '0';
+    document.body.appendChild(caja);
+    caja.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+    document.body.removeChild(caja);
+    if (ok) { listo(); } else { window.prompt('Copia este enlace:', enlace); }
+  }
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(enlace).then(listo, aMano);
+  } else {
+    aMano();
+  }
+});
 </script>
 {% endblock %}

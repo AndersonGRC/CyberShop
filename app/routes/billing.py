@@ -249,83 +249,23 @@ def guardar_generar_cuenta():
             from services.cartera_service import marcar_pendiente_si_falta
             marcar_pendiente_si_falta('cuenta_cobro', cuenta_id)
 
-        # 2. Generar PDF
-        # Convertir total a texto
-        try:
-            total_texto = num2words.num2words(total, lang='es').upper() + " PESOS M/CTE"
-        except:
-            total_texto = f"{total} PESOS M/CTE"
+        # 2. Generar PDF. No se guarda en disco (antes quedaba público en static/ y
+        # mezclado entre tiendas): «PDF» y el enlace del cliente lo arman de nuevo.
+        contenido_pdf = _pdf_cuenta(
+            cuenta_id, fecha_str,
+            {'nombre': cliente_nombre, 'nit': cliente_nit,
+             'direccion': cliente_direccion, 'ciudad': cliente_ciudad},
+            {'nombre': contractor_nombre, 'id': contractor_id, 'texto_pago': texto_pago,
+             'email': contractor_email, 'telefono': contractor_telefono},
+            items_data, total)
 
-        # Fecha formateada
-        try:
-            date_obj = datetime.strptime(fecha_str, '%Y-%m-%d')
-            meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
-            fecha_larga = f"{date_obj.day} de {meses[date_obj.month-1]} de {date_obj.year}"
-            # Consecutivo con formato: dia-mes-año-consecutivo
-            consecutivo_formatted = f"{date_obj.day:02d}-{date_obj.month:02d}-{date_obj.year}-{cuenta_id}"
-        except:
-            fecha_larga = fecha_str
-            consecutivo_formatted = f"CDC-{cuenta_id}"
-
-        logo_local = resolve_logo_path(app.root_path)
-
-        pdf_data = {
-            'id': cuenta_id,
-            'consecutivo': consecutivo_formatted,
-            'fecha': fecha_larga,
-            'cliente': {
-                'nombre': cliente_nombre,
-                'nit': cliente_nit,
-                'direccion': cliente_direccion,
-                'ciudad': cliente_ciudad
-            },
-            'contractor': {
-                'nombre': contractor_nombre,
-                'id': contractor_id,
-                'texto_pago': texto_pago,
-                'email': contractor_email,
-                'telefono': contractor_telefono
-            },
-            'items': items_data,
-            'total_valor': formatear_moneda(total),
-            'total_texto': total_texto,
-            'logo': logo_local,
-            'brand': app.config.get('BRAND_COLORS', {}),
-            'empresa_website': _get_empresa_website()
-        }
-
-        rendered_html = render_template('pdf_cuenta_cobro.html', **pdf_data)
-
-        pdf_output = BytesIO()
-        pisa_status = pisa.CreatePDF(rendered_html, dest=pdf_output,
-                                     link_callback=pdf_link_callback)
-        
-        if pisa_status.err:
+        if contenido_pdf is None:
             return Response("Error generando PDF", status=500)
-            
-        pdf_output.seek(0)
-        
-        # Guardar en disco
-        filename_pdf = f"CueCob_{cuenta_id}.pdf"
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        pdf_folder = os.path.join(base_dir, 'static', 'cotizaciones', 'pdf') # Reusamos carpeta o creamos nueva 'cuentas'
-        # Mejor creamos una carpeta 'cuentas_cobro'
-        pdf_folder = os.path.join(base_dir, 'static', 'cuentas_cobro', 'pdf')
-        os.makedirs(pdf_folder, exist_ok=True)
-        
-        pdf_path_disk = os.path.join(pdf_folder, filename_pdf)
-        with open(pdf_path_disk, 'wb') as f:
-            f.write(pdf_output.getvalue())
-            
-        # Update path in DB
-        pdf_rel_path = f"cuentas_cobro/pdf/{filename_pdf}"
-        with get_db_cursor() as cur:
-            cur.execute("UPDATE cuentas_cobro SET pdf_path=%s WHERE id=%s", (pdf_rel_path, cuenta_id))
-            
+
         return send_file(
-            pdf_output,
+            BytesIO(contenido_pdf),
             as_attachment=True,
-            download_name=filename_pdf,
+            download_name=f"CueCob_{cuenta_id}.pdf",
             mimetype='application/pdf'
         )
 
@@ -333,27 +273,92 @@ def guardar_generar_cuenta():
         app.logger.error(f"Error procesando cuenta de cobro: {e}")
         return Response(f"Error: {e}", status=500)
 
+
+# ── El PDF se arma con lo guardado, no se deja en disco (1.9.19.0) ──────────
+def _pdf_cuenta(cuenta_id, fecha_str, cliente, contractor, items_data, total):
+    """El PDF de la cuenta de cobro en bytes; None si xhtml2pdf falla.
+    `fecha_str`: AAAA-MM-DD; `items_data`: [{fecha, descripcion, valor, valor_formatted}]."""
+    # Convertir total a texto
+    try:
+        total_texto = num2words.num2words(total, lang='es').upper() + " PESOS M/CTE"
+    except Exception:  # noqa: BLE001
+        total_texto = f"{total} PESOS M/CTE"
+
+    # Fecha formateada
+    try:
+        date_obj = datetime.strptime(fecha_str, '%Y-%m-%d')
+        meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+        fecha_larga = f"{date_obj.day} de {meses[date_obj.month-1]} de {date_obj.year}"
+        # Consecutivo con formato: dia-mes-año-consecutivo
+        consecutivo_formatted = f"{date_obj.day:02d}-{date_obj.month:02d}-{date_obj.year}-{cuenta_id}"
+    except Exception:  # noqa: BLE001
+        fecha_larga = fecha_str
+        consecutivo_formatted = f"CDC-{cuenta_id}"
+
+    pdf_data = {
+        'id': cuenta_id,
+        'consecutivo': consecutivo_formatted,
+        'fecha': fecha_larga,
+        'cliente': cliente,
+        'contractor': contractor,
+        'items': items_data,
+        'total_valor': formatear_moneda(total),
+        'total_texto': total_texto,
+        'logo': resolve_logo_path(app.root_path),
+        'brand': app.config.get('BRAND_COLORS', {}),
+        'empresa_website': _get_empresa_website()
+    }
+    salida = BytesIO()
+    estado = pisa.CreatePDF(render_template('pdf_cuenta_cobro.html', **pdf_data), dest=salida,
+                            link_callback=pdf_link_callback)
+    return None if estado.err else salida.getvalue()
+
+
+def pdf_cuenta_desde_bd(cuenta_id):
+    """El PDF de una cuenta de cobro de ESTA tienda, armado con lo guardado en su
+    base. None si no existe."""
+    with get_db_cursor(dict_cursor=True) as cur:
+        cur.execute("SELECT * FROM cuentas_cobro WHERE id = %s", (cuenta_id,))
+        cuenta = cur.fetchone()
+        if not cuenta:
+            return None
+        cur.execute("SELECT * FROM detalle_cuenta_cobro WHERE cuenta_id = %s ORDER BY id", (cuenta_id,))
+        detalles = cur.fetchall()
+    fecha_str = str(cuenta.get('fecha') or '')[:10]
+    items = [{'fecha': str(d.get('fecha_labor') or fecha_str)[:10], 'descripcion': d['descripcion'],
+              'valor': float(d['valor'] or 0), 'valor_formatted': formatear_moneda(float(d['valor'] or 0))}
+             for d in detalles]
+    return _pdf_cuenta(
+        cuenta_id, fecha_str,
+        {'nombre': cuenta.get('cliente_nombre') or '', 'nit': cuenta.get('cliente_nit') or '',
+         'direccion': cuenta.get('cliente_direccion') or '', 'ciudad': cuenta.get('cliente_ciudad') or ''},
+        {'nombre': cuenta.get('contractor_nombre') or '', 'id': cuenta.get('contractor_id') or '',
+         'texto_pago': cuenta.get('texto_pago') or '', 'email': cuenta.get('contractor_email') or '',
+         'telefono': cuenta.get('contractor_telefono') or ''},
+        items, float(cuenta.get('total') or 0))
+
+
+@billing_bp.route('/admin/cuenta_cobro/<int:id>/pdf')
+@rol_requerido(ADMIN_CONTADOR)
+def pdf_cuenta(id):
+    """El PDF de la cuenta de cobro, con la sesión de la tienda (ya no es un archivo público)."""
+    from services import documentos_privados as docs
+    contenido = docs.pdf_de('cuenta_cobro', id)
+    if not contenido:
+        flash("No se pudo abrir el PDF de esa cuenta de cobro.", "danger")
+        return redirect(url_for('billing.listar_cuentas'))
+    return docs.respuesta_pdf(contenido, docs.nombre_archivo('cuenta_cobro', id))
+
+
 @billing_bp.route('/admin/cuenta_cobro/eliminar/<int:id>', methods=['POST'])
 @permiso_requerido('billing', 'eliminar')
 @rol_requerido(ADMIN_CONTADOR)
 def eliminar_cuenta(id):
-    """Elimina una cuenta de cobro y su archivo PDF."""
+    """Elimina una cuenta de cobro. No toca archivos: el PDF ya no se guarda, y el
+    viejo de static/ era compartido (borrarlo se llevaba el de otra tienda)."""
     try:
-        pdf_path = None
         with get_db_cursor(dict_cursor=True) as cur:
-            cur.execute("SELECT pdf_path FROM cuentas_cobro WHERE id=%s", (id,))
-            res = cur.fetchone()
-            if res and res['pdf_path']:
-                pdf_path = res['pdf_path']
-            
             cur.execute("DELETE FROM cuentas_cobro WHERE id=%s", (id,))
-            
-        # Borrar archivo fisico
-        if pdf_path:
-            base_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'static')
-            full_path = os.path.normpath(os.path.join(base_dir, pdf_path.replace('/', os.sep)))
-            if full_path.startswith(os.path.normpath(base_dir)) and os.path.exists(full_path):
-                os.remove(full_path)
 
         flash("Cuenta de cobro eliminada correctamente.", "success")
     except Exception as e:
@@ -409,13 +414,20 @@ def listar_cuentas():
                      ", NULL AS estado_pago, NULL AS fecha_pago, NULL AS nota_pago, NULL AS vence")
             donde = f"WHERE {sql_filtro(filtro)}" if (cartera_ok and filtro) else ""
             cur.execute(f"""
-                SELECT id, consecutivo, fecha, cliente_nombre, total, pdf_path,
+                SELECT id, consecutivo, fecha, cliente_nombre, cliente_telefono, total, pdf_path,
                        {columnas_fe}{extra}
                 FROM cuentas_cobro {donde} ORDER BY fecha DESC, id DESC
             """)
             cuentas = cur.fetchall()
     except Exception as e:
         app.logger.error(f"Error listando cuentas: {e}")
+
+    # «PDF» con sesión + enlace privado (30 días) para WhatsApp o copiar.
+    from services import documentos_privados as docs
+    cuentas = docs.preparar_filas('cuenta_cobro', cuentas, lambda fila, enlace: (
+        f"Hola{' ' + fila['cliente_nombre'].strip() if (fila.get('cliente_nombre') or '').strip() else ''}, "
+        f"te compartimos la cuenta de cobro {fila.get('consecutivo') or fila['id']}. "
+        f"Puedes verla aquí: {enlace}"))
 
     try:
         from routes.factura_electronica import facturacion_habilitada

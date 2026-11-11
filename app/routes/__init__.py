@@ -99,6 +99,10 @@ def register_blueprints(app):
     from routes.admin_chat_publico import admin_chat_publico_bp
     app.register_blueprint(admin_chat_publico_bp)
 
+    # Enlace privado de cotizaciones y cuentas de cobro (el cliente lo abre sin sesión)
+    from routes.documentos import documentos_bp
+    app.register_blueprint(documentos_bp)
+
     # Llamadas internas del maestro (correo de bienvenida; X-Internal-Key, sin CSRF)
     from routes.interno import interno_bp
     app.register_blueprint(interno_bp)

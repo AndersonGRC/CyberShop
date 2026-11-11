@@ -76,6 +76,31 @@ if _OVERRIDE_STATIC and os.path.isdir(_OVERRIDE_STATIC):
     app.logger.info(f"Overrides de estáticos activos: {_OVERRIDE_STATIC}")
 
 
+# --- Los PDF de cotizaciones y cuentas de cobro ya no son públicos (1.9.19.0) ---
+# Estaban en static/ del código compartido: sin sesión y mezclados entre tiendas.
+# 1) /static deja de servir esas dos carpetas; 2) lo que había se MUEVE (no se borra)
+# a uploads/archivo_pdf_publicos/, porque en cybershopcol.com nginx sirve /static
+# sin pasar por la app. El PDF se abre desde el panel o con el enlace privado.
+from services.documentos_privados import archivar_pdf_publicos, es_carpeta_cerrada
+from werkzeug.exceptions import NotFound
+
+_static_abierto = app.view_functions['static']
+
+
+def _static_sin_documentos(filename):
+    if es_carpeta_cerrada(filename):
+        raise NotFound()
+    return _static_abierto(filename=filename)   # la vista de Flask solo recibe por nombre
+
+
+app.view_functions['static'] = _static_sin_documentos
+
+try:
+    archivar_pdf_publicos(app.root_path, app.logger)
+except Exception as _exc:  # noqa: BLE001 — nunca frena el arranque
+    app.logger.warning(f"No se pudieron archivar los PDF públicos: {_exc}")
+
+
 def versioned_url_for(endpoint, **values):
     """Agrega cache-busting a assets estaticos usando su fecha de modificacion
     (del archivo que realmente resuelve: override del cliente o compartido)."""
