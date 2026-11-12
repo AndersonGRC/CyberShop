@@ -136,6 +136,16 @@ Página pública de marketing del software (POS + Web), optimizada para SEO y co
 - **static/js/galeriaprincipal.js** — Mobile menu toggle and image slider for internal pages
 - **static/css/** — One CSS file per page/template
 
+### App instalable (PWA, 1.9.20.0)
+
+La tienda y el panel se instalan como una app en el teléfono o el computador. Son **dos apps distintas**: las páginas públicas (`plantillaindex.html`) enlazan `/manifest.webmanifest` (nombre, color y logo de la tienda; abre en `/`) y las del panel (`plantillaapp.html`) enlazan `/manifest-panel.webmanifest` («Panel <tienda>», paleta del panel; abre en `/pwa/panel`, que lleva a cada rol a su pantalla o al inicio de sesión). Todo vive en `routes/pwa.py` + `services/pwa.py`, sin sesión.
+
+- **Íconos por tienda** (`/pwa/icono-<180|192|512>.png`, `/pwa/icono-maskable-<192|512>.png`): se dibujan en memoria con Pillow desde el logo de ESA tienda; nada se guarda en disco. Sin logo propio (o con SVG) sale la inicial sobre su color — nunca el logo de CyberShop en la tienda de un cliente. El manifiesto los pide con `?v=<huella>` para que un logo nuevo actualice la app ya instalada.
+- **Service worker `/sw.js`**: mínimo a propósito. Solo guarda el aviso de «sin conexión» y un ícono; **no guarda páginas, datos ni nada del panel**, y no toca los envíos (POST). No agregarle caché de contenido: dejaría páginas viejas y datos del negocio en equipos compartidos. Va sin caché (`no-store`) porque Cloudflare guarda los `.js`.
+- **Botón «Instalar app»**: en el encabezado del panel; aparece solo cuando el equipo puede instalar (en iPhone/iPad explica «Compartir → Agregar a inicio»). Sus estilos van en la plantilla, no en `Menuapp.css` (Cloudflare lo guarda 7 días).
+- **Plantillas compartidas**: los enlaces van bajo `{% if pwa_activa %}` (variable que solo inyecta el código nuevo) y con direcciones escritas, sin `url_for` ni filtros nuevos: una tienda que aún corre el código anterior lee la plantilla nueva sin romperse.
+- **Apagar en una tienda**: `PWA_ACTIVA=0` en su `.env` → no se ofrece instalar y `/sw.js` entrega un service worker que se retira solo.
+
 ### Database Tables
 
 Las tablas viven en la **DB del tenant** (no en el control plane):

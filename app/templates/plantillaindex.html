@@ -74,6 +74,21 @@
     {% endif %}
 
     <link rel="shortcut icon" href="{{ brand_config.empresa_logo_url or url_for('static', filename='img/Logo.PNG') }}">
+    {# La tienda se instala como una app (PWA). `pwa_activa` solo existe con el código
+       nuevo; las direcciones van escritas (sin url_for) a propósito. #}
+    {% if pwa_activa %}
+    <link rel="manifest" href="/manifest.webmanifest">
+    <meta name="theme-color" content="{{ (brand_config.color_primario if brand_config else '') or '#122C94' }}">
+    <link rel="apple-touch-icon" href="/pwa/icono-180.png">
+    <meta name="apple-mobile-web-app-title" content="{{ (brand_config.empresa_nombre if brand_config else '') or 'Tienda' }}">
+    <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+            navigator.serviceWorker.register('/sw.js').catch(function () {});
+        });
+    }
+    </script>
+    {% endif %}
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">

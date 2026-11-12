@@ -15,6 +15,27 @@
     <script>const BRAND_COLOR_BTN = "#122C94";</script>
 
     <link rel="shortcut icon" href="{{ brand_config.empresa_logo_url or url_for('static', filename='img/Logo.PNG') }}">
+    {# El panel se instala como una app (PWA). `pwa_activa` solo existe con el código
+       nuevo; las direcciones van escritas (sin url_for) a propósito. Los estilos del
+       botón van aquí y no en Menuapp.css, que Cloudflare guarda 7 días. #}
+    {% if pwa_activa %}
+    <link rel="manifest" href="/manifest-panel.webmanifest">
+    <meta name="theme-color" content="#122C94">
+    <link rel="apple-touch-icon" href="/pwa/icono-180.png">
+    <meta name="apple-mobile-web-app-title" content="Panel">
+    <style>
+    .btn-instalar-app { margin-left:auto; display:inline-flex; align-items:center; gap:8px;
+        height:42px; padding:0 16px; border:1px solid rgba(18,44,148,.22); border-radius:12px;
+        background:#fff; color:#122C94; font-family:inherit; font-size:14px; font-weight:600; line-height:1;
+        cursor:pointer; white-space:nowrap; flex-shrink:0;
+        transition:background .2s ease, transform .15s ease; }
+    .btn-instalar-app[hidden] { display:none; }
+    .btn-instalar-app:hover { background:rgba(18,44,148,.07); }
+    .btn-instalar-app:active { transform:scale(.97); }
+    @media (max-width:420px) { .btn-instalar-app { padding:0 12px; }
+        .btn-instalar-app .bia-largo { display:none; } }
+    </style>
+    {% endif %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/Menuapp.css') }}">
     <!-- Font Awesome 5.15.3 AUTO-HOSPEDADO (mismo dominio): inmune a bloqueos de CDN/adblock/red.
          Reemplaza los 3 CDNs externos que dejaban el admin sin íconos. -->
@@ -87,6 +108,14 @@
                 <img src="{{ brand_config.empresa_logo_url or url_for('static', filename='img/Logo.PNG') }}" alt="Logo del header">
             </div>
         </div>
+        {% if pwa_activa %}
+        {# Solo aparece cuando este equipo puede instalar el panel y aún no lo tiene. #}
+        <button class="btn-instalar-app" id="btn-instalar-app" type="button" hidden
+                title="Deja el panel como una app en este equipo">
+            <i class="fas fa-download" aria-hidden="true"></i>
+            <span>Instalar<span class="bia-largo"> app</span></span>
+        </button>
+        {% endif %}
         <button class="btn-menu" type="button" aria-label="Mostrar u ocultar menú lateral" aria-expanded="true"
             aria-controls="app-sidebar">
             <i class="fas fa-bars"></i>
@@ -225,6 +254,68 @@
     {% endwith %}
     {% block scripts %}{% endblock %}
     {% block javascript %}{% endblock %}
+
+    {% if pwa_activa %}
+    <script>
+    /* Panel instalable (PWA): registra el service worker y muestra «Instalar app». */
+    (function () {
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('/sw.js').catch(function () {});
+            });
+        }
+        var boton = document.getElementById('btn-instalar-app');
+        if (!boton) return;
+        var yaInstalada = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+            || window.navigator.standalone === true;
+        if (yaInstalada) return;
+        var aviso = null;
+        var ua = navigator.userAgent || '';
+        var esApple = /iphone|ipad|ipod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+
+        function explicar(titulo, html) {
+            if (window.Swal) {
+                Swal.fire({ title: titulo, html: html, icon: 'info',
+                            confirmButtonColor: '#122C94', confirmButtonText: 'Entendido' });
+            } else {
+                alert(titulo);
+            }
+        }
+
+        window.addEventListener('beforeinstallprompt', function (e) {
+            e.preventDefault();
+            aviso = e;
+            boton.hidden = false;
+        });
+        window.addEventListener('appinstalled', function () {
+            aviso = null;
+            boton.hidden = true;
+        });
+        if (esApple) { boton.hidden = false; }   // iPhone/iPad no avisan: se instala a mano
+
+        boton.addEventListener('click', function () {
+            if (aviso) {
+                aviso.prompt();
+                aviso.userChoice.then(function (r) {
+                    if (r && r.outcome === 'accepted') { boton.hidden = true; }
+                    aviso = null;
+                }).catch(function () {});
+                return;
+            }
+            if (esApple) {
+                explicar('Instalar en iPhone o iPad',
+                    '<ol style="text-align:left;line-height:1.7;margin:0;padding-left:20px">' +
+                    '<li>Abre esta página en <b>Safari</b>.</li>' +
+                    '<li>Toca <b>Compartir</b> (el cuadro con la flecha hacia arriba).</li>' +
+                    '<li>Elige <b>Agregar a inicio</b> y luego <b>Agregar</b>.</li></ol>');
+            } else {
+                explicar('Instalar la app',
+                    'Abre el menú del navegador (los tres puntos) y elige <b>Instalar app</b>.');
+            }
+        });
+    })();
+    </script>
+    {% endif %}
 
     <script>
     /* Auto-inyectar CSRF token en todos los formularios POST */

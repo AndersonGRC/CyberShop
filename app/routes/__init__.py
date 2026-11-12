@@ -103,6 +103,10 @@ def register_blueprints(app):
     from routes.documentos import documentos_bp
     app.register_blueprint(documentos_bp)
 
+    # La tienda y el panel se instalan como una app (manifiesto, service worker, íconos)
+    from routes.pwa import pwa_bp
+    app.register_blueprint(pwa_bp)
+
     # Llamadas internas del maestro (correo de bienvenida; X-Internal-Key, sin CSRF)
     from routes.interno import interno_bp
     app.register_blueprint(interno_bp)
