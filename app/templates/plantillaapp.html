@@ -37,6 +37,9 @@
     </style>
     {% endif %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/Menuapp.css') }}">
+    {# Accesibilidad (foco con teclado, saltar al contenido, menos movimiento). Con
+       mouse no cambia nada. Dirección escrita y ?v= por la caché de Cloudflare. #}
+    <link rel="stylesheet" href="/static/css/accesibilidad.css?v={{ config.APP_VERSION }}">
     <!-- Font Awesome 5.15.3 AUTO-HOSPEDADO (mismo dominio): inmune a bloqueos de CDN/adblock/red.
          Reemplaza los 3 CDNs externos que dejaban el admin sin íconos. -->
     <link rel="stylesheet" href="{{ url_for('static', filename='fa/css/all.min.css') }}?v={{ config.APP_VERSION }}">
@@ -48,6 +51,8 @@
 </head>
 
 <body class="{% block body_class %}admin-layout{% endblock %}">
+    {# Primer Tab de la página: lleva directo al contenido sin recorrer el menú. #}
+    <a class="a11y-saltar" href="#contenido">Saltar al contenido</a>
     <!-- Menú lateral -->
     <header id="app-sidebar">
         <div class="menu-logo">
@@ -55,10 +60,10 @@
                (clase logo-original quita el filtro que lo vuelve blanco). El logo
                por defecto de CyberShop sí se blanquea para verse sobre el menú azul. #}
             <img class="{{ 'logo-original' if (brand_config.empresa_logo_url and '/media/public_site/' in brand_config.empresa_logo_url) }}"
-                 src="{{ brand_config.empresa_logo_url or url_for('static', filename='img/LogoP.PNG') }}" alt="Logo del menú">
+                 src="{{ brand_config.empresa_logo_url or url_for('static', filename='img/LogoP.PNG') }}" alt="">
         </div>
         <div class="nav">
-            <nav>
+            <nav aria-label="Menú principal">
                 {% if datosApp.longMenuAppindex > 0 %}
                 <ul>
                     {% for i in datosApp.MenuAppindex %}
@@ -105,7 +110,7 @@
                 <i class="fas fa-angle-double-left"></i>
             </button>
             <div class="header-logo">
-                <img src="{{ brand_config.empresa_logo_url or url_for('static', filename='img/Logo.PNG') }}" alt="Logo del header">
+                <img src="{{ brand_config.empresa_logo_url or url_for('static', filename='img/Logo.PNG') }}" alt="{{ brand_config.empresa_nombre or datosApp.titulo or 'Logo' }}">
             </div>
         </div>
         {% if pwa_activa %}
@@ -125,7 +130,7 @@
     <button class="layout-backdrop" type="button" hidden aria-label="Cerrar menú lateral"></button>
 
     <!-- Sección principal -->
-    <main>
+    <main id="contenido" tabindex="-1">
         {% if trial_info %}
         <div style="background:linear-gradient(90deg,#fff7e0,#ffefc2);border:1px solid #f0d48a;
                     border-radius:12px;margin:10px 14px 0;padding:10px 16px;display:flex;
@@ -212,6 +217,7 @@
     </footer>
 
     <script type="text/javascript" src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="/static/js/accesibilidad.js?v={{ config.APP_VERSION }}" defer></script>
 
     <!-- ============================================ -->
     <!-- INTEGRACIÓN DE SWEETALERT2 (POP-UPS)         -->

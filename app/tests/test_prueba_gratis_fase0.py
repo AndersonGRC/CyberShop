@@ -341,7 +341,8 @@ def test_quien_tiene_prueba_no_compra_una_segunda_tienda(client, monkeypatch):
     assert r.status_code == 302 and '/software' in r.headers['Location'] and 'secreto' not in r.headers['Location']
     assert enviados == [-3]                                  # el enlace va a SU correo, no a la pantalla
     html = client.get('/comprar-plan/software-cybershop').get_data(as_text=True)
-    assert 'tienda NUEVA y vacía' in html
+    # El aviso viaja como JSON dentro del script (tojson): las tildes van como \uXXXX.
+    assert 'tienda NUEVA y vac\\u00eda' in html or 'tienda NUEVA y vacía' in html
 
 
 # ── Píxel y correos ────────────────────────────────────────────

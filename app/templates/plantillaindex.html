@@ -92,6 +92,10 @@
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    {# Accesibilidad (foco con teclado, saltar al contenido, menos movimiento). Con
+       mouse no cambia nada. Dirección escrita y ?v= por la caché de Cloudflare. #}
+    <link rel="stylesheet" href="/static/css/accesibilidad.css?v={{ app_version }}">
+    <script src="/static/js/accesibilidad.js?v={{ app_version }}" defer></script>
     <link href="https://fonts.googleapis.com/css?family=Dancing+Script|Raleway:500,600&display=swap" rel="stylesheet">
     {# Una sola Font Awesome (antes se cargaban 3 versiones de 3 CDNs) #}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
@@ -133,14 +137,16 @@
     {% endif %}
 </head>
 <header>
+    {# Primer Tab de la página: lleva directo al contenido sin recorrer el menú. #}
+    <a class="a11y-saltar" href="#contenido">Saltar al contenido</a>
     <div class="logo logo_main">
-        <img id="logo" src="{{ brand_config.empresa_logo_url or url_for('static', filename='img/Logo.PNG') }}">
+        <img id="logo" src="{{ brand_config.empresa_logo_url or url_for('static', filename='img/Logo.PNG') }}" alt="{{ brand_config.empresa_nombre or datosApp.titulo or 'Logo' }}">
     </div>
 
     <div class="nav">
         <div class="wrap">
             <div class="logo logo_small"><a class="link" href="{{ url_for('public.index') }}">{{ datosApp.titulo or 'CYBERSHOP' }}</a></div>
-            <nav>
+            <nav id="menu-principal" aria-label="Menú principal">
                 {% if datosApp.longMenuAppindex > 0 %}
                 <ul>
                     {% for i in datosApp.MenuAppindex %}
@@ -156,8 +162,8 @@
                     {% if config_global.get('mostrar_modulo_ventas', true) %}
                     <li>
                         <a href="{{ url_for('public.ver_carrito') }}" id="menu-carrito-icon"
-                            class="menu-carrito-link">
-                            <i class="fas fa-shopping-cart menu-carrito-icono"></i>
+                            class="menu-carrito-link" aria-label="Carrito de compras">
+                            <i class="fas fa-shopping-cart menu-carrito-icono" aria-hidden="true"></i>
                             <span id="badge-carrito" class="cart-badge">0</span>
                         </a>
                     </li>
@@ -196,7 +202,7 @@
                 {% endif %}
             </nav>
             <div id="google_translate_container">
-                <select id="custom_translate_btn" onchange="translateLanguage(this.value)">
+                <select id="custom_translate_btn" onchange="translateLanguage(this.value)" aria-label="Idioma de la página">
                     <option value="">🌐 Selecciona idioma</option>
                     <option value="es">🇪🇸 Español</option>
                     <option value="en">🇺🇸 English</option>
@@ -209,7 +215,10 @@
             <div id="google_translate_element" hidden></div>
         </div>
     </div>
-    <i class="fas fa-ellipsis-v btn-menu"></i>
+    {# Sigue siendo <i> para no cambiar su aspecto; accesibilidad.js le da Enter/Espacio
+       y mantiene aria-expanded según el menú. #}
+    <i class="fas fa-ellipsis-v btn-menu" role="button" tabindex="0" aria-label="Abrir menú"
+       aria-expanded="false" aria-controls="menu-principal" data-a11y-boton data-a11y-menu-tienda></i>
 </header>
 
 <body>
@@ -238,8 +247,10 @@
     </div>
     {% endif %}
 
+    <main id="contenido" tabindex="-1">
     {% block body %}
     {% endblock %}
+    </main>
 
 
 
@@ -249,22 +260,22 @@
             <p>{{ brand_config.empresa_tagline or 'Síguenos en nuestras redes sociales y conoce nuestros servicios destacados.' }}</p>
             <ul class="socials">
                 {% if brand_config.empresa_facebook and brand_config.empresa_facebook != '#' %}
-                <li><a href="{{ brand_config.empresa_facebook }}"><i class="fab fa-facebook-f"></i></a></li>
+                <li><a href="{{ brand_config.empresa_facebook }}" aria-label="Facebook"><i class="fab fa-facebook-f" aria-hidden="true"></i></a></li>
                 {% endif %}
                 {% if brand_config.empresa_twitter and brand_config.empresa_twitter != '#' %}
-                <li><a href="{{ brand_config.empresa_twitter }}"><i class="fab fa-twitter"></i></a></li>
+                <li><a href="{{ brand_config.empresa_twitter }}" aria-label="X (Twitter)"><i class="fab fa-twitter" aria-hidden="true"></i></a></li>
                 {% endif %}
                 {% if brand_config.empresa_email %}
-                <li><a href="mailto:{{ brand_config.empresa_email }}"><i class="fas fa-envelope"></i></a></li>
+                <li><a href="mailto:{{ brand_config.empresa_email }}" aria-label="Escribir un correo"><i class="fas fa-envelope" aria-hidden="true"></i></a></li>
                 {% endif %}
                 {% if brand_config.empresa_youtube and brand_config.empresa_youtube != '#' %}
-                <li><a href="{{ brand_config.empresa_youtube }}"><i class="fab fa-youtube"></i></a></li>
+                <li><a href="{{ brand_config.empresa_youtube }}" aria-label="YouTube"><i class="fab fa-youtube" aria-hidden="true"></i></a></li>
                 {% endif %}
                 {% if brand_config.empresa_linkedin and brand_config.empresa_linkedin != '#' %}
-                <li><a href="{{ brand_config.empresa_linkedin }}" target="_blank"><i class="fab fa-linkedin"></i></a></li>
+                <li><a href="{{ brand_config.empresa_linkedin }}" target="_blank" aria-label="LinkedIn"><i class="fab fa-linkedin" aria-hidden="true"></i></a></li>
                 {% endif %}
                 {% if brand_config.empresa_instagram and brand_config.empresa_instagram != '#' %}
-                <li><a href="{{ brand_config.empresa_instagram }}" target="_blank"><i class="fab fa-instagram"></i></a></li>
+                <li><a href="{{ brand_config.empresa_instagram }}" target="_blank" aria-label="Instagram"><i class="fab fa-instagram" aria-hidden="true"></i></a></li>
                 {% endif %}
             </ul>
         </div>
@@ -323,7 +334,7 @@
 
             Swal.fire({
                 title: titulo,
-                text: '{{ message }}',
+                text: {{ message|tojson }},
                 icon: tipoIcono,
                 confirmButtonColor: (typeof BRAND_COLOR_BTN !== 'undefined') ? BRAND_COLOR_BTN : '#0d1b54',
                 confirmButtonText: 'Entendido',
@@ -339,8 +350,8 @@
 
     {% if config_global.get('mostrar_modulo_ventas', true) %}
     <div class="cart-floating-button">
-        <a href="{{ url_for('public.ver_carrito') }}">
-            <i class="fas fa-shopping-cart"></i>
+        <a href="{{ url_for('public.ver_carrito') }}" aria-label="Carrito de compras">
+            <i class="fas fa-shopping-cart" aria-hidden="true"></i>
             <span id="badge-carrito-flotante" class="cart-badge">0</span>
         </a>
     </div>

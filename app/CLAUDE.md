@@ -146,6 +146,17 @@ La tienda y el panel se instalan como una app en el teléfono o el computador. S
 - **Plantillas compartidas**: los enlaces van bajo `{% if pwa_activa %}` (variable que solo inyecta el código nuevo) y con direcciones escritas, sin `url_for` ni filtros nuevos: una tienda que aún corre el código anterior lee la plantilla nueva sin romperse.
 - **Apagar en una tienda**: `PWA_ACTIVA=0` en su `.env` → no se ofrece instalar y `/sw.js` entrega un service worker que se retira solo.
 
+### Accesibilidad (base común, 1.9.21.0)
+
+Las dos plantillas base cargan `static/css/accesibilidad.css` y `static/js/accesibilidad.js` (direcciones escritas con `?v=`: en el panel `config.APP_VERSION`; en la tienda `app_version`, porque ahí `config` es otra variable). Regla: **con mouse o con el dedo nada cambia de aspecto**.
+
+- **«Saltar al contenido»** (`.a11y-saltar`, primer Tab de la página) lleva a `<main id="contenido" tabindex="-1">`. En la tienda ese `<main>` envuelve `{% block body %}`: una página pública no debe traer otro `<main>` ni otro `id="contenido"`.
+- **Foco con teclado**: anillo blanco + azul solo con `:focus-visible` en enlaces, botones, `[role=button]`, `[tabindex]` y casillas. Los campos de texto, listas y áreas de texto conservan su propio foco (con mouse también lo muestran). Lleva `!important` porque varias hojas ponen `outline: none`.
+- **Texto solo para el lector**: clase `.a11y-oculto`. Íconos sin texto: `aria-label` en el enlace o botón y `aria-hidden="true"` en el `<i>`.
+- **Menú de tres puntos de la tienda (celular)**: sigue siendo `<i class="btn-menu">` (lo buscan `layout.js` y `app.js`); `data-a11y-boton` le da Enter/Espacio y `data-a11y-menu-tienda` mantiene `aria-expanded` según `.nav-toggle`.
+- **Reducir movimiento**: si el equipo lo pide, se apagan animaciones y transiciones.
+- Pruebas en `tests/test_accesibilidad.py`. Pendiente (entregas 2 y 3): etiquetas conectadas en Cotizar/Cuenta de cobro/Contáctenos, contraste de grises/verde/azul y textos más claros por módulo.
+
 ### Database Tables
 
 Las tablas viven en la **DB del tenant** (no en el control plane):

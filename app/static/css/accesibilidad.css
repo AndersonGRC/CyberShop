@@ -1,0 +1,83 @@
+/* ============================================================
+   accesibilidad.css — base común de accesibilidad (1.9.21.0)
+
+   La cargan las dos plantillas base (plantillaapp.html y
+   plantillaindex.html). Regla de oro: con mouse o con el dedo
+   NADA cambia de aspecto. Todo lo de aquí actúa solo cuando:
+     - se navega con teclado (:focus-visible),
+     - la persona pidió «reducir movimiento» en su equipo,
+     - o es texto oculto para el lector de pantalla.
+   Los campos de texto, listas y áreas de texto conservan su
+   propio estilo de foco (con el mouse también lo muestran).
+   Nombres con prefijo a11y- para no chocar con clases de las
+   páginas.
+   ============================================================ */
+
+/* 1. Enlace «Saltar al contenido»: fuera de la vista hasta el primer Tab. */
+.a11y-saltar {
+    position: absolute;
+    left: 8px;
+    top: -200px;
+    z-index: 100000;
+    padding: 12px 18px;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #0b2a8f;
+    font: 700 15px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    text-decoration: none;
+    box-shadow: 0 4px 16px rgba(8, 14, 31, 0.25);
+}
+
+.a11y-saltar:focus {
+    top: 8px;
+}
+
+/* El destino recibe el foco al saltar; no hace falta marcarlo entero. */
+#contenido:focus {
+    outline: none;
+}
+
+/* 2. Foco visible con teclado: anillo de dos tonos (blanco + azul) para que se
+   vea sobre fondos claros y sobre el azul del menú. !important porque varias
+   hojas ponen `outline: none` en :focus; :focus-visible solo aplica con
+   teclado en botones y enlaces, así que con el mouse no aparece. */
+:is(a[href], button, summary, [role="button"], [role="tab"], [role="link"],
+    [tabindex]:not([tabindex="-1"]),
+    input[type="checkbox"], input[type="radio"], input[type="button"],
+    input[type="submit"], input[type="reset"], input[type="file"]):focus-visible {
+    outline: 2px solid #ffffff !important;
+    outline-offset: 0 !important;
+    box-shadow: 0 0 0 5px #1d4ed8 !important;
+}
+
+/* 3. Texto solo para el lector de pantalla. */
+.a11y-oculto {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0 0 0 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+/* 4. Menos movimiento para quien lo pidió en su equipo (mareo, migraña). */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* 5. Al imprimir no sale el enlace de salto. */
+@media print {
+    .a11y-saltar {
+        display: none !important;
+    }
+}
