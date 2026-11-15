@@ -96,6 +96,7 @@
 
     <div class="cpub-card">
         <h2><i class="fas fa-lightbulb"></i> Lo que el chat no supo responder</h2>
+        <p style="margin:0 0 12px;"><a href="{{ url_for('admin_chat_publico.conocimiento') }}" class="cpub-btn cpub-btn-outline"><i class="fas fa-brain"></i> Responderlas en la base de conocimiento</a></p>
         {% if sin_responder %}
         <p class="cpub-lead" style="margin-bottom:14px;">Últimas preguntas de visitantes sin una respuesta lista — buenas candidatas para agregar como pregunta frecuente.</p>
         {% for p in sin_responder %}

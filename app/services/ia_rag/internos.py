@@ -66,9 +66,13 @@ def obtener(doc_id):
         return cur.fetchone()
 
 
-def guardar(titulo, texto, visibilidad, doc_id=None, usuario_id=None):
+def guardar(titulo, texto, visibilidad, doc_id=None, usuario_id=None, origen='panel',
+            accion=None):
     """Crea o actualiza un documento y lo deja buscable. Devuelve su id.
-    ValueError con un mensaje para el dueño si algo no cuadra."""
+    ValueError con un mensaje para el dueño si algo no cuadra.
+
+    La versión anterior queda en la bitácora (services/ia_rag/bitacora.py):
+    antes, editar pisaba el texto y no había cómo volver atrás."""
     titulo = (titulo or '').strip()
     texto = (texto or '').strip()
     if not titulo:
@@ -81,9 +85,13 @@ def guardar(titulo, texto, visibilidad, doc_id=None, usuario_id=None):
         raise ValueError('El documento admite hasta 20.000 caracteres; divídelo en varios.')
     if visibilidad not in VISIBILIDADES:
         raise ValueError('Elige quién puede consultarlo.')
+    antes = None
     with get_db_cursor(dict_cursor=True) as cur:
         asegurar_tabla(cur)
         if doc_id:
+            cur.execute("""SELECT titulo, texto, visibilidad, activo FROM ia_documentos_internos
+                           WHERE id = %s""", (doc_id,))
+            antes = cur.fetchone()
             cur.execute("""UPDATE ia_documentos_internos
                            SET titulo = %s, texto = %s, visibilidad = %s,
                                actualizado_por = %s, actualizado_en = NOW()
@@ -99,20 +107,31 @@ def guardar(titulo, texto, visibilidad, doc_id=None, usuario_id=None):
                         (titulo, texto, visibilidad, usuario_id, usuario_id))
             fila = cur.fetchone()
     reindexar(['interno'], limpiar=False)
+    from services.ia_rag import bitacora
+    bitacora.registrar('documento', accion or ('editar' if antes else 'crear'), fila['id'], titulo,
+                       antes=antes,
+                       despues={'titulo': titulo, 'texto': texto, 'visibilidad': visibilidad},
+                       origen=origen)
     return fila['id']
 
 
-def cambiar_estado(doc_id, activo, usuario_id=None):
+def cambiar_estado(doc_id, activo, usuario_id=None, origen='panel'):
     """Archiva (activo=False) o restaura un documento. Nunca lo borra."""
-    with get_db_cursor() as cur:
+    with get_db_cursor(dict_cursor=True) as cur:
         asegurar_tabla(cur)
         cur.execute("""UPDATE ia_documentos_internos
                        SET activo = %s, actualizado_por = %s, actualizado_en = NOW()
-                       WHERE id = %s""", (bool(activo), usuario_id, doc_id))
-        cambiado = cur.rowcount > 0
-    if cambiado:
+                       WHERE id = %s RETURNING titulo, visibilidad""",
+                    (bool(activo), usuario_id, doc_id))
+        fila = cur.fetchone()
+    if fila:
         reindexar(['interno'], limpiar=False)
-    return cambiado
+        from services.ia_rag import bitacora
+        bitacora.registrar('documento', 'restaurar' if activo else 'archivar', doc_id,
+                           fila['titulo'], antes={'activo': not activo, 'titulo': fila['titulo']},
+                           despues={'activo': bool(activo), 'titulo': fila['titulo']},
+                           origen=origen)
+    return bool(fila)
 
 
 def visibilidades_de(rol_id):

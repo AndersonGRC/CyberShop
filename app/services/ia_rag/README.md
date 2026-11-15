@@ -23,6 +23,17 @@ dos mitades que nunca se mezclan:
   asistente). Se indexan por partes, con la visibilidad en la fuente
   (`interno_admin` / `interno_equipo`). Archivar no borra.
 
+- `bitacora.py` — bitácora de lo que sabe la IA (tabla `ia_conocimiento_log`,
+  migración 0028): cada alta, edición, borrado, publicación o archivo de una
+  pregunta frecuente o un documento interno, con foto de antes y después y
+  quién lo hizo. Solo se agregan filas. También marca las preguntas sin
+  respuesta ya respondidas o descartadas.
+- `conocimiento.py` — operaciones rápidas con bitácora: guardar/borrar/publicar
+  FAQ, `restaurar()` (deshace un borrado o una edición), preguntas pendientes
+  agrupadas y `probar()` (qué textos encontraría la IA, sin registrar consulta).
+  Pantalla: `/admin/chat-publico/conocimiento` (ADMIN_STAFF; los documentos
+  internos y su historial solo para ADMIN_FULL con el módulo ai_assistant).
+
 Los documentos internos los consulta la capacidad `documentos_internos`
 (`services/ia_datos/`), declarada **solo local**: ni el puente de arranque en
 frío ni el respaldo en la nube los reciben.

@@ -45,7 +45,10 @@
     <div class="faqp-header">
         <h2><i class="fas fa-question-circle"></i> Preguntas frecuentes</h2>
         {% if modo != 'crear' and modo != 'editar' %}
-        <a href="{{ url_for('admin_chat_publico.faq_crear') }}" class="faqp-btn-crear"><i class="fas fa-plus"></i> Nueva pregunta</a>
+        <span>
+            <a href="{{ url_for('admin_chat_publico.conocimiento') }}" class="faqp-btn-cancelar" style="margin:0 10px 0 0;"><i class="fas fa-history"></i> Historial y pendientes</a>
+            <a href="{{ url_for('admin_chat_publico.faq_crear') }}" class="faqp-btn-crear"><i class="fas fa-plus"></i> Nueva pregunta</a>
+        </span>
         {% endif %}
     </div>
 
@@ -55,7 +58,9 @@
         <form method="POST" action="{{ url_for('admin_chat_publico.faq_crear') }}">
             <div class="faqp-form-group">
                 <label for="title">Pregunta</label>
-                <input type="text" id="title" name="title" required maxlength="200" placeholder="¿Hacen domicilios?">
+                <input type="text" id="title" name="title" required maxlength="200" placeholder="¿Hacen domicilios?"
+                       value="{{ pregunta_origen or '' }}">
+                {% if pregunta_origen %}<input type="hidden" name="pregunta_origen" value="{{ pregunta_origen }}">{% endif %}
             </div>
             <div class="faqp-form-group">
                 <label for="description">Respuesta</label>
@@ -135,7 +140,7 @@
                             <i class="fas fa-{% if f.is_active %}eye-slash{% else %}eye{% endif %}"></i>
                         </button>
                     </form>
-                    <form method="POST" action="{{ url_for('admin_chat_publico.faq_eliminar', item_id=f.id) }}" style="display:inline" onsubmit="return confirm('¿Eliminar esta pregunta frecuente?')">
+                    <form method="POST" action="{{ url_for('admin_chat_publico.faq_eliminar', item_id=f.id) }}" style="display:inline" onsubmit="return confirm('¿Eliminar esta pregunta frecuente? Podrás restaurarla desde el historial.')">
                         <button type="submit" class="faqp-btn-accion" title="Eliminar"><i class="fas fa-trash"></i></button>
                     </form>
                 </td>

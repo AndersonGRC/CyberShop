@@ -53,6 +53,8 @@
     <p class="idoc-lead">Procedimientos, políticas y manuales de tu negocio. El Asistente IA los consulta para
         responderle a tu equipo, según quién pregunte. Nunca aparecen en el chat de tu sitio público ni se
         envían al respaldo en la nube: solo los procesa tu equipo de IA.</p>
+    <p class="idoc-lead"><a href="{{ url_for('admin_chat_publico.conocimiento') }}"><i class="fas fa-history"></i>
+        Historial de cambios</a> · cada edición guarda la versión anterior y se puede restaurar.</p>
 
     <div class="idoc-card" id="formulario">
         <h2><i class="fas {{ 'fa-pen' if editar and editar.id else 'fa-plus' }}"></i>
