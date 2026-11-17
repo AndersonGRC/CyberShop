@@ -50,11 +50,26 @@ SINONIMOS = {
 }
 
 
+def _tabla_sinonimos():
+    """Los comunes más los de esta tienda (services/ia_rag/sinonimos.py)."""
+    tabla = dict(SINONIMOS)
+    try:
+        from services.ia_rag.sinonimos import de_la_tienda
+        for palabra, equivalentes in de_la_tienda().items():
+            tabla[palabra] = f"{tabla.get(palabra, '')} {equivalentes}".strip()
+    except Exception:  # noqa: BLE001
+        pass
+    return tabla
+
+
 def expandir(consulta):
     """La pregunta más los sinónimos de las palabras que usó."""
+    import re
     from services.ia.enrutador import normalizar
-    palabras = normalizar(consulta).replace('¿', ' ').replace('?', ' ').split()
-    extra = [SINONIMOS[p] for p in palabras if p in SINONIMOS]
+    tabla = _tabla_sinonimos()
+    # Solo letras y números: «abren,» o «domingos?» también cuentan.
+    palabras = re.findall(r'[a-z0-9ñ]+', normalizar(consulta))
+    extra = [tabla[p] for p in dict.fromkeys(palabras) if p in tabla]
     return f"{consulta} {' '.join(extra)}".strip() if extra else consulta
 
 

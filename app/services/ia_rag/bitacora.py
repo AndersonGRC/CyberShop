@@ -23,9 +23,9 @@ from psycopg2.extras import Json
 
 from database import _current_db_name, get_db_cursor
 
-TIPOS = ('faq', 'documento', 'pregunta')
+TIPOS = ('faq', 'documento', 'pregunta', 'sinonimos')
 ACCIONES = ('crear', 'editar', 'publicar', 'despublicar', 'eliminar', 'archivar',
-            'restaurar', 'responder', 'descartar')
+            'restaurar', 'responder', 'descartar', 'revisar')
 
 _DDL = """
 CREATE TABLE IF NOT EXISTS ia_conocimiento_log (
@@ -69,25 +69,41 @@ def _limpiar(valor):
     return {k: (v.isoformat() if hasattr(v, 'isoformat') else v) for k, v in dict(valor).items()}
 
 
+def _insertar(cur, tipo, accion, objeto_id, titulo, antes, despues, origen, usuario_id=None):
+    sesion_id, usuario_nombre = _usuario()
+    cur.execute(
+        """INSERT INTO ia_conocimiento_log
+               (usuario_id, usuario_nombre, tipo, accion, objeto_id, titulo,
+                antes, despues, origen)
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+        (usuario_id if usuario_id is not None else sesion_id, usuario_nombre, tipo, accion,
+         None if objeto_id is None else str(objeto_id)[:64],
+         (titulo or '').strip()[:300],
+         Json(_limpiar(antes)) if antes is not None else None,
+         Json(_limpiar(despues)) if despues is not None else None,
+         (origen or 'panel')[:20]))
+
+
+def registrar_en(cur, tipo, accion, objeto_id=None, titulo='', antes=None, despues=None,
+                 origen='asistente', usuario_id=None):
+    """Igual que registrar(), pero en la transacción de quien llama: el cambio
+    y su registro se guardan juntos o no se guarda ninguno (acciones del
+    asistente confirmadas). Aquí SÍ lanza si falla."""
+    cur.execute("SELECT to_regclass('public.ia_conocimiento_log') AS t")
+    fila = cur.fetchone()
+    if (fila['t'] if isinstance(fila, dict) else fila[0]) is None:
+        cur.execute(_DDL)          # sin recordarlo: si la transacción se revierte, no queda
+    _insertar(cur, tipo, accion, objeto_id, titulo, antes, despues, origen, usuario_id)
+
+
 def registrar(tipo, accion, objeto_id=None, titulo='', antes=None, despues=None,
               origen='panel'):
     """Agrega una fila. Nunca lanza: si la bitácora falla, el cambio ya hecho
     no se deshace, pero queda la advertencia en el log del servidor."""
-    usuario_id, usuario_nombre = _usuario()
     try:
         with get_db_cursor() as cur:
             asegurar_tabla(cur)
-            cur.execute(
-                """INSERT INTO ia_conocimiento_log
-                       (usuario_id, usuario_nombre, tipo, accion, objeto_id, titulo,
-                        antes, despues, origen)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-                (usuario_id, usuario_nombre, tipo, accion,
-                 None if objeto_id is None else str(objeto_id)[:64],
-                 (titulo or '').strip()[:300],
-                 Json(_limpiar(antes)) if antes is not None else None,
-                 Json(_limpiar(despues)) if despues is not None else None,
-                 (origen or 'panel')[:20]))
+            _insertar(cur, tipo, accion, objeto_id, titulo, antes, despues, origen)
         return True
     except Exception as exc:  # noqa: BLE001
         try:

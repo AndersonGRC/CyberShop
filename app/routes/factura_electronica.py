@@ -47,17 +47,17 @@ TIPO_DOC_MAP = {
 # Mapeo método de pago CyberShop → código UBL 2.1
 METODO_PAGO_MAP = {
     'CARD':         '48',   # Tarjeta crédito/débito
-    'PSE':          '20',   # Transferencia bancaria (PSE)
+    'PSE':          '47',   # Transferencia débito bancaria (PSE); '20' es cheque
     'CASH':         '10',   # Efectivo
     'EFECTIVO':     '10',
     'PAYU':         '48',   # PayU → tarjeta
     'CREDIT_CARD':  '48',
     'DEBIT_CARD':   '48',
-    'TRANSFERENCIA': '20',
+    'TRANSFERENCIA': '47',
     # Medios de pago del POS y del cobro de mesas (metodos_pago_pos).
     'TARJETA':      '48',   # Tarjeta crédito/débito
-    'NEQUI':        '20',   # Billetera digital = transferencia
-    'DAVIPLATA':    '20',
+    'NEQUI':        '47',   # Billetera digital = transferencia ('20' es cheque)
+    'DAVIPLATA':    '47',
 }
 
 # Mapa de municipios Colombia (los más comunes)
@@ -192,7 +192,10 @@ def _construir_items(filas, campo_desc: str) -> list:
     items = []
     for fila in filas:
         fila     = dict(fila)
-        cantidad = int(fila.get('cantidad') or 1)
+        # Con decimales: 1,5 kg salía como 1 y la factura quedaba por debajo de lo cobrado.
+        cantidad = round(float(fila.get('cantidad') or 1), 2)
+        if cantidad == int(cantidad):
+            cantidad = int(cantidad)
         iva      = _iva_pct(fila.get('impuesto'))
         precio   = float(fila.get('precio_unitario') or 0)
 
@@ -795,6 +798,69 @@ def emitir_factura_electronica(pedido_id: int) -> dict:
 def emitir_factura_pos(venta_id: int) -> dict:
     """Factura de una venta POS marcada «Facturar electrónicamente»."""
     return _emitir_a_dian('ventas_pos', venta_id, construir_json_pos(venta_id))
+
+
+def reversar_fe_por_anulacion_pos(venta_id: int, factura_dian_id, motivo: str = '') -> dict:
+    """Qué pasa con la factura electrónica de una venta POS que se anula.
+
+    Decisión del dueño (15-nov-2026): nota crédito SOLO si la venta ya estaba
+    facturada; si no, nada.
+      - sin factura electrónica          → nada ({'accion': 'ninguna'})
+      - factura aún en cola (no enviada) → se cancela, no llega a la DIAN
+      - factura ACEPTADA por la DIAN     → nota crédito electrónica (concepto 2,
+        anulación) por la misma venta, referida a su número y CUFE
+      - rechazada o cancelada            → nada (no hay factura válida)
+      - en proceso o con error           → no se adivina: aviso para revisarla
+
+    NUNCA lanza: la anulación de la venta ya quedó hecha y no depende de esto.
+    Devuelve {'accion', 'mensaje'}.
+    """
+    if not factura_dian_id:
+        return {'accion': 'ninguna', 'mensaje': ''}
+    revisar = {'accion': 'revisar',
+               'mensaje': 'Esta venta tenía factura electrónica y no se pudo reversar sola. '
+                          'Revísala en Facturación DIAN → Bandeja.'}
+    try:
+        factura_dian_id = str(factura_dian_id)
+        estado = consultar_estado_factura(factura_dian_id)
+        if estado.get('error'):
+            logger.warning(f"FE anulación POS {venta_id}: {estado['error']}")
+            return revisar
+        situacion = str(estado.get('estado') or '').upper()
+        if situacion in ('RECHAZADA', 'CANCELADA'):
+            return {'accion': 'ninguna', 'mensaje': ''}
+        if situacion == 'PENDIENTE':
+            res = cancelar_factura_dian(factura_dian_id)
+            if not res.get('error'):
+                return {'accion': 'cancelada',
+                        'mensaje': 'La factura electrónica aún no se había enviado a la DIAN: se canceló.'}
+            # Pudo salir a la DIAN justo ahora: se vuelve a mirar una vez.
+            estado = consultar_estado_factura(factura_dian_id)
+            situacion = str(estado.get('estado') or '').upper()
+        if situacion != 'ACEPTADA' or not estado.get('numero_factura') or not estado.get('cufe'):
+            return revisar
+        payload = construir_json_pos(venta_id)
+        if not payload:
+            return revisar
+        payload.update({
+            'tipo_documento': 'nota_credito',
+            'referencia_pedido': f"NC-{payload.get('referencia_pedido') or f'ventas_pos-{venta_id}'}",
+            'documento_referencia': {'numero': estado['numero_factura'], 'cufe': estado['cufe'],
+                                     'fecha': str(estado.get('creado_en') or '')[:10]},
+            'concepto_nota': {'codigo': '2', 'descripcion': 'Anulación de factura electrónica'},
+            'notas': (f"Anulación de la venta POS #{venta_id}. {motivo}".strip())[:300],
+        })
+        res = _dian_call('POST', '/facturas', payload=payload, timeout=10)
+        if res.get('error'):
+            logger.error(f"FE nota crédito POS {venta_id}: {res['error']}")
+            return {'accion': 'revisar',
+                    'mensaje': 'La venta tenía factura electrónica aceptada y la nota crédito no se pudo '
+                               f"crear ({res['error']}). Créala en el portal tributario."}
+        return {'accion': 'nota_credito', 'id': res.get('id'),
+                'mensaje': f"Se creó la nota crédito electrónica de la factura {estado['numero_factura']}."}
+    except Exception as exc:  # noqa: BLE001
+        logger.error(f"FE anulación POS {venta_id}: {exc}")
+        return revisar
 
 
 # ── Restaurante (mesas) ──────────────────────────────────────────────────────

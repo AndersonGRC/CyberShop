@@ -834,3 +834,10 @@ header.collapsed ~ .footer { margin-left: 76px; }
     }
     header.collapsed .nav ul li.has-submenu:hover > .submenu a > span { display: inline !important; }
 }
+
+/* 1.9.24.0 — Un submenu cerrado no debe ocupar espacio: sus margenes dejaban
+   un hueco desigual entre los modulos del menu lateral. */
+.nav ul li:not(.active):not(.has-active-child) > .submenu {
+    margin-top: 0;
+    margin-bottom: 0;
+}

@@ -48,12 +48,19 @@ TIPOS = {
     'responder_resena': ('content', 'operar'),
     'cerrar_ticket': ('support', 'operar'),
     'reabrir_ticket': ('support', 'operar'),
+    # Base de conocimiento (services/ia_acciones_conocimiento.py): preguntas
+    # frecuentes del chat del sitio. Nada se borra: «elimina» la despublica.
+    'crear_faq': ('content', 'operar'),
+    'editar_faq': ('content', 'operar'),
+    'archivar_faq': ('content', 'eliminar'),
+    'publicar_faq': ('content', 'operar'),
 }
 _CRM = {'crear_tarea', 'completar_tarea', 'reabrir_tarea', 'editar_tarea', 'registrar_actividad',
         'crear_oportunidad', 'mover_oportunidad', 'editar_oportunidad'}
 _CATALOGO = {'crear_producto', 'editar_producto', 'archivar_producto', 'reactivar_producto',
              'movimiento_inventario', 'crear_categoria', 'renombrar_categoria'}
 _ATENCION = {'aprobar_resena', 'responder_resena', 'cerrar_ticket', 'reabrir_ticket'}
+_CONOCIMIENTO = {'crear_faq', 'editar_faq', 'archivar_faq', 'publicar_faq'}
 TIPOS_CONTACTO = {'cliente', 'proveedor', 'lead', 'socio'}
 CONTACTO_CAMPOS = {
     'nombre': 200, 'tipo': 20, 'empresa': 200, 'cargo': 100,
@@ -211,6 +218,11 @@ def _orden_de_atencion(frase):
     return next((tipo for tipo, patron in _ORDENES_ATENCION.items() if patron.search(frase)), None)
 
 
+def _orden_de_conocimiento(frase):
+    from services.ia_acciones_conocimiento import orden_de_conocimiento
+    return orden_de_conocimiento(frase)
+
+
 def _unico(verbos, frase, primero=None):
     """El único proceso cuyos verbos aparecen; `primero` gana si aparece."""
     hallados = [clave for clave, patron in verbos.items() if patron.search(frase)]
@@ -322,6 +334,7 @@ def parece_operativa(pregunta):
         return False
     return bool((_VERBOS.search(frase) and _OBJETOS.search(frase))
                 or _movimiento_suelto(frase, pregunta) or _orden_de_atencion(frase)
+                or _orden_de_conocimiento(frase)
                 or _crea_con_precio(frase) or _YA_NO_VENDO.search(frase)
                 or (_VERBOS.search(frase) and re.search(r'\bdescripcion\b', frase)))
 
@@ -337,6 +350,9 @@ def _tipo_solicitado(pregunta):
     atencion = _orden_de_atencion(frase)
     if atencion:
         return atencion
+    conocimiento = _orden_de_conocimiento(frase)
+    if conocimiento:
+        return conocimiento
     if _CREAR_PRODUCTO_DICHO.search(frase):
         return 'crear_producto'
     if _YA_NO_VENDO.search(frase):
@@ -384,7 +400,8 @@ def _tipo_solicitado(pregunta):
         return 'movimiento_inventario'
     raise AccionError('La acción no coincide claramente con una función disponible. '
                       'Pide un solo cambio y di si es un contacto, un producto, una '
-                      'categoría, el stock, una tarea, una reseña o un ticket.')
+                      'categoría, el stock, una tarea, una reseña, un ticket o una '
+                      'pregunta frecuente.')
 
 
 def direccion_movimiento(pregunta):
@@ -668,6 +685,10 @@ _CAMPOS_PLAN = {
     'responder_resena': {'tipo', 'resena_id', 'resena', 'respuesta'},
     'cerrar_ticket': {'tipo', 'ticket_id', 'ticket'},
     'reabrir_ticket': {'tipo', 'ticket_id', 'ticket'},
+    'crear_faq': {'tipo', 'pregunta', 'respuesta'},
+    'editar_faq': {'tipo', 'faq_id', 'faq', 'pregunta', 'respuesta'},
+    'archivar_faq': {'tipo', 'faq_id', 'faq'},
+    'publicar_faq': {'tipo', 'faq_id', 'faq'},
 }
 # Preguntas del catálogo por (proceso, campo): el modelo elige el campo que
 # falta y el servidor redacta la pregunta.
@@ -776,6 +797,16 @@ def _pregunta_campo(tipo, campo):
 def _interpretar(pregunta, historial=None):
     from services.ai_service import _chat, _sanear_historial
     tipo_solicitado = _tipo_solicitado(pregunta)
+    if tipo_solicitado in _CONOCIMIENTO:
+        # Preguntas frecuentes: texto público que la IA no redacta. Se toma
+        # literal de la orden, sin modelo (funciona con el motor apagado).
+        from services import ia_acciones_conocimiento
+        plan = ia_acciones_conocimiento.plan(pregunta, tipo_solicitado)
+        _validar_intencion(pregunta, plan['tipo'])
+        if set(plan) - _CAMPOS_PLAN[plan['tipo']]:
+            raise AccionError('La acción interpretada contiene datos no permitidos.')
+        _solo_datos_dichos(plan, pregunta, historial)
+        return plan
     # La conversación reciente ayuda a resolver «créalo como proveedor» o «el
     # que te dije»; va marcada como contexto, nunca como orden. Puede incluir
     # respuestas de nómina o documentos internos, así que este flujo de
@@ -1373,6 +1404,10 @@ def _solo_datos_dichos(plan, pregunta, historial):
     if tipo in _ATENCION:
         _datos_atencion_dichos(plan, fuentes, fuente)
         return
+    if tipo in _CONOCIMIENTO:
+        from services import ia_acciones_conocimiento
+        ia_acciones_conocimiento.datos_dichos(plan, fuentes, fuente)
+        return
     if tipo == 'ajustar_inventario':
         if plan.get('producto_id') is None and not plan.get('producto'):
             raise AccionAclarar(_PREGUNTAS['producto'])
@@ -1535,6 +1570,9 @@ def _preparar_datos(cur, plan):
     if tipo in _ATENCION:
         from services import ia_acciones_atencion
         return ia_acciones_atencion.preparar(cur, plan)
+    if tipo in _CONOCIMIENTO:
+        from services import ia_acciones_conocimiento
+        return ia_acciones_conocimiento.preparar(cur, plan)
     if tipo == 'ajustar_inventario':
         nuevo = _entero(plan.get('stock_nuevo'), 'el stock final', minimo=0)
         motivo = _texto(plan.get('motivo'), 'motivo', 500, obligatorio=True)
@@ -1700,6 +1738,9 @@ def _ejecutar(cur, fila, usuario):
     if tipo in _ATENCION:
         from services import ia_acciones_atencion
         return ia_acciones_atencion.ejecutar(cur, fila, usuario)
+    if tipo in _CONOCIMIENTO:
+        from services import ia_acciones_conocimiento
+        return ia_acciones_conocimiento.ejecutar(cur, fila, usuario)
     if tipo == 'ajustar_inventario':
         producto = _producto(cur, {'producto_id': payload['producto_id']}, bloquear=True)
         anterior = int(producto['stock'] or 0)

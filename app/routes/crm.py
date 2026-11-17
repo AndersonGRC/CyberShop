@@ -33,10 +33,15 @@ ETAPAS_COMERCIALES = {
     'propuesta':   'Cotización',
     'negociacion': 'Negociación',
     'ganada':      'Ganado',
-    'perdida':     'Perdida',
+    'perdida':     'No compró',
 }
-# Columnas activas del tablero (perdida = colapsable / filtro).
+# Columnas del tablero. «No compró» (perdida) va siempre a la vista, al final.
 ETAPAS_ACTIVAS = ['prospecto', 'calificado', 'propuesta', 'negociacion', 'ganada']
+# Motivos rápidos al marcar «No compró» (se guardan en motivo_perdida).
+MOTIVOS_NO_COMPRO = ['Precio', 'Eligió a otro', 'No respondió',
+                     'No lo necesita ahora', 'No era lo que buscaba', 'Otro']
+# Tope de tarjetas en la columna «No compró» (el resto se ve en la vista Tabla).
+MAX_NO_COMPRO_TABLERO = 30
 LINEAS_NEGOCIO = ['POS', 'Software', 'Hardware', 'Servicio']
 DIAS_ESTANCADA = 7  # días sin movimiento para marcar "Sin movimiento"
 
@@ -449,18 +454,26 @@ def tu_dia():
 @crm_bp.route('/contactos')
 @rol_requerido(ADMIN_STAFF)
 def crm_contactos_lista():
-    tipo_filtro = request.args.get('tipo')
+    tipo_filtro = request.args.get('tipo') or None
+    q = (request.args.get('q') or '').strip()[:80]
+    patron = '%' + q + '%' if q else None
     with get_db_cursor(dict_cursor=True) as cur:
         cur.execute("""
             SELECT id, nombre, empresa, tipo, email, telefono, ciudad, foto_path, created_at
             FROM crm_contactos
             WHERE activo = TRUE
               AND (%s IS NULL OR tipo = %s)
+              AND (%s IS NULL OR nombre ILIKE %s OR empresa ILIKE %s
+                   OR telefono ILIKE %s OR email ILIKE %s)
             ORDER BY nombre ASC
-        """, (tipo_filtro, tipo_filtro))
+        """, (tipo_filtro, tipo_filtro, patron, patron, patron, patron, patron))
         contactos = cur.fetchall()
+        cur.execute("SELECT tipo, COUNT(*) AS n FROM crm_contactos WHERE activo = TRUE GROUP BY tipo")
+        conteos = {r['tipo']: int(r['n']) for r in cur.fetchall()}
 
-    return render_template('crm_contactos.html', contactos=contactos, tipo_filtro=tipo_filtro)
+    return render_template('crm_contactos.html', contactos=contactos, tipo_filtro=tipo_filtro,
+                           q=q, conteos=conteos, total_contactos=sum(conteos.values()),
+                           crm_active='contactos', crm_active_label='Contactos')
 
 
 # ------------------------------------------------------------------
@@ -868,7 +881,8 @@ def crm_tareas_lista():
         """, (estado, estado))
         tareas = cur.fetchall()
 
-    return render_template('crm_tareas.html', tareas=tareas, estado_filtro=estado, hoy=date.today())
+    return render_template('crm_tareas.html', tareas=tareas, estado_filtro=estado, hoy=date.today(),
+                           crm_active='tareas', crm_active_label='Tareas')
 
 
 # ------------------------------------------------------------------
@@ -1107,7 +1121,7 @@ ETAPAS_OPORTUNIDAD = [
     ('propuesta',   'Propuesta'),
     ('negociacion', 'Negociación'),
     ('ganada',      'Ganada'),
-    ('perdida',     'Perdida'),
+    ('perdida',     'No compró'),
 ]
 
 
@@ -1147,17 +1161,18 @@ def pipeline():
         cur.execute("SELECT id, nombre FROM usuarios WHERE estado='habilitado' ORDER BY nombre")
         usuarios = cur.fetchall()
 
-    etapas_col = list(ETAPAS_ACTIVAS)
-    if incluir_perdidas:
-        etapas_col.append('perdida')
-    columnas = {k: {'label': ETAPAS_COMERCIALES.get(k, k), 'items': [], 'total': 0}
+    etapas_col = list(ETAPAS_ACTIVAS) + ['perdida']
+    columnas = {k: {'label': ETAPAS_COMERCIALES.get(k, k), 'items': [], 'total': 0, 'n': 0}
                 for k in etapas_col}
     activas_total, activas_n, estancadas_n = 0.0, 0, 0
     for o in oportunidades:
         col = columnas.get(o['etapa'])
         if col is not None:
-            col['items'].append(o)
+            col['n'] += 1
             col['total'] += float(o['monto_estimado'] or 0)
+            # «No compró» crece sin límite: en el tablero solo las más recientes.
+            if o['etapa'] != 'perdida' or len(col['items']) < MAX_NO_COMPRO_TABLERO:
+                col['items'].append(o)
         if o['etapa'] not in ('ganada', 'perdida'):
             activas_total += float(o['monto_estimado'] or 0)
             activas_n += 1
@@ -1166,13 +1181,13 @@ def pipeline():
 
     return render_template(
         'crm_pipeline.html',
-        crm_active='pipeline', crm_active_label='Pipeline',
+        crm_active='pipeline', crm_active_label='Embudo',
         etapas_col=etapas_col, columnas=columnas, oportunidades=oportunidades,
         usuarios=usuarios, lineas=LINEAS_NEGOCIO, etapas_label=ETAPAS_COMERCIALES,
         filtro_asignado=filtro_asignado, filtro_linea=filtro_linea,
         solo_estancadas=solo_estancadas, incluir_perdidas=incluir_perdidas, vista=vista,
         activas_total=activas_total, activas_n=activas_n, estancadas_n=estancadas_n,
-        dias_estancada=DIAS_ESTANCADA,
+        dias_estancada=DIAS_ESTANCADA, motivos_no_compro=MOTIVOS_NO_COMPRO,
     )
 
 
@@ -1301,7 +1316,9 @@ def oportunidad_editar(id):
 def oportunidad_cambiar_etapa(id):
     """AJAX: drag&drop del Kanban."""
     from flask import jsonify
-    nueva = request.json.get('etapa') if request.is_json else request.form.get('etapa')
+    datos = (request.get_json(silent=True) or {}) if request.is_json else request.form
+    nueva = datos.get('etapa')
+    motivo = (datos.get('motivo') or '').strip()[:160]
     validas = [e[0] for e in ETAPAS_OPORTUNIDAD]
     if nueva not in validas:
         return jsonify({'ok': False, 'error': 'etapa inválida'}), 400
@@ -1315,6 +1332,9 @@ def oportunidad_cambiar_etapa(id):
                 sets += ', probabilidad=100'
             if nueva == 'perdida':
                 sets += ', probabilidad=0'
+                if motivo:
+                    sets += ', motivo_perdida=%s'
+                    params.append(motivo)
             params.append(id)
             cur.execute(f"UPDATE crm_oportunidades SET {sets} WHERE id=%s", tuple(params))
         return jsonify({'ok': True})

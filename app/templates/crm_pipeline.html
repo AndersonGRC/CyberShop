@@ -16,14 +16,20 @@
         {% endif %}
         {% if o.asignado_nombre %}<span class="avatar {{ o.asignado_a|avatarcolor }}" title="{{ o.asignado_nombre }}">{{ o.asignado_nombre|iniciales }}</span>{% endif %}
     </div>
+    {% if o.etapa == 'perdida' and o.motivo_perdida %}<div class="o-motivo">Motivo: {{ o.motivo_perdida }}</div>{% endif %}
+    <label class="o-mover">Mover a
+        <select class="js-mover" data-id="{{ o.id }}" data-titulo="{{ o.titulo }}" aria-label="Mover «{{ o.titulo }}» a otra etapa">
+            {% for k, nombre in etapas_label.items() %}<option value="{{ k }}" {{ 'selected' if k == o.etapa }}>{{ nombre }}</option>{% endfor %}
+        </select>
+    </label>
 </div>
 {% endmacro %}
 
 {% block crm_content %}
 <div class="crm-page-head">
     <div>
-        <h1 class="crm-h1">Pipeline de ventas</h1>
-        <p class="crm-sub">{{ activas_n }} oportunidad{{ 'es' if activas_n != 1 else '' }} activa{{ 's' if activas_n != 1 else '' }} · <b>${{ '{:,.0f}'.format(activas_total) }}</b> en juego</p>
+        <h1 class="crm-h1">Embudo de ventas</h1>
+        <p class="crm-sub">{{ activas_n }} oportunidad{{ 'es' if activas_n != 1 else '' }} activa{{ 's' if activas_n != 1 else '' }} · <b>${{ '{:,.0f}'.format(activas_total) }}</b> en juego. Arrastra una tarjeta o usa «Mover a».</p>
     </div>
     <a href="{{ url_for('crm.oportunidad_crear') }}" class="crm-btn crm-btn-primary"><i class="fas fa-plus"></i> Nueva oportunidad</a>
 </div>
@@ -66,7 +72,7 @@
             <tr>
                 <td><a href="{{ url_for('crm.oportunidad_editar', id=o.id) }}" style="font-weight:700;color:var(--c-tinta)">{{ o.titulo }}</a></td>
                 <td class="muted">{{ o.contacto_empresa or o.contacto_nombre }}</td>
-                <td><span class="chip"><i style="width:8px;height:8px;border-radius:50%;background:{{ etapa_dot.get(o.etapa,'#9aa2b6') }}"></i> {{ etapas_label.get(o.etapa, o.etapa) }}</span></td>
+                <td><span class="chip"><i style="width:8px;height:8px;border-radius:50%;background:{{ etapa_dot.get(o.etapa,'#9aa2b6') }}"></i> {{ etapas_label.get(o.etapa, o.etapa) }}</span>{% if o.etapa == 'perdida' and o.motivo_perdida %}<div class="muted" style="font-size:.78rem;margin-top:3px">Motivo: {{ o.motivo_perdida }}</div>{% endif %}</td>
                 <td>{% if o.linea_negocio %}<span class="chip chip-line" data-l="{{ o.linea_negocio }}">{{ o.linea_negocio }}</span>{% else %}—{% endif %}</td>
                 <td class="nowrap" style="font-weight:800;color:var(--c-tinta)">{{ ('$' ~ '{:,.0f}'.format(o.monto_estimado)) if o.monto_estimado else '—' }}</td>
                 <td>{% if o.asignado_nombre %}<span class="avatar {{ o.asignado_a|avatarcolor }}">{{ o.asignado_nombre|iniciales }}</span> {{ o.asignado_nombre }}{% else %}<span class="muted">—</span>{% endif %}</td>
@@ -104,26 +110,50 @@
 
 {% else %}
     {# ── Vista Tablero (kanban) ── #}
+    <nav class="pipe-saltos" aria-label="Ir a una etapa">
+        {% for k in etapas_col %}<a href="#col-{{ k }}" class="crm-chip {{ 'crm-chip-no' if k == 'perdida' }}">{{ columnas[k].label }} <span class="crm-chip-n">{{ columnas[k].get('n', columnas[k]['items']|length) }}</span></a>{% endfor %}
+    </nav>
     <div class="board" id="board">
         {% for k in etapas_col %}
         {% set col = columnas[k] %}
-        <div class="col" data-k="{{ k }}">
+        <div class="col" data-k="{{ k }}" id="col-{{ k }}">
             <div class="col-top">
-                <div class="c-name"><span class="c-dot"></span> {{ col.label }} <span class="c-count">{{ col['items']|length }}</span></div>
+                <div class="c-name"><span class="c-dot"></span> {{ col.label }} <span class="c-count">{{ col.get('n', col['items']|length) }}</span></div>
                 <div class="c-total">${{ '{:,.0f}'.format(col['total']) }}</div>
             </div>
             <div class="col-body" data-drop="{{ k }}">
                 {% for o in col['items'] %}{{ opp_card(o) }}{% else %}<div class="col-empty">Vacío</div>{% endfor %}
-                <a href="{{ url_for('crm.oportunidad_crear') }}" class="col-add"><i class="fas fa-plus"></i> Agregar</a>
+                {% if k == 'perdida' and col.get('n', 0) > col['items']|length %}<a href="{{ url_for('crm.pipeline', vista='tabla') }}" class="col-add">Ver las {{ col.get('n') }} en la tabla</a>{% endif %}
+                {% if k != 'perdida' %}<a href="{{ url_for('crm.oportunidad_crear') }}" class="col-add"><i class="fas fa-plus" aria-hidden="true"></i> Agregar</a>{% endif %}
             </div>
         </div>
         {% endfor %}
     </div>
-    {% if not incluir_perdidas %}
+    {% if 'perdida' not in etapas_col %}
     <div style="margin-top:12px">
-        <a href="{{ url_for('crm.pipeline', vista='tablero', asignado=filtro_asignado, linea=filtro_linea, estancadas='1' if solo_estancadas else '', perdidas='1') }}" class="crm-btn crm-btn-ghost crm-btn-sm"><i class="fas fa-eye"></i> Mostrar perdidas</a>
+        <a href="{{ url_for('crm.pipeline', vista='tablero', asignado=filtro_asignado, linea=filtro_linea, estancadas='1' if solo_estancadas else '', perdidas='1') }}" class="crm-btn crm-btn-ghost crm-btn-sm">Mostrar «{{ etapas_label.get('perdida', 'No compró') }}»</a>
     </div>
     {% endif %}
+
+    {# Motivo al marcar «No compró» #}
+    <dialog class="crm-dialog" id="dlg-motivo" aria-labelledby="dlg-motivo-t">
+        <form method="dialog" class="crm-dialog-in">
+            <h2 id="dlg-motivo-t">¿Por qué no compró?</h2>
+            <p class="crm-sub" id="dlg-motivo-que"></p>
+            <div class="motivos" role="group" aria-label="Motivo">
+                {% for m in motivos_no_compro|default(['Precio', 'Eligió a otro', 'No respondió', 'No lo necesita ahora', 'No era lo que buscaba', 'Otro']) %}
+                <button type="button" class="motivo" data-motivo="{{ m }}" aria-pressed="false">{{ m }}</button>
+                {% endfor %}
+            </div>
+            <label class="crm-campo">Detalle (opcional)
+                <input type="text" id="dlg-motivo-detalle" maxlength="100" placeholder="Ej.: lo consiguió más barato">
+            </label>
+            <div class="crm-dialog-pie">
+                <button type="button" class="crm-btn crm-btn-sec" id="dlg-motivo-cancelar">Cancelar</button>
+                <button type="button" class="crm-btn crm-btn-primary" id="dlg-motivo-guardar">Guardar</button>
+            </div>
+        </form>
+    </dialog>
 {% endif %}
 {% endblock %}
 
@@ -133,7 +163,71 @@
     var board = document.getElementById('board');
     if (!board) return;
     var CSRF = '{{ csrf_token() }}';
+    var dlg = document.getElementById('dlg-motivo');
+    var pendiente = null;      // {id} esperando motivo
     var dragged = null;
+
+    function avisar(msg) { if (window.Swal) { Swal.fire({ icon: 'error', title: msg }); } else { alert(msg); } }
+
+    async function mover(id, etapa, motivo) {
+        var cuerpo = 'etapa=' + encodeURIComponent(etapa) + '&csrf_token=' + encodeURIComponent(CSRF);
+        if (motivo) cuerpo += '&motivo=' + encodeURIComponent(motivo);
+        var bien = false;
+        try {
+            var r = await fetch('/admin/crm/oportunidades/' + id + '/etapa', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': CSRF },
+                body: cuerpo
+            });
+            bien = r.ok;
+        } catch (err) { bien = false; }
+        if (bien) { setTimeout(function () { location.reload(); }, 250); return; }
+        avisar('No se guardó el cambio. Revisa la conexión e intenta de nuevo.');
+        setTimeout(function () { location.reload(); }, 2500);
+    }
+
+    function pedirMotivo(id, titulo) {
+        if (!dlg || !dlg.showModal) { mover(id, 'perdida', ''); return; }
+        pendiente = { id: id };
+        document.getElementById('dlg-motivo-que').textContent = titulo || '';
+        document.getElementById('dlg-motivo-detalle').value = '';
+        dlg.querySelectorAll('.motivo').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
+        dlg.showModal();
+    }
+
+    function irA(id, etapa, titulo) {
+        if (etapa === 'perdida') { pedirMotivo(id, titulo); } else { mover(id, etapa, ''); }
+    }
+
+    if (dlg) {
+        dlg.querySelectorAll('.motivo').forEach(function (b) {
+            b.addEventListener('click', function () {
+                dlg.querySelectorAll('.motivo').forEach(function (o) { o.setAttribute('aria-pressed', String(o === b)); });
+            });
+        });
+        document.getElementById('dlg-motivo-cancelar').addEventListener('click', function () { dlg.close(); });
+        // Cerrar sin guardar (Cancelar o Esc): la tarjeta vuelve a su sitio.
+        dlg.addEventListener('close', function () { if (pendiente) { pendiente = null; location.reload(); } });
+        document.getElementById('dlg-motivo-guardar').addEventListener('click', function () {
+            if (!pendiente) return;
+            var elegido = dlg.querySelector('.motivo[aria-pressed="true"]');
+            var detalle = document.getElementById('dlg-motivo-detalle').value.trim();
+            var motivo = [elegido ? elegido.dataset.motivo : '', detalle].filter(Boolean).join(': ') || 'Sin motivo';
+            var id = pendiente.id; pendiente = null;
+            dlg.close();
+            mover(id, 'perdida', motivo);
+        });
+    }
+
+    // «Mover a»: funciona con el dedo y con teclado (el arrastre no sirve en celular).
+    board.querySelectorAll('.js-mover').forEach(function (sel) {
+        var inicial = sel.value;
+        sel.addEventListener('change', function () {
+            if (sel.value === inicial) return;
+            irA(sel.dataset.id, sel.value, sel.dataset.titulo);
+        });
+    });
+
     board.querySelectorAll('.opp').forEach(function (card) {
         card.addEventListener('dragstart', function (e) {
             dragged = card; card.classList.add('dragging');
@@ -147,21 +241,14 @@
     board.querySelectorAll('[data-drop]').forEach(function (zone) {
         zone.addEventListener('dragover', function (e) { e.preventDefault(); zone.classList.add('drop'); });
         zone.addEventListener('dragleave', function () { zone.classList.remove('drop'); });
-        zone.addEventListener('drop', async function (e) {
+        zone.addEventListener('drop', function (e) {
             e.preventDefault(); zone.classList.remove('drop');
             if (!dragged) return;
-            var id = dragged.dataset.id, etapa = zone.dataset.drop;
-            var addBtn = zone.querySelector('.col-add');
-            zone.insertBefore(dragged, addBtn || null);
-            try {
-                var r = await fetch('/admin/crm/oportunidades/' + id + '/etapa', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': CSRF },
-                    body: 'etapa=' + encodeURIComponent(etapa) + '&csrf_token=' + encodeURIComponent(CSRF)
-                });
-                if (!r.ok) { alert('No se pudo mover la oportunidad.'); location.reload(); }
-                else { setTimeout(function () { location.reload(); }, 250); }
-            } catch (err) { alert('Error de red.'); location.reload(); }
+            var card = dragged, etapa = zone.dataset.drop;
+            if (card.closest('[data-drop]') === zone) return;
+            zone.insertBefore(card, zone.querySelector('.col-add') || null);
+            var sel = card.querySelector('.js-mover');
+            irA(card.dataset.id, etapa, sel ? sel.dataset.titulo : '');
         });
     });
 })();

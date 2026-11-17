@@ -2484,7 +2484,8 @@ def anular_venta_pos(venta_id):
             conn.rollback(); cur.close(); conn.close()
             return jsonify({'success': False, 'error': 'Esta venta ya fue anulada'}), 400
 
-        advertencia_dian = bool(venta.get('factura_dian_id'))
+        from routes.factura_electronica import columna_fe
+        factura_dian_id = venta.get(columna_fe('ventas_pos') or 'factura_dian_id')
 
         # Generar número de nota de crédito: NC-YYYYMMDD-XXXX
         hoy = datetime.now().strftime('%Y%m%d')
@@ -2547,12 +2548,19 @@ def anular_venta_pos(venta_id):
         except Exception as _e:
             current_app.logger.warning(f"Contabilidad NC: {_e}")
 
+        # Factura electrónica: nota crédito SOLO si ya estaba facturada; si aún
+        # estaba en cola se cancela; sin factura, nada.
+        from routes.factura_electronica import reversar_fe_por_anulacion_pos
+        fe = reversar_fe_por_anulacion_pos(venta_id, factura_dian_id, motivo)
+
         return jsonify({
             'success': True,
             'numero_nota': numero_nota,
             'venta_anulada': numero_venta,
             'total_devuelto': total_venta,
-            'advertencia_dian': advertencia_dian
+            'advertencia_dian': fe['accion'] == 'revisar',
+            'fe_accion': fe['accion'],
+            'fe_mensaje': fe['mensaje'],
         })
 
     except Exception as e:

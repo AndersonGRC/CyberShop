@@ -8,7 +8,25 @@
     .faqp-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
     .faqp-header h2 { color: var(--color-primario-oscuro, #091C5A); margin: 0; }
     .faqp-back { color: #6b7280; font-size: 0.85rem; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; margin-bottom: 10px; }
-    .faqp-btn-crear { background-color: var(--color-primario, #122C94); color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; font-size: 0.9rem; }
+    /* Botones según el CYBERSHOP Design System (ver ia_conocimiento.html): el azul es el
+       color de marca de cada tienda. */
+    .faqp-btn-crear, .faqp-btn-guardar, .faqp-btn-cancelar, .faqp-btn-accion, .faqp-btn-eliminar {
+        display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-sizing: border-box;
+        min-height: 42px; padding: 11px 20px; border: 1px solid transparent; border-radius: 10px;
+        font: inherit; font-size: 0.95rem; font-weight: 600; line-height: 1.2; white-space: nowrap;
+        cursor: pointer; text-decoration: none;
+        transition: background-color .12s cubic-bezier(.4,0,.2,1), color .12s, transform .12s cubic-bezier(.4,0,.2,1); }
+    .faqp-btn-crear:active, .faqp-btn-guardar:active, .faqp-btn-cancelar:active, .faqp-btn-accion:active, .faqp-btn-eliminar:active { transform: scale(.98); }
+    .faqp-btn-crear:focus-visible, .faqp-btn-guardar:focus-visible, .faqp-btn-cancelar:focus-visible,
+    .faqp-btn-accion:focus-visible, .faqp-btn-eliminar:focus-visible { outline: 2px solid #4A72E4; outline-offset: 2px; }
+    .faqp-btn-crear, .faqp-btn-guardar { background: var(--color-primario, #103098); color: #fff; }
+    .faqp-btn-crear:hover, .faqp-btn-guardar:hover { background: var(--color-primario-oscuro, #0C2679); color: #fff; }
+    .faqp-btn-cancelar { background: transparent; color: #28324A; margin-left: 8px; }
+    .faqp-btn-cancelar:hover { background: #EEF1F5; color: #080E1F; }
+    .faqp-btn-eliminar { background: #E0333F; color: #fff; }
+    .faqp-btn-eliminar:hover { background: #C22834; }
+    .faqp-zona-peligro { margin-top: 18px; padding-top: 16px; border-top: 1px solid #eef1f7; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .faqp-zona-peligro p { margin: 0; color: #4B5568; font-size: 0.85rem; flex: 1; min-width: 220px; }
     .faqp-form { background: #fbfcff; border: 1px solid #eef1f7; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
     .faqp-form h3 { margin-top: 0; color: var(--color-primario-oscuro, #091C5A); }
     .faqp-form-row { display: flex; gap: 14px; flex-wrap: wrap; }
@@ -19,15 +37,14 @@
     }
     .faqp-checkbox { display: flex; align-items: center; gap: 8px; }
     .faqp-checkbox input { width: auto; }
-    .faqp-btn-guardar { background: #28a745; color: #fff; border: none; padding: 10px 22px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
-    .faqp-btn-cancelar { padding: 10px 22px; color: #666; text-decoration: none; margin-left: 10px; }
     .faqp-table { width: 100%; border-collapse: collapse; }
     .faqp-table th, .faqp-table td { padding: 12px; text-align: left; border-bottom: 1px solid #eef1f7; font-size: 0.88rem; }
     .faqp-table th { color: #6b7280; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; }
     .faqp-badge-activo { background: #d4edda; color: #155724; padding: 3px 10px; border-radius: 12px; font-size: 0.76rem; }
     .faqp-badge-inactivo { background: #f1f2f5; color: #666; padding: 3px 10px; border-radius: 12px; font-size: 0.76rem; }
-    .faqp-btn-accion { border: none; background: none; cursor: pointer; padding: 6px 8px; color: #6b7280; text-decoration: none; display: inline-block; }
-    .faqp-btn-accion:hover { color: var(--color-primario, #122C94); }
+    .faqp-btn-accion { min-height: 36px; padding: 8px 14px; border-radius: 6px; font-size: 0.875rem; background: transparent; color: #28324A; }
+    .faqp-btn-accion:hover { background: #EEF1F5; color: #080E1F; }
+    .faqp-acciones { display: inline-flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
     .faqp-empty { text-align: center; padding: 40px; color: #888; }
     @media (max-width: 768px) {
         .faqp-table, .faqp-table thead, .faqp-table tbody, .faqp-table th, .faqp-table td, .faqp-table tr { display: block; }
@@ -76,7 +93,7 @@
                     <label for="is_active" style="margin:0;">Activa</label>
                 </div>
             </div>
-            <button type="submit" class="faqp-btn-guardar"><i class="fas fa-save"></i> Guardar</button>
+            <button type="submit" class="faqp-btn-guardar"><i class="fas fa-check" aria-hidden="true"></i> Guardar pregunta</button>
             <a href="{{ url_for('admin_chat_publico.faq_lista') }}" class="faqp-btn-cancelar">Cancelar</a>
         </form>
     </div>
@@ -104,8 +121,13 @@
                     <label for="is_active" style="margin:0;">Activa</label>
                 </div>
             </div>
-            <button type="submit" class="faqp-btn-guardar"><i class="fas fa-save"></i> Actualizar</button>
+            <button type="submit" class="faqp-btn-guardar"><i class="fas fa-check" aria-hidden="true"></i> Guardar cambios</button>
             <a href="{{ url_for('admin_chat_publico.faq_lista') }}" class="faqp-btn-cancelar">Cancelar</a>
+        </form>
+        <form method="POST" action="{{ url_for('admin_chat_publico.faq_eliminar', item_id=item.id) }}" class="faqp-zona-peligro"
+              onsubmit="return confirm('¿Eliminar esta pregunta frecuente? Podrás restaurarla desde el historial de la base de conocimiento.')">
+            <p>¿Ya no la necesitas? Si solo quieres que el chat deje de usarla por un tiempo, desmarca «Activa». Eliminar la saca del todo; se puede restaurar desde el historial.</p>
+            <button type="submit" class="faqp-btn-eliminar"><i class="fas fa-trash" aria-hidden="true"></i> Eliminar esta pregunta</button>
         </form>
     </div>
     {% endif %}
@@ -134,15 +156,16 @@
                     {% endif %}
                 </td>
                 <td data-label="Acciones">
-                    <a href="{{ url_for('admin_chat_publico.faq_editar', item_id=f.id) }}" class="faqp-btn-accion" title="Editar"><i class="fas fa-edit"></i></a>
+                    <span class="faqp-acciones">
+                    <a href="{{ url_for('admin_chat_publico.faq_editar', item_id=f.id) }}" class="faqp-btn-accion">
+                        <i class="fas fa-pen" aria-hidden="true"></i> Editar<span class="a11y-oculto"> «{{ f.title }}»</span></a>
                     <form method="POST" action="{{ url_for('admin_chat_publico.faq_toggle', item_id=f.id) }}" style="display:inline">
-                        <button type="submit" class="faqp-btn-accion" title="{% if f.is_active %}Desactivar{% else %}Activar{% endif %}">
-                            <i class="fas fa-{% if f.is_active %}eye-slash{% else %}eye{% endif %}"></i>
+                        <button type="submit" class="faqp-btn-accion">
+                            <i class="fas fa-{% if f.is_active %}eye-slash{% else %}eye{% endif %}" aria-hidden="true"></i>
+                            {% if f.is_active %}Ocultar{% else %}Publicar{% endif %}<span class="a11y-oculto"> «{{ f.title }}»</span>
                         </button>
                     </form>
-                    <form method="POST" action="{{ url_for('admin_chat_publico.faq_eliminar', item_id=f.id) }}" style="display:inline" onsubmit="return confirm('¿Eliminar esta pregunta frecuente? Podrás restaurarla desde el historial.')">
-                        <button type="submit" class="faqp-btn-accion" title="Eliminar"><i class="fas fa-trash"></i></button>
-                    </form>
+                    </span>
                 </td>
             </tr>
             {% endfor %}

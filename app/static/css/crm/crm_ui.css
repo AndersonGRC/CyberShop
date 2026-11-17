@@ -282,3 +282,181 @@
     /* Tabla del pipeline: un poco más compacta */
     .crm2 .ptable th, .crm2 .ptable td { padding: 10px; font-size: .8rem; }
 }
+
+
+/* ==========================================================================
+   1.9.24.0 — CRM con CYBERSHOP Design System
+   Contraste AA, botones con texto, objetivos táctiles de 44 px, listas que en
+   celular son tarjetas y columna «No compró» siempre visible. El color
+   principal sigue siendo el de cada tienda (--color-primario).
+   ========================================================================== */
+.crm2 {
+    --c-suave: #56607f;            /* texto secundario: 4.5:1 sobre blanco y sobre --c-fondo */
+    --c-borde-control: #8a93ad;    /* bordes de campos y botones: 3:1 */
+    --c-danger: #b42318;
+    --c-danger-bg: #fdf1f0;
+    --c-danger-borde: #f2c4bf;
+    --c-ok: #17753f;
+    --c-ok-bg: #eef8f1;
+    --c-ok-borde: #bfe3cc;
+    --c-warn-texto: #6b4500;
+    --c-warn-bg: #fdf0d5;
+    --c-info-texto: #0b4f5c;
+    --c-info-bg: #e1f1f4;
+    --c-marca-tinte: #e3e9fb;
+    --c-velo: rgba(10, 18, 48, .55);
+    --r-ctl: 6px;
+    --r-card: 10px;
+    font-family: 'Work Sans', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Botones: alto mínimo, radio del sistema y variantes con contraste */
+.crm2 .crm-btn { min-height: 40px; border-radius: var(--r-ctl); justify-content: center; font-weight: 600; font-family: inherit; }
+.crm2 .crm-btn-sm { min-height: 36px; border-radius: var(--r-ctl); }
+.crm2 .crm-btn-sec { background: var(--c-blanco); border-color: var(--c-primario); color: var(--c-primario); }
+.crm2 .crm-btn-sec:hover { background: var(--c-marca-tinte); }
+.crm2 .crm-btn-ghost { border-color: transparent; background: transparent; color: var(--c-primario); }
+.crm2 .crm-btn-ghost:hover { background: var(--c-marca-tinte); }
+.crm2 .crm-btn-danger { background: var(--c-blanco); border-color: var(--c-danger-borde); color: var(--c-danger); }
+.crm2 .crm-btn-danger:hover { background: var(--c-danger-bg); border-color: var(--c-danger); }
+.crm2 a.crm-link { color: var(--c-primario); font-weight: 600; text-decoration: underline; }
+
+/* Subnavegación y pestañas: mismo radio y alto táctil */
+.crm2 .crm-subnav { border-radius: var(--r-card); }
+.crm2 .crm-subnav a { border-radius: var(--r-ctl); min-height: 40px; }
+.crm2 .pipe-tab, .crm2 .pipe-filter { border-radius: var(--r-ctl); min-height: 40px; border-color: var(--c-borde-control); color: var(--c-tinta); }
+.crm2 .pipe-filter.on { color: var(--c-primario); }
+
+/* Barra de búsqueda + filtros */
+.crm2 .crm-barra { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.crm2 .crm-buscar { display: flex; align-items: center; gap: 8px; background: var(--c-blanco);
+    border: 1px solid var(--c-borde-control); border-radius: var(--r-ctl); padding: 3px 4px 3px 12px;
+    min-height: 44px; flex: 1 1 280px; max-width: 420px; color: var(--c-suave); }
+.crm2 .crm-buscar:focus-within { border-color: var(--c-primario); box-shadow: 0 0 0 3px var(--c-marca-tinte); }
+.crm2 .crm-buscar input { border: 0; outline: 0; background: transparent; font: inherit; font-size: 1rem;
+    color: var(--c-tinta); flex: 1; min-width: 0; }
+.crm2 .crm-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.crm2 .crm-chip { display: inline-flex; align-items: center; gap: 7px; min-height: 40px; padding: 0 15px;
+    border-radius: 22px; border: 1px solid var(--c-borde-control); background: var(--c-blanco);
+    color: var(--c-tinta); font-size: .88rem; font-weight: 600; white-space: nowrap; }
+.crm2 .crm-chip:hover { border-color: var(--c-primario); color: var(--c-primario); }
+.crm2 .crm-chip.is-on, .crm2 .crm-chip.is-on:hover { background: var(--c-primario); border-color: var(--c-primario); color: var(--c-blanco); }
+.crm2 .crm-chip-n { font-weight: 500; opacity: .85; }
+.crm2 .crm-chip-no { border-color: var(--c-danger); color: var(--c-danger); }
+
+/* Lista (tabla en computador, tarjetas en celular) */
+.crm2 .clist { --acc: 250px; background: var(--c-blanco); border: 1px solid var(--c-linea); border-radius: var(--r-card);
+    box-shadow: var(--sombra); overflow: hidden; }
+.crm2 .clist-tareas { --acc: 350px; }
+.crm2 .clist-head, .crm2 .crow { display: grid; gap: 16px; align-items: center; padding: 13px 18px;
+    grid-template-columns: minmax(0, 2.3fr) minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr) var(--acc); }
+.crm2 .clist-head { background: var(--c-fondo); font-size: .72rem; font-weight: 700; letter-spacing: .05em;
+    text-transform: uppercase; color: var(--c-suave); padding-top: 11px; padding-bottom: 11px; }
+.crm2 .crow { border-top: 1px solid var(--c-linea-2); }
+.crm2 .crow:hover { background: var(--c-fondo); }
+.crm2 .crow-vencida { background: var(--c-danger-bg); }
+.crm2 .crow-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.crm2 .crow-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--c-marca-tinte); color: var(--c-primario);
+    display: inline-flex; align-items: center; justify-content: center; font-size: .82rem; font-weight: 700;
+    flex-shrink: 0; object-fit: cover; }
+.crm2 .crow-quien { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.crm2 .crow-nombre { font-size: .95rem; font-weight: 600; color: var(--c-tinta); overflow-wrap: anywhere; }
+.crm2 a.crow-nombre:hover { color: var(--c-primario); text-decoration: underline; }
+.crm2 .crow-sub { font-size: .82rem; color: var(--c-suave); overflow-wrap: anywhere; }
+.crm2 .crow-dato { display: flex; flex-direction: column; gap: 2px; font-size: .88rem; color: var(--c-tinta); min-width: 0; }
+.crm2 .crow-tipo { display: flex; gap: 6px; flex-wrap: wrap; }
+.crm2 .crow-acc { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.crm2 .crow-form { display: contents; }
+.crm2 .solo-movil { display: none; }
+.crm2 .txt-vencida { color: var(--c-danger); font-weight: 700; }
+.crm2 .txt-hoy { color: var(--c-warn-texto); font-weight: 700; }
+
+/* Etiquetas: fondo suave y letra oscura (se leen sin depender del color) */
+.crm2 .tbadge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: .8rem; font-weight: 600;
+    background: var(--c-fondo); color: var(--c-tinta); border: 1px solid var(--c-linea); }
+.crm2 .tbadge.t-cliente { background: var(--c-marca-tinte); color: var(--c-primario-osc); border-color: transparent; }
+.crm2 .tbadge.t-proveedor, .crm2 .tbadge.p-baja { background: var(--c-info-bg); color: var(--c-info-texto); border-color: transparent; }
+.crm2 .tbadge.t-lead, .crm2 .tbadge.p-media { background: var(--c-warn-bg); color: var(--c-warn-texto); border-color: transparent; }
+.crm2 .tbadge.t-socio { background: var(--c-ok-bg); color: var(--c-ok); border-color: transparent; }
+.crm2 .tbadge.p-alta { background: var(--c-danger-bg); color: var(--c-danger); border-color: transparent; }
+
+/* Embudo: «Mover a», motivo y columnas de cierre */
+.crm2 .col-top .c-count { color: var(--c-tinta); border: 1px solid var(--c-linea); }
+.crm2 .col[data-k="ganada"] { background: var(--c-ok-bg); border-color: var(--c-ok-borde); }
+.crm2 .col[data-k="perdida"] { background: var(--c-danger-bg); border-color: var(--c-danger-borde); }
+.crm2 .col[data-k="ganada"] .col-top { border-top-color: var(--c-ok); }
+.crm2 .col[data-k="perdida"] .col-top { border-top-color: var(--c-danger); }
+.crm2 .col-top { border-top-width: 4px; }
+.crm2 .col-add { color: var(--c-tinta); border-color: var(--c-borde-control); min-height: 40px;
+    display: flex; align-items: center; justify-content: center; gap: 6px; }
+.crm2 .col-empty { opacity: 1; }
+.crm2 .opp { border-radius: var(--r-ctl); }
+.crm2 .o-motivo { margin-top: 8px; font-size: .8rem; font-weight: 600; color: var(--c-danger);
+    background: var(--c-danger-bg); border: 1px solid var(--c-danger-borde); border-radius: var(--r-ctl); padding: 4px 8px; }
+.crm2 .o-mover { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: .8rem; font-weight: 600; color: var(--c-suave); }
+.crm2 .o-mover select { flex: 1; min-width: 0; min-height: 36px; border: 1px solid var(--c-borde-control);
+    border-radius: var(--r-ctl); background: var(--c-blanco); font: inherit; font-weight: 500; color: var(--c-tinta); padding: 0 6px; }
+.crm2 .pipe-saltos { display: none; }
+
+/* En computador las 6 etapas caben a la vez: «Ganado» y «No compró» ya no quedan
+   escondidas a la derecha. */
+@media (min-width: 769px) {
+    .crm2 .board { gap: 10px; }
+    .crm2 .col { flex: 1 1 0; width: auto; min-width: 158px; }
+    .crm2 .col-top { padding: 11px 10px; }
+    .crm2 .col-body { padding: 8px; }
+    .crm2 .opp { padding: 10px; }
+    .crm2 .opp .o-title { overflow-wrap: anywhere; }
+    .crm2 .o-mover { flex-direction: column; align-items: stretch; gap: 4px; }
+}
+
+/* Ventana del motivo */
+.crm2 .crm-dialog { border: 0; border-radius: 16px; padding: 0; width: min(440px, calc(100vw - 24px));
+    box-shadow: 0 20px 60px rgba(10, 18, 48, .35); color: var(--c-texto); font-family: inherit; }
+.crm2 .crm-dialog::backdrop { background: var(--c-velo); }
+.crm2 .crm-dialog-in { padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+.crm2 .crm-dialog h2 { margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--c-tinta); }
+.crm2 .motivos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.crm2 .motivo { min-height: 46px; border-radius: var(--r-ctl); border: 1px solid var(--c-borde-control);
+    background: var(--c-blanco); color: var(--c-tinta); font: inherit; font-size: .92rem; font-weight: 600; cursor: pointer; padding: 4px 8px; }
+.crm2 .motivo[aria-pressed="true"] { background: var(--c-primario); border-color: var(--c-primario); color: var(--c-blanco); }
+.crm2 .crm-campo { display: flex; flex-direction: column; gap: 4px; font-size: .8rem; font-weight: 600; color: var(--c-suave); }
+.crm2 .crm-campo input { min-height: 46px; border: 1px solid var(--c-borde-control); border-radius: var(--r-ctl);
+    font: inherit; font-size: 1rem; font-weight: 400; color: var(--c-tinta); padding: 0 12px; }
+.crm2 .crm-dialog-pie { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+
+/* Tablet */
+@media (max-width: 1100px) {
+    .crm2 .clist-head, .crm2 .crow { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1.4fr) var(--acc); }
+    .crm2 .clist-head span:nth-child(4), .crm2 .crow-ciudad { display: none; }
+}
+
+/* Celular: cada fila es una tarjeta con botones grandes */
+@media (max-width: 768px) {
+    .crm2 .crm-btn, .crm2 .crm-btn-sm { min-height: 44px; }
+    .crm2 .crm-subnav { width: 100%; }
+    .crm2 .crm-subnav a { flex: 1 0 auto; justify-content: center; min-height: 44px; padding: 8px 12px; }
+    .crm2 .crm-buscar { max-width: none; flex-basis: 100%; }
+    .crm2 .crm-buscar input { font-size: 16px; }   /* evita el zoom de iPhone */
+    .crm2 .crm-chips { flex-wrap: nowrap; overflow-x: auto; width: 100%; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+    .crm2 .crm-chip { min-height: 44px; flex-shrink: 0; }
+
+    .crm2 .clist { background: transparent; border: 0; box-shadow: none; overflow: visible; display: flex; flex-direction: column; gap: 10px; }
+    .crm2 .clist-head { display: none; }
+    .crm2 .crow { grid-template-columns: minmax(0, 1fr) auto; gap: 10px 12px; padding: 14px; background: var(--c-blanco);
+        border: 1px solid var(--c-linea); border-radius: var(--r-card); box-shadow: var(--sombra); }
+    .crm2 .crow-vencida { background: var(--c-danger-bg); border-color: var(--c-danger-borde); }
+    .crm2 .crow-dato, .crm2 .crow-acc { grid-column: 1 / -1; }
+    .crm2 .crow-ciudad { display: none; }
+    .crm2 .crow-email { display: none; }
+    .crm2 .crow-acc { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
+    .crm2 .crow-acc .crm-btn { width: 100%; }
+    .crm2 .solo-movil { display: inline-flex; }
+    .crm2 .no-movil { display: none; }
+    .crm2 .clist .empty { background: var(--c-blanco); border: 1px solid var(--c-linea); border-radius: var(--r-card); }
+
+    /* Embudo: saltar a una etapa sin deslizar a ciegas */
+    .crm2 .pipe-saltos { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 12px; padding-bottom: 4px; }
+    .crm2 .o-mover { flex-direction: column; align-items: stretch; gap: 4px; }
+    .crm2 .o-mover select { min-height: 46px; font-size: 16px; }
+}

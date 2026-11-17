@@ -167,6 +167,22 @@ def token():
     return jsonify({'csrf': generate_csrf()})
 
 
+@chat_publico_bp.route('/calificar', methods=['POST'])
+@limiter.limit('20 per minute; 200 per hour')
+def calificar():
+    """«¿Te sirvió?» 👍 / 👎 de una respuesta (services/chat_publico/calificaciones.py).
+    Solo vale con el `calificar` firmado que trajo esa respuesta."""
+    if not is_module_active(MODULE_AI_PUBLIC):
+        return _modulo_apagado()
+    if request.content_length and request.content_length > 8000:
+        return jsonify({'error': 'payload_too_large'}), 413
+    datos = request.get_json(silent=True)
+    if not isinstance(datos, dict) or not isinstance(datos.get('util'), bool):
+        return jsonify({'error': 'invalid_payload'}), 400
+    from services.chat_publico.calificaciones import registrar
+    return jsonify({'ok': registrar(datos.get('token'), datos['util'])})
+
+
 @chat_publico_bp.route('/mensaje', methods=['POST'])
 @limiter.limit('8 per minute; 60 per hour')
 def mensaje():

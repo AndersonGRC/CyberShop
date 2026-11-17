@@ -318,6 +318,69 @@ body.cybershop-chat-activo .chat-button {
     overflow-wrap: anywhere;
 }
 
+/* «¿Te sirvió esta respuesta?» — botones del CYBERSHOP Design System (secundario):
+   borde del color de acento, ícono de trazo + palabra, 40 px para el dedo. */
+#cbchat-root .cbchat-calificar {
+    align-self: flex-start;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: -2px;
+    font-size: 0.8rem;
+    color: var(--cbchat-text-muted);
+}
+
+#cbchat-root .cbchat-calificar-botones {
+    display: flex;
+    gap: 8px;
+}
+
+#cbchat-root .cbchat-calificar-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+    padding: 8px 16px;
+    border: 1px solid var(--cbchat-accent);
+    border-radius: 10px;
+    background: var(--cbchat-bg);
+    color: var(--cbchat-accent-dark);
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: background-color 120ms cubic-bezier(.4, 0, .2, 1), transform 120ms cubic-bezier(.4, 0, .2, 1);
+}
+
+#cbchat-root .cbchat-calificar-btn:hover:not(:disabled) {
+    background: var(--cbchat-surface);
+}
+
+#cbchat-root .cbchat-calificar-btn:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+#cbchat-root .cbchat-calificar-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--cbchat-focus);
+}
+
+#cbchat-root .cbchat-calificar-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+#cbchat-root .cbchat-calificar-ic {
+    display: inline-flex;
+}
+
+#cbchat-root .cbchat-calificar-gracias {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
 #cbchat-sugerencias {
     flex-shrink: 0;
     display: flex;

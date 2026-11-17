@@ -16,6 +16,9 @@ from security import ADMIN_FULL, ADMIN_STAFF, rol_requerido
 from services.chat_publico.historial import preguntas_sin_responder
 from services.config_tenant import set_cliente_config
 from services.ia_rag import conocimiento as kb
+from services.ia_rag import sinonimos
+from services.ia_rag.buscar import SINONIMOS
+from services.chat_publico import calificaciones
 from services.public_site_service import get_public_site_items
 from tenant_features import MODULE_AI_PUBLIC, MODULE_AI_PUBLIC_COMPAT, is_module_active
 
@@ -198,7 +201,7 @@ def conocimiento():
     pregunta = (request.args.get('probar') or '').strip()[:300]
     prueba = (kb.probar(pregunta, rol_id=session.get('rol_id'), con_internos=ve_docs)
               if pregunta else None)
-    tipos = ('faq', 'documento', 'pregunta') if ve_docs else ('faq', 'pregunta')
+    tipos = ('faq', 'documento', 'pregunta', 'sinonimos') if ve_docs else ('faq', 'pregunta', 'sinonimos')
     historial = bitacora.listar(tipos=tipos, limite=60)
     for fila in historial:
         fila['restaurable'] = kb.puede_restaurar(fila)
@@ -207,7 +210,34 @@ def conocimiento():
         indice=estado(), pendientes=kb.preguntas_pendientes(limite=20),
         faqs=get_public_site_items('faq', include_inactive=True),
         historial=historial, pregunta=pregunta, prueba=prueba, ve_documentos=ve_docs,
-        chat_activo=is_module_active(MODULE_AI_PUBLIC))
+        chat_activo=is_module_active(MODULE_AI_PUBLIC),
+        sinonimos_texto=sinonimos.leer_texto(), sinonimos_comunes=SINONIMOS,
+        calificacion=calificaciones.resumen(30),
+        para_revisar=kb.faqs_para_revisar(), parecidas=kb.faqs_parecidas(),
+        no_sirvieron=calificaciones.no_sirvieron(limite=15, excluir=bitacora.preguntas_atendidas()))
+
+
+@admin_chat_publico_bp.route('/conocimiento/sinonimos', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+def conocimiento_sinonimos():
+    """Palabras que en ESTA tienda significan lo mismo (p. ej. «pola = cerveza»)."""
+    try:
+        tabla = sinonimos.guardar(request.form.get('sinonimos', ''))
+        flash(f'Sinónimos guardados ({len(tabla)}). El chat ya los usa al buscar.', 'success')
+    except ValueError as exc:
+        flash(f'No se guardaron los sinónimos: {exc}', 'error')
+    return redirect(url_for('admin_chat_publico.conocimiento') + '#kbx-sinonimos')
+
+
+@admin_chat_publico_bp.route('/conocimiento/faq/<int:item_id>/vigente', methods=['POST'])
+@rol_requerido(ADMIN_STAFF)
+def conocimiento_faq_vigente(item_id):
+    """La revisó y sigue bien: deja de aparecer en «Para revisar»."""
+    if kb.faq_sigue_vigente(item_id):
+        flash('Listo: queda marcada como revisada.', 'success')
+    else:
+        flash('Esa pregunta frecuente ya no existe.', 'error')
+    return redirect(url_for('admin_chat_publico.conocimiento') + '#kbx-revisar')
 
 
 @admin_chat_publico_bp.route('/conocimiento/descartar', methods=['POST'])

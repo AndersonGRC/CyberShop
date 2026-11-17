@@ -59,9 +59,22 @@
     <div class="idoc-card" id="formulario">
         <h2><i class="fas {{ 'fa-pen' if editar and editar.id else 'fa-plus' }}"></i>
             {{ 'Editar documento' if editar and editar.id else 'Nuevo documento' }}</h2>
+        {% if not (editar and editar.id) %}
+        <form method="POST" action="{{ url_for('ia.documentos_importar') }}" enctype="multipart/form-data"
+              class="idoc-field" style="border:1px dashed #cdd3df;border-radius:8px;padding:10px 12px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label for="idoc-archivo"><i class="fas fa-file-upload"></i> ¿Ya lo tienes en un archivo?
+                Súbelo (PDF, Word .docx o .txt): su texto aparece abajo para que lo revises antes de guardar.</label>
+            <div class="idoc-btns" style="margin-top:6px;">
+                <input type="file" id="idoc-archivo" name="archivo" accept=".pdf,.docx,.txt,.md" required>
+                <button type="submit" class="idoc-btn idoc-btn-outline"><i class="fas fa-upload"></i> Leer archivo</button>
+            </div>
+        </form>
+        {% endif %}
         <form method="POST" action="{{ url_for('ia.documentos_guardar') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             {% if editar and editar.id %}<input type="hidden" name="id" value="{{ editar.id }}">{% endif %}
+            {% if editar and editar.origen == 'archivo' %}<input type="hidden" name="origen" value="archivo">{% endif %}
             <div class="idoc-field">
                 <label for="idoc-titulo">Título</label>
                 <input type="text" id="idoc-titulo" name="titulo" required maxlength="{{ max_titulo }}"

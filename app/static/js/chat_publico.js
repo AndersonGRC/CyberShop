@@ -341,6 +341,51 @@
         guardar();
     }
 
+    // «¿Te sirvió esta respuesta?» Sí / No: un solo voto por respuesta. Solo con el `calificar`
+    // firmado que trajo la respuesta; no se guarda al recargar la página.
+    // Íconos de trazo (sin emojis, como pide el sistema de diseño de CyberShop).
+    var SVG_ABRE = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" '
+                 + 'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+    var ICONO_SI = SVG_ABRE + '<path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 '
+                 + '17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg>';
+    var ICONO_NO = SVG_ABRE + '<path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 '
+                 + '6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"/></svg>';
+    var ICONO_OK = SVG_ABRE + '<path d="M20 6 9 17l-5-5"/></svg>';
+
+    function agregarCalificar(token) {
+        if (typeof token !== 'string' || !token || token.length > 4000) return;
+        var caja = crear('div', { class: 'cbchat-calificar', role: 'group',
+                                  'aria-label': '¿Te sirvió esta respuesta?' },
+            [crear('span', { class: 'cbchat-calificar-pregunta', text: '¿Te sirvió esta respuesta?' })]);
+        var fila = crear('div', { class: 'cbchat-calificar-botones' });
+        [[true, ICONO_SI, 'Sí'], [false, ICONO_NO, 'No']].forEach(function (op) {
+            var boton = crear('button', { type: 'button', class: 'cbchat-calificar-btn' },
+                [crear('span', { class: 'cbchat-calificar-ic', html: op[1] }), crear('span', { text: op[2] })]);
+            boton.addEventListener('click', function () { votar(caja, token, op[0]); });
+            fila.appendChild(boton);
+        });
+        caja.appendChild(fila);
+        ref.mensajes.appendChild(caja);
+        ref.mensajes.scrollTop = ref.mensajes.scrollHeight;
+    }
+
+    function votar(caja, token, util) {
+        Array.prototype.forEach.call(caja.querySelectorAll('button'), function (b) { b.disabled = true; });
+        fetch('/chat/calificar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': tokenCsrf() },
+            body: JSON.stringify({ token: token, util: util })
+        }).catch(function () { return null; }).then(function () {
+            caja.textContent = '';
+            caja.setAttribute('role', 'status');
+            caja.appendChild(crear('span', { class: 'cbchat-calificar-gracias' }, [
+                crear('span', { class: 'cbchat-calificar-ic', html: ICONO_OK }),
+                crear('span', { text: util ? '¡Gracias! Nos ayuda a mejorar.'
+                                           : 'Gracias por avisar. Lo vamos a mejorar.' })]));
+            if (!util && config.whatsapp) agregarWhatsapp(config.whatsapp);
+        });
+    }
+
     function agregarEspera() {
         var espera = crear('div', { class: 'cbchat-msg-espera' },
             [crear('span'), crear('span'), crear('span')]);
@@ -403,6 +448,7 @@
             espera.remove();
             agregarMensaje('bot', datos.respuesta);
             agregarFuentes(datos.fuentes);
+            agregarCalificar(datos.calificar);
             if (datos.verificacion) verificacionToken = datos.verificacion;
             historial.push({ rol: 'usuario', texto: texto });
             historial.push({ rol: 'asistente', texto: datos.respuesta });

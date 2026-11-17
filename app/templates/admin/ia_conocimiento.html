@@ -15,10 +15,30 @@
     .kbx-cifra b { display: block; font-size: 1.3rem; color: var(--color-primario, #122C94); }
     .kbx-cifra span { font-size: .8rem; color: #5b6170; }
     .kbx-fila { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-    .kbx-btn { background: var(--color-primario, #122C94); color: #fff; border: none; border-radius: 6px; padding: 8px 14px; font-size: .85rem; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
-    .kbx-btn-outline { background: #fff; color: var(--color-primario, #122C94); border: 1px solid var(--color-primario, #122C94); }
-    .kbx-btn-suave { background: #f1f3f8; color: #374151; border: 1px solid #dfe3ec; }
-    .kbx-btn-peligro { background: #fff; color: #b42318; border: 1px solid #f2c4c0; }
+    /* Botones según el CYBERSHOP Design System (lienzo «Botones de la base de
+       conocimiento»): principal (uno por vista), secundario (acciones de cada fila),
+       fantasma (lo que no cambia nada importante) y peligro (solo dentro de «Editar»).
+       El azul es el color de marca de cada tienda (--color-primario). */
+    .kbx-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-sizing: border-box;
+               min-height: 36px; padding: 8px 14px; border: 1px solid transparent; border-radius: 6px;
+               font: inherit; font-size: .875rem; font-weight: 600; line-height: 1.2; white-space: nowrap;
+               background: var(--color-primario, #103098); color: #fff; cursor: pointer; text-decoration: none;
+               transition: background-color .12s cubic-bezier(.4,0,.2,1), border-color .12s, color .12s, transform .12s cubic-bezier(.4,0,.2,1); }
+    .kbx-btn:hover { background: var(--color-primario-oscuro, #0C2679); color: #fff; text-decoration: none; }
+    .kbx-btn:active { transform: scale(.98); }
+    .kbx-btn:focus-visible { outline: 2px solid #4A72E4; outline-offset: 2px; }
+    .kbx-btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    .kbx-btn i { font-size: .95em; }
+    .kbx-btn-md { min-height: 42px; padding: 11px 20px; border-radius: 10px; font-size: 1rem; }
+    .kbx-btn-secundario { background: #fff; color: var(--color-primario, #103098); border-color: var(--color-primario, #103098); }
+    .kbx-btn-secundario:hover { background: var(--marca-tinte-leve, #EAF0FE); color: var(--color-primario-oscuro, #0C2679); }
+    .kbx-btn-fantasma { background: transparent; color: #28324A; }
+    .kbx-btn-fantasma:hover { background: #EEF1F5; color: #080E1F; }
+    .kbx-btn-peligro { background: #E0333F; color: #fff; }
+    .kbx-btn-peligro:hover { background: #C22834; color: #fff; }
+    .kbx-estado { display: inline-block; font-size: .72rem; font-weight: 600; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+    .kbx-estado.publicada { background: #DCF5E8; color: #0E7A47; }
+    .kbx-estado.oculta { background: #EEF1F5; color: #4B5568; }
     .kbx-input { flex: 1; min-width: 220px; padding: 9px 11px; border: 1px solid #cdd3df; border-radius: 8px; font-size: .9rem; font-family: inherit; }
     .kbx-lista { list-style: none; padding: 0; margin: 0; }
     .kbx-lista li { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #f0f2f7; flex-wrap: wrap; }
@@ -58,8 +78,9 @@
                   'interno_admin': 'Documentos internos (dueño)', 'interno_equipo': 'Documentos internos (equipo)'} %}
 {% set ACCIONES = {'crear': 'Creó', 'editar': 'Editó', 'publicar': 'Publicó', 'despublicar': 'Despublicó',
                    'eliminar': 'Eliminó', 'archivar': 'Archivó', 'restaurar': 'Restauró',
-                   'responder': 'Respondió', 'descartar': 'Descartó'} %}
-{% set TIPOS = {'faq': 'Pregunta frecuente', 'documento': 'Documento interno', 'pregunta': 'Pregunta sin respuesta'} %}
+                   'responder': 'Respondió', 'descartar': 'Descartó', 'revisar': 'Revisó (sigue vigente)'} %}
+{% set TIPOS = {'faq': 'Pregunta frecuente', 'documento': 'Documento interno', 'pregunta': 'Pregunta sin respuesta',
+                'sinonimos': 'Sinónimos'} %}
 <div class="kbx">
     <h1><i class="fas fa-brain" aria-hidden="true"></i> Base de conocimiento de la IA</h1>
     <p class="kbx-lead">Lo que el chat del sitio y el asistente saben de tu negocio, lo que no supieron responder y
@@ -91,11 +112,55 @@
         <div class="kbx-fila" style="margin-top:12px;">
             <form method="POST" action="{{ url_for('admin_chat_publico.conocimiento_reindexar') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="kbx-btn kbx-btn-suave"><i class="fas fa-sync" aria-hidden="true"></i> Actualizar ahora</button>
+                <button type="submit" class="kbx-btn kbx-btn-secundario"><i class="fas fa-sync" aria-hidden="true"></i> Actualizar ahora</button>
             </form>
             <span class="kbx-meta">Se actualiza solo cada día y cada vez que guardas una pregunta frecuente o un documento.</span>
         </div>
     </section>
+
+    <!-- Para revisar: viejas, con fechas o precios, y casi repetidas -->
+    {% if para_revisar or parecidas %}
+    <section class="kbx-card" aria-labelledby="kbx-revisar" id="kbx-revisar" style="border-color:#f5e3a3;background:#fffdf5;">
+        <h2 id="kbx-revisar-t"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i> Para revisar
+            <span class="kbx-sub">{{ para_revisar|length + parecidas|length }} avisos</span></h2>
+        {% if para_revisar %}
+        <ul class="kbx-lista">
+            {% for f in para_revisar[:10] %}
+            <li>
+                <div style="flex:1;min-width:220px;">
+                    <div><b>{{ f.title }}</b></div>
+                    <div class="kbx-meta">{{ f.motivos|join(' ') }}</div>
+                    <div class="kbx-meta">«{{ f.description[:140] }}{% if f.description|length > 140 %}…{% endif %}»</div>
+                </div>
+                <div class="kbx-fila">
+                    <a class="kbx-btn kbx-btn-secundario" href="{{ url_for('admin_chat_publico.faq_editar', item_id=f.id) }}">
+                        <i class="fas fa-pen" aria-hidden="true"></i> Corregir</a>
+                    <form method="POST" action="{{ url_for('admin_chat_publico.conocimiento_faq_vigente', item_id=f.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="kbx-btn kbx-btn-fantasma"><i class="fas fa-check" aria-hidden="true"></i> Sigue vigente</button>
+                    </form>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% if para_revisar|length > 10 %}<p class="kbx-meta">Y {{ para_revisar|length - 10 }} más.</p>{% endif %}
+        {% endif %}
+        {% if parecidas %}
+        <p style="margin:12px 0 4px;"><b>Casi repetidas</b> <span class="kbx-meta">— el chat podría dar dos respuestas distintas a lo mismo. Deja una y despublica la otra.</span></p>
+        <ul class="kbx-lista">
+            {% for a, b in parecidas[:10] %}
+            <li>
+                <span>
+                    <a href="{{ url_for('admin_chat_publico.faq_editar', item_id=a.id) }}">{{ a.title }}</a>{% if not a.is_active %} <span class="kbx-meta">(no publicada)</span>{% endif %}
+                    <span class="kbx-meta"> ≈ </span>
+                    <a href="{{ url_for('admin_chat_publico.faq_editar', item_id=b.id) }}">{{ b.title }}</a>{% if not b.is_active %} <span class="kbx-meta">(no publicada)</span>{% endif %}
+                </span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </section>
+    {% endif %}
 
     <!-- 2. Probar una pregunta -->
     <section class="kbx-card" aria-labelledby="kbx-probar">
@@ -105,7 +170,7 @@
             <label for="probar" class="a11y-oculto">Pregunta de prueba</label>
             <input type="text" id="probar" name="probar" class="kbx-input" value="{{ pregunta }}" maxlength="300"
                    placeholder="¿Hacen domicilios a Chía?">
-            <button type="submit" class="kbx-btn"><i class="fas fa-search" aria-hidden="true"></i> Probar</button>
+            <button type="submit" class="kbx-btn kbx-btn-secundario kbx-btn-md"><i class="fas fa-search" aria-hidden="true"></i> Probar</button>
         </form>
         {% if prueba %}
         <div style="margin-top:10px;">
@@ -144,13 +209,13 @@
                 </div>
                 <div class="kbx-fila">
                     {% if p.veces > 1 %}<span class="kbx-veces">{{ p.veces }} veces</span>{% endif %}
-                    <button type="button" class="kbx-btn" data-kbx-abrir="kbx-resp-{{ loop.index }}">
+                    <button type="button" class="kbx-btn kbx-btn-secundario" data-kbx-abrir="kbx-resp-{{ loop.index }}"
+                            aria-expanded="false" aria-controls="kbx-resp-{{ loop.index }}">
                         <i class="fas fa-reply" aria-hidden="true"></i> Responder</button>
                     <form method="POST" action="{{ url_for('admin_chat_publico.conocimiento_descartar') }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="pregunta" value="{{ p.pregunta }}">
-                        <button type="submit" class="kbx-btn kbx-btn-suave" title="No necesita respuesta">
-                            <i class="fas fa-times" aria-hidden="true"></i> Descartar</button>
+                        <button type="submit" class="kbx-btn kbx-btn-fantasma" title="No necesita respuesta">Descartar</button>
                     </form>
                 </div>
                 <form method="POST" action="{{ url_for('admin_chat_publico.faq_crear') }}"
@@ -165,7 +230,10 @@
                     <label for="kbx-d-{{ loop.index }}" class="kbx-meta">Respuesta</label>
                     <textarea id="kbx-d-{{ loop.index }}" name="description" rows="3" required
                               placeholder="Escribe la respuesta que debe dar el chat."></textarea>
-                    <button type="submit" class="kbx-btn"><i class="fas fa-save" aria-hidden="true"></i> Guardar y publicar</button>
+                    <span class="kbx-fila">
+                        <button type="submit" class="kbx-btn kbx-btn-md"><i class="fas fa-check" aria-hidden="true"></i> Guardar y publicar</button>
+                        <button type="button" class="kbx-btn kbx-btn-fantasma kbx-btn-md" data-kbx-abrir="kbx-resp-{{ loop.index }}">Cancelar</button>
+                    </span>
                 </form>
             </li>
             {% endfor %}
@@ -175,34 +243,63 @@
         {% endif %}
     </section>
 
+    <!-- Respuestas que no le sirvieron al visitante («No») -->
+    <section class="kbx-card" aria-labelledby="kbx-calif">
+        <h2 id="kbx-calif"><i class="fas fa-thumbs-up" aria-hidden="true"></i> ¿Les sirvió la respuesta?
+            <span class="kbx-sub">últimos 30 días:
+                <i class="fas fa-thumbs-up" aria-hidden="true"></i> {{ calificacion.utiles }} sí ·
+                <i class="fas fa-thumbs-down" aria-hidden="true"></i> {{ calificacion.no_utiles }} no{% if calificacion.porcentaje is not none %} · {{ calificacion.porcentaje }} % útiles{% endif %}</span></h2>
+        {% if no_sirvieron %}
+        <p class="kbx-meta" style="margin-top:0;">Respuestas que el visitante marcó con «No me sirvió». Corrígelas con una pregunta frecuente.</p>
+        <ul class="kbx-lista">
+            {% for c in no_sirvieron %}
+            <li>
+                <div style="flex:1;min-width:220px;">
+                    <div><b>{{ c.pregunta }}</b></div>
+                    <div class="kbx-meta">Respondió: «{{ (c.respuesta or '')[:160] }}{% if (c.respuesta or '')|length > 160 %}…{% endif %}» · {{ c.creado_en.strftime('%Y-%m-%d %H:%M') }}</div>
+                </div>
+                <div class="kbx-fila">
+                    <a class="kbx-btn kbx-btn-secundario" href="{{ url_for('admin_chat_publico.faq_crear', pregunta=c.pregunta) }}">
+                        <i class="fas fa-reply" aria-hidden="true"></i> Responder</a>
+                    <form method="POST" action="{{ url_for('admin_chat_publico.conocimiento_descartar') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="pregunta" value="{{ c.pregunta }}">
+                        <button type="submit" class="kbx-btn kbx-btn-fantasma">Descartar</button>
+                    </form>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="kbx-vacio">Ninguna respuesta por corregir. Los visitantes califican cada respuesta del chat con «Sí» o «No».</p>
+        {% endif %}
+    </section>
+
     <!-- 4. Preguntas frecuentes -->
     <section class="kbx-card" aria-labelledby="kbx-faq">
         <h2 id="kbx-faq"><i class="fas fa-question-circle" aria-hidden="true"></i> Preguntas frecuentes
             <span class="kbx-sub">{{ faqs|length }} en total</span></h2>
         <div class="kbx-fila" style="margin-bottom:8px;">
-            <a href="{{ url_for('admin_chat_publico.faq_crear') }}" class="kbx-btn"><i class="fas fa-plus" aria-hidden="true"></i> Nueva</a>
-            <a href="{{ url_for('admin_chat_publico.faq_lista') }}" class="kbx-btn kbx-btn-outline">Ver todas</a>
+            <a href="{{ url_for('admin_chat_publico.faq_crear') }}" class="kbx-btn kbx-btn-secundario"><i class="fas fa-plus" aria-hidden="true"></i> Nueva pregunta</a>
+            <a href="{{ url_for('admin_chat_publico.faq_lista') }}" class="kbx-btn kbx-btn-fantasma">Ver todas</a>
             {% if ve_documentos %}
-            <a href="{{ url_for('ia.documentos') }}" class="kbx-btn kbx-btn-outline"><i class="fas fa-file-alt" aria-hidden="true"></i> Documentos internos</a>
+            <a href="{{ url_for('ia.documentos') }}" class="kbx-btn kbx-btn-fantasma"><i class="fas fa-file-alt" aria-hidden="true"></i> Documentos internos</a>
             {% endif %}
         </div>
         <ul class="kbx-lista">
             {% for f in faqs[:8] %}
             <li>
-                <span>{{ f.title }} {% if not f.is_active %}<span class="kbx-meta">(no publicada)</span>{% endif %}</span>
-                <span class="kbx-fila">
-                    <a href="{{ url_for('admin_chat_publico.faq_editar', item_id=f.id) }}" class="kbx-btn kbx-btn-suave" aria-label="Editar {{ f.title }}"><i class="fas fa-edit" aria-hidden="true"></i></a>
+                <span class="kbx-fila" style="gap:8px;">{{ f.title }}
+                    <span class="kbx-estado {{ 'publicada' if f.is_active else 'oculta' }}">{{ 'Publicada' if f.is_active else 'Oculta' }}</span></span>
+                <span class="kbx-fila" style="gap:4px;">
+                    <a href="{{ url_for('admin_chat_publico.faq_editar', item_id=f.id) }}" class="kbx-btn kbx-btn-fantasma">
+                        <i class="fas fa-pen" aria-hidden="true"></i> Editar<span class="a11y-oculto"> «{{ f.title }}»</span></a>
                     <form method="POST" action="{{ url_for('admin_chat_publico.faq_toggle', item_id=f.id) }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="volver" value="conocimiento">
-                        <button type="submit" class="kbx-btn kbx-btn-suave" aria-label="{% if f.is_active %}Despublicar{% else %}Publicar{% endif %} {{ f.title }}">
-                            <i class="fas fa-{% if f.is_active %}eye-slash{% else %}eye{% endif %}" aria-hidden="true"></i></button>
-                    </form>
-                    <form method="POST" action="{{ url_for('admin_chat_publico.faq_eliminar', item_id=f.id) }}"
-                          onsubmit="return confirm('¿Eliminar esta pregunta frecuente? Podrás restaurarla desde el historial.')">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="volver" value="conocimiento">
-                        <button type="submit" class="kbx-btn kbx-btn-peligro" aria-label="Eliminar {{ f.title }}"><i class="fas fa-trash" aria-hidden="true"></i></button>
+                        <button type="submit" class="kbx-btn kbx-btn-fantasma">
+                            <i class="fas fa-{% if f.is_active %}eye-slash{% else %}eye{% endif %}" aria-hidden="true"></i>
+                            {% if f.is_active %}Ocultar{% else %}Publicar{% endif %}<span class="a11y-oculto"> «{{ f.title }}»</span></button>
                     </form>
                 </span>
             </li>
@@ -210,6 +307,30 @@
             <li class="kbx-vacio">Aún no hay preguntas frecuentes.</li>
             {% endfor %}
         </ul>
+        <p class="kbx-meta" style="margin:8px 0 0;">«Eliminar» está dentro de «Editar», con confirmación: un clic de más ya no borra nada. Y si pasa, se recupera desde el historial.</p>
+    </section>
+
+    <!-- Sinónimos de esta tienda -->
+    <section class="kbx-card" aria-labelledby="kbx-sinonimos" id="kbx-sinonimos">
+        <h2 id="kbx-sinonimos-t"><i class="fas fa-exchange-alt" aria-hidden="true"></i> Palabras que significan lo mismo
+            <span class="kbx-sub">cómo hablan tus clientes</span></h2>
+        <p class="kbx-meta" style="margin-top:0;">Si tus clientes dicen «pola» y tú escribiste «cerveza», el chat no lo
+            relaciona solo. Escribe una línea por palabra: <code>palabra = lo que significa</code>. Solo se usan en tu tienda.</p>
+        <form method="POST" action="{{ url_for('admin_chat_publico.conocimiento_sinonimos') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label for="sinonimos" class="a11y-oculto">Sinónimos de tu tienda</label>
+            <textarea id="sinonimos" name="sinonimos" rows="5" class="kbx-input" style="width:100%;box-sizing:border-box;font-family:monospace;"
+                      placeholder="pola = cerveza&#10;almuerzo = menu corrientazo ejecutivo&#10;domi = domicilio envio">{{ sinonimos_texto }}</textarea>
+            <div class="kbx-fila" style="margin-top:8px;">
+                <button type="submit" class="kbx-btn kbx-btn-md"><i class="fas fa-check" aria-hidden="true"></i> Guardar sinónimos</button>
+                <span class="kbx-meta">Cada cambio queda en el historial y se puede deshacer.</span>
+            </div>
+        </form>
+        <details class="kbx-cambio" style="margin-top:10px;">
+            <summary>Ver los que ya vienen incluidos para todas las tiendas ({{ sinonimos_comunes|length }})</summary>
+            <pre>{% for k, v in sinonimos_comunes|dictsort %}{{ k }} = {{ v }}
+{% endfor %}</pre>
+        </details>
     </section>
 
     <!-- 5. Historial -->
@@ -227,17 +348,17 @@
                 <td>
                     <span class="kbx-accion {{ h.accion }}">{{ ACCIONES.get(h.accion, h.accion) }}</span>
                     <span class="kbx-meta">{{ TIPOS.get(h.tipo, h.tipo) }}</span><br>
-                    {{ h.titulo }}{% if h.origen == 'historial' %} <span class="kbx-meta">(desde el historial)</span>{% endif %}
+                    {{ h.titulo }}{% if h.origen == 'historial' %} <span class="kbx-meta">(desde el historial)</span>{% elif h.origen == 'asistente' %} <span class="kbx-meta">(por chat con el asistente)</span>{% elif h.origen == 'archivo' %} <span class="kbx-meta">(desde un archivo)</span>{% endif %}
                     {% if h.antes or h.despues %}
                     <details class="kbx-cambio">
                         <summary>Ver el cambio</summary>
                         {% if h.antes %}<div class="kbx-meta">Antes</div>
                         <pre>{% if h.tipo == 'faq' %}{{ h.antes.title }}
-{{ h.antes.description }}{% elif h.tipo == 'documento' %}{{ h.antes.titulo }}{% if h.antes.texto %}
+{{ h.antes.description }}{% elif h.tipo == 'sinonimos' %}{{ h.antes.texto or '(vacío)' }}{% elif h.tipo == 'documento' %}{{ h.antes.titulo }}{% if h.antes.texto %}
 {{ h.antes.texto[:1500] }}{% endif %}{% endif %}</pre>{% endif %}
                         {% if h.despues %}<div class="kbx-meta">Después</div>
                         <pre>{% if h.tipo == 'faq' %}{{ h.despues.title }}
-{{ h.despues.description }}{% elif h.tipo == 'documento' %}{{ h.despues.titulo }}{% if h.despues.texto %}
+{{ h.despues.description }}{% elif h.tipo == 'sinonimos' %}{{ h.despues.texto or '(vacío)' }}{% elif h.tipo == 'documento' %}{{ h.despues.titulo }}{% if h.despues.texto %}
 {{ h.despues.texto[:1500] }}{% endif %}{% else %}{{ h.despues.faq or '' }}{% endif %}</pre>{% endif %}
                     </details>
                     {% endif %}
@@ -247,7 +368,7 @@
                     <form method="POST" action="{{ url_for('admin_chat_publico.conocimiento_restaurar', log_id=h.id) }}"
                           onsubmit="return confirm('¿Deshacer este cambio?')">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="kbx-btn kbx-btn-outline"><i class="fas fa-undo" aria-hidden="true"></i> Restaurar</button>
+                        <button type="submit" class="kbx-btn kbx-btn-secundario"><i class="fas fa-undo" aria-hidden="true"></i> Restaurar</button>
                     </form>
                     {% endif %}
                 </td>
@@ -264,11 +385,16 @@
 <script>
 document.querySelectorAll('[data-kbx-abrir]').forEach(function (b) {
     b.addEventListener('click', function () {
-        var f = document.getElementById(b.getAttribute('data-kbx-abrir'));
+        var id = b.getAttribute('data-kbx-abrir');
+        var f = document.getElementById(id);
         if (!f) return;
         f.classList.toggle('abierto');
-        b.setAttribute('aria-expanded', f.classList.contains('abierto') ? 'true' : 'false');
-        if (f.classList.contains('abierto')) { var t = f.querySelector('textarea'); if (t) t.focus(); }
+        var abierto = f.classList.contains('abierto');
+        document.querySelectorAll('[aria-controls="' + id + '"]').forEach(function (r) {
+            r.setAttribute('aria-expanded', abierto ? 'true' : 'false');
+            if (!abierto) r.focus();
+        });
+        if (abierto) { var t = f.querySelector('textarea'); if (t) t.focus(); }
     });
 });
 </script>

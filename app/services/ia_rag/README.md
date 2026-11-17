@@ -34,6 +34,23 @@ dos mitades que nunca se mezclan:
   Pantalla: `/admin/chat-publico/conocimiento` (ADMIN_STAFF; los documentos
   internos y su historial solo para ADMIN_FULL con el módulo ai_assistant).
 
+- `sinonimos.py` (1.9.23.0) — palabras propias de cada tienda («pola =
+  cerveza») en `cliente_config.ia_sinonimos`; `buscar.expandir()` las suma a
+  las comunes. Con bitácora y «Restaurar».
+- `importar.py` (1.9.23.0) — texto de un PDF (pypdf), Word .docx (stdlib) o
+  .txt para el formulario de documentos internos; no guarda nada solo.
+- `conocimiento.faqs_para_revisar()` / `faqs_parecidas()` (1.9.23.0) — avisos
+  de FAQ viejas (≥180 días), con años pasados o precios, y casi repetidas;
+  «Sigue vigente» = acción `revisar` en la bitácora.
+
+Relacionados fuera de esta carpeta (1.9.23.0):
+- `services/ia_acciones_conocimiento.py` — el asistente crea, cambia,
+  despublica y publica FAQ por chat, con confirmación, SIN modelo (texto
+  literal) y con la bitácora en la misma transacción (origen `asistente`).
+- `services/chat_publico/calificaciones.py` — 👍/👎 en el chat del sitio
+  (tabla `ia_calificaciones`, migración 0029): token firmado por tienda, un
+  voto por respuesta; solo el 👎 guarda pregunta y respuesta (90 días).
+
 Los documentos internos los consulta la capacidad `documentos_internos`
 (`services/ia_datos/`), declarada **solo local**: ni el puente de arranque en
 frío ni el respaldo en la nube los reciben.

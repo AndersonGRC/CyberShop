@@ -15,7 +15,8 @@ from services.ia_rag import bitacora
 _CAMPOS_FAQ = ('title', 'subtitle', 'description', 'extra_text', 'sort_order', 'is_active',
                'image_url', 'cta_label', 'cta_url')
 RESTAURABLES = {('faq', 'eliminar'), ('faq', 'editar'),
-                ('documento', 'editar'), ('documento', 'archivar')}
+                ('documento', 'editar'), ('documento', 'archivar'),
+                ('sinonimos', 'editar'), ('sinonimos', 'restaurar')}
 
 
 def puede_restaurar(fila):
@@ -114,6 +115,10 @@ def restaurar(log_id):
     if not fila or not puede_restaurar(fila):
         return False, 'Ese cambio no se puede deshacer.', None, None
     antes = fila['antes']
+    if fila['tipo'] == 'sinonimos':
+        from services.ia_rag import sinonimos
+        sinonimos.guardar(antes.get('texto') or '', origen='historial', accion='restaurar')
+        return True, 'Sinónimos devueltos a como estaban.', 'sinonimos', None
     if fila['tipo'] == 'faq':
         actual = faq_obtener(fila['objeto_id'])
         datos = {k: antes.get(k) for k in _CAMPOS_FAQ if k != 'image_url'}
@@ -183,3 +188,95 @@ def probar(pregunta, rol_id=None, con_internos=False):
         from services.ia_rag.internos import buscar_para_rol
         resultado['internos'] = buscar_para_rol(texto, rol_id, limite=3)
     return resultado
+
+
+# ── Preguntas frecuentes para revisar ───────────────────────────
+import re as _re
+from datetime import date as _date
+from difflib import SequenceMatcher as _Parecido
+
+DIAS_SIN_REVISAR = 180
+_RE_PRECIO = _re.compile(r'\$\s?\d|\b\d{1,3}(?:[.,]\d{3})+\b|\b(?:precio|valor|cuesta|cuestan|'
+                         r'promocion|descuento|tarifa)\w*', _re.I)
+_RE_ANIO = _re.compile(r'\b(20\d\d)\b')
+
+
+def _plano(texto):
+    from services.ia.texto import normalizar
+    return ' '.join(_re.sub(r'[^a-z0-9ñ ]+', ' ', normalizar(texto or '')).split())
+
+
+def faqs_para_revisar(dias=DIAS_SIN_REVISAR, hoy=None):
+    """Preguntas frecuentes publicadas que conviene revisar, con el motivo:
+    mucho tiempo sin cambios, un año que ya pasó o precios (que cambian)."""
+    hoy = hoy or _date.today()
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT to_regclass('public.public_site_items') AS t")
+            if cur.fetchone()['t'] is None:
+                return []
+            cur.execute("""SELECT id, title, COALESCE(description, '') AS description, updated_at,
+                                  (NOW()::date - updated_at::date) AS edad
+                           FROM public_site_items WHERE item_type = 'faq' AND is_active
+                           ORDER BY updated_at ASC""")
+            filas = [dict(f) for f in cur.fetchall()]
+    except Exception:  # noqa: BLE001
+        return []
+    salida = []
+    for f in filas:
+        texto = f"{f['title']} {f['description']}"
+        motivos = []
+        edad = int(f['edad'] or 0)
+        if edad >= dias:
+            motivos.append(f'Lleva {edad // 30} meses sin revisarse.')
+        pasados = sorted({a for a in _RE_ANIO.findall(texto) if int(a) < hoy.year})
+        if pasados:
+            motivos.append(f"Menciona {', '.join(pasados)}, que ya pasó.")
+        if _RE_PRECIO.search(_plano(texto) + ' ' + texto) and edad >= 90:
+            motivos.append('Menciona precios o promociones: confirma que sigan iguales.')
+        if motivos:
+            salida.append({'id': f['id'], 'title': f['title'], 'description': f['description'],
+                           'edad': edad, 'motivos': motivos})
+    return salida
+
+
+def faqs_parecidas(minimo=0.85):
+    """Pares de preguntas frecuentes casi iguales (el chat puede dar dos
+    respuestas distintas a lo mismo)."""
+    try:
+        with get_db_cursor(dict_cursor=True) as cur:
+            cur.execute("SELECT to_regclass('public.public_site_items') AS t")
+            if cur.fetchone()['t'] is None:
+                return []
+            cur.execute("""SELECT id, title, is_active FROM public_site_items
+                           WHERE item_type = 'faq' ORDER BY id LIMIT 400""")
+            filas = [dict(f) for f in cur.fetchall()]
+    except Exception:  # noqa: BLE001
+        return []
+    from services.ia.texto import palabras
+    # Palabras con contenido (sin «de», «la», «a»… y en singular): «¿Hacen
+    # domicilios?» y «¿Hacen domicilios a la casa?» comparten todo lo que importa.
+    planos = [(_plano(f['title']), set(palabras(f['title'])), f) for f in filas]
+    pares = []
+    for i, (a, pa, fa) in enumerate(planos):
+        for b, pb, fb in planos[i + 1:]:
+            if not a or not b:
+                continue
+            comun = pa & pb
+            jaccard = len(comun) / len(pa | pb) if pa | pb else 0
+            contenida = len(comun) >= 2 and comun == min(pa, pb, key=len)
+            if a == b or contenida or jaccard >= 0.75 or _Parecido(None, a, b).ratio() >= minimo:
+                pares.append((fa, fb))
+    return pares[:30]
+
+
+def faq_sigue_vigente(item_id, origen='panel'):
+    """La revisó y sigue bien: se anota y deja de aparecer para revisar."""
+    antes = faq_obtener(item_id)
+    if not antes:
+        return False
+    with get_db_cursor() as cur:
+        cur.execute("""UPDATE public_site_items SET updated_at = CURRENT_TIMESTAMP
+                       WHERE id = %s AND item_type = 'faq'""", (item_id,))
+    bitacora.registrar('faq', 'revisar', item_id, antes['title'], None, None, origen)
+    return True

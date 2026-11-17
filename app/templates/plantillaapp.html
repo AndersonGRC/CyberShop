@@ -36,7 +36,7 @@
         .btn-instalar-app .bia-largo { display:none; } }
     </style>
     {% endif %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/Menuapp.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/Menuapp.css') }}?v={{ config.APP_VERSION }}">
     {# Accesibilidad (foco con teclado, saltar al contenido, menos movimiento). Con
        mouse no cambia nada. Dirección escrita y ?v= por la caché de Cloudflare. #}
     <link rel="stylesheet" href="/static/css/accesibilidad.css?v={{ config.APP_VERSION }}">

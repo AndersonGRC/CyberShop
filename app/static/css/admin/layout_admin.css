@@ -134,9 +134,11 @@ header {
     border-color: var(--color-warning-hover) !important;
 }
 
+/* 1.9.24.0: el celeste con letra blanca no se leia (3:1). Tono oscuro: 8:1. */
 .btn-info {
-    background-color: var(--color-info) !important;
-    border-color: var(--color-info) !important;
+    background-color: var(--color-info-texto) !important;
+    border-color: var(--color-info-texto) !important;
+    color: var(--color-blanco) !important;
 }
 
 .btn-info:hover,

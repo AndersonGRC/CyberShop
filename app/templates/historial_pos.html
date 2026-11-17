@@ -626,10 +626,12 @@
                 .then(function(data) {
                     if (data.success) {
                         var msg = 'Nota de crédito: ' + data.numero_nota;
-                        if (data.advertencia_dian) {
-                            msg += '\n\n⚠️ Recuerda gestionar la nota crédito ante la DIAN por separado.';
+                        if (data.fe_mensaje) {
+                            msg += '\n\n' + data.fe_mensaje;
+                        } else if (data.advertencia_dian) {
+                            msg += '\n\nRecuerda gestionar la nota crédito ante la DIAN por separado.';
                         }
-                        Swal.fire('Venta Anulada', msg, 'success')
+                        Swal.fire('Venta Anulada', msg, data.advertencia_dian ? 'warning' : 'success')
                             .then(function() { location.reload(); });
                     } else {
                         Swal.fire('Error', data.error, 'error');

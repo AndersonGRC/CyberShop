@@ -9,7 +9,7 @@
     integrity="sha384-B0vP5xmATw1+K9KRQjQERJvTumQW0nPEzvF6L/Z6nronJ3oUOFUFpCjEUQouq2+l" crossorigin="anonymous">
 <!-- Custom styles for this template -->
 <!-- Custom styles for this template -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/layout_admin.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/layout_admin.css') }}?v={{ config.APP_VERSION }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/responsive_tables.css') }}">
 {% endblock %}
 

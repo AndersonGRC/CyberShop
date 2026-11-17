@@ -1,135 +1,96 @@
-{% extends "admin/layout_admin.html" %}
+{% extends "crm_base.html" %}
+{# Lista de contactos (diseño CYBERSHOP Design System). Tolera código anterior:
+   `conteos`, `q` y `crm_active` pueden no venir. #}
+{% set crm_active = crm_active|default('contactos') %}
+{% set crm_active_label = crm_active_label|default('Contactos') %}
+{% set _conteos = conteos|default({}) %}
+{% set _q = q|default('') %}
+{% set tipo_nombre = {'cliente': 'Cliente', 'proveedor': 'Proveedor', 'lead': 'Interesado', 'socio': 'Socio'} %}
+{% set filtros = [('', 'Todos', total_contactos|default(none)), ('cliente', 'Clientes', _conteos.get('cliente')),
+                  ('proveedor', 'Proveedores', _conteos.get('proveedor')), ('lead', 'Interesados', _conteos.get('lead')),
+                  ('socio', 'Socios', _conteos.get('socio'))] %}
 
-{% block title %}CRM — Contactos{% endblock %}
+{% block titulo %}CRM · Contactos{% endblock %}
 
-{% block LinkAdicional %}
-{{ super() }}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/crm/crm_contactos.css') }}">
-{% endblock %}
-
-{% block content %}
-<div class="container-fluid">
-    <!-- Encabezado -->
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <h1 class="h3 mb-0 text-gray-800">Contactos CRM</h1>
-        <a href="{{ url_for('crm.crm_contacto_crear') }}" class="btn btn-sm btn-primary shadow-sm">
-            <i class="fas fa-plus fa-sm text-white-50"></i> Nuevo Contacto
-        </a>
+{% block crm_content %}
+<div class="crm-page-head">
+    <div>
+        <h1 class="crm-h1">Contactos</h1>
+        <p class="crm-sub">{{ contactos|length }} contacto{{ 's' if contactos|length != 1 else '' }}{% if _q %} con «{{ _q }}»{% endif %}. Busca por nombre, empresa, teléfono o correo.</p>
     </div>
+    <a href="{{ url_for('crm.crm_contacto_crear') }}" class="crm-btn crm-btn-primary"><i class="fas fa-plus" aria-hidden="true"></i> Nuevo contacto</a>
+</div>
 
-    <!-- Filtros pill -->
-    <div class="crm-filtros mb-3">
-        <a href="{{ url_for('crm.crm_contactos_lista') }}"
-           class="btn-filtro {% if not tipo_filtro %}active{% endif %}">
-            Todos
-        </a>
-        <a href="{{ url_for('crm.crm_contactos_lista', tipo='cliente') }}"
-           class="btn-filtro {% if tipo_filtro == 'cliente' %}active{% endif %}">
-            Clientes
-        </a>
-        <a href="{{ url_for('crm.crm_contactos_lista', tipo='proveedor') }}"
-           class="btn-filtro {% if tipo_filtro == 'proveedor' %}active{% endif %}">
-            Proveedores
-        </a>
-        <a href="{{ url_for('crm.crm_contactos_lista', tipo='lead') }}"
-           class="btn-filtro {% if tipo_filtro == 'lead' %}active{% endif %}">
-            Leads
-        </a>
-        <a href="{{ url_for('crm.crm_contactos_lista', tipo='socio') }}"
-           class="btn-filtro {% if tipo_filtro == 'socio' %}active{% endif %}">
-            Socios
-        </a>
+<div class="crm-barra">
+    <form class="crm-buscar" method="get" action="{{ url_for('crm.crm_contactos_lista') }}" role="search">
+        {% if tipo_filtro %}<input type="hidden" name="tipo" value="{{ tipo_filtro }}">{% endif %}
+        <i class="fas fa-search" aria-hidden="true"></i>
+        <input type="search" name="q" value="{{ _q }}" placeholder="Buscar contacto" aria-label="Buscar contacto" autocomplete="off">
+        <button type="submit" class="crm-btn crm-btn-sec crm-btn-sm">Buscar</button>
+    </form>
+    <nav class="crm-chips" aria-label="Filtrar por tipo">
+        {% for clave, nombre, n in filtros %}
+        <a href="{{ url_for('crm.crm_contactos_lista', tipo=clave or none, q=_q or none) }}"
+           class="crm-chip {{ 'is-on' if (tipo_filtro or '') == clave }}"
+           {% if (tipo_filtro or '') == clave %}aria-current="page"{% endif %}>{{ nombre }}{% if n is not none %} <span class="crm-chip-n">{{ n }}</span>{% endif %}</a>
+        {% endfor %}
+    </nav>
+</div>
+
+<div class="clist">
+    <div class="clist-head" aria-hidden="true">
+        <span>Contacto</span><span>Tipo</span><span>Teléfono y correo</span><span>Ciudad</span><span>Acciones</span>
     </div>
-
-    <!-- Tabla -->
-    <div class="card shadow mb-4">
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-bordered crm-tabla nm-cards" width="100%" cellspacing="0">
-                    <thead>
-                        <tr>
-                            <th class="crm-th-avatar"></th>
-                            <th>Nombre</th>
-                            <th class="col-empresa d-none d-md-table-cell">Empresa</th>
-                            <th>Tipo</th>
-                            <th class="col-email d-none d-lg-table-cell">Email</th>
-                            <th class="col-telefono d-none d-md-table-cell">Teléfono</th>
-                            <th class="col-ciudad d-none d-lg-table-cell">Ciudad</th>
-                            <th class="col-acciones">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for c in contactos %}
-                        <tr>
-                            <td>
-                                {% if c.foto_path %}
-                                <img src="{{ url_for('static', filename=c.foto_path) }}"
-                                     class="crm-avatar" alt="Foto">
-                                {% else %}
-                                <span class="crm-avatar crm-avatar-inicial d-inline-flex align-items-center justify-content-center
-                                             bg-secondary text-white">
-                                    {{ c.nombre[0]|upper }}
-                                </span>
-                                {% endif %}
-                            </td>
-                            <td data-label="Nombre">
-                                <a href="{{ url_for('crm.crm_contacto_ver', id=c.id) }}"
-                                   class="font-weight-bold text-dark">{{ c.nombre }}</a>
-                            </td>
-                            <td class="col-empresa d-none d-md-table-cell" data-label="Empresa">{{ c.empresa or '—' }}</td>
-                            <td data-label="Tipo">
-                                <span class="badge badge-crm-{{ c.tipo }}">{{ c.tipo|capitalize }}</span>
-                            </td>
-                            <td class="col-email d-none d-lg-table-cell" data-label="Email">{{ c.email or '—' }}</td>
-                            <td class="col-telefono d-none d-md-table-cell" data-label="Teléfono">{{ c.telefono or '—' }}</td>
-                            <td class="col-ciudad d-none d-lg-table-cell" data-label="Ciudad">{{ c.ciudad or '—' }}</td>
-                            <td class="col-acciones" data-label="Acciones">
-                                <a href="{{ url_for('crm.crm_contacto_ver', id=c.id) }}"
-                                   class="btn btn-sm btn-info" title="Ver"><i class="fas fa-eye"></i></a>
-                                <a href="{{ url_for('crm.crm_contacto_editar', id=c.id) }}"
-                                   class="btn btn-sm btn-warning" title="Editar"><i class="fas fa-edit"></i></a>
-                                <button class="btn btn-sm btn-danger"
-                                        title="Eliminar"
-                                        onclick="confirmarEliminar({{ c.id }}, '{{ c.nombre|e }}')">
-                                    <i class="fas fa-trash-alt"></i>
-                                </button>
-                                <form id="form-eliminar-{{ c.id }}"
-                                      action="{{ url_for('crm.crm_contacto_eliminar', id=c.id) }}"
-                                      method="POST" class="d-none"></form>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="8" class="text-center text-muted py-4">
-                                No hay contactos registrados.
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+    {% for c in contactos %}
+    <article class="crow">
+        <div class="crow-main">
+            {% if c.foto_path %}
+            <img src="{{ url_for('static', filename=c.foto_path) }}" class="crow-avatar" alt="">
+            {% else %}
+            <span class="crow-avatar" aria-hidden="true">{{ c.nombre[0]|upper }}</span>
+            {% endif %}
+            <div class="crow-quien">
+                <a href="{{ url_for('crm.crm_contacto_ver', id=c.id) }}" class="crow-nombre">{{ c.nombre }}</a>
+                {% if c.empresa %}<span class="crow-sub">{{ c.empresa }}</span>{% endif %}
             </div>
         </div>
+        <div class="crow-tipo"><span class="tbadge t-{{ c.tipo }}">{{ tipo_nombre.get(c.tipo, c.tipo|capitalize) }}</span></div>
+        <div class="crow-dato">
+            <span>{{ c.telefono or 'Sin teléfono' }}</span>
+            {% if c.email %}<span class="crow-sub crow-email">{{ c.email }}</span>{% endif %}
+        </div>
+        <div class="crow-dato crow-ciudad">{{ c.ciudad or '—' }}</div>
+        <div class="crow-acc">
+            {% if c.telefono %}<a href="tel:{{ c.telefono|replace(' ', '') }}" class="crm-btn crm-btn-sec crm-btn-sm solo-movil"><i class="fas fa-phone" aria-hidden="true"></i> Llamar</a>{% endif %}
+            <a href="{{ url_for('crm.crm_contacto_ver', id=c.id) }}" class="crm-btn crm-btn-sec crm-btn-sm crow-ver">Ver</a>
+            <a href="{{ url_for('crm.crm_contacto_editar', id=c.id) }}" class="crm-btn crm-btn-ghost crm-btn-sm">Editar</a>
+            <button type="button" class="crm-btn crm-btn-danger crm-btn-sm no-movil js-eliminar"
+                    data-form="form-eliminar-{{ c.id }}" data-nombre="{{ c.nombre }}">Eliminar</button>
+            <form id="form-eliminar-{{ c.id }}" action="{{ url_for('crm.crm_contacto_eliminar', id=c.id) }}" method="POST" hidden>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            </form>
+        </div>
+    </article>
+    {% else %}
+    <div class="empty">
+        {% if _q or tipo_filtro %}No hay contactos con ese filtro. <a href="{{ url_for('crm.crm_contactos_lista') }}" class="crm-link">Ver todos</a>
+        {% else %}Aún no hay contactos. Crea el primero con «Nuevo contacto».{% endif %}
     </div>
+    {% endfor %}
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block crm_scripts %}
 <script>
-function confirmarEliminar(id, nombre) {
-    Swal.fire({
-        title: '¿Eliminar contacto?',
-        text: `"${nombre}" será desactivado del sistema.`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#dc3545',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Sí, eliminar',
-        cancelButtonText: 'Cancelar'
-    }).then(result => {
-        if (result.isConfirmed) {
-            document.getElementById('form-eliminar-' + id).submit();
-        }
+document.querySelectorAll('.js-eliminar').forEach(function (b) {
+    b.addEventListener('click', function () {
+        var form = document.getElementById(b.dataset.form);
+        var texto = '"' + b.dataset.nombre + '" será desactivado del sistema.';
+        if (!window.Swal) { if (confirm(texto)) form.submit(); return; }
+        Swal.fire({ title: '¿Eliminar contacto?', text: texto, icon: 'warning', showCancelButton: true,
+            confirmButtonColor: '#B42318', confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar'
+        }).then(function (r) { if (r.isConfirmed) form.submit(); });
     });
-}
+});
 </script>
 {% endblock %}

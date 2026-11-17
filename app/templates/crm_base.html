@@ -7,6 +7,8 @@
 
 {% block LinkAdicional %}
 {{ super() if super }}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/crm/crm_ui.css') }}?v={{ config.APP_VERSION }}">
 {% endblock %}
 
@@ -25,9 +27,9 @@
         </form>
     </div>
 
-    <nav class="crm-subnav">
+    <nav class="crm-subnav" aria-label="Secciones del CRM">
         <a href="{{ url_for('crm.crm_dashboard') }}"      class="{{ 'active' if crm_active == 'inicio' }}"><i class="fas fa-home"></i> Inicio</a>
-        <a href="{{ url_for('crm.pipeline') }}"           class="{{ 'active' if crm_active == 'pipeline' }}"><i class="fas fa-bullseye"></i> Pipeline</a>
+        <a href="{{ url_for('crm.pipeline') }}"           class="{{ 'active' if crm_active == 'pipeline' }}"><i class="fas fa-bullseye"></i> Embudo</a>
         <a href="{{ url_for('crm.crm_contactos_lista') }}" class="{{ 'active' if crm_active == 'contactos' }}"><i class="fas fa-address-book"></i> Contactos</a>
         <a href="{{ url_for('crm.crm_tareas_lista') }}"    class="{{ 'active' if crm_active == 'tareas' }}"><i class="fas fa-tasks"></i> Tareas</a>
     </nav>

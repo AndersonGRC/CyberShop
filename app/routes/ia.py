@@ -189,18 +189,54 @@ def documentos_guardar():
         return sin_modulo
     from services.ia_rag import internos
     doc_id = request.form.get('id', type=int)
+    origen = 'archivo' if request.form.get('origen') == 'archivo' else 'panel'
     valores = {'id': doc_id, 'titulo': request.form.get('titulo', ''),
                'texto': request.form.get('texto', ''),
-               'visibilidad': request.form.get('visibilidad', '')}
+               'visibilidad': request.form.get('visibilidad', ''), 'origen': origen}
     try:
         internos.guardar(valores['titulo'], valores['texto'], valores['visibilidad'],
-                         doc_id=doc_id, usuario_id=session.get('usuario_id'))
+                         doc_id=doc_id, usuario_id=session.get('usuario_id'), origen=origen)
     except ValueError as exc:
         # Se vuelve a mostrar lo escrito: un documento largo no se pierde por un error.
         flash(str(exc), 'error')
         return _pagina_documentos(editar=valores, status=400)
     flash('Documento guardado. El asistente ya puede consultarlo.', 'success')
     return redirect(url_for('ia.documentos'))
+
+
+@ia_bp.route('/documentos/importar', methods=['POST'])
+@rol_requerido(ADMIN_FULL)
+def documentos_importar():
+    """Lee un PDF, Word o texto y deja su contenido en el formulario para
+    revisarlo. No guarda nada: el dueño revisa y pulsa «Guardar documento»."""
+    sin_modulo = _sin_modulo_ia()
+    if sin_modulo:
+        return sin_modulo
+    from services.ia_rag import internos
+    from services.ia_rag.importar import MAX_BYTES, texto_de_archivo
+    archivo = request.files.get('archivo')
+    if not archivo or not archivo.filename:
+        flash('Elige un archivo PDF, Word (.docx) o de texto.', 'error')
+        return redirect(url_for('ia.documentos'))
+    try:
+        titulo, texto = texto_de_archivo(archivo.filename, archivo.read(MAX_BYTES + 1))
+    except ValueError as exc:
+        flash(str(exc), 'error')
+        return redirect(url_for('ia.documentos'))
+    except Exception as exc:  # noqa: BLE001
+        current_app.logger.warning(f'ia: no se pudo leer el documento subido ({exc})')
+        flash('No se pudo leer ese archivo. Prueba guardarlo como PDF o Word (.docx).', 'error')
+        return redirect(url_for('ia.documentos'))
+    if len(texto) > internos.MAX_TEXTO:
+        flash(f'El archivo tiene {len(texto):,} caracteres; se cargaron los primeros '
+              f'{internos.MAX_TEXTO:,}. Guarda el resto como otro documento.'.replace(',', '.'),
+              'warning')
+        texto = texto[:internos.MAX_TEXTO]
+    else:
+        flash('Texto cargado. Revísalo, elige quién puede consultarlo y pulsa «Guardar documento».',
+              'success')
+    return _pagina_documentos(editar={'titulo': titulo, 'texto': texto,
+                                      'visibilidad': 'administracion', 'origen': 'archivo'})
 
 
 @ia_bp.route('/documentos/<int:doc_id>/estado', methods=['POST'])

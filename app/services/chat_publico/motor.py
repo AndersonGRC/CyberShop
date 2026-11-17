@@ -1030,7 +1030,13 @@ def responder(pregunta, historial=None, redactar=True):
         'whatsapp': plan['config']['whatsapp'] if plan['escalar'] else None,
         'ms': int((time.time() - inicio) * 1000),
     }
-    _registrar(plan, motor_usado, salida['ms'])
+    consulta_id = _registrar(plan, motor_usado, salida['ms'])
+    # «¿Te sirvió?»: firmado con la BD de la tienda (services/chat_publico/calificaciones.py).
+    if consulta_id and plan['via'] not in (VIA_CORTESIA,):
+        from services.chat_publico.calificaciones import token
+        firmado = token(consulta_id, plan['pregunta'], salida.get('respuesta'), plan['via'])
+        if firmado:
+            salida['calificar'] = firmado
     return salida
 
 
@@ -1047,11 +1053,14 @@ def _registrar(plan, motor, ms):
             cur.execute(
                 """INSERT INTO ia_consultas (usuario_id, rol_id, canal, herramientas, ok, ms,
                                              pregunta_sin_herramienta, intencion, via, motor)
-                   VALUES (NULL, NULL, %s, %s, TRUE, %s, %s, %s, %s, %s)""",
+                   VALUES (NULL, NULL, %s, %s, TRUE, %s, %s, %s, %s, %s) RETURNING id""",
                 (canal, plan['herramientas'], ms, (sin_respuesta or None)[:200] if sin_respuesta else None,
                  plan['intencion'], plan['via'], motor))
+            fila = cur.fetchone()
+            return fila[0] if fila else None
     except Exception as exc:  # noqa: BLE001
         try:
             current_app.logger.warning(f'chat público: no se pudo registrar ({exc})')
         except Exception:
             pass
+    return None
